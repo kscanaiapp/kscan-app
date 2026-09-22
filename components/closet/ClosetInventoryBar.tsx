@@ -21,6 +21,8 @@ import {
   type ClosetSortId,
 } from '../../services/closet/closetInventory';
 
+const DEFAULT_ORIGIN_FILTERS: readonly ClosetOriginFilterId[] = ['all', 'direct_intake', 'recent_scan'];
+
 export interface ClosetInventoryBarProps {
   summary: ClosetInventorySummary;
   search: string;
@@ -29,6 +31,11 @@ export interface ClosetInventoryBarProps {
   onCategoryChange: (value: string | null) => void;
   origin: ClosetOriginFilterId;
   onOriginChange: (value: ClosetOriginFilterId) => void;
+  /**
+   * Origin chips to offer. Defaults to the three original filters, so a caller
+   * that does not pass it renders exactly what it always did.
+   */
+  originFilters?: readonly ClosetOriginFilterId[];
   sort: ClosetSortId;
   onSortChange: (value: ClosetSortId) => void;
   /** How many items the current query leaves visible. */
@@ -93,6 +100,7 @@ export function ClosetInventoryBar({
   onCategoryChange,
   origin,
   onOriginChange,
+  originFilters,
   sort,
   onSortChange,
   visibleItems,
@@ -172,7 +180,7 @@ export function ClosetInventoryBar({
         contentContainerStyle={styles.chipRow}
         testID="closet-origin-filters"
       >
-        {(Object.keys(CLOSET_ORIGIN_LABELS) as ClosetOriginFilterId[]).map((id) => (
+        {(originFilters ?? DEFAULT_ORIGIN_FILTERS).map((id) => (
           <Chip
             key={id}
             label={CLOSET_ORIGIN_LABELS[id]}

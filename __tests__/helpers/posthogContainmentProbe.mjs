@@ -130,12 +130,13 @@ if (core) {
   // The five bridged sinks, via their real emit functions — the path a
   // shipped feature actually takes.
   const rel = (p) => new URL(p, coreUrl).href;
-  const [closet, kplus, today, voice, vto] = await Promise.all([
+  const [closet, kplus, today, voice, vto, purchaseImport] = await Promise.all([
     import(rel('../../services/closetTelemetry.ts')),
     import(rel('../../services/kplus/kplusTelemetry.ts')),
     import(rel('../../services/todayWithElise/analytics.ts')),
     import(rel('../../services/voice/voiceTelemetry.ts')),
     import(rel('../../services/vto/vtoTelemetry.ts')),
+    import(rel('../../services/purchaseImport/purchaseImportTelemetry.ts')),
   ]);
 
   call(() => closet.emitClosetCandidateEvent('closet_candidate_created', { sourceType: 'camera' }));
@@ -143,6 +144,9 @@ if (core) {
   call(() => today.emitTodayWithEliseEvent('today_with_elise_impression', { priority: 'high' }));
   call(() => voice.emitVoiceEvent('voice_submit', { surface: 'scanner' }));
   call(() => vto.emitVtoEvent('vto_entry_tap', { origin: 'closet' }));
+  call(() =>
+    purchaseImport.emitPurchaseImportEvent('purchase_import_started', { inputTier: 'order_confirmation' }),
+  );
 }
 
 // Let any deferred/async flush land before reporting.

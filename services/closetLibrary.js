@@ -61,7 +61,17 @@ export const CLOSET_ITEM_SCHEMA_VERSION = 2;
 /** Highest schema version this build knows how to read. */
 export const CLOSET_ITEM_MAX_SUPPORTED_SCHEMA_VERSION = 2;
 
-export const CLOSET_ORIGINS = ['direct_intake', 'recent_scan'];
+/**
+ * `purchase_import` (Receipt & Purchase Intelligence V1) is an item the owner
+ * confirmed from an order confirmation or receipt they reviewed. It is the only
+ * origin that may be committed WITHOUT an image: a purchase line has no garment
+ * photo, and the receipt itself must never become Closet media. See
+ * createClosetItem and docs/receipt-intelligence/.
+ */
+export const CLOSET_ORIGINS = ['direct_intake', 'recent_scan', 'purchase_import'];
+
+/** The one origin allowed to commit without media. */
+export const CLOSET_MEDIA_OPTIONAL_ORIGIN = 'purchase_import';
 
 let closetMutationQueue = Promise.resolve();
 let closetItemCounter = 0;
@@ -162,6 +172,135 @@ function normalizeClosetTaxonomyValue(field, value) {
     : cleanText(value, max);
 }
 
+// ── Purchase provenance (Receipt & Purchase Intelligence V1) ───────────────
+
+/**
+ * PURCHASE PROVENANCE IS OWNERSHIP EVIDENCE, NOT COMMERCE.
+ *
+ * The commerce exclusion boundary below keeps Recent Scan offers, retailer
+ * links and live prices out of the Closet. A purchase record is a different
+ * thing: facts the owner confirmed about a garment they bought, from a document
+ * they reviewed. It carries no URL, no offer, no retailer payload and nothing
+ * that could route to checkout, and it lives in ONE nested, allowlisted object
+ * that exists only on `purchase_import` items. Top-level `price`, `currency`,
+ * `sku` and every commerce key stay forbidden exactly as before.
+ *
+ * NEVER STORED HERE (spec sections 23-24): the receipt image, OCR text, the
+ * printed source line, address, email, phone, any card data, loyalty, order or
+ * tracking numbers, and any provider request or response.
+ *
+ * Mirrors ClosetPurchaseProvenance in services/purchaseImport/
+ * purchaseImportContract.ts. It is restated rather than imported because this
+ * store's import set is pinned by the render harnesses.
+ */
+const CLOSET_PURCHASE_PROVENANCE_STATES = Object.freeze([
+  'RECEIPT_EXPLICIT',
+  'KSCAN_VERIFIED_PRODUCT',
+  'MODEL_NORMALIZED',
+  'USER_CONFIRMED',
+  'UNKNOWN',
+]);
+
+export const CLOSET_PURCHASE_PROVENANCE_FIELDS = Object.freeze([
+  'title',
+  'brand',
+  'category',
+  'subtype',
+  'primaryColor',
+  'material',
+  'size',
+  'pricePaid',
+  'currency',
+  'merchant',
+  'purchaseDate',
+  'sku',
+  'gtin',
+  'retailerProductRef',
+  'returnDeadline',
+]);
+
+const CLOSET_PURCHASE_INPUT_TIERS = Object.freeze([
+  'order_confirmation',
+  'digital_receipt',
+  'paper_receipt',
+]);
+
+function purchaseIsoDate(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (
+    date.getUTCFullYear() !== Number(match[1]) ||
+    date.getUTCMonth() !== Number(match[2]) - 1 ||
+    date.getUTCDate() !== Number(match[3])
+  ) {
+    return null;
+  }
+  return value.trim();
+}
+
+function purchaseIdentifier(value, max) {
+  const text = cleanText(value, max);
+  if (!text) return null;
+  return /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(text) && !/:\/\//.test(text) ? text : null;
+}
+
+/**
+ * Allowlisted, bounded purchase provenance, or null.
+ *
+ * Only a `purchase_import` item may carry one. Anything else, including a
+ * provenance object pasted onto a direct-intake draft, resolves to null.
+ * `pricePaid` and `currency` are kept together or not at all: an amount
+ * without a known currency is not a price (BLOCK-RPI-29).
+ */
+export function normalizeClosetPurchaseProvenance(value, origin) {
+  if (origin !== CLOSET_MEDIA_OPTIONAL_ORIGIN) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (value.source !== 'purchase_import') return null;
+
+  const price =
+    typeof value.pricePaid === 'number' &&
+    Number.isFinite(value.pricePaid) &&
+    value.pricePaid > 0 &&
+    value.pricePaid < 1_000_000
+      ? Math.round(value.pricePaid * 100) / 100
+      : null;
+  const currency =
+    typeof value.currency === 'string' && /^[A-Z]{3}$/.test(value.currency) ? value.currency : null;
+  const priced = price !== null && currency !== null;
+
+  const returnDeadline = purchaseIsoDate(value.returnDeadline);
+
+  const fieldProvenance = {};
+  if (value.fieldProvenance && typeof value.fieldProvenance === 'object') {
+    for (const key of CLOSET_PURCHASE_PROVENANCE_FIELDS) {
+      const state = value.fieldProvenance[key];
+      if (CLOSET_PURCHASE_PROVENANCE_STATES.includes(state)) fieldProvenance[key] = state;
+    }
+  }
+  if (!priced) {
+    delete fieldProvenance.pricePaid;
+    delete fieldProvenance.currency;
+  }
+
+  return {
+    source: 'purchase_import',
+    contractVersion: value.contractVersion === 'purchase-import-v1' ? 'purchase-import-v1' : null,
+    inputTier: CLOSET_PURCHASE_INPUT_TIERS.includes(value.inputTier) ? value.inputTier : null,
+    merchant: cleanText(value.merchant, 120),
+    purchaseDate: purchaseIsoDate(value.purchaseDate),
+    pricePaid: priced ? price : null,
+    currency: priced ? currency : null,
+    sku: purchaseIdentifier(value.sku, 40),
+    gtin: typeof value.gtin === 'string' && /^\d{8}$|^\d{12,14}$/.test(value.gtin) ? value.gtin : null,
+    retailerProductRef: purchaseIdentifier(value.retailerProductRef, 60),
+    returnDeadline,
+    returnDeadlineScope: returnDeadline && value.returnDeadlineScope === 'document' ? 'document' : null,
+    fieldProvenance,
+  };
+}
+
 /** True when a stored taxonomy value is absent — null, or an empty list. */
 export function isAbsentClosetTaxonomyValue(value) {
   if (Array.isArray(value)) return value.length === 0;
@@ -189,7 +328,7 @@ function buildClosetRecord(draft, ownerId, now) {
 
   const origin = CLOSET_ORIGINS.includes(draft.origin) ? draft.origin : 'direct_intake';
 
-  return {
+  const record = {
     schemaVersion: CLOSET_ITEM_SCHEMA_VERSION,
     id,
     ownerId,
@@ -233,6 +372,12 @@ function buildClosetRecord(draft, ownerId, now) {
     createdAt: now,
     updatedAt: now,
   };
+
+  // Attached only when present, so every record that is not a purchase import
+  // keeps exactly the key set it has always had.
+  const purchase = normalizeClosetPurchaseProvenance(draft.purchase, origin);
+  if (purchase) record.purchase = purchase;
+  return record;
 }
 
 // ── Schema migration and reconstruction (v2) ─────────────────────────────────
@@ -901,7 +1046,14 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
     return { ok: false, reason: 'android_requires_authenticated_actor' };
   }
 
-  if (typeof sourceUri !== 'string' || !sourceUri.trim()) {
+  // MEDIA IS REQUIRED EXCEPT FOR A CONFIRMED PURCHASE IMPORT. A purchase line
+  // has no garment photo, and the receipt it came from must never be used as
+  // one. The owner is asked for a photo and may decline. Every other origin
+  // keeps the original rule. Idempotency, actor re-validation and the Android
+  // authenticated-actor rule below apply to both branches unchanged.
+  const hasSourceMedia = typeof sourceUri === 'string' && sourceUri.trim().length > 0;
+  const mediaOptional = draft?.origin === CLOSET_MEDIA_OPTIONAL_ORIGIN;
+  if (!hasSourceMedia && !mediaOptional) {
     return { ok: false, reason: 'missing_source_media' };
   }
 
@@ -946,10 +1098,12 @@ export async function createClosetItem({ sourceUri, draft, actorRequest, ownerId
   let imageUri = null;
   let thumbnailUri = null;
   try {
-    const media = await deriveClosetMedia(sourceUri, stable);
-    if (!media.ok) return { ok: false, reason: media.reason ?? 'media_persist_failed' };
-    imageUri = media.imageUri;
-    thumbnailUri = media.thumbnailUri;
+    if (hasSourceMedia) {
+      const media = await deriveClosetMedia(sourceUri, stable);
+      if (!media.ok) return { ok: false, reason: media.reason ?? 'media_persist_failed' };
+      imageUri = media.imageUri;
+      thumbnailUri = media.thumbnailUri;
+    }
 
     // Re-validate AFTER the async media work: the actor may have changed while
     // the image was written. A stale authenticated write is REJECTED outright
@@ -1139,6 +1293,26 @@ export async function updateClosetItem(id, patch, { actorRequest, ownerId } = {}
       }
     }
 
+    // BLOCK-RPI-30 BEYOND THE REVIEW SCREEN. A purchase-imported item records
+    // where each fact came from. Once the owner edits a field, the document is
+    // no longer the source of it, and the provenance must say so rather than
+    // keep claiming the receipt printed the corrected value.
+    if (next.purchase && typeof next.purchase === 'object' && patch && typeof patch === 'object') {
+      const edited = ['title', ...CLOSET_ITEM_TAXONOMY_FIELDS].filter((field) =>
+        Object.prototype.hasOwnProperty.call(patch, field) &&
+        CLOSET_PURCHASE_PROVENANCE_FIELDS.includes(field)
+      );
+      if (edited.length > 0) {
+        const fieldProvenance = { ...(next.purchase.fieldProvenance || {}) };
+        for (const field of edited) {
+          fieldProvenance[field] = isAbsentClosetTaxonomyValue(next[field]) && field !== 'title'
+            ? 'UNKNOWN'
+            : 'USER_CONFIRMED';
+        }
+        next.purchase = { ...next.purchase, fieldProvenance };
+      }
+    }
+
     const updated = items.slice();
     updated[index] = next;
     await persistCloset(updated);
@@ -1316,6 +1490,16 @@ export async function applyRestoredClosetItemFacts(id, ownerId, facts, updatedAt
     rebuilt.sourceSavedScanId = current.sourceSavedScanId ?? null;
     rebuilt.sourceLineageId = current.sourceLineageId ?? null;
     rebuilt.clientRequestId = current.clientRequestId ?? null;
+    // Purchase provenance is local-only in V1 (the cloud row has no column for
+    // it), so a remote row can neither carry nor erase it. The origin is
+    // immutable, so a remote row written by an older build that could only say
+    // `direct_intake` does not downgrade a purchase import either.
+    if (current.origin === CLOSET_MEDIA_OPTIONAL_ORIGIN) {
+      rebuilt.origin = CLOSET_MEDIA_OPTIONAL_ORIGIN;
+      const purchase = normalizeClosetPurchaseProvenance(current.purchase, CLOSET_MEDIA_OPTIONAL_ORIGIN);
+      if (purchase) rebuilt.purchase = purchase;
+      else delete rebuilt.purchase;
+    }
 
     const updated = items.slice();
     updated[index] = rebuilt;

@@ -274,7 +274,13 @@ export function projectClosetItemForCloud(item: Record<string, any>): Record<str
     material: arrayOf(item.material),
     size: item.size ?? null,
     notes: item.notes ?? null,
-    origin: item.origin === 'recent_scan' ? 'recent_scan' : 'direct_intake',
+    // `purchase_import` is carried as itself once the server CHECK accepts it
+    // (migration 20260922190000). Any other unknown origin still collapses to
+    // `direct_intake`, exactly as before.
+    origin:
+      item.origin === 'recent_scan' || item.origin === 'purchase_import'
+        ? item.origin
+        : 'direct_intake',
     schema_version: Number.isFinite(item.schemaVersion) ? item.schemaVersion : 2,
   };
 }

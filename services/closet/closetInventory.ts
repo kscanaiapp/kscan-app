@@ -68,7 +68,7 @@ export const CLOSET_SORT_LABELS: Readonly<Record<ClosetSortId, string>> = Object
   category: 'Category',
 });
 
-export const CLOSET_ORIGIN_FILTER_IDS = ['all', 'direct_intake', 'recent_scan'] as const;
+export const CLOSET_ORIGIN_FILTER_IDS = ['all', 'direct_intake', 'recent_scan', 'purchase_import'] as const;
 export type ClosetOriginFilterId = (typeof CLOSET_ORIGIN_FILTER_IDS)[number];
 
 export function isClosetOriginFilterId(value: unknown): value is ClosetOriginFilterId {
@@ -88,7 +88,26 @@ export const CLOSET_ORIGIN_LABELS: Readonly<Record<ClosetOriginFilterId, string>
   all: 'All items',
   direct_intake: 'Added directly',
   recent_scan: 'Added from a scan',
+  purchase_import: 'Added from an order',
 });
+
+/**
+ * The origin filters worth offering for THIS Closet.
+ *
+ * The three original filters are always offered. The order-import filter only
+ * appears once the Closet actually holds such an item, so a customer who has
+ * never imported an order (including everyone while the feature flag is off)
+ * sees exactly the chip row they always have.
+ */
+export function availableClosetOriginFilters(
+  items: readonly ClosetItemProjection[] | null | undefined,
+): ClosetOriginFilterId[] {
+  const base: ClosetOriginFilterId[] = ['all', 'direct_intake', 'recent_scan'];
+  const source = Array.isArray(items) ? items : [];
+  return source.some((item) => item?.origin === 'purchase_import')
+    ? [...base, 'purchase_import']
+    : base;
+}
 
 export type ClosetCategoryCount = {
   /** The stored category, or UNCATEGORIZED_FILTER_VALUE for the absent bucket. */

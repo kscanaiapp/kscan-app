@@ -56,6 +56,7 @@ import { setKPlusAnalyticsSink } from '../kplus/kplusTelemetry';
 import { setTodayWithEliseAnalyticsSink } from '../todayWithElise/analytics';
 import { setVoiceAnalyticsSink } from '../voice/voiceTelemetry';
 import { setVtoAnalyticsSink } from '../vto/vtoTelemetry';
+import { setPurchaseImportTelemetrySink } from '../purchaseImport/purchaseImportTelemetry';
 
 export { PostHogProvider };
 
@@ -174,6 +175,9 @@ const SINK_SETTERS = [
   setTodayWithEliseAnalyticsSink,
   setVoiceAnalyticsSink,
   setVtoAnalyticsSink,
+  // Receipt & Purchase Intelligence V1. Same two-allowlist discipline as the
+  // five above: event allowlist, property allowlist, SAFE_STRING scrub.
+  setPurchaseImportTelemetrySink,
 ];
 
 let bridged = false;

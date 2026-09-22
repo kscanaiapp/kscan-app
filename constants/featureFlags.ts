@@ -1031,3 +1031,31 @@ export function resolveEliseCommerceActivationEnabled(
 }
 
 export const ELISE_COMMERCE_ACTIVATION_V1 = resolveEliseCommerceActivationEnabled();
+
+/**
+ * Build 35 — Receipt & Purchase Intelligence V1 (order-confirmation import).
+ *
+ * Default OFF, exact string "true" to opt in. Fails closed: '', 'TRUE', '1'
+ * and ' true' are all OFF.
+ *
+ * FLAG OFF MEANS NO EXTRACTION PATH (BLOCK-RPI-33), not a hidden one: no Closet
+ * entry point is rendered, the /purchase-import route redirects away, and
+ * services/purchaseImport/purchaseImportClient.ts refuses to call the Edge
+ * Function. There is no background processing to switch off.
+ *
+ * The server has its own kill switch (PURCHASE_IMPORT_EXTRACT_ENABLED on the
+ * purchase-import-extract function, default off), so turning this on in a
+ * build that points at a backend without the function, or with it disabled,
+ * yields `feature_disabled` rather than a paid call.
+ *
+ * Not nested under the Closet flag chain on purpose: purchase import writes
+ * through createClosetItem, which does not depend on candidate staging or
+ * batch review, and the entry point is only rendered where direct intake is.
+ */
+export function resolveReceiptIntelligenceEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_RECEIPT_INTELLIGENCE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const RECEIPT_INTELLIGENCE_V1 = resolveReceiptIntelligenceEnabled();

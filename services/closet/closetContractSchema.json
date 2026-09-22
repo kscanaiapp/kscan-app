@@ -48,7 +48,7 @@
         "notes": { "type": ["string", "null"], "maxLength": 500 },
         "origin": {
           "type": "string",
-          "enum": ["direct_intake", "recent_scan"],
+          "enum": ["direct_intake", "recent_scan", "purchase_import"],
           "description": "How the user put this item in the Closet. NOT an ownership qualifier — both values are owned items."
         },
         "imageUri": { "type": ["string", "null"] },

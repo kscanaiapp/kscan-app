@@ -75,7 +75,10 @@ export function projectClosetRestoreRowForLocal(row: ClosetRestoreRemoteRow): Re
     material: Array.isArray(row.material) ? row.material : [],
     size: row.size,
     notes: row.notes,
-    origin: row.origin === 'recent_scan' ? 'recent_scan' : 'direct_intake',
+    origin:
+      row.origin === 'recent_scan' || row.origin === 'purchase_import'
+        ? row.origin
+        : 'direct_intake',
     schemaVersion: Number.isFinite(row.schemaVersion) ? row.schemaVersion : 2,
   };
 }

@@ -174,6 +174,7 @@ test('the event registry is composed from the sinks rather than restating them',
     '../todayWithElise/analytics',
     '../voice/voiceTelemetry',
     '../vto/vtoTelemetry',
+    '../purchaseImport/purchaseImportTelemetry',
   ]) {
     assert.ok(
       registrySource.includes(`from '${owner}'`),
@@ -213,6 +214,10 @@ const BRIDGED_SINKS = [
   { file: 'services/todayWithElise/analytics.ts', arrayName: 'TODAY_WITH_ELISE_EVENT_PROPERTIES' },
   { file: 'services/voice/voiceTelemetry.ts', arrayName: 'VOICE_EVENT_PROPERTIES' },
   { file: 'services/vto/vtoTelemetry.ts', arrayName: 'VTO_EVENT_PROPERTIES' },
+  {
+    file: 'services/purchaseImport/purchaseImportTelemetry.ts',
+    arrayName: 'PURCHASE_IMPORT_EVENT_PROPERTIES',
+  },
 ];
 
 // Whole-word matches only (see wordsOf below) — a substring check would

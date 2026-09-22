@@ -57,6 +57,7 @@ import {
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
   MIRROR_SELFIE_V1_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
+  RECEIPT_INTELLIGENCE_V1,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
@@ -864,6 +865,7 @@ export default function LibraryScreen() {
                 onCategoryChange={closetInventory.setCategory}
                 origin={closetInventory.origin}
                 onOriginChange={closetInventory.setOrigin}
+                originFilters={closetInventory.originFilters}
                 sort={closetInventory.sort}
                 onSortChange={closetInventory.setSort}
                 visibleItems={closetInventory.view.visibleItems}
@@ -1182,6 +1184,14 @@ export default function LibraryScreen() {
           onSaveBatch={handleClosetIntakeBatchSave}
           stagingActive={CLOSET_CANDIDATE_STAGING_ACTIVE}
           batchIntakeActive={CLOSET_BATCH_REVIEW_V2_ACTIVE}
+          onImportPurchase={
+            RECEIPT_INTELLIGENCE_V1
+              ? () => {
+                  setClosetIntakeVisible(false);
+                  router.push('/purchase-import');
+                }
+              : undefined
+          }
         />
       ) : null}
 
