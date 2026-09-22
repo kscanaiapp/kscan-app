@@ -90,6 +90,16 @@ export interface PackingPlanDay {
   slots: PackingPlanDaySlot[];
 }
 
+/**
+ * Build 35. One look a refinement changed, as ids: what left and what arrived.
+ * Lets the screen mark the changed pieces instead of re-reading the whole plan.
+ */
+export interface PackingPlanChange {
+  slotId: string;
+  removedItemIds: string[];
+  addedItemIds: string[];
+}
+
 export interface PackingLeftHomeItem {
   itemId: string;
   title: string;
@@ -107,6 +117,8 @@ export interface PackingPlanV2 extends PackingPlan {
   gaps: PackingGapV2[];
   considerBuying: PackingExternalSuggestion[];
   state: PackingPlanState;
+  /** Build 35. Looks this refinement changed. Empty for a new plan. */
+  changes: PackingPlanChange[];
 }
 
 export interface PackingPlannerV2Outcome {
@@ -281,6 +293,14 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
   const protectedItemIds = new Set<string>();
   let clarification: PackingClarification | null = null;
   let carryOnQuestion = false;
+  let carryOnApplied = false;
+  // Build 35: pieces taken out of specific looks for this run only, warmth
+  // asked of specific looks, and questions answered from the finished plan.
+  const slotExclusions = new Map<string, Set<string>>();
+  let slotWarmth: { direction: 'warmer' | 'lighter'; slotIds: Set<string> } | null = null;
+  const explainRequests: Array<{ itemIds: string[]; noun: string }> = [];
+  const isClassRejected = (candidate: EliseWardrobeCandidate) =>
+    candidateGarmentClasses(candidate).some((garmentClass) => rejectedClasses.has(garmentClass));
   let changed = !prior;
   // A trip-wide re-optimisation is allowed for a new plan, or when the traveller
   // asks for one. Every other refinement stays local (ADD-15).
@@ -332,7 +352,13 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
               }
               const inSlots = slots.filter((slot) => (carried.get(slot.slotId) ?? []).includes(op.itemId));
               rejections.set(op.itemId, inSlots.map((slot) => slot.slotId));
-              acknowledgements.push(`I'll leave the ${nameById(op.itemId)} out of this trip.`);
+              // A correction ("I don't own that anymore") governs THIS plan. The
+              // Closet is not edited from here; the traveller is told where to.
+              acknowledgements.push(
+                op.reason === 'not_owned'
+                  ? `I'll leave the ${nameById(op.itemId)} out of this plan. Your Closet still lists ${/s$/.test(nameById(op.itemId)) ? 'them' : 'it'}, so remove ${/s$/.test(nameById(op.itemId)) ? 'them' : 'it'} there if ${/s$/.test(nameById(op.itemId)) ? "they're" : "it's"} gone.`
+                  : `I'll leave the ${nameById(op.itemId)} out of this trip.`,
+              );
               changed = true;
               break;
             }
@@ -550,6 +576,108 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
               freeNotes.push(op.note);
               changed = true;
               break;
+            // ── Build 35 refinement quality: all deterministic, no model call ──
+            case 'replace_role': {
+              const kept = op.itemIds.filter((id) => pinnedItemIds.has(id));
+              for (const id of kept) conflicts.push(`You asked me to keep the ${nameById(id)}, so it stays in the plan.`);
+              const leaving = op.itemIds.filter((id) => !pinnedItemIds.has(id));
+              if (leaving.length === 0) break;
+              const targets = targetSlots(op.slotIds).filter((slot) => {
+                if (!pinnedSlotIds.has(slot.slotId)) return true;
+                if (op.slotIds) lockedConflict(slot);
+                return false;
+              });
+              // Only swap when the Closet holds something to swap TO. Removing
+              // the only shoes would leave looks without shoes, which is not
+              // "different shoes".
+              const alternatives = [...authorized.entries()].filter(([id, candidate]) =>
+                candidate.layeringRole === op.role && !op.itemIds.includes(id) && !rejections.has(id) &&
+                !isClassRejected(candidate)
+              );
+              const names = joinLabels(leaving.map((id) => `the ${nameById(id)}`));
+              if (alternatives.length === 0) {
+                conflicts.push(
+                  `${names.charAt(0).toUpperCase()}${names.slice(1)} ${leaving.length > 1 ? 'are' : 'is'} the only ${ROLE_NOUNS[op.role] ?? op.role} in your Closet I can use here, so I kept ${leaving.length > 1 ? 'them' : 'it'}.`,
+                );
+                break;
+              }
+              if (op.slotIds === null) {
+                // Trip-wide: "different shoes" means not these shoes. Recorded as
+                // a rejection so they do not drift back, and "go back" restores them.
+                for (const id of leaving) {
+                  rejections.set(id, slots.filter((slot) => (carried.get(slot.slotId) ?? []).includes(id)).map((slot) => slot.slotId));
+                }
+              } else {
+                // Every piece being replaced is kept out of every targeted look,
+                // so "change Friday's shoes" cannot just trade Friday's two pairs
+                // between its daytime and dinner looks.
+                for (const slot of targets) {
+                  const set = slotExclusions.get(slot.slotId) ?? new Set<string>();
+                  for (const id of leaving) set.add(id);
+                  slotExclusions.set(slot.slotId, set);
+                }
+              }
+              acknowledgements.push(
+                `Swapping ${names}${op.slotIds ? ` for ${daysOf(targets.map((slot) => slot.slotId))}` : ''}.`,
+              );
+              changed = true;
+              break;
+            }
+            case 'max_role': {
+              for (const code of [...codes]) if (code.startsWith(`max:${op.role}:`)) codes.delete(code);
+              codes.add(`max:${op.role}:${Math.min(9, Math.max(1, op.max))}`);
+              acknowledgements.push(
+                `Keeping it to ${op.max} ${op.role === 'shoe' ? (op.max === 1 ? 'pair of shoes' : 'pairs of shoes') : ROLE_NOUNS[op.role] ?? op.role}.`,
+              );
+              changed = true;
+              break;
+            }
+            case 'carry_on_only':
+              codes.add('carry_on');
+              codes.add('pack_light');
+              if (![...codes].some((code) => code.startsWith('max:shoe:'))) codes.add('max:shoe:2');
+              rebalance = true;
+              carryOnApplied = true;
+              acknowledgements.push('Carry-on only: packing lighter, with at most 2 pairs of shoes.');
+              changed = true;
+              break;
+            case 'exclude_color': {
+              codes.delete(`color:${op.color}`);
+              codes.add(`not_color:${op.color}`);
+              const unknown = [...new Set([...carried.values()].flat())].filter((id) => (authorized.get(id)?.colors.length ?? 0) === 0);
+              acknowledgements.push(
+                `Leaving out anything listed as ${op.color}.${unknown.length > 0 ? ` ${unknown.length === 1 ? 'One piece has' : `${unknown.length} pieces have`} no colour recorded, so I can't confirm ${unknown.length === 1 ? 'it isn\'t' : 'they aren\'t'}.` : ''}`,
+              );
+              changed = true;
+              break;
+            }
+            case 'exclude_material': {
+              codes.add(`not_material:${op.material}`);
+              const unknown = [...new Set([...carried.values()].flat())].filter((id) => (authorized.get(id)?.materials.length ?? 0) === 0);
+              acknowledgements.push(
+                `Leaving out anything listed as ${op.material}.${unknown.length > 0 ? ` I can't confirm the material of ${unknown.length === 1 ? 'one piece' : `${unknown.length} pieces`}, so I've kept ${unknown.length === 1 ? 'it' : 'them'}.` : ''}`,
+              );
+              changed = true;
+              break;
+            }
+            case 'warmth': {
+              const opposite = op.direction === 'warmer' ? 'lighter' : 'warmer';
+              if (op.slotIds === null) {
+                codes.delete(`warmth:${opposite}`);
+                codes.add(`warmth:${op.direction}`);
+              } else {
+                slotWarmth = { direction: op.direction, slotIds: new Set(op.slotIds) };
+              }
+              const touched = targetSlots(op.slotIds).filter((slot) => !pinnedSlotIds.has(slot.slotId));
+              acknowledgements.push(
+                `${op.direction === 'warmer' ? 'Adding warmer layers' : 'Lightening the layers'}${op.slotIds ? ` for ${daysOf(touched.map((slot) => slot.slotId))}` : ''}.`,
+              );
+              changed = true;
+              break;
+            }
+            case 'explain':
+              explainRequests.push({ itemIds: op.itemIds, noun: op.noun });
+              break;
           }
         }
         for (const phrase of interpretation.notInCloset) {
@@ -560,6 +688,12 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
         }
         for (const word of interpretation.notRejected) {
           conflicts.push(`Nothing to bring back: I hadn't removed any ${escapePlain(word)}.`);
+        }
+        if (interpretation.nothingToRestore) {
+          conflicts.push("There's nothing I left out that I can bring back.");
+        }
+        if (interpretation.needsReference) {
+          conflicts.push('Which piece do you mean? Name it, for example "the brown loafers", and I\'ll take it out.');
         }
       }
     }
@@ -780,6 +914,14 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
     signatureColor: args.signatureColor,
     packLight: view.packLight,
     laundry: view.laundry,
+    slotExclusions: clarification ? new Map() : slotExclusions,
+    excludedColors: view.excludedColors,
+    excludedMaterials: view.excludedMaterials,
+    warmth: clarification
+      ? null
+      : slotWarmth ?? (view.warmth ? { direction: view.warmth, slotIds: null } : null),
+    conditions: view.conditions,
+    maxRoles: view.maxRoles,
   });
 
   // ── Gaps, graded against coverage ─────────────────────────────────────────
@@ -974,6 +1116,23 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
     gapCodes: gaps.map((gap) => gap.code),
   };
 
+  // Build 35 (section 34). What this refinement actually changed, look by look,
+  // from the verified prior looks to the finished ones -- a plain comparison,
+  // not a diff engine. A new plan has nothing to compare against.
+  const changes: PackingPlanChange[] = [];
+  if (prior && request.refinement && !clarification) {
+    const before = new Map(prior.slots.map((slot) => [slot.slotId, slot.itemIds]));
+    for (const slot of planner.slots) {
+      const was = before.get(slot.slotId) ?? [];
+      const removedItemIds = was.filter((id) => !slot.itemIds.includes(id));
+      const addedItemIds = slot.itemIds.filter((id) => !was.includes(id));
+      if (removedItemIds.length || addedItemIds.length) changes.push({ slotId: slot.slotId, removedItemIds, addedItemIds });
+    }
+  }
+  const explanations = explainRequests.map((request) =>
+    renderExplanation({ request, planner, nameById, labelOf, decisions: planner.decisions })
+  );
+
   const shoes = safePacked.filter((item) => item.layeringRole === 'shoe').length;
   const plan: PackingPlanV2 = {
     contractVersion: 'packing_plan_v1',
@@ -1005,6 +1164,7 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
     leftHome,
     considerBuying,
     state,
+    changes,
   };
 
   const problems = inspectPackingPlan(plan).filter((problem) => problem !== 'excluded_item_packed' || pinnedSlotIds.size === 0);
@@ -1033,8 +1193,10 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
     clarification,
     acknowledgements,
     conflicts,
-    carryOnQuestion,
+    carryOnQuestion: carryOnQuestion || carryOnApplied,
     changedSlotIds: regenerate ? [...regenerate] : [],
+    changes,
+    explanations,
     labelOf,
     nameById,
   });
@@ -1048,6 +1210,39 @@ export async function runPackingPlannerV2(args: PackingPlannerV2Args): Promise<P
 
 function escapePlain(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f<>`]/g, '').trim().slice(0, 60);
+}
+
+function limitNoun(role: string, limit: number): string {
+  if (role === 'shoe') return limit === 1 ? 'pair of shoes' : 'pairs of shoes';
+  const noun = ROLE_NOUNS[role] ?? role;
+  return limit === 1 ? noun : `${noun}s`;
+}
+
+/**
+ * Build 35 (section 33). "Why did you pack two blazers?" answered from the
+ * finished plan -- which looks each piece serves and what the planner decided
+ * about it. No model call, and no change to the plan.
+ */
+export function renderExplanation(input: {
+  request: { itemIds: string[]; noun: string };
+  planner: PackingPlannerResult;
+  nameById: (id: string | null) => string;
+  labelOf: (slotId: string) => string;
+  decisions: PackingDecision[];
+}): string {
+  const { request, planner, nameById, labelOf } = input;
+  const packed = request.itemIds.filter((id) => planner.packedItemIds.includes(id));
+  if (packed.length === 0) return `Nothing in this plan matches "${escapePlain(request.noun)}".`;
+  const lines = packed.slice(0, 3).map((id) => {
+    const slotIds = planner.slots.filter((slot) => slot.itemIds.includes(id)).map((slot) => slot.slotId);
+    return `The ${nameById(id)} is there for ${joinLabels(slotIds.map(labelOf))}.`;
+  });
+  if (packed.length > 1) {
+    lines.push(
+      `No single one of them covered every one of those looks, so both stay. Say "only one ${escapePlain(request.noun.replace(/s$/, ''))}" and I'll cut it down.`,
+    );
+  }
+  return lines.join(' ');
 }
 
 /** Customer copy for the planner's meaningful decisions (section 18). */
@@ -1106,6 +1301,25 @@ export function renderPlannerNotes(input: {
             : `${decision.garmentClass ? `${decision.garmentClass.charAt(0).toUpperCase()}${decision.garmentClass.slice(1)}s` : 'That'} didn't work for ${labels(decision.slotIds)}, so it keeps its current piece.`,
         );
         break;
+      case 'warmth_added':
+        notes.push(`Added the ${nameById(decision.otherItemId)} to ${labels(decision.slotIds)} for warmth.`);
+        break;
+      case 'warmth_removed':
+        notes.push(`Took the ${nameById(decision.itemId)} out of ${labels(decision.slotIds)} to keep it lighter.`);
+        break;
+      case 'warmth_unavailable':
+        notes.push(`I couldn't find a layer in your Closet I can confirm is warm for ${labels(decision.slotIds)}.`);
+        break;
+      case 'max_role_applied':
+        notes.push(
+          `To stay within ${decision.limit} ${limitNoun(decision.garmentClass ?? '', decision.limit ?? 0)}, the ${nameById(decision.otherItemId)} covers ${labels(decision.slotIds)} and the ${nameById(decision.itemId)} stays home.`,
+        );
+        break;
+      case 'max_role_conflict':
+        notes.push(
+          `I couldn't get down to ${decision.limit} ${limitNoun(decision.garmentClass ?? '', decision.limit ?? 0)} without leaving ${labels(decision.slotIds)} without a suitable piece, so the ${nameById(decision.itemId)} stays packed. Say "leave the ${nameById(decision.itemId)} home" to drop it anyway.`,
+        );
+        break;
       case 'laundry_assumed':
         notes.push(
           input.laundry === 'available'
@@ -1155,11 +1369,17 @@ function renderPlannerMessage(input: {
   conflicts: string[];
   carryOnQuestion: boolean;
   changedSlotIds: string[];
+  changes?: PackingPlanChange[];
+  explanations?: string[];
   labelOf: (slotId: string) => string;
   nameById: (id: string | null) => string;
 }): string {
   const { plan } = input;
   if (input.clarification) return input.clarification.question;
+  // A question about the plan gets its answer, not a restatement of the plan.
+  if (input.explanations && input.explanations.length > 0 && input.acknowledgements.length === 0) {
+    return [...input.explanations, ...input.conflicts].join(' ');
+  }
 
   const sentences: string[] = [];
   if (input.initial) {
@@ -1192,9 +1412,35 @@ function renderPlannerMessage(input: {
     }
   } else {
     sentences.push(...input.acknowledgements);
-    const changed = input.changedSlotIds.length;
-    if (changed > 0 && changed < plan.outfits.length) {
-      sentences.push(`Only ${joinLabels(input.changedSlotIds.map(input.labelOf))} changed.`);
+    sentences.push(...(input.explanations ?? []));
+    const changes = input.changes ?? [];
+    if (changes.length > 0 && changes.length <= 3) {
+      // Section 34: say what changed, piece by piece, and that the rest held.
+      for (const change of changes) {
+        const swaps: string[] = [];
+        const added = [...change.addedItemIds];
+        for (const removed of change.removedItemIds) {
+          const replacement = added.shift();
+          swaps.push(replacement
+            ? `${input.nameById(removed)} → ${input.nameById(replacement)}`
+            : `${input.nameById(removed)} left out`);
+        }
+        for (const extra of added) swaps.push(`added the ${input.nameById(extra)}`);
+        sentences.push(`${input.labelOf(change.slotId)}: ${swaps.join(', ')}.`);
+      }
+      if (changes.length < plan.outfits.length) sentences.push('Everything else stays the same.');
+    } else if (changes.length > 3) {
+      sentences.push(
+        changes.length < plan.outfits.length
+          ? `Updated ${changes.length} of ${plan.outfits.length} looks; the rest stay the same.`
+          : `Updated all ${plan.outfits.length} looks.`,
+      );
+    } else if (input.changedSlotIds.length > 0) {
+      // Restyled, and the Closet produced the same look again. Saying it
+      // "changed" would be false.
+      sentences.push(
+        `I couldn't find a different look for ${joinLabels(input.changedSlotIds.map(input.labelOf))} from your Closet, so it stays as it is.`,
+      );
     }
   }
   sentences.push(...input.conflicts);

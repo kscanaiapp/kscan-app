@@ -311,6 +311,12 @@ export function PackingPlanView({
   // Build 35. A day-by-day plan replaces the occasion list below; a V1 plan
   // has no days and renders exactly as before.
   const days = plan.days ?? [];
+  // Build 35 (section 34). The looks the last refinement changed, so the
+  // traveller sees WHAT changed without re-reading the whole trip.
+  const changedSlotIds = useMemo(
+    () => new Set((plan.changes ?? []).map((change) => change.slotId)),
+    [plan.changes],
+  );
   const checked = useMemo(() => new Set(packedOff ?? []), [packedOff]);
   // Counted from the items actually rendered, so the header can never claim a
   // tick for an item this plan does not contain.
@@ -372,6 +378,15 @@ export function PackingPlanView({
                           </Text>
                         ) : null}
                         {slot.repeatsSlotId ? <Text style={styles.slotBadge}>REPEAT LOOK</Text> : null}
+                        {changedSlotIds.has(slot.slotId) && !slot.repeatsSlotId ? (
+                          <Text
+                            style={styles.slotBadge}
+                            accessibilityLabel="Updated by your last change"
+                            testID={`packing-slot-updated-${slot.slotId}`}
+                          >
+                            UPDATED
+                          </Text>
+                        ) : null}
                       </View>
                       {outfit ? (
                         <ScrollView

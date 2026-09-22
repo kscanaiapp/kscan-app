@@ -81,6 +81,8 @@ const CLASS_RE = /^[a-z]{2,20}$/;
 const ROLE_RE = /^(?:base|mid|outer|bottom|one_piece|shoe|accessory)$/;
 const CONDITION_RE = /^(?:rain|snow|cold|hot)$/;
 const COLOR_RE = /^[a-z]{3,12}$/;
+const MATERIAL_RE = /^[a-z]{4,20}$/;
+const MAX_ROLE_RE = /^[1-9]$/;
 
 /**
  * Every constraint code the planner understands. Anything else is dropped on
@@ -90,6 +92,7 @@ const COLOR_RE = /^[a-z]{3,12}$/;
 export function isPackingConstraintCode(code: string): boolean {
   if (code === 'owned_only' || code === 'allow_shopping' || code === 'pack_light') return true;
   if (code === 'laundry:available' || code === 'laundry:unavailable') return true;
+  if (code === 'carry_on' || code === 'warmth:warmer' || code === 'warmth:lighter') return true;
   const [kind, a, b] = code.split(':');
   switch (kind) {
     case 'no_repeat':
@@ -98,7 +101,12 @@ export function isPackingConstraintCode(code: string): boolean {
     case 'condition':
       return code.split(':').length === 2 && CONDITION_RE.test(a ?? '');
     case 'color':
+    case 'not_color':
       return code.split(':').length === 2 && COLOR_RE.test(a ?? '');
+    case 'not_material':
+      return code.split(':').length === 2 && MATERIAL_RE.test(a ?? '');
+    case 'max':
+      return code.split(':').length === 3 && ROLE_RE.test(a ?? '') && MAX_ROLE_RE.test(b ?? '');
     case 'prefer_class':
       return (
         code.split(':').length === 3 &&
@@ -288,6 +296,14 @@ export interface PackingActiveConstraintView {
   conditions: string[];
   colors: string[];
   preferClasses: Array<{ slotIds: string[] | null; garmentClass: string }>;
+  /** Build 35: "carry-on only" -- a luggage constraint, not a question. */
+  carryOn: boolean;
+  /** Build 35: distinct packed pieces allowed per role ("only two pairs of shoes"). */
+  maxRoles: Record<string, number>;
+  /** Build 35: hard attribute exclusions ("not black", "no leather"). */
+  excludedColors: string[];
+  excludedMaterials: string[];
+  warmth: 'warmer' | 'lighter' | null;
 }
 
 export function readActiveConstraints(codes: string[]): PackingActiveConstraintView {
@@ -301,12 +317,22 @@ export function readActiveConstraints(codes: string[]): PackingActiveConstraintV
     conditions: [],
     colors: [],
     preferClasses: [],
+    carryOn: false,
+    maxRoles: {},
+    excludedColors: [],
+    excludedMaterials: [],
+    warmth: null,
   };
   for (const code of codes) {
     const [kind, a, b] = code.split(':');
     if (code === 'owned_only') view.ownedOnly = true;
     else if (code === 'allow_shopping') view.allowShopping = true;
     else if (code === 'pack_light') view.packLight = true;
+    else if (code === 'carry_on') view.carryOn = true;
+    else if (kind === 'warmth') view.warmth = a === 'warmer' ? 'warmer' : 'lighter';
+    else if (kind === 'not_color' && a) view.excludedColors.push(a);
+    else if (kind === 'not_material' && a) view.excludedMaterials.push(a);
+    else if (kind === 'max' && a && b) view.maxRoles[a] = Number.parseInt(b, 10);
     else if (kind === 'laundry') view.laundry = a === 'available' ? 'available' : 'unavailable';
     else if (kind === 'no_repeat' && a) view.noRepeatRoles.push(a);
     else if (kind === 'rewear_ok' && a) view.rewearRoles.push(a);

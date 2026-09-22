@@ -41,6 +41,7 @@ import {
 } from '../services/packing/packingPlanCache';
 import type { PackingClarificationOption, PackingTripDraft } from '../types/packing';
 import { resolveRefinementIntent } from '../services/packing/packingRefinement';
+import { createRefinementSequence } from '../services/packing/packingRefinementSequence';
 
 export interface UsePackingPlanResult extends PackingSnapshot {
   available: boolean;
@@ -106,6 +107,18 @@ export function usePackingPlan(): UsePackingPlanResult {
 
   const available = PACKING_INTELLIGENCE_V1 && isAuthenticated;
 
+  // Build 35 (BLOCK-PC-Q2-15). Only the newest request may write the plan.
+  // Same request-generation idiom useCloset() uses: a completion whose
+  // generation is no longer current is discarded, so a slow first refinement
+  // can never overwrite a faster second one.
+  const requestGenerationRef = useRef(0);
+  // Refinements are applied in order, each to the plan the previous one
+  // produced: "different shoes" then "no sneakers" must end with both, not with
+  // whichever response lands last. A refinement waits for the one in flight
+  // and is then sent with the state that one returned.
+  const refinementSequenceRef = useRef<ReturnType<typeof createRefinementSequence> | null>(null);
+  refinementSequenceRef.current ??= createRefinementSequence();
+
   const run = useCallback(
     async (
       trip: PackingTripDraft,
@@ -114,6 +127,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       dispatch?: PackingRefinementDispatch,
     ) => {
       if (!actorId) return;
+      const requestGeneration = ++requestGenerationRef.current;
       // Capture the actor generation before the request. An A -> B -> A cycle
       // returns the same actorId but a new epoch, so the epoch-based scope
       // (not actorId alone) is what correctly rejects a response that resolves
@@ -150,6 +164,9 @@ export function usePackingPlan(): UsePackingPlanResult {
       // late completion across an actor boundary is discarded, exactly as
       // useCloset()/useLibrary() discard theirs.
       if (!isActorScopeCurrent(scope)) return;
+      // A newer request has started since this one; its result is the one the
+      // traveller is waiting for.
+      if (requestGenerationRef.current !== requestGeneration) return;
 
       if (result.status === 'success' && result.plan) {
         applyPackingPlan({ actorId, plan: result.plan, message: result.message,
@@ -249,7 +266,7 @@ export function usePackingPlan(): UsePackingPlanResult {
     [available, actorId, run],
   );
 
-  const refineWith = useCallback(
+  const refineCurrentPlan = useCallback(
     async (note: string) => {
       const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
       if (!available || !actorId || !current.trip || !note.trim()) return;
@@ -293,6 +310,16 @@ export function usePackingPlan(): UsePackingPlanResult {
       );
     },
     [available, actorId, run],
+  );
+
+  const refineWith = useCallback(
+    async (note: string) => {
+      if (!available || !actorId || !note.trim()) return;
+      // Queue behind any refinement in flight; the snapshot is read only when
+      // this one's turn comes, so it carries the plan the previous one produced.
+      await refinementSequenceRef.current!(() => refineCurrentPlan(note));
+    },
+    [available, actorId, refineCurrentPlan],
   );
 
   const answerClarification = useCallback(

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-14T20:26:16.212Z",
-    "generatedFromGitSha": "476f45fc4b9d435ab99924cfee957652b8efceaf"
+    "generatedAtUtc": "2026-09-22T23:59:29.567Z",
+    "generatedFromGitSha": "d66f03d6126bdfb65bfa0301bf8474d2e584a544"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -497,9 +497,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 61,
-        "treeFileCount": 87,
-        "bundleHash": "e024610e832d25110f9454b8a1333b8302cefe555c257328d4729f3d62cd0d40",
-        "treeHash": "33adacd76914cfd586d305d676eb34cb73789f0dfd9bd9512241ff54974cc9da",
+        "treeFileCount": 88,
+        "bundleHash": "1c96cbf13be7b4e77365c1295750f10b6c6d8545ed45773c7368bca0ec0cb95d",
+        "treeHash": "086af4b6fde4783d0b1b9e3d82dfebbbb3ad4b9183a61935aae06aaa4b9ab1b3",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -583,17 +583,17 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
-            "sha256": "2e212ba05af887a0f80eb79cbbf30c5d5c9613fba2e4d14405f86c08771656a0",
+            "sha256": "b7791a9579515d95f5f72461bf300d9fa7a24bf6a43aa44e23d71395efdb17b3",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
-            "sha256": "5aa06e122637d441135b63fd062eb9dd0ea095406ddd7f63ba1ae73f3ef5453c",
+            "sha256": "4f09b82479aecb1d0643c067f832307f50c2e9ad9765b53e01e88d4335d9071b",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
-            "sha256": "61f712fc2764ec3bcf560d2724fadafb026c109fdd6a2767eaef89deaca1944d",
+            "sha256": "5b55f5fd3357b02b95fb607033bf0569a8b65b239149d5d1099e630611f79bb0",
             "bundle": true
           },
           {
@@ -683,7 +683,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOutfitState.ts",
-            "sha256": "1175f3c3466b9176e8125035a6776467eeb954a686f113bf6d19f458741c403e",
+            "sha256": "fc798117400e5fc296a4eeb3aed07bc6a86703c95263d56afb03bdeb3a9a05f4",
             "bundle": true
           },
           {
@@ -838,12 +838,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingPlanState.ts",
-            "sha256": "d6931bdd6fc58a6792c6261aec69ec0f8077f2fd57ec0cc5e00713e9f01edc62",
+            "sha256": "fc7b2553be0937fb9b583392e281ecd09a65dd7b4d38781055ac4999da427c1b",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/packingPlannerHandler.ts",
-            "sha256": "ba3b58576a749e84b5c582084754e2e92cbd5c182a46f1230023adfbc154c13e",
+            "sha256": "9cf265baf3345aff8b8d6c206fb206674a888f5f56042714b2b2cfb68e673078",
             "bundle": true
           },
           {
@@ -863,8 +863,13 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingRefinementIntent.ts",
-            "sha256": "b06a81a050617002a70c83682d72f46108f8ba23b25d70243131d95701dbec54",
+            "sha256": "c5f91cc94f17a320325d05877da7d35f64fe1784676e0c129b1e2ff17f009439",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingRefinementQuality.test.ts",
+            "sha256": "05c6c18035c9428d484c957da670d45a46c9e25cb61c82b67e51943494d1bf4e",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/packingRetrieval.ts",
@@ -883,7 +888,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingTripPlanner.ts",
-            "sha256": "7ef771c315da1bd67791e938a4f297bd987d4d3e3a8dfb0e0e4e4f7c65f496f7",
+            "sha256": "4c456474a1eb30ed886304ff47487e183f746bab3a1f127fda4daa6b926c83a9",
             "bundle": true
           },
           {

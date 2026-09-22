@@ -23,7 +23,7 @@
 
 import type { EliseWardrobeCandidate } from './eliseAdviceTypes.ts';
 import { colorTokensOf } from './eliseFashionFeatures.ts';
-import { readRefinementDirectives } from './eliseOutfitState.ts';
+import { layeringRoleOfWord, readRefinementDirectives } from './eliseOutfitState.ts';
 import { readStatedConditions, type PackingActivity, type PackingCondition } from './packingContract.ts';
 import {
   garmentClassOfWord as garmentClassOf,
@@ -34,7 +34,7 @@ import {
 import { dayLabel, weekdayOf } from './packingSchedule.ts';
 
 export type PackingRefinementOp =
-  | { kind: 'reject_item'; itemId: string }
+  | { kind: 'reject_item'; itemId: string; reason?: 'not_owned' }
   | { kind: 'reject_class'; garmentClass: string }
   | { kind: 'restore_item'; itemId: string }
   | { kind: 'restore_class'; garmentClass: string }
@@ -53,7 +53,22 @@ export type PackingRefinementOp =
   | { kind: 'owned_only' }
   | { kind: 'allow_shopping' }
   | { kind: 'pack_light' }
-  | { kind: 'free_text'; slotIds: string[] | null; note: string };
+  | { kind: 'free_text'; slotIds: string[] | null; note: string }
+  // Build 35 refinement quality. Each names the smallest scope it acts on.
+  /** "Different shoes", "change Friday's shoes": swap the named role, nothing else. */
+  | { kind: 'replace_role'; role: string; slotIds: string[] | null; itemIds: string[] }
+  /** "Only two pairs of shoes", "one jacket only", "fewer shoes". */
+  | { kind: 'max_role'; role: string; max: number }
+  /** "Carry-on only" -- a constraint, unlike "will this fit in a carry-on?". */
+  | { kind: 'carry_on_only' }
+  /** "Not black", "nothing black". Only items whose recorded colour says so. */
+  | { kind: 'exclude_color'; color: string }
+  /** "No leather", "no wool". Only items whose own words say so. */
+  | { kind: 'exclude_material'; material: string }
+  /** "Warmer", "it's colder than expected", "lighter layers". */
+  | { kind: 'warmth'; slotIds: string[] | null; direction: 'warmer' | 'lighter' }
+  /** "Why did you pack two blazers?" -- answered from the plan, never a change. */
+  | { kind: 'explain'; itemIds: string[]; noun: string };
 
 export interface PackingClarificationOption {
   kind: 'item' | 'day';
@@ -77,6 +92,10 @@ export interface PackingRefinementInterpretation {
   notInPlan: string[];
   /** Restores that named something never rejected. */
   notRejected: string[];
+  /** "Take that out" with no structured selection: which piece is not knowable. */
+  needsReference: boolean;
+  /** "Go back" when nothing was removed that could be brought back. */
+  nothingToRestore: boolean;
 }
 
 export interface PackingRefinementContext {
@@ -116,17 +135,6 @@ const ACTIVITY_WORDS: Array<[RegExp, PackingActivity]> = [
   [/\bsightseeing\b|\bdaytime\b|\bday\s*look\b|\bexploring\b/, 'casual_day'],
 ];
 
-const ROLE_BY_WORD: Record<string, string> = {
-  trouser: 'bottom', trousers: 'bottom', pant: 'bottom', pants: 'bottom', jean: 'bottom', jeans: 'bottom',
-  chino: 'bottom', chinos: 'bottom', short: 'bottom', shorts: 'bottom', skirt: 'bottom', skirts: 'bottom',
-  bottom: 'bottom', bottoms: 'bottom', legging: 'bottom', leggings: 'bottom',
-  top: 'base', tops: 'base', shirt: 'base', shirts: 'base', blouse: 'base', blouses: 'base', tee: 'base', tees: 'base',
-  shoe: 'shoe', shoes: 'shoe', sneakers: 'shoe', boots: 'shoe', footwear: 'shoe',
-  dress: 'one_piece', dresses: 'one_piece',
-  jacket: 'outer', jackets: 'outer', coat: 'outer', coats: 'outer', blazer: 'outer', blazers: 'outer',
-  sweater: 'mid', sweaters: 'mid', cardigan: 'mid', knitwear: 'mid',
-};
-
 // One space-separated string, not an array of quoted words: the governed Edge
 // manifest scanner reads a quoted preposition followed by another quoted word
 // as an import specifier (the B34-DEF-001 false-positive class). Same fix PR
@@ -151,7 +159,7 @@ const LAUNDRY_YES = /\bcan\s+(?:do\s+)?(?:laundry|wash)\b|\blaundry\s+(?:is\s+)?
 const PIN = /\bkeep\b[^.]*\b(?:exactly|as\s+(?:it|they)\s+(?:is|are)|as\s+is|the\s+same|unchanged)\b|\bdon'?t\s+(?:change|touch)\b|\bleave\b[^.]*\b(?:as\s+(?:it|they)\s+(?:is|are)|alone|unchanged)\b|\block\b/i;
 const UNPIN = /\b(?:you\s+can|feel\s+free\s+to|ok(?:ay)?\s+to)\s+change\b|\bunlock\b|\bunpin\b/i;
 const KEEP = /\bkeep\b|\bstick\s+with\b/i;
-const RESTORE = /\b(?:bring|put|add)\b[^.]*\bback\b|\bactually\s+(?:bring|pack|include|keep)\b|\bundo\b|\bchanged\s+my\s+mind\b|\breinstate\b|\brestore\b/i;
+const RESTORE = /\b(?:bring|put|add)\b[^.]*\bback\b|\bactually\s+(?:bring|pack|include|keep)\b|\bundo\b|\bchanged\s+my\s+mind\b|\breinstate\b|\brestore\b|\bgo\s+back\b/i;
 const INCLUDE = /\b(?:pack|bring|add|include|take)\b/i;
 const REMOVE = /\b(?:don'?t|do\s+not|no|not|without|skip|remove|drop|lose|ditch|exclude|leave\s+out)\b|\bleave\b[^.]*\b(?:home|behind)\b/i;
 const PREFER = /\buse\b|\bwear\b|\bswap\b|\binstead\b|\bswitch\s+to\b|\bgo\s+with\b|\bprefer\b/i;
@@ -162,11 +170,41 @@ const REWEAR_OK = /\b(?:don'?t\s+mind|fine|happy|ok(?:ay)?|can)\b[^.]*\b(?:repea
 const ALTERNATIVE = /\banother\b|\bdifferent\b|\bsomething\s+else\b|\btry\s+again\b|\bnew\s+(?:look|outfit)\b|\bchange\s+(?:the|my)?\s*(?:look|outfit)\b/i;
 const PACK_LIGHT = /\bpack\s+light(?:er)?\b|\btravel\s+light\b|\bfewer\s+(?:things|pieces|items|clothes)\b|\bless\s+stuff\b/i;
 
+// ── Build 35 refinement quality ─────────────────────────────────────────────
+// A question about the plan is answered from the plan; it is never a change.
+const EXPLAIN = /^\s*why\b|\bwhy\s+(?:did|do|does|is|are|would|the)\b|\bexplain\b|\bwhat'?s\s+the\s+(?:point|reason)\b/i;
+// "Keep everything except Saturday": the named day is the one that CHANGES.
+const EXCEPT = /\b(?:except|apart\s+from|other\s+than)\b|\b(?:everything|all)\s+but\b|\bonly\s+(?:change|redo|replace)\b/i;
+// A constraint on the luggage, as opposed to CARRY_ON's question about it.
+const CARRY_ON_ONLY = /\bcarry[\s-]?on\s+(?:bag\s+|luggage\s+|suitcase\s+)?only\b|\b(?:only|just)\s+(?:(?:taking|bringing|have|packing)\s+)?(?:a\s+|one\s+)?carry[\s-]?on\b|\bhand\s+luggage\s+only\b|\bno\s+checked\s+(?:bag|luggage)\b/i;
+const COUNT_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, a: 1, single: 1, '1': 1, '2': 2, '3': 3, '4': 4 };
+// "only two pairs of shoes", "just one jacket", "max 2 shoes", "no more than two pairs"
+const MAX_COUNT = /\b(?:only|just|max(?:imum)?|at\s+most|no\s+more\s+than|limit(?:\s+it)?\s+to|up\s+to)\s+(one|two|three|four|a|single|[1-4])\s+(?:pairs?\s+of\s+)?([a-z]+)/i;
+// "two pairs of shoes max", "one jacket only"
+const COUNT_ONLY = /\b(one|two|three|four|single|[1-4])\s+(?:pairs?\s+of\s+)?([a-z]+)\s+(?:only|max(?:imum)?|tops?)\b/i;
+const FEWER = /\b(?:fewer|less)\s+(?:pairs?\s+of\s+)?([a-z]+)/i;
+// "different shoes", "change Friday's shoes", "swap the jacket", "another top".
+const REPLACE_ROLE = /\b(?:different|other|another|new|swap|switch|change|replace)\b/i;
+// "swap the loafers for sneakers": what comes after for/with is what is wanted.
+const SWAP_FOR = /\b(?:swap|switch|replace|change|trade)\b(.*?)\b(?:for|with|to)\b(.*)$/i;
+// Changing a named day or occasion as a whole ("replace Saturday", "change dinner").
+const CHANGE_SLOT = /\b(?:change|replace|redo|rework|swap\s+out|switch\s+up)\b/i;
+const NEGATOR = /\b(?:no|not|nothing|without|avoid|skip|don'?t\s+(?:want|pack|bring|use))\b/i;
+const PRONOUN = /\b(?:that|it|this|that\s+one|this\s+one|those|them)\b/i;
+const NOT_OWNED = /\b(?:don'?t|do\s+not)\s+(?:own|have)\b[^.]*\b(?:anymore|any\s+more|now)\b|\bno\s+longer\s+(?:own|have)\b|\bgave\b[^.]*\baway\b|\bgot\s+rid\s+of\b|\bsold\b/i;
+const WARMER = /\bwarmer\b|\bcolder\s+than\b|\bcolder\b|\bneed\s+(?:something\s+)?warm\b|\bmore\s+layers?\b/i;
+const LIGHTER_LAYERS = /\blighter(?:\s+(?:layers?|jacket|coat|outer\s*(?:layer|wear)?))?\s*$|\blighter\s+(?:layers?|jacket|coat|outer)\b|\bcooler\b|\bwarmer\s+than\s+expected\b|\bfewer\s+layers\b/i;
+
+const FILLER = new Set('actually ok okay also so well oh hmm yes yeah please hey right and then now'.split(' '));
+
 function splitClauses(message: string): string[] {
   return message
-    .split(/[.;!?]+|,?\s+but\s+|,\s*(?:and|then)\s+|\s+and\s+(?=(?:keep|don'?t|do\s+not|make|use|give|bring|pack|leave|no|remove|swap|actually)\b)/i)
+    .split(/[.;!?]+|,?\s+but\s+|,\s*(?:and|then)\s+|\s+and\s+(?=(?:keep|don'?t|do\s+not|make|use|give|bring|pack|leave|no|remove|swap|actually)\b)|,\s*(?=(?:change|replace|swap|switch|make|keep|use|give|bring|pack|leave|remove|drop|don'?t|no)\b)/i)
     .map((clause) => clause.trim())
-    .filter(Boolean);
+    // "Actually, bring the loafers back" splits off a bare "Actually"; a clause
+    // of nothing but filler carries no instruction and must not become a note
+    // that restyles the whole trip.
+    .filter((clause) => clause && !words(clause).every((word) => FILLER.has(word)));
 }
 
 function words(text: string): string[] {
@@ -194,6 +232,8 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     notInCloset: [],
     notInPlan: [],
     notRejected: [],
+    needsReference: false,
+    nothingToRestore: false,
   };
   const message = context.message.trim();
   if (!message) return result;
@@ -210,12 +250,17 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
   };
 
   // ── Targets: which days / occasions does the message name? ────────────────
-  const resolveTargets = (clause: string): { slotIds: string[] | null; ambiguousWeekday: string | null } => {
+  // `inherited` carries a day named earlier in the SAME message: in "keep
+  // Friday daytime, change dinner" the dinner is Friday's, not every dinner.
+  const resolveTargets = (
+    clause: string,
+    inherited: string[] | null,
+  ): { slotIds: string[] | null; ambiguousWeekday: string | null; dates: string[] | null } => {
     const lower = clause.toLowerCase();
     let dates: string[] | null = null;
     let ambiguousWeekday: string | null = null;
     for (const word of words(lower)) {
-      const weekday = WEEKDAY_WORDS[word];
+      const weekday = WEEKDAY_WORDS[word] ?? WEEKDAY_WORDS[word.replace(/s$/, '')];
       if (!weekday) continue;
       const matching = allDates.filter((date) => weekdayOf(date) === weekday);
       if (matching.length > 1) {
@@ -237,7 +282,9 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     for (const [pattern, activity] of ACTIVITY_WORDS) {
       if (pattern.test(lower) && !activities.includes(activity)) activities.push(activity);
     }
-    if (!dates && activities.length === 0) return { slotIds: null, ambiguousWeekday };
+    const ownDates = dates;
+    if (!dates && activities.length > 0 && inherited) dates = inherited;
+    if (!dates && activities.length === 0) return { slotIds: null, ambiguousWeekday, dates: ownDates };
     // A later day that re-wears an earlier look is changed by changing that look.
     const viaRepeat = dates ? repeatSlotIds(dates) : [];
     const slotIds = context.slots
@@ -246,13 +293,13 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
         // "formal dinner" on a day whose slot is a formal event
         (activities.includes('dinner') && slot.activity === 'formal_event' && dates !== null))
       .map((slot) => slot.slotId);
-    return { slotIds, ambiguousWeekday };
+    return { slotIds, ambiguousWeekday, dates: ownDates };
   };
 
   // ── Garment references against the plan and the Closet ────────────────────
-  const matchPlanItems = (clause: string, garmentClass: string | null): string[] => {
+  const matchPlanItems = (clause: string, garmentClass: string | null, within = planItemIds): string[] => {
     const colors = colorTokensOf([clause.toLowerCase()]);
-    const pool = planItemIds.filter((id) => {
+    const pool = within.filter((id) => {
       const candidate = context.candidates.get(id);
       if (!candidate) return false;
       if (garmentClass && !candidateGarmentClasses(candidate).includes(garmentClass)) return false;
@@ -266,7 +313,7 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     // No garment word: fall back to the item's own words (a brand, a title).
     const tokens = words(clause).filter((word) => word.length > 2 && !STOP.has(word));
     if (tokens.length === 0) return [];
-    const scored = planItemIds.map((id) => {
+    const scored = within.map((id) => {
       const candidate = context.candidates.get(id);
       const vocabulary = new Set(words(`${candidate?.title ?? ''} ${candidate?.brand ?? ''} ${candidate?.subcategory ?? ''}`));
       return { id, hits: tokens.filter((token) => vocabulary.has(token)).length };
@@ -275,10 +322,38 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     return best === 0 ? [] : scored.filter((entry) => entry.hits === best).map((entry) => entry.id);
   };
 
-  const closetHasClass = (garmentClass: string): string[] =>
-    [...context.candidates.entries()]
+  /**
+   * Plan items a garment word refers to. The garment class first ("the
+   * loafers"); if the plan holds none of that class, the umbrella role the
+   * word names ("the pants" when the look holds jeans). Colour qualifiers
+   * narrow either way.
+   */
+  const itemsNamed = (clause: string, word: string, garmentClass: string | null, within = planItemIds): string[] => {
+    const byClass = garmentClass ? matchPlanItems(clause, garmentClass, within) : [];
+    if (byClass.length > 0) return byClass;
+    const role = layeringRoleOfWord(word);
+    if (!role) return [];
+    const colors = colorTokensOf([clause.toLowerCase()]);
+    return within.filter((id) => {
+      const candidate = context.candidates.get(id);
+      if (!candidate || candidate.layeringRole !== role) return false;
+      if (colors.length === 0) return true;
+      const own = candidate.colors.join(' ').toLowerCase();
+      return colors.some((color) => own.includes(color));
+    });
+  };
+
+  const closetHasClass = (garmentClass: string, word: string): string[] => {
+    const role = layeringRoleOfWord(word);
+    const byClass = [...context.candidates.entries()]
       .filter(([, candidate]) => candidateGarmentClasses(candidate).includes(garmentClass))
       .map(([id]) => id);
+    if (byClass.length > 0 || !role) return byClass;
+    return [...context.candidates.entries()].filter(([, candidate]) => candidate.layeringRole === role).map(([id]) => id);
+  };
+
+  const slotItems = (slotIds: string[] | null): string[] =>
+    [...new Set(context.slots.filter((slot) => !slotIds || slotIds.includes(slot.slotId)).flatMap((slot) => slot.itemIds))];
 
   const askWhich = (ids: string[], noun: string) => {
     if (context.resolvedItemId && ids.includes(context.resolvedItemId)) return context.resolvedItemId;
@@ -289,9 +364,23 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     return null;
   };
 
+  /** The role a count or replacement phrase names: "shoes", "pairs", "jacket", "loafers". */
+  const roleOfWord = (word: string): string | null => {
+    const umbrella = layeringRoleOfWord(word);
+    if (umbrella) return umbrella;
+    const garmentClass = garmentClassOf(word);
+    if (!garmentClass) return null;
+    const owned = [...context.candidates.values()].find((candidate) =>
+      candidateGarmentClasses(candidate).includes(garmentClass)
+    );
+    return owned?.layeringRole ?? null;
+  };
+
+  let inheritedDates: string[] | null = null;
   for (const clause of splitClauses(message)) {
     const lower = clause.toLowerCase();
-    const { slotIds, ambiguousWeekday } = resolveTargets(clause);
+    const { slotIds, ambiguousWeekday, dates } = resolveTargets(clause, inheritedDates);
+    if (dates) inheritedDates = dates;
     if (ambiguousWeekday && !result.clarification) {
       const options = allDates
         .filter((date) => weekdayOf(date) === ambiguousWeekday)
@@ -301,9 +390,30 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     }
     const classes = namedClasses(clause);
     const directives = readRefinementDirectives(clause);
-    let handled = false;
+    const clauseWords = words(clause);
 
-    if (CARRY_ON.test(clause)) {
+    // A question about the plan is answered from the plan, and changes nothing.
+    // Without this, "why did you pack two blazers?" read as "use blazers".
+    if (EXPLAIN.test(clause)) {
+      const named = classes[0] ?? null;
+      const roleWord = clauseWords.find((word) => layeringRoleOfWord(word));
+      const itemIds = named
+        ? itemsNamed(clause, named.word, named.garmentClass)
+        : roleWord
+        ? itemsNamed(clause, roleWord, null)
+        : [];
+      result.ops.push({ kind: 'explain', itemIds, noun: named?.word ?? roleWord ?? 'pieces' });
+      continue;
+    }
+
+    let handled = false;
+    let consumed = false;
+
+    if (CARRY_ON_ONLY.test(clause)) {
+      result.ops.push({ kind: 'carry_on_only' });
+      handled = true;
+      consumed = true;
+    } else if (CARRY_ON.test(clause)) {
       result.carryOnQuestion = true;
       handled = true;
     }
@@ -321,15 +431,58 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
       result.ops.push({ kind: 'laundry', available: true });
       handled = true;
     }
-    for (const condition of readStatedConditions(clause)) {
+    const conditions = readStatedConditions(clause);
+    // "It's colder than expected" states cold at the destination, like "it's cold".
+    if (/\bcolder\b/i.test(clause) && !conditions.includes('cold')) conditions.push('cold');
+    for (const condition of conditions) {
       result.ops.push({ kind: 'condition', condition });
       handled = true;
     }
-    if (PACK_LIGHT.test(clause)) {
+    const packLight = PACK_LIGHT.test(clause);
+    if (packLight) {
       result.ops.push({ kind: 'pack_light' });
       handled = true;
     }
+    if (!packLight) {
+      if (LIGHTER_LAYERS.test(clause)) {
+        result.ops.push({ kind: 'warmth', slotIds, direction: 'lighter' });
+        handled = true;
+        consumed = true;
+      } else if (WARMER.test(clause)) {
+        result.ops.push({ kind: 'warmth', slotIds, direction: 'warmer' });
+        handled = true;
+        consumed = true;
+      }
+    }
+
+    // Counts: "only two pairs of shoes", "one jacket only", "fewer shoes".
+    const count = MAX_COUNT.exec(clause) ?? COUNT_ONLY.exec(clause);
+    const countRole = count ? roleOfWord(count[2]) : null;
+    if (count && countRole) {
+      result.ops.push({ kind: 'max_role', role: countRole, max: COUNT_WORDS[count[1].toLowerCase()] ?? 1 });
+      handled = true;
+      consumed = true;
+    } else {
+      const fewer = FEWER.exec(clause);
+      const fewerRole = fewer ? roleOfWord(fewer[1]) : null;
+      if (fewer && fewerRole) {
+        const current = slotItems(null).filter((id) => context.candidates.get(id)?.layeringRole === fewerRole).length;
+        result.ops.push({ kind: 'max_role', role: fewerRole, max: Math.max(1, current - 1) });
+        handled = true;
+        consumed = true;
+      }
+    }
+    if (consumed) continue;
     if (handled && classes.length === 0 && !slotIds) continue;
+
+    // "Keep everything except Saturday": Saturday changes, everything else is kept.
+    // Untouched looks are already carried verbatim by a local refinement, so
+    // nothing is pinned behind the traveller's back -- a later "make Friday
+    // casual" must not hit a lock they never asked for.
+    if (slotIds && slotIds.length > 0 && EXCEPT.test(clause)) {
+      result.ops.push({ kind: 'alternative', slotIds });
+      continue;
+    }
 
     // Pins name days; keeping a garment pins the garment.
     if (UNPIN.test(clause) && slotIds) {
@@ -342,7 +495,7 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     }
 
     // Repeat rules name a role ("don't repeat trousers").
-    const roleWord = words(clause).map((word) => ROLE_BY_WORD[word]).find(Boolean);
+    const roleWord = clauseWords.map((word) => layeringRoleOfWord(word)).find(Boolean) ?? null;
     if (roleWord && REWEAR_OK.test(clause) && !/\bdon'?t\s+(?:want|like)\b/i.test(clause)) {
       result.ops.push({ kind: 'rewear_ok', role: roleWord });
       continue;
@@ -353,6 +506,10 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
     }
 
     if (RESTORE.test(clause)) {
+      if (classes.length === 0 && context.rejectedItemIds.length === 0 && context.rejectedClasses.length === 0) {
+        result.nothingToRestore = true;
+        continue;
+      }
       for (const named of classes.length ? classes : [{ garmentClass: '', plural: false, word: '' }]) {
         const rejected = context.rejectedItemIds.filter((id) => {
           const candidate = context.candidates.get(id);
@@ -360,6 +517,10 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
         });
         if (named.garmentClass && context.rejectedClasses.includes(named.garmentClass)) {
           result.ops.push({ kind: 'restore_class', garmentClass: named.garmentClass });
+        } else if (!named.garmentClass && rejected.length === 0 && context.rejectedClasses.length === 1) {
+          // "Go back" after "no heels": the one thing that was ruled out.
+          result.ops.push({ kind: 'restore_class', garmentClass: context.rejectedClasses[0] });
+          continue;
         }
         if (rejected.length === 1 || (named.plural && rejected.length > 0)) {
           for (const id of rejected) result.ops.push({ kind: 'restore_item', itemId: id });
@@ -367,13 +528,73 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
           const chosen = askWhich(rejected, named.word || 'piece');
           if (chosen) result.ops.push({ kind: 'restore_item', itemId: chosen });
         } else if (!named.garmentClass || !context.rejectedClasses.includes(named.garmentClass)) {
-          result.notRejected.push(named.word || clause);
+          if (named.word) result.notRejected.push(named.word);
+          else result.nothingToRestore = true;
         }
       }
       continue;
     }
 
+    // "Take that out" / "I don't own that anymore": the piece is whatever the
+    // traveller selected on screen. With no selection it is not knowable, and
+    // guessing would remove the wrong garment (ADD-14).
+    if (classes.length === 0 && !roleWord && (REMOVE.test(clause) || NOT_OWNED.test(clause)) && PRONOUN.test(clause) &&
+      colorTokensOf([lower]).length === 0) {
+      if (context.resolvedItemId && planItemIds.includes(context.resolvedItemId)) {
+        result.ops.push({
+          kind: 'reject_item',
+          itemId: context.resolvedItemId,
+          ...(NOT_OWNED.test(clause) ? { reason: 'not_owned' as const } : {}),
+        });
+      } else {
+        result.needsReference = true;
+      }
+      continue;
+    }
+
+    // "Not black", "no leather": an attribute ruled out, with no garment named.
+    if (classes.length === 0 && !roleWord && NEGATOR.test(clause)) {
+      const colors = colorTokensOf([lower]);
+      if (colors.length > 0) {
+        for (const color of colors) result.ops.push({ kind: 'exclude_color', color });
+        continue;
+      }
+      const materials = new Set<string>();
+      for (const candidate of context.candidates.values()) {
+        for (const value of candidate.materials) for (const word of words(value)) if (word.length > 3) materials.add(word);
+      }
+      const excluded = clauseWords.filter((word) => materials.has(word));
+      if (excluded.length > 0) {
+        for (const material of excluded) result.ops.push({ kind: 'exclude_material', material });
+        continue;
+      }
+    }
+
+    // "Swap the loafers for sneakers": the part after for/with is what is wanted.
+    const swapFor = SWAP_FOR.exec(clause);
+    const wantedAfterFor = swapFor ? namedClasses(swapFor[2]) : [];
+
+    // "Different shoes", "change Friday's shoes", "swap the jacket": replace the
+    // named role in the targeted looks and leave every other piece where it is.
+    if (REPLACE_ROLE.test(clause) && wantedAfterFor.length === 0 && !/\bdon'?t\s+(?:change|swap|replace|touch)\b/i.test(clause) &&
+      !REMOVE.test(clause) && !/\binstead\b/i.test(clause)) {
+      const named = classes[0] ?? null;
+      const word = named?.word ?? clauseWords.find((entry) => layeringRoleOfWord(entry)) ?? null;
+      if (word) {
+        const role = roleOfWord(word);
+        const within = slotItems(slotIds);
+        const ids = itemsNamed(clause, word, named?.garmentClass ?? null, within);
+        if (role && ids.length > 0) {
+          result.ops.push({ kind: 'replace_role', role, slotIds, itemIds: ids });
+        } else {
+          result.notInPlan.push(word);
+        }
+        continue;
+      }
+    }
+
     if (classes.length > 0 && REMOVE.test(clause) && !/\binstead\s+of\b/i.test(clause)) {
+      const notOwned = NOT_OWNED.test(clause);
       for (const named of classes) {
         // "the loafers" names a specific pair; "heels" / "no heels" / "any
         // heels" names the class. The word before the garment (colour words
@@ -381,18 +602,28 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
         const before = words(lower.slice(0, lower.indexOf(named.word)));
         let cursor = before.length - 1;
         while (cursor >= 0 && colorTokensOf([before[cursor]]).length > 0) cursor -= 1;
+        const colourQualified = cursor < before.length - 1;
         const determiner = before[cursor] ?? '';
         const specific = DETERMINERS.has(determiner);
+        if (!specific && colourQualified) {
+          // "No black shoes" rules out black shoes, not every shoe. Every owned
+          // piece that matches both is rejected by id; a piece whose colour is
+          // not recorded is left alone rather than guessed at.
+          const matching = itemsNamed(clause, named.word, named.garmentClass, [...context.candidates.keys()]);
+          if (matching.length === 0) result.notInPlan.push(`${before.slice(cursor + 1).join(' ')} ${named.word}`.trim());
+          for (const id of matching) result.ops.push({ kind: 'reject_item', itemId: id });
+          continue;
+        }
         if (!specific && (named.plural || QUANTIFIERS.has(determiner))) {
           result.ops.push({ kind: 'reject_class', garmentClass: named.garmentClass });
           continue;
         }
-        const matches = matchPlanItems(clause, named.garmentClass);
+        const matches = itemsNamed(clause, named.word, named.garmentClass);
         if (matches.length === 1) {
-          result.ops.push({ kind: 'reject_item', itemId: matches[0] });
+          result.ops.push({ kind: 'reject_item', itemId: matches[0], ...(notOwned ? { reason: 'not_owned' as const } : {}) });
         } else if (matches.length > 1) {
           const chosen = askWhich(matches, named.word);
-          if (chosen) result.ops.push({ kind: 'reject_item', itemId: chosen });
+          if (chosen) result.ops.push({ kind: 'reject_item', itemId: chosen, ...(notOwned ? { reason: 'not_owned' as const } : {}) });
         } else {
           result.notInPlan.push(named.word);
         }
@@ -400,22 +631,27 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
       continue;
     }
 
-    if (classes.length > 0 && (PREFER.test(clause) || KEEP.test(clause) || INCLUDE.test(clause))) {
+    const keepish = KEEP.test(clause) || /\bdon'?t\s+(?:change|swap|replace|touch)\b/i.test(clause);
+    if (classes.length > 0 && (PREFER.test(clause) || keepish || INCLUDE.test(clause) || wantedAfterFor.length > 0)) {
       // "instead of the loafers" names what is being replaced, not what is wanted.
       const insteadIndex = lower.search(/\binstead\s+of\b/);
-      const wanted = insteadIndex >= 0 ? classes.filter((entry) => lower.indexOf(entry.word) < insteadIndex) : classes;
+      const wanted = wantedAfterFor.length > 0
+        ? wantedAfterFor
+        : insteadIndex >= 0
+        ? classes.filter((entry) => lower.indexOf(entry.word) < insteadIndex)
+        : classes;
       for (const named of wanted) {
-        const owned = closetHasClass(named.garmentClass);
+        const owned = closetHasClass(named.garmentClass, named.word);
         if (owned.length === 0) {
           const phrase = clause
             .replace(/^.*?\b(?:pack|bring|add|include|take|use|wear|keep)\b\s*/i, '')
-            .replace(/^(?:my|the|your)\s+/i, '')
+            .replace(/^(?:my|the|your|these|those|this|that)\s+/i, '')
             .slice(0, 60) || named.word;
           result.notInCloset.push(/^(?:a|an|any|some)\s/i.test(phrase) ? phrase : `a ${phrase}`);
           continue;
         }
-        if (KEEP.test(clause)) {
-          const matches = matchPlanItems(clause, named.garmentClass);
+        if (keepish) {
+          const matches = itemsNamed(clause, named.word, named.garmentClass);
           if (matches.length === 1) result.ops.push({ kind: 'pin_item', itemId: matches[0] });
           else if (matches.length > 1) {
             const chosen = askWhich(matches, named.word);
@@ -423,7 +659,7 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
           } else result.notInPlan.push(named.word);
           continue;
         }
-        const colors = colorTokensOf([lower]);
+        const colors = colorTokensOf([wantedAfterFor.length > 0 && swapFor ? swapFor[2].toLowerCase() : lower]);
         const specific = owned.filter((id) => {
           if (colors.length === 0) return true;
           const own = context.candidates.get(id)!.colors.join(' ').toLowerCase();
@@ -456,7 +692,7 @@ export function interpretPackingRefinement(context: PackingRefinementContext): P
       result.ops.push({ kind: 'color', slotIds, preference: color });
       continue;
     }
-    if (ALTERNATIVE.test(clause)) {
+    if (ALTERNATIVE.test(clause) || (slotIds && classes.length === 0 && CHANGE_SLOT.test(clause))) {
       result.ops.push({ kind: 'alternative', slotIds });
       continue;
     }

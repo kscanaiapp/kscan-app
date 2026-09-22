@@ -190,6 +190,12 @@ export interface PackingPlanWeather {
   resolvedLocation: string | null;
 }
 
+export interface PackingPlanChange {
+  slotId: string;
+  removedItemIds: string[];
+  addedItemIds: string[];
+}
+
 export interface PackingPlan {
   contractVersion: string;
   planId: string;
@@ -224,6 +230,12 @@ export interface PackingPlan {
   notes?: string[];
   leftHome?: PackingLeftHomeItem[];
   considerBuying?: PackingExternalSuggestion[];
+  /**
+   * Build 35. Looks the last refinement changed, as ids only: what left and
+   * what arrived. The screen marks those looks instead of asking the traveller
+   * to re-read the whole plan. Empty for a new plan.
+   */
+  changes?: PackingPlanChange[];
   /**
    * Opaque structured plan state. The client stores it and hands it back on
    * the next refinement; it never reads ownership from it, and the server

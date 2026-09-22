@@ -38,6 +38,7 @@
 
 import type {
   EliseActorRelationship,
+  EliseAdviceIntent,
   EliseOutfitState,
   EliseOutfitStateItem,
   EliseRecommendationRole,
@@ -47,6 +48,7 @@ import type {
   EliseWardrobeCandidate,
   EliseWardrobeSourceType,
 } from './eliseAdviceTypes.ts';
+import { COLOR_TOKENS } from './eliseFashionFeatures.ts';
 
 /** Bounds. Every one of these caps a value that arrives from the client. */
 export const ELISE_OUTFIT_STATE_LIMITS = {
@@ -58,6 +60,9 @@ export const ELISE_OUTFIT_STATE_LIMITS = {
   maxIdChars: 80,
   /** Refinement turns before the outfit is considered stale and restarts. */
   maxTurns: 24,
+  maxLooks: 3,
+  maxLookItems: 4,
+  maxOccasionTokens: 4,
 } as const;
 
 /** The block type the client persists this state under, in `ui_blocks`. */
@@ -68,6 +73,12 @@ const VALID_ROLES: EliseRecommendationRole[] = [
 ];
 const VALID_RELATIONSHIPS: EliseActorRelationship[] = [
   'owned', 'saved', 'scanned', 'shared', 'discovered', 'unverified', 'unknown',
+];
+const VALID_INTENTS: EliseAdviceIntent[] = [
+  'style_current_item', 'build_outfit', 'compare_items', 'find_owned_alternative',
+  'find_saved_alternative', 'wardrobe_gap', 'purchase_advice', 'occasion_fit', 'color_pairing',
+  'layering_advice', 'shoe_pairing', 'accessory_pairing', 'seasonal_advice',
+  'multi_look_generation', 'general_style_advice',
 ];
 const VALID_SOURCE_TYPES: EliseWardrobeSourceType[] = [
   'closet', 'saved_scan', 'recent_scan', 'owned_room', 'shared_room',
@@ -161,6 +172,48 @@ export function garmentClassOf(word: string): string | null {
   for (let index = 1; index <= letters.length - 4; index += 1) {
     const hit = directGarmentClassOf(letters.slice(index));
     if (hit && hit.length >= 4) return hit;
+  }
+  return null;
+}
+
+/**
+ * Everyday umbrella words and the layering role they name (Build 35).
+ *
+ * "Keep the pants" when the look holds jeans, "different shoes" when it holds
+ * loafers: the customer names the ROLE, and a garment-class match alone finds
+ * nothing. One table for Packing and Concierge -- Packing previously carried
+ * its own copy -- and the values are `inferLayeringRole`'s role codes, so no
+ * second role taxonomy exists.
+ */
+const UMBRELLA_ROLE_WORDS: Record<string, string> = {
+  trouser: 'bottom', trousers: 'bottom', pant: 'bottom', pants: 'bottom', jean: 'bottom', jeans: 'bottom',
+  chino: 'bottom', chinos: 'bottom', short: 'bottom', shorts: 'bottom', skirt: 'bottom', skirts: 'bottom',
+  bottom: 'bottom', bottoms: 'bottom', legging: 'bottom', leggings: 'bottom',
+  top: 'base', tops: 'base', shirt: 'base', shirts: 'base', blouse: 'base', blouses: 'base', tee: 'base', tees: 'base',
+  shoe: 'shoe', shoes: 'shoe', sneakers: 'shoe', boots: 'shoe', footwear: 'shoe', pair: 'shoe', pairs: 'shoe',
+  dress: 'one_piece', dresses: 'one_piece',
+  jacket: 'outer', jackets: 'outer', coat: 'outer', coats: 'outer', blazer: 'outer', blazers: 'outer',
+  outerwear: 'outer',
+  sweater: 'mid', sweaters: 'mid', cardigan: 'mid', knitwear: 'mid',
+  bag: 'accessory', bags: 'accessory',
+};
+
+/** The layering role an everyday garment or umbrella word names, or null. */
+export function layeringRoleOfWord(word: string): string | null {
+  return UMBRELLA_ROLE_WORDS[word.toLowerCase().replace(/[^a-z]/g, '')] ?? null;
+}
+
+/**
+ * The role a piece plays in a look, for refinement. The scorer's layering
+ * role when it has one; otherwise the role its own garment words name through
+ * the umbrella table -- a "Camel blazer" filed under an "outerwear" bucket
+ * that `inferLayeringRole` cannot place is still an outer layer.
+ */
+export function refinementRoleOf(candidate: EliseWardrobeCandidate): string | null {
+  if (candidate.layeringRole) return candidate.layeringRole;
+  for (const garment of candidateGarmentClasses(candidate)) {
+    const role = layeringRoleOfWord(garment);
+    if (role) return role;
   }
   return null;
 }
@@ -264,6 +317,30 @@ export function restoreOutfitState(raw: unknown): EliseOutfitState | null {
       ELISE_OUTFIT_STATE_LIMITS.maxConstraints,
       32,
     ),
+    // Build 35. Optional; absent keys stay absent so an older block restores
+    // byte-for-byte as it did.
+    ...(VALID_INTENTS.includes(record.intent as EliseAdviceIntent)
+      ? { intent: record.intent as EliseAdviceIntent }
+      : {}),
+    ...(Array.isArray(record.occasionTokens)
+      ? {
+          occasionTokens: boundedStringArray(
+            record.occasionTokens,
+            ELISE_OUTFIT_STATE_LIMITS.maxOccasionTokens,
+            20,
+          ).filter((token) => /^[a-z_]{2,20}$/.test(token)),
+        }
+      : {}),
+    ...(Array.isArray(record.looks)
+      ? {
+          looks: record.looks
+            .slice(0, ELISE_OUTFIT_STATE_LIMITS.maxLooks)
+            .map((look) =>
+              boundedStringArray(look, ELISE_OUTFIT_STATE_LIMITS.maxLookItems, ELISE_OUTFIT_STATE_LIMITS.maxIdChars)
+            )
+            .filter((look) => look.length > 0),
+        }
+      : {}),
   };
 }
 
@@ -320,10 +397,58 @@ const VARIATION_PATTERNS = [
   /\banother\s+(?:version|option|one|look)\b/i, /\bdifferent\s+version\b/i,
   /\bshow\s+me\s+(?:another|more)\b/i, /\btry\s+again\b/i,
   /\bsomething\s+(?:different|new)\b/i,
+  // Build 35: the one-word chip and its everyday forms.
+  /^\s*(?:another|one\s+more|more\s+options?|other\s+options?|alternatives?)\s*[.!?]*\s*$/i,
 ];
+
+// ── Build 35 refinement quality ─────────────────────────────────────────────
+// Words that turn the garment or colour after them into a rejection. Kept to
+// the customer's everyday forms, like the tables above.
+const NEGATORS = new Set('no not without skip avoid nothing lose drop ditch'.split(' '));
+const DETERMINERS = new Set('the those that these this my your'.split(' '));
+const QUANTIFIERS = new Set('any all no a an'.split(' '));
+const SWAP_WORDS = new Set('swap change replace different other another new switch'.split(' '));
+/** A message that asks a NEW question rather than refining the one on the table. */
+const NEW_TASK_PATTERNS = [
+  /\bwhat\s+(?:should|can|could|do)\s+i\s+wear\b/i,
+  /\b(?:outfit|look|something|ideas?)\s+(?:for|to\s+wear\s+to)\s+(?:a|an|my|the|this|next)\b/i,
+  /\bwear\s+to\s+(?:a|an|my|the)\b/i,
+  /\bstart\s+over\b/i, /\bfrom\s+scratch\b/i, /\bnew\s+outfit\b/i,
+  /\bsomething\s+(?:\w+\s+)?for\s+(?:a|an|my|the|this|next)\s+(?!same\b)/i,
+  /\bfor\s+(?:a|an|my|the)\s+(?:beach|wedding|party|date|interview|funeral|meeting|trip|vacation|holiday|brunch|gala|concert|festival|hike)\b/i,
+];
+// "I don't own that anymore", "not that one": a piece named only by pronoun.
+const PRONOUN_REJECTION = /\b(?:don'?t\s+(?:own|have|like|want)|no\s+longer\s+(?:own|have)|not|lose|drop|skip|ditch)\s+(?:that|this|it)(?:\s+one)?\b/i;
+const STYLE_TOKENS = new Set('formal casual'.split(' '));
+const ORDINALS: Record<string, number> = { first: 0, '1st': 0, second: 1, '2nd': 1, third: 2, '3rd': 2 };
+const ORDINAL_PATTERN = /\b(first|second|third|1st|2nd|3rd)\s+(?:one|look|option|outfit)\b|\b(?:look|option|outfit)\s+(?:#\s*|number\s+)?([1-3])\b/i;
+const CHANGE_PATTERN = /\b(?:change|swap|replace|different|don'?t\s+like|not)\b/i;
+const OTHER_REFERENCE = /\bthe\s+other\s+([a-z]+)\b/i;
+const CORRECTION = /\b(?:that'?s|it'?s|this\s+is|those\s+are|these\s+are|they'?re|they\s+are|it\s+is|is|are)\s+(?:actually\s+)?(?:a\s+|an\s+)?([a-z]+),?\s+not\s+(?:a\s+|an\s+)?([a-z]+)\b/i;
+const POSITIVE_COLOR = /\b(?:make\s+it|in|wear|use|want|prefer|go\s+with|something|instead|bright)\b/i;
+const COLOR_ALLOWED =/\b([a-z]+)\s+is\s+(?:fine|ok(?:ay)?|good)\b/i;
+
+export interface EliseRefinementTarget {
+  /** 'reject': the user turned it down. 'swap': replace it and keep the rest. */
+  kind: 'reject' | 'swap';
+  garmentClass: string | null;
+  /** The layering role an umbrella word names ("shoes", "jacket"). */
+  role: string | null;
+  /** Colour words qualifying it ("the black loafers"). */
+  colors: string[];
+  /**
+   * True when the words name a PIECE ("the loafers", "those boots"), false
+   * when they name a kind ("no heels"). A piece is removed by id; only a kind
+   * becomes a class exclusion -- a narrow rejection is never broadened.
+   */
+  specific: boolean;
+  word: string;
+}
 const CONSTRAINT_PATTERNS: Array<[RegExp, string]> = [
-  [/\bless\s+formal\b|\bmore\s+casual\b|\bdress\s+(?:it\s+)?down\b/i, 'less_formal'],
-  [/\bmore\s+formal\b|\bdress\s+(?:it\s+)?up\b|\bsmarter\b/i, 'more_formal'],
+  // Build 35: a rejection REASON ("too formal", "don't overdress me") is a
+  // direction, and continues the outfit like the instruction it implies.
+  [/\bless\s+(?:formal|dressy)\b|\bmore\s+(?:casual|relaxed)\b|\bdress\s+(?:it\s+)?down\b|\btoo\s+(?:formal|dressy|fancy|smart|much)\b|\bover-?dress(?:ed|ing)?\b/i, 'less_formal'],
+  [/\bmore\s+(?:formal|polished)\b|\bdress\s+(?:it\s+)?up\b|\bsmarter\b|\bdressier\b|\btoo\s+(?:casual|sloppy|plain)\b|\bunder-?dress(?:ed|ing)?\b/i, 'more_formal'],
   [/\bwarmer\b|\bfor\s+the\s+cold\b/i, 'warmer'],
   [/\bcooler\b|\blighter\b/i, 'lighter'],
   [/\bbrighter\b|\bmore\s+colou?r\b/i, 'brighter'],
@@ -341,6 +466,20 @@ export interface EliseRefinementDirectives {
   retainedGarmentClasses: string[];
   /** Constraint codes stated this turn. */
   constraints: string[];
+  /** Build 35: pieces named for rejection or replacement, resolved by the planner. */
+  targets: EliseRefinementTarget[];
+  /** Build 35: "the second one" -- an index into the presented looks. */
+  ordinal: { index: number; mode: 'keep' | 'change' } | null;
+  /** Build 35: "the other jacket" / "the other one". */
+  otherReference: { garmentClass: string | null; role: string | null; word: string } | null;
+  /** Build 35: words after a negator that are neither garments nor colours ("no leather"). */
+  negatedTerms: string[];
+  /** Build 35: colours the user withdrew an exclusion for ("black is fine"). */
+  allowedColors: string[];
+  /** Build 35: the message asks a new question; the old outfit's state does not apply. */
+  newTask: boolean;
+  /** Build 35: "I don't own that anymore" -- a piece named only by pronoun. */
+  pronounReference: boolean;
 }
 
 /**
@@ -373,6 +512,101 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
   const retainedGarmentClasses: string[] = [];
   const retainedRoles: EliseRecommendationRole[] = [];
 
+  // ── Build 35: targets, attributes, references, corrections ──────────────
+  const targets: EliseRefinementTarget[] = [];
+  const negatedTerms: string[] = [];
+  const allowedColors: string[] = [];
+  const correction = CORRECTION.exec(text);
+  if (correction) {
+    const [, actual, said] = correction;
+    const actualClass = garmentClassOf(actual);
+    const saidClass = garmentClassOf(said);
+    if (actualClass && saidClass && actualClass !== saidClass) {
+      constraints.push(`correct:${saidClass}>${actualClass}`.slice(0, 32));
+    } else if (COLOR_TOKENS.includes(actual.toLowerCase()) && COLOR_TOKENS.includes(said.toLowerCase())) {
+      constraints.push(`correct_color:${said.toLowerCase()}>${actual.toLowerCase()}`.slice(0, 32));
+    }
+  }
+  const allowed = COLOR_ALLOWED.exec(text);
+  if (allowed && COLOR_TOKENS.includes(allowed[1].toLowerCase())) allowedColors.push(allowed[1].toLowerCase());
+
+  // A correction describes a piece; it is not a rejection of the word it corrects.
+  const scanText = correction ? text.replace(correction[0], ' ') : text;
+  for (const clause of scanText.split(/[,;.!?]|\bbut\b/i)) {
+    const tokens = clause.toLowerCase().split(/[^a-z0-9']+/).map((word) => word.replace(/'/g, '')).filter(Boolean);
+    const clauseKeeps = KEEP_PATTERNS.some((p) => p.test(clause)) || /\bdon'?t\s+(?:change|touch|swap)\b/i.test(clause);
+    const clauseRejects = REJECT_PATTERNS.some((p) => p.test(clause)) || /\bdon'?t\s+(?:like|want|love)\b/i.test(clause);
+    for (let index = 0; index < tokens.length; index += 1) {
+      const word = tokens[index];
+      const garmentClass = garmentClassOf(word);
+      const role = layeringRoleOfWord(word);
+      const isColor = COLOR_TOKENS.includes(word);
+      if (!garmentClass && !role && !isColor) {
+        if (index > 0 && NEGATORS.has(tokens[index - 1]) && word.length >= 4) negatedTerms.push(word);
+        continue;
+      }
+      if (clauseKeeps) continue;
+      // Walk back over colours to the word that governs this garment.
+      let cursor = index - 1;
+      const colors: string[] = [];
+      while (cursor >= 0 && COLOR_TOKENS.includes(tokens[cursor])) {
+        colors.unshift(tokens[cursor]);
+        cursor -= 1;
+      }
+      const governing = tokens[cursor] ?? '';
+      const before = tokens.slice(Math.max(0, cursor - 2), cursor + 1);
+      if (isColor) {
+        // A bare colour after a negator ("not black", "nothing black").
+        const next = tokens[index + 1] ?? '';
+        const bare = !garmentClassOf(next) && !layeringRoleOfWord(next) && !COLOR_TOKENS.includes(next);
+        if (bare && (NEGATORS.has(governing) || (clauseRejects && colors.length === 0))) {
+          constraints.push(`not_color:${word}`);
+        } else if (bare && POSITIVE_COLOR.test(clause)) {
+          // "Make it red", "red instead": an explicit wish, which outranks
+          // Signature Style's inferred palette.
+          constraints.push(`prefer_color:${word}`);
+        }
+        continue;
+      }
+      if (governing === 'other' && tokens[cursor - 1] === 'the') continue; // "the other jacket" is a reference
+      const swapped = before.some((entry) => SWAP_WORDS.has(entry)) ||
+        (SWAP_PATTERNS.some((p) => p.test(clause)) && !clauseRejects);
+      const rejected = NEGATORS.has(governing) || before.some((entry) => NEGATORS.has(entry)) || clauseRejects;
+      if (!swapped && !rejected) continue;
+      const specific = DETERMINERS.has(governing) || (swapped && !QUANTIFIERS.has(governing));
+      if (targets.some((target) => target.word === word)) continue;
+      targets.push({
+        kind: swapped && !NEGATORS.has(governing) ? 'swap' : 'reject',
+        garmentClass,
+        role,
+        colors,
+        specific,
+        word,
+      });
+    }
+  }
+  for (const code of [...new Set(constraints.filter((code) => code.startsWith('not_color:')))]) {
+    if (allowedColors.includes(code.split(':')[1])) constraints.splice(constraints.indexOf(code), 1);
+  }
+
+  const ordinalMatch = ORDINAL_PATTERN.exec(text);
+  const ordinal = ordinalMatch
+    ? {
+        index: ordinalMatch[1] ? ORDINALS[ordinalMatch[1].toLowerCase()] : Number.parseInt(ordinalMatch[2], 10) - 1,
+        mode: CHANGE_PATTERN.test(text) ? 'change' as const : 'keep' as const,
+      }
+    : null;
+  const otherMatch = OTHER_REFERENCE.exec(text);
+  const otherReference = otherMatch
+    ? {
+        garmentClass: otherMatch[1] === 'one' ? null : garmentClassOf(otherMatch[1]),
+        role: otherMatch[1] === 'one' ? null : layeringRoleOfWord(otherMatch[1]),
+        word: otherMatch[1].toLowerCase(),
+      }
+    : null;
+  const newTask = NEW_TASK_PATTERNS.some((pattern) => pattern.test(text));
+  const pronounReference = PRONOUN_REJECTION.test(text) && targets.length === 0;
+
   const clauses = text.split(/[,;]|\band\b|\bbut\b/i);
   for (const clause of clauses) {
     const clauseKeeps = KEEP_PATTERNS.some((p) => p.test(clause));
@@ -396,27 +630,72 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
     }
   }
 
+  // Build 35: only a KIND named for rejection is a class exclusion. A piece
+  // ("the loafers", "those boots") is resolved to its id by `planRefinement`,
+  // and a swap never excludes a class at all -- "different shoes" must leave
+  // other shoes to swap to.
+  const classRejections = targets
+    .filter((target) => target.kind === 'reject' && !target.specific && target.colors.length === 0 && target.garmentClass)
+    .map((target) => target.garmentClass as string);
+  const namedRejections = [...new Set([...rejectedGarmentClasses.filter((garment) =>
+    !targets.some((target) => target.garmentClass === garment && (target.specific || target.kind === 'swap' || target.colors.length > 0))
+  ), ...classRejections])];
+
   // A rejection with no garment named ("something else", "try again") is a
   // request for a different outfit, not for a different piece.
   let action: EliseRefinementAction = 'new_outfit';
-  if (swap && rejectedGarmentClasses.length) action = 'refine_swap';
-  else if (reject && rejectedGarmentClasses.length) action = 'refine_reject';
-  else if (keep && (retainedGarmentClasses.length || retainedRoles.length)) action = 'refine_keep';
+  const hasTargets = targets.length > 0;
+  if (newTask) action = 'new_outfit';
+  else if (targets.some((target) => target.kind === 'swap') || (swap && namedRejections.length)) action = 'refine_swap';
+  else if (hasTargets || (reject && namedRejections.length) || pronounReference) action = 'refine_reject';
+  else if ((keep && (retainedGarmentClasses.length || retainedRoles.length)) || ordinal?.mode === 'keep' || otherReference) {
+    action = 'refine_keep';
+  } else if (ordinal?.mode === 'change') action = 'refine_swap';
   else if (variation || reject || swap) action = 'refine_variation';
-  else if (constraints.length && words.length <= 12) action = 'refine_constraint';
+  else if ((constraints.length || negatedTerms.length || allowedColors.length) && words.length <= 12) {
+    action = 'refine_constraint';
+  }
 
   return {
     action,
-    rejectedGarmentClasses: rejectedGarmentClasses.slice(
-      0, ELISE_OUTFIT_STATE_LIMITS.maxRejectedClasses,
-    ),
+    rejectedGarmentClasses: namedRejections.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxRejectedClasses),
     retainedRoles,
     retainedGarmentClasses,
-    constraints: constraints.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxConstraints),
+    constraints: [...new Set(constraints)].slice(0, ELISE_OUTFIT_STATE_LIMITS.maxConstraints),
+    targets: targets.slice(0, 6),
+    ordinal: ordinal && ordinal.index >= 0 && ordinal.index < ELISE_OUTFIT_STATE_LIMITS.maxLooks ? ordinal : null,
+    otherReference,
+    negatedTerms: [...new Set(negatedTerms)].slice(0, 4),
+    allowedColors,
+    newTask,
+    pronounReference,
   };
 }
 
 // ── Applying the refinement ──────────────────────────────────────────────────
+
+/**
+ * Build 35. Does this message refine the outfit on the table? The one answer
+ * both the pipeline (which task to rank for) and `planRefinement` (which state
+ * to carry) use. "Something different for the beach" after a dinner outfit is
+ * a new question, whatever its wording borrows from a refinement, and old
+ * exclusions must not follow it.
+ */
+export function continuesOutfit(input: {
+  prior: EliseOutfitState | null;
+  directives: EliseRefinementDirectives;
+  messageOccasionTokens?: string[];
+}): boolean {
+  if (!input.prior || input.directives.action === 'new_outfit' || input.directives.newTask) return false;
+  // "Formal" and "casual" are in the occasion vocabulary but describe style:
+  // "make it less formal" refines a dinner outfit, it does not replace it.
+  const occasions = (tokens: string[] | undefined) => (tokens ?? []).filter((token) => !STYLE_TOKENS.has(token));
+  const priorOccasions = occasions(input.prior.occasionTokens);
+  const messageOccasions = occasions(input.messageOccasionTokens);
+  const occasionChanged = priorOccasions.length > 0 && messageOccasions.length > 0 &&
+    !messageOccasions.some((token) => priorOccasions.includes(token));
+  return !occasionChanged;
+}
 
 /**
  * Turn the prior state plus this turn's directives into the exclusion and
@@ -424,19 +703,35 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
  *
  * `prior` being null (a first turn, a new outfit, a tampered block that failed
  * validation) yields empty sets, which is exactly the pre-V2 behaviour.
+ *
+ * Build 35. Named pieces ("the loafers", "those boots", "different shoes",
+ * "the other jacket", "the second one") are resolved HERE, against the look
+ * that was actually presented and this turn's authorized candidates -- never
+ * by broadening them to a class. Whatever the refinement did not target in
+ * the presented look is PRESERVED: a small correction makes a small change.
  */
 export function planRefinement(input: {
   prior: EliseOutfitState | null;
   directives: EliseRefinementDirectives;
+  /** This turn's authorized candidates. Resolution can only ever REMOVE or keep these. */
+  candidates?: EliseWardrobeCandidate[];
+  /** Occasion tokens this message names. A different occasion is a new task. */
+  messageOccasionTokens?: string[];
 }): {
   continued: boolean;
   excludedCandidateIds: string[];
   excludedGarmentClasses: string[];
   retainedCandidateIds: string[];
   activeConstraints: string[];
+  /** Build 35: pieces of the presented look the refinement did not target. */
+  preservedCandidateIds: string[];
+  /** Build 35: a reference with more than one plausible piece. Nothing is guessed. */
+  ambiguity: { noun: string; candidateIds: string[] } | null;
+  /** Build 35: named pieces that are not on the table (reported, never broadened). */
+  unresolved: string[];
 } {
   const { prior, directives } = input;
-  const continued = Boolean(prior) && directives.action !== 'new_outfit';
+  const continued = continuesOutfit({ prior, directives, messageOccasionTokens: input.messageOccasionTokens });
 
   if (!continued) {
     return {
@@ -446,19 +741,84 @@ export function planRefinement(input: {
       retainedCandidateIds: [],
       // A constraint stated on a NEW request still applies to that request.
       activeConstraints: directives.constraints,
+      preservedCandidateIds: [],
+      ambiguity: null,
+      unresolved: [],
     };
   }
 
   const state = prior as EliseOutfitState;
+  const byId = new Map((input.candidates ?? []).map((candidate) => [candidate.candidateId, candidate]));
+  const presented = state.looks?.[0] ?? state.items.slice(0, 3).map((item) => item.candidateId);
+  const pool = [...presented, ...state.items.map((item) => item.candidateId).filter((id) => !presented.includes(id))];
+  const colorsOf = (id: string) => (byId.get(id)?.colors ?? []).join(' ').toLowerCase();
+  // The role a piece plays. The scorer's role when it has one; otherwise the
+  // role its own garment words name ("Camel blazer" in an "outerwear" bucket
+  // the scorer cannot place), through the shared umbrella table.
+  const roleOf = (id: string): string | null => {
+    const candidate = byId.get(id);
+    return candidate ? refinementRoleOf(candidate) : null;
+  };
+  type Named = { garmentClass: string | null; role: string | null; colors: string[] };
+  // The pieces the words name, among `ids`. The garment CLASS first ("those
+  // boots" are boots); the umbrella role only when no piece is of that class
+  // ("the jacket" when the look holds a blazer). Colours narrow either way.
+  const pick = (ids: string[], target: Named): string[] => {
+    const known = ids.filter((id) => byId.has(id));
+    const colored = (list: string[]) =>
+      target.colors.length === 0 ? list : list.filter((id) => target.colors.some((color) => colorsOf(id).includes(color)));
+    const byClass = target.garmentClass
+      ? known.filter((id) => candidateGarmentClasses(byId.get(id)!).includes(target.garmentClass!))
+      : [];
+    if (byClass.length > 0) return colored(byClass);
+    return target.role ? colored(known.filter((id) => roleOf(id) === target.role)) : [];
+  };
 
   // Exclusions accumulate across the conversation: a piece rejected two turns
   // ago stays rejected. That is the whole point -- a rejection the system
   // forgets is a rejection the customer has to repeat.
   const excludedCandidateIds = [...state.rejectedCandidateIds];
   const excludedGarmentClasses = [...state.rejectedGarmentClasses];
+  const exclude = (id: string) => {
+    if (!excludedCandidateIds.includes(id)) excludedCandidateIds.push(id);
+  };
 
   for (const garment of directives.rejectedGarmentClasses) {
     if (!excludedGarmentClasses.includes(garment)) excludedGarmentClasses.push(garment);
+  }
+
+  const unresolved: string[] = [];
+  let ambiguity: { noun: string; candidateIds: string[] } | null = null;
+  const targeted = new Set<string>();
+  for (const target of directives.targets) {
+    if (target.kind === 'reject' && !target.specific && target.colors.length === 0) continue; // a class, handled above
+    let ids: string[];
+    if (target.kind === 'reject' && !target.specific) {
+      // "No black heels": every authorized piece that is both, by id. A piece
+      // with no recorded colour is not assumed to be black.
+      ids = pick([...byId.keys()], target);
+    } else {
+      const inLook = pick(presented, target);
+      const inPool = pick(pool, target);
+      if (inLook.length > 0) ids = inLook;
+      // Not in the presented look: a swap moves on to the next option, so the
+      // top-ranked match is the one being replaced -- never every match, which
+      // would leave nothing to swap to. A rejection of "those boots" with two
+      // pairs on the table is a question, not a guess.
+      else if (inPool.length <= 1 || target.kind === 'swap') ids = inPool.slice(0, 1);
+      else {
+        ambiguity ??= { noun: target.word, candidateIds: inPool.slice(0, 3) };
+        continue;
+      }
+    }
+    if (ids.length === 0) {
+      unresolved.push(target.word);
+      continue;
+    }
+    for (const id of ids) {
+      exclude(id);
+      targeted.add(id);
+    }
   }
 
   // Retention is a REQUEST at this stage. The pipeline honours it only for ids
@@ -468,6 +828,64 @@ export function planRefinement(input: {
   for (const item of state.items) {
     if (excludedCandidateIds.includes(item.candidateId)) continue;
     if (wantsRole(item.role)) retainedCandidateIds.push(item.candidateId);
+  }
+  // Build 35: "keep the jacket" when the look holds a blazer -- the class or
+  // the umbrella role, resolved against the presented look first.
+  for (const garment of directives.retainedGarmentClasses) {
+    const target = { garmentClass: garment, role: layeringRoleOfWord(garment), colors: [] };
+    const inLook = pick(presented, target);
+    for (const id of inLook.length > 0 ? inLook : pick(pool, target).slice(0, 1)) {
+      if (!retainedCandidateIds.includes(id) && !excludedCandidateIds.includes(id)) retainedCandidateIds.push(id);
+    }
+  }
+
+  // "The second one": the structured look at that index, never the prose.
+  if (directives.ordinal) {
+    const look = state.looks?.[directives.ordinal.index];
+    if (!look) {
+      unresolved.push(`look ${directives.ordinal.index + 1}`);
+    } else if (directives.ordinal.mode === 'keep') {
+      for (const id of look) if (!retainedCandidateIds.includes(id)) retainedCandidateIds.push(id);
+    } else {
+      const elsewhere = new Set((state.looks ?? []).filter((_, index) => index !== directives.ordinal!.index).flat());
+      for (const id of look) {
+        if (elsewhere.has(id)) continue;
+        exclude(id);
+        targeted.add(id);
+      }
+    }
+  }
+
+  // "Use the other jacket": the one candidate on the table, outside the
+  // presented look, that the words name. Two plausible pieces are a question.
+  // "I don't own that anymore": with one piece on the table it is that piece;
+  // with several it is a question. Never a guess.
+  if (directives.pronounReference) {
+    if (presented.length === 1) {
+      exclude(presented[0]);
+      targeted.add(presented[0]);
+    } else if (presented.length > 1) {
+      ambiguity ??= { noun: 'piece', candidateIds: presented.slice(0, 3) };
+    }
+  }
+
+  if (directives.otherReference) {
+    const reference = directives.otherReference;
+    const target = { garmentClass: reference.garmentClass, role: reference.role, colors: [] };
+    const named = reference.garmentClass || reference.role;
+    const outside = pool.filter((id) => !presented.includes(id) && !excludedCandidateIds.includes(id));
+    const others = named ? pick(outside, target) : outside;
+    if (others.length === 1) {
+      retainedCandidateIds.push(others[0]);
+      for (const id of named ? pick(presented, target) : []) {
+        exclude(id);
+        targeted.add(id);
+      }
+    } else if (others.length > 1) {
+      ambiguity = { noun: reference.word === 'one' ? 'piece' : reference.word, candidateIds: others.slice(0, 3) };
+    } else {
+      unresolved.push(`other ${reference.word}`);
+    }
   }
 
   const activeConstraints = [...state.activeConstraints];
@@ -487,6 +905,46 @@ export function planRefinement(input: {
   dropOpposite('more_formal', 'less_formal');
   dropOpposite('warmer', 'lighter');
   dropOpposite('lighter', 'warmer');
+  // Build 35: a colour wish and a colour exclusion for the same colour cannot
+  // both stand; the later instruction wins. "Black is fine" lifts the exclusion.
+  for (const code of directives.constraints) {
+    const [kind, color] = code.split(':');
+    if (kind === 'prefer_color') {
+      for (const existing of [...activeConstraints]) {
+        if (existing === `not_color:${color}` || (existing.startsWith('prefer_color:') && existing !== code)) {
+          activeConstraints.splice(activeConstraints.indexOf(existing), 1);
+        }
+      }
+    } else if (kind === 'not_color') {
+      const index = activeConstraints.indexOf(`prefer_color:${color}`);
+      if (index >= 0) activeConstraints.splice(index, 1);
+    }
+  }
+  for (const color of directives.allowedColors) {
+    const index = activeConstraints.indexOf(`not_color:${color}`);
+    if (index >= 0) activeConstraints.splice(index, 1);
+  }
+
+  // PRESERVE what the refinement did not target. A variation ("another")
+  // asks for a different look and preserves nothing; everything else keeps the
+  // presented pieces it did not name, so "different shoes" changes the shoes.
+  const excludedColors = activeConstraints
+    .filter((code) => code.startsWith('not_color:'))
+    .map((code) => code.slice('not_color:'.length));
+  // "Keep the jacket, change everything else" names what stays; only a
+  // reference swap ("use the other jacket") keeps the rest of the look too.
+  const preserves = ['refine_swap', 'refine_reject', 'refine_constraint'].includes(directives.action) ||
+    (directives.action === 'refine_keep' && Boolean(directives.otherReference) &&
+      directives.retainedGarmentClasses.length === 0 && directives.retainedRoles.length === 0);
+  const preservedCandidateIds = !preserves || ambiguity
+    ? []
+    : presented.filter((id) => {
+        if (excludedCandidateIds.includes(id) || targeted.has(id)) return false;
+        const candidate = byId.get(id);
+        if (!candidate) return false;
+        if (candidateGarmentClasses(candidate).some((garment) => excludedGarmentClasses.includes(garment))) return false;
+        return !excludedColors.some((color) => colorsOf(id).includes(color));
+      });
 
   return {
     continued: true,
@@ -496,7 +954,18 @@ export function planRefinement(input: {
     ),
     retainedCandidateIds: retainedCandidateIds.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxRetained),
     activeConstraints: activeConstraints.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxConstraints),
+    preservedCandidateIds,
+    ambiguity,
+    unresolved,
   };
+}
+
+/** Colour codes a state's constraints carry, restricted to the shared colour vocabulary. */
+export function constraintColors(activeConstraints: string[], kind: 'not_color' | 'prefer_color'): string[] {
+  return activeConstraints
+    .filter((code) => code.startsWith(`${kind}:`))
+    .map((code) => code.slice(kind.length + 1))
+    .filter((color) => COLOR_TOKENS.includes(color));
 }
 
 /**
@@ -504,19 +973,29 @@ export function planRefinement(input: {
  *
  * Exclusion is the ONLY thing restored state is allowed to do to a shortlist,
  * which is what makes it safe to restore from the client at all.
+ *
+ * Build 35: colour and material exclusions act only on POSITIVE evidence. A
+ * piece whose record carries no colour (or no material) is not assumed to
+ * satisfy "not black" / "no leather"; it is kept and counted in
+ * `unverifiedCandidateIds` so the prompt can say the claim cannot be made.
  */
 export function applyRefinementExclusions(input: {
   shortlist: EliseScoredCandidate[];
   excludedCandidateIds: string[];
   excludedGarmentClasses: string[];
-}): { shortlist: EliseScoredCandidate[]; excludedCandidateIds: string[] } {
+  excludedColors?: string[];
+  excludedMaterials?: string[];
+}): { shortlist: EliseScoredCandidate[]; excludedCandidateIds: string[]; unverifiedCandidateIds: string[] } {
   const excludedIds = new Set(input.excludedCandidateIds);
   const excludedClasses = new Set(input.excludedGarmentClasses);
-  if (!excludedIds.size && !excludedClasses.size) {
-    return { shortlist: input.shortlist, excludedCandidateIds: [] };
+  const colors = input.excludedColors ?? [];
+  const materials = input.excludedMaterials ?? [];
+  if (!excludedIds.size && !excludedClasses.size && !colors.length && !materials.length) {
+    return { shortlist: input.shortlist, excludedCandidateIds: [], unverifiedCandidateIds: [] };
   }
 
   const removed: string[] = [];
+  const unverified: string[] = [];
   const kept = input.shortlist.filter((scored) => {
     const candidate = scored.candidate;
     if (excludedIds.has(candidate.candidateId)) {
@@ -530,10 +1009,57 @@ export function applyRefinementExclusions(input: {
         return false;
       }
     }
+    if (colors.length) {
+      const own = candidate.colors.join(' ').toLowerCase();
+      if (colors.some((color) => own.includes(color))) {
+        removed.push(candidate.candidateId);
+        return false;
+      }
+      if (!own) unverified.push(candidate.candidateId);
+    }
+    if (materials.length) {
+      const own = `${candidate.materials.join(' ')} ${candidate.title ?? ''}`.toLowerCase().split(/[^a-z]+/);
+      if (materials.some((material) => own.includes(material))) {
+        removed.push(candidate.candidateId);
+        return false;
+      }
+      if (candidate.materials.length === 0 && !unverified.includes(candidate.candidateId)) {
+        unverified.push(candidate.candidateId);
+      }
+    }
     return true;
   });
 
-  return { shortlist: kept, excludedCandidateIds: removed };
+  return { shortlist: kept, excludedCandidateIds: removed, unverifiedCandidateIds: unverified };
+}
+
+/**
+ * Build 35. Put the pieces a refinement keeps first, so the deterministic look
+ * builder composes the next look AROUND them -- the presented look minus what
+ * was changed -- instead of from a re-ranked list. Reorders only: nothing is
+ * added, so an untrusted state cannot introduce a piece this way either.
+ * A colour wish ("make it red") then lifts matching pieces within the rest.
+ */
+export function orderForRefinement(input: {
+  shortlist: EliseScoredCandidate[];
+  keepFirst: string[];
+  preferColors: string[];
+  /** Pieces the refinement moved away from ("too formal" -> the blazer), last. */
+  demote?: string[];
+}): EliseScoredCandidate[] {
+  const demote = input.demote ?? [];
+  const rank = (scored: EliseScoredCandidate) => {
+    const kept = input.keepFirst.indexOf(scored.candidate.candidateId);
+    if (kept >= 0) return kept;
+    if (demote.includes(scored.candidate.candidateId)) return 300;
+    const own = scored.candidate.colors.join(' ').toLowerCase();
+    return input.preferColors.some((color) => own.includes(color)) ? 100 : 200;
+  };
+  if (!input.keepFirst.length && !input.preferColors.length && !demote.length) return input.shortlist;
+  return input.shortlist
+    .map((scored, index) => ({ scored, index }))
+    .sort((a, b) => rank(a.scored) - rank(b.scored) || a.index - b.index)
+    .map((entry) => entry.scored);
 }
 
 /**
@@ -553,6 +1079,10 @@ export function projectOutfitState(input: {
   activeConstraints: string[];
   /** Injected so this module stays pure and its output stays testable. */
   newOutfitId: string;
+  /** Build 35: the task, its occasions, and the looks as presented. */
+  intent?: EliseAdviceIntent;
+  occasionTokens?: string[];
+  looks?: string[][] | null;
 }): { state: EliseOutfitState; outcome: EliseRefinementOutcome; action: EliseRefinementAction } {
   const authorizedIds = new Set(input.shortlist.map((s) => s.candidate.candidateId));
 
@@ -573,6 +1103,11 @@ export function projectOutfitState(input: {
     }));
 
   const priorTurn = input.continued && input.prior ? input.prior.turn : 0;
+  // Only looks made of THIS turn's authorized evidence are recorded.
+  const looks = (input.looks ?? [])
+    .map((look) => look.filter((id) => authorizedIds.has(id)).slice(0, ELISE_OUTFIT_STATE_LIMITS.maxLookItems))
+    .filter((look) => look.length > 0)
+    .slice(0, ELISE_OUTFIT_STATE_LIMITS.maxLooks);
   const state: EliseOutfitState = {
     outfitId: input.continued && input.prior ? input.prior.outfitId : input.newOutfitId,
     turn: Math.min(priorTurn + 1, ELISE_OUTFIT_STATE_LIMITS.maxTurns),
@@ -588,6 +1123,11 @@ export function projectOutfitState(input: {
       0, ELISE_OUTFIT_STATE_LIMITS.maxRejectedClasses,
     ),
     activeConstraints: input.activeConstraints.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxConstraints),
+    ...(input.intent ? { intent: input.intent } : {}),
+    ...(input.occasionTokens && input.occasionTokens.length
+      ? { occasionTokens: input.occasionTokens.slice(0, ELISE_OUTFIT_STATE_LIMITS.maxOccasionTokens) }
+      : {}),
+    ...(looks.length ? { looks } : {}),
   };
 
   return {

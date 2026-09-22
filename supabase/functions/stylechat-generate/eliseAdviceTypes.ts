@@ -345,6 +345,23 @@ export interface EliseOutfitState {
   rejectedGarmentClasses: string[];
   /** Constraints the user stated that still apply, e.g. `less_formal`. */
   activeConstraints: string[];
+  /**
+   * Build 35 refinement quality. All optional and additive: a state written
+   * before them restores exactly as it did.
+   *
+   * The task this outfit answers. A continuation ("different shoes") keeps it,
+   * so a refinement is ranked as the outfit it refines rather than as a new,
+   * shoe-only question.
+   */
+  intent?: EliseAdviceIntent;
+  /** Occasion tokens of the task (vocabulary tokens, never prose). */
+  occasionTokens?: string[];
+  /**
+   * The looks as presented, by candidate id, in order. `looks[0]` is the look
+   * on the table; "the second one" resolves against `looks[1]`, never against
+   * the model's prose.
+   */
+  looks?: string[][];
 }
 
 /** How this turn related to the outfit that was active when it arrived. */
@@ -370,6 +387,20 @@ export interface EliseRefinementOutcome {
    * re-verified must not be spoken about as though it were still owned.
    */
   droppedRetainedIds: string[];
+  /**
+   * Build 35. Pieces of the presented look kept because the refinement did not
+   * name them -- "different shoes" keeps the rest of the outfit.
+   */
+  preservedIds?: string[];
+  /** Build 35. A reference that fits more than one piece. The answer must ask, not pick. */
+  ambiguousCandidateIds?: string[];
+  /** Build 35. Words that named a piece that is not on the table. */
+  unresolved?: string[];
+  /**
+   * Build 35. Candidates kept while a colour/material exclusion is active whose
+   * colour/material is not recorded. They cannot be said to meet the exclusion.
+   */
+  unverifiedAttributeIds?: string[];
 }
 
 export interface EliseAdviceLook {

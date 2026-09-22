@@ -29,6 +29,7 @@ import {
   bandDistance,
   colorsCompatible,
   formalityBandOf,
+  hasWarmthEvidence,
   matchesColorPreference,
   requirementFor,
   reuseCapFor,
@@ -61,7 +62,15 @@ export type PackingDecisionCode =
   | 'prefer_class_applied'
   | 'prefer_class_unavailable'
   | 'formality_adjusted'
-  | 'role_filled';
+  | 'role_filled'
+  // Build 35 refinement quality.
+  | 'slot_replaced'
+  | 'replace_unavailable'
+  | 'warmth_added'
+  | 'warmth_removed'
+  | 'warmth_unavailable'
+  | 'max_role_applied'
+  | 'max_role_conflict';
 
 export interface PackingDecision {
   code: PackingDecisionCode;
@@ -70,6 +79,8 @@ export interface PackingDecision {
   otherItemId: string | null;
   slotIds: string[];
   garmentClass?: string | null;
+  /** For `max_role_*`: the limit the traveller set. */
+  limit?: number;
 }
 
 export interface PackingPlannerInput {
@@ -111,6 +122,20 @@ export interface PackingPlannerInput {
   signatureColor: PackingColorPreference | null;
   packLight: boolean;
   laundry: 'available' | 'unavailable' | 'unknown';
+  /**
+   * Build 35. Pieces taken out of specific looks only ("change Friday's
+   * shoes"). This run only: the look that comes back is what is carried next.
+   */
+  slotExclusions?: Map<string, Set<string>>;
+  /** Hard colour / material exclusions. Only a piece whose OWN record says so is removed. */
+  excludedColors?: string[];
+  excludedMaterials?: string[];
+  /** "Warmer" / "lighter layers", for these slots (null = every slot). */
+  warmth?: { direction: 'warmer' | 'lighter'; slotIds: Set<string> | null } | null;
+  /** Stated conditions; lighter layers never strip rain or cold protection. */
+  conditions?: string[];
+  /** "Only two pairs of shoes": distinct packed pieces allowed per role. */
+  maxRoles?: Record<string, number>;
 }
 
 export interface PackingPlannerResult {
@@ -160,8 +185,25 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
     const candidate = input.candidates.get(id);
     return candidate ? candidateGarmentClasses(candidate) : [];
   };
+  const excludedColors = input.excludedColors ?? [];
+  const excludedMaterials = input.excludedMaterials ?? [];
+  // Positive evidence only: a piece with no recorded colour is not "black",
+  // and it is not proven "not black" either. It is left in, and the copy says
+  // so, rather than being guessed into either answer (unknown stays unknown).
+  const hasExcludedAttribute = (id: string): boolean => {
+    if (excludedColors.length === 0 && excludedMaterials.length === 0) return false;
+    const candidate = input.candidates.get(id);
+    if (!candidate) return false;
+    const colors = candidate.colors.join(' ').toLowerCase();
+    if (excludedColors.some((color) => colors.includes(color))) return true;
+    const materialWords = `${candidate.materials.join(' ')} ${candidate.title ?? ''}`.toLowerCase();
+    const materialTokens = materialWords.split(/[^a-z]+/);
+    return excludedMaterials.some((material) => materialTokens.includes(material));
+  };
   const isRejected = (id: string): boolean =>
-    input.rejectedItemIds.has(id) || classesOf(id).some((cls) => input.rejectedClasses.has(cls));
+    input.rejectedItemIds.has(id) || classesOf(id).some((cls) => input.rejectedClasses.has(cls)) ||
+    hasExcludedAttribute(id);
+  const slotExcluded = (slotId: string, id: string): boolean => input.slotExclusions?.get(slotId)?.has(id) ?? false;
   const capOf = (id: string): number =>
     reuseCapFor(roleOf(id), { noRepeatRoles: input.noRepeatRoles, rewearRoles: input.rewearRoles });
   const requirementOf = (slot: PackingSlot): PackingActivityRequirement =>
@@ -199,12 +241,23 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
   const initialItems = new Map(planned.map((slot) => [slot.slotId, [...slot.itemIds]]));
 
   // ── 2. Rejections, occasion rules, one-per-look ───────────────────────────
+  // What left each look, by role, so the stand-in chosen below can suit it.
+  const removedFrom = new Map<string, string>();
   for (const slot of planned) {
     const pinned = isPinnedSlot(slot);
     const requirement = requirementOf(slot);
     const kept: string[] = [];
     const rolesSeen = new Set<string>();
     for (const id of slot.itemIds) {
+      if (slotExcluded(slot.slotId, id)) {
+        if (pinned) {
+          record({ code: 'pin_conflict', itemId: id, otherItemId: null, slotIds: [slot.slotId] });
+        } else {
+          record({ code: 'slot_replaced', itemId: id, otherItemId: null, slotIds: [slot.slotId] });
+          removedFrom.set(`${slot.slotId}|${roleOf(id)}`, id);
+          continue;
+        }
+      }
       if (isRejected(id)) {
         if (pinned) {
           // ADD-04: a pin is not silently overridden. The piece stays in the
@@ -212,6 +265,7 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
           record({ code: 'pin_conflict', itemId: id, otherItemId: null, slotIds: [slot.slotId] });
         } else {
           record({ code: 'rejected_removed', itemId: id, otherItemId: null, slotIds: [slot.slotId] });
+          removedFrom.set(`${slot.slotId}|${roleOf(id)}`, id);
           continue;
         }
       }
@@ -238,7 +292,7 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
   };
 
   const allowedIn = (id: string, slot: PackingPlannedSlot): boolean => {
-    if (isRejected(id)) return false;
+    if (isRejected(id) || slotExcluded(slot.slotId, id)) return false;
     const band = bandOf(id);
     return !(band && requirementOf(slot).disallowed.includes(band));
   };
@@ -263,12 +317,18 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
     slot: PackingPlannedSlot,
     role: string,
     wears: Map<string, number>,
-    options: { original: string | null; garmentClass?: string | null; exclude?: Set<string> },
+    options: {
+      original: string | null;
+      garmentClass?: string | null;
+      exclude?: Set<string>;
+      require?: (id: string) => boolean;
+    },
   ): string | null => {
     let best: { id: string; score: number } | null = null;
     for (const [id, candidate] of input.candidates) {
       if (candidate.layeringRole !== role) continue;
       if (slot.itemIds.includes(id) || options.exclude?.has(id)) continue;
+      if (options.require && !options.require(id)) continue;
       if (!allowedIn(id, slot)) continue;
       if ((wears.get(id) ?? 0) + 1 > capOf(id)) continue;
       if (options.garmentClass && !classesOf(id).includes(options.garmentClass)) continue;
@@ -438,10 +498,58 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
   for (const slot of planned) {
     if (isPinnedSlot(slot)) continue;
     for (const role of missingRoles(slot)) {
-      const replacement = chooseSubstitute(slot, role, wearsIn(planned), { original: null });
+      const replacement = chooseSubstitute(slot, role, wearsIn(planned), {
+        original: removedFrom.get(`${slot.slotId}|${role}`) ?? null,
+      });
       if (!replacement) continue;
       slot.itemIds.push(replacement);
       record({ code: 'role_filled', itemId: null, otherItemId: replacement, slotIds: [slot.slotId] });
+    }
+  }
+
+  // ── 5b. Warmth the traveller asked for ("warmer", "lighter layers") ───────
+  // Deterministic and local to the targeted looks: a warmer request adds one
+  // layer to a look that has none the Closet can vouch for; it never rewrites
+  // the rest of the look. Warmth is read from the item's own words only
+  // (wool, down, fleece...) -- a jacket with no such words is not assumed warm.
+  if (input.warmth) {
+    const warmth = input.warmth;
+    const targets = planned.filter(
+      (slot) => !isPinnedSlot(slot) && (warmth.slotIds === null || warmth.slotIds.has(slot.slotId)),
+    );
+    const isLayer = (id: string) => ['mid', 'outer'].includes(roleOf(id) ?? '');
+    const isWarm = (id: string) => {
+      const candidate = input.candidates.get(id);
+      return Boolean(candidate && hasWarmthEvidence(candidate));
+    };
+    if (warmth.direction === 'warmer') {
+      for (const slot of targets) {
+        if (slot.itemIds.some((id) => isLayer(id) && isWarm(id))) continue;
+        let added: string | null = null;
+        for (const role of ['mid', 'outer']) {
+          if (slot.itemIds.some((id) => roleOf(id) === role)) continue;
+          added = chooseSubstitute(slot, role, wearsIn(planned), { original: null, require: isWarm });
+          if (added) break;
+        }
+        if (added) {
+          slot.itemIds.push(added);
+          protectedOccurrence.add(`${slot.slotId}|${added}`);
+          record({ code: 'warmth_added', itemId: null, otherItemId: added, slotIds: [slot.slotId] });
+        } else {
+          record({ code: 'warmth_unavailable', itemId: null, otherItemId: null, slotIds: [slot.slotId] });
+        }
+      }
+    } else {
+      // Lighter never strips the protection a stated condition needs.
+      const keepOuter = (input.conditions ?? []).some((condition) => ['rain', 'cold', 'snow'].includes(condition));
+      for (const slot of targets) {
+        for (const id of [...slot.itemIds]) {
+          if (!isLayer(id) || !isWarm(id) || input.pinnedItemIds.has(id)) continue;
+          if (keepOuter && roleOf(id) === 'outer') continue;
+          slot.itemIds = slot.itemIds.filter((existing) => existing !== id);
+          record({ code: 'warmth_removed', itemId: id, otherItemId: null, slotIds: [slot.slotId] });
+        }
+      }
     }
   }
 
@@ -540,6 +648,78 @@ export function planPackingTrip(input: PackingPlannerInput): PackingPlannerResul
           slotIds: swaps.map((swap) => swap.slot.slotId),
         });
         changed = true;
+        break;
+      }
+    }
+  }
+
+  // ── 6b. Limits the traveller set ("only two pairs of shoes") ─────────────
+  // A limit is trip-wide by definition, so it may move a piece between looks
+  // the refinement did not otherwise touch -- but only for the limited role.
+  // It is never met by breaking an occasion: a strict occasion keeps a piece
+  // proven right for it, a pinned look keeps its piece, and when the limit
+  // cannot be reached the plan says so instead of quietly exceeding it.
+  for (const [role, max] of Object.entries(input.maxRoles ?? {})) {
+    for (let guard = 0; guard < 20; guard += 1) {
+      const wears = wearsIn(planned);
+      const pieces = [...wears.keys()].filter((id) => roleOf(id) === role);
+      if (pieces.length <= max) break;
+      const leavingOrder = pieces
+        .filter((id) => !input.pinnedItemIds.has(id))
+        .sort((a, b) => {
+          const delta = (wears.get(a) ?? 0) - (wears.get(b) ?? 0);
+          if (delta !== 0) return delta;
+          return (input.order.get(b) ?? 0) - (input.order.get(a) ?? 0);
+        });
+      let removed = false;
+      for (const leaving of leavingOrder) {
+        const occurrences = planned.filter((slot) => slot.itemIds.includes(leaving));
+        if (occurrences.some((slot) => isPinnedSlot(slot))) continue;
+        const projected = new Map(wears);
+        const swaps: Array<{ slot: PackingPlannedSlot; replacement: string }> = [];
+        for (const slot of occurrences) {
+          const requirement = requirementOf(slot);
+          let best: { id: string; score: number } | null = null;
+          for (const other of pieces) {
+            if (other === leaving || slot.itemIds.includes(other)) continue;
+            if (!allowedIn(other, slot)) continue;
+            if ((projected.get(other) ?? 0) + 1 > capOf(other)) continue;
+            const band = bandOf(other);
+            if (requirement.strict && (!band || !requirement.preferred.includes(band))) continue;
+            const score = (projected.get(other) ?? 0) * 10 + preferenceScore(other, slot, leaving);
+            if (!best || score > best.score) best = { id: other, score };
+          }
+          if (!best) break;
+          projected.set(best.id, (projected.get(best.id) ?? 0) + 1);
+          swaps.push({ slot, replacement: best.id });
+        }
+        if (swaps.length !== occurrences.length) continue;
+        for (const { slot, replacement } of swaps) {
+          slot.itemIds = slot.itemIds.map((id) => (id === leaving ? replacement : id));
+        }
+        record({
+          code: 'max_role_applied',
+          itemId: leaving,
+          otherItemId: swaps
+            .map((swap) => swap.replacement)
+            .sort((a, b) => (projected.get(b) ?? 0) - (projected.get(a) ?? 0))[0],
+          slotIds: swaps.map((swap) => swap.slot.slotId),
+          garmentClass: role,
+          limit: max,
+        });
+        removed = true;
+        break;
+      }
+      if (!removed) {
+        const stuck = leavingOrder[0] ?? pieces[0];
+        record({
+          code: 'max_role_conflict',
+          itemId: stuck,
+          otherItemId: null,
+          slotIds: planned.filter((slot) => slot.itemIds.includes(stuck)).map((slot) => slot.slotId),
+          garmentClass: role,
+          limit: max,
+        });
         break;
       }
     }
