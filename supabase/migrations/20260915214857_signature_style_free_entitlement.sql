@@ -4,7 +4,7 @@
 --
 -- APPLIED LEDGER IDENTITY: staging (yzqjvdfgefveprobvvyw) recorded this file as
 -- version 20260915214857 on 2026-09-15. The filename carries that exact version
--- so `supabase db push` reconciles on it. It was authored as 20260915213000 and
+-- so the governed migration workflow reconciles on it. It was authored as 20260915213000 and
 -- renamed BEFORE any ledger anywhere recorded that number — staging holds only
 -- 20260915214857, and production (wyyuqfdxucjksghsmhry, confirmed read-only via
 -- list_migrations 2026-09-15) holds neither — so nothing can double-apply.
