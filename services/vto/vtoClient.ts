@@ -60,6 +60,10 @@ export interface VtoGenerateSuccess {
 export interface VtoGenerateFailure {
   ok: false;
   code: VtoFailureCode;
+  /** The server's bounded `error.retryAfterSeconds`, when it sent one. Read
+   *  as an opaque number here; vtoFailures.ts validates it before any UI
+   *  sees it. */
+  retryAfterSeconds?: number;
 }
 
 export type VtoGenerateOutcome = VtoGenerateSuccess | VtoGenerateFailure;
@@ -74,6 +78,17 @@ export type VtoGenerateOutcome = VtoGenerateSuccess | VtoGenerateFailure;
  * failure rather than inventing a classification.
  */
 export async function readVtoContractError(error: unknown): Promise<VtoFailureCode | null> {
+  return (await readVtoContractErrorDetail(error))?.code ?? null;
+}
+
+/**
+ * The same bounded read as {@link readVtoContractError}, plus the one other
+ * field the server puts on the wire: `error.retryAfterSeconds` (VTO V3.1).
+ * Still nothing else -- no message, no stage, no provider detail.
+ */
+export async function readVtoContractErrorDetail(
+  error: unknown,
+): Promise<{ code: VtoFailureCode; retryAfterSeconds?: number } | null> {
   try {
     const context = (error as { context?: unknown })?.context as
       | { status?: unknown; json?: () => Promise<unknown> }
@@ -84,10 +99,18 @@ export async function readVtoContractError(error: unknown): Promise<VtoFailureCo
     const inner = (body as Record<string, unknown>).error;
     if (!inner || typeof inner !== 'object' || Array.isArray(inner)) return null;
     const code = (inner as Record<string, unknown>).code;
-    return isVtoFailureCode(code) ? code : null;
+    if (!isVtoFailureCode(code)) return null;
+    return withRetryAfter({ code }, (inner as Record<string, unknown>).retryAfterSeconds);
   } catch {
     return null;
   }
+}
+
+function withRetryAfter<T extends { code: VtoFailureCode }>(
+  detail: T,
+  retryAfterSeconds: unknown,
+): T & { retryAfterSeconds?: number } {
+  return typeof retryAfterSeconds === 'number' ? { ...detail, retryAfterSeconds } : detail;
 }
 
 function normalizeSuccess(requestId: string, data: unknown): VtoGenerateOutcome {
@@ -100,7 +123,10 @@ function normalizeSuccess(requestId: string, data: unknown): VtoGenerateOutcome 
   const inner = body.error;
   if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
     const code = (inner as Record<string, unknown>).code;
-    return { ok: false, code: isVtoFailureCode(code) ? code : 'unknown' };
+    return withRetryAfter(
+      { ok: false as const, code: isVtoFailureCode(code) ? code : 'unknown' },
+      (inner as Record<string, unknown>).retryAfterSeconds,
+    );
   }
 
   const result = body.result;
@@ -175,8 +201,8 @@ export async function requestVtoGeneration(
 
     if (error) {
       if (args.signal?.aborted) return { ok: false, code: 'cancelled' };
-      const code = await readVtoContractError(error);
-      return { ok: false, code: code ?? 'network_failure' };
+      const detail = await readVtoContractErrorDetail(error);
+      return detail ? { ok: false, ...detail } : { ok: false, code: 'network_failure' };
     }
 
     return normalizeSuccess(args.requestId, data);

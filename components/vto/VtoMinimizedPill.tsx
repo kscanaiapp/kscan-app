@@ -19,24 +19,34 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   VTO_PILL_READY_LABEL,
   VTO_PILL_RENDERING_LABEL,
+  VTO_PILL_RETURN_LABEL,
 } from '../../services/vto/vtoProgressStages';
 
 export interface VtoMinimizedPillProps {
   /** True only once the store reports a validated result. */
   ready: boolean;
+  /** Collapsed with nothing running and no result (e.g. after handing off to
+   *  Watch from Live). The pill is then only the way back -- it must not say
+   *  something is rendering. */
+  returnOnly?: boolean;
   onPress: () => void;
   testID?: string;
 }
 
-export function VtoMinimizedPill({ ready, onPress, testID }: VtoMinimizedPillProps) {
-  const label = ready ? VTO_PILL_READY_LABEL : VTO_PILL_RENDERING_LABEL;
+export function VtoMinimizedPill({ ready, returnOnly = false, onPress, testID }: VtoMinimizedPillProps) {
+  const idle = !ready && returnOnly;
+  const label = ready ? VTO_PILL_READY_LABEL : idle ? VTO_PILL_RETURN_LABEL : VTO_PILL_RENDERING_LABEL;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={
-        ready ? 'Opens your finished try-on' : 'Reopens the try-on while it finishes'
+        ready
+          ? 'Opens your finished try-on'
+          : idle
+            ? 'Reopens the try-on'
+            : 'Reopens the try-on while it finishes'
       }
       // A still-running try-on is a status message, not an alert.
       accessibilityLiveRegion="polite"
@@ -48,7 +58,7 @@ export function VtoMinimizedPill({ ready, onPress, testID }: VtoMinimizedPillPro
       testID={testID ?? 'vto-minimized-pill'}
     >
       <View style={styles.row}>
-        {ready ? (
+        {ready || idle ? (
           <View style={styles.readyDot} />
         ) : (
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />

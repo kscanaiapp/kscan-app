@@ -118,12 +118,44 @@ export function isVtoFailureCode(value: unknown): value is VtoFailureCode {
   return typeof value === 'string' && CODE_SET.has(value);
 }
 
+/**
+ * Client copy of the server's Retry-After window
+ * (supabase/functions/vto-generate/vtoContract.ts, VTO_RETRY_AFTER_{MIN,MAX}_SECONDS).
+ * Re-declared rather than imported because the server module is Deno source;
+ * `__tests__/vtoDecisionLoop.test.js` pins the two copies equal.
+ */
+export const VTO_CLIENT_RETRY_AFTER_MIN_SECONDS = 1;
+export const VTO_CLIENT_RETRY_AFTER_MAX_SECONDS = 3600;
+
+/**
+ * Accepts only a whole number of seconds inside the server's window. The
+ * server already validated it; this is the client refusing to trust the wire
+ * blindly. Anything else is "no guidance" -- discarded, never clamped, for the
+ * same reason the server discards: a clamped wait is a wait nobody promised.
+ */
+export function normalizeVtoRetryAfterSeconds(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined;
+  if (value < VTO_CLIENT_RETRY_AFTER_MIN_SECONDS || value > VTO_CLIENT_RETRY_AFTER_MAX_SECONDS) {
+    return undefined;
+  }
+  return value;
+}
+
 /** Normalizes anything into a K Scan failure. Unrecognised input becomes
  *  'unknown' -- a provider string is never passed through as a message. */
-export function toVtoFailure(code: unknown): VtoFailure {
+export function toVtoFailure(
+  code: unknown,
+  guidance?: { retryAfterSeconds?: unknown },
+): VtoFailure {
   const resolved: VtoFailureCode = isVtoFailureCode(code) ? code : 'unknown';
   const entry = COPY[resolved];
-  return { code: resolved, message: entry.message, retryable: entry.retryable };
+  const failure: VtoFailure = { code: resolved, message: entry.message, retryable: entry.retryable };
+  // Guidance only means something where a retry is honest in the first place.
+  const retryAfterSeconds = entry.retryable
+    ? normalizeVtoRetryAfterSeconds(guidance?.retryAfterSeconds)
+    : undefined;
+  if (retryAfterSeconds !== undefined) failure.retryAfterSeconds = retryAfterSeconds;
+  return failure;
 }
 
 /**

@@ -73,6 +73,23 @@ export const VTO_EVENTS = [
   'vto_result_shop',
   /** The customer took the existing Watch action from a try-on result. */
   'vto_result_watch',
+
+  // ── Build 35 decision loop ─────────────────────────────────────────────
+  //
+  // The four decision-loop facts no existing event records. Each is
+  // content-free (origin / surface mode only) and none duplicates an event
+  // above: `vto_request_success` is the generation finishing, not the
+  // customer seeing it; `vto_result_save_opened` is the save sheet opening,
+  // not a write confirming; and nothing recorded leaving the try-on at all.
+
+  /** A validated result was presented for the product it was made for. */
+  'vto_result_viewed',
+  /** "Try another piece": back to the other options, no generation started. */
+  'vto_result_try_another',
+  /** The Dressing Room write CONFIRMED. Never emitted optimistically. */
+  'vto_result_saved',
+  /** The customer closed the try-on surface. */
+  'vto_exited',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];
