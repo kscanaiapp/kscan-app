@@ -68,6 +68,8 @@ export interface TryItOnEntryProps {
 /** Customer copy per mode. Live and Photo must not look identical: one is
  *  interactive and local, the other is a still image that takes a moment to
  *  create. Neither string names a technology, a model, or a vendor. */
+const SESSION_BUSY = new Set(['preparing', 'generating', 'validating_result']);
+
 const MODE_COPY = {
   LIVE_LOCAL: {
     label: 'TRY IT ON',
@@ -137,6 +139,17 @@ export function TryItOnEntry({
     setMinimized(false);
   }, [origin]);
 
+  // Watch from a try-on hands off to the product surface's OWN Watch modal.
+  // That modal is rendered by the surface, outside this sheet, so the sheet
+  // collapses first -- through the same keep-mounted minimize path as a
+  // running generation, so the result survives -- instead of asking one
+  // native modal to present on top of another. The pill brings it back.
+  const watchFromTryOn = useCallback(() => {
+    if (!onWatch) return;
+    setMinimized(true);
+    onWatch();
+  }, [onWatch]);
+
   if (mode === 'UNAVAILABLE' && !upgradeOpportunity) return null;
 
   if (mode === 'UNAVAILABLE') {
@@ -197,7 +210,7 @@ export function TryItOnEntry({
           garmentTitle={garmentTitle}
           origin={origin}
           onShop={onShop}
-          onWatch={onWatch}
+          onWatch={onWatch ? watchFromTryOn : undefined}
           sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
           capability={decision.capability}
@@ -214,6 +227,9 @@ export function TryItOnEntry({
       {sheetVisible && minimized ? (
         <VtoMinimizedPill
           ready={session.status === 'success'}
+          // Collapsed for Watch with nothing running (Live, or a failed or
+          // idle photo flow): the pill must not claim a render is under way.
+          returnOnly={!SESSION_BUSY.has(session.status) && session.status !== 'success'}
           onPress={restoreSheet}
           testID={testID ? `${testID}-pill` : undefined}
         />

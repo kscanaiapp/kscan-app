@@ -12,10 +12,26 @@
  *
  * The output is always labelled as an AI visualization, and it never claims
  * anything about fit or size.
+ *
+ * BUILD 35 DECISION LOOP. The result is a decision tool, not a picture:
+ * TRY -> RESULT -> COMPARE -> DECIDE. What it may offer, and in what order, is
+ * decided by services/vto/vtoDecisionLoop.ts and only rendered here:
+ *
+ *   primary    Shop            -- only when Commerce handed us a destination
+ *   secondary  Save, Watch     -- each only when its existing path exists
+ *   tertiary   Try again (same piece), Try another piece (back to the options)
+ *
+ * Compare is a local view switch on the image (your photo <-> the try-on); it
+ * never fetches, never generates. A result is shown only for the product it
+ * was generated for -- `vtoResultBelongsToProduct` fails closed otherwise --
+ * so no Shop/Watch/Save can ever be offered for product B under product A's
+ * try-on. TRY != SAVE != WATCH != SHOP != OWN: nothing here records any of
+ * them; each action hands off to the authority that already owns it.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Animated,
@@ -27,6 +43,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewStyle,
 } from 'react-native';
 
 import { InlineNotice, PrimaryButton, SecondaryButton, TertiaryButton } from '../luxury';
@@ -48,6 +65,15 @@ import {
   resolveVtoProgress,
   VTO_PROGRESS_STAGES,
 } from '../../services/vto/vtoProgressStages';
+import {
+  formatVtoRetryGuidance,
+  planVtoLiveDecision,
+  planVtoResultActions,
+  VTO_DECISION_COPY,
+  vtoFailureOffersRetry,
+  vtoResultBelongsToProduct,
+  vtoRetryCooldownMs,
+} from '../../services/vto/vtoDecisionLoop';
 import { VtoSaveToDressingRoom } from './VtoSaveToDressingRoom';
 import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
 import { VtoLiveErrorBoundary } from './VtoLiveErrorBoundary';
@@ -78,6 +104,9 @@ export interface VirtualTryOnSheetProps {
    * the listing may be watched. VTO neither creates a watch, evaluates
    * whether one is possible, nor knows what a watch is -- absent the prop the
    * action is simply not rendered, which is the same rule `onShop` follows.
+   *
+   * TryItOnEntry collapses this sheet before calling through, so the surface's
+   * own Watch modal is never asked to present on top of this one.
    */
   onWatch?: () => void;
   /**
@@ -152,7 +181,12 @@ export function VirtualTryOnSheet({
   const vto = useVirtualTryOn({ garment, origin, devScenario });
   const reducedMotion = useReducedMotion();
   const [elapsedMs, setElapsedMs] = useState(0);
+  // Compare is a local view switch between two images already on the device:
+  // the try-on (in memory) and the photo the customer chose (in the cache).
   const [showOriginal, setShowOriginal] = useState(false);
+  // Local only: re-enables Try again once the server's Retry-After guidance
+  // has elapsed. It schedules no request and retries nothing by itself.
+  const [retryCoolingDown, setRetryCoolingDown] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
 
   // ── Live VTO ───────────────────────────────────────────────────────────────
@@ -334,6 +368,33 @@ export function VirtualTryOnSheet({
     if (vto.status === 'success') setShowOriginal(false);
   }, [vto.status, vto.result]);
 
+  // BLOCK-VTO-DL-00. The result on screen must be THIS product's result.
+  const resultOnScreen = vtoResultBelongsToProduct(vto, garment);
+
+  // One "viewed" fact per result, and one screen-reader announcement, keyed
+  // on the request that produced it so a re-render is not a second view.
+  const viewedRequestRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!resultOnScreen || !visible || !vto.requestId) return;
+    if (viewedRequestRef.current === vto.requestId) return;
+    viewedRequestRef.current = vto.requestId;
+    emitVtoEvent('vto_result_viewed', { origin, mode: 'ai_photo' });
+    AccessibilityInfo.announceForAccessibility?.('Your try-on is ready.');
+  }, [resultOnScreen, visible, vto.requestId, origin]);
+
+  // Retry-After: guidance becomes a temporary local disable, nothing more.
+  const failure = vto.status === 'failed' ? vto.failure : null;
+  useEffect(() => {
+    const cooldownMs = vtoRetryCooldownMs(failure);
+    if (cooldownMs <= 0) {
+      setRetryCoolingDown(false);
+      return;
+    }
+    setRetryCoolingDown(true);
+    const cooldownTimer = setTimeout(() => setRetryCoolingDown(false), cooldownMs);
+    return () => clearTimeout(cooldownTimer);
+  }, [failure]);
+
   const handleSelectPhoto = useCallback(async () => {
     selectionTick();
     emitVtoEvent('vto_entry_tap', { origin });
@@ -358,9 +419,23 @@ export function VirtualTryOnSheet({
     // this actor tries on. leaveVtoSurface also runs on unmount, which this
     // triggers via onClose -- calling it here too just makes the teardown
     // happen before the close animation instead of after.
+    emitVtoEvent('vto_exited', { origin, mode });
     vto.dismiss();
     onClose();
-  }, [onClose, vto]);
+  }, [onClose, vto, origin, mode]);
+
+  // "Try another piece" is a soft close with a different intent: the sheet is
+  // a modal over the product surface the customer came from (a shelf, the
+  // purchase options), so closing it IS returning to the alternatives -- the
+  // scanner is not restarted, the shelf keeps its own state, and nothing is
+  // generated until they choose another piece and tap Try it on. The session
+  // photo stays, so that next try-on does not ask for it again.
+  const handleTryAnother = useCallback(() => {
+    selectionTick();
+    emitVtoEvent('vto_result_try_another', { origin, mode });
+    vto.dismiss();
+    onClose();
+  }, [onClose, vto, origin, mode]);
 
   // Collapsing is NOT cancelling and NOT closing. It calls neither dismiss nor
   // leaveVtoSurface: the request lives in the module-scoped store and keeps
@@ -406,27 +481,71 @@ export function VirtualTryOnSheet({
     if (!opened) Alert.alert('Size guide unavailable', SIZE_GUIDE_UNAVAILABLE, [{ text: 'OK' }]);
   }, [sizeGuideUrl]);
 
-  const handleToggleCompare = useCallback(() => {
+  const handleSelectCompare = useCallback((original: boolean) => {
+    if (original === showOriginal) return;
     selectionTick();
-    setShowOriginal((current) => {
-      emitVtoEvent('vto_result_compare_toggle', { origin });
-      return !current;
-    });
-  }, [origin]);
+    emitVtoEvent('vto_result_compare_toggle', { origin });
+    setShowOriginal(original);
+  }, [origin, showOriginal]);
 
   // The stage shown is the LATER of the real status floor and the elapsed
   // clock, and `complete` can only ever come from the store. See
   // services/vto/vtoProgressStages.ts for the honesty rule.
   const progress = resolveVtoProgress({ status: vto.status, elapsedMs });
 
-  const comparisonAvailable = useMemo(
-    () => vto.status === 'success' && !!vto.person?.sanitizedUri && !!vto.result,
-    [vto.status, vto.person, vto.result],
-  );
+  const comparisonAvailable = resultOnScreen && !!vto.person?.sanitizedUri;
 
-  const displayUri = showOriginal && vto.person
-    ? vto.person.sanitizedUri
-    : vto.result?.dataUri ?? null;
+  const displayUri = !resultOnScreen
+    ? null
+    : showOriginal && vto.person
+      ? vto.person.sanitizedUri
+      : vto.result?.dataUri ?? null;
+
+  const resultPlan = planVtoResultActions({
+    canShop: !!onShop,
+    canWatch: !!onWatch,
+    canSave: resultOnScreen,
+  });
+  const liveDecision = planVtoLiveDecision({ canShop: !!onShop, canWatch: !!onWatch });
+  const failureOffersRetry = vtoFailureOffersRetry(failure);
+  const retryGuidance = failureOffersRetry
+    ? formatVtoRetryGuidance(failure?.retryAfterSeconds)
+    : null;
+
+  // ONE Shop and ONE Watch element, reused by the Photo result and the Live
+  // decision exit, so both reach Commerce through exactly the same callback.
+  // Each renders only when the surface supplied its callback; the `disabled`
+  // guard is defence in depth, never the visible state (BLOCK-VTO-DL-04).
+  const renderShop = (surfaceMode: VtoSurfaceMode, primary: boolean) => {
+    const ShopButton = primary ? PrimaryButton : SecondaryButton;
+    return (
+      <ShopButton
+        title="Shop this piece"
+        onPress={() => {
+          selectionTick();
+          emitVtoResultShop(origin, surfaceMode);
+          onShop?.();
+        }}
+        disabled={!onShop}
+        accessibilityHint="Opens this listing"
+        testID="vto-shop"
+      />
+    );
+  };
+  const renderWatch = (surfaceMode: VtoSurfaceMode, style?: ViewStyle) =>
+    onWatch ? (
+      <SecondaryButton
+        title="Watch this piece"
+        onPress={() => {
+          selectionTick();
+          emitVtoResultWatch(origin, surfaceMode);
+          onWatch();
+        }}
+        accessibilityHint="Opens Watch for this listing"
+        style={style}
+        testID="vto-watch"
+      />
+    ) : null;
 
   return (
     <Modal
@@ -511,21 +630,62 @@ export function VirtualTryOnSheet({
 
             {aiPhotoVisible ? (
               <>
-            {vto.status === 'success' && displayUri ? (
+            {resultOnScreen && displayUri ? (
               <View style={styles.resultBlock}>
-                <Image
-                  source={{ uri: displayUri }}
-                  style={styles.resultImage}
-                  resizeMode="contain"
-                  accessible
-                  accessibilityRole="image"
-                  accessibilityLabel={
-                    showOriginal
-                      ? 'Your original photo'
-                      : `AI visualization of ${garmentTitle} on your photo`
-                  }
-                  testID="vto-result-image"
-                />
+                {/* Compare: two images already on this device, switched
+                    locally. No fetch, no generation, no fit claim -- it only
+                    helps answer "do I like this on me?". */}
+                {comparisonAvailable ? (
+                  <View
+                    style={styles.compareSwitch}
+                    accessibilityRole="tablist"
+                    accessibilityLabel="Compare the try-on with your original photo"
+                    testID="vto-compare-toggle"
+                  >
+                    {[
+                      { original: false, label: VTO_DECISION_COPY.compareTryOn, testID: 'vto-compare-try-on' },
+                      { original: true, label: VTO_DECISION_COPY.compareOriginal, testID: 'vto-compare-original' },
+                    ].map((option) => {
+                      const selected = showOriginal === option.original;
+                      return (
+                        <Pressable
+                          key={option.testID}
+                          onPress={() => handleSelectCompare(option.original)}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={option.original ? 'Your original photo' : 'The try-on'}
+                          style={[styles.compareOption, selected ? styles.compareOptionSelected : null]}
+                          testID={option.testID}
+                        >
+                          <Text
+                            style={[styles.compareText, selected ? styles.compareTextSelected : null]}
+                          >
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+                <View style={styles.resultFrame}>
+                  <Image
+                    source={{ uri: displayUri }}
+                    style={styles.resultImage}
+                    resizeMode="contain"
+                    accessible
+                    accessibilityRole="image"
+                    accessibilityLabel={
+                      showOriginal
+                        ? 'Your original photo'
+                        : `AI visualization of ${garmentTitle} on your photo`
+                    }
+                    testID="vto-result-image"
+                  />
+                  {/* Which image this is, in words -- never colour alone. */}
+                  <Text style={styles.imageBadge} importantForAccessibility="no">
+                    {showOriginal ? VTO_DECISION_COPY.originalBadge : VTO_DECISION_COPY.tryOnBadge}
+                  </Text>
+                </View>
                 <Text style={styles.aiLabel}>
                   AI VISUALIZATION — NOT A PHOTO, AND NOT A FIT PREDICTION
                 </Text>
@@ -553,30 +713,17 @@ export function VirtualTryOnSheet({
                   )}
                   {DISCLAIMER_TAIL}
                 </Text>
-                {/* The ONE durable path out of a session-scoped result, and
-                    only on an explicit tap. Quarantined in its own component
-                    so this sheet keeps zero persistence imports. */}
-                <VtoSaveToDressingRoom
-                  dataUri={vto.result?.dataUri ?? null}
-                  requestId={vto.result?.requestId ?? null}
-                  category={garment.category}
-                  brand={garment.brand}
-                  productRef={garment.productRef}
-                  origin={origin}
-                />
-                {comparisonAvailable ? (
-                  <Pressable
-                    onPress={handleToggleCompare}
-                    accessibilityRole="button"
-                    accessibilityLabel={showOriginal ? 'Show the try-on' : 'Show your original photo'}
-                    style={styles.compareToggle}
-                    testID="vto-compare-toggle"
-                  >
-                    <Text style={styles.compareText}>
-                      {showOriginal ? 'SHOW TRY-ON' : 'SHOW ORIGINAL'}
-                    </Text>
-                  </Pressable>
-                ) : null}
+                {/* What was tried, from the product reference that entered
+                    VTO -- nothing re-fetched, nothing inferred. Brand only
+                    when Commerce supplied one; no price is restated here,
+                    because a try-on is not a fresh read of commerce truth. */}
+                <View style={styles.identityBlock} testID="vto-result-identity">
+                  <Text style={styles.identityEyebrow}>{VTO_DECISION_COPY.resultEyebrow}</Text>
+                  <Text style={styles.identityTitle} numberOfLines={2}>
+                    {garment.brand ? `${garment.brand} · ${garmentTitle}` : garmentTitle}
+                  </Text>
+                  <Text style={styles.decisionPrompt}>{VTO_DECISION_COPY.decisionPrompt}</Text>
+                </View>
               </View>
             ) : null}
 
@@ -608,6 +755,13 @@ export function VirtualTryOnSheet({
                 <Text style={styles.stepCount}>
                   {`STEP ${progress.index + 1} OF ${progress.total}`}
                 </Text>
+                {progress.stillWorking ? (
+                  <Text style={styles.stillWorking} testID="vto-still-working">
+                    {canMinimize
+                      ? VTO_DECISION_COPY.stillWorking
+                      : VTO_DECISION_COPY.stillWorkingNoMinimize}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
 
@@ -615,7 +769,7 @@ export function VirtualTryOnSheet({
               <InlineNotice
                 variant="error"
                 title="Try-on didn't finish"
-                body={vto.failure.message}
+                body={retryGuidance ? `${vto.failure.message} ${retryGuidance}` : vto.failure.message}
                 accessibilityRole="alert"
                 testID="vto-failure-notice"
                 style={styles.notice}
@@ -701,39 +855,64 @@ export function VirtualTryOnSheet({
                 ) : null}
                 <SecondaryButton title="Cancel" onPress={vto.cancel} testID="vto-cancel" />
               </>
-            ) : vto.status === 'success' ? (
+            ) : resultOnScreen ? (
               <>
-                <PrimaryButton
-                  title="Shop this piece"
-                  onPress={() => {
-                    selectionTick();
-                    emitVtoResultShop(origin, mode);
-                    onShop?.();
-                  }}
-                  disabled={!onShop}
-                  testID="vto-shop"
-                />
-                {onWatch ? (
-                  <SecondaryButton
-                    title="Watch this piece"
-                    onPress={() => {
-                      selectionTick();
-                      emitVtoResultWatch(origin, mode);
-                      onWatch();
-                    }}
-                    testID="vto-watch"
+                {/* PRIMARY -- Shop, only when Commerce supplied a destination.
+                    Without one the screen says so in words: no dead button. */}
+                {resultPlan.primary === 'shop' ? (
+                  renderShop(mode, true)
+                ) : (
+                  <Text style={styles.shopUnavailable} testID="vto-shop-unavailable">
+                    {VTO_DECISION_COPY.shopUnavailable}
+                  </Text>
+                )}
+                {/* SECONDARY -- Save this try-on, Watch this piece. The save
+                    bridge is the ONE durable path, and only on a tap. */}
+                <View style={styles.secondaryRow}>
+                  <VtoSaveToDressingRoom
+                    dataUri={vto.result?.dataUri ?? null}
+                    requestId={vto.result?.requestId ?? null}
+                    category={garment.category}
+                    brand={garment.brand}
+                    productRef={garment.productRef}
+                    origin={origin}
+                    onLeaveForDressingRoom={handleClose}
+                    style={styles.secondaryCell}
+                  />
+                  {onWatch ? renderWatch(mode, styles.secondaryCell) : null}
+                </View>
+                {/* TERTIARY -- the same piece again, or a different piece. */}
+                <View style={styles.tertiaryRow}>
+                  <TertiaryButton
+                    title={VTO_DECISION_COPY.tryAgain}
+                    onPress={vto.retry}
+                    accessibilityHint={VTO_DECISION_COPY.tryAgainHint}
+                    style={styles.tertiaryCell}
+                    testID="vto-retry"
+                  />
+                  <TertiaryButton
+                    title={VTO_DECISION_COPY.tryAnother}
+                    onPress={handleTryAnother}
+                    accessibilityHint={VTO_DECISION_COPY.tryAnotherHint}
+                    style={styles.tertiaryCell}
+                    testID="vto-try-another"
+                  />
+                </View>
+              </>
+            ) : vto.status === 'success' ? null : vto.person ? (
+              <>
+                {/* A failure that is not retryable offers no regenerate. For
+                    request_in_flight that is the point: `retry` opens a NEW
+                    intent, i.e. a second paid job beside the one the server
+                    just said is still running. */}
+                {vto.status !== 'failed' || failureOffersRetry ? (
+                  <PrimaryButton
+                    title={vto.status === 'failed' ? 'Try again' : 'Try it on'}
+                    onPress={vto.status === 'failed' ? vto.retry : vto.generate}
+                    disabled={!vto.canGenerate || (vto.status === 'failed' && retryCoolingDown)}
+                    testID="vto-generate"
                   />
                 ) : null}
-                <SecondaryButton title="Try again" onPress={vto.retry} testID="vto-retry" />
-              </>
-            ) : vto.person ? (
-              <>
-                <PrimaryButton
-                  title={vto.status === 'failed' && vto.failure?.retryable ? 'Try again' : 'Try it on'}
-                  onPress={vto.status === 'failed' ? vto.retry : vto.generate}
-                  disabled={!vto.canGenerate}
-                  testID="vto-generate"
-                />
                 <SecondaryButton
                   title="Choose a different photo"
                   onPress={handleSelectPhoto}
@@ -747,6 +926,26 @@ export function VirtualTryOnSheet({
                 testID="vto-choose-photo"
               />
             )}
+              </>
+            ) : null}
+            {/* LIVE DECISION EXIT. Live renders nothing persistent, so there
+                is no result to save or compare and none is manufactured: no
+                frame is captured to make this look like the Photo result.
+                The customer gets the commerce decisions the surface already
+                offers, and a way back to the other options. */}
+            {liveVisible && live.entered ? (
+              <>
+                <Text style={styles.decisionPrompt} testID="vto-live-decision">
+                  {VTO_DECISION_COPY.liveDecisionPrompt}
+                </Text>
+                {liveDecision.actions.includes('shop') ? renderShop('live', false) : null}
+                {onWatch && liveDecision.actions.includes('watch') ? renderWatch('live') : null}
+                <TertiaryButton
+                  title={VTO_DECISION_COPY.tryAnother}
+                  onPress={handleTryAnother}
+                  accessibilityHint={VTO_DECISION_COPY.tryAnotherHint}
+                  testID="vto-live-try-another"
+                />
               </>
             ) : null}
             <TertiaryButton title="Close" onPress={handleClose} testID="vto-close" />
@@ -874,11 +1073,82 @@ const styles = StyleSheet.create({
   resultBlock: {
     alignItems: 'center',
   },
+  resultFrame: {
+    width: '100%',
+  },
   resultImage: {
     width: '100%',
     aspectRatio: 0.8,
     borderRadius: RADIUS.lg,
     backgroundColor: LUXURY.colors.champagne,
+  },
+  imageBadge: {
+    ...LUXURY.typography.caption,
+    position: 'absolute',
+    top: SPACING.sm,
+    left: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+    overflow: 'hidden',
+    backgroundColor: LUXURY.colors.warmWhite,
+    color: LUXURY.colors.plumDeep,
+  },
+  identityBlock: {
+    alignSelf: 'stretch',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: LUXURY.colors.hairline,
+  },
+  identityEyebrow: {
+    ...LUXURY.typography.sectionLabel,
+  },
+  identityTitle: {
+    ...LUXURY.typography.body,
+    marginTop: SPACING.xs,
+    color: LUXURY.colors.ink,
+  },
+  decisionPrompt: {
+    ...LUXURY.typography.caption,
+    marginTop: SPACING.xs,
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    color: LUXURY.colors.stone,
+  },
+  shopUnavailable: {
+    ...LUXURY.typography.caption,
+    textAlign: 'center',
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    color: LUXURY.colors.stone,
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  secondaryCell: {
+    flexGrow: 1,
+    flexBasis: 140,
+  },
+  tertiaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  tertiaryCell: {
+    flexGrow: 1,
+    flexBasis: 120,
+  },
+  stillWorking: {
+    ...LUXURY.typography.caption,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    color: LUXURY.colors.stone,
   },
   aiLabel: {
     ...LUXURY.typography.caption,
@@ -898,18 +1168,31 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.plum,
     textDecorationLine: 'underline',
   },
-  compareToggle: {
-    marginTop: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.md,
+  compareSwitch: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    marginBottom: SPACING.sm,
+    padding: 2,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
     borderColor: LUXURY.colors.hairline,
+  },
+  compareOption: {
     minHeight: 44,
+    minWidth: 104,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.pill,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  compareOptionSelected: {
+    backgroundColor: LUXURY.colors.plumDeep,
   },
   compareText: {
     ...LUXURY.typography.caption,
+  },
+  compareTextSelected: {
+    color: LUXURY.colors.inverse,
   },
   notice: {
     marginTop: SPACING.md,
