@@ -8,7 +8,7 @@
  *   node tools/elise-concierge-eval/runner.js <MODE> [options]
  *
  * Modes: CONTRACT | CORPUS | SYNTHESIZE | EVALUATE | REPORT | VALIDATE |
- *        L1_5_CONTEXT | OWNER_REPLAY
+ *        L1_5_CONTEXT | OWNER_REPLAY | CONVERSATION
  *
  * There is NO live-model mode, ever. Every mode here is offline and
  * zero-spend: fixture generation, deterministic synthesis, and evaluation
@@ -99,6 +99,30 @@ function modeEvaluate(args) {
   printJson({ text: synthesized.text, expected: synthesized.expectedVerdicts[0], actual: result });
 }
 
+/**
+ * CONVERSATION — Build 35 Elise Conversation Quality V2 sequences, evaluated
+ * against the real client task frame. Deterministic contract results only;
+ * subjective dimensions are HUMAN_REVIEW. Zero network, zero model calls.
+ */
+async function modeConversation(args) {
+  const { evaluateConversationSequences } = require('./conversation/conversationEvaluator');
+  const report = await evaluateConversationSequences();
+  const outIdx = args.indexOf('--out');
+  if (outIdx !== -1 && args[outIdx + 1]) {
+    fs.writeFileSync(path.resolve(args[outIdx + 1]), JSON.stringify(report, null, 2));
+    console.error(`Wrote conversation report to ${args[outIdx + 1]}`);
+  }
+  printJson({
+    fixtureSetVersion: report.fixtureSetVersion,
+    sequenceCount: report.sequenceCount,
+    deterministicPass: report.deterministicPass,
+    deterministicFail: report.deterministicFail,
+    byDimension: report.byDimension,
+    liveModelCalls: report.liveModelCalls,
+  });
+  if (report.deterministicFail > 0) process.exitCode = 1;
+}
+
 async function modeReport(args) {
   const { generateReport } = require('./reports/generateReport');
   const report = await generateReport();
@@ -173,8 +197,10 @@ async function main() {
       return await modeL15Context();
     case 'OWNER_REPLAY':
       return modeOwnerReplay(rest);
+    case 'CONVERSATION':
+      return await modeConversation(rest);
     default:
-      console.error('Unknown or missing mode. Modes: CONTRACT | CORPUS | SYNTHESIZE | EVALUATE | REPORT | VALIDATE | L1_5_CONTEXT | OWNER_REPLAY');
+      console.error('Unknown or missing mode. Modes: CONTRACT | CORPUS | SYNTHESIZE | EVALUATE | REPORT | VALIDATE | L1_5_CONTEXT | OWNER_REPLAY | CONVERSATION');
       process.exit(2);
   }
 }

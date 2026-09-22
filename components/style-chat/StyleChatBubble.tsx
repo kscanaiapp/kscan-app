@@ -2,6 +2,8 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { CommerceProductsBlock } from './CommerceProductsBlock';
+import { EliseConversationNotice } from './EliseConversationNotice';
+import { ELISE_CONVERSATION_NOTICE_BLOCK_TYPE } from '../../services/style-chat/eliseConversationFrame';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
@@ -320,6 +322,13 @@ export function StyleChatBubble({
                     testID="chat-commerce-products"
                   />
                 );
+              }
+
+              // Conversation Quality V2. A fact a deterministic check proved
+              // about this reply (a ruled-out item came back, or a shopping
+              // proposal was held). Rendered from codes, never from prose.
+              if (block?.type === ELISE_CONVERSATION_NOTICE_BLOCK_TYPE) {
+                return <EliseConversationNotice key={`elise-notice-${i}`} block={block} />;
               }
 
               if (block?.type === 'stylechat_actions') {
