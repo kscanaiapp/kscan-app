@@ -17,6 +17,9 @@ import { ProductShelf, type Product } from '../ProductShelf';
 import { hasCommerceProvenance } from '../../services/style-chat/commerceActivation';
 // The fact is read, never re-derived: see `matchedRequestedAttribute`.
 import { matchedRequestedAttribute } from '../../services/commerce/commerceRationale';
+import { shelfHasBuyableOffer } from '../../services/commerce/productShelfPresentation';
+import { refinementActions } from '../../services/commerce/shelfRefinements';
+import { ActiveConstraints, RefinementChips } from '../commerce/ShelfRefinementChips';
 import { LUXURY, SPACING } from '../../constants/theme';
 
 export type CommerceBlockNotice =
@@ -39,11 +42,14 @@ export interface CommerceProductsBlockProps {
   hiddenCount?: number | null;
   /** The whole active request, for the compact state line (§47). */
   intentSummary?: {
+    category?: string | null;
     color?: string | null;
     material?: string | null;
     silhouette?: string | null;
     formality?: string | null;
     budget?: { amount: number; currency: string } | null;
+    /** Commerce V2 exclusions ("material:leather"), shown as "No leather". */
+    exclusions?: unknown;
   } | null;
   /**
    * The colour the customer asked for and how hard they asked, echoed from the
@@ -51,6 +57,14 @@ export interface CommerceProductsBlockProps {
    */
   requestedColor?: string | null;
   colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
+  /**
+   * Sends a refinement AS THE CUSTOMER'S OWN WORDS through the chat's normal
+   * send path. Present only on the latest shelf of a conversation that can
+   * send; absent, no action chips render (history is read-only).
+   */
+  onRefine?: (message: string) => void;
+  /** A refinement from this shelf is in flight: keep it visible, mark it stale. */
+  refining?: boolean;
   testID?: string;
 }
 
@@ -93,28 +107,11 @@ const NOTICE_COPY: Record<CommerceBlockNotice, string> = {
 };
 
 /**
- * The compact active-state line: "black · suede · under $150 · 4 hidden".
- *
- * Read-only, and deliberately small. It exists because state a customer cannot
- * see is state they cannot correct — four silently hidden options look like a
- * thin market rather than their own instruction. Clearing is conversational
- * ("show me everything again") until there is a control surface to put it on.
+ * Relevant results came back, but none can be bought through a verified
+ * purchase path. That is not "nothing matches", and it must not read as one.
  */
-function activeStateLine(
-  intentSummary: CommerceProductsBlockProps['intentSummary'],
-  hiddenCount: number,
-): string | null {
-  const parts: string[] = [];
-  for (const value of [intentSummary?.color, intentSummary?.material, intentSummary?.silhouette, intentSummary?.formality]) {
-    if (typeof value === 'string' && value) parts.push(value);
-  }
-  const budget = intentSummary?.budget;
-  if (budget && Number.isFinite(budget.amount) && typeof budget.currency === 'string') {
-    parts.push(`under ${budget.amount} ${budget.currency}`);
-  }
-  if (hiddenCount > 0) parts.push(`${hiddenCount} hidden`);
-  return parts.length ? parts.join(' · ') : null;
-}
+const NO_BUYABLE_COPY =
+  "I found relevant items, but none currently have a verified purchase path.";
 
 /**
  * Nothing matched the colour they insisted on, but real alternatives came back.
@@ -136,6 +133,8 @@ export function CommerceProductsBlock({
   notices,
   hiddenCount,
   intentSummary,
+  onRefine,
+  refining = false,
   testID,
 }: CommerceProductsBlockProps) {
   const noticeLines = (Array.isArray(notices) ? notices : [])
@@ -164,11 +163,22 @@ export function CommerceProductsBlock({
   // card on screen without Commerce provenance.
   const verified = (Array.isArray(products) ? products : []).filter(hasCommerceProvenance) as Product[];
 
+  const hidden = typeof hiddenCount === 'number' ? hiddenCount : 0;
+  const refineChips = (
+    <RefinementChips
+      actions={refinementActions({ status, products: verified, summary: intentSummary, hiddenCount: hidden, memoryOp })}
+      onRefine={onRefine}
+      refining={refining}
+      testID={testID ? `${testID}-refine` : undefined}
+    />
+  );
+
   if (status === 'exhausted' && verified.length === 0) {
     return (
       <View style={styles.state} testID={testID ? `${testID}-exhausted` : undefined}>
         {noticeBlock}
         <Text style={styles.stateText}>{EXHAUSTED_COPY}</Text>
+        {refineChips}
       </View>
     );
   }
@@ -178,21 +188,30 @@ export function CommerceProductsBlock({
       <View style={styles.state} testID={testID ? `${testID}-empty` : undefined}>
         {noticeBlock}
         <Text style={styles.stateText}>{NO_MATCHES_COPY}</Text>
+        {refineChips}
       </View>
     );
   }
 
-  const stateLine = activeStateLine(intentSummary, typeof hiddenCount === 'number' ? hiddenCount : 0);
-  const header = (stateLine || noticeBlock) ? (
+  // Interesting results versus actionable purchases: a shelf where nothing can
+  // be bought says so once, above the cards, instead of letting a row of links
+  // read like a row of purchases.
+  const noBuyable = !shelfHasBuyableOffer(verified);
+  const header = (
     <View testID={testID ? `${testID}-state` : undefined}>
       {noticeBlock}
-      {stateLine ? (
-        <Text style={styles.activeState} testID={testID ? `${testID}-active-state` : undefined}>
-          {stateLine}
+      <ActiveConstraints
+        intentSummary={intentSummary}
+        hiddenCount={hidden}
+        testID={testID ? `${testID}-active-state` : undefined}
+      />
+      {noBuyable ? (
+        <Text style={styles.stateText} testID={testID ? `${testID}-no-buyable` : undefined}>
+          {NO_BUYABLE_COPY}
         </Text>
       ) : null}
     </View>
-  ) : null;
+  );
 
   // A single restored option is not a shelf of recommendations, and labelling
   // it "OPTIONS" would imply K Scan went looking again. It did not: this is the
@@ -212,7 +231,13 @@ export function CommerceProductsBlock({
     return (
       <View testID={testID}>
         {header}
-        <ProductShelf products={verified} label={shelfLabel} testID={testID ? `${testID}-shelf` : undefined} />
+        <ProductShelf
+          products={verified}
+          label={shelfLabel}
+          updating={refining}
+          testID={testID ? `${testID}-shelf` : undefined}
+        />
+        {refineChips}
       </View>
     );
   }
@@ -234,8 +259,10 @@ export function CommerceProductsBlock({
         <ProductShelf
           products={other}
           label="OTHER OPTIONS"
+          updating={refining}
           testID={testID ? `${testID}-shelf-other` : undefined}
         />
+        {refineChips}
       </View>
     );
   }
@@ -246,15 +273,18 @@ export function CommerceProductsBlock({
       <ProductShelf
         products={best}
         label="BEST MATCHES"
+        updating={refining}
         testID={testID ? `${testID}-shelf-best` : undefined}
       />
       {other.length > 0 ? (
         <ProductShelf
           products={other}
           label="OTHER OPTIONS"
+          updating={refining}
           testID={testID ? `${testID}-shelf-other` : undefined}
         />
       ) : null}
+      {refineChips}
     </View>
   );
 }
@@ -268,14 +298,5 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.graphite,
     fontSize: 13,
     lineHeight: 18,
-  },
-  activeState: {
-    color: LUXURY.colors.graphite,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.4,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    textTransform: 'lowercase',
   },
 });

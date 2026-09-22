@@ -154,12 +154,18 @@ test('ProductShelf exposes a visible Add to Dressing Room action', () => {
   assert.match(productShelf, /testID="add-to-dressing-room-button"/);
   // The accessible name is state-dependent as of Build 25 Phase 4: it was a
   // hardcoded "Add to Dressing Room" that kept announcing itself while the
-  // button visibly read "Can't Save Yet". The enabled branch must still be
-  // exactly that string, and the label must still be derived rather than fixed.
+  // button visibly read "Can't Save Yet". The label must still be derived
+  // rather than fixed.
+  //
+  // Build 35 Commerce UX (§52-53): the card's visible text is now "Save" (it
+  // shares a row with Watch so no card stacks four buttons), so the enabled
+  // name is "Save to a Dressing Room" -- it contains the visible word and still
+  // names where the item goes. The sheet it opens is still titled
+  // "Add to Dressing Room", asserted above.
   assert.match(
     productShelf,
-    /accessibilityLabel=\{\s*canSaveToRoom \? 'Add to Dressing Room' :/,
-    'the enabled state must still be named "Add to Dressing Room"',
+    /accessibilityLabel=\{\s*canSaveToRoom \? 'Save to a Dressing Room' :/,
+    'the enabled state must name the Dressing Room destination',
   );
 });
 

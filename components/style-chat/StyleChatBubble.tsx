@@ -53,6 +53,15 @@ interface StyleChatBubbleProps {
   onDismissFeedbackEducation?: () => void;
   onFeedbackMenuOpened?: () => void;
   onStyleDnaFeedbackSaved?: () => void;
+  /**
+   * Commerce UX: sends a shelf refinement as the customer's own words. The
+   * screen passes it only to the message holding the LATEST shelf, so an
+   * older shelf in the transcript cannot start a refinement of a request that
+   * has since moved on.
+   */
+  onCommerceRefine?: (message: string) => void;
+  /** A refinement sent from this message's shelf is in flight. */
+  commerceRefining?: boolean;
 }
 
 type AssistantContentBlock =
@@ -129,6 +138,8 @@ export function StyleChatBubble({
   onDismissFeedbackEducation,
   onFeedbackMenuOpened,
   onStyleDnaFeedbackSaved,
+  onCommerceRefine,
+  commerceRefining = false,
 }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
   const { identity } = useStylistIdentity();
@@ -304,6 +315,8 @@ export function StyleChatBubble({
                     silhouette?: string | null;
                     formality?: string | null;
                     budget?: { amount: number; currency: string } | null;
+                    category?: string | null;
+                    exclusions?: unknown;
                   };
                 };
                 return (
@@ -317,6 +330,8 @@ export function StyleChatBubble({
                     notices={Array.isArray(commerceBlock.notices) ? (commerceBlock.notices as never[]) : null}
                     hiddenCount={commerceBlock.hiddenCount ?? null}
                     intentSummary={commerceBlock.intentSummary ?? null}
+                    onRefine={onCommerceRefine}
+                    refining={commerceRefining}
                     testID="chat-commerce-products"
                   />
                 );

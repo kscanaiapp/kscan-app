@@ -49,6 +49,20 @@ import type { VtoGarmentInput } from '../types/vto';
 import { resolvePersistedRetailerIdentity } from '../services/commerce/retailerIdentity';
 import { RetailerIdentity } from './commerce/RetailerIdentity';
 import { openCommerceOffer } from '../services/commerce/commerceExit';
+import {
+  BUYABILITY_COPY,
+  COMPARE_MAX,
+  COMPARE_MIN,
+  presentableShelf,
+  shelfBuyability,
+  shelfCardKey,
+  shelfMatchedAttributes,
+  shelfPriceView,
+  shelfReasonLines,
+  toggleCompareSelection,
+  watchListingPrice,
+} from '../services/commerce/productShelfPresentation';
+import { ProductCompareSheet } from './commerce/ProductCompareSheet';
 
 export interface Product {
   id?:         string;
@@ -92,6 +106,12 @@ export interface Product {
   commercialUsability?: 'TRANSACTION_READY' | 'BROWSE_ONLY' | 'UNUSABLE' | 'UNKNOWN';
   type?: 'retail' | 'similar';
   commerceType?: 'retail' | 'resale';
+  /**
+   * #409 ranker facts, attached server-side to the product they describe.
+   * Read through `services/commerce/productShelfPresentation` only; the card
+   * never writes its own explanation.
+   */
+  commerceRationale?: unknown;
 }
 
 interface ProductShelfProps {
@@ -114,9 +134,19 @@ interface ProductShelfProps {
   errorBody?: string;
   /** Present only when a failed fetch is retryable. */
   onRetry?: () => void;
+  /**
+   * The shelf is being replaced by a newer request. The current cards stay
+   * visible so the screen does not blank, but they are de-emphasised, labelled
+   * as updating, and their actions are disabled: an old card must never be
+   * mistaken for (or acted on as) an answer to the newer request.
+   */
+  updating?: boolean;
 }
 
-const CARD_WIDTH  = 144;
+// 160 (was 144): wide enough for Save and Watch to share one row, so a card
+// never stacks four equal-weight buttons, and for a price plus its currency
+// code to fit one line. Image stays square, so load-in never shifts layout.
+const CARD_WIDTH  = 160;
 const IMAGE_SIZE  = CARD_WIDTH;
 const PLACEHOLDER_CATEGORIES = new Set([
   'footwear',
@@ -372,20 +402,42 @@ export function ProductShelf({
   errorTitle = 'Could not load purchase options.',
   errorBody = 'Check your connection and try again.',
   onRetry,
+  updating = false,
 }: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [watchModalProduct, setWatchModalProduct] = useState<Product | null>(null);
+  // Card keys whose Watch the Watchlist authority CONFIRMED this session. Only
+  // a successful createWatch result writes here; a failed or abandoned attempt
+  // never does, so "Watching" is never a local guess.
+  const [watchedKeys, setWatchedKeys] = useState<Record<string, true>>({});
+  const [expandedWhy, setExpandedWhy] = useState<Record<string, boolean>>({});
+  const [compareKeys, setCompareKeys] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
-  if (!products || products.length === 0) {
+  // Exact-duplicate offers collapse through the EXISTING canonical offer
+  // identity; anything without one stays its own candidate. Order is the
+  // ranker's order, untouched.
+  const shelfProducts = presentableShelf(products ?? []);
+
+  if (!products || products.length === 0 || shelfProducts.length === 0) {
     const emptyMode = resolveEmptyShelfMode(pending, hasError);
     if (emptyMode === 'pending') {
       return (
-        <View testID={testID ? `${testID}-pending` : 'product-shelf-pending'} style={styles.emptyShelf}>
+        <View
+          testID={testID ? `${testID}-pending` : 'product-shelf-pending'}
+          style={styles.emptyShelf}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Finding options"
+          accessibilityLiveRegion="polite"
+        >
           <ActivityIndicator color={LUXURY.colors.plum} />
+          {/* Truthful, not a fake percentage, and never a provider name. */}
+          <Text style={styles.emptyShelfBody}>Finding options…</Text>
         </View>
       );
     }
@@ -416,14 +468,24 @@ export function ProductShelf({
   }
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    const missingImage = products.filter((p) => !getProductImageUrl(p)).length;
-    const missingLink = products.filter((p) => !getPurchaseUrl(p)).length;
-    console.log('[K-SCAN ProductShelf] rendering products=' + products.length +
+    const missingImage = shelfProducts.filter((p) => !getProductImageUrl(p)).length;
+    const missingLink = shelfProducts.filter((p) => !getPurchaseUrl(p)).length;
+    console.log('[K-SCAN ProductShelf] rendering products=' + shelfProducts.length +
       ' missingImageUrl=' + missingImage + ' missingProductUrl=' + missingLink);
   }
 
+  // Every card's actions are bound to the product object at its key. Compare
+  // and Watch state are keyed the same way, so selection can never slide to a
+  // neighbouring card when the list re-renders.
+  const keyedProducts = shelfProducts.map((p, i) => ({ product: p, key: shelfCardKey(p, i) }));
+  const liveCompareKeys = compareKeys.filter((key) => keyedProducts.some((entry) => entry.key === key));
+  const compareProducts = liveCompareKeys
+    .map((key) => keyedProducts.find((entry) => entry.key === key))
+    .filter((entry): entry is { product: Product; key: string } => Boolean(entry));
+  const compareEnabled = keyedProducts.length >= COMPARE_MIN && !updating;
+
   const handleLinkPress = (url: string | null | undefined) => {
-    if (!url) return;
+    if (!url || updating) return;
     selectionTick();
     // §28 commerce-exit contract. This shelf renders both live and reopened
     // (persisted) commerce data, so it keeps the stricter persisted-URL
@@ -445,20 +507,42 @@ export function ProductShelf({
   return (
     <View testID={testID ?? 'product-shelf'} style={styles.container}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label} accessibilityRole="header">
+          {label}
+        </Text>
         <View style={styles.labelLine} />
+        <Text style={styles.countLabel} accessibilityLabel={`${keyedProducts.length} options`}>
+          {keyedProducts.length}
+        </Text>
       </View>
+
+      {updating ? (
+        <Text
+          style={styles.updatingLabel}
+          accessibilityLiveRegion="polite"
+          testID={testID ? `${testID}-updating` : 'product-shelf-updating'}
+        >
+          Updating options…
+        </Text>
+      ) : null}
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        // Cards snap so the next one always peeks in from the edge: the
+        // carousel announces that there is more without an arrow or a count.
+        snapToInterval={CARD_WIDTH + SPACING.md}
+        decelerationRate="fast"
+        style={updating ? styles.shelfUpdating : null}
+        pointerEvents={updating ? 'none' : 'auto'}
+        accessibilityElementsHidden={updating}
+        importantForAccessibility={updating ? 'no-hide-descendants' : 'auto'}
       >
-        {products.map((p, i) => {
+        {keyedProducts.map(({ product: p, key: productKey }) => {
           const productImageUrl = getProductImageUrl(p);
           const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
-          const productKey = p.id ?? String(i);
           // A product that arrives without a usable name is a gap in OUR data,
           // not a mystery object. "Unknown Product" reads as an accusation about
           // the item; this says what is actually true for the shopper.
@@ -469,6 +553,12 @@ export function ProductShelf({
           // OPENS; this governs whether anything may present itself as a
           // purchase. The two are deliberately separate.
           const canShop = canShopProduct(p);
+          // The card's commercial state, from the same destination selector and
+          // the same usability authority as `canShop`: SHOP, VIEW AT RETAILER,
+          // out of stock, or no purchase path. A listing that cannot be bought
+          // must not look identical to one that can.
+          const buyability = shelfBuyability(p);
+          const buyCopy = BUYABILITY_COPY[buyability];
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
           // Closure §6: this shelf renders reopened (persisted) commerce as well
@@ -477,10 +567,27 @@ export function ProductShelf({
           // resolver lets the row's own governed merchant domain correct that;
           // it changes nothing when no registered domain contradicts the label.
           const retailerIdentity = resolvePersistedRetailerIdentity(p);
-          const priceText = formatPrice(p);
+          // Price truth: the code is shown when the offer declared one, and a
+          // provider string whose currency was never declared says so rather
+          // than passing "$120" off as a known currency.
+          const priceView = shelfPriceView(p);
+          const priceText = priceView.text ?? formatPrice(p);
           const vtoGarment = buildVtoGarmentFromProduct(p);
-          const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
-          const isOutOfStock = availability === 'out_of_stock' || availability === 'out of stock';
+          // "Why this": the ranker's own facts through the existing copy table.
+          // No rationale -> no reason line; absence is never captioned as a match.
+          const reasons = shelfReasonLines(p, 3);
+          const matched = shelfMatchedAttributes(p);
+          const whyExpanded = !!expandedWhy[productKey];
+          const hasMoreWhy = reasons.length > 1 || matched.length > 0;
+          const isWatched = !!watchedKeys[productKey];
+          const isCompared = liveCompareKeys.includes(productKey);
+          const compareFull = !isCompared && liveCompareKeys.length >= COMPARE_MAX;
+          const cardSummary = [
+            productTitle,
+            retailerIdentity.displayName ? `at ${retailerIdentity.displayName}` : null,
+            priceView.accessibilityText,
+            buyCopy.status,
+          ].filter(Boolean).join(', ');
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
             console.log(
               '[K-SCAN ProductShelf] fallback',
@@ -494,7 +601,8 @@ export function ProductShelf({
           return (
             <View
               key={productKey}
-              style={[styles.card, !hasLink && styles.cardNoLink]}
+              style={[styles.card, !hasLink && styles.cardNoLink, isCompared && styles.cardCompared]}
+              testID={`product-shelf-card-${productKey}`}
             >
               <TouchableOpacity
                 onPress={() => handleLinkPress(purchaseUrl)}
@@ -529,29 +637,124 @@ export function ProductShelf({
                 )}
               </TouchableOpacity>
 
-              <View style={styles.cardBody}>
-                <RetailerIdentity identity={retailerIdentity} mode="text-only" testID="product-shelf-retailer" />
-                <Text style={styles.name} numberOfLines={2}>
-                  {productTitle}
-                </Text>
-                {priceText ? (
-                  <Text style={styles.price} numberOfLines={1}>
-                    {priceText}
+              {compareEnabled ? (
+                /* Selection, not an action: it never opens, saves or watches
+                   anything. A checkbox so its state is announced, and a word
+                   rather than an icon so it is never colour/shape-only. */
+                <TouchableOpacity
+                  testID={`compare-toggle-${productKey}`}
+                  style={[styles.compareToggle, isCompared && styles.compareToggleOn]}
+                  onPress={() => {
+                    if (compareFull) return;
+                    selectionTick();
+                    setCompareKeys((current) => toggleCompareSelection(
+                      current.filter((key) => keyedProducts.some((entry) => entry.key === key)),
+                      productKey,
+                    ));
+                  }}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`Compare ${productTitle}`}
+                  accessibilityHint={compareFull ? `You can compare up to ${COMPARE_MAX} items` : undefined}
+                  accessibilityState={{ checked: isCompared, disabled: compareFull }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.compareToggleText, isCompared && styles.compareToggleTextOn]}>
+                    {isCompared ? '✓ COMPARE' : 'COMPARE'}
                   </Text>
-                ) : null}
-                {isOutOfStock ? (
-                  <Text style={styles.availabilityLabel} numberOfLines={1}>
-                    Out of stock
+                </TouchableOpacity>
+              ) : null}
+
+              <View style={styles.cardBody} accessible={false}>
+                <View accessible accessibilityLabel={cardSummary}>
+                  <RetailerIdentity identity={retailerIdentity} mode="text-only" testID="product-shelf-retailer" />
+                  <Text style={styles.name} numberOfLines={2}>
+                    {productTitle}
                   </Text>
+                  {priceText ? (
+                    <Text style={styles.price} numberOfLines={1} testID={`product-shelf-price-${productKey}`}>
+                      {priceText}
+                    </Text>
+                  ) : null}
+                  {priceView.currencyUnconfirmed ? (
+                    <Text style={styles.availabilityLabel} numberOfLines={1}>
+                      Currency not confirmed
+                    </Text>
+                  ) : null}
+                  {buyCopy.status ? (
+                    <Text
+                      style={styles.availabilityLabel}
+                      numberOfLines={1}
+                      testID={`product-shelf-status-${productKey}`}
+                    >
+                      {buyCopy.status}
+                    </Text>
+                  ) : null}
+                  {/* §43: small and clear, never affects ranking -- purely a
+                      presentation-layer fact read off the already-resolved
+                      identity. */}
+                  {retailerIdentity.commerceType ? (
+                    <Text style={styles.commerceTypeBadge} numberOfLines={1}>
+                      {retailerIdentity.commerceType === 'resale' ? 'RESALE' : 'RETAIL'}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {reasons.length > 0 ? (
+                  <View testID={`product-shelf-why-${productKey}`}>
+                    <Text style={styles.reasonText} numberOfLines={whyExpanded ? undefined : 2}>
+                      {reasons[0]}
+                    </Text>
+                    {whyExpanded ? (
+                      <>
+                        {reasons.slice(1).map((line) => (
+                          <Text key={line} style={styles.reasonText}>
+                            {line}
+                          </Text>
+                        ))}
+                        {matched.length > 0 ? (
+                          <Text style={styles.reasonText}>{`Matches: ${matched.join(' · ')}`}</Text>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {hasMoreWhy ? (
+                      /* Reads facts already on this card. No request, no model. */
+                      <TouchableOpacity
+                        onPress={() => setExpandedWhy((current) => ({ ...current, [productKey]: !whyExpanded }))}
+                        accessibilityRole="button"
+                        accessibilityLabel={whyExpanded ? `Hide why ${productTitle} is shown` : `Why ${productTitle} is shown`}
+                        accessibilityState={{ expanded: whyExpanded }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        testID={`product-shelf-why-toggle-${productKey}`}
+                      >
+                        <Text style={styles.whyToggle}>{whyExpanded ? 'LESS' : 'WHY THIS?'}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 ) : null}
-                {/* §43: small and clear, never affects ranking -- purely a
-                    presentation-layer fact read off the already-resolved
-                    identity. */}
-                {retailerIdentity.commerceType ? (
-                  <Text style={styles.commerceTypeBadge} numberOfLines={1}>
-                    {retailerIdentity.commerceType === 'resale' ? 'RESALE' : 'RETAIL'}
-                  </Text>
+
+                {/* PRIMARY. SHOP only for a transaction-ready offer with a
+                    verified destination; VIEW AT RETAILER for a page that opens
+                    but cannot promise a purchase; nothing at all when there is
+                    no verified purchase path. The destination is this card's
+                    own -- never built from a title or a search. */}
+                {buyCopy.action && hasLink ? (
+                  <TouchableOpacity
+                    testID={`product-shelf-primary-${productKey}`}
+                    style={buyability === 'shop' ? styles.shopButton : styles.viewButton}
+                    onPress={() => handleLinkPress(purchaseUrl)}
+                    accessibilityRole="link"
+                    accessibilityLabel={
+                      buyability === 'shop' ? `Shop ${productTitle}` : `View ${productTitle} at the retailer`
+                    }
+                    accessibilityHint="Opens this listing in your browser"
+                    activeOpacity={0.82}
+                  >
+                    <Text style={buyability === 'shop' ? styles.shopButtonText : styles.viewButtonText} numberOfLines={1}>
+                      {buyCopy.action}
+                    </Text>
+                  </TouchableOpacity>
                 ) : null}
+
                 {/*
                     VTO seam: additive only. TryItOnEntry renders nothing
                     unless the item is genuinely eligible (or the only gap is
@@ -574,82 +777,160 @@ export function ProductShelf({
                     testID={`try-it-on-${productKey}`}
                   />
                 ) : null}
-                {dressingRoomsEnabled ? (
-                  /*
-                    The label tracks the VISIBLE text. This control is not
-                    disabled when an item can't be saved — it still opens the
-                    sheet, which explains why — so it must not announce a
-                    disabled state it does not have, and it must not promise
-                    "Add to Dressing Room" while reading "Can't Save Yet".
-                  */
-                  <TouchableOpacity
-                    testID="add-to-dressing-room-button"
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      canSaveToRoom ? 'Add to Dressing Room' : "Can't save to a Dressing Room yet"
-                    }
-                    accessibilityHint={
-                      canSaveToRoom
-                        ? 'Choose a Dressing Room to save this item to'
-                        : 'Explains why this item cannot be saved yet'
-                    }
-                    style={[
-                      styles.addToRoomButton,
-                      !canSaveToRoom ? styles.addToRoomButtonDisabled : null,
-                    ]}
-                    onPress={() => {
-                      selectionTick();
-                      setSelectedProduct(p);
-                    }}
-                    activeOpacity={0.82}
-                  >
-                    <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
-                      {canSaveToRoom ? 'Add to Dressing Room' : "Can't Save Yet"}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                {canWatch ? (
-                  <KPlusGate source="watchlist">
-                    {({ isActive, openUpgrade }) => (
-                      <TouchableOpacity
-                        testID="watch-listing-button"
-                        accessibilityRole="button"
-                        // WL-10. A shelf renders one of these per product, so a
-                        // static label announces "Watch this listing" N times
-                        // with nothing to distinguish them: a screen-reader user
-                        // cannot tell which item they are about to watch. The
-                        // label must name the product the control acts on.
-                        accessibilityLabel={`Watch ${getProductTitle(p)}`}
-                        accessibilityHint="Get notified about price changes on this item"
-                        style={styles.addToRoomButton}
-                        onPress={() => {
-                          selectionTick();
-                          if (isActive) setWatchModalProduct(p);
-                          else openUpgrade();
-                        }}
-                        activeOpacity={0.82}
-                      >
-                        <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
-                          Watch
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </KPlusGate>
-                ) : null}
+
+                {/* SECONDARY: Save and Watch share one row so a card never
+                    stacks four equal-weight buttons. */}
+                <View style={styles.secondaryRow}>
+                  {dressingRoomsEnabled ? (
+                    /*
+                      The label tracks the VISIBLE text. This control is not
+                      disabled when an item can't be saved — it still opens the
+                      sheet, which explains why — so it must not announce a
+                      disabled state it does not have, and it must not promise
+                      a save while reading "Can't Save Yet". "Save" means a
+                      Dressing Room, never ownership or a purchase.
+                    */
+                    <TouchableOpacity
+                      testID="add-to-dressing-room-button"
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        canSaveToRoom ? 'Save to a Dressing Room' : "Can't save to a Dressing Room yet"
+                      }
+                      accessibilityHint={
+                        canSaveToRoom
+                          ? 'Choose a Dressing Room to save this item to'
+                          : 'Explains why this item cannot be saved yet'
+                      }
+                      style={[
+                        styles.addToRoomButton,
+                        styles.secondaryButton,
+                        !canSaveToRoom ? styles.addToRoomButtonDisabled : null,
+                      ]}
+                      onPress={() => {
+                        selectionTick();
+                        setSelectedProduct(p);
+                      }}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
+                        {canSaveToRoom ? 'Save' : "Can't Save Yet"}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {canWatch && isWatched ? (
+                    /* Written only after the Watchlist authority confirmed the
+                       Watch. Not a button: a second tap has nothing to do. */
+                    <View
+                      testID={`watching-state-${productKey}`}
+                      style={[styles.addToRoomButton, styles.secondaryButton, styles.watchingState]}
+                      accessible
+                      accessibilityLabel={`Watching ${productTitle}`}
+                    >
+                      <Text style={styles.addToRoomText} numberOfLines={1}>
+                        Watching
+                      </Text>
+                    </View>
+                  ) : canWatch ? (
+                    <KPlusGate source="watchlist">
+                      {({ isActive, openUpgrade }) => (
+                        <TouchableOpacity
+                          testID="watch-listing-button"
+                          accessibilityRole="button"
+                          // WL-10. A shelf renders one of these per product, so a
+                          // static label announces "Watch this listing" N times
+                          // with nothing to distinguish them: a screen-reader user
+                          // cannot tell which item they are about to watch. The
+                          // label must name the product the control acts on.
+                          accessibilityLabel={`Watch ${getProductTitle(p)}`}
+                          accessibilityHint="Get notified about price changes on this item"
+                          style={[styles.addToRoomButton, styles.secondaryButton]}
+                          onPress={() => {
+                            selectionTick();
+                            if (isActive) setWatchModalProduct(p);
+                            else openUpgrade();
+                          }}
+                          activeOpacity={0.82}
+                        >
+                          <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
+                            Watch
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </KPlusGate>
+                  ) : null}
+                </View>
               </View>
-
-              {hasLink && (
-                <View style={styles.linkDot} accessibilityLabel="Has product link" />
-              )}
-
             </View>
           );
         })}
       </ScrollView>
 
+      {compareEnabled && liveCompareKeys.length > 0 ? (
+        <View style={styles.compareBar} testID={testID ? `${testID}-compare-bar` : 'product-shelf-compare-bar'}>
+          <Text style={styles.compareBarText} accessibilityLiveRegion="polite">
+            {liveCompareKeys.length < COMPARE_MIN
+              ? `Select ${COMPARE_MIN - liveCompareKeys.length} more to compare`
+              : `${liveCompareKeys.length} selected`}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setCompareKeys([])}
+            accessibilityRole="button"
+            accessibilityLabel="Clear comparison selection"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.compareBarClear}>CLEAR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID={testID ? `${testID}-compare-open` : 'product-shelf-compare-open'}
+            style={[styles.compareBarButton, liveCompareKeys.length < COMPARE_MIN && styles.modalButtonDisabled]}
+            disabled={liveCompareKeys.length < COMPARE_MIN}
+            onPress={() => {
+              selectionTick();
+              setCompareOpen(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Compare ${liveCompareKeys.length} items`}
+            accessibilityState={{ disabled: liveCompareKeys.length < COMPARE_MIN }}
+          >
+            <Text style={styles.compareBarButtonText}>COMPARE</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {linkErrorVisible && (
         <Text style={styles.linkError}>LINK UNAVAILABLE</Text>
       )}
+
+      {/* Compare reads the SAME product objects the cards render and routes
+          every action back through this shelf's own handlers and modals --
+          there is no second Shop, Save or Watch implementation inside it. */}
+      <ProductCompareSheet
+        visible={compareOpen && compareProducts.length >= COMPARE_MIN}
+        products={compareProducts.map((entry) => entry.product)}
+        retailerOf={(product) => resolvePersistedRetailerIdentity(product as Product).displayName ?? null}
+        onClose={() => setCompareOpen(false)}
+        renderActions={(product, index) => {
+          const entry = compareProducts[index];
+          if (!entry || entry.product !== product) return null;
+          const url = getPurchaseUrl(entry.product);
+          const state = shelfBuyability(entry.product);
+          const copy = BUYABILITY_COPY[state];
+          const watched = !!watchedKeys[entry.key];
+          return {
+            primary: copy.action && url
+              ? { label: copy.action, emphasis: state === 'shop' ? 'primary' : 'secondary', onPress: () => handleLinkPress(url) }
+              : null,
+            save: dressingRoomsEnabled && canAddProductToDressingRoom(entry.product)
+              ? { label: 'Save', onPress: () => { setCompareOpen(false); setSelectedProduct(entry.product); } }
+              : null,
+            watch: canWatchProduct(entry.product)
+              ? watched
+                ? { label: 'Watching', onPress: null }
+                : { label: 'Watch', onPress: () => { setCompareOpen(false); setWatchModalProduct(entry.product); } }
+              : null,
+          };
+        }}
+      />
 
       {dressingRoomsEnabled ? (
         <AddToRoomModal
@@ -663,6 +944,12 @@ export function ProductShelf({
         product={watchModalProduct}
         visible={!!watchModalProduct}
         onClose={() => setWatchModalProduct(null)}
+        onWatched={(watchedProduct) => {
+          // Bound to the exact product object the modal was opened for; a
+          // confirmed Watch marks that card and no other.
+          const entry = keyedProducts.find((candidate) => candidate.product === watchedProduct);
+          if (entry) setWatchedKeys((current) => ({ ...current, [entry.key]: true }));
+        }}
       />
     </View>
   );
@@ -848,25 +1135,36 @@ export function WatchThisModal({
   product,
   visible,
   onClose,
+  onWatched,
 }: {
   product: Product | null;
   visible: boolean;
   onClose: () => void;
+  /** Called only after the Watchlist authority confirmed THIS product's Watch. */
+  onWatched?: (product: Product) => void;
 }) {
   const [intent, setIntent] = useState<WatchIntent>('just_watching');
   const [targetText, setTargetText] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // BLOCK-COM-UX-24. `saving` is render state, so two taps inside one frame
+  // both saw `false`, and after a success the button re-enabled for the 900ms
+  // the confirmation stays up -- a second tap sent a second create. The ref
+  // closes the same-frame window; `created` keeps the confirmed sheet inert
+  // until it closes.
+  const inFlightRef = useRef(false);
+  const [created, setCreated] = useState(false);
 
   const handleClose = () => {
     setIntent('just_watching');
     setTargetText('');
     setMessage(null);
+    setCreated(false);
     onClose();
   };
 
   const handleSave = async () => {
-    if (!product || saving) return;
+    if (!product || saving || created || inFlightRef.current) return;
     const targetPriceAmount =
       intent === 'buy_under' ? Number(targetText.replace(/[^0-9.]/g, '')) : undefined;
     if (intent === 'buy_under' && (!targetPriceAmount || !Number.isFinite(targetPriceAmount) || targetPriceAmount <= 0)) {
@@ -879,11 +1177,12 @@ export function WatchThisModal({
     // operation. Instrumentation only.
     emitKPlusEvent('kplus_feature_started', { source: 'watchlist', feature: 'watchlist' });
     const purchaseUrl = getPurchaseUrl(product);
+    inFlightRef.current = true;
     const result = await createWatch({
       listing: {
         productUrl: purchaseUrl || '',
         title: getProductTitle(product),
-        price: product.price != null ? String(product.price) : undefined,
+        price: watchListingPrice(product),
         source: getRetailer(product) || product.source || '',
         imageUrl: getProductImageUrl(product) || undefined,
         type: product.type ?? 'retail',
@@ -893,8 +1192,11 @@ export function WatchThisModal({
       watchIntent: intent,
       targetPriceAmount,
     });
+    inFlightRef.current = false;
     setSaving(false);
     if (result.ok) {
+      setCreated(true);
+      onWatched?.(product);
       emitKPlusEvent('kplus_feature_completed', { source: 'watchlist', feature: 'watchlist' });
       setMessage("You're watching this listing.");
       const createdWatchId = result.data.id;
@@ -992,19 +1294,23 @@ export function WatchThisModal({
             </View>
           ) : null}
 
-          {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
+          {message ? <Text style={styles.modalMessage} accessibilityLiveRegion="polite">{message}</Text> : null}
 
           <View style={styles.newRoomControls}>
             <TouchableOpacity
               testID="watch-save-button"
-              style={[styles.modalPrimaryButton, saving && styles.modalButtonDisabled]}
+              style={[styles.modalPrimaryButton, (saving || created) && styles.modalButtonDisabled]}
               onPress={handleSave}
-              disabled={saving}
+              disabled={saving || created}
               accessibilityRole="button"
-              accessibilityLabel="Start watching"
-              accessibilityState={{ disabled: saving, busy: saving }}
+              accessibilityLabel={created ? 'Watching' : 'Start watching'}
+              accessibilityState={{ disabled: saving || created, busy: saving }}
             >
-              {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>WATCH</Text>}
+              {saving ? (
+                <ActivityIndicator color={COLORS.textInverse} />
+              ) : (
+                <Text style={styles.modalPrimaryText}>{created ? 'WATCHING' : 'WATCH'}</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1323,15 +1629,143 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.goldText,
     marginTop: SPACING.xxs,
   },
-  linkDot: {
-    position:        'absolute',
-    top:             SPACING.xs,
-    right:           SPACING.xs,
-    width:           6,
-    height:          6,
-    borderRadius:    3,
-    backgroundColor: COLORS.gold,
-    opacity:         0.7,
+  countLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 10,
+  },
+  updatingLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    marginBottom: SPACING.sm,
+    textTransform: 'none',
+  },
+  shelfUpdating: {
+    // De-emphasised while a newer request is in flight. Opacity is paired with
+    // the "Updating options…" words and disabled actions, never used alone.
+    opacity: 0.45,
+  },
+  cardCompared: {
+    borderColor: LUXURY.colors.plum,
+    borderWidth: 1.5,
+  },
+  compareToggle: {
+    position: 'absolute',
+    top: SPACING.xs,
+    right: SPACING.xs,
+    minHeight: 28,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.pearl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compareToggleOn: {
+    backgroundColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.plum,
+  },
+  compareToggleText: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: LUXURY.colors.plum,
+  },
+  compareToggleTextOn: {
+    color: COLORS.textInverse,
+  },
+  reasonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.1,
+    textTransform: 'none',
+    marginTop: SPACING.xxs,
+  },
+  whyToggle: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    color: LUXURY.colors.goldText,
+    marginTop: SPACING.xxs,
+    paddingVertical: SPACING.xxs,
+  },
+  shopButton: {
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  shopButtonText: {
+    ...LUXURY.typography.caption,
+    color: COLORS.textInverse,
+    fontSize: 11,
+    letterSpacing: 1.2,
+  },
+  viewButton: {
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  viewButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 0.9,
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  secondaryButton: {
+    flex: 1,
+    paddingHorizontal: SPACING.xs,
+  },
+  watchingState: {
+    backgroundColor: 'transparent',
+    borderColor: LUXURY.colors.hairline,
+  },
+  compareBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  compareBarText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    flex: 1,
+    textTransform: 'none',
+  },
+  compareBarClear: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 10,
+  },
+  compareBarButton: {
+    minHeight: 40,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compareBarButtonText: {
+    ...LUXURY.typography.caption,
+    color: COLORS.textInverse,
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   linkError: {
     ...TYPOGRAPHY.caption,
