@@ -456,3 +456,105 @@ with a vendor's `Retry-After` would defeat duplicate suppression outright.
 Covered by `BLOCK-VTO31-00..10` in `__tests__/vtoRateLimitTruth.test.js`, which
 drives the **real** `handleVtoRequest` and the **real** adapter against injected
 transports rather than matching source text.
+
+---
+
+# Build 35 addendum — result and decision-loop polish
+
+TRY → RESULT → COMPARE → DECIDE → SHOP / WATCH / SAVE / TRY ANOTHER. A
+refinement of the existing surface, not a new VTO: no provider, eligibility,
+schema, flag or runtime change. Base: `fix/notifications-final-convergence-v1`
+@ `d66f03d6` (the #414 merge).
+
+## Source authorities (traced, not taken from older diagrams)
+
+| Concern | Authority |
+| --- | --- |
+| Mode decision (`LIVE_LOCAL` / `PHOTOREAL_STILL` / `UNAVAILABLE`) | `services/vto/vtoModeAuthority.ts#resolveVtoMode`, bound once by `hooks/useVtoMode.ts` |
+| Entry CTA, product → session contract | `components/vto/TryItOnEntry.tsx`, `services/vto/vtoEntryContract.ts#sessionRefForDecision` |
+| Mounts (the only two) | `components/scan-results/PurchaseOptionsPanel.tsx`, `components/ProductShelf.tsx` — both `origin="commerce_product"` |
+| Photo flow, review, generation, result, cancel, retry | `components/vto/VirtualTryOnSheet.tsx` over `hooks/useVirtualTryOn.ts` over `services/vto/vtoRequestStore.ts` |
+| Live flow | `components/vto/VtoLivePanel.tsx`, `hooks/useVtoLiveSession.ts`, `services/vto/vtoLiveSession.ts` |
+| Result decision rules (new) | `services/vto/vtoDecisionLoop.ts` — pure, imports only `types/vto` |
+| Shop | the surface's `onShop` (its existing destination), passed through unmodified |
+| Watch | the surface's `onWatch` → its own `WatchThisModal` → `createWatch`; DB unique `(user, url)` |
+| Save | `components/vto/VtoSaveToDressingRoom.tsx` → `components/AddScanToDressingRoomModal.tsx` (`upload_inspiration`) |
+| Stale completion, cancellation, double tap | `vtoRequestStore.ts` generation token + actor epoch; supersede-and-abort |
+| Actor switch | `contexts/AuthSessionContext.tsx` → `resetVtoRequestState()` |
+| Error taxonomy / copy | `services/vto/vtoFailures.ts` (client), `supabase/functions/vto-generate/vtoContract.ts` (server) |
+| Result lifetime / cleanup | see "Image memory" below |
+
+## What changed
+
+| Area | Before | After |
+| --- | --- | --- |
+| Hierarchy | Shop (primary) + Watch + Try again + Save + Compare, roughly equal weight, Save inside the scroll body | **Primary** Shop · **Secondary** Save this try-on, Watch · **Tertiary** Try again, Try another piece. Decided by `planVtoResultActions` |
+| No purchase path | a primary Shop rendered *disabled* | no Shop button; "This listing has no shop link right now." (supersedes §7's "disabled" row) |
+| Identity | result rendered for any `success` snapshot | rendered, with its actions, only when `vtoResultBelongsToProduct` — same `productRef`, same garment image, same request — else nothing (fails closed) |
+| Product context | title in the header only | "YOU TRIED" + brand (when supplied) · title under the result. No price restated: a try-on is not a fresh read of commerce truth |
+| Compare | one "SHOW ORIGINAL" toggle | a two-option switch (TRY-ON / YOUR PHOTO) with `tab` role, selected state and an on-image text badge. Both images are on-device; no fetch |
+| Try again / Try another | Try again only | Try again = same piece, new attempt (`vto.retry`). Try another piece = back to the options the sheet was opened over, **nothing generated**, session photo kept |
+| Progress | "Analyzing garment / Mapping the fit / Rendering visualization", advanced by a timer while the provider call was still out | "Preparing your photo… / Creating your try-on… / Finishing your result…" = the store's `preparing / generating / validating_result` exactly; after 15s, "Still working on it. You can minimize and keep shopping." |
+| Retry-After | server sent `error.retryAfterSeconds`; client dropped it | carried through transport → failure (validated `[1, 3600]`, retryable codes only) → "Try again in about 30 seconds."; Try again disabled locally until it elapses. No timer schedules a request |
+| Non-retryable failure | still rendered "Try it on" wired to `vto.retry` — a NEW intent, i.e. a second paid job beside the one `request_in_flight` said was running | no regenerate button; Choose a different photo / Close remain |
+| Save copy | "Add Scan to Dressing Room … Avoid faces, bystanders…", "Continue Scanning" | try-on variant: "Save this try-on — This try-on contains the photo you chose to use for it. It's added to the Dressing Room you pick, and anyone that room is shared with can see it." / "Back to try-on". Scan copy unchanged |
+| Save confirmation | none in the sheet | "Saved to {room}." only from `onSaved`, after the write resolves; dropped with the result |
+| View Dressing Room from a try-on | navigated with the try-on sheet still open on top | closes the sheet first (`onBeforeNavigate`) |
+| Watch from a try-on | opened the surface's modal while the sheet's modal was up | the sheet collapses through the existing keep-mounted minimize first; the pill brings it back ("Back to Try-On" when nothing is running) |
+| Live | no decision affordance | "Looks good?" → Shop / Watch / Try another piece while a Live session is entered. No frame captured or persisted for it |
+
+## Status flags
+
+```
+MODE_AUTHORITY_DUPLICATED=NO
+LIVE_FRAME_CLOUD_EGRESS=NONE            (unchanged; the Live exit reads props only)
+PHOTO_AI_DISCLOSURE_PRESENT=YES
+FIRST_CLASS_VTO_PROVENANCE=NO           (saved as upload_inspiration)
+RESULT_SCREEN_ADDED_NETWORK_CALLS=0
+DATABASE_SCHEMA_CHANGED=NO  MIGRATION_CHANGED=NO  EDGE_FUNCTION_DEPLOYED=NO
+STAGING_MUTATED=NO  PRODUCTION_MUTATED=NO  NEW_PROVIDER=NO  PAID_GENERATIONS_RUN=0
+LIVE_DEVICE_PROOF=SOURCE_CONNECTED_RUNTIME_UNPROVEN      (VTO_RUNTIME_PROOF, unchanged)
+PHOTO_PROVIDER_PROOF=SOURCE_CONNECTED_RUNTIME_UNPROVEN   (VTO_RUNTIME_PROOF, unchanged)
+```
+
+## Image memory
+
+```
+VTO_RESULT_CACHE_LIFETIME     in-memory data URI in the store snapshot; dropped on a new
+                              attempt, a new product, a new/removed photo, the actor
+                              boundary, or process end. Never written to disk except the
+                              explicit Save export.
+VTO_RESULT_CLEANUP_AUTHORITY  vtoRequestStore.ts (snapshot + person derivatives),
+                              vtoMediaCache.ts (startup orphan sweep),
+                              vtoResultExport.ts#discardVtoResultExport (the Save copy:
+                              deleted when the save flow closes, and now also when the
+                              result changes, disappears or the sheet unmounts, including
+                              a result that changes while the file is being written).
+```
+
+Compare adds no copy: it switches between the in-memory result and the
+existing sanitized person derivative.
+
+## Navigation
+
+The sheet is a modal over the surface that opened it, so Close and Try another
+return to exactly that surface with its own state (Commerce shelf, filters,
+recent options) intact — no new navigation or shelf store. Every shipped mount
+is `commerce_product`; `VtoOrigin` also names `scan_result`, `dressing_room`
+and `elise`, but no Watchlist, Elise or Dressing Room surface mounts Try It On
+today, so there is no loop to return to there (see deferred).
+
+## Deferred
+
+| Tag | Item |
+| --- | --- |
+| `BACKEND_FOLLOWUP_REQUIRED` / `FIRST_CLASS_VTO_PROVENANCE_FOLLOWUP` | a dedicated try-on Dressing Room item kind (provenance, retention, sharing policy for person imagery) |
+| `HAPTICS_FOLLOWUP_REQUIRED` | the shared Build 35 haptic authority is PR #427, still open. This lane keeps `services/haptics` (`selectionTick` / `successPulse` / `warningPulse`) and adds no haptic call site or dependency |
+| `COMMERCE_V2_FOLLOWUP` | reflecting "Watching" in the result needs either a watch lookup (a network read the result screen must not add) or a confirmed-watch callback through `PurchaseOptionsPanel.tsx`, which is hash-bound by `tools/curiosity-gap-performance/authority/source-bindings.json`. Watch success is shown truthfully by the existing modal instead |
+| `COMMERCE_V2_FOLLOWUP` | Watchlist → VTO, Elise → VTO, Dressing Room → VTO entry points do not exist; building them is a product decision, not polish |
+| P4 | a product-image compare option: the catalog image is remote, and compare is deliberately local-only |
+| P4 | `request_in_flight` cannot hand back the job that is still running (no status read exists); the customer must choose a photo again to start a new intent |
+| `LIVE_DEVICE_PROOF_PENDING` / `PHOTO_RUNTIME_PROOF_PENDING` | unchanged; this lane proves source behaviour only |
+
+Covered by `__tests__/vtoDecisionLoop.test.js` (`BLOCK-VTO-DL-00..22`, journeys
+8/9/14/15, Retry-After end to end through the real transport and store).
