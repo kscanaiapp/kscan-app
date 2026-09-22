@@ -351,6 +351,48 @@ test('10. migration-only mode cannot bypass reconciliation or the prohibited-SQL
 
 // ---------------------------------------------------- the campaign can start
 
+
+test('10b. destructive migration approval is explicit, defaults closed, and reaches both SQL gates', () => {
+  assert.match(
+    source,
+    /allow_destructive_migration:[\s\S]*?default: 'NO'[\s\S]*?- 'NO'[\s\S]*?- 'YES'/,
+    'dispatch must default the destructive override to NO and require an explicit YES choice',
+  );
+
+  assert.match(
+    jobs.preflight,
+    /ALLOW_DESTRUCTIVE_MIGRATION: \$\{\{ inputs\.allow_destructive_migration \}\}/,
+    'the credential-free static SQL scan must receive the explicit override',
+  );
+  assert.match(
+    jobs.preflight,
+    /allow_destructive_migration=YES requires an explicitly approved migration/,
+    'the override cannot be requested without an approved migration',
+  );
+  assert.match(
+    jobs['approved-single-migration'],
+    /ALLOW_DESTRUCTIVE_MIGRATION: \$\{\{ inputs\.allow_destructive_migration \}\}/,
+    'the production applier must receive the same explicit override after reviewer approval',
+  );
+  assert.match(
+    jobs.preflight,
+    /Destructive SQL override/,
+    'the reviewer-visible plan must state whether the override is enabled',
+  );
+
+  const applier = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-production-migration.mjs'), 'utf8');
+  assert.match(
+    applier,
+    /ALLOW_DESTRUCTIVE_MIGRATION[\s\S]*?=== 'YES'/,
+    'the applier must keep requiring the explicit YES value',
+  );
+  assert.match(
+    applier,
+    /scanSqlForProhibited\(sql, \{ allowDestructive \}\)/,
+    'explicit approval changes only the destructive finding severity; the SQL scan remains active',
+  );
+});
+
 test('the first account-deletion migration now has a legal governed dispatch', () => {
   // This is the whole point of the change: AD-DB-001 could not previously be
   // applied through the governed path at all, because it could not be paired
