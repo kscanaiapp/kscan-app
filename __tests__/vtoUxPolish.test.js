@@ -77,13 +77,40 @@ test('progress: each running status pins a minimum stage', () => {
   }
 });
 
-test('progress: a long generating phase still advances on elapsed time', () => {
-  // The whole reason the stage list exists: `generating` is one status that
-  // can last most of a 30s wait, and a frozen indicator reads as a hang.
+test('progress: a long generating phase is acknowledged WITHOUT claiming a later stage', () => {
+  // SUPERSEDED RULE (Build 35 VTO decision-loop polish, brief section 17:
+  // "only use stages that correspond reasonably to actual client state").
+  // This used to assert that 20s of `generating` advanced the indicator to the
+  // last stage. With the old labels that meant the customer read "Rendering
+  // visualization" -- and with the new ones would read "Finishing your
+  // result" -- while the provider call was still out. A long wait is now
+  // acknowledged with reassurance copy (`stillWorking`); the stage stays the
+  // store's status.
   const early = progress.resolveVtoProgress({ status: 'generating', elapsedMs: 0 });
   const late = progress.resolveVtoProgress({ status: 'generating', elapsedMs: 20_000 });
   assert.equal(early.index, 1);
-  assert.equal(late.index, 2);
+  assert.equal(late.index, 1, 'time must not move the stage past what the store reports');
+  assert.equal(early.stillWorking, false);
+  assert.equal(late.stillWorking, true, 'a long wait is acknowledged in words');
+  const edge = progress.resolveVtoProgress({
+    status: 'generating',
+    elapsedMs: progress.VTO_PROGRESS_STILL_WORKING_MS,
+  });
+  assert.equal(edge.stillWorking, true);
+});
+
+test('progress: the stage is exactly the store status, whatever the clock says', () => {
+  for (const elapsedMs of [0, 3_999, 4_000, 12_000, 60_000]) {
+    assert.equal(progress.resolveVtoProgress({ status: 'preparing', elapsedMs }).index, 0);
+    assert.equal(progress.resolveVtoProgress({ status: 'generating', elapsedMs }).index, 1);
+    assert.equal(progress.resolveVtoProgress({ status: 'validating_result', elapsedMs }).index, 2);
+  }
+  // A hostile clock cannot produce reassurance or a stage either.
+  for (const elapsedMs of [-1, Number.NaN, Number.NEGATIVE_INFINITY]) {
+    const view = progress.resolveVtoProgress({ status: 'generating', elapsedMs });
+    assert.equal(view.index, 1);
+    assert.equal(view.stillWorking, false);
+  }
 });
 
 test('progress: time NEVER produces completion, however long it runs', () => {
@@ -122,10 +149,18 @@ test('progress: the status floor wins when it is ahead of the clock', () => {
 });
 
 test('progress: stage labels name the real work and promise no fit judgement', () => {
+  // Build 35 decision-loop polish: "Mapping the fit" is gone. The Photo path
+  // never models fit, so a stage that says it does was the one progress
+  // label that was false; the three labels now name the client's own states.
   const labels = Array.from(progress.VTO_PROGRESS_STAGES, (stage) => stage.label);
-  assert.deepEqual(labels, ['Analyzing garment', 'Mapping the fit', 'Rendering visualization']);
+  assert.deepEqual(labels, [
+    'Preparing your photo…',
+    'Creating your try-on…',
+    'Finishing your result…',
+  ]);
   for (const label of labels) {
     assert.doesNotMatch(label, /\d+\s*%/, 'no invented percentage');
+    assert.doesNotMatch(label, /\bfit\b/i, 'no stage may claim to model fit');
     for (const forbidden of ['size', 'measurement', 'fits you', 'your size']) {
       assert.ok(!label.toLowerCase().includes(forbidden), `stage must not claim: ${forbidden}`);
     }
@@ -329,7 +364,20 @@ test('save: there is NO auto-save -- a file is written only from a press handler
   // An effect-driven export would quietly break that while every existing
   // test stayed green.
   const bridge = code('components/vto/VtoSaveToDressingRoom.tsx');
-  assert.ok(!bridge.includes('useEffect'), 'no effect may trigger a save');
+  // Build 35 decision loop: the bridge now has ONE effect, and it only ever
+  // DELETES -- it drops the save confirmation and any cache copy when the
+  // result changes or goes away. The old assertion ("no useEffect at all")
+  // was a proxy for the real rule, which is asserted precisely instead: no
+  // effect may export, open the save flow, or mark anything saved.
+  const effects = [...bridge.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)];
+  assert.ok(effects.length >= 1, 'the cleanup effect exists');
+  assert.equal(effects.length, (bridge.match(/useEffect\(/g) ?? []).length,
+    'every effect body is visible to this scan');
+  for (const [, body] of effects) {
+    for (const forbidden of ['exportVtoResultToCache', 'setModalVisible(true)', 'setSavedTo(r', 'handlePress', 'onSaved']) {
+      assert.ok(!body.includes(forbidden), `no effect may trigger a save (${forbidden})`);
+    }
+  }
   assert.match(
     bridge,
     /const handlePress = useCallback\(async \(\) => \{[\s\S]*?exportVtoResultToCache/,

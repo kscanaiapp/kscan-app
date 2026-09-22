@@ -351,7 +351,12 @@ test('regression: with Live off, the AI Photo tree is the one that renders', () 
 
 test('regression: Close remains available in BOTH modes', () => {
   // The one way out of the sheet must never be inside a mode branch.
-  const actions = SHEET.match(/<View style=\{styles\.actions\}>[\s\S]*?<\/View>/)[0];
+  // Build 35 decision loop: the action area now holds its own rows
+  // (secondary Save/Watch, tertiary Try again/Try another), so "the first
+  // </View>" is no longer the end of the actions container. Slice from the
+  // container to the Close button itself instead -- the assertion below is
+  // unchanged: Close must come after the AI Photo gate has closed.
+  const actions = SHEET.match(/<View style=\{styles\.actions\}>[\s\S]*?testID="vto-close"/)[0];
   const closeIndex = actions.indexOf('vto-close');
   const gateEnd = actions.lastIndexOf(') : null}');
   assert.ok(closeIndex > gateEnd, 'Close is rendered after the AI Photo gate closes');

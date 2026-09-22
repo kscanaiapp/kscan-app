@@ -589,6 +589,12 @@ const VTO_ALLOWED_IMPORTS = {
     // VTO V2. Capture / handoff / result-action funnel events. Same sink, same
     // allowlist, bounded enums only.
     '../../services/vto/vtoFunnelTelemetry',
+    // BUILD 35 DECISION LOOP. The result hierarchy, the result/product
+    // identity guard and Retry-After phrasing. Pure: it imports only the VTO
+    // types (enrolled below in its own right), holds no state, and has no
+    // storage, network or ownership path. It DECIDES LESS than the sheet did
+    // before -- it only answers "was a callback supplied?".
+    '../../services/vto/vtoDecisionLoop',
     '../../types/vto', '../luxury',
     './VtoSaveToDressingRoom', './VtoSilhouetteGuide',
     // P3-C LIVE VTO INTEGRATION. The sheet gains a second visualization MODE,
@@ -649,6 +655,12 @@ const VTO_ALLOWED_IMPORTS = {
     'react', 'react-native',
   ],
   'services/vto/vtoProgressStages.ts': [
+    '../../types/vto',
+  ],
+  // BUILD 35 DECISION LOOP. Enrolled so the forbidden-call scan covers it: it
+  // is exactly where a future "mark as owned on Shop" would most plausibly be
+  // added, and it must stay a pure decision over the VTO types.
+  'services/vto/vtoDecisionLoop.ts': [
     '../../types/vto',
   ],
   // The one module allowed to touch the filesystem, and only to materialise a
