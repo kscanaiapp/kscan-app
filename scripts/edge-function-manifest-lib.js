@@ -133,6 +133,9 @@ const GOVERNED_FUNCTIONS = [
   'tryon-clothes-pro',
   'staging-health',
   'vto-generate',
+  // Receipt & Purchase Intelligence V1 (Build 35). One governed extraction
+  // endpoint: authenticated, non-anonymous, kill-switched, per-actor reserved.
+  'purchase-import-extract',
 ];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');

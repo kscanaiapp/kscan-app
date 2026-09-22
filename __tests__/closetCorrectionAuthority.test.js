@@ -621,7 +621,7 @@ test('SEAM: createClosetItem is the ONLY function that commits an owned item', (
   assert.deepEqual(offenders, [], 'nothing outside the store may write the Closet manifest');
 });
 
-test('SEAM: the ownership-creating call sites are exactly the three that are documented', () => {
+test('SEAM: the ownership-creating call sites are exactly the four that are documented', () => {
   const callers = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
@@ -638,9 +638,18 @@ test('SEAM: the ownership-creating call sites are exactly the three that are doc
   };
   for (const d of ['app', 'components', 'hooks', 'services']) walk(d);
 
+  // The fourth is Build 35 Receipt & Purchase Intelligence V1: the explicit
+  // "Add N items to my Closet" confirmation after an order-confirmation review.
+  // A deliberate, reviewed addition, documented in
+  // docs/closet-productization/01-closet-contract-map.md section 4.
   assert.deepEqual(
     callers.sort(),
-    ['hooks/useCloset.js', 'services/closetCandidatePromotion.js', 'services/closetPromotion.js'],
+    [
+      'hooks/useCloset.js',
+      'services/closetCandidatePromotion.js',
+      'services/closetPromotion.js',
+      'services/purchaseImport/purchaseImportCommit.ts',
+    ],
     'a new ownership-creating call site must be a deliberate, reviewed change — see docs/closet-productization/01 section 4',
   );
 });

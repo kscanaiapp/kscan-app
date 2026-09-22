@@ -69,6 +69,9 @@ const GOVERNED = [
   'style-outfit-generate',
   'commerce-watch-refresh',
   'vto-generate',
+  // Receipt & Purchase Intelligence V1: the auth, anonymous-refusal, kill
+  // switch, reservation and sanitization guards only matter if they run.
+  'purchase-import-extract',
   '_shared',
 ];
 

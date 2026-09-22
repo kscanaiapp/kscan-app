@@ -15,6 +15,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { ClosetItemProjection } from '../services/closetItemProjection';
 import {
+  availableClosetOriginFilters,
   queryCloset,
   summarizeCloset,
   type ClosetInventoryResult,
@@ -34,6 +35,8 @@ export type UseClosetInventoryResult = {
   setCategory: (value: string | null) => void;
   origin: ClosetOriginFilterId;
   setOrigin: (value: ClosetOriginFilterId) => void;
+  /** Origin filters worth offering for this Closet. */
+  originFilters: ClosetOriginFilterId[];
   /** Narrow to items the review deriver flagged (PR A2). */
   review: boolean;
   setReview: (value: boolean) => void;
@@ -62,6 +65,7 @@ export function useClosetInventory(
   // Tops" must not change to "You have 3 Tops" because a search box has text in
   // it. The summary describes the Closet; the view describes the query.
   const summary = useMemo(() => summarizeCloset(items), [items]);
+  const originFilters = useMemo(() => availableClosetOriginFilters(items), [items]);
 
   // `reviewIds` is joined to a stable key so a re-derived array with identical
   // contents does not invalidate this memo on every render.
@@ -88,6 +92,7 @@ export function useClosetInventory(
     setCategory,
     origin,
     setOrigin,
+    originFilters,
     review,
     setReview,
     sort,

@@ -397,6 +397,17 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 Receipt & Purchase Intelligence V1. Identity and the account guard
+  // come from _shared/deletion/common.ts (the same shared helper vto-generate
+  // uses, which is what the serviceRole/dbRead/dbWrite/authAdmin detections
+  // see). The function itself writes no row and no Storage object. Its only
+  // own database contact is the caller-scoped reserve/complete/release
+  // provider RPCs, executed with the CALLER's JWT (auth.uid()), never the
+  // service role.
+  'purchase-import-extract': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
 };
 
 function observedPrivilegeProfile(functionName: string): Omit<PrivilegeProfile, 'privilegedBackend' | 'actorBoundary'> {

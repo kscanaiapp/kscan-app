@@ -30,11 +30,21 @@ import {
 } from '../todayWithElise/analytics';
 import { VOICE_EVENTS, VOICE_EVENT_PROPERTIES } from '../voice/voiceTelemetry';
 import { VTO_EVENTS, VTO_EVENT_PROPERTIES } from '../vto/vtoTelemetry';
+import {
+  PURCHASE_IMPORT_EVENTS,
+  PURCHASE_IMPORT_EVENT_PROPERTIES,
+} from '../purchaseImport/purchaseImportTelemetry';
 
 /** Primitive kinds a governed property value may take. */
 export type AnalyticsValueKind = 'enum' | 'bucket' | 'boolean' | 'number' | 'null';
 
-export type AnalyticsSurface = 'closet' | 'kplus' | 'today_with_elise' | 'voice' | 'vto';
+export type AnalyticsSurface =
+  | 'closet'
+  | 'kplus'
+  | 'today_with_elise'
+  | 'voice'
+  | 'vto'
+  | 'purchase_import';
 
 export interface AnalyticsSurfaceContract {
   surface: AnalyticsSurface;
@@ -111,6 +121,21 @@ export const ANALYTICS_SURFACE_CONTRACTS: readonly AnalyticsSurfaceContract[] = 
     purpose: 'Virtual Try-On entry, request lifecycle, retries and result interaction.',
     // Adjacent to person imagery.
     privacySensitivity: 'high',
+    commerceSensitivity: 'none',
+  },
+  {
+    surface: 'purchase_import',
+    owner: 'services/purchaseImport/purchaseImportTelemetry.ts',
+    events: PURCHASE_IMPORT_EVENTS,
+    properties: PURCHASE_IMPORT_EVENT_PROPERTIES,
+    valueKinds: ['enum', 'bucket', 'number', 'null'],
+    anonymousAllowed: true,
+    purpose:
+      'Order-confirmation import funnel: started, extracted, reviewed, confirmed, failed. Counts, buckets and classes only.',
+    // Adjacent to receipts, which carry names, addresses and payment data.
+    // The sink can express none of them, but the mistake would matter most here.
+    privacySensitivity: 'high',
+    // No price, currency, merchant, SKU or retailer is ever a property.
     commerceSensitivity: 'none',
   },
 ] as const;

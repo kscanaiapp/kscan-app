@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-14T20:26:16.212Z",
-    "generatedFromGitSha": "476f45fc4b9d435ab99924cfee957652b8efceaf"
+    "generatedAtUtc": "2026-09-22T23:34:34.437Z",
+    "generatedFromGitSha": "ef73558846569feb3de8ddd56dafb2284524915f"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,6 +20,7 @@
       "privacy-data-export",
       "process-account-deletions",
       "product-search-deals",
+      "purchase-import-extract",
       "resend-restoration-email",
       "restore-account",
       "scan-identify",
@@ -42,7 +43,7 @@
         "bundleFileCount": 43,
         "treeFileCount": 70,
         "bundleHash": "8c54bf45e5081de94eebf8d9eb5c01ea4b47dfc6c0ae1baa15887cc6dde22b3b",
-        "treeHash": "12b6f7432b8d11fa329e8b1bb14fe62f49ba5966be1803971c26ca1322045f2b",
+        "treeHash": "6f92092cbecd98540986394235cc35a830c22fe2415d8326b40b237cbadb8572",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -256,7 +257,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "97107a41d5217d3a262547e49b29ab708b24d0a117f4f76b308a6241ebb4a870",
+            "sha256": "7cc4e1e5bcc4e2c9c9ac453c6ca09585d771801c68c5732884c3194cd701bc60",
             "bundle": false
           },
           {
@@ -1644,6 +1645,79 @@
           {
             "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
             "sha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "purchase-import-extract",
+        "entry": "supabase/functions/purchase-import-extract/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 11,
+        "treeFileCount": 12,
+        "bundleHash": "ad554f578e268cf1070ba7c0efcb8c8739cbdf409d9a3c221734a47881ba6b03",
+        "treeHash": "6e090f1bc78937ba2b399d7dc75da7a639540c070534ffba8418e4f4ee82b50d",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
+            "sha256": "fd248250a86721525e09090430d8bd2c0538174e21ba1515bad1d7492b69d994",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/inputLimits.ts",
+            "sha256": "319eb6a859c596b334afb2911346608382203980fdae973f8da69f17e01237e4",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/promptEnvelope.ts",
+            "sha256": "50aece85b364eca0d143c347692e0e78682e1908d88597ea9e66da7667bcf97d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/trustTypes.ts",
+            "sha256": "7beb5d139999993d72e98aced6086e2ad628f1bcfa0acdbdccff0cf460388b40",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/llmModelRouting.ts",
+            "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/security/quota.ts",
+            "sha256": "cd5588a18bdb7811ef03a16cd5e61a8be3ede54400f380572321eb484e02b488",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/purchase-import-extract/extraction.ts",
+            "sha256": "02981b159276968a226ba752efbcf419b4e93c79d2a675dbb8230dcaa01d7366",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/purchase-import-extract/handler.test.ts",
+            "sha256": "f232f918d51341d847552a91c7a39e4fc9195e0b97d222f9176e822f94d26aa4",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/purchase-import-extract/handler.ts",
+            "sha256": "698b201b8553ab69e9caca4d89774e7bea3c78875d1b1766ef69421ff328abc3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/purchase-import-extract/index.ts",
+            "sha256": "873b1f70d008d811a8cbca091000aa74d753d8763294ca008392edc3694b28b6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/purchase-import-extract/sensitive.ts",
+            "sha256": "b1e81b7dea745fe268d66452dee0765f78e26d60b7474e31940299e719a9fca4",
             "bundle": true
           }
         ]

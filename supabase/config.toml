@@ -124,6 +124,13 @@ verify_jwt = false
 [functions.vto-generate]
 verify_jwt = true
 
+# Receipt & Purchase Intelligence V1. Always authenticated: anonymous
+# identities are refused in the handler, the shared account-active guard runs
+# before the kill switch (PURCHASE_IMPORT_EXTRACT_ENABLED, default off), and
+# every call is reserved per actor through reserve_provider_request.
+[functions.purchase-import-extract]
+verify_jwt = true
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local
