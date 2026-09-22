@@ -186,6 +186,16 @@ function createHarness(options = {}) {
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: ACTOR } }) },
     '../services/actorScope': actorScope,
     '../services/style-chat/commerceActivation': commerceActivationStub,
+    // Conversation Quality V2. Pure, zero-import leaf modules: mapped to the
+    // REAL implementations so the send path under test is the shipped one.
+    '../services/style-chat/eliseConversationFrame': loadTsModule(
+      'services/style-chat/eliseConversationFrame.ts',
+      {},
+    ),
+    '../services/style-chat/eliseConversationTelemetry': loadTsModule(
+      'services/style-chat/eliseConversationTelemetry.ts',
+      {},
+    ),
     '../services/commerceHydration': {
       fetchDeferredCommerce: async () => {
         throw new Error('the hook must route Commerce through runCommerceActivation');

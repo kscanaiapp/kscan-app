@@ -26,9 +26,26 @@ import { classifyStyleChatOperationalFailure } from '../services/style-chat/styl
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import {
+  buildShoppingIntentBlock,
   parseShoppingIntentWire,
   runCommerceActivation,
 } from '../services/style-chat/commerceActivation';
+import {
+  ELISE_CONVERSATION_QUALITY_V2_ENABLED,
+  ELISE_LOCAL_CLARIFICATION_PROVIDER,
+  analyzeEliseTurn,
+  buildEliseConversationNotices,
+  decideEliseCommerceActivation,
+  validateEliseReply,
+  type EliseCommerceDecision,
+  type EliseReplyViolation,
+  type EliseTurnAnalysis,
+} from '../services/style-chat/eliseConversationFrame';
+import {
+  constraintBucket,
+  frameMsBucket,
+  recordEliseConversationTurn,
+} from '../services/style-chat/eliseConversationTelemetry';
 import { fetchDeferredCommerce } from '../services/commerceHydration';
 import { listOwnedClosetItems } from '../services/ownedClosetItems';
 import { useStylistIdentity } from './useStylistIdentity';
@@ -87,6 +104,44 @@ const ENABLE_STYLECHAT_EXPLANATIONS = true;
 
 function getSafeCount(value: number | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
+}
+
+/**
+ * Conversation Quality V2 telemetry: enums and buckets only. The analysis is
+ * passed in whole and reduced HERE to codes, so no call site can hand the sink
+ * a message, a product name or a Closet item.
+ */
+function recordConversationTurn(
+  turn: EliseTurnAnalysis,
+  frameMs: number,
+  outcome: 'model_reply' | 'local_clarification',
+  commerce: EliseCommerceDecision | null,
+  violations: readonly EliseReplyViolation[] | null,
+): void {
+  const conflict = violations?.some((v) => v.kind === 'negation') ?? false;
+  const repeat = violations?.some((v) => v.kind === 'rejected_repeat') ?? false;
+  const frame = turn.frame;
+  recordEliseConversationTurn({
+    relation: turn.relation,
+    taskKind: frame.taskKind,
+    taskReset: turn.taskReset,
+    ownedOnly: frame.ownedOnly,
+    outcome,
+    reference: turn.reference.status,
+    commerce: !commerce
+      ? 'none'
+      : commerce.action === 'allow'
+        ? 'allow'
+        : commerce.code === 'shopping_held_owned_only' ? 'hold_owned_only' : 'hold_not_requested',
+    validation: violations === null
+      ? 'skipped'
+      : conflict && repeat ? 'both' : conflict ? 'constraint_conflict' : repeat ? 'rejected_repeat' : 'clean',
+    constraintBucket: constraintBucket(
+      frame.negations.length + frame.rejections.length + frame.colors.length +
+        (frame.budget ? 1 : 0) + (frame.occasion ? 1 : 0) + (frame.ownedOnly ? 1 : 0),
+    ),
+    frameMsBucket: frameMsBucket(frameMs),
+  });
 }
 
 export interface UseStyleChatReturn {
@@ -475,6 +530,34 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       // Attachment sends defer persistence until backend v2 acknowledgement,
       // but still render an optimistic bubble.
       const deferUserPersistence = skipUserPersistence || requiresContextAcknowledgement;
+
+      // ── Conversation Quality V2: the task frame ─────────────────────────
+      //
+      // Derived from the history this hook ALREADY holds, plus this message.
+      // Pure and local: no request field, no extra read, no model call, and
+      // nothing persisted beyond the notices it may add to this reply. A
+      // retry's own earlier row is excluded so the turn is not counted twice.
+      const frameStartedAt = Date.now();
+      const conversationTurn: EliseTurnAnalysis | null = ELISE_CONVERSATION_QUALITY_V2_ENABLED
+        ? analyzeEliseTurn({
+            messages: options?.existingUserMessageId
+              ? messages.filter((m) => m.id !== options.existingUserMessageId)
+              : messages,
+            message: trimmed,
+          })
+        : null;
+      const frameMs = Date.now() - frameStartedAt;
+      // A reference that is ambiguous in what was SHOWN is answered without a
+      // model call ("Do you mean the denim jacket or the leather jacket?").
+      // Never when something else in view could be what "that" means: an
+      // attachment, a visual collection, or an active scan/upload context.
+      const localClarification =
+        conversationTurn?.localClarification &&
+        !skipUserPersistence &&
+        !requiresContextAcknowledgement &&
+        !activeContextSnapshot
+          ? conversationTurn.localClarification
+          : null;
       let persistedUserMessageId = options?.existingUserMessageId ?? null;
 
       // 1. Optimistic user bubble
@@ -515,6 +598,54 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
           options?.onUserMessagePersisted?.();
+        }
+
+        // 2b. Conversation Quality V2 — a clarification the client can answer
+        //     from what it showed. Zero model calls and zero quota: the
+        //     question is about which of two shown things was meant, which is
+        //     a fact, not a styling judgement. Persisted like the greeting (a
+        //     client-authored assistant row), so the next turn's server-side
+        //     history carries the question the customer is answering.
+        if (localClarification && conversationTurn) {
+          const optimisticClarification: StyleChatMessage = {
+            id: `optimistic-assistant-${Date.now()}`,
+            sessionId,
+            sender: 'assistant',
+            content: localClarification,
+            referencedScanIds: [],
+            referencedSavedItemIds: [],
+            referencedDressingRoomIds: [],
+            referencedCatalogItems: [],
+            uiBlocks: [],
+            provider: ELISE_LOCAL_CLARIFICATION_PROVIDER,
+            tokenEstimate: 0,
+            createdAt: new Date().toISOString(),
+          };
+          setMessages(prev => [...prev, optimisticClarification]);
+          const savedClarification = await saveStyleChatMessage({
+            sessionId,
+            sender: 'assistant',
+            content: localClarification,
+            uiBlocks: [],
+            provider: ELISE_LOCAL_CLARIFICATION_PROVIDER,
+            tokenEstimate: 0,
+          }, actorId);
+          if (!isCurrentSend()) return;
+          setMessages(prev =>
+            prev.map(m => (m.id === optimisticClarification.id ? savedClarification : m)),
+          );
+          if (canSpeakNewMessages) {
+            void speakAvatarMessage({
+              actorId,
+              sessionId,
+              messageId: savedClarification.id,
+              stylistId: identity.avatarId,
+              avatarId: identity.avatarId,
+              source: 'message',
+            });
+          }
+          recordConversationTurn(conversationTurn, frameMs, 'local_clarification', null, null);
+          return true;
         }
 
         // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
@@ -762,6 +893,22 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           }
         }
 
+        // Conversation Quality V2 — contradiction check. The reply is checked
+        // against the constraints still live for this task ("no heels" four
+        // turns ago has left the model's six-message window; it has not left
+        // the frame). No regeneration and no second model pass: a violation
+        // is SAID, in one line under the reply, so it is never presented as a
+        // compliant recommendation. Only real model text is checked.
+        const replyViolations: EliseReplyViolation[] | null =
+          conversationTurn && trimmedAssistant
+            ? validateEliseReply(conversationTurn.frame, trimmedAssistant)
+            : null;
+        if (replyViolations?.length) {
+          explanationBlocks.push(
+            ...(buildEliseConversationNotices({ violations: replyViolations }) as unknown as StyleChatUiBlock[]),
+          );
+        }
+
         // ── Build 36 activation ───────────────────────────────────────────
         //
         // ORDER IS THE LATENCY DECISION. The optimistic assistant below is
@@ -795,10 +942,29 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         };
         setMessages(prev => [...prev, optimisticAssistant]);
 
-        // Commerce runs AFTER first paint and only when this turn actually
-        // asked for it. Every failure mode returns a block, never a throw, so
-        // a provider outage degrades the shelf and never the conversation.
-        if (shoppingWire) {
+        // Conversation Quality V2 — the model PROPOSED shopping; the
+        // customer's own words must corroborate it, the same doctrine the
+        // server applies to every shopping field. A garment word alone is not
+        // a shopping request, and an owned-only task never shops on its own.
+        // A held proposal keeps its intent block (so "yes, show me" can resume
+        // it) and says, in one line, that nothing was pulled up. Zero provider
+        // calls either way.
+        const commerceDecision: EliseCommerceDecision | null =
+          shoppingWire && conversationTurn ? decideEliseCommerceActivation(conversationTurn) : null;
+        if (shoppingWire && commerceDecision?.action === 'hold') {
+          explanationBlocks.push(
+            buildShoppingIntentBlock(shoppingWire, null),
+            ...(buildEliseConversationNotices({ commerceHold: commerceDecision }) as unknown as StyleChatUiBlock[]),
+          );
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === optimisticAssistant.id ? { ...m, uiBlocks: [...explanationBlocks] } : m,
+            ),
+          );
+        } else if (shoppingWire) {
+          // Commerce runs AFTER first paint and only when this turn actually
+          // asked for it. Every failure mode returns a block, never a throw, so
+          // a provider outage degrades the shelf and never the conversation.
           // Commerce V2: the verified products this session has actually
           // shown, read off the persisted `commerce_products` blocks already
           // in the loaded message list.
@@ -905,6 +1071,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // 6. Update displayed daily usage from server response.
         setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed + 1));
         setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
+
+        if (conversationTurn) {
+          recordConversationTurn(conversationTurn, frameMs, 'model_reply', commerceDecision, replyViolations);
+        }
 
         return true;
 
