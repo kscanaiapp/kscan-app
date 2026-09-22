@@ -83,6 +83,16 @@ on:
         options:
           - 'NO'
           - 'YES'
+      allow_destructive_migration:
+        description: >-
+          Must be YES to permit DROP TABLE / destructive ALTER in the one approved migration.
+          Defaults to NO and does not bypass reconciliation or the production reviewer gate.
+        required: false
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
       confirm_production:
         description: Must be exactly "DEPLOY TO PRODUCTION" to proceed past preflight
         required: true
@@ -204,6 +214,14 @@ jobs:
             echo "MIGRATION-ONLY RUN: no Edge Function will be deployed."
           fi
 
+          if [ "${{ inputs.allow_destructive_migration }}" = "YES" ]; then
+            if [ -z "${{ inputs.approved_migration_version }}" ] || [ "${{ inputs.approve_migration }}" != "YES" ]; then
+              echo "allow_destructive_migration=YES requires an explicitly approved migration"
+              exit 1
+            fi
+            echo "DESTRUCTIVE MIGRATION OVERRIDE REQUESTED: prohibited DROP patterns remain visible as WARN findings and still require the production Environment approval."
+          fi
+
           echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
           echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
           echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
@@ -215,6 +233,7 @@ jobs:
           # that as "deploy nothing", which the preflight already supports.
           DEPLOY_FUNCTIONS: ${{ steps.scope.outputs.migration_only == 'true' && '' || inputs.function_name }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
+          ALLOW_DESTRUCTIVE_MIGRATION: ${{ inputs.allow_destructive_migration }}
         run: |
           set -euo pipefail
 
@@ -248,6 +267,8 @@ jobs:
               console.log(\`| Function to deploy | \${r.deployFunctions.join(', ') || '(none)'} |\`);
               console.log(\`| verify_jwt | ${{ inputs.verify_jwt }} |\`);
               console.log(\`| Migration to apply | \${r.approvedMigration ? r.approvedMigration.version + ' ' + r.approvedMigration.name : '(none)'} |\`);
+              console.log(\`| Destructive SQL override | ${{ inputs.allow_destructive_migration }} |\`);
+              console.log(\`| SQL findings | \${r.prohibitedSqlFindings.length ? r.prohibitedSqlFindings.map(f => f.id + ':' + f.severity).join(', ') : '(none)'} |\`);
               console.log(\`| Local migrations | \${r.localCount} |\`);
               console.log(\`| Precheck | \${r.mode} (credential-free: \${r.credentialFree}) |\`);
               console.log(\`| Remote verified here | \${r.remoteVerified} |\`);
@@ -433,6 +454,7 @@ jobs:
           SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
           MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
           APPROVE_PRODUCTION_MIGRATION: YES
+          ALLOW_DESTRUCTIVE_MIGRATION: ${{ inputs.allow_destructive_migration }}
         run: |
           set -euo pipefail
 
