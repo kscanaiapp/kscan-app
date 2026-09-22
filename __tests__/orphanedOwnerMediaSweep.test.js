@@ -226,7 +226,9 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // months and now brought under local source authority (commit e369fca9).
   // These are legitimate, separately-governed additions, not this sweep
   // growing a function of its own -- which the directory-inclusion check
-  // below still proves.
-  assert.equal(dirs.length, 23, 'the sweep must live in the existing worker, not a new function');
+  // below still proves. Now 24: Build 35 Receipt & Purchase Intelligence V1
+  // added purchase-import-extract, a separately governed extraction endpoint
+  // unrelated to this sweep.
+  assert.equal(dirs.length, 24, 'the sweep must live in the existing worker, not a new function');
   assert.ok(dirs.includes('process-account-deletions'));
 });

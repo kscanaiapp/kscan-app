@@ -55,13 +55,15 @@ Provenance (`sourceCandidateId`, lineage ids, `clientRequestId`) is **omitted by
 ## 4. Ownership creation — already a single seam (section 41)
 
 `createClosetItem` (`services/closetLibrary.js:892`) is the **only** function that commits an owned
-Closet item. Exactly three call sites reach it:
+Closet item. Exactly four call sites reach it (the fourth added by Build 35 Receipt & Purchase
+Intelligence V1, see below):
 
 | # | Entry point | User action | Creation function | Media | Sync side effect | Idempotency key |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `hooks/useCloset.js:184` `addFromUri` via `ClosetIntakeModal` | **Add Item** (camera / library) | `createClosetItem` | fresh random asset id | `noteClosetItemSaved` | none (fresh media each time) |
 | 2 | `services/closetPromotion.js:143` via `useCloset.addFromScan` | **Add to Closet** on a Recent Scan | `createClosetItem` | fresh random asset id | `noteClosetItemSaved` | `sourceLineageId` |
 | 3 | `services/closetCandidatePromotion.js:443` | **Batch review, then promote** | `createClosetItem` | stable, identity-derived | via commit bridge | `sourceCandidateId` |
+| 4 | `services/purchaseImport/purchaseImportCommit.ts` via `/purchase-import` | **Add N items to my Closet** after reviewing an order confirmation or receipt | `createClosetItem` | the owner's optional garment photo, or **none** (`purchase_import` is the only origin allowed to commit without media; the receipt is never used as media) | `noteClosetItemSaved` | `sourceLineageId` per physical unit (`purchase_import:<random session>:<line>:<unit>`) |
 
 Non-ownership writers of the manifest: `updateClosetItem`, `repairClosetItemTaxonomy`,
 `deleteClosetItem`, `materializeRestoredClosetItem`, `applyRestoredClosetItemFacts`,

@@ -124,7 +124,8 @@ test('committed manifest governs every governed function and the approved projec
   // config/backend-authority.json). apple-credential-link and
   // apple-revoke-credential joined under EDGE-02: recovered from Git history
   // (commit e369fca9) and cross-verified against the live deployed source on
-  // both Supabase projects before being governed here.
+  // both Supabase projects before being governed here. purchase-import-extract
+  // joined in Build 35 Receipt & Purchase Intelligence V1 as a new function.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
@@ -138,6 +139,7 @@ test('committed manifest governs every governed function and the approved projec
     'privacy-data-export',
     'process-account-deletions',
     'product-search-deals',
+    'purchase-import-extract',
     'resend-restoration-email',
     'restore-account',
     'scan-identify',

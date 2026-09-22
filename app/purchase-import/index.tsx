@@ -58,7 +58,12 @@ async function pickImage(source: 'camera' | 'library'): Promise<ImagePicker.Imag
       ]);
       return null;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: false });
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+      allowsEditing: false,
+      exif: false,
+    });
     return result.canceled ? null : result.assets?.[0] ?? null;
   }
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
