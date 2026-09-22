@@ -1060,8 +1060,8 @@
           {
             "localVersion": "20260814230933",
             "logicalName": "harden_wardrobe_wear_owner_links",
-            "disposition": "HOLD",
-            "evidence": "Declares 3 owner-link indexes on the wardrobe wear surface. wardrobe_wear_events_source_item_id_idx IS present on production while production carries no ledger row for this migration, so its state is indeterminate: partially satisfied by an unknown path. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Cleared by live read-only production verification on 2026-09-22. The three governed indexes and both composite owner-link foreign keys declared by 20260814230933 are absent on production. Data validation probes found 0 wardrobe_wear_event_items rows whose user_id differs from the referenced wardrobe_wear_events.user_id and 0 wardrobe_wear_events rows whose user_id differs from the referenced looks.user_id, so both NOT VALID -> VALIDATE constraint steps are expected to succeed without data mutation. Safe Build 34 constraints/security work; executable only through the controlled single-migration workflow."
           },
           {
             "localVersion": "20260816120000",
