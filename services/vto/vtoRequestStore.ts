@@ -356,7 +356,9 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
   // enable strictNullChecks, and the explicit comparison is what narrows a
   // discriminated union under it (the same idiom kplusClient/kplusEntitlementStore use).
   if (outcome.ok === false) {
-    applyFailure(token, actorRequest, requestId, options.origin, outcome.code);
+    applyFailure(token, actorRequest, requestId, options.origin, outcome.code, {
+      retryAfterSeconds: outcome.retryAfterSeconds,
+    });
     return;
   }
 
@@ -392,9 +394,12 @@ function applyFailure(
   requestId: string,
   origin: VtoOrigin,
   code: string,
+  guidance?: { retryAfterSeconds?: number },
 ): void {
   if (token !== generation || !isActorRequestCurrent(actorRequest)) return;
-  const failure = toVtoFailure(code);
+  // Retry guidance is carried as data for the UI to phrase. The store never
+  // schedules anything on it: a retry stays a person's deliberate tap.
+  const failure = toVtoFailure(code, guidance);
   activeController = null;
   if (failure.code === 'cancelled') {
     emitVtoEvent('vto_request_cancelled', { origin });

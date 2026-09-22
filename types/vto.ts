@@ -110,6 +110,13 @@ export interface VtoFailure {
   message: string;
   /** Whether offering "Try again" is honest for this failure. */
   retryable: boolean;
+  /**
+   * Bounded whole-second retry guidance the server repeated from a refusal
+   * (`error.retryAfterSeconds`, VTO V3.1). Present only when the server sent
+   * a value inside VTO_RETRY_AFTER_{MIN,MAX}_SECONDS; absent means "no
+   * guidance", never "zero". Guidance only -- nothing retries on it.
+   */
+  retryAfterSeconds?: number;
 }
 
 // ─── Inputs ───────────────────────────────────────────────────────────────────
