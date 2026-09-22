@@ -16,7 +16,13 @@ import {
   type PurchaseImportInputTier,
   type PurchaseProvenanceField,
 } from './purchaseImportContract';
-import type { ReviewCandidate, ReviewDocument, ReviewField } from './purchaseImportNormalizer';
+import {
+  isKnownCurrencyCode,
+  type ReviewCandidate,
+  type ReviewDocument,
+  type ReviewField,
+} from './purchaseImportNormalizer';
+import { scrubSensitiveText } from './purchaseImportSensitive';
 
 /** Fields the customer can edit in review. */
 export type EditableCandidateField =
@@ -48,10 +54,13 @@ export type CorrectionGroup = 'naming' | 'maker' | 'classification' | 'appearanc
 const TEXT_BOUNDS: Readonly<Record<Exclude<EditableCandidateField, 'unitPrice' | 'currency'>, number>> =
   Object.freeze({ title: 200, brand: 120, category: 80, subtype: 80, primaryColor: 60, size: 40 });
 
+/**
+ * Customer-typed text gets the same scrub as document text (BLOCK-RPI-26):
+ * a card fragment typed into a title is removed before it can be persisted.
+ */
 function userText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
-  const text = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s{2,}/g, ' ').trim();
-  return text ? text.slice(0, max) : null;
+  return scrubSensitiveText(value, max);
 }
 
 function confirmed<T>(value: T | null): ReviewField<T> {
@@ -92,7 +101,8 @@ export function applyCandidateEdit(
       return { ...candidate, currency: confirmed<string>(null) };
     }
     const code = typeof value === 'string' ? value.trim().toUpperCase() : '';
-    if (!/^[A-Z]{3}$/.test(code)) return candidate;
+    // A three-letter shape is not a currency: only a recognised ISO 4217 code is.
+    if (!isKnownCurrencyCode(code)) return candidate;
     // Picking a currency for an amount the document printed is the customer
     // confirming that amount.
     const unitPrice =

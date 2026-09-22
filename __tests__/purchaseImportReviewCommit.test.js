@@ -80,6 +80,19 @@ test('Q: choosing a currency for a printed "$" amount confirms that amount and c
   assert.equal(picked.flags.currencyAmbiguous, false);
 });
 
+test('RPI-29 for customer input: a typed three-letter string that is not an ISO currency is refused', () => {
+  const [c] = review([line()], { currencyCode: null, currencySymbol: null, currencyEvidence: 'none' }).candidates;
+  assert.equal(R.applyCandidateEdit(c, 'currency', 'ABC'), c);
+  assert.equal(R.applyCandidateEdit(c, 'currency', 'eur').currency.value, 'EUR');
+});
+
+test('RPI-26 for customer input: a card fragment typed into a field is scrubbed before it can persist', () => {
+  const [c] = review([line()]).candidates;
+  const edited = R.applyCandidateEdit(c, 'title', 'Wool coat paid VISA **** 4242');
+  assert.doesNotMatch(edited.title.value, /4242/);
+  assert.match(edited.title.value, /Wool coat/);
+});
+
 test('invalid edits are refused and leave the candidate unchanged', () => {
   const [c] = review([line()]).candidates;
   assert.equal(R.applyCandidateEdit(c, 'unitPrice', 'abc'), c);

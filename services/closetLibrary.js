@@ -259,7 +259,7 @@ export function normalizeClosetPurchaseProvenance(value, origin) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   if (value.source !== 'purchase_import') return null;
 
-  const price =
+  const amountPaid =
     typeof value.pricePaid === 'number' &&
     Number.isFinite(value.pricePaid) &&
     value.pricePaid > 0 &&
@@ -268,7 +268,7 @@ export function normalizeClosetPurchaseProvenance(value, origin) {
       : null;
   const currency =
     typeof value.currency === 'string' && /^[A-Z]{3}$/.test(value.currency) ? value.currency : null;
-  const priced = price !== null && currency !== null;
+  const hasPaidAmount = amountPaid !== null && currency !== null;
 
   const returnDeadline = purchaseIsoDate(value.returnDeadline);
 
@@ -279,7 +279,7 @@ export function normalizeClosetPurchaseProvenance(value, origin) {
       if (CLOSET_PURCHASE_PROVENANCE_STATES.includes(state)) fieldProvenance[key] = state;
     }
   }
-  if (!priced) {
+  if (!hasPaidAmount) {
     delete fieldProvenance.pricePaid;
     delete fieldProvenance.currency;
   }
@@ -290,8 +290,8 @@ export function normalizeClosetPurchaseProvenance(value, origin) {
     inputTier: CLOSET_PURCHASE_INPUT_TIERS.includes(value.inputTier) ? value.inputTier : null,
     merchant: cleanText(value.merchant, 120),
     purchaseDate: purchaseIsoDate(value.purchaseDate),
-    pricePaid: priced ? price : null,
-    currency: priced ? currency : null,
+    pricePaid: hasPaidAmount ? amountPaid : null,
+    currency: hasPaidAmount ? currency : null,
     sku: purchaseIdentifier(value.sku, 40),
     gtin: typeof value.gtin === 'string' && /^\d{8}$|^\d{12,14}$/.test(value.gtin) ? value.gtin : null,
     retailerProductRef: purchaseIdentifier(value.retailerProductRef, 60),

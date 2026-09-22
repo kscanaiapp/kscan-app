@@ -254,7 +254,7 @@ const ISO_4217_CODES: ReadonlySet<string> = new Set([
   'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWG',
 ]);
 
-function isKnownCurrencyCode(code: string): boolean {
+export function isKnownCurrencyCode(code: string): boolean {
   return ISO_4217_CODES.has(code);
 }
 
