@@ -1,0 +1,229 @@
+{
+  "fixtureSetVersion": "CONVERSATION_SEQUENCES_V1",
+  "note": "Build 35 Elise Conversation Quality V2. Sanitized SYNTHETIC conversations only -- no real user text. `candidateReply` is a hand-written synthetic reply used solely to exercise the deterministic contradiction check; it is not production output and says nothing about production quality. Deterministic expectations are evaluated against the REAL services/style-chat/eliseConversationFrame.ts. Subjective dimensions are reported as HUMAN_REVIEW, never as pass/fail.",
+  "sequences": [
+    {
+      "id": "cq_01_simple_refinement",
+      "journey": 1,
+      "turns": [
+        { "role": "user", "content": "Style my black blazer with jeans." },
+        { "role": "assistant", "content": "Try the black blazer over a white tee with straight jeans and loafers." }
+      ],
+      "message": "More casual.",
+      "candidateReply": "Keep the tee and jeans, swap the loafers for clean white sneakers and wear the blazer open.",
+      "expect": { "taskReset": false, "relation": "refinement", "garmentFocus": "outerwear", "formality": "less", "colors": [], "commerce": "hold_not_requested", "violations": [] }
+    },
+    {
+      "id": "cq_02_negation_carryover",
+      "journey": 2,
+      "turns": [
+        { "role": "user", "content": "Find me a red jacket, not leather." },
+        { "role": "assistant", "content": "Let me find some options.", "blocks": ["shelf:Red Wool Jacket|Red Nylon Bomber"] }
+      ],
+      "message": "Cheaper.",
+      "candidateReply": "A red leather jacket at a lower price could work.",
+      "expect": { "taskReset": false, "colors": ["red"], "negations": ["material:leather"], "garmentFocus": "outerwear", "commerce": "allow", "violations": ["negation:leather"] }
+    },
+    {
+      "id": "cq_03_owned_only",
+      "journey": 3,
+      "turns": [],
+      "message": "Make me an outfit from what I own.",
+      "candidateReply": "Start with your navy knit and grey trousers.",
+      "expect": { "ownedOnly": true, "taskKind": "owned_styling", "commerce": "hold_owned_only", "violations": [] }
+    },
+    {
+      "id": "cq_04_owned_gap",
+      "journey": 4,
+      "turns": [],
+      "message": "Build a rain outfit from my Closet.",
+      "candidateReply": "I don't see a rain-ready layer in the Closet items I can verify. I can work around it with your wool coat, or show you options if you want.",
+      "expect": { "ownedOnly": true, "commerce": "hold_owned_only", "violations": [] }
+    },
+    {
+      "id": "cq_04b_owned_gap_accepted",
+      "journey": 4,
+      "turns": [
+        { "role": "user", "content": "Build a rain outfit from my Closet." },
+        { "role": "assistant", "content": "I don't see a rain-ready layer in the Closet items I can verify.", "blocks": ["intent", "notice:shopping_held_owned_only"] }
+      ],
+      "message": "Yes please",
+      "expect": { "relation": "acceptance", "commerce": "allow", "ownedOnly": false }
+    },
+    {
+      "id": "cq_05_rejection",
+      "journey": 5,
+      "turns": [
+        { "role": "user", "content": "What shoes with this dress?" },
+        { "role": "assistant", "content": "White sneakers keep it easy." }
+      ],
+      "message": "I don't like those shoes.",
+      "candidateReply": "Try white sneakers with a thicker sole instead.",
+      "expect": { "relation": "rejection", "rejections": ["footwear:white sneakers"], "negations": [], "commerce": "hold_not_requested", "violations": ["rejected_repeat:white sneakers"] }
+    },
+    {
+      "id": "cq_06_reasoned_rejection",
+      "journey": 6,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner." },
+        { "role": "assistant", "content": "A silk blouse, tailored trousers and a blazer." }
+      ],
+      "message": "That's too formal.",
+      "candidateReply": "Swap the blazer for a soft cardigan and keep the silk blouse.",
+      "expect": { "relation": "rejection", "formality": "less", "occasion": "dinner", "taskReset": false, "violations": [] }
+    },
+    {
+      "id": "cq_07_ordinal_reference",
+      "journey": 7,
+      "turns": [
+        { "role": "user", "content": "Give me three brunch looks." },
+        { "role": "assistant", "content": "Three directions:\n1. Linen shirt with chinos.\n2. Knit polo with tailored shorts.\n3. Slip dress with sandals." }
+      ],
+      "message": "Tell me more about the second one.",
+      "expect": { "relation": "reference", "reference": "resolved", "referenceOrdinal": 2, "localClarification": null }
+    },
+    {
+      "id": "cq_08_ambiguous_reference",
+      "journey": 8,
+      "turns": [
+        { "role": "user", "content": "What layer over this dress?" },
+        { "role": "assistant", "content": "Layer the denim jacket or the leather jacket over it." }
+      ],
+      "message": "Use that jacket.",
+      "expect": { "reference": "ambiguous", "localClarification": "Do you mean the denim jacket or the leather jacket?" }
+    },
+    {
+      "id": "cq_09_task_reset",
+      "journey": 9,
+      "turns": [
+        { "role": "user", "content": "Style this dress for dinner." },
+        { "role": "assistant", "content": "Pair it with strappy sandals." },
+        { "role": "user", "content": "No heels." },
+        { "role": "assistant", "content": "Flats, then." }
+      ],
+      "message": "What should I pack for Chicago?",
+      "candidateReply": "Pack ankle boots with a block heel and a wool coat.",
+      "expect": { "taskReset": true, "taskKind": "packing", "occasion": null, "negations": [], "violations": [] }
+    },
+    {
+      "id": "cq_10_signature_style_override",
+      "journey": 10,
+      "turns": [],
+      "message": "I want bright red.",
+      "candidateReply": "Red is outside your usual palette, but for tonight I'd lean into it with a red slip dress.",
+      "expect": { "colors": ["red"], "negations": [], "violations": [] }
+    },
+    {
+      "id": "cq_11_budget_persistence",
+      "journey": 11,
+      "turns": [
+        { "role": "user", "content": "Find loafers under $150." },
+        { "role": "assistant", "content": "Let me look.", "blocks": ["shelf:Black Penny Loafer|Brown Suede Loafer"] }
+      ],
+      "message": "Different.",
+      "expect": { "budget": "150 USD", "garmentFocus": "footwear", "memoryOp": "different", "commerce": "allow" }
+    },
+    {
+      "id": "cq_12_another",
+      "journey": 12,
+      "turns": [
+        { "role": "user", "content": "Find loafers under $150." },
+        { "role": "assistant", "content": "Let me look.", "blocks": ["shelf:Black Penny Loafer"] }
+      ],
+      "message": "Show me another.",
+      "expect": { "memoryOp": "another", "taskReset": false, "commerce": "allow" }
+    },
+    {
+      "id": "cq_13_correction",
+      "journey": 13,
+      "turns": [
+        { "role": "user", "content": "Style my loafers." },
+        { "role": "assistant", "content": "Your loafers work with cropped trousers." }
+      ],
+      "message": "Those are boots, not loafers.",
+      "expect": { "relation": "correction", "corrections": ["loafers>boots"], "negations": [], "commerce": "hold_not_requested" }
+    },
+    {
+      "id": "cq_14_occasion_change",
+      "journey": 14,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner." },
+        { "role": "assistant", "content": "Silk top, wide trousers, heels." }
+      ],
+      "message": "Make it work appropriate.",
+      "expect": { "taskReset": false, "occasion": "work" }
+    },
+    {
+      "id": "cq_15_weather_refinement",
+      "journey": 15,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner." },
+        { "role": "assistant", "content": "Silk top, wide trousers, heels." }
+      ],
+      "message": "It's colder than I thought.",
+      "expect": { "taskReset": false, "warmth": "warmer", "occasion": "dinner" }
+    },
+    {
+      "id": "cq_16_contradiction_prevention",
+      "journey": 16,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner." },
+        { "role": "assistant", "content": "A silk top and wide trousers." },
+        { "role": "user", "content": "No heels." },
+        { "role": "assistant", "content": "Flats it is." }
+      ],
+      "message": "Something dressier.",
+      "candidateReply": "Finish with pointed-toe pumps and a small clutch.",
+      "expect": { "negations": ["garment:heels"], "formality": "more", "violations": ["negation:heels"] }
+    },
+    {
+      "id": "cq_16b_contradiction_negative_control",
+      "journey": 16,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner." },
+        { "role": "assistant", "content": "A silk top and wide trousers." },
+        { "role": "user", "content": "No heels." },
+        { "role": "assistant", "content": "Flats it is." }
+      ],
+      "message": "Something dressier.",
+      "candidateReply": "Since you said no heels, go with pointed flats and a velvet top.",
+      "expect": { "negations": ["garment:heels"], "violations": [] }
+    },
+    {
+      "id": "cq_17_owned_no_shopping",
+      "journey": 17,
+      "turns": [],
+      "message": "Which jacket I own works best?",
+      "expect": { "ownedOnly": true, "commerce": "hold_owned_only" }
+    },
+    {
+      "id": "cq_18_explicit_shopping",
+      "journey": 18,
+      "turns": [],
+      "message": "Find me a black blazer under $200.",
+      "expect": { "taskKind": "shopping", "colors": ["black"], "budget": "200 USD", "garmentFocus": "outerwear", "commerce": "allow" }
+    },
+    {
+      "id": "cq_19_brevity",
+      "journey": 19,
+      "turns": [],
+      "message": "White sneakers or loafers?",
+      "candidateReply": "Loafers. They sharpen the trousers without making the outfit feel formal.",
+      "expect": { "taskKind": "comparison", "commerce": "hold_not_requested", "violations": [] },
+      "verbosityBudgetWords": 60
+    },
+    {
+      "id": "cq_20_scope_persistence",
+      "journey": 20,
+      "turns": [
+        { "role": "user", "content": "Dress me for dinner tonight." },
+        { "role": "assistant", "content": "A wrap dress and a blazer." },
+        { "role": "user", "content": "No blazer." },
+        { "role": "assistant", "content": "A long cardigan then." }
+      ],
+      "message": "Make it warmer.",
+      "candidateReply": "Add a cropped blazer over the wrap dress.",
+      "expect": { "occasion": "dinner", "negations": ["garment:blazer"], "warmth": "warmer", "violations": ["negation:blazer"] }
+    }
+  ]
+}
