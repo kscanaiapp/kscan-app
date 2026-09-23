@@ -207,9 +207,25 @@ commit, and `check-edge-function-parity` + `edgeFunctionSourceParity` pass.
 
 ## K. Performance
 
-See the PR body for measured deterministic server-side time. Real model latency was not
-measured (no live call). The structural gain is that most refinements no longer make the
-model call at all.
+Deterministic server-side time per request, stubbed provider (so model latency is
+excluded by construction), 30-run mean on this Windows host:
+
+| Request | ms | model calls |
+|---|---|---|
+| full plan | 2.35 | 1 |
+| "Different shoes" | 2.27 | 0 |
+| "Just one pair of shoes" | 1.96 | 0 |
+| "Make it warmer" | 1.58 | 0 |
+| "Not black" | 1.83 | 0 |
+| "Make Friday more casual" | 2.50 | 1 (Friday's 2 slots only) |
+
+```
+FULL_GENERATION_BASELINE_LATENCY   NOT MEASURED live (no model call made in this lane)
+REFINEMENT_LATENCY                 deterministic path ~2 ms; for the refinements that
+                                   previously restyled the trip, the model round trip
+                                   is removed entirely (15 -> 6 calls over 27 probe turns)
+ADDITIONAL_NETWORK_CALLS           0 (Closet is read once per request, as before)
+```
 
 ## L. UX
 
@@ -222,8 +238,25 @@ model call at all.
 
 ## M. Tests
 
-See PR for exact totals. New: `packingRefinementQuality.test.ts` (28),
-`conciergeRefinementQuality.test.js` (26), `refinementChipsAndSequence.test.js` (9).
+| Suite | Result |
+|---|---|
+| `npx tsc --noEmit` | PASS |
+| `node scripts/run-all-tests.js` | **9204 tests, 9124 pass, 13 fail — all 13 in the known baseline; `UNEXPECTED_FAILURES=0`** (baseline file unmodified) |
+| `node scripts/run-backend-tests.js stylechat-generate` (incl. `deno check`) | **469 / 0** |
+| Packing + Elise Deno suites | **355 / 0** |
+| `node --test` Concierge / Elise / seams / chips | **585 / 0** |
+| `tools/elise-concierge-eval` | **42 / 42** |
+| `check-edge-function-parity` / `edgeFunctionSourceParity.test.js` | **PASS / 23 of 23** |
+| VTO scope guard (`check-vto-live-integration-scope.js d66f03d6`) | **PASS** (0 VTO-owned paths) |
+| New: `packingRefinementQuality.test.ts` | 28 |
+| New: `conciergeRefinementQuality.test.js` | 27 |
+| New: `refinementChipsAndSequence.test.js` | 9 |
+
+First full run found 3 unexpected failures, all from this lane: (1) the Packing hook's
+source-shape guard reads `refineWith` to `togglePackLight` and the body had moved out of
+that window — restructured, test untouched; (2)/(3) two seam tests pinned the old
+behaviour where "not the raincoat" / "not the loafers" rejected the whole class — updated
+with rationale to the spec's narrow semantics (BLOCK-PC-Q2-07).
 Negative controls (applied, run, restored byte-for-byte; none committed):
 
 | ID | Mutant | Result |
@@ -232,7 +265,7 @@ Negative controls (applied, run, restored byte-for-byte; none committed):
 | NC-2 | Packing role swap ignored | 4 fail |
 | NC-3 | max-role limit not enforced | 2 fail |
 | NC-4 | attribute exclusion never matches | 2 fail (after making the leather test non-vacuous) |
-| NC-5 | bare negation reads as a new outfit again | 15 fail |
+| NC-5 | bare negation reads as a new outfit again | 16 fail |
 | NC-6 | specific rejection broadened to class | 1 fail |
 | NC-7 | explain question falls through to a change | 1 fail |
 | NC-8 | stale-completion guard removed | 1 fail |
