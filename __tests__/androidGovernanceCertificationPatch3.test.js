@@ -249,27 +249,27 @@ test('certification: production does not inherit certification-only flags', () =
   assert.match(env.EXPO_PUBLIC_SUPABASE_URL, new RegExp(PRODUCTION_PROJECT_REF));
 });
 
-test('certification: the Voice pair is set together and nowhere else', () => {
+test('certification: Voice client/native capability move together only in governed certification profiles', () => {
   const easJson = readJson('eas.json');
 
   for (const name of Object.keys(easJson.build)) {
     const { env } = resolveProfile(easJson, name);
-    const client = env.EXPO_PUBLIC_VOICESCAN_ENABLED;
-    const native = env.KSCAN_VOICE_CERTIFICATION;
+    const clientOn = env.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true';
+    const stagingNativeOn = env.KSCAN_VOICE_CERTIFICATION === 'true';
+    const productionNativeOn = env.KSCAN_VOICE_NATIVE_CAPABILITY === 'true';
+    const nativeOn = stagingNativeOn || productionNativeOn;
 
-    assert.equal(
-      client,
-      native,
-      `profile "${name}" resolves EXPO_PUBLIC_VOICESCAN_ENABLED=${client} but ` +
-        `KSCAN_VOICE_CERTIFICATION=${native}; the pair is governed and must move together`,
-    );
+    assert.equal(clientOn, nativeOn, `profile "${name}" Voice client/native capability must move together`);
 
-    if (name !== CERTIFICATION_PROFILE) {
-      assert.notEqual(
-        native,
-        'true',
-        `profile "${name}" enables the certification-only Voice native selector`,
-      );
+    if (name === CERTIFICATION_PROFILE) {
+      assert.equal(stagingNativeOn, true);
+      assert.equal(productionNativeOn, false);
+    } else if (name === 'production-certification') {
+      assert.equal(productionNativeOn, true);
+      assert.equal(stagingNativeOn, false);
+    } else {
+      assert.equal(stagingNativeOn, false, `profile "${name}" must not enable staging Voice selector`);
+      assert.equal(productionNativeOn, false, `profile "${name}" must not enable production Voice selector`);
     }
   }
 });
