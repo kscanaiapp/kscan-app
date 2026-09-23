@@ -439,12 +439,17 @@ test('PROFILES: staging-certification resolves push ON / voice ON and grants bot
   assert.equal(effectivePosture(push, voice, RECORD_AUDIO), 'PRESENT');
 });
 
-test('PROFILES: no committed profile activates either capability outside certification', () => {
+test('PROFILES: only the governed certification profiles activate push and Voice', () => {
   const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
   const profiles = resolveEasBuildProfiles(JSON.parse(read('eas.json')));
+  const allowed = new Set(['staging-certification', 'production-certification']);
   for (const [name] of Object.entries(profiles)) {
     const { push, voice } = profileCapabilities(name);
-    if (name === 'staging-certification') continue;
+    if (allowed.has(name)) {
+      assert.equal(push, true, `${name} must activate remote push`);
+      assert.equal(voice, true, `${name} must activate Voice`);
+      continue;
+    }
     assert.equal(push, false, `${name} must not activate remote push`);
     assert.equal(voice, false, `${name} must not activate Voice`);
   }
