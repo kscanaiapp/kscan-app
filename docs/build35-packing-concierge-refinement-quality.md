@@ -277,9 +277,15 @@ Negative controls (applied, run, restored byte-for-byte; none committed):
   (`CONCIERGE_REFINEMENT_CHIPS`), but mounting them needs a send callback through
   `StyleChatBubble` and the StyleChat session screen, which the active Elise
   Conversation Quality V2 lane owns. Same for any Concierge-specific "UPDATED" marker.
-* `SHARED_SURFACE_FOLLOWUP_REQUIRED` — `eliseAdvicePipeline.ts` / `eliseOutfitState.ts`
-  are Elise surfaces; the Elise Q2 lane (branch created at the same base, no commits yet)
-  must rebase over or merge with these.
+* `SHARED_SURFACE_FOLLOWUP_REQUIRED` — Elise Conversation Quality V2
+  ([PR #454](https://github.com/kscanaiapp/kscan-app/pull/454), opened during this lane)
+  added a CLIENT-side conversation frame (`services/style-chat/eliseConversationFrame.ts`)
+  with its own negation / correction / task-reset reading, and deferred server-side
+  persistence of exclusions — which this lane's `eliseOutfitState` work provides. No file
+  overlaps, and code cannot be shared across the client/Edge boundary, so the two readers
+  must be converged deliberately: known differences are the frame's `heels` group
+  (pumps, stilettos, slingbacks) and silhouette exclusions, which the server reader does
+  not have. Aligned here: "heels are fine" lifts a class exclusion in both.
 * `VOCABULARY_FOLLOWUP_REQUIRED` — Concierge normalisation ignores `clothing_type`, so a
   bucket-only `outerwear`/`bottoms` row has no layering role in the scorer. Worked around
   inside refinement (`refinementRoleOf`); the scorer table was not changed.
