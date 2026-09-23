@@ -1,0 +1,183 @@
+name: Build 34 Production Auth Hardening
+
+on:
+  push:
+    branches:
+      - ops/build34-production-auth-hardening-a74ae060
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build34-production-auth-hardening
+  cancel-in-progress: false
+
+env:
+  EXPECTED_BACKEND_BRANCH: rebuild/backend-authority-v2
+  EXPECTED_BACKEND_SHA: a74ae060386f6a3c02b0f968ff873e939ff2bb82
+  EXPECTED_PRODUCTION_REF: wyyuqfdxucjksghsmhry
+  STAGING_REF: yzqjvdfgefveprobvvyw
+
+jobs:
+  harden:
+    name: Disable anonymous Auth and enable leaked-password protection
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Confirm governed backend authority is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git ls-remote https://github.com/kscanaiapp/kscan-app.git "refs/heads/${EXPECTED_BACKEND_BRANCH}" | awk '{print $1}')"
+          test -n "$ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED_BACKEND_SHA" ]; then
+            echo "::error::Governed backend authority moved: expected $EXPECTED_BACKEND_SHA, got $ACTUAL"
+            exit 1
+          fi
+          echo "backend_authority=PASS"
+
+      - name: Validate production identity
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "::error::Missing SUPABASE_ACCESS_TOKEN"; exit 1; }
+          test "${SUPABASE_PRODUCTION_PROJECT_REF}" = "${EXPECTED_PRODUCTION_REF}"
+          test "${SUPABASE_PRODUCTION_PROJECT_REF}" != "${STAGING_REF}"
+          echo "production_identity=PASS"
+
+      - name: Read pre-state safely
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW="${RUNNER_TEMP}/auth-pre.json"
+          trap 'rm -f "$RAW"' EXIT
+          CODE="$(curl --silent --show-error --output "$RAW" --write-out '%{http_code}' \
+            --max-time 60 \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PRODUCTION_PROJECT_REF}/config/auth")"
+          test "$CODE" = "200" || { echo "::error::Auth pre-state read failed (HTTP $CODE)"; exit 1; }
+          RAW="$RAW" node <<'NODE'
+          const fs = require('fs');
+          const c = JSON.parse(fs.readFileSync(process.env.RAW, 'utf8'));
+          console.log('AUTH_PRE_STATE=' + JSON.stringify({
+            external_anonymous_users_enabled: c.external_anonymous_users_enabled === true,
+            password_hibp_enabled: c.password_hibp_enabled === true,
+            password_min_length: Number.isFinite(Number(c.password_min_length)) ? Number(c.password_min_length) : null,
+            external_email_enabled: c.external_email_enabled === true,
+            external_apple_enabled: c.external_apple_enabled === true,
+            external_google_enabled: c.external_google_enabled === true
+          }));
+          NODE
+
+      - name: Disable anonymous sign-ins only
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="${RUNNER_TEMP}/disable-anon.json"
+          trap 'rm -f "$BODY"' EXIT
+          CODE="$(curl --silent --show-error --output "$BODY" --write-out '%{http_code}' \
+            --max-time 60 \
+            --request PATCH \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"external_anonymous_users_enabled":false}' \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PRODUCTION_PROJECT_REF}/config/auth")"
+          if [ "$CODE" != "200" ]; then
+            echo "::error::Disabling anonymous sign-ins failed (HTTP $CODE)"
+            exit 1
+          fi
+          echo "ANONYMOUS_SIGN_INS_DISABLED=PATCH_OK"
+
+      - name: Enable leaked-password protection
+        id: hibp
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="${RUNNER_TEMP}/enable-hibp.json"
+          trap 'rm -f "$BODY"' EXIT
+          CODE="$(curl --silent --show-error --output "$BODY" --write-out '%{http_code}' \
+            --max-time 60 \
+            --request PATCH \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"password_hibp_enabled":true}' \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PRODUCTION_PROJECT_REF}/config/auth")"
+          echo "http_code=$CODE" >> "$GITHUB_OUTPUT"
+          if [ "$CODE" = "200" ]; then
+            echo "HIBP_ENABLEMENT=PATCH_OK"
+          elif [ "$CODE" = "402" ] || [ "$CODE" = "403" ]; then
+            echo "::warning::HIBP enablement unavailable for the current project/plan (HTTP $CODE). Anonymous Auth hardening remains applied."
+            echo "HIBP_ENABLEMENT=PLAN_OR_PERMISSION_BLOCKED"
+          else
+            echo "::error::HIBP enablement failed unexpectedly (HTTP $CODE)"
+            exit 1
+          fi
+
+      - name: Verify post-state and provider preservation
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          HIBP_HTTP_CODE: ${{ steps.hibp.outputs.http_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW="${RUNNER_TEMP}/auth-post.json"
+          trap 'rm -f "$RAW"' EXIT
+          CODE="$(curl --silent --show-error --output "$RAW" --write-out '%{http_code}' \
+            --max-time 60 \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PRODUCTION_PROJECT_REF}/config/auth")"
+          test "$CODE" = "200" || { echo "::error::Auth post-state read failed (HTTP $CODE)"; exit 1; }
+
+          RAW="$RAW" HIBP_HTTP_CODE="$HIBP_HTTP_CODE" node <<'NODE'
+          const fs = require('fs');
+          const c = JSON.parse(fs.readFileSync(process.env.RAW, 'utf8'));
+          const safe = {
+            external_anonymous_users_enabled: c.external_anonymous_users_enabled === true,
+            password_hibp_enabled: c.password_hibp_enabled === true,
+            password_min_length: Number.isFinite(Number(c.password_min_length)) ? Number(c.password_min_length) : null,
+            external_email_enabled: c.external_email_enabled === true,
+            external_apple_enabled: c.external_apple_enabled === true,
+            external_google_enabled: c.external_google_enabled === true
+          };
+          console.log('AUTH_POST_STATE=' + JSON.stringify(safe));
+          if (safe.external_anonymous_users_enabled) {
+            console.error('Anonymous sign-ins are still enabled after PATCH');
+            process.exit(1);
+          }
+          if (process.env.HIBP_HTTP_CODE === '200' && !safe.password_hibp_enabled) {
+            console.error('HIBP PATCH returned 200 but password_hibp_enabled is not true');
+            process.exit(1);
+          }
+          console.log('ANONYMOUS_AUTH_HARDENING=PASS');
+          console.log('HIBP_HARDENING=' + (safe.password_hibp_enabled ? 'PASS' : 'PLAN_OR_PERMISSION_BLOCKED'));
+          NODE
+
+      - name: Record scope
+        shell: bash
+        run: |
+          {
+            echo "## Build 34 Production Auth Hardening"
+            echo
+            echo "- Target: production only"
+            echo "- Anonymous sign-ins: disabled"
+            echo "- Leaked-password protection: attempted/enabled when supported"
+            echo "- OAuth provider credentials: untouched"
+            echo "- Redirect URLs: untouched"
+            echo "- Users and sessions: untouched"
+            echo "- Database schema: untouched"
+            echo "- Staging: untouched"
+          } >> "$GITHUB_STEP_SUMMARY"
