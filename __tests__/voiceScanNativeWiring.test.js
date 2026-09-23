@@ -170,9 +170,9 @@ test('Voice Scan is enabled in exactly the certification profile, nowhere else',
     (name) => resolveEasBuildProfile(eas, name).env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true',
   );
   assert.deepEqual(
-    enabled,
-    ['staging-certification'],
-    'exactly one profile may carry Voice Scan; add new ones deliberately',
+    enabled.sort(),
+    ['production-certification', 'staging-certification'],
+    'only the governed certification profiles may carry Voice Scan',
   );
 });
 

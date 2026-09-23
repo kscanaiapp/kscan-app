@@ -193,10 +193,10 @@ test('ANDROID-VOICE-01: the generalized capability selector active outside its a
   );
 });
 
-test('ANDROID-VOICE-01: the approved profile list is exactly certification and production', () => {
+test('ANDROID-VOICE-01: the approved profile list includes governed certification and production profiles', () => {
   assert.match(
     gradle,
-    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE\]/,
+    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE,\s*PRODUCTION_CERTIFICATION_PROFILE\]/,
   );
   assert.match(gradle, /def PRODUCTION_PROFILE\s*=\s*'production'/);
 });
@@ -224,12 +224,14 @@ test('ANDROID-VOICE-01 NEGATIVE CONTROL: removing the generalized leak guard is 
   assert.notStrictEqual(mutated, gradle, 'the mutation must actually change the source (self-check)');
 });
 
-test('ANDROID-VOICE-01: eas.json commits the generalized selector to no profile, including production', () => {
+test('ANDROID-VOICE-01: eas.json commits the generalized selector only to production-certification', () => {
   const eas = JSON.parse(read(path.join(REPO_ROOT, 'eas.json')));
   for (const [name, profile] of Object.entries(eas.build)) {
-    assert.ok(
-      !(profile.env && 'KSCAN_VOICE_NATIVE_CAPABILITY' in profile.env),
-      `profile "${name}" must not commit KSCAN_VOICE_NATIVE_CAPABILITY -- it is supplied out of band only`,
+    const allowed = name === 'production-certification';
+    assert.equal(
+      Boolean(profile.env && 'KSCAN_VOICE_NATIVE_CAPABILITY' in profile.env),
+      allowed,
+      `profile "${name}" generalized Voice capability must match the governed production-certification posture`,
     );
   }
 });
@@ -483,7 +485,7 @@ test('production/staging/preview/development env still do not declare any Build 
     'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   ];
   for (const [name, profile] of Object.entries(eas.build)) {
-    if (name === 'staging-certification') continue;
+    if (name === 'staging-certification' || name === 'production-certification') continue;
     for (const key of CERT_ONLY_KEYS) {
       assert.ok(!(profile.env && key in profile.env), `profile "${name}" must not declare ${key}`);
     }

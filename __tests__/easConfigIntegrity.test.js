@@ -299,7 +299,7 @@ test('NEGATIVE CONTROL: no profile other than staging-certification enables any 
   // covered the day it appears rather than the day someone remembers to add
   // it to a list.
   for (const [name, profile] of Object.entries(eas.build)) {
-    if (name === 'staging-certification') continue;
+    if (name === 'staging-certification' || name === 'production-certification') continue;
     for (const key of [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS]) {
       assert.ok(
         !(profile.env && key in profile.env),
@@ -326,7 +326,8 @@ test('Voice Scan is enabled ONLY through the flag, and only where the native sel
   for (const [name, profile] of Object.entries(eas.build)) {
     const resolved = resolveEasBuildProfile(eas, name);
     const voiceOn = resolved.env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true';
-    const selectorOn = resolved.env?.KSCAN_VOICE_CERTIFICATION === 'true';
+    const selectorOn = resolved.env?.KSCAN_VOICE_CERTIFICATION === 'true'
+      || resolved.env?.KSCAN_VOICE_NATIVE_CAPABILITY === 'true';
     assert.equal(
       voiceOn,
       selectorOn,

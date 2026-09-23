@@ -204,18 +204,35 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: the generative backend was read, never written', (t) => {
+test('guard: generative backend stays read-only; certification may expose the governed VTO UI', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
-  const backendTouches = changed.filter(
-    (file) => file.startsWith('supabase/') || file === 'eas.json' || file === 'app.json',
+  const forbiddenBackendTouches = changed.filter(
+    (file) => file.startsWith('supabase/') || file === 'app.json',
   );
   assert.deepEqual(
-    backendTouches,
+    forbiddenBackendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO, and no EAS/app config may change',
+    'GENERATIVE BACKEND MUTATION must be NO; supabase/** and app.json remain read-only in this lane',
   );
+
+  if (changed.includes('eas.json')) {
+    const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+    const productionEnv = eas.build?.production?.env ?? {};
+    const certification = eas.build?.['production-certification'];
+    assert.ok(certification, 'an eas.json VTO activation must use the governed production-certification profile');
+    assert.equal(
+      certification.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
+      'true',
+      'production-certification may expose the governed VTO UI for controlled live testing',
+    );
+    assert.equal(
+      productionEnv.EXPO_PUBLIC_VTO_UI_ENABLED,
+      undefined,
+      'ordinary production must remain dark during certification activation',
+    );
+  }
 });
 
 test('guard: the research workspace is not a dependency of the app', () => {

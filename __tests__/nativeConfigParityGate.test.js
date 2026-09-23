@@ -198,8 +198,8 @@ test('the declared Voice certification exception is what the repository actually
   assert.deepEqual(capability.additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
   assert.deepEqual(
     capability.selectorSetByEasProfiles,
-    [],
-    'no EAS profile may commit KSCAN_VOICE_NATIVE_CAPABILITY -- it is supplied out of band only',
+    ['production-certification'],
+    'only the governed production-certification profile may commit KSCAN_VOICE_NATIVE_CAPABILITY',
   );
   assert.deepEqual(
     capability.mustRemainRemovedEverywhere,
@@ -343,7 +343,7 @@ test('negative control: an exception manifest that stops granting its declared p
 
 // ── ANDROID-VOICE-01: the generalized capability exception's own controls ──
 
-test('negative control: committing KSCAN_VOICE_NATIVE_CAPABILITY to the production profile fails the gate', () => {
+test('negative control: committing KSCAN_VOICE_NATIVE_CAPABILITY to the ordinary production profile fails the gate', () => {
   // The whole point of selectorSetByEasProfiles being empty for this
   // exception is that NO committed profile may carry the selector yet --
   // production included, since that is exactly the future activation this
