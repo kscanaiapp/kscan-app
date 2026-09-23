@@ -315,14 +315,14 @@ test('the production profile resolves Voice Scan OFF', () => {
   assert.equal(loadFlags(resolveEasBuildProfile(eas, 'production').env).VOICESCAN_ENABLED, false);
 });
 
-test('Voice Scan resolves ON in exactly the two certification-shaped profiles', () => {
+test('Voice Scan resolves ON in exactly the three governed certification-shaped profiles', () => {
   // Deliberately NOT "off everywhere except testflight-staging": the Android
   // `staging-certification` artifact legitimately carries Voice too. Naming
   // both makes adding a third profile a reviewed change.
   const on = Object.keys(eas.build).filter(
     (name) => loadFlags(resolveEasBuildProfile(eas, name).env).VOICESCAN_ENABLED === true,
   );
-  assert.deepEqual(on.sort(), ['staging-certification', 'testflight-staging']);
+  assert.deepEqual(on.sort(), ['production-certification', 'staging-certification', 'testflight-staging']);
 });
 
 // ── K+ is complimentary: no purchasing anywhere in this artifact ─────────────

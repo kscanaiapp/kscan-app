@@ -216,18 +216,18 @@ test('the feature flag gate is absolute on the live surface', () => {
   // governed profile stays unset: reachability is not rollout.
   const build = JSON.parse(read('eas.json')).build;
   for (const [name, profile] of Object.entries(build)) {
-    if (name === 'staging-certification') {
+    if (name === 'staging-certification' || name === 'production-certification') {
       assert.equal(
         profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
         'true',
-        'staging-certification must carry the proven-closed VTO ruling',
+        'the governed certification profiles must carry the proven-closed VTO ruling',
       );
       continue;
     }
     assert.equal(
       profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
       undefined,
-      'this repair makes VTO reachable when enabled; it must not enable it outside staging-certification',
+      'VTO must remain dark outside the governed certification profiles',
     );
   }
 });

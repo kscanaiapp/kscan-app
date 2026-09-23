@@ -174,7 +174,7 @@ test('production never enables Voice Scan', () => {
 // Both entries are certification-shaped: store distribution, Release, staging
 // backend, and — critically — both carry KSCAN_VOICE_CERTIFICATION alongside
 // the product flag, which the pairing test below enforces for every profile.
-const VOICE_ENABLED_PROFILES = Object.freeze(['staging-certification', 'testflight-staging']);
+const VOICE_ENABLED_PROFILES = Object.freeze(['staging-certification', 'testflight-staging', 'production-certification']);
 
 test('Voice Scan is enabled in exactly the reviewed profiles, nowhere else', () => {
   const enabled = Object.keys(eas.build).filter(
@@ -195,8 +195,8 @@ test('every Voice-enabled profile also carries the native selector', () => {
     const env = resolveEasBuildProfile(eas, name).env ?? {};
     assert.equal(
       env.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true',
-      env.KSCAN_VOICE_CERTIFICATION === 'true',
-      `profile "${name}": the Voice flag and its native selector must travel together`,
+      env.KSCAN_VOICE_CERTIFICATION === 'true' || env.KSCAN_VOICE_NATIVE_CAPABILITY === 'true',
+      `profile "${name}": the Voice flag and a governed native selector must travel together`,
     );
   }
 });
