@@ -570,14 +570,25 @@ jobs:
           set -euo pipefail
 
           required=()
+          optional_safe_disabled=()
           case "${FUNCTION_NAME}" in
             kplus-reconcile-revenuecat)
+              # RevenueCat is a secondary mirror, not K Scan entitlement
+              # authority. Two variables are intentionally safe-disabled when
+              # absent:
+              # - no KPLUS_RECONCILE_INTERNAL_SECRET => every invocation 401s;
+              # - no REVENUECAT_SYNC_ENABLED => the adapter defaults to false.
+              # Their absence must not block deploying an inert function.
+              # The actual RevenueCat connection identifiers/credential remain
+              # required before this source is promoted to production.
               required=(
-                KPLUS_RECONCILE_INTERNAL_SECRET
-                REVENUECAT_SYNC_ENABLED
                 REVENUECAT_PROJECT_ID
                 REVENUECAT_KPLUS_ENTITLEMENT_ID
                 REVENUECAT_SECRET_API_KEY
+              )
+              optional_safe_disabled=(
+                KPLUS_RECONCILE_INTERNAL_SECRET
+                REVENUECAT_SYNC_ENABLED
               )
               ;;
             vto-generate)
@@ -602,12 +613,17 @@ jobs:
             --project-ref "${SUPABASE_PRODUCTION_PROJECT_REF}" > "$SECRET_LIST_JSON"
 
           REQUIRED_SECRET_NAMES="$(IFS=,; echo "${required[*]}")" \
+          OPTIONAL_SAFE_DISABLED_SECRET_NAMES="$(IFS=,; echo "${optional_safe_disabled[*]}")" \
           SECRET_LIST_JSON="$SECRET_LIST_JSON" \
           node - <<'NODE'
           const fs = require('node:fs');
 
           const file = process.env.SECRET_LIST_JSON;
           const required = String(process.env.REQUIRED_SECRET_NAMES || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean);
+          const optionalSafeDisabled = String(process.env.OPTIONAL_SAFE_DISABLED_SECRET_NAMES || '')
             .split(',')
             .map((value) => value.trim())
             .filter(Boolean);
@@ -651,6 +667,13 @@ jobs:
 
           for (const name of required) {
             console.log(`verified required production secret name: ${name}`);
+          }
+          for (const name of optionalSafeDisabled) {
+            if (names.has(name)) {
+              console.log(`verified optional activation secret name: ${name}`);
+            } else {
+              console.log(`optional activation secret absent; function remains safe-disabled: ${name}`);
+            }
           }
           NODE
 
