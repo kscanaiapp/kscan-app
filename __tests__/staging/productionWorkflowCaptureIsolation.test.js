@@ -501,3 +501,56 @@ test('13. migration selection, credentials, approval and refs are unchanged', ()
   assert.match(source, /STAGING_REF: yzqjvdfgefveprobvvyw/);
   assert.match(jobs['approved-single-migration'], /Staging project ref is forbidden here/);
 });
+
+
+test('14. production function deploy verifies required Supabase secret names without logging secret inventory', () => {
+  const deployJob = jobs['deploy-one-function'];
+  const step = stepNamed('deploy-one-function', 'Verify required Edge Function secret names');
+  const shell = shellOf(step);
+
+  assert.match(
+    deployJob,
+    /^ {4}environment: production$/m,
+    'secret-name verification must remain behind the production Environment gate',
+  );
+  assert.match(
+    shell,
+    /supabase --output json secrets list/,
+    'the workflow must use the read-only Supabase secret inventory command',
+  );
+  assert.match(
+    shell,
+    /--project-ref "\$\{SUPABASE_PRODUCTION_PROJECT_REF\}"/,
+    'the inventory must target the pinned production project ref',
+  );
+  assert.match(
+    shell,
+    /SECRET_LIST_JSON="\$RUNNER_TEMP\/production-edge-secrets\.json"/,
+    'the secret inventory capture must live outside the checkout',
+  );
+  assert.match(shell, /KPLUS_RECONCILE_INTERNAL_SECRET/);
+  assert.match(shell, /REVENUECAT_SYNC_ENABLED/);
+  assert.match(shell, /REVENUECAT_PROJECT_ID/);
+  assert.match(shell, /REVENUECAT_KPLUS_ENTITLEMENT_ID/);
+  assert.match(shell, /REVENUECAT_SECRET_API_KEY/);
+  assert.match(shell, /vto-generate[\s\S]*?required=\(RAPIDAPI_KEY\)/);
+
+  assert.ok(
+    !/cat\s+"?\$SECRET_LIST_JSON"?/.test(shell),
+    'the raw remote secret inventory must never be printed',
+  );
+  assert.ok(
+    !/console\.log\([^\n]*(digest|value)/i.test(shell),
+    'the verifier must not log secret values or digests',
+  );
+  assert.match(
+    shell,
+    /Missing required production Edge Function secret names:/,
+    'missing names must fail closed before deployment',
+  );
+  assert.match(
+    shell,
+    /verified required production secret name:/,
+    'successful verification may report required names only',
+  );
+});
