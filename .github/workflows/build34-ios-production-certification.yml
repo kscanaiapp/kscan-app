@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release/build34-ios-production-certification
+      - release/ios-build34-testflight-staging-v2
   workflow_dispatch:
 
 permissions:
