@@ -97,21 +97,11 @@ jobs:
           CI: '1'
         run: npx expo export --platform android --output-dir dist-prebuild-android
 
-      - name: Confirm Expo authentication prerequisite
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        shell: bash
-        run: |
-          if [ -z "${EXPO_TOKEN:-}" ]; then
-            echo "::error::GitHub secret EXPO_TOKEN is missing. A full EAS cloud build cannot be launched non-interactively."
-            exit 1
-          fi
-          npx eas-cli@latest whoami
-
   eas-build:
     name: Android full EAS build
     needs: prebuild-audit
     runs-on: ubuntu-latest
+    environment: production
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
@@ -125,6 +115,16 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Confirm Expo authentication prerequisite
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::GitHub production Environment secret EXPO_TOKEN is missing. A full EAS cloud build cannot be launched non-interactively."
+            exit 1
+          fi
+          npx eas-cli@latest whoami
 
       - name: Launch and wait for Android EAS build
         shell: bash
