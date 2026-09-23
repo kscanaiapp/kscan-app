@@ -110,11 +110,11 @@ test('Part A: ordinary staging, preview and development remain Concierge-dark', 
   }
 });
 
-test('Part A: the transport parent is confined to staging-certification alone', () => {
-  const declaring = Object.keys(eas.build).filter(
-    (name) => (eas.build[name].env || {})[TRANSPORT_KEY] !== undefined,
-  );
-  assert.deepEqual(declaring, ['staging-certification']);
+test('Part A: the transport parent is confined to governed certification profiles', () => {
+  const declaring = Object.keys(eas.build)
+    .filter((name) => (eas.build[name].env || {})[TRANSPORT_KEY] !== undefined)
+    .sort();
+  assert.deepEqual(declaring, ['production-certification', 'staging-certification']);
 });
 
 // ── Part B · real composition ────────────────────────────────────────────────
