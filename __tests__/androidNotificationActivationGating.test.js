@@ -370,17 +370,22 @@ test('CERTIFICATION ANDROID: the token-refresh listener is installed', () => {
   });
 });
 
-test('CERTIFICATION: eas.json is the one place the capability is turned on', () => {
+test('CERTIFICATION: only the governed certification profiles turn push on', () => {
   const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
   const profiles = resolveEasBuildProfiles(JSON.parse(read('eas.json')));
   const on = Object.entries(profiles)
     .filter(([, p]) => (p.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1 === 'true')
-    .map(([name]) => name);
-  assert.deepEqual(on, ['staging-certification'], 'only certification may activate push today');
+    .map(([name]) => name)
+    .sort();
+  assert.deepEqual(
+    on,
+    ['production-certification', 'staging-certification'],
+    'only staging- and production-certification may activate push',
+  );
   assert.equal(
     (profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1,
     undefined,
-    'production must ship the push consumer dark',
+    'ordinary production must ship the push consumer dark',
   );
 });
 

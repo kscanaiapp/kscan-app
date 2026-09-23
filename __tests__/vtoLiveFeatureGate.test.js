@@ -99,14 +99,12 @@ test('flag: no EAS profile sets it -- production and staging included', () => {
   }
 });
 
-test('flag: the generative VTO profile posture is unchanged by this lane', () => {
-  // EXPO_PUBLIC_VTO_UI_ENABLED stays exactly where it was: staging-certification
-  // only, production carrying no VTO UI at all.
+test('flag: generative VTO is enabled only in governed certification profiles', () => {
   const withVtoUi = Object.entries(easProfiles)
     .filter(([, profile]) => (profile.env ?? {}).EXPO_PUBLIC_VTO_UI_ENABLED === 'true')
     .map(([name]) => name)
     .sort();
-  assert.deepEqual(withVtoUi, ['staging-certification']);
+  assert.deepEqual(withVtoUi, ['production-certification', 'staging-certification']);
   assert.ok(!('EXPO_PUBLIC_VTO_UI_ENABLED' in (easProfiles.production.env ?? {})));
 });
 

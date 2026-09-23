@@ -210,24 +210,23 @@ test('the feature flag gate is absolute on the live surface', () => {
     /VTO_UI_ENABLED && option\.vtoGarment \?/,
     'the flag must gate the entry point, so a disabled build renders nothing',
   );
-  // Build 34 Android staging-certification (P2-EAS-FLAGS ruling): server-side
-  // authority, quota, and fail-closed provider behavior (SEC-KPLUS-007) are
-  // proven closed, so staging-certification enables the flag. Every OTHER
-  // governed profile stays unset: reachability is not rollout.
+  // Build 34 certification profiles may expose the governed VTO surface.
+  // Ordinary production and every non-certification profile remain dark.
   const build = JSON.parse(read('eas.json')).build;
+  const allowed = new Set(['staging-certification', 'production-certification']);
   for (const [name, profile] of Object.entries(build)) {
-    if (name === 'staging-certification') {
+    if (allowed.has(name)) {
       assert.equal(
         profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
         'true',
-        'staging-certification must carry the proven-closed VTO ruling',
+        `${name} must carry the governed VTO certification flag`,
       );
       continue;
     }
     assert.equal(
       profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
       undefined,
-      'this repair makes VTO reachable when enabled; it must not enable it outside staging-certification',
+      'VTO must remain dark outside the governed certification profiles',
     );
   }
 });

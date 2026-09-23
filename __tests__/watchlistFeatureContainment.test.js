@@ -725,17 +725,23 @@ test('HOME ENTRY: availability is composed before entitlement, never entitlement
 // PART I — governed profile matrix + Repair 05 regression
 // ════════════════════════════════════════════════════════════════════════════
 
-test('PROFILES: production ships Watchlist dark; staging-certification ships it on', () => {
+test('PROFILES: ordinary production ships Watchlist dark; certification profiles ship it on', () => {
   // Resolved through the governed resolver so `extends` inheritance is honoured.
   const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
   const profiles = resolveEasBuildProfiles(JSON.parse(read('eas.json')));
   assert.equal((profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, undefined);
   assert.equal(loadAvailability(false).resolveWatchlistAvailable(), false);
   assert.equal((profiles['staging-certification'].env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
+  assert.equal((profiles['production-certification'].env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
   const on = Object.entries(profiles)
     .filter(([, p]) => (p.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1 === 'true')
-    .map(([name]) => name);
-  assert.deepEqual(on, ['staging-certification'], 'only certification may turn the feature on');
+    .map(([name]) => name)
+    .sort();
+  assert.deepEqual(
+    on,
+    ['production-certification', 'staging-certification'],
+    'only the governed certification profiles may turn the feature on',
+  );
 });
 
 test('PRODUCTION: Watchlist stays dark even with K+ forced ACTIVE', () => {

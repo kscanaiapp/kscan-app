@@ -235,8 +235,8 @@ test('the declared Voice certification exception is what the repository actually
   assert.deepEqual(capability.additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
   assert.deepEqual(
     capability.selectorSetByEasProfiles,
-    [],
-    'no EAS profile may commit KSCAN_VOICE_NATIVE_CAPABILITY -- it is supplied out of band only',
+    ['production-certification'],
+    'only the governed production-certification profile may commit KSCAN_VOICE_NATIVE_CAPABILITY',
   );
   assert.deepEqual(
     capability.mustRemainRemovedEverywhere,
