@@ -97,5 +97,12 @@
   },
   "overrides": {
     "shell-quote": "^1.10.0"
+  },
+  "expo": {
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
+    }
   }
 }
