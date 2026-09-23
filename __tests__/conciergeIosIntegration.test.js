@@ -95,7 +95,7 @@ test('the flag gates BOTH the write and the render', () => {
   assert.equal(read('components/style-chat/StyleChatBubble.tsx').includes('if (!ELISE_CONCIERGE_V1) return null;'), true);
 });
 
-test('the Concierge flag is enabled only in staging-certification, never in staging or production', () => {
+test('the Concierge flag is enabled only in governed certification profiles, never in staging or ordinary production', () => {
   // Build 34 Android staging-certification (P2-EAS-FLAGS ruling): ancestry,
   // staging runtime (stylechat-generate v119 deployed with the conciergeV1
   // branch live), and closure evidence (5 dedicated test suites, no
@@ -104,6 +104,7 @@ test('the Concierge flag is enabled only in staging-certification, never in stag
   // staging or production profiles.
   const eas = JSON.parse(read('eas.json'));
   assert.equal(eas.build['staging-certification'].env.EXPO_PUBLIC_ELISE_CONCIERGE_V1, 'true');
+  assert.equal(eas.build['production-certification'].env.EXPO_PUBLIC_ELISE_CONCIERGE_V1, 'true');
   assert.equal('EXPO_PUBLIC_ELISE_CONCIERGE_V1' in (eas.build.staging.env ?? {}), false);
   assert.equal('EXPO_PUBLIC_ELISE_CONCIERGE_V1' in (eas.build.production.env ?? {}), false);
 });

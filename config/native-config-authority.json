@@ -39,7 +39,9 @@
             "exceptionManifest": "android/app/src/certification/AndroidManifest.xml",
             "selectorGradleProperty": "kscan.voiceNativeCapability",
             "selectorEnvironmentVariable": "KSCAN_VOICE_NATIVE_CAPABILITY",
-            "selectorSetByEasProfiles": [],
+            "selectorSetByEasProfiles": [
+              "production-certification"
+            ],
             "additionalGrantedPermissions": [
               "android.permission.RECORD_AUDIO"
             ],
@@ -47,7 +49,7 @@
               "android.permission.FOREGROUND_SERVICE_MICROPHONE",
               "android.permission.CAPTURE_AUDIO_OUTPUT"
             ],
-            "defaultArtifactPosture": "RECORD_AUDIO stays tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stays in app.json android.blockedPermissions. selectorSetByEasProfiles is deliberately empty: eas.json commits this selector to NO profile today, including production -- it is supplied out of band by the governed production release environment only at the moment of an explicitly authorized activation (see docs/build34-android-voice-production-readiness-runbook.md). Committing it to any profile's eas.json env would itself broaden that profile before authorization, which is exactly what this declaration must not do.",
+            "defaultArtifactPosture": "RECORD_AUDIO stays tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stays in app.json android.blockedPermissions. The governed production-certification profile explicitly opts into the generalized capability for controlled Build 34 live testing; ordinary production remains off.",
             "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. Before any production Voice release, the merged manifest of a production AAB built WITH KSCAN_VOICE_NATIVE_CAPABILITY=true set must be inspected to prove RECORD_AUDIO is present, and the merged manifest of an ordinary production AAB (selector unset, today's shipping state) must be inspected to prove it is still absent."
           }
         ]

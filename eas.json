@@ -246,6 +246,7 @@
         "buildConfiguration": "Release"
       },
       "env": {
+        "KSCAN_VOICE_NATIVE_CAPABILITY": "true",
         "EXPO_PUBLIC_AVATAR_MOTION_V1": "true",
         "EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1": "true",
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
