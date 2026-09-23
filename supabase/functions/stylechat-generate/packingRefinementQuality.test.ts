@@ -501,10 +501,18 @@ Deno.test('"no black shoes" rules out black shoes only -- never every shoe', asy
 
 Deno.test('BLOCK-14: "no leather" acts on recorded material only', async () => {
   const closet = [...CLOSET, 24];
-  const first = await run(request(), closet);
-  const next = await refine(first.plan, 'No leather', { closet });
+  // The stylist puts the leather jacket on the travel days, so the exclusion
+  // has something real to remove.
+  const look: LookFn = (slotId, available) => {
+    const base = defaultLook(slotId, available);
+    return slotId.endsWith('travel_day') ? [...base, ...firstOf(available, [24])] : base;
+  };
+  const first = await run(request(), closet, look);
+  assert(packed(first.plan).includes(24), 'precondition: the leather jacket is packed');
+  const next = await refine(first.plan, 'No leather', { closet, look });
   assert(next.plan.state.activeConstraints.includes('not_material:leather'));
   assert(!packed(next.plan).includes(24));
+  assertEquals(next.providerCalls, 0);
 });
 
 // ═══ Explanation / section 33 ═══════════════════════════════════════════════
