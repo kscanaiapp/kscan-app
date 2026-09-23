@@ -26,6 +26,7 @@ import {
   type PackingGap,
   type PackingGeneralGuide,
   type PackingPlan,
+  type PackingPlanChange,
   type PackingPlanItem,
   type PackingPlanOutfit,
   type PackingPlanWeather,
@@ -228,6 +229,24 @@ function parseConsiderBuying(value: unknown): PackingExternalSuggestion[] {
   return out;
 }
 
+/** Build 35. Which looks a refinement changed. Ids only, bounded like every other list. */
+function parseChanges(value: unknown): PackingPlanChange[] {
+  if (!Array.isArray(value)) return [];
+  const out: PackingPlanChange[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    const slotId = str(raw.slotId, 40);
+    if (!slotId) continue;
+    out.push({
+      slotId,
+      removedItemIds: strList(raw.removedItemIds, 6, 80),
+      addedItemIds: strList(raw.addedItemIds, 6, 80),
+    });
+    if (out.length >= 21) break;
+  }
+  return out;
+}
+
 function parseState(value: unknown): Record<string, unknown> | null {
   if (!isRecord(value) || value.stateVersion !== 1) return null;
   try {
@@ -306,6 +325,7 @@ export function parsePackingPlan(value: unknown): PackingPlan | null {
           notes: strList(value.notes, MAX_NOTES, 240),
           leftHome: parseLeftHome(value.leftHome),
           considerBuying: parseConsiderBuying(value.considerBuying),
+          changes: parseChanges(value.changes),
           state: parseState(value.state),
         }
       : {};

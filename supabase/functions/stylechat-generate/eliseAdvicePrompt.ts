@@ -192,11 +192,60 @@ export function buildEliseAdvicePromptBlock(input: {
           'own it. Say plainly that you cannot confirm it right now if it matters to the answer.',
       );
     }
+    // Build 35 -- preserve what still works. The pieces below were put first in
+    // the candidate list deterministically; this tells the model why, so the
+    // prose describes a changed piece, not a new outfit.
+    const preserved = input.refinement.preservedIds ?? [];
+    if (preserved.length) {
+      lines.push(
+        `UNCHANGED: ${escapePromptData(preserved.join(','))} -- pieces of the current look this ` +
+          'refinement did not touch. Keep them and change only what the user asked about. Say ' +
+          'briefly what changed and that the rest stays; do not restate the whole outfit.',
+      );
+    }
+    const ambiguous = input.refinement.ambiguousCandidateIds ?? [];
+    if (ambiguous.length) {
+      lines.push(
+        `AMBIGUOUS: the user's reference could mean ${escapePromptData(ambiguous.join(','))}. ` +
+          'Ask one short question naming these options. Do not pick one.',
+      );
+    }
+    if (input.refinement.unresolved?.length) {
+      lines.push(
+        `NOT ON THE TABLE: ${escapePromptData(input.refinement.unresolved.join(','))} -- the user ` +
+          'named a piece that is not in the current outfit or candidates. Say so in one line; do ' +
+          'not substitute a different piece and treat it as the one they meant.',
+      );
+    }
+    if (input.refinement.unverifiedAttributeIds?.length) {
+      lines.push(
+        `UNVERIFIED: ${input.refinement.unverifiedAttributeIds.length} candidate(s) have no recorded ` +
+          'colour or material. Do not describe them as meeting the user\'s colour or material exclusion.',
+      );
+    }
     if (state.activeConstraints.length) {
       lines.push(
         `constraints=${escapePromptData(state.activeConstraints.join(','))} ` +
           '-- these came from earlier turns and still apply.',
       );
+      for (const code of state.activeConstraints) {
+        const [kind, value] = code.split(':');
+        if (kind === 'prefer_color') {
+          lines.push(
+            `COLOUR REQUEST: the user explicitly asked for ${escapePromptData(value)}. That outranks ` +
+              'Signature Style and any inferred palette.',
+          );
+        } else if (kind === 'not_color') {
+          lines.push(`EXCLUDED COLOUR: nothing ${escapePromptData(value)}. Pieces listed as ${escapePromptData(value)} were removed above.`);
+        } else if (kind === 'correct' || kind === 'correct_color') {
+          const [said, actual] = (value ?? '').split('>');
+          lines.push(
+            `USER CORRECTION: what was called ${escapePromptData(said ?? '')} is actually ` +
+              `${escapePromptData(actual ?? '')}. Use the user's description for this conversation. ` +
+              'Do not say their Closet was changed.',
+          );
+        }
+      }
     }
     lines.push('[/ACTIVE OUTFIT - REFINEMENT]');
   }

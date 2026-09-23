@@ -337,7 +337,12 @@ test('CONCIERGE: "Not the raincoat, something else" is a rejection that sticks',
   assert.equal(second.refinement.action, 'refine_reject');
   assert.equal(second.refinement.continued, true);
   assert.equal(conciergeHas(second, RAINCOAT_C), false, 'the rejected raincoat must not come back');
-  assert.ok(second.outfitState.rejectedGarmentClasses.includes('coat'));
+  // Build 35 refinement quality (BLOCK-PC-Q2-07): "the raincoat" names THAT
+  // piece, so it is rejected by id. Rejecting the whole coat class -- what this
+  // line asserted before -- is the narrow-to-broad rejection the spec forbids:
+  // it would also have removed a different coat the customer never mentioned.
+  assert.ok(second.outfitState.rejectedCandidateIds.includes(`closet:${cid(RAINCOAT_C)}`));
+  assert.ok(!second.outfitState.rejectedGarmentClasses.includes('coat'));
 });
 
 test('CONCIERGE: a compound garment can be kept, not just rejected', () => {
@@ -423,7 +428,10 @@ test('STATE ISOLATION: a Packing plan state is never read as a Concierge outfit'
 test('STATE ISOLATION: a Concierge outfit state cannot steer a Packing refinement', async () => {
   const rows = dinnerCloset();
   const first = await conciergeTurn('Build me an outfit for dinner', null, { rows });
-  const rejected = await conciergeTurn('Not the loafers, something else', first.outfitState, { rows });
+  // "No loafers" is the CLASS form; since Build 35 refinement quality "not the
+  // loafers" rejects that pair by id instead. The class form keeps this state as
+  // rich as the one the test was written to smuggle.
+  const rejected = await conciergeTurn('No loafers, something else', first.outfitState, { rows });
   assert.ok(rejected.outfitState.rejectedGarmentClasses.includes('loafer'), 'precondition');
 
   const trip = await packingRun(

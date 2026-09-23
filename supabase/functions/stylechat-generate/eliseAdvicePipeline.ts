@@ -3,6 +3,7 @@
  */
 
 import type { EliseVisualContextEnvelope } from './eliseVisualContextTypes.ts';
+import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 import type {
   EliseAdvicePipelineResult,
   EliseAdviceIntent,
@@ -33,10 +34,15 @@ import {
 } from './eliseAdvicePrompt.ts';
 import {
   applyRefinementExclusions,
+  constraintColors,
+  continuesOutfit,
+  orderForRefinement,
   planRefinement,
   projectOutfitState,
   readRefinementDirectives,
+  refinementRoleOf,
 } from './eliseOutfitState.ts';
+import { formalityBandOf } from './packingGarmentFacts.ts';
 
 export interface EliseAdviceFlagState {
   adviceIntentsV1: boolean;
@@ -123,10 +129,32 @@ export async function runEliseAdvicePipeline(input: {
   const conciergeV1 = Boolean(flags.conciergeV1);
 
   const noShopping = /\b(without\s+buying|no\s+shopping|closet\s+only)\b/i.test(input.message);
-  const intent: EliseAdviceIntent = classifyEliseAdviceIntent(input.message, {
-    preferClosetFirst: true,
-    noShopping,
-  });
+  // Build 35. The refinement is read BEFORE the intent: "different shoes" on
+  // an outfit is still the outfit's task, not a new shoe-only question, and it
+  // is still for the occasion that outfit was for. A new question starts over.
+  const directives = readRefinementDirectives(input.message);
+  const priorState = conciergeV1 ? input.priorOutfitState ?? null : null;
+  const messageOccasions = extractOccasionTokens(input.message);
+  const continuing = continuesOutfit({ prior: priorState, directives, messageOccasionTokens: messageOccasions });
+  const intent: EliseAdviceIntent = continuing && priorState?.intent
+    ? priorState.intent
+    : classifyEliseAdviceIntent(input.message, {
+        preferClosetFirst: true,
+        noShopping,
+      });
+  const occasionTokens = continuing
+    ? [...new Set([...(priorState?.occasionTokens ?? []), ...messageOccasions])]
+    : messageOccasions;
+  // An explicit colour wish ("make it red") must be able to surface a piece
+  // the scorer ranked just outside the grounded shortlist -- Signature Style
+  // cannot be allowed to hide it. The SAME scorer ranks a slightly wider
+  // window; the wish reorders it; the result is cut back to the usual bound.
+  const wishedColors = conciergeV1
+    ? constraintColors(
+        continuing ? [...(priorState?.activeConstraints ?? []), ...directives.constraints] : directives.constraints,
+        'prefer_color',
+      )
+    : [];
 
   let shortlist = [] as ReturnType<typeof rankAndBoundCandidates>;
   let retrievalLatencyMs = 0;
@@ -179,9 +207,10 @@ export async function runEliseAdvicePipeline(input: {
         focus: focused,
         candidates: retrieval.candidates,
         intent,
-        occasionTokens: extractOccasionTokens(input.message),
+        occasionTokens,
         seasonTokens: extractSeasonTokens(input.message, input.weatherSummary),
         signatureStyleTokens: extractSignatureTokens(input.signatureStyleSummary),
+        ...(wishedColors.length ? { limit: ELISE_ADVICE_LIMITS.groundedShortlist + 6 } : {}),
       });
       scoringLatencyMs = Date.now() - scoreStarted;
     } else {
@@ -226,23 +255,101 @@ export async function runEliseAdvicePipeline(input: {
   //
   // Concierge-gated: with the flag off the plan is empty, no candidate is
   // excluded, and the result is byte-identical to the pre-V2 one.
-  const directives = readRefinementDirectives(input.message);
+  // Build 35: "no leather" is a material only when this Closet's own records
+  // use the word -- there is no second material vocabulary to consult.
+  if (conciergeV1 && directives.negatedTerms.length) {
+    const recorded = new Set(
+      authorizedCandidates.flatMap((candidate) =>
+        `${candidate.materials.join(' ')} ${candidate.title ?? ''}`.toLowerCase().split(/[^a-z]+/)
+      ),
+    );
+    for (const term of directives.negatedTerms) {
+      if (recorded.has(term)) directives.constraints.push(`not_material:${term}`.slice(0, 32));
+    }
+  }
   const plan = conciergeV1
-    ? planRefinement({ prior: input.priorOutfitState ?? null, directives })
+    ? planRefinement({
+        prior: priorState,
+        directives,
+        candidates: authorizedCandidates,
+        messageOccasionTokens: messageOccasions,
+      })
     : {
         continued: false,
         excludedCandidateIds: [],
         excludedGarmentClasses: [],
         retainedCandidateIds: [],
         activeConstraints: [],
+        preservedCandidateIds: [],
+        ambiguity: null,
+        unresolved: [],
       };
 
   const exclusion = applyRefinementExclusions({
     shortlist,
     excludedCandidateIds: plan.excludedCandidateIds,
     excludedGarmentClasses: plan.excludedGarmentClasses,
+    excludedColors: constraintColors(plan.activeConstraints, 'not_color'),
+    excludedMaterials: plan.activeConstraints
+      .filter((code) => code.startsWith('not_material:'))
+      .map((code) => code.slice('not_material:'.length)),
   });
   shortlist = exclusion.shortlist;
+
+  // Build 35 -- PRESERVE WHAT STILL WORKS. The pieces the refinement did not
+  // target go first, so the deterministic look builder below composes the
+  // next look around them. A formality shift moves exactly one piece -- the
+  // most visible one on the wrong side, read from the item's own words by the
+  // same formality facts Packing uses -- and offers a same-role piece from the
+  // right side in its place. Reordering only: nothing is added.
+  let keepFirst: string[] = [];
+  const demote: string[] = [];
+  if (conciergeV1 && plan.continued) {
+    keepFirst = [...plan.retainedCandidateIds, ...plan.preservedCandidateIds]
+      .filter((id, index, all) => all.indexOf(id) === index);
+    const shift = directives.constraints.includes('less_formal')
+      ? 'less_formal'
+      : directives.constraints.includes('more_formal')
+      ? 'more_formal'
+      : null;
+    if (shift) {
+      const byId = new Map(shortlist.map((scored) => [scored.candidate.candidateId, scored.candidate]));
+      const bandOf = (id: string) => {
+        const candidate = byId.get(id);
+        return candidate ? formalityBandOf(candidate) : null;
+      };
+      const wrongSide = (band: string | null) =>
+        band !== null && (shift === 'less_formal' ? ['smart', 'formal'] : ['casual', 'athletic']).includes(band);
+      const rightSide = (band: string | null) =>
+        band !== null && (shift === 'less_formal' ? ['casual', 'athletic'] : ['smart', 'formal']).includes(band);
+      for (const role of ['outer', 'shoe', 'bottom']) {
+        const roleOfId = (id: string) => {
+          const candidate = byId.get(id);
+          return candidate ? refinementRoleOf(candidate) : null;
+        };
+        const piece = keepFirst.find((id) =>
+          roleOfId(id) === role && !plan.retainedCandidateIds.includes(id) && wrongSide(bandOf(id))
+        );
+        if (!piece) continue;
+        keepFirst = keepFirst.filter((id) => id !== piece);
+        demote.push(piece);
+        const replacement = shortlist.find((scored) =>
+          refinementRoleOf(scored.candidate) === role && !keepFirst.includes(scored.candidate.candidateId) &&
+          scored.candidate.candidateId !== piece && rightSide(bandOf(scored.candidate.candidateId))
+        );
+        if (replacement) keepFirst.push(replacement.candidate.candidateId);
+        break;
+      }
+    }
+  }
+  if (conciergeV1) {
+    shortlist = orderForRefinement({
+      shortlist,
+      keepFirst,
+      preferColors: constraintColors(plan.activeConstraints, 'prefer_color'),
+      demote,
+    }).slice(0, ELISE_ADVICE_LIMITS.groundedShortlist);
+  }
 
   const wardrobeGap =
     flags.wardrobeGapV1 &&
@@ -277,12 +384,27 @@ export async function runEliseAdvicePipeline(input: {
         retainedCandidateIds: plan.retainedCandidateIds,
         activeConstraints: plan.activeConstraints,
         newOutfitId: input.newOutfitId ?? 'outfit_unset',
+        ...(plan.continued ? { rejectedCandidateIds: plan.excludedCandidateIds } : {}),
+        intent,
+        occasionTokens,
+        looks: looks?.map((look) => look.candidateIds) ?? null,
       })
     : null;
 
   const outfitState: EliseOutfitState | null = projected?.state ?? null;
+  const inShortlist = new Set(shortlist.map((scored) => scored.candidate.candidateId));
+  const preservedIds = plan.preservedCandidateIds.filter((id) => inShortlist.has(id) && !demote.includes(id));
   const refinement: EliseRefinementOutcome | null = projected
-    ? { ...projected.outcome, action: directives.action }
+    ? {
+        ...projected.outcome,
+        action: directives.action,
+        // Build 35 fields are present only when they say something, so an
+        // ordinary turn's metadata is unchanged.
+        ...(plan.continued && preservedIds.length ? { preservedIds } : {}),
+        ...(plan.ambiguity ? { ambiguousCandidateIds: plan.ambiguity.candidateIds } : {}),
+        ...(plan.unresolved.length ? { unresolved: plan.unresolved } : {}),
+        ...(exclusion.unverifiedCandidateIds.length ? { unverifiedAttributeIds: exclusion.unverifiedCandidateIds } : {}),
+      }
     : null;
 
   const promptBlock = buildEliseAdvicePromptBlock({

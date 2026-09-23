@@ -41,6 +41,7 @@ import {
 } from '../services/packing/packingPlanCache';
 import type { PackingClarificationOption, PackingTripDraft } from '../types/packing';
 import { resolveRefinementIntent } from '../services/packing/packingRefinement';
+import { createRefinementSequence } from '../services/packing/packingRefinementSequence';
 
 export interface UsePackingPlanResult extends PackingSnapshot {
   available: boolean;
@@ -106,6 +107,18 @@ export function usePackingPlan(): UsePackingPlanResult {
 
   const available = PACKING_INTELLIGENCE_V1 && isAuthenticated;
 
+  // Build 35 (BLOCK-PC-Q2-15). Only the newest request may write the plan.
+  // Same request-generation idiom useCloset() uses: a completion whose
+  // generation is no longer current is discarded, so a slow first refinement
+  // can never overwrite a faster second one.
+  const requestGenerationRef = useRef(0);
+  // Refinements are applied in order, each to the plan the previous one
+  // produced: "different shoes" then "no sneakers" must end with both, not with
+  // whichever response lands last. A refinement waits for the one in flight
+  // and is then sent with the state that one returned.
+  const refinementSequenceRef = useRef<ReturnType<typeof createRefinementSequence> | null>(null);
+  refinementSequenceRef.current ??= createRefinementSequence();
+
   const run = useCallback(
     async (
       trip: PackingTripDraft,
@@ -114,6 +127,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       dispatch?: PackingRefinementDispatch,
     ) => {
       if (!actorId) return;
+      const requestGeneration = ++requestGenerationRef.current;
       // Capture the actor generation before the request. An A -> B -> A cycle
       // returns the same actorId but a new epoch, so the epoch-based scope
       // (not actorId alone) is what correctly rejects a response that resolves
@@ -150,6 +164,9 @@ export function usePackingPlan(): UsePackingPlanResult {
       // late completion across an actor boundary is discarded, exactly as
       // useCloset()/useLibrary() discard theirs.
       if (!isActorScopeCurrent(scope)) return;
+      // A newer request has started since this one; its result is the one the
+      // traveller is waiting for.
+      if (requestGenerationRef.current !== requestGeneration) return;
 
       if (result.status === 'success' && result.plan) {
         applyPackingPlan({ actorId, plan: result.plan, message: result.message,
@@ -251,46 +268,52 @@ export function usePackingPlan(): UsePackingPlanResult {
 
   const refineWith = useCallback(
     async (note: string) => {
-      const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
-      if (!available || !actorId || !current.trip || !note.trim()) return;
+      if (!available || !actorId || !note.trim()) return;
+      // Queued behind any refinement in flight. The snapshot is read only when
+      // this one's turn comes, so it carries the plan the previous one produced.
+      const refineCurrentPlan = async () => {
+        const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
+        if (!available || !actorId || !current.trip || !note.trim()) return;
 
-      // Build 35. A day-by-day plan carries structured state, and its
-      // refinement is resolved ON THE SERVER against that state: local changes
-      // stay local, pins hold, rejections persist, and ambiguity is asked about
-      // rather than guessed. The sentence is NOT appended to the V1 note list --
-      // the server records what it understood as state instead.
-      if (current.plan?.state) {
+        // Build 35. A day-by-day plan carries structured state, and its
+        // refinement is resolved ON THE SERVER against that state: local changes
+        // stay local, pins hold, rejections persist, and ambiguity is asked about
+        // rather than guessed. The sentence is NOT appended to the V1 note list --
+        // the server records what it understood as state instead.
+        if (current.plan?.state) {
+          await run(
+            current.trip,
+            {
+              excludeItemIds: current.excludedItemIds,
+              notes: current.constraintNotes,
+              packLight: current.packLight,
+            },
+            current.sessionId ?? newSessionId(),
+            { refinement: { message: note.trim().slice(0, 300) }, priorState: current.plan.state },
+          );
+          return;
+        }
+
+        // A refinement that unambiguously names one item in the plan on screen
+        // becomes a HARD exclusion the server enforces in post-model
+        // validation -- so "don't bring the boots" removes the boots whether or
+        // not the model cooperates. Anything the resolver cannot decode still
+        // reaches the model as a constraint, so a refinement never silently
+        // does nothing.
+        const intent = resolveRefinementIntent(note, current.plan);
+        const notes = addPackingConstraintNote(actorId, intent.note);
+        let excludeItemIds = current.excludedItemIds;
+        for (const itemId of intent.excludeItemIds) {
+          excludeItemIds = excludePackingItem(actorId, itemId);
+        }
+
         await run(
           current.trip,
-          {
-            excludeItemIds: current.excludedItemIds,
-            notes: current.constraintNotes,
-            packLight: current.packLight,
-          },
+          { excludeItemIds, notes, packLight: current.packLight },
           current.sessionId ?? newSessionId(),
-          { refinement: { message: note.trim().slice(0, 300) }, priorState: current.plan.state },
         );
-        return;
-      }
-
-      // A refinement that unambiguously names one item in the plan on screen
-      // becomes a HARD exclusion the server enforces in post-model
-      // validation -- so "don't bring the boots" removes the boots whether or
-      // not the model cooperates. Anything the resolver cannot decode still
-      // reaches the model as a constraint, so a refinement never silently
-      // does nothing.
-      const intent = resolveRefinementIntent(note, current.plan);
-      const notes = addPackingConstraintNote(actorId, intent.note);
-      let excludeItemIds = current.excludedItemIds;
-      for (const itemId of intent.excludeItemIds) {
-        excludeItemIds = excludePackingItem(actorId, itemId);
-      }
-
-      await run(
-        current.trip,
-        { excludeItemIds, notes, packLight: current.packLight },
-        current.sessionId ?? newSessionId(),
-      );
+      };
+      await refinementSequenceRef.current!(refineCurrentPlan);
     },
     [available, actorId, run],
   );
