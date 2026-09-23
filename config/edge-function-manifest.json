@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-23T00:06:48.051Z",
-    "generatedFromGitSha": "160e99c8bcb56d23d91e412906da2ff2880a6446"
+    "generatedAtUtc": "2026-09-23T00:17:09.490Z",
+    "generatedFromGitSha": "7ea20af448363ae163af360ec1210decbbf60e32"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -498,8 +498,8 @@
         ],
         "bundleFileCount": 61,
         "treeFileCount": 88,
-        "bundleHash": "8333c48c21eaac2d79381fb9c1aad51c8616bb0dd0cbe70cb8f8685cf97a5876",
-        "treeHash": "8effa0f572ac1645e3b0f0170d823a304854e9448a95eb28e3702f24955e32e9",
+        "bundleHash": "b3b66c0a49834c48861331993e58b855d6c344614f69bed18baa4f52136c5481",
+        "treeHash": "5b0305e61e0574c08d51161bf9398c564f569ad4cb83d3fd5abe2451d37236ea",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -583,7 +583,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
-            "sha256": "45c5fc47a01333fda76f204f5bfb092f9e6f89d4c6960a5663f675cfc47d877e",
+            "sha256": "95e2bfe3c8df42460d1df8f79c6faa2bfb1a65409605de8776490cd4cc876c01",
             "bundle": true
           },
           {
@@ -683,7 +683,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOutfitState.ts",
-            "sha256": "fc798117400e5fc296a4eeb3aed07bc6a86703c95263d56afb03bdeb3a9a05f4",
+            "sha256": "ca48bd2e7a5e78a9961d96c885096060d6f35087287ed423d013aa14abed27ac",
             "bundle": true
           },
           {

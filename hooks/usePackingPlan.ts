@@ -266,60 +266,56 @@ export function usePackingPlan(): UsePackingPlanResult {
     [available, actorId, run],
   );
 
-  const refineCurrentPlan = useCallback(
-    async (note: string) => {
-      const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
-      if (!available || !actorId || !current.trip || !note.trim()) return;
-
-      // Build 35. A day-by-day plan carries structured state, and its
-      // refinement is resolved ON THE SERVER against that state: local changes
-      // stay local, pins hold, rejections persist, and ambiguity is asked about
-      // rather than guessed. The sentence is NOT appended to the V1 note list --
-      // the server records what it understood as state instead.
-      if (current.plan?.state) {
-        await run(
-          current.trip,
-          {
-            excludeItemIds: current.excludedItemIds,
-            notes: current.constraintNotes,
-            packLight: current.packLight,
-          },
-          current.sessionId ?? newSessionId(),
-          { refinement: { message: note.trim().slice(0, 300) }, priorState: current.plan.state },
-        );
-        return;
-      }
-
-      // A refinement that unambiguously names one item in the plan on screen
-      // becomes a HARD exclusion the server enforces in post-model
-      // validation -- so "don't bring the boots" removes the boots whether or
-      // not the model cooperates. Anything the resolver cannot decode still
-      // reaches the model as a constraint, so a refinement never silently
-      // does nothing.
-      const intent = resolveRefinementIntent(note, current.plan);
-      const notes = addPackingConstraintNote(actorId, intent.note);
-      let excludeItemIds = current.excludedItemIds;
-      for (const itemId of intent.excludeItemIds) {
-        excludeItemIds = excludePackingItem(actorId, itemId);
-      }
-
-      await run(
-        current.trip,
-        { excludeItemIds, notes, packLight: current.packLight },
-        current.sessionId ?? newSessionId(),
-      );
-    },
-    [available, actorId, run],
-  );
-
   const refineWith = useCallback(
     async (note: string) => {
       if (!available || !actorId || !note.trim()) return;
-      // Queue behind any refinement in flight; the snapshot is read only when
+      // Queued behind any refinement in flight. The snapshot is read only when
       // this one's turn comes, so it carries the plan the previous one produced.
-      await refinementSequenceRef.current!(() => refineCurrentPlan(note));
+      const refineCurrentPlan = async () => {
+        const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
+        if (!available || !actorId || !current.trip || !note.trim()) return;
+
+        // Build 35. A day-by-day plan carries structured state, and its
+        // refinement is resolved ON THE SERVER against that state: local changes
+        // stay local, pins hold, rejections persist, and ambiguity is asked about
+        // rather than guessed. The sentence is NOT appended to the V1 note list --
+        // the server records what it understood as state instead.
+        if (current.plan?.state) {
+          await run(
+            current.trip,
+            {
+              excludeItemIds: current.excludedItemIds,
+              notes: current.constraintNotes,
+              packLight: current.packLight,
+            },
+            current.sessionId ?? newSessionId(),
+            { refinement: { message: note.trim().slice(0, 300) }, priorState: current.plan.state },
+          );
+          return;
+        }
+
+        // A refinement that unambiguously names one item in the plan on screen
+        // becomes a HARD exclusion the server enforces in post-model
+        // validation -- so "don't bring the boots" removes the boots whether or
+        // not the model cooperates. Anything the resolver cannot decode still
+        // reaches the model as a constraint, so a refinement never silently
+        // does nothing.
+        const intent = resolveRefinementIntent(note, current.plan);
+        const notes = addPackingConstraintNote(actorId, intent.note);
+        let excludeItemIds = current.excludedItemIds;
+        for (const itemId of intent.excludeItemIds) {
+          excludeItemIds = excludePackingItem(actorId, itemId);
+        }
+
+        await run(
+          current.trip,
+          { excludeItemIds, notes, packLight: current.packLight },
+          current.sessionId ?? newSessionId(),
+        );
+      };
+      await refinementSequenceRef.current!(refineCurrentPlan);
     },
-    [available, actorId, refineCurrentPlan],
+    [available, actorId, run],
   );
 
   const answerClarification = useCallback(

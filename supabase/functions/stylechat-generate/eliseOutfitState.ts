@@ -426,7 +426,8 @@ const CHANGE_PATTERN = /\b(?:change|swap|replace|different|don'?t\s+like|not)\b/
 const OTHER_REFERENCE = /\bthe\s+other\s+([a-z]+)\b/i;
 const CORRECTION = /\b(?:that'?s|it'?s|this\s+is|those\s+are|these\s+are|they'?re|they\s+are|it\s+is|is|are)\s+(?:actually\s+)?(?:a\s+|an\s+)?([a-z]+),?\s+not\s+(?:a\s+|an\s+)?([a-z]+)\b/i;
 const POSITIVE_COLOR = /\b(?:make\s+it|in|wear|use|want|prefer|go\s+with|something|instead|bright)\b/i;
-const COLOR_ALLOWED =/\b([a-z]+)\s+is\s+(?:fine|ok(?:ay)?|good)\b/i;
+const COLOR_ALLOWED = /\b([a-z]+)\s+is\s+(?:fine|ok(?:ay)?|good)\b/i;
+const CLASS_ALLOWED = /\b([a-z]+)\s+(?:are|is)\s+(?:fine|ok(?:ay)?|good)\b/i;
 
 export interface EliseRefinementTarget {
   /** 'reject': the user turned it down. 'swap': replace it and keep the rest. */
@@ -476,6 +477,8 @@ export interface EliseRefinementDirectives {
   negatedTerms: string[];
   /** Build 35: colours the user withdrew an exclusion for ("black is fine"). */
   allowedColors: string[];
+  /** Build 35: garment classes the user withdrew an exclusion for ("heels are fine"). */
+  allowedClasses: string[];
   /** Build 35: the message asks a new question; the old outfit's state does not apply. */
   newTask: boolean;
   /** Build 35: "I don't own that anymore" -- a piece named only by pronoun. */
@@ -529,6 +532,12 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
   }
   const allowed = COLOR_ALLOWED.exec(text);
   if (allowed && COLOR_TOKENS.includes(allowed[1].toLowerCase())) allowedColors.push(allowed[1].toLowerCase());
+  // "Actually heels are fine": the same lift for a garment class. Matches the
+  // client conversation frame (PR #454), so the two layers agree on it.
+  const allowedClasses: string[] = [];
+  const classAllowed = CLASS_ALLOWED.exec(text);
+  const liftedClass = classAllowed ? garmentClassOf(classAllowed[1]) : null;
+  if (liftedClass) allowedClasses.push(liftedClass);
 
   // A correction describes a piece; it is not a rejection of the word it corrects.
   const scanText = correction ? text.replace(correction[0], ' ') : text;
@@ -652,7 +661,7 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
     action = 'refine_keep';
   } else if (ordinal?.mode === 'change') action = 'refine_swap';
   else if (variation || reject || swap) action = 'refine_variation';
-  else if ((constraints.length || negatedTerms.length || allowedColors.length) && words.length <= 12) {
+  else if ((constraints.length || negatedTerms.length || allowedColors.length || allowedClasses.length) && words.length <= 12) {
     action = 'refine_constraint';
   }
 
@@ -667,6 +676,7 @@ export function readRefinementDirectives(message: string): EliseRefinementDirect
     otherReference,
     negatedTerms: [...new Set(negatedTerms)].slice(0, 4),
     allowedColors,
+    allowedClasses,
     newTask,
     pronounReference,
   };
@@ -785,6 +795,18 @@ export function planRefinement(input: {
 
   for (const garment of directives.rejectedGarmentClasses) {
     if (!excludedGarmentClasses.includes(garment)) excludedGarmentClasses.push(garment);
+  }
+  for (const garment of directives.allowedClasses) {
+    const index = excludedGarmentClasses.indexOf(garment);
+    if (index >= 0) excludedGarmentClasses.splice(index, 1);
+    // A class exclusion is also recorded by id (projectOutfitState keeps every
+    // removed id); lifting the class lifts those ids too, or it lifts nothing.
+    for (const id of [...excludedCandidateIds]) {
+      const candidate = byId.get(id);
+      if (candidate && candidateGarmentClasses(candidate).includes(garment)) {
+        excludedCandidateIds.splice(excludedCandidateIds.indexOf(id), 1);
+      }
+    }
   }
 
   const unresolved: string[] = [];
@@ -1079,6 +1101,12 @@ export function projectOutfitState(input: {
   activeConstraints: string[];
   /** Injected so this module stays pure and its output stays testable. */
   newOutfitId: string;
+  /**
+   * Build 35: the rejections to persist, already reconciled by planRefinement
+   * (accumulated, minus anything the user lifted). Absent -> prior + this
+   * turn's removals, exactly as before.
+   */
+  rejectedCandidateIds?: string[];
   /** Build 35: the task, its occasions, and the looks as presented. */
   intent?: EliseAdviceIntent;
   occasionTokens?: string[];
@@ -1115,7 +1143,8 @@ export function projectOutfitState(input: {
     retainedCandidateIds: honouredRetainedIds,
     rejectedCandidateIds: [
       ...new Set([
-        ...(input.continued && input.prior ? input.prior.rejectedCandidateIds : []),
+        ...(input.rejectedCandidateIds ??
+          (input.continued && input.prior ? input.prior.rejectedCandidateIds : [])),
         ...input.excludedCandidateIds,
       ]),
     ].slice(0, ELISE_OUTFIT_STATE_LIMITS.maxRejected),

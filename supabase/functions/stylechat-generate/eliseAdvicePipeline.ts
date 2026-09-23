@@ -384,6 +384,7 @@ export async function runEliseAdvicePipeline(input: {
         retainedCandidateIds: plan.retainedCandidateIds,
         activeConstraints: plan.activeConstraints,
         newOutfitId: input.newOutfitId ?? 'outfit_unset',
+        ...(plan.continued ? { rejectedCandidateIds: plan.excludedCandidateIds } : {}),
         intent,
         occasionTokens,
         looks: looks?.map((look) => look.candidateIds) ?? null,

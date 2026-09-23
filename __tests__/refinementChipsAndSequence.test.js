@@ -180,7 +180,10 @@ test('usePackingPlan: stale completions are discarded and refinements go through
   const staleCheck = hook.indexOf('if (requestGenerationRef.current !== requestGeneration) return;');
   const firstWrite = hook.indexOf('applyPackingPlan({ actorId');
   assert.ok(scopeCheck > 0 && scopeCheck < staleCheck && staleCheck < firstWrite);
-  assert.match(hook, /await refinementSequenceRef\.current!\(\(\) => refineCurrentPlan\(note\)\);/);
+  assert.match(hook, /await refinementSequenceRef\.current!\(refineCurrentPlan\);/);
+  // The snapshot is read INSIDE the queued task, so it is the previous refinement's plan.
+  const queued = hook.slice(hook.indexOf('const refineCurrentPlan = async'), hook.indexOf('await refinementSequenceRef'));
+  assert.match(queued, /const current = actorId \? getPackingSnapshotFor\(actorId\)/);
 });
 
 // ── Chips on the Packing screen: same authority, shared haptics ─────────────

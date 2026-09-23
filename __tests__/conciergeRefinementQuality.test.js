@@ -216,6 +216,14 @@ test('"no leather" is a material exclusion only because this Closet records leat
   assert.equal(has(second, SNEAKERS), false);
 });
 
+test('"actually heels are fine" lifts the heel exclusion and keeps the outfit going', async () => {
+  const [, second, third] = await conversation('Build me an outfit for dinner', 'No heels', 'Actually heels are fine');
+  assert.deepEqual(second.outfitState.rejectedGarmentClasses, ['heel']);
+  assert.equal(third.refinement.continued, true);
+  assert.deepEqual(third.outfitState.rejectedGarmentClasses, []);
+  assert.equal(has(third, HEELS), true);
+});
+
 // ── C5 / BLOCK-07: exact rejections do not broaden ─────────────────────────
 
 test('C5 BLOCK-07: "I don\'t like those boots" rejects that pair, not the boot class, and it does not return', async () => {
