@@ -528,11 +528,18 @@ test('14. production function deploy verifies required Supabase secret names wit
     /SECRET_LIST_JSON="\$RUNNER_TEMP\/production-edge-secrets\.json"/,
     'the secret inventory capture must live outside the checkout',
   );
-  assert.match(shell, /KPLUS_RECONCILE_INTERNAL_SECRET/);
-  assert.match(shell, /REVENUECAT_SYNC_ENABLED/);
-  assert.match(shell, /REVENUECAT_PROJECT_ID/);
-  assert.match(shell, /REVENUECAT_KPLUS_ENTITLEMENT_ID/);
-  assert.match(shell, /REVENUECAT_SECRET_API_KEY/);
+
+  // K+ reconcile has three hard prerequisites for a future live RevenueCat
+  // connection. The internal invoker secret and the enable flag are different:
+  // if absent, the deployed function is inert/fail-closed rather than unsafe.
+  assert.match(
+    shell,
+    /kplus-reconcile-revenuecat[\s\S]*?required=\([\s\S]*?REVENUECAT_PROJECT_ID[\s\S]*?REVENUECAT_KPLUS_ENTITLEMENT_ID[\s\S]*?REVENUECAT_SECRET_API_KEY[\s\S]*?\)/,
+  );
+  assert.match(
+    shell,
+    /optional_safe_disabled=\([\s\S]*?KPLUS_RECONCILE_INTERNAL_SECRET[\s\S]*?REVENUECAT_SYNC_ENABLED[\s\S]*?\)/,
+  );
   assert.match(shell, /vto-generate[\s\S]*?required=\(RAPIDAPI_KEY\)/);
 
   assert.ok(
@@ -546,11 +553,31 @@ test('14. production function deploy verifies required Supabase secret names wit
   assert.match(
     shell,
     /Missing required production Edge Function secret names:/,
-    'missing names must fail closed before deployment',
+    'hard prerequisites must still fail closed before deployment',
   );
   assert.match(
     shell,
-    /verified required production secret name:/,
-    'successful verification may report required names only',
+    /optional activation secret absent; function remains safe-disabled:/,
+    'safe-disabled activation inputs must be reported without blocking deploy',
+  );
+
+  const reconcile = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', 'kplus-reconcile-revenuecat', 'index.ts'),
+    'utf8',
+  );
+  const revenueCat = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', '_shared', 'revenuecat', 'revenueCatClient.ts'),
+    'utf8',
+  );
+
+  assert.match(
+    reconcile,
+    /!expectedSecret \|\| !providedSecret \|\| providedSecret !== expectedSecret[\s\S]*?401/,
+    'a missing internal reconcile secret must leave the function fail-closed at 401',
+  );
+  assert.match(
+    revenueCat,
+    /Deno\.env\.get\('REVENUECAT_SYNC_ENABLED'\) \?\? ''[\s\S]*?=== 'true'/,
+    'an absent RevenueCat sync flag must default to disabled',
   );
 });
