@@ -279,7 +279,8 @@
         "EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1": "true",
         "EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1": "true",
         "EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1": "true"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
