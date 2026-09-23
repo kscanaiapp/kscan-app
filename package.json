@@ -101,5 +101,12 @@
   "overrides": {
     "shell-quote": "^1.10.0",
     "browserslist": "4.28.8"
+  },
+  "expo": {
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
+    }
   }
 }
