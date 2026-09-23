@@ -441,8 +441,42 @@ export default function StyleChatSessionScreen() {
     });
   }, [updateStyleDnaPreferences]);
 
+  /**
+   * Commerce UX refinement chips. Only the LATEST shelf in the transcript may
+   * refine: an older shelf answers a request that has since moved on, and a
+   * chip there would silently act on the current one. A chip sends the same
+   * sentence the customer could type, through the same `sendMessage` gate
+   * (`canSend`, `isSending`) as the composer -- one send path, one set of
+   * Commerce V2 semantics. `isSending` serialises turns, so a late shelf can
+   * never land over a newer one.
+   */
+  const latestCommerceMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const blocks = messages[i]?.uiBlocks;
+      if (Array.isArray(blocks) && blocks.some((block) => block?.type === 'commerce_products')) {
+        return messages[i].id;
+      }
+    }
+    return null;
+  }, [messages]);
+  const [refiningFromMessageId, setRefiningFromMessageId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSending) setRefiningFromMessageId(null);
+  }, [isSending]);
+  const handleCommerceRefine = useCallback((messageId: string, text: string) => {
+    if (!canSend || isSending) return;
+    setRefiningFromMessageId(messageId);
+    void sendMessage(text);
+  }, [canSend, isSending, sendMessage]);
+
   const renderMessage = ({ item, index }: { item: StyleChatMessage; index: number }) => (
     <StyleChatBubble
+      onCommerceRefine={
+        item.id === latestCommerceMessageId && canSend && !isSending
+          ? (text: string) => handleCommerceRefine(item.id, text)
+          : undefined
+      }
+      commerceRefining={refiningFromMessageId === item.id && isSending}
       message={item}
       userKey={userKey}
       learnFromFeedback={styleDnaPreferences.learnFromFeedback}
@@ -664,7 +698,7 @@ export default function StyleChatSessionScreen() {
       <FlatList
         ref={listRef}
         data={messages}
-        extraData={[userKey, styleDnaPreferences.learnFromFeedback, styleDnaPreferences.showFeedbackControls, styleDnaPreferences.feedbackEducationDismissed]}
+        extraData={[userKey, styleDnaPreferences.learnFromFeedback, styleDnaPreferences.showFeedbackControls, styleDnaPreferences.feedbackEducationDismissed, latestCommerceMessageId, canSend, isSending, refiningFromMessageId]}
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         ListEmptyComponent={ListEmpty}

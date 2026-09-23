@@ -159,10 +159,16 @@ test('semantics: the Add to Dressing Room label tracks the visible text', () => 
   // The button previously announced "Add to Dressing Room" even while reading
   // "Can't Save Yet". It is NOT disabled in that state — it opens the sheet that
   // explains why — so it must not claim a disabled state either.
+  //
+  // Build 35 Commerce UX (§52-53): Save now shares one row with Watch so a card
+  // never stacks four equal-weight buttons, and its visible text is "Save". The
+  // accessible name still CONTAINS the visible word and names the destination
+  // ("Save to a Dressing Room"), which is the property this test protects.
   assert.match(
     SHELF,
-    /accessibilityLabel=\{\s*canSaveToRoom \? 'Add to Dressing Room' : "Can't save to a Dressing Room yet"\s*\}/,
+    /accessibilityLabel=\{\s*canSaveToRoom \? 'Save to a Dressing Room' : "Can't save to a Dressing Room yet"\s*\}/,
   );
+  assert.match(SHELF, /\{canSaveToRoom \? 'Save' : "Can't Save Yet"\}/, 'visible text is part of the accessible name');
   assert.doesNotMatch(SHELF, /accessibilityLabel="Add to Dressing Room"\s*\n\s*style=\{\[/);
 });
 
