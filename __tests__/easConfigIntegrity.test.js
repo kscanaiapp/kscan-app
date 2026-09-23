@@ -302,13 +302,13 @@ test('the production profile is not broadened by the certification matrix', () =
   }
 });
 
-test('NEGATIVE CONTROL: no profile other than staging-certification enables any certification feature', () => {
+test('NEGATIVE CONTROL: no profile other than the governed certification profiles enables any certification feature', () => {
   // The leak controls above name two profiles. This one is exhaustive, so a
   // profile added later (a second certification lane, a hotfix profile) is
   // covered the day it appears rather than the day someone remembers to add
   // it to a list.
   for (const [name, profile] of Object.entries(eas.build)) {
-    if (name === 'staging-certification') continue;
+    if (name === 'staging-certification' || name === 'production-certification') continue;
     for (const key of [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS]) {
       assert.ok(
         !(profile.env && key in profile.env),
@@ -335,11 +335,11 @@ test('Voice Scan is enabled ONLY through the flag, and only where the native sel
   for (const [name, profile] of Object.entries(eas.build)) {
     const resolved = resolveEasBuildProfile(eas, name);
     const voiceOn = resolved.env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true';
-    const selectorOn = resolved.env?.KSCAN_VOICE_CERTIFICATION === 'true';
+    const selectorOn = resolved.env?.KSCAN_VOICE_CERTIFICATION === 'true' || resolved.env?.KSCAN_VOICE_NATIVE_CAPABILITY === 'true';
     assert.equal(
       voiceOn,
       selectorOn,
-      `profile "${name}": EXPO_PUBLIC_VOICESCAN_ENABLED and KSCAN_VOICE_CERTIFICATION must be set together`,
+      `profile "${name}": EXPO_PUBLIC_VOICESCAN_ENABLED and a governed native Voice selector must be set together`,
     );
   }
 });
