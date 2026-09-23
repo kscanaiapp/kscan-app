@@ -44,6 +44,7 @@ import {
   PRODUCTION_PROJECT_REF,
 } from './lib/production-helpers.mjs';
 import { assertGovernedCommit } from './production-deploy-preflight.mjs';
+import { runWithTransientEdgeRuntimePullRetry } from './lib/supabase-deploy-retry.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 const BUNDLE_HASH_FIELDS = ['ezbr_sha256', 'sha256', 'bundle_sha256', 'hash'];
@@ -215,7 +216,17 @@ async function main() {
   }, null, 2));
 
   try {
-    runSupabaseProduction(deployArgs);
+    await runWithTransientEdgeRuntimePullRetry(
+      () => runSupabaseProduction(deployArgs),
+      {
+        onRetry: ({ attempt, nextAttempt, attempts, delayMs }) => {
+          console.warn(
+            `Transient GHCR Edge Runtime pull throttle on deploy attempt ${attempt}; ` +
+              `retrying attempt ${nextAttempt}/${attempts} in ${delayMs}ms.`,
+          );
+        },
+      },
+    );
   } catch (err) {
     fail(`Deploy failed: ${err.message}`);
   }
