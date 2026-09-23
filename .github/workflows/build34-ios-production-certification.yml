@@ -1,0 +1,150 @@
+name: Build 34 iOS Production Certification
+
+on:
+  push:
+    branches:
+      - release/build34-ios-production-certification
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build34-ios-production-certification
+  cancel-in-progress: false
+
+jobs:
+  prebuild-audit:
+    name: iOS pre-build audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate production-certification profile
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+          const cert = eas.build?.['production-certification'];
+          const prod = eas.build?.production;
+          if (!cert || !prod) throw new Error('production-certification or production profile missing');
+          if (cert.extends !== 'production') throw new Error('production-certification must extend production');
+          if (cert.environment !== 'production') throw new Error('production-certification must pin EAS environment=production');
+
+          const resolvedEnv = { ...(prod.env || {}), ...(cert.env || {}) };
+          const requiredTrue = [
+            'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
+            'EXPO_PUBLIC_SMART_WATCHLIST_V1',
+            'EXPO_PUBLIC_VTO_UI_ENABLED',
+            'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
+            'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
+            'EXPO_PUBLIC_VOICESCAN_ENABLED',
+            'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
+            'EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1',
+            'EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1',
+            'EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1',
+          ];
+          for (const key of requiredTrue) {
+            if (resolvedEnv[key] !== 'true') throw new Error(key + ' must resolve true');
+          }
+          const url = resolvedEnv.EXPO_PUBLIC_SUPABASE_URL || '';
+          if (!url.includes('wyyuqfdxucjksghsmhry')) throw new Error('production Supabase ref missing');
+          if (url.includes('yzqjvdfgefveprobvvyw')) throw new Error('staging Supabase ref leaked into certification profile');
+          console.log('production-certification matrix: PASS');
+          NODE
+
+      - name: Native config parity
+        run: npm run verify:native-config-parity
+
+      - name: Dependency reachability
+        run: npm run verify:dependency-reachability
+
+      - name: Full regression suite
+        run: npm run test:all
+
+      - name: Expo Doctor
+        run: npx expo-doctor@latest
+
+      - name: Apple readiness source checks
+        run: npm run verify:apple-readiness
+
+      - name: Release JS export
+        env:
+          CI: '1'
+        run: npx expo export --platform ios --output-dir dist-prebuild-ios
+
+      - name: Confirm Expo authentication prerequisite
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::GitHub secret EXPO_TOKEN is missing. A full EAS cloud build cannot be launched non-interactively."
+            exit 1
+          fi
+          npx eas-cli@latest whoami
+
+  eas-build:
+    name: iOS full EAS build
+    needs: prebuild-audit
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Launch and wait for iOS EAS build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx eas-cli@latest build \
+            --platform ios \
+            --profile production-certification \
+            --non-interactive \
+            --wait \
+            --json > eas-ios-build.json
+          cat eas-ios-build.json
+
+      - name: Publish build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: build34-ios-eas-result-${{ github.run_number }}
+          path: eas-ios-build.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build summary
+        shell: bash
+        run: |
+          node <<'NODE' >> "${GITHUB_STEP_SUMMARY}"
+          const fs = require('fs');
+          const raw = JSON.parse(fs.readFileSync('eas-ios-build.json', 'utf8'));
+          const b = Array.isArray(raw) ? raw[0] : raw;
+          console.log('## Build 34 iOS EAS');
+          console.log('');
+          console.log('- SHA: `' + process.env.GITHUB_SHA + '`');
+          console.log('- Build ID: `' + (b?.id || 'unknown') + '`');
+          console.log('- Status: `' + (b?.status || 'unknown') + '`');
+          if (b?.buildUrl) console.log('- Build: ' + b.buildUrl);
+          if (b?.artifacts?.applicationArchiveUrl) console.log('- Artifact: ' + b.artifacts.applicationArchiveUrl);
+          NODE
