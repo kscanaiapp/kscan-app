@@ -391,6 +391,14 @@ export default function App() {
   const [savedMultiItemScanId, setSavedMultiItemScanId] = useState(null);
   const [savedToast, setSavedToast] = useState(false);
   const [savedScanId, setSavedScanId] = useState(null);
+  // Persistence generation survives benign analysis-object replacements (for
+  // example deferred commerce/sneaker enrichment) but changes for a genuinely
+  // new scan or an unmount. Async saves may surface their id only while the
+  // generation that started them is still current.
+  const scanPersistenceGenerationRef = useRef(0);
+  useEffect(() => () => {
+    scanPersistenceGenerationRef.current += 1;
+  }, []);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
@@ -406,6 +414,9 @@ export default function App() {
     prevStatus.current = status;
 
     if (status === 'processing') {
+      // A new analysis invalidates any save still resolving for the prior scan.
+      // Enrichment while status=result does NOT change this generation.
+      scanPersistenceGenerationRef.current += 1;
       // New analysis: reset post-result HUD and mount a fresh processing HUD
       setPerceiving(false);
       setProcHudKey(k => k + 1);
@@ -451,21 +462,24 @@ export default function App() {
       hasSavedRef.current
     ) return;
     hasSavedRef.current = true;
-    let live = true;
+    const saveGeneration = scanPersistenceGenerationRef.current;
     // Capture (actorId, actorEpoch, requestId) BEFORE the async save. The
     // persistence layer derives ownership from this and rejects the write if
     // the actor changed while the scan was being persisted.
     const actorRequest = createActorRequest();
     saveScan({ photoUri: photo.uri, analysis, source: photo.source || 'scan', actorRequest })
       .then(saved => {
-        // Guard the visible result too: a save that committed under the previous
-        // actor must not surface a toast or selected id to the new one.
-        if (live && saved && isActorRequestCurrent(actorRequest)) {
+        // Do not cancel merely because deferred enrichment replaced `analysis`.
+        // Only a new scan/unmount generation or actor switch can make this save stale.
+        if (
+          saved &&
+          saveGeneration === scanPersistenceGenerationRef.current &&
+          isActorRequestCurrent(actorRequest)
+        ) {
           setSavedScanId(saved.id);
           setSavedToast(true);
         }
       });
-    return () => { live = false; };
   }, [status, photo, analysis]);
 
   // v127: attach commerce that arrived after the scan row was already written.
@@ -504,7 +518,7 @@ export default function App() {
       hasSavedMultiItemRef.current
     ) return;
     hasSavedMultiItemRef.current = true;
-    let live = true;
+    const saveGeneration = scanPersistenceGenerationRef.current;
     const actorRequest = createActorRequest();
     saveMultiItemScan({
       photoUri: photo.uri,
@@ -513,11 +527,14 @@ export default function App() {
       source: photo.source || 'scan',
       actorRequest,
     }).then(saved => {
-      if (live && saved && isActorRequestCurrent(actorRequest)) {
+      if (
+        saved &&
+        saveGeneration === scanPersistenceGenerationRef.current &&
+        isActorRequestCurrent(actorRequest)
+      ) {
         setSavedMultiItemScanId(saved.id);
       }
     });
-    return () => { live = false; };
   }, [status, photo, analysis]);
 
   // Build 32: attach multi-item commerce once hydration completes. Same
