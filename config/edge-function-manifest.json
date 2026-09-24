@@ -44,7 +44,7 @@
         "bundleFileCount": 42,
         "treeFileCount": 70,
         "bundleHash": "2ca6909196a1a3f0de695581e832852e7ef4576cf3e9eeeee6e0d029ac7e8551",
-        "treeHash": "d3822bea64a514a5bdd7fc5c9d9680418af4ad987e4454512a9060f7316dc96f",
+        "treeHash": "58a4a3eedac9bcaee8aef71fafd0d7d557e3c763ae159b9d4d2ccec992d2fc21",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -98,7 +98,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
-            "sha256": "06fb30ed66cad178e3b473b64ef5fffd225c741a7c215abbc0aff47b2d07764e",
+            "sha256": "2e4711a6c4e0f50c6c3458331eabde7f1760d82867f3905e11806356bb5e9f50",
             "bundle": false
           },
           {
