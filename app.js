@@ -659,10 +659,12 @@ export default function App() {
   }
 
   if (!permission.granted) {
-    // iOS never shows the camera prompt again after a denial, so
-    // requestPermission() resolves without any UI and the button did nothing.
-    // There it opens Settings instead, which is what the copy asks for.
-    const openSettingsInstead = Platform.OS === 'ios' && permission.canAskAgain === false;
+    // Once canAskAgain is false (iOS after any denial, Android after "Don't ask
+    // again") the camera prompt is never shown again, so requestPermission()
+    // resolves without any UI and the button did nothing. There it opens
+    // Settings instead, which is what the copy asks for.
+    const openSettingsInstead =
+      (Platform.OS === 'ios' || Platform.OS === 'android') && permission.canAskAgain === false;
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
