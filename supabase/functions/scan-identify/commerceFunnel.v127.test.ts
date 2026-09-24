@@ -1876,9 +1876,10 @@ Deno.test('v127 empty truth: discovered candidates filtered to zero report no_re
   try {
     const result = await getFastCommerceResults(fastInput('moto jacket filtered-empty'));
     assert.deepEqual(result.products.length, 0, 'the footwear candidate should be filtered for outerwear');
+    const serper = result.funnel.providers.find((provider) => provider.provider === 'serper');
     assert.ok(
-      (result.qualityTune?.productsBeforeFilter ?? 0) > 0,
-      'the test must prove retrieval returned a candidate before filtering',
+      (serper?.resultCount ?? 0) > 0,
+      'the test must prove a provider returned a candidate before the governed filter emptied the shelf',
     );
     assert.deepEqual(
       result.errorType,
