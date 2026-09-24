@@ -11,6 +11,8 @@ import {
   BackHandler,
   Modal,
   Alert,
+  Linking,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -657,6 +659,10 @@ export default function App() {
   }
 
   if (!permission.granted) {
+    // iOS never shows the camera prompt again after a denial, so
+    // requestPermission() resolves without any UI and the button did nothing.
+    // There it opens Settings instead, which is what the copy asks for.
+    const openSettingsInstead = Platform.OS === 'ios' && permission.canAskAgain === false;
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
@@ -665,7 +671,10 @@ export default function App() {
           <Text style={styles.infoText}>
             Camera access is currently disabled. Enable it in settings to continue.
           </Text>
-          <ActionButton label="Grant Access" onPress={requestPermission} />
+          <ActionButton
+            label={openSettingsInstead ? 'Open Settings' : 'Grant Access'}
+            onPress={openSettingsInstead ? () => Linking.openSettings() : requestPermission}
+          />
         </View>
       </SafeAreaView>
     );
