@@ -9,10 +9,17 @@ import {
   UIManager,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
 
 interface StyleAnalysisSectionProps {
   analysisText?: string;
   testID?: string;
+  /**
+   * Persisted identity of the scan this analysis describes (the Recent Scan id,
+   * or the QA fixture name): the report target. Null hides the Report control
+   * rather than filing a report the server cannot resolve.
+   */
+  scanSourceId?: string | null;
 }
 
 /**
@@ -25,8 +32,13 @@ interface StyleAnalysisSectionProps {
 export function StyleAnalysisSection({
   analysisText,
   testID,
+  scanSourceId,
 }: StyleAnalysisSectionProps) {
   const [expanded, setExpanded] = useState(false);
+  // Resolves the NEAREST provider: inside ScanResultV2 that is the one its Modal
+  // nests (ResultSurfaceModal), so the report sheet presents from the result's
+  // own view controller on iOS instead of the app-root one it cannot present over.
+  const { openAiOutputReport } = useAiOutputReporting();
 
   // Enable LayoutAnimation on Android
   if (Platform.OS === 'android') {
@@ -66,6 +78,27 @@ export function StyleAnalysisSection({
               </Text>
             </TouchableOpacity>
           )}
+
+          {/* In-app reporting of this model-authored prose. Scan Results V2 is the
+              surface every governed build renders for a live scan (AnalysisCard is
+              only reached from a reopened Recent Scan), so the control has to live
+              here or a live result offers no way to report it at all. Hidden until
+              the scan has a persisted id: a report with no target cannot be actioned. */}
+          {scanSourceId ? (
+            <TouchableOpacity
+              onPress={() =>
+                openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId })
+              }
+              style={styles.reportButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Report this style analysis as offensive or unsafe"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              testID="scan-result-v2-report-ai"
+            >
+              <Text style={styles.reportText}>Report Response</Text>
+            </TouchableOpacity>
+          ) : null}
         </>
       ) : (
         <Text style={styles.preparedBody}>
@@ -107,5 +140,19 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.ctaSecondary,
     fontSize: 12,
     letterSpacing: 1.6,
+  },
+  reportButton: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    // 48pt, the shared touch-target minimum (the legacy AnalysisCard control is 32).
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
 });

@@ -1185,7 +1185,13 @@ export default function App() {
           <ScanResultV2
             analysis={analysis}
             scanImageUri={photo?.uri ?? null}
-            scanSourceId={photo?.qaFixtureName ?? null}
+            // The report target for this scan's AI prose: its persisted Recent
+            // Scan id (saveScan resolves it a moment after the result appears),
+            // else the persisted multi-item scan id (the confirmation step skips
+            // the single-item save), else the QA fixture name. Null until one
+            // exists, which hides the Report control instead of filing a report
+            // the server cannot resolve.
+            scanSourceId={savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
             // v127 (P1-B): only meaningful on this live-scan surface — a
             // reopened Recent Scan (app/library.tsx) renders AnalysisCard
             // without this prop, so it stays 'idle' there and the section
@@ -1245,7 +1251,8 @@ export default function App() {
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
             scanImageUri={photo?.uri ?? null}
-            scanSourceId={photo?.qaFixtureName ?? null}
+            // Same report target as ScanResultV2 above.
+            scanSourceId={savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"
             onDismiss={dismissResult}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}

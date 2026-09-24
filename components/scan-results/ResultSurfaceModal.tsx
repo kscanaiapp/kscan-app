@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from 'react-native';
+import { AiOutputReportProvider } from '../../contexts/AiOutputReportingContext';
 
 interface ResultSurfaceModalProps {
   onRequestClose: () => void;
@@ -26,12 +27,20 @@ interface ResultSurfaceModalProps {
  * resolves to this Modal's own controller and presents normally. Android stacks
  * Dialogs and never needed the nesting; it is harmless there.
  *
+ * THE REPORT SHEET IS THE SAME CASE. "Report Response" opens a sheet that is itself
+ * a Modal, owned by AiOutputReportProvider, which the app mounts once at the root
+ * above the navigator. Opened from inside this Modal, that root sheet is a sibling
+ * again and iOS never presents it. So a provider is nested here: its sheet is a
+ * descendant of this Modal, and everything below that calls useAiOutputReporting()
+ * resolves the NEAREST provider, this one. The app-root provider is untouched and
+ * keeps serving screens that are not a Modal (StyleChat).
+ *
  * Regression tests: __tests__/iosScanResultSheetNesting.test.js.
  */
 export function ResultSurfaceModal({ onRequestClose, overlay, children }: ResultSurfaceModalProps) {
   return (
     <Modal transparent animationType="none" onRequestClose={onRequestClose}>
-      {children}
+      <AiOutputReportProvider>{children}</AiOutputReportProvider>
       {overlay}
     </Modal>
   );

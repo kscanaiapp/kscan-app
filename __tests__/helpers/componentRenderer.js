@@ -32,6 +32,10 @@ const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
+// React Native always defines __DEV__, and modules under test read it at call time
+// (a bare `if (__DEV__)`), not only at load. Node does not define it.
+if (typeof globalThis.__DEV__ === 'undefined') globalThis.__DEV__ = false;
+
 // ── Renderer ────────────────────────────────────────────────────────────────
 
 function sameDeps(left, right) {

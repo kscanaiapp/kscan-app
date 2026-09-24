@@ -25,6 +25,11 @@
  * Precedent: components/vto/VtoSaveToDressingRoom.tsx is mounted inside
  * VirtualTryOnSheet's Modal.
  *
+ * The same rule covers the Report sheet (WP-SCAN-04-IOS, second half of this file):
+ * "Report Response" opens a second Modal owned by AiOutputReportProvider, which the
+ * app mounts at the root. Opened from inside a result Modal it is a sibling again, so
+ * ResultSurfaceModal nests its own provider inside the Modal.
+ *
  * The component checks EXECUTE the real modules under __tests__/helpers/
  * componentRenderer.js. The app.js and library.tsx checks read the TypeScript AST,
  * because which element is a sibling of which is not a question a substring search
@@ -43,6 +48,7 @@ const {
   deepStub,
   descendantsOf,
   elementChildren,
+  findAll,
   jsxAttribute,
   jsxElementsNamed,
   jsxTagNameOf,
@@ -71,14 +77,46 @@ function theme() {
 
 // ── Loading the real surfaces ────────────────────────────────────────────────
 
-function loadResultSurfaceModal(renderer, options = {}) {
+/**
+ * A stand-in for contexts/AiOutputReportingContext with the ONE rule that matters
+ * here: the NEAREST provider wins. Each provider records its depth (0 for the
+ * app-root provider the test supplies, 1 for one nested inside a result Modal), and
+ * every report opened through it is recorded with that depth, so a test can see
+ * which provider a control actually resolved.
+ */
+function createReportContextStub(renderer) {
+  const Context = renderer.react.createContext(null);
+  const opened = [];
+  function AiOutputReportProvider({ children }) {
+    const parent = renderer.react.useContext(Context);
+    const depth = parent ? parent.depth + 1 : 0;
+    const value = renderer.react.useMemo(
+      () => ({ depth, openAiOutputReport: (request) => opened.push({ depth, request }) }),
+      [depth],
+    );
+    return renderer.jsx(Context.Provider, { value, children });
+  }
+  function useAiOutputReporting() {
+    const value = renderer.react.useContext(Context);
+    if (!value) throw new Error('useAiOutputReporting must be used inside AiOutputReportProvider.');
+    return value;
+  }
+  return {
+    opened,
+    AiOutputReportProvider,
+    module: { AiOutputReportProvider, useAiOutputReporting },
+  };
+}
+
+function loadResultSurfaceModal(renderer, { mutate, report } = {}) {
   return runModule(
     'components/scan-results/ResultSurfaceModal.tsx',
     {
       ...renderer.runtimeModules,
       'react-native': createReactNativeStub(),
+      '../../contexts/AiOutputReportingContext': (report ?? createReportContextStub(renderer)).module,
     },
-    options,
+    { mutate },
   );
 }
 
@@ -87,7 +125,10 @@ function loadResultSurfaceModal(renderer, options = {}) {
  * for the Modal wrapper: a negative control that mutates a wrapper nobody loaded
  * proves nothing.
  */
-function loadScanResultV2(renderer, { mutateV2, mutateWrapper, probe } = {}) {
+function loadScanResultV2(
+  renderer,
+  { mutateV2, mutateWrapper, probe, report, realStyleAnalysis, mutateSection } = {},
+) {
   const modules = {
     ...renderer.runtimeModules,
     'react-native': createReactNativeStub(),
@@ -104,7 +145,21 @@ function loadScanResultV2(renderer, { mutateV2, mutateWrapper, probe } = {}) {
     '../../constants/theme': theme(),
     './ScanResultHero': { ScanResultHero: 'ScanResultHero' },
     './StyleMatchPanel': { StyleMatchPanel: 'StyleMatchPanel' },
-    './StyleAnalysisSection': { StyleAnalysisSection: 'StyleAnalysisSection' },
+    // The real section (with its Report control) when a test needs it; the header is
+    // otherwise a plain host so the overlay checks stay independent of it.
+    get './StyleAnalysisSection'() {
+      if (!realStyleAnalysis) return { StyleAnalysisSection: 'StyleAnalysisSection' };
+      return runModule(
+        'components/scan-results/StyleAnalysisSection.tsx',
+        {
+          ...renderer.runtimeModules,
+          'react-native': createReactNativeStub(),
+          '../../constants/theme': theme(),
+          '../../contexts/AiOutputReportingContext': (report ?? createReportContextStub(renderer)).module,
+        },
+        { mutate: mutateSection },
+      );
+    },
     './SimilarFindsShelf': { SimilarFindsShelf: 'SimilarFindsShelf' },
     './PurchaseOptionsPanel': { PurchaseOptionsPanel: 'PurchaseOptionsPanel' },
     './MultiItemCommerceSection': { MultiItemCommerceSection: 'MultiItemCommerceSection' },
@@ -123,13 +178,13 @@ function loadScanResultV2(renderer, { mutateV2, mutateWrapper, probe } = {}) {
     // Lazy: the unrepaired ScanResultV2 never asks for it.
     get './ResultSurfaceModal'() {
       if (probe) probe.wrapperLoaded = true;
-      return loadResultSurfaceModal(renderer, { mutate: mutateWrapper });
+      return loadResultSurfaceModal(renderer, { mutate: mutateWrapper, report });
     },
   };
   return runModule('components/scan-results/ScanResultV2.tsx', modules, { mutate: mutateV2 });
 }
 
-function loadAnalysisCard(renderer, { mutateCard, mutateWrapper, probe } = {}) {
+function loadAnalysisCard(renderer, { mutateCard, mutateWrapper, probe, report } = {}) {
   const modules = {
     ...renderer.runtimeModules,
     'react-native': createReactNativeStub(),
@@ -147,9 +202,7 @@ function loadAnalysisCard(renderer, { mutateCard, mutateWrapper, probe } = {}) {
     '../hooks/useResponsiveLayout': {
       useResponsiveLayout: () => ({ height: 844, modalMaxWidth: 560 }),
     },
-    '../contexts/AiOutputReportingContext': {
-      useAiOutputReporting: () => ({ openAiOutputReport() {} }),
-    },
+    '../contexts/AiOutputReportingContext': (report ?? createReportContextStub(renderer)).module,
     '../constants/theme': theme(),
     './free-tier/SavedItemUtilityPanel': { SavedItemUtilityPanel: 'SavedItemUtilityPanel' },
     '../services/free-tier/itemNormalization': {
@@ -162,7 +215,7 @@ function loadAnalysisCard(renderer, { mutateCard, mutateWrapper, probe } = {}) {
     // Lazy: the unrepaired AnalysisCard never asks for it.
     get './scan-results/ResultSurfaceModal'() {
       if (probe) probe.wrapperLoaded = true;
-      return loadResultSurfaceModal(renderer, { mutate: mutateWrapper });
+      return loadResultSurfaceModal(renderer, { mutate: mutateWrapper, report });
     },
   };
   return runModule('components/AnalysisCard.tsx', modules, { mutate: mutateCard });
@@ -175,35 +228,43 @@ const ANALYSIS = {
   purchaseOptions: [],
 };
 
-function renderScanResultV2(options = {}) {
+/**
+ * Render a real surface the way the app does: under the app-root
+ * AiOutputReportProvider (here the stub at depth 0), because AnalysisCard's hook
+ * throws without one.
+ */
+function renderSurface(kind, options = {}) {
   const renderer = createRenderer();
-  const { ScanResultV2 } = loadScanResultV2(renderer, options);
-  return renderer.render(
-    renderer.jsx(ScanResultV2, {
+  const report = createReportContextStub(renderer);
+  const overlay = options.noOverlay ? undefined : renderer.jsx('View', { testID: OVERLAY_ID });
+  let surface;
+  if (kind === 'v2') {
+    const { ScanResultV2 } = loadScanResultV2(renderer, { ...options, report });
+    surface = renderer.jsx(ScanResultV2, {
       analysis: ANALYSIS,
       scanImageUri: 'file:///scan.jpg',
-      scanSourceId: 'scan_1',
+      scanSourceId: options.scanSourceId === undefined ? 'scan_1' : options.scanSourceId,
       onDismiss() {},
       onAddToDressingRoom() {},
-      overlay: options.noOverlay ? undefined : renderer.jsx('View', { testID: OVERLAY_ID }),
-    }),
-  );
-}
-
-function renderAnalysisCard(options = {}) {
-  const renderer = createRenderer();
-  const { AnalysisCard } = loadAnalysisCard(renderer, options);
-  return renderer.render(
-    renderer.jsx(AnalysisCard, {
+      overlay,
+    });
+  } else {
+    const { AnalysisCard } = loadAnalysisCard(renderer, { ...options, report });
+    surface = renderer.jsx(AnalysisCard, {
       result: ANALYSIS.result,
       metadata: ANALYSIS.metadata,
-      scanSourceId: 'scan_1',
+      scanSourceId: options.scanSourceId === undefined ? 'scan_1' : options.scanSourceId,
       onDismiss() {},
       onAddToDressingRoom() {},
-      overlay: options.noOverlay ? undefined : renderer.jsx('View', { testID: OVERLAY_ID }),
-    }),
-  );
+      overlay,
+    });
+  }
+  const tree = renderer.render(renderer.jsx(report.AiOutputReportProvider, { children: surface }));
+  return { tree, report };
 }
+
+const renderScanResultV2 = (options) => renderSurface('v2', options).tree;
+const renderAnalysisCard = (options) => renderSurface('card', options).tree;
 
 /** Problems with where the overlay sits; empty when it is the last child of the one Modal. */
 function overlayPlacementProblems(tree) {
@@ -634,4 +695,163 @@ test('NEGATIVE CONTROL: dropping overlay from the Library AnalysisCard is report
   const problems = overlayWiringProblems(parseSource(withoutOverlay, 'library.tsx'), 1);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /<AnalysisCard> receives no overlay/);
+});
+
+// ── WP-SCAN-04-IOS: the report sheet is the SECOND Modal that must present over a result ──
+//
+// "Report Response" opens a sheet, and that sheet is itself a Modal: the one
+// AiOutputReportProvider renders. The app mounts that provider at the ROOT, above
+// the navigator (app/_layout.tsx), so its Modal is a sibling of every screen Modal.
+// Opened from inside a result Modal it is the same modal-on-modal as above and, on
+// iOS, the sheet never appears. ResultSurfaceModal therefore mounts its OWN
+// AiOutputReportProvider inside the Modal: the sheet becomes a descendant of the
+// result's Modal, and anything below that calls useAiOutputReporting() resolves the
+// NEAREST provider. The app-root provider is untouched and keeps serving StyleChat.
+//
+// The nearest-provider rule is real in the stub the surfaces run against (see
+// createReportContextStub), so "the control resolves the nested provider" is observed.
+
+const REPORT_CONTROL = { v2: 'scan-result-v2-report-ai', card: 'analysis-card-report-ai' };
+
+/** Problems with the report sheet's placement; empty when the control opens a provider nested inside the one Modal. */
+function reportNestingProblems({ tree, report }, controlTestId) {
+  const modals = byType(tree, 'Modal');
+  if (modals.length !== 1) return [`expected exactly one Modal, found ${modals.length}`];
+  const [modal] = modals;
+  const problems = [];
+
+  const providers = descendantsOf(modal, (node) => node.type === report.AiOutputReportProvider);
+  if (providers.length !== 1) {
+    problems.push(`expected exactly one AiOutputReportProvider inside the Modal, found ${providers.length}`);
+  }
+  // The control is the HOST node. A component that forwards a testID prop (AnalysisCard's
+  // AnalysisReportButton) carries the same testID on its own node, which is not a second control.
+  const controls = findAll(tree, (node) => typeof node.type === 'string' && node.props?.testID === controlTestId);
+  if (controls.length !== 1) {
+    problems.push(`expected one ${controlTestId} control, found ${controls.length}`);
+    return problems;
+  }
+  if (providers.length === 1 && descendantsOf(providers[0], (node) => node === controls[0]).length !== 1) {
+    problems.push('the Report control is not rendered under the nested provider');
+  }
+
+  report.opened.length = 0;
+  controls[0].props.onPress();
+  const [call] = report.opened;
+  if (!call) {
+    problems.push('pressing the Report control opened no report');
+  } else if (call.depth !== 1) {
+    problems.push(
+      `the Report control opened the ${call.depth === 0 ? 'app-root' : `depth-${call.depth}`} provider, whose sheet cannot be presented over this Modal on iOS`,
+    );
+  }
+  return problems;
+}
+
+/** AnalysisCard's Report button must resolve the hook INSIDE the Modal, so it is a component of its own. */
+function analysisCardReportHookProblems(text) {
+  const sourceFile = parseSource(text, 'AnalysisCard.tsx');
+  const declaration = (name) =>
+    [...walkAst(sourceFile)].find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+  const hookCalls = (root) =>
+    [...walkAst(root)].filter(
+      (node) => ts.isCallExpression(node) && node.expression.getText() === 'useAiOutputReporting',
+    );
+  // A call belongs to the nearest enclosing function, not to every function above it.
+  const ownedBy = (call, owner) => {
+    for (let cursor = call.parent; cursor; cursor = cursor.parent) {
+      if (ts.isFunctionLike(cursor)) return cursor === owner;
+    }
+    return false;
+  };
+
+  const card = declaration('AnalysisCard');
+  if (!card) return ['AnalysisCard is not a function declaration'];
+  const problems = [];
+  if (hookCalls(card).some((call) => ownedBy(call, card))) {
+    problems.push(
+      'AnalysisCard calls useAiOutputReporting() in its own body: that resolves the app-root provider, not the one nested inside its Modal',
+    );
+  }
+  const button = declaration('AnalysisReportButton');
+  if (!button || !hookCalls(button).some((call) => ownedBy(call, button))) {
+    problems.push('AnalysisReportButton does not resolve useAiOutputReporting() itself');
+  }
+  const usages = jsxElementsNamed(sourceFile, 'AnalysisReportButton');
+  if (usages.length !== 1) problems.push(`expected one <AnalysisReportButton>, found ${usages.length}`);
+  return problems;
+}
+
+test('iOS report nesting: ScanResultV2 nests an AiOutputReportProvider inside its one Modal and its Report control resolves it', () => {
+  const rendered = renderSurface('v2', { realStyleAnalysis: true });
+  assert.deepEqual(reportNestingProblems(rendered, REPORT_CONTROL.v2), []);
+  assert.deepEqual(rendered.report.opened, [
+    { depth: 1, request: { feature: 'Scan Results', itemId: 'scan_1' } },
+  ]);
+});
+
+test('iOS report nesting: AnalysisCard nests an AiOutputReportProvider inside its one Modal and its Report control resolves it', () => {
+  const rendered = renderSurface('card');
+  assert.deepEqual(reportNestingProblems(rendered, REPORT_CONTROL.card), []);
+  assert.deepEqual(rendered.report.opened, [
+    { depth: 1, request: { feature: 'Scan Results', itemId: 'scan_1' } },
+  ]);
+});
+
+test('iOS report nesting: AnalysisCard resolves the report hook inside its Modal, not in its own body', () => {
+  assert.deepEqual(analysisCardReportHookProblems(readSource('components/AnalysisCard.tsx')), []);
+});
+
+test('iOS report nesting: the overlay still sits last inside the Modal once the provider is nested', () => {
+  for (const kind of ['v2', 'card']) {
+    const { tree } = renderSurface(kind, { realStyleAnalysis: true });
+    assert.deepEqual(overlayPlacementProblems(tree), []);
+  }
+});
+
+const DROP_NESTED_PROVIDER = (source) =>
+  source.replace(/<AiOutputReportProvider>([\s\S]*?)<\/AiOutputReportProvider>/, '<>$1</>');
+// The provider around the Modal instead of inside it: still "nested" by depth, but its
+// sheet would be a sibling of the result Modal again.
+const PROVIDER_OUTSIDE_MODAL = (source) =>
+  DROP_NESTED_PROVIDER(source)
+    .replace(/return \(\s*<Modal/, 'return (<AiOutputReportProvider><Modal')
+    .replace(/<\/Modal>\s*\)/, '</Modal></AiOutputReportProvider>)');
+
+test('NEGATIVE CONTROL: a wrapper without the nested provider is reported (the control falls back to the app-root provider)', () => {
+  for (const [kind, control] of [['v2', REPORT_CONTROL.v2], ['card', REPORT_CONTROL.card]]) {
+    const probe = {};
+    const rendered = renderSurface(kind, { realStyleAnalysis: true, mutateWrapper: DROP_NESTED_PROVIDER, probe });
+    assert.equal(probe.wrapperLoaded, true, `${kind}: the mutated wrapper was never used`);
+    assert.deepEqual(reportNestingProblems(rendered, control), [
+      'expected exactly one AiOutputReportProvider inside the Modal, found 0',
+      'the Report control opened the app-root provider, whose sheet cannot be presented over this Modal on iOS',
+    ]);
+  }
+});
+
+test('NEGATIVE CONTROL: a provider wrapped AROUND the Modal instead of inside it is reported', () => {
+  const probe = {};
+  const rendered = renderSurface('v2', { realStyleAnalysis: true, mutateWrapper: PROVIDER_OUTSIDE_MODAL, probe });
+  assert.equal(probe.wrapperLoaded, true, 'the mutated wrapper was never used');
+  assert.deepEqual(reportNestingProblems(rendered, REPORT_CONTROL.v2), [
+    'expected exactly one AiOutputReportProvider inside the Modal, found 0',
+  ]);
+});
+
+test('NEGATIVE CONTROL: calling the report hook in AnalysisCard own body is reported', () => {
+  const text = mutated(
+    readSource('components/AnalysisCard.tsx'),
+    'const insets = useSafeAreaInsets();',
+    'const insets = useSafeAreaInsets();\n  const { openAiOutputReport } = useAiOutputReporting();',
+  );
+  const problems = analysisCardReportHookProblems(text);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /in its own body/);
+});
+
+test('NEGATIVE CONTROL: an AnalysisCard whose Report button is inlined again is reported', () => {
+  const text = mutated(readSource('components/AnalysisCard.tsx'), /<AnalysisReportButton[\s\S]*?\/>/, 'null');
+  const problems = analysisCardReportHookProblems(text);
+  assert.ok(problems.some((problem) => /expected one <AnalysisReportButton>, found 0/.test(problem)));
 });

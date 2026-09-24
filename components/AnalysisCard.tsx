@@ -151,6 +151,40 @@ export function resolvePurchaseShelfMode(
   return 'empty';
 }
 
+/**
+ * "Report Response" for the analysis paragraph.
+ *
+ * A component of its own on purpose: useAiOutputReporting() has to be resolved
+ * from INSIDE the card's Modal, under the provider ResultSurfaceModal nests there,
+ * so the report sheet presents from the card's own view controller. Called from
+ * AnalysisCard's body it would resolve the app-root provider, whose sheet iOS
+ * cannot present over this Modal (see scan-results/ResultSurfaceModal).
+ */
+function AnalysisReportButton({
+  scanSourceId,
+  testID,
+}: {
+  scanSourceId?: string | null;
+  testID: string;
+}) {
+  const { openAiOutputReport } = useAiOutputReporting();
+  return (
+    <TouchableOpacity
+      onPress={() =>
+        openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
+      }
+      style={styles.reportBtn}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Report this style analysis as offensive or unsafe"
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      testID={testID}
+    >
+      <Text style={styles.reportText}>Report Response</Text>
+    </TouchableOpacity>
+  );
+}
+
 export function AnalysisCard({
   result,
   metadata,
@@ -183,7 +217,6 @@ export function AnalysisCard({
   const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
   const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const { openAiOutputReport } = useAiOutputReporting();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const purchaseShelfMode = resolvePurchaseShelfMode(
     purchaseOptions.length,
@@ -342,19 +375,10 @@ export function AnalysisCard({
                   assistant messages (components/style-chat/StyleChatBubble).
                   Hidden when there is no analysis text to report. */}
               {resultText && resultText !== EMPTY_VALUE ? (
-                <TouchableOpacity
-                  onPress={() =>
-                    openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
-                  }
-                  style={styles.reportBtn}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Report this style analysis as offensive or unsafe"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                <AnalysisReportButton
+                  scanSourceId={scanSourceId}
                   testID="analysis-card-report-ai"
-                >
-                  <Text style={styles.reportText}>Report Response</Text>
-                </TouchableOpacity>
+                />
               ) : null}
 
               {/* Match summary */}

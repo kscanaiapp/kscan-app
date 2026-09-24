@@ -81,7 +81,10 @@ interface ScanResultV2Props {
   analysis?: LegacyAnalysisData | null;
   /** URI of the captured scan image. */
   scanImageUri?: string | null;
-  /** Source identifier for QA fixtures. */
+  /**
+   * Persisted identity of this scan (the Recent Scan id, or the QA fixture name).
+   * It is the target of the style-analysis Report control; null hides that control.
+   */
   scanSourceId?: string | null;
   /** Called when the user dismisses the result (e.g., "Scan Again"). */
   onDismiss: () => void;
@@ -524,6 +527,7 @@ export function ScanResultV2({
               <View style={styles.section}>
                 <StyleAnalysisSection
                   analysisText={v2Data.styleAnalysis || v2Data.analysisText}
+                  scanSourceId={scanSourceId ?? null}
                 />
               </View>
 

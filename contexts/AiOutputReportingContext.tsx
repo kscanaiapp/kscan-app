@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
@@ -32,6 +33,7 @@ import {
 import { currentActorScopeKey } from '../services/actorScope';
 import { useAuthSession } from './AuthSessionContext';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
+import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 
 type AiOutputReportingContextValue = {
   openAiOutputReport: (request: AiOutputReportRequest) => void;
@@ -112,6 +114,19 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
   }, [clearReport, notes, reasonId, request]);
 
   const retry = useCallback(() => setState('form'), []);
+
+  // accessibilityLiveRegion (on the outcome panels below) is Android-only and iOS
+  // has no native handler for it, so when the focused Submit button is replaced by
+  // the outcome VoiceOver says nothing. Announce the outcome explicitly on iOS;
+  // Android keeps its live regions, so it is not announced twice.
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !request) return;
+    if (state === 'success') {
+      AccessibilityInfo.announceForAccessibility('Report sent. Your report has been received for review.');
+    } else if (state === 'error') {
+      AccessibilityInfo.announceForAccessibility("Report not sent. We couldn't send your report.");
+    }
+  }, [request, state]);
 
   return (
     <AiOutputReportingContext.Provider value={{ openAiOutputReport }}>
@@ -267,6 +282,11 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   sheet: {
+    // Inert on phones (the sheet is already the full padded width); caps and centres
+    // it on regular-width iPad windows so it never spans the whole 1024-1366pt window.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     maxHeight: '88%',
     borderRadius: RADIUS.xl,
     backgroundColor: LUXURY.colors.pearl,
