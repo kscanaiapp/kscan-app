@@ -79,7 +79,8 @@ function createServices() {
   return services;
 }
 
-function mount({ services = createServices(), props = {} } = {}) {
+/** `mutate` rewrites the component source first (a negative control); it must change it. */
+function mount({ services = createServices(), props = {}, mutate } = {}) {
   const renderer = createRenderer();
   const authority = loadActorAuthority();
   const pushes = [];
@@ -100,7 +101,7 @@ function mount({ services = createServices(), props = {} } = {}) {
     '../services/styleObjects': services.module,
     '../services/dressingRoomItemContract': { hasUsableDressingRoomImageSource },
     '../services/actorScope': authority.actorScope,
-  });
+  }, { mutate });
 
   const build = (overrides = {}) =>
     renderer.jsx(AddScanToDressingRoomModal, {
@@ -139,6 +140,12 @@ function mount({ services = createServices(), props = {} } = {}) {
       tree = renderer.render(element);
     },
     has: (label) => labelled(label).length > 0,
+    /** The Android hardware Back button (and any other request-close path): the Modal's own handler. */
+    hardwareBack() {
+      const [modal] = findAll(tree, (node) => node.type === 'Modal');
+      assert.ok(modal, 'the sheet renders a Modal');
+      modal.props.onRequestClose();
+    },
     control(label) {
       const [node] = labelled(label);
       assert.ok(node, `no control labelled "${label}" in: ${textContent(tree)}`);
@@ -394,4 +401,247 @@ test('GUARD: reusing the created room applies only to the same title; a differen
 
   assert.deepEqual(services.created.map((input) => input.title), ['Weekend', 'Holiday']);
   assert.equal(services.added.at(-1).dressingRoomId, 'room-Holiday');
+});
+
+// ── COMPLETION HARDENING ─────────────────────────────────────────────────────
+//
+// Two residuals of the completion path, both about a sheet that is still on screen
+// while something else is in flight:
+//
+//   A. "View Dressing Room" closes the sheet and pushes a route. The sheet stays
+//      mounted and tappable for the whole close transition, and React has not
+//      repainted between two rapid taps, so only a synchronous guard can stop a
+//      second navigation.
+//   B. The visible Close button is disabled while a save is in flight, but the
+//      Modal's own request-close path (Android hardware Back) was `onRequestClose=
+//      {onClose}`, unguarded, so Back dismissed the sheet mid-save and the customer
+//      never saw the outcome of a write that still completed.
+
+const { readSource } = require('./helpers/componentRenderer');
+
+function mutatedSource(from, to) {
+  return (source) => {
+    const next = source.replace(from, to);
+    assert.notEqual(next, source, `mutation ${String(from)} matched nothing: the negative control is vacuous`);
+    return next;
+  };
+}
+
+async function reachSuccess(m) {
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  await m.settled();
+  assert.ok(m.has('View Dressing Room'), 'precondition: the sheet reached its success state');
+}
+
+test('HARDENING A: the first View Dressing Room tap closes the sheet and navigates once', async () => {
+  const m = mount();
+  await reachSuccess(m);
+
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.closes, ['close']);
+  assert.deepEqual(m.pushes, ['/dressing-rooms'], 'the destination is unchanged');
+});
+
+test('HARDENING A: a rapid second tap while the transition is in flight is ignored', async () => {
+  const m = mount();
+  await reachSuccess(m);
+
+  const first = m.press('View Dressing Room');
+  const second = m.press('View Dressing Room'); // same painted node: React has not re-rendered in between
+  m.rerender();
+  const third = m.press('View Dressing Room'); // even after a repaint, while the sheet is still mounted
+
+  assert.deepEqual([first, second, third], [true, true, true], 'the control itself stays enabled, so a ref is what stops it');
+  assert.deepEqual(m.closes, ['close'], 'closed once');
+  assert.deepEqual(m.pushes, ['/dressing-rooms'], 'navigated once');
+});
+
+test('HARDENING A: the guard is per opening -- reopening the sheet for another scan navigates again', async () => {
+  const m = mount();
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  assert.deepEqual(m.pushes, ['/dressing-rooms']);
+
+  m.setVisible(false);
+  m.setVisible(true);
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.pushes, ['/dressing-rooms', '/dressing-rooms'], 'once per opening, not once per app session');
+});
+
+test('HARDENING A: Continue Scanning is not gated by the navigation guard', async () => {
+  const m = mount();
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  m.press('Continue scanning');
+  assert.deepEqual(m.closes, ['close', 'close']);
+  assert.deepEqual(m.pushes, ['/dressing-rooms']);
+});
+
+test('HARDENING B: hardware Back during a save does not dismiss the sheet, and the write still completes', async () => {
+  const services = createServices();
+  const gate = deferred();
+  services.addImpl = () => gate.promise;
+  const m = mount({ services });
+  await m.settled();
+
+  m.press(ROOM_BUTTON);
+  assert.equal(services.added.length, 1, 'the save is in flight');
+  m.hardwareBack();
+  assert.deepEqual(m.closes, [], 'Back is ignored while saving');
+
+  gate.resolve({ id: 'item-1' });
+  await m.settled();
+  assert.equal(services.added.length, 1, 'the in-flight write was neither cancelled nor repeated');
+  assert.match(m.text(), /Added to Trip\./, 'the customer still sees the outcome');
+  assert.deepEqual(m.closes, []);
+});
+
+test('HARDENING B: hardware Back during a create-then-add save is ignored as well', async () => {
+  const services = createServices();
+  services.rooms = [];
+  const gate = deferred();
+  services.createImpl = () => gate.promise;
+  const m = mount({ services });
+  await m.settled();
+
+  m.type(TITLE_FIELD, 'Weekend');
+  m.press(CREATE_BUTTON);
+  m.hardwareBack();
+  assert.deepEqual(m.closes, []);
+
+  gate.resolve({ id: 'room-new', title: 'Weekend' });
+  await m.settled();
+  assert.equal(services.added.length, 1);
+  assert.match(m.text(), /Added to Weekend\./);
+});
+
+test('HARDENING B: hardware Back when idle closes the sheet normally', async () => {
+  const m = mount();
+  await m.settled();
+  m.hardwareBack();
+  assert.deepEqual(m.closes, ['close']);
+});
+
+test('HARDENING B: once a save has failed (no longer saving), hardware Back closes normally', async () => {
+  const services = createServices();
+  services.addImpl = async () => {
+    throw new Error('Unable to add scan to Dressing Room.');
+  };
+  const m = mount({ services });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  await m.settled();
+
+  m.hardwareBack();
+  assert.deepEqual(m.closes, ['close']);
+});
+
+test('HARDENING B: after a successful save, hardware Back closes normally', async () => {
+  const m = mount();
+  await reachSuccess(m);
+  m.hardwareBack();
+  assert.deepEqual(m.closes, ['close']);
+});
+
+test('HARDENING: the guards are synchronous refs, not React state', () => {
+  const source = readSource('components/AddScanToDressingRoomModal.tsx');
+  assert.match(source, /const navigatingRef = useRef\(false\);/);
+  assert.match(source, /if \(navigatingRef\.current\) return;/);
+  assert.match(source, /onRequestClose=\{handleRequestClose\}/);
+  assert.match(source, /const handleRequestClose = \(\) => \{\s*if \(savingRef\.current\) return;\s*onClose\(\);\s*\};/);
+});
+
+// ── Negative controls: each guard, removed on its own, must be caught ───────
+
+test('NEGATIVE CONTROL: without the navigation guard a rapid second tap navigates twice', async () => {
+  const m = mount({ mutate: mutatedSource(/if \(navigatingRef\.current\) return;/, '') });
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  m.press('View Dressing Room');
+  assert.deepEqual(m.pushes, ['/dressing-rooms', '/dressing-rooms'], 'the regression these tests guard against');
+});
+
+test('NEGATIVE CONTROL: a guard that never resets blocks the next opening', async () => {
+  const m = mount({ mutate: mutatedSource(/navigatingRef\.current = false;/, '') });
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  m.setVisible(false);
+  m.setVisible(true);
+  await reachSuccess(m);
+  m.press('View Dressing Room');
+  assert.deepEqual(m.pushes, ['/dressing-rooms'], 'the second opening could not navigate: the reset matters');
+});
+
+test('NEGATIVE CONTROL: the unguarded Modal handler lets hardware Back dismiss a save in flight', async () => {
+  const services = createServices();
+  const gate = deferred();
+  services.addImpl = () => gate.promise;
+  const m = mount({
+    services,
+    mutate: mutatedSource(/onRequestClose=\{handleRequestClose\}/, 'onRequestClose={onClose}'),
+  });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  m.hardwareBack();
+  assert.deepEqual(m.closes, ['close'], 'the regression these tests guard against');
+  gate.resolve({ id: 'item-1' });
+  await m.settled();
+});
+
+test('NEGATIVE CONTROL: a handler whose saving check is removed lets Back dismiss a save in flight', async () => {
+  const services = createServices();
+  const gate = deferred();
+  services.addImpl = () => gate.promise;
+  const m = mount({
+    services,
+    mutate: mutatedSource(/if \(savingRef\.current\) return;\s*onClose\(\);/, 'onClose();'),
+  });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  m.hardwareBack();
+  assert.deepEqual(m.closes, ['close']);
+  gate.resolve({ id: 'item-1' });
+  await m.settled();
+});
+
+// ── The guard covers the close transition itself ────────────────────────────
+//
+// React Native keeps a Modal's children rendered after `visible` turns false until the
+// native dismissal completes (Libraries/Modal/Modal.js `_shouldShowModal`), so the sheet
+// is genuinely tappable while it fades out. That window is the one the guard exists for:
+// resetting it on CLOSE instead of on OPEN would re-arm it inside the window.
+
+test('HARDENING A: a tap on the still-mounted sheet after it was told to close is ignored', async () => {
+  const m = mount();
+  await reachSuccess(m);
+
+  m.press('View Dressing Room');
+  m.setVisible(false); // the parent closed it; the fade-out is still on screen
+  assert.ok(m.has('View Dressing Room'), 'the sheet content is still rendered during the fade-out');
+  m.press('View Dressing Room');
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.pushes, ['/dressing-rooms'], 'one navigation, however long the fade-out lasts');
+  assert.deepEqual(m.closes, ['close']);
+});
+
+test('NEGATIVE CONTROL: resetting the guard when the sheet closes lets a tap during the fade-out navigate again', async () => {
+  const m = mount({
+    mutate: mutatedSource(
+      /(navigatingRef\.current = false;\s*void reload\(\);\s*\})(\s*\}, \[visible, reload\]\);)/,
+      '$1 else {\n      navigatingRef.current = false;\n    }$2',
+    ),
+  });
+  await reachSuccess(m);
+
+  m.press('View Dressing Room');
+  m.setVisible(false);
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.pushes, ['/dressing-rooms', '/dressing-rooms'], 'the regression this test guards against');
 });
