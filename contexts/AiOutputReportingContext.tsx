@@ -30,6 +30,7 @@ import {
   type AiOutputReportRequest,
   type BoundAiOutputReportRequest,
 } from '../services/reportAiOutput';
+import { isReportServerAccepted } from '../services/contentReports';
 import { currentActorScopeKey } from '../services/actorScope';
 import { useAuthSession } from './AuthSessionContext';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
@@ -107,7 +108,10 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
       );
       if (!attempt.started) return;
 
-      setState(attempt.value.ok ? 'success' : 'error');
+      // `ok` alone is not receipt: a local-only result (no session) is `ok: true`
+      // and reached nothing. Only a server-accepted report (a duplicate included)
+      // may show "received for review"; everything else says it was not sent.
+      setState(isReportServerAccepted(attempt.value) ? 'success' : 'error');
     } catch {
       setState('error');
     }

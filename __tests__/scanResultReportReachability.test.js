@@ -247,6 +247,8 @@ function loadReportStack({ platformOS = 'ios', mutateContext, insertError = null
       ...renderer.runtimeModules,
       'react-native': createReactNativeStub({ platformOS, announcements }),
       '../services/reportAiOutput': reportAiOutput,
+      // The sheet decides "received for review" with the shared helper (the real module).
+      '../services/contentReports': contentReports,
       '../services/actorScope': actorScope,
       './AuthSessionContext': { useAuthSession: () => ({}) },
       '../constants/theme': theme(),
