@@ -852,6 +852,12 @@ function loadAnalysisCard() {
     '../hooks/useFeatureFreeze': { useFeatureFreeze: () => ({ isFeatureEnabled: () => true, isLoading: false }) },
     '../hooks/useResponsiveLayout': { useResponsiveLayout: () => ({ height: 844, modalMaxWidth: 640 }) },
     '../contexts/AiOutputReportingContext': { useAiOutputReporting: () => ({ openAiOutputReport: () => {} }) },
+    // The result Modal wrapper, inert: this harness is about the shelf's state, not
+    // Modal nesting (__tests__/iosScanResultSheetNesting.test.js). It stands in for the
+    // plain `Modal` the card rendered before the wrapper existed, so the recorded tree
+    // keeps its shape (a real wrapper is a function component, and the recorder would
+    // expand it and count its children twice).
+    './scan-results/ResultSurfaceModal': { ResultSurfaceModal: 'Modal' },
     './free-tier/SavedItemUtilityPanel': { SavedItemUtilityPanel: 'SavedItemUtilityPanel' },
     '../services/free-tier/itemNormalization': { normalizeItem: (x) => x, normalizeItems: (x) => x },
   });

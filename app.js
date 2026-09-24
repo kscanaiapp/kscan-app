@@ -414,6 +414,9 @@ export default function App() {
       hasSavedRef.current = false; // arm save for the next result
       setSavedMultiItemScanId(null);
       hasSavedMultiItemRef.current = false;
+      // The Add to Dressing Room sheet saves THIS scan's photo; a new analysis
+      // replaces it, so an open (or latched) sheet must not carry over.
+      setScanRoomModalVisible(false);
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
@@ -429,6 +432,10 @@ export default function App() {
     // Clear on any reset path
     if (status === 'idle' || status === 'error' || status === 'non-fashion') {
       setPerceiving(false);
+      // The photo the Add to Dressing Room sheet was saving is gone (dismissed,
+      // retaken or failed). A flag left true would turn the next tap into a
+      // no-op, because setting an already-true state re-presents nothing.
+      setScanRoomModalVisible(false);
     }
   }, [status]);
 
@@ -1112,6 +1119,28 @@ export default function App() {
     }
   };
 
+  // The result surface (ScanResultV2 / AnalysisCard) is a native <Modal>. On iOS
+  // a sheet that must appear ABOVE it has to be mounted INSIDE that Modal, through
+  // the surface's `overlay` prop: a sibling Modal shares the view controller that
+  // is already presenting the result and is refused, which is why "Add to Dressing
+  // Room" did nothing from a scan result. Where no result Modal is up (the preview,
+  // non-fashion and error buttons) the same sheet mounts at the top level below.
+  // Exactly one instance exists at any time.
+  const resultSurfaceVisible = status === 'result' && !perceiving && !isReturningToElise;
+  const addScanToRoomModal = dressingRoomsEnabled ? (
+    <AddScanToDressingRoomModal
+      visible={scanRoomModalVisible}
+      localImageUri={photo?.uri ?? null}
+      scan={{
+        sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+        sourceId: photo?.qaFixtureName ?? null,
+        result: analysis?.result ?? null,
+        metadata: analysis?.metadata ?? null,
+      }}
+      onClose={() => setScanRoomModalVisible(false)}
+    />
+  ) : null;
+
   return (
     <View style={styles.container}>
       <StatusBar style={SCAN_ROOM_V2_UI_ENABLED && status !== 'result' && status !== 'error' ? 'dark' : 'light'} />
@@ -1151,7 +1180,7 @@ export default function App() {
         />
       )}
 
-      {status === 'result' && !perceiving && !isReturningToElise && (
+      {resultSurfaceVisible && (
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
@@ -1173,6 +1202,7 @@ export default function App() {
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            overlay={addScanToRoomModal}
             selectedCandidateId={selectedCandidateId}
             onSelectCandidate={selectConfirmationCandidate}
             onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
@@ -1219,6 +1249,7 @@ export default function App() {
             scanSourceType="live_scan"
             onDismiss={dismissResult}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            overlay={addScanToRoomModal}
           />
         )
       )}
@@ -1230,19 +1261,7 @@ export default function App() {
         </View>
       )}
 
-      {dressingRoomsEnabled ? (
-        <AddScanToDressingRoomModal
-          visible={scanRoomModalVisible}
-          localImageUri={photo?.uri ?? null}
-          scan={{
-            sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
-            sourceId: photo?.qaFixtureName ?? null,
-            result: analysis?.result ?? null,
-            metadata: analysis?.metadata ?? null,
-          }}
-          onClose={() => setScanRoomModalVisible(false)}
-        />
-      ) : null}
+      {resultSurfaceVisible ? null : addScanToRoomModal}
     </View>
   );
 }

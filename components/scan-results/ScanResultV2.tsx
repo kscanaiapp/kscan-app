@@ -32,6 +32,7 @@ import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
 import { MultiItemCommerceSection } from './MultiItemCommerceSection';
 import type { ItemCommerceCard } from '../../services/multiItemCommerce';
 import { ScanResultActionRow } from './ScanResultActionRow';
+import { ResultSurfaceModal } from './ResultSurfaceModal';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
 import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
@@ -90,6 +91,12 @@ interface ScanResultV2Props {
   saveActionLabel?: string;
   /** Called to add the scan to a Dressing Room. */
   onAddToDressingRoom?: () => void;
+  /**
+   * Rendered as the LAST child inside this surface's own native Modal. The
+   * "Add to Dressing Room" sheet is mounted through here, never beside the Modal:
+   * on iOS a sibling Modal is refused (see ResultSurfaceModal).
+   */
+  overlay?: React.ReactNode;
   /** Called to navigate to StyleChat. */
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
@@ -134,6 +141,7 @@ export function ScanResultV2({
   onSaveToLibrary,
   saveActionLabel,
   onAddToDressingRoom,
+  overlay,
   onAskStyleChat,
   onFindSimilar,
   commerceStatus = 'idle',
@@ -351,7 +359,7 @@ export function ScanResultV2({
   }
 
   return (
-    <Modal transparent animationType="none" onRequestClose={runExit}>
+    <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
       <View style={styles.backdrop} pointerEvents="box-none">
         <Animated.View
           testID={testID ?? 'scan-result-v2'}
@@ -604,7 +612,7 @@ export function ScanResultV2({
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </ResultSurfaceModal>
   );
 }
 

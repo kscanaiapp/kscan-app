@@ -1147,6 +1147,38 @@ export default function LibraryScreen() {
               ? describeMissingImageReason()
               : null
           }
+          overlay={
+            // Mounted INSIDE AnalysisCard's Modal, never beside it: on iOS a
+            // sibling Modal is refused (see scan-results/ResultSurfaceModal), so
+            // "Add Scan to Dressing Room" did nothing from a reopened scan.
+            // Gated by the same canonical contract as the Add CTA above, not bare
+            // imageUri truthiness, so a cloud-synced scan with a durable storage
+            // reference (but no local file left on this device) still opens the
+            // sheet instead of being silently excluded.
+            dressingRoomsEnabled && hasUsableDressingRoomImageSource({
+              localUri: selectedScan.imageUri,
+              storageBucket: selectedScan.storageBucket,
+              storagePath: selectedScan.storagePath,
+            }) ? (
+              <AddScanToDressingRoomModal
+                visible={dressingRoomModalVisible}
+                localImageUri={selectedScan.imageUri}
+                storageBucket={selectedScan.storageBucket}
+                storagePath={selectedScan.storagePath}
+                scan={{
+                  sourceType: 'style_library_scan',
+                  sourceId: selectedScan.id,
+                  result: selectedScan.result,
+                  metadata: {
+                    category: selectedScan.attributes.category,
+                    color: selectedScan.attributes.color_palette,
+                    silhouette: selectedScan.attributes.silhouette,
+                  },
+                }}
+                onClose={() => setDressingRoomModalVisible(false)}
+              />
+            ) : undefined
+          }
           onAskStyleChat={
             aiStylistEnabled && STYLECHAT_ATTACHMENTS_ENABLED
               ? () => {
@@ -1173,35 +1205,6 @@ export default function LibraryScreen() {
           }
         />
       )}
-
-      {/* Top-level modal — never nested inside AnalysisCard's Modal.
-          Gated by the same canonical contract as the Add CTA above, not bare
-          imageUri truthiness, so a cloud-synced scan with a durable storage
-          reference (but no local file left on this device) still opens the
-          modal instead of being silently excluded. */}
-      {dressingRoomsEnabled && selectedScan && hasUsableDressingRoomImageSource({
-        localUri: selectedScan.imageUri,
-        storageBucket: selectedScan.storageBucket,
-        storagePath: selectedScan.storagePath,
-      }) ? (
-        <AddScanToDressingRoomModal
-          visible={dressingRoomModalVisible}
-          localImageUri={selectedScan.imageUri}
-          storageBucket={selectedScan.storageBucket}
-          storagePath={selectedScan.storagePath}
-          scan={{
-            sourceType: 'style_library_scan',
-            sourceId: selectedScan.id,
-            result: selectedScan.result,
-            metadata: {
-              category: selectedScan.attributes.category,
-              color: selectedScan.attributes.color_palette,
-              silhouette: selectedScan.attributes.silhouette,
-            },
-          }}
-          onClose={() => setDressingRoomModalVisible(false)}
-        />
-      ) : null}
 
       {dressingRoomsEnabled ? (
         <AddInspirationToDressingRoomModal

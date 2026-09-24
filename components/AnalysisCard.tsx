@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   ScrollView,
   Animated,
   PanResponder,
@@ -19,6 +18,7 @@ import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useAiOutputReporting } from '../contexts/AiOutputReportingContext';
+import { ResultSurfaceModal } from './scan-results/ResultSurfaceModal';
 import {
   COLORS,
   LUXURY,
@@ -98,6 +98,12 @@ export interface AnalysisCardProps {
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
   /**
+   * Rendered as the LAST child inside this card's own native Modal. The
+   * "Add to Dressing Room" sheet is mounted through here, never beside the Modal:
+   * on iOS a sibling Modal is refused (see scan-results/ResultSurfaceModal).
+   */
+  overlay?: React.ReactNode;
+  /**
    * When Dressing Rooms is available but this specific item has no usable
    * image source yet (canonical contract: no local URI, storage reference,
    * or remote URL), the caller passes an explanation here instead of simply
@@ -167,6 +173,7 @@ export function AnalysisCard({
   relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
+  overlay,
   addToDressingRoomUnavailableReason,
   onAddToCloset,
   closetState = 'idle',
@@ -272,7 +279,7 @@ export function AnalysisCard({
   const isLibraryScan = scanSourceType === 'style_library_scan';
 
   return (
-    <Modal transparent animationType="none" onRequestClose={runExit}>
+    <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
       <View style={styles.backdrop} pointerEvents="box-none">
         <Animated.View
           testID="analysis-card"
@@ -658,7 +665,7 @@ export function AnalysisCard({
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </ResultSurfaceModal>
   );
 }
 
