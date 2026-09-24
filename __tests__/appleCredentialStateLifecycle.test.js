@@ -119,10 +119,25 @@ function emailUser() {
   return { id: 'kscan-uuid-actor-e', email: 'someone@example.com', identities: [] };
 }
 
-/** Fresh module + actor context per case; the in-flight guard is module state. */
-function harness({ platformOS = 'ios' } = {}) {
+/**
+ * Fresh module + actor context per case; the in-flight guard is module state.
+ *
+ * Every case in this file is about THIS device's Sign in with Apple
+ * credential, so the harness states that premise explicitly: the device record
+ * holds APPLE_SUB unless a case passes its own reader. The device-scoping rule
+ * itself is proven in __tests__/appleCredentialDeviceScope.test.js.
+ */
+function harness({ platformOS = 'ios', deviceSubject = APPLE_SUB } = {}) {
   const actorContext = loadActorContext();
-  const mod = loadModule({ platformOS, actorContext });
+  const real = loadModule({ platformOS, actorContext });
+  const mod = {
+    ...real,
+    runAppleCredentialStateCheck: (user, deps) =>
+      real.runAppleCredentialStateCheck(user, {
+        readThisDeviceAppleSubject: async () => deviceSubject,
+        ...deps,
+      }),
+  };
   const signOutCalls = [];
   const signOut = async () => {
     signOutCalls.push(Date.now());
@@ -570,6 +585,7 @@ test('DESTRUCTIVE-ACTION CONTROL: only revoked/not_found/transferred can ever in
     'stale_actor',
     'in_flight',
     'not_apple_actor',
+    'not_this_device',
     'unsupported_platform',
   ];
   for (const outcome of invalidating) {

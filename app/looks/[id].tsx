@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -114,20 +116,28 @@ function EditLookModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Edit Look</Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} />
-          <TextField label="Description" value={description} onChangeText={setDescription} multiline />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            title={saving ? 'Saving' : 'Save Changes'}
-            onPress={handleSave}
-            disabled={!title.trim() || saving}
-          />
-          <SecondaryButton title="Cancel" onPress={onClose} disabled={saving} />
+      {/* iOS: Description is multiline, so return adds a line instead of
+          closing the keyboard, which covered the field and the Save / Cancel
+          buttons of this bottom-anchored sheet. Android is unchanged. */}
+      <KeyboardAvoidingView
+        style={styles.modalKeyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Look</Text>
+            <TextField label="Title" value={title} onChangeText={setTitle} />
+            <TextField label="Description" value={description} onChangeText={setDescription} multiline />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              title={saving ? 'Saving' : 'Save Changes'}
+              onPress={handleSave}
+              disabled={!title.trim() || saving}
+            />
+            <SecondaryButton title="Cancel" onPress={onClose} disabled={saving} />
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -401,6 +411,9 @@ const styles = StyleSheet.create({
   },
   items: {
     gap: SPACING.md,
+  },
+  modalKeyboardAvoider: {
+    flex: 1,
   },
   modalBackdrop: {
     flex: 1,

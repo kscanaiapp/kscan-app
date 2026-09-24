@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   type ImageStyle,
 } from 'react-native';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -907,79 +909,88 @@ export function WatchThisModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard} accessibilityViewIsModal>
-          <Text style={styles.modalTitle} accessibilityRole="header">
-            Watch this listing
-          </Text>
-          <Text style={styles.modalItemName} numberOfLines={2}>
-            {getProductTitle(product) || 'Catalog item'}
-          </Text>
+      {/* iOS: the decimal pad has no return key and nothing else dismisses it,
+          so without this the keyboard covers the target price and the WATCH /
+          CANCEL buttons of this bottom-anchored sheet. Android keeps its
+          existing behaviour (no avoidance, back and the action key dismiss). */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} accessibilityViewIsModal>
+            <Text style={styles.modalTitle} accessibilityRole="header">
+              Watch this listing
+            </Text>
+            <Text style={styles.modalItemName} numberOfLines={2}>
+              {getProductTitle(product) || 'Catalog item'}
+            </Text>
 
-          <TouchableOpacity
-            testID="watch-intent-just-watching"
-            style={styles.roomChoice}
-            onPress={() => setIntent('just_watching')}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: intent === 'just_watching' }}
-          >
-            <Text style={styles.roomChoiceTitle}>{intent === 'just_watching' ? '● ' : '○ '}Just watching</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            testID="watch-intent-buy-under"
-            style={styles.roomChoice}
-            onPress={() => setIntent('buy_under')}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: intent === 'buy_under' }}
-          >
-            <Text style={styles.roomChoiceTitle}>{intent === 'buy_under' ? '● ' : '○ '}Buy under a price</Text>
-          </TouchableOpacity>
-
-          {intent === 'buy_under' ? (
-            <View style={styles.quickCreate}>
-              <Text style={styles.quickCreateLabel}>TARGET PRICE</Text>
-              <TextInput
-                testID="watch-target-price-input"
-                style={styles.quickCreateInput}
-                placeholder="150"
-                placeholderTextColor={COLORS.editorialTextMuted}
-                keyboardType="decimal-pad"
-                value={targetText}
-                onChangeText={setTargetText}
-                accessibilityLabel="Target price"
-              />
-            </View>
-          ) : null}
-
-          {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
-
-          <View style={styles.newRoomControls}>
             <TouchableOpacity
-              testID="watch-save-button"
-              style={[styles.modalPrimaryButton, saving && styles.modalButtonDisabled]}
-              onPress={handleSave}
+              testID="watch-intent-just-watching"
+              style={styles.roomChoice}
+              onPress={() => setIntent('just_watching')}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: intent === 'just_watching' }}
+            >
+              <Text style={styles.roomChoiceTitle}>{intent === 'just_watching' ? '● ' : '○ '}Just watching</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              testID="watch-intent-buy-under"
+              style={styles.roomChoice}
+              onPress={() => setIntent('buy_under')}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: intent === 'buy_under' }}
+            >
+              <Text style={styles.roomChoiceTitle}>{intent === 'buy_under' ? '● ' : '○ '}Buy under a price</Text>
+            </TouchableOpacity>
+
+            {intent === 'buy_under' ? (
+              <View style={styles.quickCreate}>
+                <Text style={styles.quickCreateLabel}>TARGET PRICE</Text>
+                <TextInput
+                  testID="watch-target-price-input"
+                  style={styles.quickCreateInput}
+                  placeholder="150"
+                  placeholderTextColor={COLORS.editorialTextMuted}
+                  keyboardType="decimal-pad"
+                  value={targetText}
+                  onChangeText={setTargetText}
+                  accessibilityLabel="Target price"
+                />
+              </View>
+            ) : null}
+
+            {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
+
+            <View style={styles.newRoomControls}>
+              <TouchableOpacity
+                testID="watch-save-button"
+                style={[styles.modalPrimaryButton, saving && styles.modalButtonDisabled]}
+                onPress={handleSave}
+                disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel="Start watching"
+                accessibilityState={{ disabled: saving, busy: saving }}
+              >
+                {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>WATCH</Text>}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              testID="watch-cancel-button"
+              style={styles.modalSecondaryButton}
+              onPress={handleClose}
               disabled={saving}
               accessibilityRole="button"
-              accessibilityLabel="Start watching"
-              accessibilityState={{ disabled: saving, busy: saving }}
+              accessibilityLabel="Cancel"
             >
-              {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>WATCH</Text>}
+              <Text style={styles.modalSecondaryText}>CANCEL</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            testID="watch-cancel-button"
-            style={styles.modalSecondaryButton}
-            onPress={handleClose}
-            disabled={saving}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel"
-          >
-            <Text style={styles.modalSecondaryText}>CANCEL</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1322,6 +1333,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textTransform: 'none',
     flexShrink: 1,
+  },
+  keyboardAvoider: {
+    flex: 1,
   },
   modalBackdrop: {
     flex: 1,

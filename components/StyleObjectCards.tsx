@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -316,7 +317,31 @@ function ItemTileBase({
   );
 
   if (!onPress) return content;
-  return <Pressable onPress={onPress}>{content}</Pressable>;
+  if (Platform.OS !== 'ios') return <Pressable onPress={onPress}>{content}</Pressable>;
+
+  // iOS: an accessible Pressable is a single VoiceOver element, so View Detail
+  // and Remove inside the tile were unreachable. VoiceOver hears the item and
+  // its selection and is offered both as actions on the tile; TalkBack still
+  // reaches the nested buttons directly.
+  const voiceOverActions = [
+    ...(onViewDetail ? [{ name: 'viewDetail', label: `View detail for ${accessibleItemName}` }] : []),
+    ...(onRemove ? [{ name: 'remove', label: `Remove ${accessibleItemName}` }] : []),
+  ];
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibleItemName}
+      accessibilityState={{ selected: Boolean(selected) }}
+      accessibilityActions={voiceOverActions.length > 0 ? voiceOverActions : undefined}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'viewDetail') onViewDetail?.();
+        if (event.nativeEvent.actionName === 'remove') onRemove?.();
+      }}
+    >
+      {content}
+    </Pressable>
+  );
 }
 
 /**

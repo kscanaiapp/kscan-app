@@ -65,13 +65,21 @@ public class KScanVoiceNativeModule: Module {
 
     Events("onPartialTranscript", "onSessionEnded")
 
+    // Every function runs on the main queue, as the Android module's do.
+    // ExpoModulesCore's default AsyncFunction queue is a GCD queue whose
+    // threads never run a run loop, so the 15s cap Timer scheduled in
+    // startListening never fired there. The recognitionTask result handler
+    // and the resign-active observer already run on main, so this also keeps
+    // every read and write of the session state on one thread.
     AsyncFunction("getCapabilities") { () -> [String: Any] in
       self.capabilitiesPayload(locale: nil)
     }
+    .runOnQueue(.main)
 
     AsyncFunction("requestPermissions") { (promise: Promise) in
       self.requestPermissions(promise: promise)
     }
+    .runOnQueue(.main)
 
     AsyncFunction("startListening") { (options: [String: Any]?, promise: Promise) in
       self.startListening(
@@ -80,14 +88,17 @@ public class KScanVoiceNativeModule: Module {
         promise: promise
       )
     }
+    .runOnQueue(.main)
 
     AsyncFunction("stopListening") { (options: [String: Any], promise: Promise) in
       self.finishListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
     AsyncFunction("cancelListening") { (options: [String: Any], promise: Promise) in
       self.cancelListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
     OnCreate {
       self.backgroundObserver = NotificationCenter.default.addObserver(

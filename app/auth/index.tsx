@@ -31,6 +31,7 @@ import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 import { linkAppleCredential } from '../../services/appleCredentialLink';
+import { rememberThisDeviceAppleSubject } from '../../services/auth/appleSignInDeviceRecord';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -41,6 +42,19 @@ function createRawNonce(length = 32) {
   const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
   const randomBytes = Crypto.getRandomBytes(length);
   return Array.from(randomBytes, (byte) => charset[byte % charset.length]).join('');
+}
+
+const APPLE_SIGN_IN_BLOCKED_MESSAGE =
+  "This account can't sign in right now. If you asked to delete it, use the restoration link we emailed you to restore it.";
+
+/**
+ * An account with a pending deletion request is banned for its 30-day
+ * restoration window (supabase/functions/handle-user-deletion), and Supabase
+ * refuses its sign-in with `user_banned`. Telling that person to "try again"
+ * sent them round in circles instead of to the restoration email.
+ */
+function isBannedSignInError(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === 'user_banned' || /\bbanned\b/i.test(error?.message ?? '');
 }
 
 export default function AuthScreen() {
@@ -218,6 +232,10 @@ export default function AuthScreen() {
         return;
       }
 
+      // Recorded before the session exists so the credential-state check that
+      // the new session triggers already knows this device's Apple ID signed in.
+      await rememberThisDeviceAppleSubject(credential.user);
+
       const { error: signInError } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
@@ -225,7 +243,11 @@ export default function AuthScreen() {
       });
 
       if (signInError) {
-        setError('We could not complete Apple sign-in. Please try again.');
+        setError(
+          isBannedSignInError(signInError)
+            ? APPLE_SIGN_IN_BLOCKED_MESSAGE
+            : 'We could not complete Apple sign-in. Please try again.',
+        );
         setStep('idle');
         return;
       }

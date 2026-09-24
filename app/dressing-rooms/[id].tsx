@@ -205,27 +205,35 @@ function EditRoomModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Edit Dressing Room</Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} maxLength={ROOM_TITLE_MAX_LENGTH} />
-          <TextField label="Description" value={description} onChangeText={setDescription} multiline />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            title={saving ? 'Saving' : 'Save Changes'}
-            onPress={handleSave}
-            disabled={!title.trim() || saving}
-            loading={saving}
-            accessibilityLabel="Save dressing room changes"
-          />
-          <SecondaryButton
-            title="Cancel"
-            onPress={onClose}
-            disabled={saving}
-            accessibilityLabel="Cancel edit"
-          />
+      {/* iOS: Description is multiline, so return adds a line instead of
+          closing the keyboard, which covered the field and the Save / Cancel
+          buttons of this bottom-anchored sheet. Android is unchanged. */}
+      <KeyboardAvoidingView
+        style={styles.modalKeyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Dressing Room</Text>
+            <TextField label="Title" value={title} onChangeText={setTitle} maxLength={ROOM_TITLE_MAX_LENGTH} />
+            <TextField label="Description" value={description} onChangeText={setDescription} multiline />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              title={saving ? 'Saving' : 'Save Changes'}
+              onPress={handleSave}
+              disabled={!title.trim() || saving}
+              loading={saving}
+              accessibilityLabel="Save dressing room changes"
+            />
+            <SecondaryButton
+              title="Cancel"
+              onPress={onClose}
+              disabled={saving}
+              accessibilityLabel="Cancel edit"
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -265,28 +273,36 @@ function CreateLookModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Create Look</Text>
-          <Text style={styles.modalNote}>{selectedCount} selected item{selectedCount === 1 ? '' : 's'}</Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Dinner Fit" />
-          <TextField label="Description" value={description} onChangeText={setDescription} multiline />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            title={saving ? 'Creating' : 'Create Look'}
-            onPress={handleCreate}
-            disabled={!title.trim() || saving}
-            loading={saving}
-            accessibilityLabel="Create look from selected items"
-          />
-          <SecondaryButton
-            title="Cancel"
-            onPress={onClose}
-            disabled={saving}
-            accessibilityLabel="Cancel create look"
-          />
+      {/* iOS: Description is multiline, so return adds a line instead of
+          closing the keyboard, which covered the field and the Save / Cancel
+          buttons of this bottom-anchored sheet. Android is unchanged. */}
+      <KeyboardAvoidingView
+        style={styles.modalKeyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Create Look</Text>
+            <Text style={styles.modalNote}>{selectedCount} selected item{selectedCount === 1 ? '' : 's'}</Text>
+            <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Dinner Fit" />
+            <TextField label="Description" value={description} onChangeText={setDescription} multiline />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <PrimaryButton
+              title={saving ? 'Creating' : 'Create Look'}
+              onPress={handleCreate}
+              disabled={!title.trim() || saving}
+              loading={saving}
+              accessibilityLabel="Create look from selected items"
+            />
+            <SecondaryButton
+              title="Cancel"
+              onPress={onClose}
+              disabled={saving}
+              accessibilityLabel="Cancel create look"
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1532,6 +1548,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     backgroundColor: LUXURY.colors.champagne,
     opacity: 0.55,
+  },
+  modalKeyboardAvoider: {
+    flex: 1,
   },
   modalBackdrop: {
     flex: 1,

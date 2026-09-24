@@ -329,6 +329,33 @@ export function canonicalizeMediaPath(uri) {
   return out.toLowerCase();
 }
 
+/** The UUID segment of an iOS app data container in a canonical media path. */
+const IOS_DATA_CONTAINER_SEGMENT = /\/containers\/data\/application\/([0-9a-f-]{36})\//;
+
+/**
+ * True when any canonical reference points into a DIFFERENT iOS app data
+ * container than `currentDirectory` (normally FileSystem.documentDirectory).
+ *
+ * iOS can relocate an app's data container — a backup restore, a move to a new
+ * iPhone, and other system events ("the path to your app's container ... can
+ * change", Apple DTS). The files move with it, but records keep the absolute
+ * path they were written under, so no stored reference matches the files on
+ * disk any more. An orphan sweep in that state would read every owned file as
+ * unreferenced and delete it, so sweeps must refuse to run.
+ *
+ * Only an iOS container layout can match, so other layouts (Android's files
+ * directory, test fixtures, remote URLs) always answer false.
+ */
+export function referencesForeignDataContainer(canonicalReferences, currentDirectory) {
+  const current = IOS_DATA_CONTAINER_SEGMENT.exec(canonicalizeMediaPath(currentDirectory) ?? '');
+  if (!current) return false;
+  for (const reference of canonicalReferences ?? []) {
+    const match = typeof reference === 'string' ? IOS_DATA_CONTAINER_SEGMENT.exec(reference) : null;
+    if (match && match[1] !== current[1]) return true;
+  }
+  return false;
+}
+
 /**
  * Reference-aware unlink. A media file is removed only when NO surviving record
  * in the complete post-mutation manifest — across every authenticated partition

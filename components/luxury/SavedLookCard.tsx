@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -146,6 +147,16 @@ export function SavedLookCard({
   );
 
   if (onPress) {
+    // iOS: an accessible Pressable is a single VoiceOver element, so the Edit
+    // and Delete buttons inside the card were unreachable. VoiceOver offers
+    // them as actions on the card instead; TalkBack reaches the buttons.
+    const voiceOverActions =
+      Platform.OS === 'ios'
+        ? [
+            ...(onEdit ? [{ name: 'edit', label: `Edit ${title}` }] : []),
+            ...(onDelete ? [{ name: 'delete', label: `Delete ${title}` }] : []),
+          ]
+        : [];
     return (
       <Pressable
         testID={testID}
@@ -153,6 +164,15 @@ export function SavedLookCard({
         style={[styles.card, style]}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? `${title} saved look`}
+        accessibilityActions={voiceOverActions.length > 0 ? voiceOverActions : undefined}
+        onAccessibilityAction={
+          voiceOverActions.length > 0
+            ? (event) => {
+                if (event.nativeEvent.actionName === 'edit') onEdit?.();
+                if (event.nativeEvent.actionName === 'delete') onDelete?.();
+              }
+            : undefined
+        }
       >
         {cardContent}
       </Pressable>

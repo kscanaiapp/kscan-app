@@ -49,6 +49,38 @@ function getProductionSubmit(easJson) {
 }
 
 /**
+ * The newest iOS marketing version released on the App Store: K Scan AI
+ * 1.0.1 (build 33), released 2026-09-15. Once a version is released, App
+ * Store Connect closes its train and refuses every new upload whose
+ * CFBundleShortVersionString is not strictly higher (ITMS-90062 / ITMS-90186).
+ * A `distribution: store` build can only reach a device through TestFlight,
+ * so a build that reuses this version is unusable the moment it finishes.
+ */
+const LAST_RELEASED_IOS_MARKETING_VERSION = '1.0.1';
+
+/**
+ * The value Expo writes to CFBundleShortVersionString: `expo.ios.version`
+ * takes precedence over the shared `expo.version`
+ * (@expo/config-plugins IOSConfig.Version.getVersion). Android is
+ * native-authoritative and keeps its own versionName in
+ * android/app/build.gradle, so the iOS value can move on its own.
+ */
+function getIosMarketingVersion(appJson) {
+  return appJson.ios?.version || appJson.version;
+}
+
+/** Numeric, segment-by-segment comparison ("1.0.10" > "1.0.9"). */
+function compareMarketingVersions(a, b) {
+  const left = String(a ?? '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const right = String(b ?? '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+    const diff = (left[i] ?? 0) - (right[i] ?? 0);
+    if (diff !== 0) return diff > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+/**
  * RP-108: true only when the iOS privacy manifest declares Device ID as
  * linked to the user, not used for tracking, and purposed for App
  * Functionality — the correct disclosure for the Watchlist push-registration
@@ -134,7 +166,12 @@ function verify() {
   const apple = storeConfig.apple ?? {};
   const englishInfo = apple.info?.['en-US'] ?? {};
 
-  check(result, appJson.version === '1.0.1', 'Expo marketing version is 1.0.1');
+  const iosMarketingVersion = getIosMarketingVersion(appJson);
+  check(
+    result,
+    compareMarketingVersions(iosMarketingVersion, LAST_RELEASED_IOS_MARKETING_VERSION) > 0,
+    `iOS marketing version ${iosMarketingVersion} is higher than the released App Store version ${LAST_RELEASED_IOS_MARKETING_VERSION}`,
+  );
   check(result, ios.bundleIdentifier === 'com.kscanai.app', 'iOS bundle ID is com.kscanai.app');
   check(result, /^\d+$/.test(ios.buildNumber ?? ''), 'iOS build number is a valid incrementing integer string');
   check(result, ios.supportsTablet === true, 'iPad support is enabled for the universal (iPhone + iPad) submission');
@@ -249,7 +286,11 @@ function verify() {
     'EAS production submit points at store.config.json metadata',
   );
 
-  check(result, apple.version === '1.0.1', 'App Store metadata version is 1.0.1');
+  check(
+    result,
+    apple.version === iosMarketingVersion,
+    `App Store metadata version matches the iOS marketing version ${iosMarketingVersion}`,
+  );
   check(result, englishInfo.title === 'K Scan AI', 'App Store title is K Scan AI');
   check(result, englishInfo.subtitle === 'AI fashion discovery', 'App Store subtitle is scoped');
   check(result, englishInfo.privacyPolicyUrl === 'https://kscan.app/legal/privacy', 'Privacy URL is set');
@@ -349,4 +390,7 @@ module.exports = {
   appleRevocationInvoked,
   appleRevocationOccursBeforeAuthDelete,
   deviceIdDeclarationOk,
+  LAST_RELEASED_IOS_MARKETING_VERSION,
+  getIosMarketingVersion,
+  compareMarketingVersions,
 };
