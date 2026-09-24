@@ -23,11 +23,13 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InlineNotice, PrimaryButton, SecondaryButton, TertiaryButton } from '../luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
@@ -134,6 +136,7 @@ export function VirtualTryOnSheet({
 }: VirtualTryOnSheetProps) {
   const vto = useVirtualTryOn({ garment, origin, devScenario });
   const reducedMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
   const [elapsedMs, setElapsedMs] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
@@ -407,7 +410,15 @@ export function VirtualTryOnSheet({
       testID={testID ?? 'vto-sheet'}
     >
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        {/* Android draws every Modal edge-to-edge (React Native 0.81 forces
+            navigationBarTranslucent), so this bottom-anchored sheet reaches
+            under the navigation bar. Clear it there (B34-AND-UI-001). */}
+        <View
+          style={[
+            styles.sheet,
+            Platform.OS === 'android' && { paddingBottom: SPACING.lg + insets.bottom },
+          ]}
+        >
           {/* Drag affordance. The gesture is a convenience only -- the
               Minimize and Close buttons carry the same actions for anyone
               who cannot perform a swipe. */}
