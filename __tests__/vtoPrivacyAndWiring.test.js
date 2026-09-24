@@ -566,8 +566,14 @@ const VTO_ALLOWED_IMPORTS = {
   'services/vto/vtoMediaCache.ts': [
     'expo-crypto', 'expo-file-system/legacy',
   ],
+  // THIRD-PARTY AI CONSENT. The hook reads the customer's consent through
+  // hasVtoConsent (a synchronous cache read) and hands the store a proof of it
+  // in the same call that starts the generation. That module is enrolled below
+  // and imports only the shared consent service. The hook itself still touches
+  // no storage and no network client.
   'hooks/useVirtualTryOn.ts': [
-    '../services/vto/vtoPersonInput', '../services/vto/vtoRequestStore', '../types/vto', 'react',
+    '../services/vto/vtoConsent', '../services/vto/vtoPersonInput',
+    '../services/vto/vtoRequestStore', '../types/vto', 'react',
   ],
   'components/vto/VirtualTryOnSheet.tsx': [
     '../../constants/theme', '../../hooks/useReducedMotion', '../../hooks/useVirtualTryOn',
@@ -599,6 +605,15 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/vto/vtoLiveCapability',
     '../../services/vto/vtoLiveGarment',
     './VtoLiveErrorBoundary', './VtoLivePanel', './VtoModeSelector',
+    // THIRD-PARTY AI CONSENT. The photo leaves the device for an external AI
+    // service, so the sheet asks first. VtoConsentStep is the presentational
+    // disclosure, rendered INSIDE the sheet (never a second Modal), and
+    // vtoConsent holds the single source of the wording plus the grant/check
+    // wrappers. Neither writes ownership state, and the consent record itself
+    // lives in the shared services/thirdPartyAiConsent -- deliberately NOT
+    // enrolled here, because the forbidden-call scan below bans device storage
+    // in every VTO file.
+    '../../services/vto/vtoConsent', './VtoConsentStep',
     'react', 'react-native',
     // B34-AND-UI-001 (Build 34 Android final hostile audit). Android draws the
     // sheet's Modal edge-to-edge, so its bottom action row needs the bottom
@@ -653,6 +668,22 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'hooks/useVtoSessionStatus.ts': [
     '../services/vto/vtoRequestStore', 'react',
+  ],
+
+  // THIRD-PARTY AI CONSENT. Enrolled in their own right, for the same reason as
+  // every surface above: a module this control does not name is a module it does
+  // not guard, and enrolling them subjects both to the forbidden-call scan below.
+  //   vtoConsent      -- pure: the wording, the provider disclosures, and thin
+  //                      wrappers over the shared consent service. Its ONLY
+  //                      import is that service.
+  //   VtoConsentStep  -- presentational disclosure. openExternalUrl opens the
+  //                      Privacy Policy through the shared https-only guard.
+  'services/vto/vtoConsent.ts': [
+    '../thirdPartyAiConsent',
+  ],
+  'components/vto/VtoConsentStep.tsx': [
+    '../../constants/theme', '../../services/openExternalUrl',
+    '../../services/vto/vtoConsent', '../luxury', 'react', 'react-native',
   ],
 
   // ── P3-C LIVE VTO (feature-gated, default OFF) ────────────────────────────

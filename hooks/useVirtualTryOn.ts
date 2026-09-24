@@ -38,6 +38,7 @@ import {
   pickVtoPersonInput,
   type VtoPersonPickOutcome,
 } from '../services/vto/vtoPersonInput';
+import { hasVtoConsent } from '../services/vto/vtoConsent';
 import type { VtoGarmentInput, VtoOrigin, VtoPersonInput } from '../types/vto';
 
 export interface UseVirtualTryOnArgs {
@@ -112,11 +113,17 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
     return outcome;
   }, []);
 
+  // THIRD-PARTY AI CONSENT. Both actions hand the store a proof of consent read
+  // at the moment of the call: a synchronous cache read, not React state, so a
+  // consent granted a line earlier is already visible. The store refuses the
+  // real transport without it (see StartVtoOptions.consentGranted), which makes
+  // this the second lock on a door the sheet has already asked at.
   const generate = useCallback(() => {
     void startVtoGeneration({
       garment: argsRef.current.garment,
       origin: argsRef.current.origin,
       devScenario: argsRef.current.devScenario,
+      consentGranted: hasVtoConsent(),
     });
   }, []);
 
@@ -125,6 +132,7 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
       garment: argsRef.current.garment,
       origin: argsRef.current.origin,
       devScenario: argsRef.current.devScenario,
+      consentGranted: hasVtoConsent(),
     });
   }, []);
 

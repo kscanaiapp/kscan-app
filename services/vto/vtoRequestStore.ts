@@ -254,6 +254,15 @@ export interface StartVtoOptions {
   garment: VtoGarmentInput;
   origin: VtoOrigin;
   devScenario?: string;
+  /**
+   * Proof that the customer agreed to send their photo to the external AI
+   * service (services/vto/vtoConsent.ts). useVirtualTryOn supplies it from the
+   * synchronous consent check, in the same call that starts the generation.
+   * Exactly `true` counts: absent, false, or anything merely truthy is no proof.
+   * Read only by the backstop at the top of startVtoGeneration and
+   * retryVtoGeneration.
+   */
+  consentGranted?: boolean;
   /** Injected in tests. */
   generate?: typeof requestVtoGeneration;
   buildPayload?: typeof buildVtoPersonPayload;
@@ -268,6 +277,19 @@ export interface StartVtoOptions {
  * authority the instant the newer one starts.
  */
 export async function startVtoGeneration(options: StartVtoOptions): Promise<void> {
+  // CONSENT BACKSTOP. The real transport can never be reached without a proof
+  // that the customer agreed to send their photo to the external AI service.
+  //
+  // It keys on the REAL transport -- `generate` not injected -- because consent
+  // protects exactly the off-device transmission. A caller that injects its own
+  // `generate` (the lifecycle tests do) never touches the network, so there is
+  // nothing to protect there. The sheet asks before it gets here; this is what
+  // keeps a path that forgot to ask, such as the Live handoff or a future entry
+  // point, from sending anyway.
+  //
+  // It returns before ANY state changes: a refused start leaves the snapshot,
+  // the intent sequence and the telemetry exactly as they were.
+  if (!options.generate && options.consentGranted !== true) return;
   const current = snapshot;
   const person = current.person;
   if (!person) {
@@ -409,6 +431,10 @@ function applyFailure(
  *  real money and sends the user's photo again, so it happens only because a
  *  person asked for it. */
 export async function retryVtoGeneration(options: StartVtoOptions): Promise<void> {
+  // The same backstop as startVtoGeneration, and BEFORE the retry bookkeeping
+  // below: a refused retry made no attempt, so it must not advance the intent
+  // sequence, bump retryCount or emit vto_retry.
+  if (!options.generate && options.consentGranted !== true) return;
   const current = getVtoSnapshot();
   // An explicit Retry is a new intent by definition -- that is the whole point
   // of the affordance, and the server honours it as separately counted work.
