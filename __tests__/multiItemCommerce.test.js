@@ -126,7 +126,10 @@ test('one candidate throwing never removes or corrupts the others (partial-succe
       return { status: 'success', purchaseOptions: [{ id: 'j1', title: 'Jacket offer', retailer: 'AllSaints' }, { id: 'j2', title: 'Alt', retailer: 'Schott' }], enrichmentCandidates: [], cacheHit: false, retryable: false, candidateId: 'jacket' };
     }
     if (evidence.candidateId === 'boots') {
-      return { status: 'empty', purchaseOptions: [], enrichmentCandidates: [], cacheHit: false, retryable: true, candidateId: 'boots' };
+      // A search that COMPLETED empty names its cause (backend errorType
+      // 'no_results'). Without it this result is UNKNOWN and is an error, not a
+      // no-match (see __tests__/scanCommerceStateTruth.test.js).
+      return { status: 'empty', purchaseOptions: [], enrichmentCandidates: [], cacheHit: false, retryable: true, errorType: 'no_results', candidateId: 'boots' };
     }
     if (evidence.candidateId === 'scarf') {
       throw new Error('simulated network failure');
@@ -156,11 +159,20 @@ test('one candidate throwing never removes or corrupts the others (partial-succe
   assert.equal(bootsCard.status, 'no_match');
   assert.equal(bootsCard.bestMatch, null);
 
-  // The failing candidate is simply absent — it does not throw the whole
-  // orchestration and does not appear as a corrupted/partial entry.
-  assert.equal(result.has('scarf'), false);
+  // The failing candidate does not throw the whole orchestration and is not a
+  // corrupted/partial entry. Superseded assumption: it used to be dropped from the
+  // map ("simply absent"), but an item with no card is indistinguishable from one
+  // nothing searched for, and the shelf printed a no-match statement for it. It
+  // now gets an explicit error card of its own, carrying no offers.
+  const scarfCard = result.get('scarf');
+  assert.ok(scarfCard, 'a rejected candidate surfaces as an error card, not as nothing');
+  assert.equal(scarfCard.status, 'error');
+  assert.equal(scarfCard.candidateId, 'scarf');
+  assert.equal(scarfCard.bestMatch, null);
+  assert.deepEqual(scarfCard.alternatives, []);
+  // An ineligible candidate is still simply absent: it cannot be searched.
   assert.equal(result.has('unknown'), false);
-  assert.equal(result.size, 2);
+  assert.equal(result.size, 3);
 });
 
 test('all candidates dispatch in parallel, not serially', async () => {

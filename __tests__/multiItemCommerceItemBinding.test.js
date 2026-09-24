@@ -169,7 +169,7 @@ test('out-of-order completion does not rebind cards', async () => {
   }
 });
 
-test('a failing garment leaves the others bound to themselves and produces no card of its own', async () => {
+test('a failing garment leaves the others bound to themselves and gets an ERROR card of its own, carrying nobody else\'s offers', async () => {
   const calls = [];
   const base = bindingTransport(calls);
   const { fetchMultiItemCommerce } = load(async (evidence) => {
@@ -181,10 +181,21 @@ test('a failing garment leaves the others bound to themselves and produces no ca
 
   const cards = await fetchMultiItemCommerce(CANDIDATES);
 
-  assert.equal(cards.has('garment-2-footwear-chelsea-boot'), false,
-    'a garment whose request rejected must not receive a card — and above all must not ' +
-    "receive another garment's card");
-  assert.equal(cards.size, 2, 'the two healthy garments still have their cards');
+  // Superseded assumption: this used to assert the failing garment had NO card.
+  // An absent card is indistinguishable from "nothing searched for this item", and
+  // the shelf printed a no-match statement for it. The binding invariant this test
+  // exists for is unchanged and still asserted below: the failing garment must never
+  // receive another garment's card. Its own card is now an explicit error
+  // (services/multiItemCommerce.ts fetchMultiItemCommerce).
+  const boot = cards.get('garment-2-footwear-chelsea-boot');
+  assert.ok(boot, 'a garment whose request rejected surfaces as an error card, not as nothing');
+  assert.equal(boot.candidateId, 'garment-2-footwear-chelsea-boot',
+    "the error card is bound to the failing garment, never to a sibling");
+  assert.equal(boot.status, 'error');
+  assert.equal(boot.bestMatch, null,
+    "a garment whose request rejected must not receive another garment's offers");
+  assert.deepEqual(boot.alternatives, []);
+  assert.equal(cards.size, 3, 'the two healthy garments still have their cards, plus the boot error card');
   assert.ok(cards.get('garment-1-outerwear-leather-jacket').bestMatch.title.endsWith('leather jacket'));
   assert.ok(cards.get('garment-3-bag-crossbody-bag').bestMatch.title.endsWith('crossbody bag'));
 });

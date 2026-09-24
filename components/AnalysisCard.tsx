@@ -36,6 +36,7 @@ import type { ScanResultObject } from '../types/scanResultObject';
 import type { OutfitConfirmationCandidate } from '../services/outfitConfirmation/outfitDetectionBridge';
 import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
 import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
+import { purchaseShelfEmptyProps, storedItemEmptyShelfProps } from '../services/commerceShelfState';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
@@ -442,12 +443,16 @@ export function AnalysisCard({
                             testID={`multi-item-commerce-error-${candidate.id}`}
                           />
                         ) : (
+                          /* No offers and not an error. Only a stored 'no_match'
+                             card is a completed empty search; an item with no
+                             stored card was never searched for (commerce was
+                             skipped, or the scan was saved before it landed), so
+                             the copy is derived from the stored card alone and a
+                             missing one is NOT_STARTED, never a no-match. */
                           <ProductShelf
                             products={[]}
                             label={candidate.label}
-                            emptyTitle="No strong shopping match found."
-                            emptyBody="This item was identified, but no confident retailer match was returned."
-                            testID={`multi-item-commerce-no-match-${candidate.id}`}
+                            {...storedItemEmptyShelfProps(card, candidate.id)}
                           />
                         )}
                         {card && card.alternatives.length > 0 ? (
@@ -598,6 +603,7 @@ export function AnalysisCard({
                   pending={purchaseShelfMode === 'pending'}
                   hasError={purchaseShelfMode === 'error'}
                   onRetry={onRetryCommerce}
+                  {...purchaseShelfEmptyProps(purchaseOptions.length, commerceStatus)}
                 />
               ) : null}
 

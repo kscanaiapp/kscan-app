@@ -156,9 +156,25 @@ test('the reopen surface branches on stored status, not on bestMatch alone', () 
   assert.match(block, /card\?\.status === 'error'/,
     'the reopen block must consult the stored status');
 
-  const noMatchIdx = block.indexOf('No strong shopping match found.');
+  // Superseded assumption: this used to find the literal no-match sentence inside
+  // the AnalysisCard block and require the error branch to precede it. The
+  // sentence now lives only in the COMPLETED_EMPTY entry of the copy table
+  // (services/commerceShelfState.ts), and the fall-through branch derives its copy
+  // from the stored card via storedItemEmptyShelfProps, so an item with NO stored
+  // card is NOT_STARTED instead of a no-match. The intent is unchanged: the error
+  // case is decided BEFORE the fall-through, and a genuine no-match still renders
+  // its copy.
+  const fallThroughIdx = block.indexOf('storedItemEmptyShelfProps(');
   const errorIdx = block.indexOf("card?.status === 'error'");
-  assert.ok(noMatchIdx > -1, 'the no-match copy is still present for genuine no-matches');
-  assert.ok(errorIdx > -1 && errorIdx < noMatchIdx,
-    'the error case is decided before falling through to the no-match claim');
+  assert.ok(fallThroughIdx > -1, 'the fall-through derives its copy from the stored card');
+  assert.ok(errorIdx > -1 && errorIdx < fallThroughIdx,
+    'the error case is decided before falling through to the copy selection');
+  assert.ok(!block.includes('No strong shopping match found.'),
+    'the no-match sentence is not inline in the reopen block; it is a COMPLETED_EMPTY copy-table entry');
+
+  const { storedItemEmptyShelfProps } = createLoader(ROOT)('services/commerceShelfState.ts');
+  assert.match(storedItemEmptyShelfProps({ status: 'no_match', bestMatch: null }, 'x').emptyTitle,
+    /No strong shopping match found\./, 'the no-match copy is still present for genuine no-matches');
+  assert.doesNotMatch(storedItemEmptyShelfProps(undefined, 'x').emptyTitle, /No strong shopping match/,
+    'a saved item with no stored card is NOT_STARTED, never a no-match');
 });

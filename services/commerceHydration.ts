@@ -191,11 +191,33 @@ export function normalizeCommerceHydrationResponse(raw: unknown): CommerceHydrat
 }
 
 /**
+ * An empty shelf is a COMPLETED empty search only when the backend says so.
+ *
+ * `normalizeCommerceHydrationResponse` above is a faithful read of the wire and
+ * derives `status` from the offer count alone, so it calls a provider failure
+ * answered HTTP 200 (`errorType:'provider_error'`), a query too weak to search
+ * (`weak_query`) and a backend that does not serve MODE B at all (a funnel-off
+ * `status:'failed'` body with no `commerce` block, index.ts:2407-2408) all
+ * "empty". Callers act on `status`, and hooks/useKScan.js stores it verbatim, so
+ * this is where "empty" is narrowed to the one thing it must mean: the backend
+ * reported `errorType:'no_results'`, i.e. providers ran and matched nothing.
+ * Everything else that is not a success did not demonstrably complete, and is an
+ * error (retryable) with the cause preserved.
+ */
+function settleEmptyResult(result: CommerceHydrationResult): CommerceHydrationResult {
+  if (result.status !== 'empty' || result.errorType === 'no_results') return result;
+  return { ...result, status: 'error', errorType: result.errorType ?? 'not_completed', retryable: true };
+}
+
+/**
  * Issue one MODE B commerce request.
  *
  * Never throws: a transport failure, timeout, or abort returns an `error`
  * result so the caller can leave the scan successful and offer a retry. This is
  * the contract that keeps a commerce failure from becoming a scan failure.
+ *
+ * `status: 'empty'` is returned only for a search the backend reported as
+ * completed-empty (see settleEmptyResult).
  */
 export async function fetchDeferredCommerce(
   evidence: CommerceHydrationEvidence,
@@ -219,7 +241,7 @@ export async function fetchDeferredCommerce(
     if (error) {
       return { ...EMPTY_RESULT, errorType: 'invoke_error', retryable: true };
     }
-    return normalizeCommerceHydrationResponse(data);
+    return settleEmptyResult(normalizeCommerceHydrationResponse(data));
   } catch (err) {
     const aborted = (err as { name?: string } | null)?.name === 'AbortError';
     return {

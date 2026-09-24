@@ -423,7 +423,10 @@ function buildCardSubtitle(
     return `${matchCount} ${noun} found`;
   }
   if (weak) return 'Style match found — exact item still learning';
-  return 'No similar items yet — saved as style metadata';
+  // Unreachable for a real count (zero returns above, a positive count returns in
+  // its own block), so this is only ever a defensive fallback. It must not assert
+  // that a search found nothing, so it says what the zero-count branch says.
+  return 'Product matches will improve as the catalog grows.';
 }
 
 function capitalizeFirst(value: string): string {

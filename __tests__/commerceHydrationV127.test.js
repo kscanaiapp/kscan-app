@@ -134,8 +134,19 @@ test('MODE B success normalizes to a hydrated shelf', async () => {
 
 test('MODE B empty is a soft outcome, not an error', async () => {
   reset();
+  // A COMPLETED empty search names its cause: the backend always sets
+  // commerce.errorType on an empty shelf (scanCommerceRouter.ts:1200), and
+  // 'no_results' is "providers ran and matched nothing". The original fixture
+  // omitted it; an empty body that names no cause is not evidence the search
+  // completed (a funnel-off backend answers a commerce_only body that way), and
+  // fetchDeferredCommerce now reports it as an error. See settleEmptyResult and
+  // __tests__/scanCommerceStateTruth.test.js.
   RESPONDER = () => ({
-    data: { status: 'completed', purchaseOptions: [], commerce: { available: false, retryable: true } },
+    data: {
+      status: 'completed',
+      purchaseOptions: [],
+      commerce: { available: false, retryable: true, errorType: 'no_results' },
+    },
     error: null,
   });
   const result = await hydration.fetchDeferredCommerce(EVIDENCE);

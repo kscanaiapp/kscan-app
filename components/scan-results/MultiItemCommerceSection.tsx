@@ -6,7 +6,12 @@ import { InlineNotice } from '../luxury/InlineNotice';
 import { mapRawProductToPurchaseOption } from './types';
 import type { PurchaseOption } from './types';
 import type { OutfitConfirmationCandidate } from '../../services/outfitConfirmation/outfitDetectionBridge';
-import type { ItemCommerceCard, ItemCommerceStatus } from '../../services/multiItemCommerce';
+import type { ItemCommerceCard } from '../../services/multiItemCommerce';
+import {
+  commerceShelfNoticeCopy,
+  isCandidateCommerceEligible,
+  resolveItemCommerceState,
+} from '../../services/commerceShelfState';
 
 interface MultiItemCommerceSectionProps {
   /** Every detected item, eligible or not — order is the garment order. */
@@ -15,6 +20,18 @@ interface MultiItemCommerceSectionProps {
   cardsByCandidateId: Map<string, ItemCommerceCard>;
   /** Whole-shelf lifecycle: 'idle' before dispatch, 'pending' while in flight. */
   status: 'idle' | 'pending' | 'ready';
+  /**
+   * The backend announced `commerce.deferred` for this scan (analysis.commerceDeferred).
+   * With the shelf still idle that means dispatch is imminent (DEFERRED), not that
+   * commerce will never run. Absent means the backend did not defer, so nothing
+   * will be dispatched (NOT_STARTED).
+   */
+  deferred?: boolean;
+  /**
+   * Whether this surface offers the Find Matches action. It is the real next step
+   * from NOT_STARTED, so the copy only points at it when it exists.
+   */
+  findMatchesAvailable?: boolean;
   onRetry?: () => void;
   testID?: string;
 }
@@ -28,13 +45,21 @@ function toPurchaseOptions(products: unknown[]): PurchaseOption[] {
 /**
  * One canonical commerce card per detected fashion item — garment-organized,
  * never retailer-organized. Best Match + Alternatives only (no three-tier
- * classification, no match percentages). An item without a strong result
- * shows a restrained no-match state; it never blocks or hides its siblings.
+ * classification, no match percentages). It never blocks or hides its siblings.
+ *
+ * Each item is in exactly one of six states (services/commerceShelfState.ts) and
+ * says only what is true of that state. A statement that no match was found is
+ * COMPLETED_EMPTY's alone: an item nothing has searched for (NOT_STARTED), one
+ * whose request is on its way or in flight, and one whose request failed each get
+ * their own message. Copy comes from the shared copy table, so this component
+ * cannot reach the no-match sentence except through the COMPLETED_EMPTY state.
  */
 export function MultiItemCommerceSection({
   candidates,
   cardsByCandidateId,
   status,
+  deferred = false,
+  findMatchesAvailable = false,
   onRetry,
   testID,
 }: MultiItemCommerceSectionProps) {
@@ -44,8 +69,13 @@ export function MultiItemCommerceSection({
     <View style={styles.container} testID={testID ?? 'multi-item-commerce-section'}>
       {candidates.map((candidate) => {
         const card = cardsByCandidateId.get(candidate.id);
-        const itemStatus: ItemCommerceStatus | 'pending' | 'not_eligible' =
-          card?.status ?? (status === 'pending' ? 'pending' : 'not_eligible');
+        const state = resolveItemCommerceState({
+          deferred,
+          shelfStatus: status,
+          eligible: isCandidateCommerceEligible(candidate),
+          card,
+        });
+        const notice = commerceShelfNoticeCopy(state, candidate.label, findMatchesAvailable);
 
         return (
           <View
@@ -57,9 +87,8 @@ export function MultiItemCommerceSection({
                 THIS garment, and a screen reader otherwise reads one flat run
                 of "View options for ..." across all detected items with no
                 announced boundary between them. The per-item notices carry
-                the garment name for the same reason: three stacked
-                "No strong shopping match found." notices are indistinguishable
-                by voice. */}
+                the garment name for the same reason: several stacked notices
+                of the same kind are indistinguishable by voice. */}
             <Text
               style={styles.itemLabel}
               numberOfLines={1}
@@ -69,27 +98,34 @@ export function MultiItemCommerceSection({
               {candidate.label}
             </Text>
 
-            {itemStatus === 'pending' ? (
+            {state === 'DEFERRED' || state === 'IN_PROGRESS' ? (
               <InlineNotice
                 variant="info"
-                body="Finding where to buy this…"
-                accessibilityLabel={`Finding where to buy ${candidate.label}`}
+                body={notice.body}
+                accessibilityLabel={notice.accessibilityLabel}
                 testID={`multi-item-commerce-pending-${candidate.id}`}
               />
-            ) : itemStatus === 'error' ? (
+            ) : state === 'ERROR' ? (
               <InlineNotice
                 variant="error"
-                body="Couldn't load purchase options for this item."
-                accessibilityLabel={`Couldn't load purchase options for ${candidate.label}`}
+                body={notice.body}
+                accessibilityLabel={notice.accessibilityLabel}
                 action={onRetry ? { label: 'Retry', onPress: onRetry, accessibilityLabel: `Retry purchase options for ${candidate.label}`, testID: `multi-item-commerce-retry-${candidate.id}` } : undefined}
                 testID={`multi-item-commerce-error-${candidate.id}`}
               />
-            ) : itemStatus === 'no_match' || itemStatus === 'not_eligible' ? (
+            ) : state === 'COMPLETED_EMPTY' ? (
               <InlineNotice
                 variant="info"
-                body="No strong shopping match found."
-                accessibilityLabel={`No strong shopping match found for ${candidate.label}`}
+                body={notice.body}
+                accessibilityLabel={notice.accessibilityLabel}
                 testID={`multi-item-commerce-no-match-${candidate.id}`}
+              />
+            ) : state === 'NOT_STARTED' ? (
+              <InlineNotice
+                variant="info"
+                body={notice.body}
+                accessibilityLabel={notice.accessibilityLabel}
+                testID={`multi-item-commerce-not-started-${candidate.id}`}
               />
             ) : (
               <>

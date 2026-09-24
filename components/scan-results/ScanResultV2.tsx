@@ -479,6 +479,8 @@ export function ScanResultV2({
                   candidates={confirmationCandidates}
                   cardsByCandidateId={multiItemCommerceByCandidateId}
                   status={multiItemCommerceStatus}
+                  deferred={Boolean(analysis?.commerceDeferred)}
+                  findMatchesAvailable={typeof onAnalyzeSelectedCandidate === 'function'}
                   onRetry={onRetryMultiItemCommerce}
                 />
               ) : null}

@@ -14,6 +14,7 @@
  */
 
 import { fetchDeferredCommerce, type CommerceHydrationResult } from './commerceHydration';
+import { isCandidateCommerceEligible } from './commerceShelfState';
 import type { OutfitConfirmationCandidate } from './outfitConfirmation/outfitDetectionBridge';
 import type { RankedScanProduct } from '../types/scanIdentification';
 
@@ -33,12 +34,12 @@ export type ItemCommerceCard = {
  * candidate is eligible when it carries identification content a commerce
  * query can be built from, matching the same non-emptiness bar the backend
  * itself applies (`readCommerceOnlyEvidence` requires identification).
+ *
+ * The predicate lives in the dependency-free services/commerceShelfState.ts so
+ * the shelf component can ask it without importing this network-facing module;
+ * it is re-exported here so every existing caller keeps working.
  */
-export function isCandidateCommerceEligible(candidate: OutfitConfirmationCandidate): boolean {
-  const identification = candidate.source?.identification;
-  if (!identification || typeof identification !== 'object') return false;
-  return Object.keys(identification).length > 0;
-}
+export { isCandidateCommerceEligible };
 
 /**
  * Two-tier split of an already-ranked offer array. The backend documents
@@ -67,24 +68,36 @@ export function splitBestMatchAndAlternatives(purchaseOptions: RankedScanProduct
 const GENUINE_NO_MATCH_ERROR_TYPES = new Set(['no_results']);
 
 /**
- * An empty shelf is only a NO_MATCH when commerce actually looked.
+ * An empty shelf is only a NO_MATCH when the search demonstrably completed empty.
  *
- * A MODE B provider failure answers 200 with an empty shelf and
- * `commerce.errorType` set (scan-identify's `if (!fast)` branch), so mapping
- * every empty result to 'no_match' told the user "No strong shopping match
- * found" for a search that never ran — a config or provider outage rendered
- * as a statement about the garment. An absent errorType keeps the previous
- * treatment: nothing is newly reclassified on a backend that does not report.
+ * The evidence is the backend's own statement: `commerce.errorType ===
+ * 'no_results'`. A healthy MODE B answer always names its cause when the shelf
+ * is empty (scanCommerceRouter: `errorType: merged.length > 0 ? undefined :
+ * (discoveryErrorType ?? 'no_results')`), so an empty result that names NO cause
+ * is not a healthy answer at all. It is what a backend without the MODE B route
+ * returns: with the v127 funnel off a commerce_only body falls through to the
+ * image path and is answered HTTP 200 `status:'failed'` with no `commerce` block
+ * (index.ts:2407-2408), which normalizes to an empty shelf with no errorType.
+ * Treating that as "no match" stated a fact about the garment for a search that
+ * never ran, so an absent errorType is UNKNOWN, and UNKNOWN is an error here,
+ * never a no-match. Provider failures (`provider_error`, `no_key`, `disabled`,
+ * `timeout`, `weak_query`, ...) are errors for the same reason.
  */
 function toCardStatus(result: CommerceHydrationResult): ItemCommerceStatus {
   if (result.status === 'success') return 'ready';
   if (
     result.status === 'empty' &&
-    (!result.errorType || GENUINE_NO_MATCH_ERROR_TYPES.has(result.errorType))
+    result.errorType !== undefined &&
+    GENUINE_NO_MATCH_ERROR_TYPES.has(result.errorType)
   ) {
     return 'no_match';
   }
   return 'error';
+}
+
+/** A card for an eligible item whose request produced no usable answer. */
+function errorCard(candidateId: string): ItemCommerceCard {
+  return { candidateId, status: 'error', bestMatch: null, alternatives: [], retryable: true };
 }
 
 function searchQueriesOf(identification: Record<string, unknown> | undefined): string[] | undefined {
@@ -96,12 +109,16 @@ function searchQueriesOf(identification: Record<string, unknown> | undefined): s
 
 /**
  * Fetch commerce for every eligible detected item in parallel. Ineligible
- * candidates are simply absent from the result map — callers render their
- * "no strong shopping match" state locally without treating that as an error.
+ * candidates are simply absent from the result map: they cannot be searched, and
+ * callers resolve them to NOT_STARTED (services/commerceShelfState.ts), which is
+ * not an error and not a no-match.
  *
  * A per-candidate failure never rejects this promise and never removes
  * another candidate's card: `Promise.allSettled` plus a per-item try/catch
- * inside `fetchDeferredCommerce` itself.
+ * inside `fetchDeferredCommerce` itself. Should an eligible candidate's request
+ * reject anyway, it gets an ERROR card of its own. It used to be dropped from the
+ * map, and an item with no card was indistinguishable from an item nothing had
+ * searched for.
  */
 export async function fetchMultiItemCommerce(
   candidates: OutfitConfirmationCandidate[],
@@ -126,8 +143,13 @@ export async function fetchMultiItemCommerce(
   );
 
   const out = new Map<string, ItemCommerceCard>();
-  for (const entry of settled) {
-    if (entry.status !== 'fulfilled') continue;
+  settled.forEach((entry, index) => {
+    if (entry.status !== 'fulfilled') {
+      // allSettled preserves order, so this entry belongs to eligible[index].
+      const failed = eligible[index];
+      out.set(failed.id, errorCard(failed.id));
+      return;
+    }
     const { candidate, result } = entry.value;
     const { bestMatch, alternatives } = splitBestMatchAndAlternatives(result.purchaseOptions);
     out.set(candidate.id, {
@@ -137,6 +159,6 @@ export async function fetchMultiItemCommerce(
       alternatives,
       retryable: result.retryable,
     });
-  }
+  });
   return out;
 }

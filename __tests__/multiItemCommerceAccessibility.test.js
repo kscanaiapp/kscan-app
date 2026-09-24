@@ -140,7 +140,16 @@ test('every detected garment announces itself as a heading over its own shelf', 
 });
 
 test('three no-match notices are distinguishable by voice', () => {
-  const tree = render(new Map(), 'ready');
+  // Superseded setup: this used to render `render(new Map(), 'ready')` and rely on
+  // a finished shelf with no cards printing a no-match for every item. A no-match
+  // is now stated only for an item whose search demonstrably completed empty
+  // (services/commerceShelfState.ts), so the notices under test are produced the
+  // way production produces them: from explicit completed-empty cards.
+  const noMatchCards = new Map(CANDIDATES.map((c) => [
+    c.id,
+    { candidateId: c.id, status: 'no_match', bestMatch: null, alternatives: [], retryable: true },
+  ]));
+  const tree = render(noMatchCards, 'ready');
   const labels = collect(tree)
     .map((n) => n.props.accessibilityLabel)
     .filter((l) => typeof l === 'string' && l.startsWith('No strong shopping match found'));
@@ -152,6 +161,28 @@ test('three no-match notices are distinguishable by voice', () => {
     assert.ok(labels.some((l) => l.includes(candidate.label)),
       `the no-match notice for "${candidate.label}" does not name it`);
   }
+});
+
+test('NOT_STARTED notices are distinguishable by voice too, and none of them is a no-match', () => {
+  // The same SCAN-008 requirement for the state that replaced the false no-match
+  // on a shelf nothing searched: several stacked notices of one kind must each
+  // name their own garment.
+  const tree = render(new Map(), 'idle');
+  const labels = collect(tree)
+    .map((n) => n.props.accessibilityLabel)
+    .filter((l) => typeof l === 'string' && l.includes("haven't been loaded"));
+
+  assert.equal(labels.length, CANDIDATES.length, 'every candidate renders a NOT_STARTED notice');
+  assert.equal(new Set(labels).size, CANDIDATES.length, 'each notice names its own garment');
+  for (const candidate of CANDIDATES) {
+    assert.ok(labels.some((l) => l.includes(candidate.label)), `no notice names "${candidate.label}"`);
+  }
+  assert.equal(
+    collect(tree).filter((n) => typeof n.props.accessibilityLabel === 'string'
+      && /no strong shopping match/i.test(n.props.accessibilityLabel)).length,
+    0,
+    'a shelf nothing searched must not state a no-match',
+  );
 });
 
 test('the pending state names the garment it is searching for', () => {

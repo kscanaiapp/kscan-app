@@ -99,11 +99,15 @@ export function ScanResultCard({ scanResultObject, compareSource = null }: ScanR
             {CONFIDENCE_COPY[vm.confidenceLabel] ?? 'Exploratory'}
           </Text>
         </View>
-        <Text style={styles.matchCount}>
-          {vm.matchCount > 0
-            ? `${vm.matchCount} ${vm.matchCount === 1 ? 'match' : 'matches'}`
-            : 'No matches yet'}
-        </Text>
+        {/* The count is shown only when there is one. This card has no way to
+            know whether a search completed, so a zero count must not be worded
+            as "no matches": the subtitle already carries the neutral zero-match
+            message. */}
+        {vm.matchCount > 0 ? (
+          <Text style={styles.matchCount}>
+            {`${vm.matchCount} ${vm.matchCount === 1 ? 'match' : 'matches'}`}
+          </Text>
+        ) : null}
       </View>
 
       {vm.badges.length > 0 ? (
