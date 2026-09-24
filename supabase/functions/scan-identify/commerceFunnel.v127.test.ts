@@ -38,6 +38,7 @@ import {
 import {
   enrichCommerceOffers,
   getFastCommerceResults,
+  isCommerceEmptyRetryable,
   selectEnrichmentCandidates,
 } from './scanCommerceRouter.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
@@ -1851,4 +1852,59 @@ Deno.test('NON-BLOCKING: delayed, rejected, and failed telemetry cannot alter co
   }));
   await Promise.resolve();
   assert.deepEqual(commerceResponse, { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] });
+});
+Deno.test('v127 empty truth: discovered candidates filtered to zero report no_results even when another provider is disabled', async () => {
+  setEnv();
+  Deno.env.set('POSHMARK_ENABLED', 'false');
+  commerceCacheClear();
+  installFetch([
+    {
+      match: isSerper,
+      delayMs: 10,
+      body: {
+        shopping: [{
+          title: 'Nike Air Zoom Running Shoe',
+          productLink: 'https://retailer-filtered.example-shop.test/p/shoe',
+          source: 'RetailerNeutral',
+          price: '$120',
+          imageUrl: 'https://cdn.example-shop.test/filtered-shoe.jpg',
+        }],
+      },
+    },
+    { match: isBrave, delayMs: 10, body: { web: { results: [] } } },
+  ]);
+  try {
+    const result = await getFastCommerceResults(fastInput('moto jacket filtered-empty'));
+    assert.deepEqual(result.products.length, 0, 'the footwear candidate should be filtered for outerwear');
+    assert.ok(
+      (result.qualityTune?.productsBeforeFilter ?? 0) > 0,
+      'the test must prove retrieval returned a candidate before filtering',
+    );
+    assert.deepEqual(
+      result.errorType,
+      'no_results',
+      'a completed search whose candidates were filtered out is a genuine empty result',
+    );
+    assert.deepEqual(isCommerceEmptyRetryable(result.errorType), false);
+  } finally {
+    restoreFetch();
+    Deno.env.set('POSHMARK_ENABLED', 'true');
+  }
+});
+
+Deno.test('v127 retry truth: completed/structural empty outcomes are terminal, provider failures remain retryable', () => {
+  for (const errorType of ['no_results', 'empty_query', 'weak_query', 'non_fashion', 'wrong_mode']) {
+    assert.deepEqual(
+      isCommerceEmptyRetryable(errorType),
+      false,
+      errorType + ' must not offer a Retry that cannot change the answer',
+    );
+  }
+  for (const errorType of ['provider_error', 'timeout', 'error', undefined]) {
+    assert.deepEqual(
+      isCommerceEmptyRetryable(errorType),
+      true,
+      String(errorType) + ' remains retryable',
+    );
+  }
 });
