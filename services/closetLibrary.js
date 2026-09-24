@@ -33,6 +33,7 @@ import { resolveWriteAuthority, isActorRequestCurrent } from './actorContext';
 import {
   createMediaAssetId,
   canonicalizeMediaPath,
+  referencesForeignDataContainer,
   unlinkUnreferencedMedia,
 } from './library';
 
@@ -1442,6 +1443,12 @@ export async function sweepOrphanedClosetMedia(options = {}) {
       for (const uri of Array.isArray(options.protectedPaths) ? options.protectedPaths : []) {
         const canonical = canonicalizeMediaPath(uri);
         if (canonical) referenced.add(canonical);
+      }
+      // After an iOS container relocation every reference still names the old
+      // container while the files sit under the new one; none of them can be
+      // proven orphaned, so nothing is deleted.
+      if (referencesForeignDataContainer(referenced, FileSystem.documentDirectory)) {
+        return empty('foreign_container_references');
       }
 
       let scanned = 0;

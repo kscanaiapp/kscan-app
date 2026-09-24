@@ -204,8 +204,10 @@ test('Recent Scans and the Closet are separate manifests and separate media root
 });
 
 test('no Closet path can write a record into Recent Scan storage', () => {
-  // The Closet imports exactly three things from the Recent Scan module, none
-  // of which writes the Recent Scan manifest.
+  // The Closet imports exactly four things from the Recent Scan module, none
+  // of which writes the Recent Scan manifest. referencesForeignDataContainer is
+  // a pure comparison over path strings the caller already holds; the orphan
+  // sweep uses it to refuse deletion after an iOS container relocation.
   const closet = stripComments(read('services/closetLibrary.js'));
   // [^}] so the match cannot start at an earlier import and run through it.
   const imported = closet.match(/import \{([^}]*)\} from '\.\/library';/);
@@ -216,7 +218,7 @@ test('no Closet path can write a record into Recent Scan storage', () => {
     .filter(Boolean);
   assert.deepEqual(
     names.sort(),
-    ['canonicalizeMediaPath', 'createMediaAssetId', 'unlinkUnreferencedMedia'],
+    ['canonicalizeMediaPath', 'createMediaAssetId', 'referencesForeignDataContainer', 'unlinkUnreferencedMedia'],
     'a new import here could reach Recent Scan persistence',
   );
 

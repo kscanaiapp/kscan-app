@@ -28,7 +28,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ExpoCrypto from 'expo-crypto';
-import { createMediaAssetId, canonicalizeMediaPath } from './library';
+import { createMediaAssetId, canonicalizeMediaPath, referencesForeignDataContainer } from './library';
 import { CLOSET_CANDIDATE_CONTENT_HASH_VERSION } from '../types/closetCandidate';
 
 export const CANDIDATE_DIR = FileSystem.documentDirectory + 'kscan_closet_candidates/';
@@ -465,6 +465,12 @@ export async function sweepOrphanedCandidateMedia(survivingRecords, options = {}
       const canonical = canonicalizeMediaPath(uri);
       if (canonical) referenced.add(canonical);
     }
+  }
+  // After an iOS container relocation every reference still names the old
+  // container while the files sit under the new one; none of them can be
+  // proven orphaned, so nothing is deleted.
+  if (referencesForeignDataContainer(referenced, FileSystem.documentDirectory)) {
+    return { ok: false, skipped: true, reason: 'foreign_container_references', deleted: 0, failed: 0 };
   }
 
   let deleted = 0;
