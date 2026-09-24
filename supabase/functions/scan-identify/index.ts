@@ -56,6 +56,7 @@ import {
   getScanCommerceResults,
   getFastCommerceResults,
   enrichCommerceOffers,
+  isCommerceEmptyRetryable,
   type ScanCommerceResult,
 } from './scanCommerceRouter.ts';
 // Phase 2B.1 activation. Explicit `.ts` specifiers (Deno requirement) also put
@@ -2352,7 +2353,7 @@ Deno.serve(async (req) => {
       ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
       commerce: {
         available: products.length > 0,
-        retryable: products.length === 0,
+        retryable: products.length === 0 && isCommerceEmptyRetryable(fast.errorType),
         provider: fast.provider,
         providersTried: fast.providersTried,
         count: products.length,
