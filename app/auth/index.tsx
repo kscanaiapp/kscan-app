@@ -293,6 +293,13 @@ export default function AuthScreen() {
 
   // ── Email confirmation panel (Case B) ────────────────────────────────────────
 
+  // KEYBOARD OFFSET, both panels: 0. The avoider is the last child of the screen root,
+  // which starts at the top of the screen (the in-flow header above it already spends
+  // the safe-area inset), and nothing sits below it, so React Native's padding is
+  // exactly the keyboard height. The 40 this screen used to pass was extra padding
+  // with no obstruction behind it: a dead band above the keyboard. The premises and
+  // the arithmetic are pinned in __tests__/iosAuthKeyboardOffset.test.js. iPad
+  // Slide Over / Stage Manager (a root that is not at screen y = 0) is a device check.
   if (step === 'confirm-email') {
     return (
       <View style={styles.root}>
@@ -316,7 +323,7 @@ export default function AuthScreen() {
         <KeyboardAvoidingView
           style={styles.body}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             contentContainerStyle={[
@@ -376,7 +383,7 @@ export default function AuthScreen() {
       <KeyboardAvoidingView
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           contentContainerStyle={[
