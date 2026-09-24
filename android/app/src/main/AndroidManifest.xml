@@ -199,6 +199,12 @@
          usage anywhere in the app), so this delegate activity is unreachable; removed
          rather than left forcing portrait (GOOGLE-ANDROID-002). -->
     <activity android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity" tools:node="remove"/>
+    <!-- Transitive from expo-image-picker's com.vanniktech:android-image-cropper, whose
+         library manifest exports com.canhub.cropper.CropImageActivity with no permission.
+         Nothing outside K Scan needs to start it, and K Scan itself never crops (every
+         picker call leaves allowsEditing off; Expo's own crop screen is the separate,
+         non-exported ExpoCropImageActivity), so it is not exported (B34-AND-SEC-001). -->
+    <activity android:name="com.canhub.cropper.CropImageActivity" android:exported="false" tools:replace="android:exported"/>
 
     <!--
       Android Repair 02 (merged-manifest foreground-service exposure). Three
