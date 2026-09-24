@@ -11,7 +11,7 @@
     would not have been enough: expo-notifications' own library manifest
     (node_modules/expo-notifications/android/src/main/AndroidManifest.xml)
     declares POST_NOTIFICATIONS itself, so the merged manifest would still
-    carry it. Only tools:node="remove" neutralises both contributions --
+    carry it. Only tools:node="remove" neutralises both contributions -
     the same merged-manifest governance Repair 02 established for the
     foreground-service permissions below.
 
@@ -23,7 +23,7 @@
 
     A push-capable build re-grants it through a governed build-type
     manifest chosen by pushNativeCapabilityMaterialized in
-    android/app/build.gradle -- src/push (push only) or src/voicePush
+    android/app/build.gradle - src/push (push only) or src/voicePush
     (push + Voice). Both are declared exceptions in
     config/native-config-authority.json. Push and Voice are INDEPENDENT
     capabilities: neither manifest is selected by the other's selector.
@@ -47,7 +47,7 @@
     K Scan schedules none. The store is only ever written by
     ExpoSchedulingDelegate.scheduleNotification(), reachable exclusively from
     JS scheduleNotificationAsync, and no first-party source calls it or any
-    other local-scheduling API -- the whole notification surface is
+    other local-scheduling API - the whole notification surface is
     services/watchlist/pushRegistration.ts and
     services/watchlist/watchNotificationRouting.ts, which between them use
     only getPermissionsAsync, requestPermissionsAsync,
@@ -65,7 +65,7 @@
     -> NotificationsService.receive() -> NOTIFICATION_EVENT/RECEIVE_TYPE, and
     a tap -> createNotificationResponseIntent -> NOTIFICATION_EVENT/
     RECEIVE_RESPONSE_TYPE. Neither route consults SETUP_ACTIONS and neither
-    needs this permission -- RECEIVE_BOOT_COMPLETED appears NOWHERE in the
+    needs this permission - RECEIVE_BOOT_COMPLETED appears NOWHERE in the
     library's Kotlin, only in its manifest. Deleting the receiver or that
     action to "finish" this repair would break remote delivery, presentation
     and tap handling; __tests__/androidNotificationBootCapability.test.js
@@ -75,7 +75,7 @@
     the platform stops delivering BOOT_COMPLETED at all, and the actions that
     survive independently (MY_PACKAGE_REPLACED, and OEM QUICKBOOT variants on
     the devices that send them) reach a setupScheduledNotifications() that
-    iterates an empty store -- no capability, no work. Selectively removing
+    iterates an empty store - no capability, no work. Selectively removing
     <action> elements from a library receiver would require redeclaring that
     receiver, which is exactly the brittle replacement that endangers
     NOTIFICATION_EVENT.
@@ -95,13 +95,13 @@
     Android Repair 02 (merged-manifest foreground-service exposure).
 
     expo-audio's own AndroidManifest.xml unconditionally contributes
-    FOREGROUND_SERVICE and FOREGROUND_SERVICE_MEDIA_PLAYBACK -- the second
+    FOREGROUND_SERVICE and FOREGROUND_SERVICE_MEDIA_PLAYBACK - the second
     exists only to let its AudioControlsService (a mediaPlayback-typed
     MediaSessionService, lock-screen/notification playback controls) run as a
     foreground service. K Scan's only expo-audio call site
     (services/avatars/stylistAudioPlayback.ts, Elise/stylist speech) never
-    calls setActiveForLockScreen -- the one API that activates that service
-    (node_modules/expo-audio/android/.../AudioPlayer.kt) -- and always passes
+    calls setActiveForLockScreen - the one API that activates that service
+    (node_modules/expo-audio/android/.../AudioPlayer.kt) - and always passes
     shouldPlayInBackground: false. With that service removed below and no
     other package in this dependency tree declaring a foreground service
     (verified: `grep -rl foregroundServiceType node_modules/**/AndroidManifest.xml`
@@ -109,8 +109,8 @@
     FOREGROUND_SERVICE permission itself has no remaining purpose either.
 
     MODIFY_AUDIO_SETTINGS is deliberately NOT removed here: it is not a
-    foreground-service permission, and setAudioModeAsync -- called on every
-    stylist speech playback -- reaches AudioManager.setMode()/
+    foreground-service permission, and setAudioModeAsync - called on every
+    stylist speech playback - reaches AudioManager.setMode()/
     setSpeakerphoneOn() (node_modules/expo-audio/android/.../AudioModule.kt,
     updatePlaySoundThroughEarpiece(), invoked unconditionally from
     setAudioModeAsync regardless of shouldRouteThroughEarpiece's value), so it
@@ -138,7 +138,7 @@
       false on every Android 11+ device: canOpenURL returns false, no mail app
       opens, and the user is told otherwise.
 
-      Declared as ACTION_SENDTO + the mailto scheme -- the narrowest form that
+      Declared as ACTION_SENDTO + the mailto scheme - the narrowest form that
       matches an email client. It grants visibility of mail apps for intent
       resolution only; it adds no permission and no other capability.
     -->
@@ -157,7 +157,7 @@
 
       app.json's expo-notifications plugin config (icon:
       ./assets/notification-icon.png, color: #3F0B2F) is not itself native
-      state -- Android is native-authoritative here
+      state - Android is native-authoritative here
       (config/native-config-authority.json), and this is the exact
       meta-data shape expo-notifications@0.32.17's own config plugin
       generates (node_modules/expo-notifications/plugin/src/
@@ -169,7 +169,7 @@
       local presentation code
       (ExpoNotificationBuilder.kt) each read their own key independently.
       Without these, ExpoNotificationBuilder.icon falls back to
-      context.applicationInfo.icon -- the launcher icon -- for any
+      context.applicationInfo.icon - the launcher icon - for any
       notification, which is exactly the fallback this repair removes.
     -->
     <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon"/>
@@ -208,16 +208,16 @@
       too. See the permission-block comment above for the fuller trace.
 
       expo-audio (node_modules/expo-audio/android/src/main/AndroidManifest.xml):
-        AudioControlsService  -- foregroundServiceType="mediaPlayback"; only
+        AudioControlsService  - foregroundServiceType="mediaPlayback"; only
           started by AudioPlayer.setActiveForLockScreen(), which
           stylistAudioPlayback.ts never calls.
-        AudioRecordingService -- foregroundServiceType="microphone"; only
+        AudioRecordingService - foregroundServiceType="microphone"; only
           started when an AudioRecorder is created (AudioRecorder.kt
-          startService()); K Scan never imports/creates one -- the sole
+          startService()); K Scan never imports/creates one - the sole
           expo-audio call site only ever creates an AudioPlayer.
 
       expo-location (node_modules/expo-location/android/src/main/AndroidManifest.xml):
-        LocationTaskService -- foregroundServiceType="location"; only started
+        LocationTaskService - foregroundServiceType="location"; only started
           by the TaskManager-backed background-location task consumer
           (LocationTaskConsumer.startLocationUpdates()), reachable only
           through Location.startLocationUpdatesAsync()/startGeofencingAsync().
