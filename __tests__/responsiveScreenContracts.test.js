@@ -201,6 +201,9 @@ const CAPPED_MODAL_FILES = [
   'app/dressing-rooms/index.tsx',
   'app/looks/[id].tsx',
   'app/privacy.tsx',
+  // The in-app AI-output report sheet (Scan Results, StyleChat). It was the one
+  // full-width bottom sheet missing from this list, so on iPad it spanned the window.
+  'contexts/AiOutputReportingContext.tsx',
 ];
 
 test('every full-width modal surface is capped from the central responsive module', () => {

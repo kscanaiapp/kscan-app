@@ -2,12 +2,14 @@
 // entry point (Voice Scan pill today; any future K+ capability gate later)
 // -- there should never be a second, feature-specific paywall built
 // alongside this one.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
+import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
+import { resolveActivationCapabilities } from '../../services/kplus/kplusActivationCatalog';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import type { KPlusSource } from '../../types/kplusSource';
 
@@ -35,6 +37,19 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   const { state, expiresAt, activate, refresh } = useKPlusEntitlement();
   const [activating, setActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // What the benefit list may name is decided by the activation catalog, the
+  // same source the onboarding offer uses: only a capability this build ships
+  // AND the server is known to serve (Virtual Try-On follows its live switch and
+  // is left out until that reads enabled). The list used to be three hardcoded
+  // lines, so it promised Voice Scan whatever the build compiled in and two
+  // vague lines ("style intelligence", "wardrobe tools") whether or not any
+  // capability behind them worked.
+  const { signals: liveSignals } = useKPlusLiveCapabilitySignals(visible);
+  const advertisedCapabilities = useMemo(
+    () => resolveActivationCapabilities({}, undefined, liveSignals),
+    [liveSignals],
+  );
 
   useEffect(() => {
     if (visible) {
@@ -133,11 +148,13 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
             ) : (
               <>
                 <Text style={styles.eyebrow}>K+</Text>
-                <Text style={styles.title}>More ways to use K Scan.</Text>
+                <Text style={styles.title}>More ways to use K Scan AI.</Text>
                 <View style={styles.benefitList}>
-                  <Text style={styles.benefit}>• Voice Scan</Text>
-                  <Text style={styles.benefit}>• Advanced style intelligence</Text>
-                  <Text style={styles.benefit}>• Smarter wardrobe tools</Text>
+                  {advertisedCapabilities.map((capability) => (
+                    <Text key={capability.id} style={styles.benefit}>
+                      {`• ${capability.title}`}
+                    </Text>
+                  ))}
                   <Text style={styles.benefit}>• More K+ features as they become available</Text>
                 </View>
                 <Text style={styles.body}>K+ Early Access is complimentary for 6 months.</Text>

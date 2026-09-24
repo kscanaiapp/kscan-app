@@ -256,91 +256,131 @@ function ItemTileBase({
   // only ever price the product it is actually showing.
   const commerce = useMemo(() => resolveRoomCommerceCard(item), [item]);
 
-  const content = (
-    <View style={[styles.itemTile, selected ? styles.itemSelected : null]}>
-      {versionOk && item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
-      ) : (
-        <View style={[styles.itemImage, styles.itemFallback]}>
-          <Text style={styles.unavailableText}>UNAVAILABLE</Text>
-        </View>
-      )}
-      <View style={styles.itemBody}>
-        <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K-SCAN'}</Text>
-        <Text style={styles.itemSourceBadge}>{sourceBadge}</Text>
-        <Text style={styles.itemTitle} numberOfLines={2}>
-          {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
-        </Text>
-        {versionOk && commerce.priceLabel ? (
-          <Text style={styles.itemPrice} numberOfLines={1} testID="room-item-tile-price">
-            {commerce.priceLabel}
-            {commerce.retailer ? ` · ${commerce.retailer}` : ''}
-          </Text>
-        ) : null}
-        {onViewDetail ? (
-          <TouchableOpacity
-            style={styles.viewDetailButton}
-            onPress={onViewDetail}
-            accessibilityRole="button"
-            accessibilityLabel={`View detail for ${accessibleItemName}`}
-          >
-            <Text style={styles.viewDetailText}>View Detail</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-      {footer ? <View style={styles.itemFooter}>{footer}</View> : null}
-      {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
-      {onRemove ? (
-        /*
-          A11Y-SOC-003. A DESTRUCTIVE control whose only content was the letter
-          "x": a screen reader announced "x", with no role and no indication of
-          which item it would remove — on a grid where every tile carries an
-          identical one.
+  const cardStyle = [styles.itemTile, selected ? styles.itemSelected : null];
 
-          The 32dp visual circle is deliberately unchanged (it is the room
-          grid's design language); `hitSlop` raises the EFFECTIVE touch target
-          to 48dp, the Android minimum, without moving a pixel. Extending the
-          target this way rather than growing the button is also what keeps it
-          from overlapping the tile's own press area.
-        */
+  // The card's parts are built once and composed two ways below. Every tree
+  // except iOS-with-onPress is exactly the tree it always was; the iOS tree
+  // needs the reaction row, the SELECTED mark and Remove OUTSIDE the accessible
+  // Pressable, and reusing the same elements keeps the compositions in step.
+  const imageElement =
+    versionOk && item.imageUrl ? (
+      <Image source={{ uri: item.imageUrl }} style={styles.itemImage} resizeMode="cover" />
+    ) : (
+      <View style={[styles.itemImage, styles.itemFallback]}>
+        <Text style={styles.unavailableText}>UNAVAILABLE</Text>
+      </View>
+    );
+
+  const bodyElement = (
+    <View style={styles.itemBody}>
+      <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K-SCAN'}</Text>
+      <Text style={styles.itemSourceBadge}>{sourceBadge}</Text>
+      <Text style={styles.itemTitle} numberOfLines={2}>
+        {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
+      </Text>
+      {versionOk && commerce.priceLabel ? (
+        <Text style={styles.itemPrice} numberOfLines={1} testID="room-item-tile-price">
+          {commerce.priceLabel}
+          {commerce.retailer ? ` · ${commerce.retailer}` : ''}
+        </Text>
+      ) : null}
+      {onViewDetail ? (
         <TouchableOpacity
-          style={styles.removeButton}
-          onPress={onRemove}
-          hitSlop={REMOVE_BUTTON_HIT_SLOP}
+          style={styles.viewDetailButton}
+          onPress={onViewDetail}
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${accessibleItemName}`}
+          accessibilityLabel={`View detail for ${accessibleItemName}`}
         >
-          <Text style={styles.removeText}>x</Text>
+          <Text style={styles.viewDetailText}>View Detail</Text>
         </TouchableOpacity>
       ) : null}
+    </View>
+  );
+
+  const footerElement = footer ? <View style={styles.itemFooter}>{footer}</View> : null;
+
+  const removeElement = onRemove ? (
+    /*
+      A11Y-SOC-003. A DESTRUCTIVE control whose only content was the letter
+      "x": a screen reader announced "x", with no role and no indication of
+      which item it would remove — on a grid where every tile carries an
+      identical one.
+
+      The 32dp visual circle is deliberately unchanged (it is the room
+      grid's design language); `hitSlop` raises the EFFECTIVE touch target
+      to 48dp, the Android minimum, without moving a pixel. Extending the
+      target this way rather than growing the button is also what keeps it
+      from overlapping the tile's own press area.
+    */
+    <TouchableOpacity
+      style={styles.removeButton}
+      onPress={onRemove}
+      hitSlop={REMOVE_BUTTON_HIT_SLOP}
+      accessibilityRole="button"
+      accessibilityLabel={`Remove ${accessibleItemName}`}
+    >
+      <Text style={styles.removeText}>x</Text>
+    </TouchableOpacity>
+  ) : null;
+
+  const content = (
+    <View style={cardStyle}>
+      {imageElement}
+      {bodyElement}
+      {footerElement}
+      {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
+      {removeElement}
     </View>
   );
 
   if (!onPress) return content;
   if (Platform.OS !== 'ios') return <Pressable onPress={onPress}>{content}</Pressable>;
 
-  // iOS: an accessible Pressable is a single VoiceOver element, so View Detail
-  // and Remove inside the tile were unreachable. VoiceOver hears the item and
-  // its selection and is offered both as actions on the tile; TalkBack still
-  // reaches the nested buttons directly.
+  // iOS: an accessible Pressable is a single VoiceOver element and hides every
+  // subview, so anything nested inside it is unreachable unless it is offered
+  // as a custom action. #467 did that for View Detail (still nested in the
+  // body) and Remove. The reaction row was left inside the Pressable with no
+  // action, so Love / Like / Looking / Not it, their counts and the selected
+  // reaction could not be reached at all.
+  //
+  // The tile's Pressable therefore wraps only the image and body. The reaction
+  // row is a sibling, so each reaction is its own swipe stop with the role,
+  // count and selected state ItemReactions already gives it. Remove is a
+  // sibling too (it stays a tile action as well). The card itself is a plain,
+  // non-accessible View carrying the same border/selection styling, and the
+  // visual SELECTED mark is hidden from VoiceOver because the tile already
+  // reports `selected`. TalkBack still reaches nested buttons directly.
   const voiceOverActions = [
     ...(onViewDetail ? [{ name: 'viewDetail', label: `View detail for ${accessibleItemName}` }] : []),
     ...(onRemove ? [{ name: 'remove', label: `Remove ${accessibleItemName}` }] : []),
   ];
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibleItemName}
-      accessibilityState={{ selected: Boolean(selected) }}
-      accessibilityActions={voiceOverActions.length > 0 ? voiceOverActions : undefined}
-      onAccessibilityAction={(event) => {
-        if (event.nativeEvent.actionName === 'viewDetail') onViewDetail?.();
-        if (event.nativeEvent.actionName === 'remove') onRemove?.();
-      }}
-    >
-      {content}
-    </Pressable>
+    <View style={cardStyle}>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibleItemName}
+        accessibilityState={{ selected: Boolean(selected) }}
+        accessibilityActions={voiceOverActions.length > 0 ? voiceOverActions : undefined}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'viewDetail') onViewDetail?.();
+          if (event.nativeEvent.actionName === 'remove') onRemove?.();
+        }}
+      >
+        {imageElement}
+        {bodyElement}
+      </Pressable>
+      {footerElement}
+      {selected ? (
+        // Hidden from VoiceOver (the tile reports `selected`) and touch-transparent:
+        // it is no longer inside the Pressable, so without this a tap that lands on
+        // the badge would be swallowed here instead of reaching the tile beneath.
+        <Text style={[styles.selectedMark, { pointerEvents: 'none' }]} accessible={false}>
+          SELECTED
+        </Text>
+      ) : null}
+      {removeElement}
+    </View>
   );
 }
 

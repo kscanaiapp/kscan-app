@@ -127,6 +127,12 @@ export type LegacyAnalysisData = {
   };
   products?: any[];
   purchaseOptions?: any[];
+  /**
+   * The backend announced `commerce.deferred` for this scan (set by
+   * mapScanIdentifyToAnalysis). The multi-item shelf reads it to tell "dispatch is
+   * imminent" from "commerce was skipped and nothing will be dispatched".
+   */
+  commerceDeferred?: boolean;
   confirmationCandidates?: OutfitConfirmationCandidate[];
   secondhand?: any;
   sneakerReference?: any[];

@@ -163,17 +163,24 @@ test('iOS ItemTile: the tile names the item, reports selection, and offers View 
     onRemove: () => calls.push('remove'),
   });
 
-  assert.equal(tile.type, 'Pressable');
-  assert.equal(tile.props.accessibilityRole, 'button');
-  assert.equal(tile.props.accessibilityLabel, 'Silk Scarf');
-  assert.deepEqual(tile.props.accessibilityState, { selected: true });
+  // The accessible Pressable used to be the ROOT and wrapped the whole card,
+  // which hid the reaction row from VoiceOver (Build 34 Lane A, see
+  // iosDressingRoomReactionVoiceOver.test.js). It now wraps the image and body
+  // only, inside a plain non-accessible card View, so the reaction row is a set
+  // of sibling swipe stops. Everything this test pins about the TILE itself --
+  // its name, selection state, actions and press behaviour -- is unchanged.
+  assert.equal(tile.type, 'View');
+  const [primary] = findAll(tile.props.children, (n) => n.type === 'Pressable');
+  assert.equal(primary.props.accessibilityRole, 'button');
+  assert.equal(primary.props.accessibilityLabel, 'Silk Scarf');
+  assert.deepEqual(primary.props.accessibilityState, { selected: true });
   assert.deepEqual(
-    tile.props.accessibilityActions.map((action) => action.name),
+    primary.props.accessibilityActions.map((action) => action.name),
     ['viewDetail', 'remove'],
   );
-  fire(tile, 'remove');
-  fire(tile, 'viewDetail');
-  tile.props.onPress();
+  fire(primary, 'remove');
+  fire(primary, 'viewDetail');
+  primary.props.onPress();
   assert.deepEqual(calls, ['remove', 'detail', 'select']);
 });
 

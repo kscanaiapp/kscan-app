@@ -19,6 +19,7 @@ import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constan
 import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { selectionTick } from '../services/haptics';
 import { selectCommerceDestination } from '../services/commerceDestination';
+import { COMMERCE_SHELF_COPY } from '../services/commerceShelfState';
 import { PRODUCT_TITLE_UNAVAILABLE } from '../services/privateSavedLookCopy';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -329,8 +330,12 @@ function CatalogProductImage({
 export function ProductShelf({
   products,
   label = 'SIMILAR ITEMS',
-  emptyTitle = 'No similar items yet.',
-  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan AI can surface product matches.',
+  // An empty shelf that was told nothing about WHY it is empty is NOT_STARTED, not
+  // a no-match: the default may not assert that a search ran and found nothing.
+  // Callers that know the search completed empty pass their own copy
+  // (services/commerceShelfState.ts).
+  emptyTitle = COMMERCE_SHELF_COPY.NOT_STARTED.shelfTitle,
+  emptyBody = COMMERCE_SHELF_COPY.NOT_STARTED.shelfBody,
   testID,
   pending = false,
   hasError = false,

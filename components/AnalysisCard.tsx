@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   ScrollView,
   Animated,
   PanResponder,
@@ -19,6 +18,7 @@ import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useAiOutputReporting } from '../contexts/AiOutputReportingContext';
+import { ResultSurfaceModal } from './scan-results/ResultSurfaceModal';
 import {
   COLORS,
   LUXURY,
@@ -36,6 +36,7 @@ import type { ScanResultObject } from '../types/scanResultObject';
 import type { OutfitConfirmationCandidate } from '../services/outfitConfirmation/outfitDetectionBridge';
 import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
 import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
+import { purchaseShelfEmptyProps, storedItemEmptyShelfProps } from '../services/commerceShelfState';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
@@ -97,6 +98,12 @@ export interface AnalysisCardProps {
   onDismiss: () => void;
   onAddToDressingRoom?: () => void;
   /**
+   * Rendered as the LAST child inside this card's own native Modal. The
+   * "Add to Dressing Room" sheet is mounted through here, never beside the Modal:
+   * on iOS a sibling Modal is refused (see scan-results/ResultSurfaceModal).
+   */
+  overlay?: React.ReactNode;
+  /**
    * When Dressing Rooms is available but this specific item has no usable
    * image source yet (canonical contract: no local URI, storage reference,
    * or remote URL), the caller passes an explanation here instead of simply
@@ -144,6 +151,40 @@ export function resolvePurchaseShelfMode(
   return 'empty';
 }
 
+/**
+ * "Report Response" for the analysis paragraph.
+ *
+ * A component of its own on purpose: useAiOutputReporting() has to be resolved
+ * from INSIDE the card's Modal, under the provider ResultSurfaceModal nests there,
+ * so the report sheet presents from the card's own view controller. Called from
+ * AnalysisCard's body it would resolve the app-root provider, whose sheet iOS
+ * cannot present over this Modal (see scan-results/ResultSurfaceModal).
+ */
+function AnalysisReportButton({
+  scanSourceId,
+  testID,
+}: {
+  scanSourceId?: string | null;
+  testID: string;
+}) {
+  const { openAiOutputReport } = useAiOutputReporting();
+  return (
+    <TouchableOpacity
+      onPress={() =>
+        openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
+      }
+      style={styles.reportBtn}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Report this style analysis as offensive or unsafe"
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      testID={testID}
+    >
+      <Text style={styles.reportText}>Report Response</Text>
+    </TouchableOpacity>
+  );
+}
+
 export function AnalysisCard({
   result,
   metadata,
@@ -166,6 +207,7 @@ export function AnalysisCard({
   relatedSavedScans,
   onDismiss,
   onAddToDressingRoom,
+  overlay,
   addToDressingRoomUnavailableReason,
   onAddToCloset,
   closetState = 'idle',
@@ -175,7 +217,6 @@ export function AnalysisCard({
   const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
   const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
-  const { openAiOutputReport } = useAiOutputReporting();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const purchaseShelfMode = resolvePurchaseShelfMode(
     purchaseOptions.length,
@@ -271,7 +312,7 @@ export function AnalysisCard({
   const isLibraryScan = scanSourceType === 'style_library_scan';
 
   return (
-    <Modal transparent animationType="none" onRequestClose={runExit}>
+    <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
       <View style={styles.backdrop} pointerEvents="box-none">
         <Animated.View
           testID="analysis-card"
@@ -334,19 +375,10 @@ export function AnalysisCard({
                   assistant messages (components/style-chat/StyleChatBubble).
                   Hidden when there is no analysis text to report. */}
               {resultText && resultText !== EMPTY_VALUE ? (
-                <TouchableOpacity
-                  onPress={() =>
-                    openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
-                  }
-                  style={styles.reportBtn}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Report this style analysis as offensive or unsafe"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                <AnalysisReportButton
+                  scanSourceId={scanSourceId}
                   testID="analysis-card-report-ai"
-                >
-                  <Text style={styles.reportText}>Report Response</Text>
-                </TouchableOpacity>
+                />
               ) : null}
 
               {/* Match summary */}
@@ -442,12 +474,16 @@ export function AnalysisCard({
                             testID={`multi-item-commerce-error-${candidate.id}`}
                           />
                         ) : (
+                          /* No offers and not an error. Only a stored 'no_match'
+                             card is a completed empty search; an item with no
+                             stored card was never searched for (commerce was
+                             skipped, or the scan was saved before it landed), so
+                             the copy is derived from the stored card alone and a
+                             missing one is NOT_STARTED, never a no-match. */
                           <ProductShelf
                             products={[]}
                             label={candidate.label}
-                            emptyTitle="No strong shopping match found."
-                            emptyBody="This item was identified, but no confident retailer match was returned."
-                            testID={`multi-item-commerce-no-match-${candidate.id}`}
+                            {...storedItemEmptyShelfProps(card, candidate.id)}
                           />
                         )}
                         {card && card.alternatives.length > 0 ? (
@@ -598,6 +634,7 @@ export function AnalysisCard({
                   pending={purchaseShelfMode === 'pending'}
                   hasError={purchaseShelfMode === 'error'}
                   onRetry={onRetryCommerce}
+                  {...purchaseShelfEmptyProps(purchaseOptions.length, commerceStatus)}
                 />
               ) : null}
 
@@ -652,7 +689,7 @@ export function AnalysisCard({
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </ResultSurfaceModal>
   );
 }
 

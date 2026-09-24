@@ -1,7 +1,7 @@
 /**
  * The K+ activation catalog: what the activation screen is allowed to claim.
  *
- * Two separate questions, deliberately kept apart:
+ * Three separate questions, deliberately kept apart:
  *
  *   1. WHICH CAPABILITIES ARE K+ AT ALL.  `KPLUS_ACTIVATION_CAPABILITIES` is
  *      the closed, approved list. It is exactly four entries. Signature Style,
@@ -14,8 +14,19 @@
  *      own build flag, each defaulting off. A build compiled without VTO does
  *      not get to promise VTO on the signup screen just because VTO is on the
  *      approved list. `resolveActivationCapabilities` filters the catalog by
- *      what is really compiled in, so the screen can only ever advertise a
- *      capability the user can actually reach after activating.
+ *      what is really compiled in.
+ *
+ *   3. WHICH OF THEM THE SERVER ACTUALLY SERVES.  A build flag says the code is
+ *      in the binary; it says nothing about whether the server side that code
+ *      calls is switched on. Packing Intelligence and Wardrobe Concierge are
+ *      compiled into the Build 34 certification binary, but the server side
+ *      they need was not enabled at the last audit, so a member who activated
+ *      K+ for them would get a failing feature. The screen may only advertise a
+ *      capability the user can actually USE, so
+ *      `KPLUS_CAPABILITY_SERVER_ENABLEMENT` is a closed, dated record of what
+ *      the server is known to serve (or, for a capability whose server switch
+ *      the client can read, which live signal decides) and
+ *      `resolveActivationCapabilities` requires BOTH answers.
  *
  * This is presentation only. Nothing here grants, extends, or checks an
  * entitlement -- the server owns that (services/kplus/kplusClient.ts).
@@ -43,7 +54,8 @@ export interface KPlusActivationCapability {
   description: string;
   /** Decorative glyph; the card carries the real accessible name. */
   glyph: string;
-  /** True when this build actually compiled the capability in. */
+  /** True when this build compiled the capability in AND the server is known
+   *  to serve it (see KPLUS_CAPABILITY_SERVER_ENABLEMENT). */
   available: boolean;
 }
 
@@ -87,9 +99,86 @@ export const KPLUS_ACTIVATION_CAPABILITIES: ReadonlyArray<
   }),
 ]);
 
-/** Build-flag answer per approved capability. Kept as a function of injected
- *  flags so tests can exercise every combination without re-importing the
- *  module under a mutated environment. */
+/**
+ * Whether the SERVER is known to serve a capability's server side.
+ *
+ *   'confirmed'   -- the server side this capability needs is switched on. (It
+ *                    says nothing about on-device behaviour, which is checked on
+ *                    a device.)
+ *   'unconfirmed' -- not known to work: dark, unset, or simply unproven. The
+ *                    screen must not advertise it.
+ *   'live'        -- the server side has a switch the client CAN read, so the
+ *                    answer is decided at runtime from an injected signal
+ *                    (`KPlusLiveSignals`), not from this file. Unknown -- not
+ *                    read yet, unreadable, or off -- is not advertised.
+ *
+ * A hand-maintained record rather than a probe for the capabilities that have
+ * nothing the client could read: Packing Intelligence and Wardrobe Concierge
+ * are gated by server-side switches that no client-readable row mirrors, and
+ * the entitlement summary carries no capability field. For THOSE entries a
+ * snapshot goes stale in one direction only -- it can under-advertise (a
+ * capability the owner enables later stays hidden until a client release flips
+ * its entry), never over-advertise. A 'confirmed' entry is only as current as
+ * its date, which is why anything with a readable switch is 'live' instead.
+ * Each entry carries the evidence it rests on and when it was observed so the
+ * next owner can re-check it.
+ *
+ * Flip an entry to 'confirmed' only after the capability has been enabled on
+ * the server AND proven to work for a K+ member. The server switches are not
+ * named here on purpose: this file ships in the app bundle.
+ */
+export type KPlusServerEnablement = 'confirmed' | 'unconfirmed' | 'live';
+
+/** Answers for the 'live' capabilities. `undefined`/`null` means not known yet. */
+export type KPlusLiveSignals = Partial<Record<KPlusActivationCapabilityId, boolean | null>>;
+
+export interface KPlusServerEnablementRecord {
+  readonly status: KPlusServerEnablement;
+  /** What the status rests on, and when it was observed. Prose for the next owner. */
+  readonly basis: string;
+}
+
+export const KPLUS_CAPABILITY_SERVER_ENABLEMENT: Readonly<
+  Record<KPlusActivationCapabilityId, KPlusServerEnablementRecord>
+> = Object.freeze({
+  voice_scan: Object.freeze({
+    status: 'confirmed' as const,
+    basis:
+      'Speech recognition runs on the device; the transcript is searched through the same ' +
+      'text-search backend every typed search uses, which was live at the 2026-09-24 audit. ' +
+      'The voice platform is provisioned on both platforms. Device behaviour is a separate, ' +
+      'pending check.',
+  }),
+  virtual_try_on: Object.freeze({
+    status: 'live' as const,
+    basis:
+      'Advertised only while the remote try-on feature switch reads enabled, which is the ' +
+      'same switch every try-on entry point already obeys; unknown fails closed. At the ' +
+      '2026-09-24 audit the switch was on and the service deployed, but no generation was run, ' +
+      'so the provider credential and plan are unproven.',
+  }),
+  wardrobe_concierge: Object.freeze({
+    status: 'unconfirmed' as const,
+    basis:
+      'The server-side switches Wardrobe Concierge needs were not enabled at the ' +
+      '2026-09-24 read-only audit, so it does nothing for an activated member.',
+  }),
+  packing_intelligence: Object.freeze({
+    status: 'unconfirmed' as const,
+    basis:
+      'The server-side switch Packing Intelligence needs was not enabled at the ' +
+      '2026-09-24 read-only audit, so a Packing request fails for an activated member.',
+  }),
+});
+
+/**
+ * Which capabilities the screen may advertise: those this build compiled in
+ * (build flags) AND that the server is known to serve
+ * (KPLUS_CAPABILITY_SERVER_ENABLEMENT, with 'live' entries decided by
+ * `liveSignals`). All three inputs are injectable so tests can exercise every
+ * combination without re-importing the module under a mutated environment; the
+ * catalog itself stays free of imports beyond the build flags.
+ */
 export function resolveActivationCapabilities(
   flags: {
     voiceScan?: boolean;
@@ -97,6 +186,10 @@ export function resolveActivationCapabilities(
     concierge?: boolean;
     packing?: boolean;
   } = {},
+  serverEnablement: Readonly<
+    Record<KPlusActivationCapabilityId, KPlusServerEnablementRecord>
+  > = KPLUS_CAPABILITY_SERVER_ENABLEMENT,
+  liveSignals: KPlusLiveSignals = {},
 ): KPlusActivationCapability[] {
   const {
     voiceScan = VOICESCAN_ENABLED,
@@ -105,16 +198,60 @@ export function resolveActivationCapabilities(
     packing = PACKING_INTELLIGENCE_V1,
   } = flags;
 
-  const availability: Record<KPlusActivationCapabilityId, boolean> = {
+  const compiledIn: Record<KPlusActivationCapabilityId, boolean> = {
     voice_scan: voiceScan,
     virtual_try_on: vto,
     wardrobe_concierge: concierge,
     packing_intelligence: packing,
   };
 
+  const servedByServer = (id: KPlusActivationCapabilityId): boolean => {
+    const status = serverEnablement[id]?.status;
+    if (status === 'confirmed') return true;
+    // A 'live' capability is advertised only on an explicit yes. Not read yet,
+    // unreadable and off all fail closed.
+    if (status === 'live') return liveSignals[id] === true;
+    return false;
+  };
+
   return KPLUS_ACTIVATION_CAPABILITIES
-    .map((capability) => ({ ...capability, available: availability[capability.id] }))
-    .filter((capability) => capability.available);
+    .filter((capability) => compiledIn[capability.id] && servedByServer(capability.id))
+    .map((capability) => ({ ...capability, available: true }));
+}
+
+/**
+ * The verb each capability contributes to the activation sub-headline, in
+ * sentence order. The order is the one the previous fixed sentence used
+ * ("scan, style, try on, and plan"), so a build where all four are advertised
+ * reads byte-for-byte as it always did.
+ */
+const ACTIVATION_WAYS: ReadonlyArray<{ id: KPlusActivationCapabilityId; verb: string }> =
+  Object.freeze([
+    Object.freeze({ id: 'voice_scan' as const, verb: 'scan' }),
+    Object.freeze({ id: 'wardrobe_concierge' as const, verb: 'style' }),
+    Object.freeze({ id: 'virtual_try_on' as const, verb: 'try on' }),
+    Object.freeze({ id: 'packing_intelligence' as const, verb: 'plan' }),
+  ]);
+
+/** "scan", "scan and try on", "scan, style, and try on", "scan, style, try on, and plan". */
+export function describeActivationWays(
+  capabilities: ReadonlyArray<Pick<KPlusActivationCapability, 'id'>>,
+): string {
+  const verbs = ACTIVATION_WAYS
+    .filter((way) => capabilities.some((capability) => capability.id === way.id))
+    .map((way) => way.verb);
+  if (verbs.length === 0) return '';
+  if (verbs.length === 1) return verbs[0];
+  if (verbs.length === 2) return `${verbs[0]} and ${verbs[1]}`;
+  return `${verbs.slice(0, -1).join(', ')}, and ${verbs[verbs.length - 1]}`;
+}
+
+/** The activation offer's sub-headline. It may only name what is advertised. */
+export function activationOfferSubhead(
+  capabilities: ReadonlyArray<Pick<KPlusActivationCapability, 'id'>>,
+): string {
+  const ways = describeActivationWays(capabilities);
+  return ways ? `Unlock more ways to ${ways} with K Scan AI.` : '';
 }
 
 /**

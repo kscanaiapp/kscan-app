@@ -135,15 +135,23 @@ test('every non-retrieval empty cause is an error, not a no-match', async () => 
   }
 });
 
-test('an empty shelf with no errorType keeps its previous no-match treatment', async () => {
-  // Nothing is newly reclassified on a backend that does not report a cause.
+test('an empty shelf that names no cause is UNKNOWN, and UNKNOWN is an error, never a no-match', async () => {
+  // Superseded assumption: this used to assert that an empty shelf with no
+  // errorType "keeps its previous no-match treatment" so that nothing was
+  // reclassified on a backend that does not report a cause. That leniency is the
+  // hole the no-match invariant closes. A healthy MODE B answer always names its
+  // cause on an empty shelf (scanCommerceRouter.ts:1200: 'no_results' when
+  // providers ran and matched nothing), so an empty shelf with NO cause is not a
+  // healthy answer: it is what a backend without the MODE B route returns (funnel
+  // off: HTTP 200 status:'failed', no `commerce` block, index.ts:2407-2408). Only
+  // a search that demonstrably completed empty may be stated as a no-match.
   const body = {
     status: 'completed',
     purchaseOptions: [],
     recommendedProducts: [],
     commerce: { available: false, retryable: true },
   };
-  assert.equal(await statusFor(body), 'no_match');
+  assert.equal(await statusFor(body), 'error');
 });
 
 test('a populated shelf is still ready regardless of reported diagnostics', async () => {

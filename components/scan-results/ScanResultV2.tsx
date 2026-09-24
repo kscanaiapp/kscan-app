@@ -32,6 +32,7 @@ import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
 import { MultiItemCommerceSection } from './MultiItemCommerceSection';
 import type { ItemCommerceCard } from '../../services/multiItemCommerce';
 import { ScanResultActionRow } from './ScanResultActionRow';
+import { ResultSurfaceModal } from './ResultSurfaceModal';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
 import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
@@ -80,7 +81,10 @@ interface ScanResultV2Props {
   analysis?: LegacyAnalysisData | null;
   /** URI of the captured scan image. */
   scanImageUri?: string | null;
-  /** Source identifier for QA fixtures. */
+  /**
+   * Persisted identity of this scan (the Recent Scan id, or the QA fixture name).
+   * It is the target of the style-analysis Report control; null hides that control.
+   */
   scanSourceId?: string | null;
   /** Called when the user dismisses the result (e.g., "Scan Again"). */
   onDismiss: () => void;
@@ -90,6 +94,12 @@ interface ScanResultV2Props {
   saveActionLabel?: string;
   /** Called to add the scan to a Dressing Room. */
   onAddToDressingRoom?: () => void;
+  /**
+   * Rendered as the LAST child inside this surface's own native Modal. The
+   * "Add to Dressing Room" sheet is mounted through here, never beside the Modal:
+   * on iOS a sibling Modal is refused (see ResultSurfaceModal).
+   */
+  overlay?: React.ReactNode;
   /** Called to navigate to StyleChat. */
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
@@ -134,6 +144,7 @@ export function ScanResultV2({
   onSaveToLibrary,
   saveActionLabel,
   onAddToDressingRoom,
+  overlay,
   onAskStyleChat,
   onFindSimilar,
   commerceStatus = 'idle',
@@ -351,7 +362,7 @@ export function ScanResultV2({
   }
 
   return (
-    <Modal transparent animationType="none" onRequestClose={runExit}>
+    <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
       <View style={styles.backdrop} pointerEvents="box-none">
         <Animated.View
           testID={testID ?? 'scan-result-v2'}
@@ -479,6 +490,8 @@ export function ScanResultV2({
                   candidates={confirmationCandidates}
                   cardsByCandidateId={multiItemCommerceByCandidateId}
                   status={multiItemCommerceStatus}
+                  deferred={Boolean(analysis?.commerceDeferred)}
+                  findMatchesAvailable={typeof onAnalyzeSelectedCandidate === 'function'}
                   onRetry={onRetryMultiItemCommerce}
                 />
               ) : null}
@@ -514,6 +527,7 @@ export function ScanResultV2({
               <View style={styles.section}>
                 <StyleAnalysisSection
                   analysisText={v2Data.styleAnalysis || v2Data.analysisText}
+                  scanSourceId={scanSourceId ?? null}
                 />
               </View>
 
@@ -602,7 +616,7 @@ export function ScanResultV2({
           </View>
         </Animated.View>
       </View>
-    </Modal>
+    </ResultSurfaceModal>
   );
 }
 

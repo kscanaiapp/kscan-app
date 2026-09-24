@@ -22,6 +22,7 @@ import {
   listDressingRooms,
 } from '../services/styleObjects';
 import { hasUsableDressingRoomImageSource } from '../services/dressingRoomItemContract';
+import { captureActorScope, isActorScopeCurrent, type ActorScope } from '../services/actorScope';
 import type { DressingRoom, ScanImageSnapshotSource } from '../types/styleObjects';
 
 type Props = {
@@ -55,17 +56,27 @@ export function AddScanToDressingRoomModal({
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
   const savingRef = useRef(false);
+  // A create that succeeded but whose add then failed leaves a real, empty room.
+  // It is kept, with the title it was created under and the actor that created it,
+  // so a retry adds the scan to THAT room instead of creating a second one.
+  const createdRoomRef = useRef<{ title: string; room: DressingRoom; scope: ActorScope } | null>(null);
 
   // Only fetch rooms when the modal opens — never on background screen focus.
+  // Actor-bound like useDressingRooms: a list requested as one actor that resolves
+  // after another has signed in is dropped, never shown (services/actorScope).
   const reload = useCallback(async () => {
+    const scope = captureActorScope();
     setLoading(true);
     setError(null);
     try {
-      setRooms(await listDressingRooms());
+      const nextRooms = await listDressingRooms();
+      if (!isActorScopeCurrent(scope)) return;
+      setRooms(nextRooms);
     } catch (err: any) {
+      if (!isActorScopeCurrent(scope)) return;
       setError(err?.message || 'Unable to load Dressing Rooms.');
     } finally {
-      setLoading(false);
+      if (isActorScopeCurrent(scope)) setLoading(false);
     }
   }, []);
 
@@ -74,6 +85,7 @@ export function AddScanToDressingRoomModal({
       setMessage(null);
       setNewRoomTitle('');
       setSavedRoomId(null);
+      createdRoomRef.current = null;
       void reload();
     }
   }, [visible, reload]);
@@ -94,6 +106,7 @@ export function AddScanToDressingRoomModal({
   const handleSave = async (roomId: string, roomTitle: string) => {
     if (savingRef.current) return;
     savingRef.current = true;
+    const scope = captureActorScope();
     setSaving(true);
     setMessage(null);
     try {
@@ -102,9 +115,12 @@ export function AddScanToDressingRoomModal({
         userId: user?.id,
         scan: buildScan(),
       });
+      // A write that finished for a previous actor is theirs, not this session's.
+      if (!isActorScopeCurrent(scope)) return;
       setSavedRoomId(roomId);
       setMessage(`Added to ${roomTitle}.`);
     } catch (err: any) {
+      if (!isActorScopeCurrent(scope)) return;
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
       savingRef.current = false;
@@ -113,25 +129,35 @@ export function AddScanToDressingRoomModal({
   };
 
   const handleCreateAndSave = async () => {
-    if (!newRoomTitle.trim() || savingRef.current) return;
+    const title = newRoomTitle.trim();
+    if (!title || savingRef.current) return;
     savingRef.current = true;
+    const scope = captureActorScope();
     setSaving(true);
     setMessage(null);
     try {
-      const room = await createDressingRoom({
-        userId: user?.id,
-        title: newRoomTitle,
-        description: null,
-      });
+      const created = createdRoomRef.current;
+      const reusable =
+        created && created.title === title && isActorScopeCurrent(created.scope) ? created.room : null;
+      const room =
+        reusable ??
+        (await createDressingRoom({
+          userId: user?.id,
+          title: newRoomTitle,
+          description: null,
+        }));
+      createdRoomRef.current = { title, room, scope };
       await addScanImageToDressingRoom({
         dressingRoomId: room.id,
         userId: user?.id,
         scan: buildScan(),
       });
       await reload();
+      if (!isActorScopeCurrent(scope)) return;
       setSavedRoomId(room.id);
       setMessage(`Added to ${room.title}.`);
     } catch (err: any) {
+      if (!isActorScopeCurrent(scope)) return;
       setMessage(err?.message || 'Could not save scan. Please try again.');
     } finally {
       savingRef.current = false;

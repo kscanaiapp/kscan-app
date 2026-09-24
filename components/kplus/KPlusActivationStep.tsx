@@ -38,9 +38,11 @@ import { InlineNotice, PrimaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { KPLUS_ACTIVATION_OFFER_TERM } from '../../constants/featureFlags';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
+import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import {
+  activationOfferSubhead,
   KPLUS_FREE_REASSURANCE,
   KSCAN_FREE_CORE_CAPABILITIES,
   resolveActivationCapabilities,
@@ -95,12 +97,22 @@ export function KPlusActivationStep({ onContinue, onSkip }: KPlusActivationStepP
   const viewedRef = useRef(false);
 
   const resolving = isKPlusEntitlementUnresolved(state);
-  const capabilities = useMemo(() => resolveActivationCapabilities(), []);
+  // Virtual Try-On is advertised only while its remote switch reads enabled, the
+  // same switch every try-on entry point obeys. Until that read settles it is
+  // unknown, which fails closed for the card list -- but must not read as
+  // "nothing to offer", or the step would skip itself before the answer arrived.
+  const { signals: liveSignals, settled: liveSignalsSettled } = useKPlusLiveCapabilitySignals();
+  const capabilities = useMemo(
+    () => resolveActivationCapabilities({}, undefined, liveSignals),
+    [liveSignals],
+  );
 
   // Nothing to offer: either K+ is already the actor's, K+ is not presentable
-  // in this build/session ('unavailable'), or this build compiled in none of
-  // the approved capabilities. Never advertise an empty offer.
-  const nothingToOffer = isActive || state === 'unavailable' || capabilities.length === 0;
+  // in this build/session ('unavailable'), or -- once the live answer is in --
+  // this build advertises none of the approved capabilities. Never advertise an
+  // empty offer.
+  const nothingToOffer = isActive || state === 'unavailable' ||
+    (liveSignalsSettled && capabilities.length === 0);
 
   useEffect(() => {
     if (nothingToOffer && !resolving) onSkip();
@@ -242,7 +254,7 @@ export function KPlusActivationStep({ onContinue, onSkip }: KPlusActivationStepP
         </Text>
         <Text style={styles.subhead}>
           {offerAvailable
-            ? 'Unlock more ways to scan, style, try on, and plan with K Scan AI.'
+            ? activationOfferSubhead(capabilities)
             : 'The complimentary K+ Early Access period is over. There is no charge and nothing to cancel.'}
         </Text>
 

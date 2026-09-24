@@ -882,7 +882,14 @@ export default function StyleChatSessionScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        // WP-ELISE-07. The offset is the distance from the top of the screen to
+        // this view's PARENT (KeyboardAvoidingView converts the keyboard's
+        // screen-space Y into the parent's coordinates). The parent is the screen
+        // root: full screen, it starts at y = 0, and the in-flow StyleChatHeader
+        // already spends the top safe-area inset inside it. Passing that inset here
+        // counted it a second time and floated the composer that far above the
+        // keyboard. (iPad windowed modes are not covered; see the test.)
+        keyboardVerticalOffset={0}
       >
         {ChatBody}
       </KeyboardAvoidingView>

@@ -135,25 +135,46 @@ test('SIGNATURE_STYLE: is presented as core/Free and never as a K+ capability', 
   );
 });
 
+/**
+ * Build 34 Lane A. A capability is advertised only when the build compiled it
+ * in AND production is known to serve it (KPLUS_CAPABILITY_SERVER_ENABLEMENT).
+ * The tests below that are about the BUILD-FLAG half of that rule hold the
+ * server half open by passing this all-confirmed record, so they keep proving
+ * exactly what they always did. The server half has its own suite:
+ * kplusCapabilityAdvertisingTruth.test.js.
+ */
+const ALL_SERVER_CONFIRMED = Object.fromEntries(
+  ['voice_scan', 'virtual_try_on', 'wardrobe_concierge', 'packing_intelligence'].map((id) => [
+    id,
+    { status: 'confirmed', basis: 'test fixture' },
+  ]),
+);
+
 test('CAPABILITY_LIST: a build only advertises capabilities it actually compiled in', () => {
   // Nothing built -> nothing promised. This is the case that stops the screen
   // selling VTO to a build that shipped without VTO.
-  assert.deepEqual(plain(catalog.resolveActivationCapabilities({})), []);
+  assert.deepEqual(plain(catalog.resolveActivationCapabilities({}, ALL_SERVER_CONFIRMED)), []);
 
-  const voiceOnly = catalog.resolveActivationCapabilities({
-    voiceScan: true,
-    vto: false,
-    concierge: false,
-    packing: false,
-  });
+  const voiceOnly = catalog.resolveActivationCapabilities(
+    {
+      voiceScan: true,
+      vto: false,
+      concierge: false,
+      packing: false,
+    },
+    ALL_SERVER_CONFIRMED,
+  );
   assert.deepEqual(plain(voiceOnly.map((c) => c.id)), ['voice_scan']);
 
-  const all = catalog.resolveActivationCapabilities({
-    voiceScan: true,
-    vto: true,
-    concierge: true,
-    packing: true,
-  });
+  const all = catalog.resolveActivationCapabilities(
+    {
+      voiceScan: true,
+      vto: true,
+      concierge: true,
+      packing: true,
+    },
+    ALL_SERVER_CONFIRMED,
+  );
   assert.equal(all.length, 4);
   assert.ok(all.every((c) => c.available === true));
 });
@@ -235,7 +256,22 @@ test('the screen uses activation framing, not purchase-pressure framing', () => 
 
 test('HEADLINE and OFFER framing match the approved activation copy', () => {
   assert.match(code, /Your K\+ access is ready/);
-  assert.match(code, /Unlock more ways to scan, style, try on, and plan with K Scan AI\./);
+  // Build 34 Lane A. The sub-headline used to be one fixed sentence naming
+  // "scan, style, try on, and plan", which is only true when all four
+  // capabilities are advertised -- and production does not serve two of them.
+  // It is now derived from the capabilities actually on the screen (see
+  // kplusCapabilityAdvertisingTruth.test.js), so the approved sentence is
+  // asserted where it is still true: byte-for-byte when all four are advertised.
+  assert.match(code, /activationOfferSubhead\(capabilities\)/);
+  assert.equal(
+    catalog.activationOfferSubhead(
+      catalog.resolveActivationCapabilities(
+        { voiceScan: true, vto: true, concierge: true, packing: true },
+        ALL_SERVER_CONFIRMED,
+      ),
+    ),
+    'Unlock more ways to scan, style, try on, and plan with K Scan AI.',
+  );
 });
 
 // ── ENTITLEMENT STATES ──────────────────────────────────────────────────────

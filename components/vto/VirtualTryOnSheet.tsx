@@ -10,6 +10,11 @@
  * result, because the whole point is to reduce uncertainty about how an item
  * would look -- everything before it is overhead.
  *
+ * The one step that is not optional is consent. The photo is sent to an
+ * external AI service, so the first "Try it on" (and any retry, until the
+ * customer has said yes) shows a disclosure INSIDE this sheet before anything
+ * is transmitted. See VtoConsentStep and services/vto/vtoConsent.ts.
+ *
  * The output is always labelled as an AI visualization, and it never claims
  * anything about fit or size.
  */
@@ -44,8 +49,15 @@ import {
   resolveVtoProgress,
   VTO_PROGRESS_STAGES,
 } from '../../services/vto/vtoProgressStages';
+import {
+  grantVtoConsent,
+  hasVtoConsent,
+  loadVtoConsent,
+  VTO_CONSENT_COPY,
+} from '../../services/vto/vtoConsent';
 import { VtoSaveToDressingRoom } from './VtoSaveToDressingRoom';
 import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
+import { VtoConsentStep } from './VtoConsentStep';
 import { VtoLiveErrorBoundary } from './VtoLiveErrorBoundary';
 import { VtoLivePanel } from './VtoLivePanel';
 import { VtoModeSelector, type VtoSurfaceMode } from './VtoModeSelector';
@@ -121,6 +133,9 @@ const SIZE_GUIDE_UNAVAILABLE =
 /** Downward drag (px) past which the grabber collapses the sheet. */
 const MINIMIZE_SWIPE_THRESHOLD = 60;
 
+/** Which action the consent step is holding until the customer says yes. */
+type VtoConsentPending = null | 'generate' | 'retry';
+
 export function VirtualTryOnSheet({
   visible,
   onClose,
@@ -140,6 +155,21 @@ export function VirtualTryOnSheet({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
+
+  // ── Third-party AI consent ─────────────────────────────────────────────────
+  // The photo leaves the device for an external AI service, so the first
+  // "Try it on" (and any retry) asks before it sends. `consentStep` holds the
+  // action the customer asked for while the disclosure is on screen; it runs
+  // only after Continue has PERSISTED the choice, and Cancel drops it -- nothing
+  // is transmitted and nothing counts against the daily try-on limit.
+  const [consentStep, setConsentStep] = useState<VtoConsentPending>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
+  // A save that is still in flight when the customer cancels, removes the photo,
+  // or closes the sheet must not go on to start a generation. Every one of those
+  // bumps the token; the save checks it when it resolves.
+  const consentTokenRef = useRef(0);
+  const consentInFlightRef = useRef(false);
 
   // ── Live VTO ───────────────────────────────────────────────────────────────
   // Everything below is inert unless the router affirmatively offers Live.
@@ -174,6 +204,14 @@ export function VirtualTryOnSheet({
     // surface switches to the generative view while the Live session stays
     // alive behind it, so a completed or failed generation can return to Live.
     onPhotorealPerson: (person) => {
+      // LIVE IS DARK: no build flag, no native runtime. Before Live can be
+      // switched on it needs its own consent step BEFORE the frame is captured;
+      // asking after the capture, at this line, would be too late to be honest.
+      // Until then this stays safe by construction: the hook hands the store the
+      // consent proof, and the store refuses the real transport without it, so a
+      // Live capture can never be transmitted ahead of the customer's yes. Left
+      // as a literal vto.generate() because vtoLivePhotorealHandoff.test.js pins
+      // the handoff to the ordinary governed path.
       vto.adoptPerson(person);
       vto.generate();
       setMode('ai_photo');
@@ -225,6 +263,103 @@ export function VirtualTryOnSheet({
 
   const isGenerating = vto.status === 'preparing' || vto.status === 'generating'
     || vto.status === 'validating_result';
+
+  // ── Third-party AI consent: the gate ───────────────────────────────────────
+  // The disclosure is on screen only while a photo is chosen and nothing is
+  // running -- the same states the review block and the action row use. The one
+  // extra state is a RETRY asked for from the result screen: if consent is not
+  // visible by then, the step must open there rather than vanish and leave
+  // "Try again" as a button that does nothing.
+  const consentOpen = consentStep !== null && aiPhotoVisible && !!vto.person
+    && !isGenerating && (vto.status !== 'success' || consentStep === 'retry');
+
+  // Warm the consent answer from device storage as soon as the sheet is shown,
+  // so the tap that starts a try-on can check it synchronously.
+  useEffect(() => {
+    if (!visible) return;
+    void loadVtoConsent();
+  }, [visible]);
+
+  const dismissConsentStep = useCallback(() => {
+    consentTokenRef.current += 1;
+    setConsentStep(null);
+    setConsentError(null);
+  }, []);
+
+  // The disclosure follows the state it belongs to: if the photo is removed, a
+  // generation starts, or a result arrives while it is open, it goes away and
+  // takes its pending action with it.
+  useEffect(() => {
+    if (consentStep !== null && !consentOpen) dismissConsentStep();
+  }, [consentStep, consentOpen, dismissConsentStep]);
+
+  // Closing the sheet voids a save that is still in flight.
+  useEffect(() => {
+    return () => {
+      consentTokenRef.current += 1;
+    };
+  }, []);
+
+  // THE GATE. Every "Try it on" and "Try again" goes through one of these two.
+  // Nothing else in this sheet may call vto.generate or vto.retry directly; the
+  // single exception is the pinned Live handoff above, which the store backstop
+  // covers. The consent check is a SYNCHRONOUS read on purpose: Continue persists
+  // the choice and the very next line must already see it, which React state
+  // cannot promise.
+  const requestGenerate = useCallback(() => {
+    if (hasVtoConsent()) {
+      vto.generate();
+      return;
+    }
+    setConsentError(null);
+    setConsentStep('generate');
+  }, [vto]);
+
+  const requestRetry = useCallback(() => {
+    if (hasVtoConsent()) {
+      vto.retry();
+      return;
+    }
+    setConsentError(null);
+    setConsentStep('retry');
+  }, [vto]);
+
+  const handleConsentContinue = useCallback(async () => {
+    const pending = consentStep;
+    if (pending === null || consentInFlightRef.current) return;
+    consentInFlightRef.current = true;
+    const token = consentTokenRef.current + 1;
+    consentTokenRef.current = token;
+    setConsentBusy(true);
+    setConsentError(null);
+    let granted = false;
+    try {
+      granted = await grantVtoConsent();
+    } catch {
+      granted = false;
+    } finally {
+      consentInFlightRef.current = false;
+      setConsentBusy(false);
+    }
+    // Cancelled, dismissed or closed while the choice was being saved. The choice
+    // itself is recorded, but nothing may be sent on the strength of a tap the
+    // customer has since walked back.
+    if (token !== consentTokenRef.current) return;
+    if (!granted) {
+      setConsentError(VTO_CONSENT_COPY.persistFailure);
+      return;
+    }
+    setConsentStep(null);
+    // Back through the gate rather than around it: if the consent were somehow
+    // not visible, this re-opens the step instead of sending.
+    if (pending === 'retry') requestRetry();
+    else requestGenerate();
+  }, [consentStep, requestGenerate, requestRetry]);
+
+  const handleConsentCancel = useCallback(() => {
+    if (consentInFlightRef.current) return;
+    dismissConsentStep();
+  }, [dismissConsentStep]);
 
   // Once per opened sheet. `visible` also goes false/true when the surface is
   // minimized and restored, and a restore is not a new impression.
@@ -489,6 +624,11 @@ export function VirtualTryOnSheet({
 
             {aiPhotoVisible ? (
               <>
+            {/* The disclosure comes first in the body, so a customer who taps
+                "Try it on" sees it without scrolling. It is a block in this
+                ScrollView -- never a second Modal (see VtoConsentStep). */}
+            {consentOpen ? <VtoConsentStep error={consentError} /> : null}
+
             {vto.status === 'success' && displayUri ? (
               <View style={styles.resultBlock}>
                 <Image
@@ -623,8 +763,8 @@ export function VirtualTryOnSheet({
                   </Text>
                 ))}
                 <Text style={styles.privacyNote}>
-                  Your photo is stripped of its metadata and sent for this try-on only.
-                  It is not saved to your Closet and not kept afterwards.
+                  Your photo is stripped of its metadata before it is sent to an external
+                  AI service to create this try-on. It is not added to your Closet.
                 </Text>
               </View>
             ) : null}
@@ -668,7 +808,23 @@ export function VirtualTryOnSheet({
                 below for both, as the one way out of the sheet. */}
             {aiPhotoVisible ? (
               <>
-            {isGenerating ? (
+            {consentOpen ? (
+              <>
+                <PrimaryButton
+                  title={VTO_CONSENT_COPY.continueLabel}
+                  accessibilityLabel={VTO_CONSENT_COPY.continueA11yLabel}
+                  onPress={handleConsentContinue}
+                  loading={consentBusy}
+                  testID="vto-consent-continue"
+                />
+                <SecondaryButton
+                  title={VTO_CONSENT_COPY.cancelLabel}
+                  onPress={handleConsentCancel}
+                  disabled={consentBusy}
+                  testID="vto-consent-cancel"
+                />
+              </>
+            ) : isGenerating ? (
               <>
                 {canMinimize ? (
                   <SecondaryButton
@@ -690,13 +846,13 @@ export function VirtualTryOnSheet({
                   disabled={!onShop}
                   testID="vto-shop"
                 />
-                <SecondaryButton title="Try again" onPress={vto.retry} testID="vto-retry" />
+                <SecondaryButton title="Try again" onPress={requestRetry} testID="vto-retry" />
               </>
             ) : vto.person ? (
               <>
                 <PrimaryButton
                   title={vto.status === 'failed' && vto.failure?.retryable ? 'Try again' : 'Try it on'}
-                  onPress={vto.status === 'failed' ? vto.retry : vto.generate}
+                  onPress={vto.status === 'failed' ? requestRetry : requestGenerate}
                   disabled={!vto.canGenerate}
                   testID="vto-generate"
                 />
