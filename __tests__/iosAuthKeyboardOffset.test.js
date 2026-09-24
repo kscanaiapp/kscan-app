@@ -40,10 +40,20 @@ const {
  * THE FACTS. Both avoiders sit directly under the screen root View, after the in-flow
  * header, as the last thing in that root; the root fills the window and carries no
  * padding or margin of its own; nothing above the route pads it (no native header, no
- * modal presentation, no layout of its own for /auth, no host wrapper above the
- * navigator). The parent's origin is therefore the top of the screen: the offset is 0.
- * The 40 did not correspond to an external obstruction, because there is none: nothing
- * follows the avoider, and the ScrollView already reserves its own bottom room.
+ * content style or modal presentation, no layout of its own for /auth, no host View or
+ * styled provider above the navigator; the providers do render flex-1 wrappers, which
+ * are geometry-neutral). The parent's origin is therefore the top of the screen: the
+ * offset is 0. The 40 did not correspond to an external obstruction, because there is
+ * none: nothing follows the avoider, and the ScrollView already reserves its own bottom
+ * room.
+ *
+ * WHERE THE 40 CAME FROM. It equals LAYOUT.modalBottomPadding (SPACING.xxxl), which
+ * styles.body sets as its paddingBottom, and both arrived together in the bulk sync
+ * that introduced the screen. KeyboardAvoidingView composes its computed paddingBottom
+ * OVER the style, so the style's value never applied while the avoider is enabled; the
+ * offset was most likely the author's way of keeping that gap above the keyboard. That
+ * is design spacing, not an obstruction. With 0 the ScrollView's bottom edge is flush
+ * with the top of the keyboard and its own bottom content padding does the spacing.
  *
  * WHAT THIS DOES NOT SETTLE. That is a source and geometry argument, not a look at the
  * screen. How the form sits with the keyboard up (dynamic type, iPhone SE) is a
@@ -199,29 +209,53 @@ test('premise: the header spends the top safe-area inset itself, in flow', () =>
   }
 });
 
-/** What above the route could move the screen root off the top of the screen. */
+const HOST_LAYOUT_ELEMENTS = ['View', 'SafeAreaView', 'ScrollView', 'KeyboardAvoidingView'];
+
+/**
+ * What above the route could move the screen root off the top of the screen.
+ *
+ * Every navigator (<Stack>) and <AuthGate /> in the root layout is checked from the
+ * syntax tree: the navigator draws no native header, applies no content style and no
+ * modal presentation, and nothing above it is a host layout element or takes a style
+ * of its own. The providers above it render flex-1 wrappers (PostHogProvider,
+ * SafeAreaProvider), which are geometry-neutral; a padding, position or extra host
+ * View there is what this catches.
+ */
 function routeHostProblems(layout) {
   const problems = [];
-  const stacks = layout.match(/<Stack screenOptions=\{\{[^}]*\}\}/g) || [];
-  if (stacks.length === 0) problems.push('the root layout renders no <Stack screenOptions=...>');
+  const file = parseSource(layout, 'app/_layout.tsx');
+  const stacks = jsxElementsNamed(file, 'Stack');
+  if (stacks.length === 0) problems.push('the root layout renders no <Stack>');
+
   for (const stack of stacks) {
-    if (!/headerShown: false/.test(stack)) problems.push(`a navigator draws a native header: ${stack}`);
+    const options = jsxAttribute(stack, 'screenOptions')?.initializer?.expression?.getText() ?? '';
+    if (!/headerShown: false/.test(options)) problems.push(`a navigator draws a native header: ${options || '(no screenOptions)'}`);
+    if (/contentStyle|presentation|headerTransparent|headerTopInsetEnabled/.test(options)) {
+      problems.push(`a navigator restyles or re-presents its screens: ${options}`);
+    }
+    if (jsxAttribute(stack, 'style') || jsxAttribute(stack, 'contentStyle')) {
+      problems.push('a navigator takes a style of its own');
+    }
   }
   if (/presentation\s*:/.test(layout)) problems.push('a route is presented as a modal card');
 
-  // The tree above <AuthGate /> is providers only: a host View / SafeAreaView there would pad every screen.
-  const [gate] = jsxElementsNamed(parseSource(layout, 'app/_layout.tsx'), 'AuthGate');
-  if (!gate) {
-    problems.push('the root layout no longer renders <AuthGate />');
-    return problems;
-  }
-  for (let node = gate.parent; node; node = node.parent) {
-    const name = ts.isJsxElement(node) ? jsxTagNameOf(node) : null;
-    if (name && ['View', 'SafeAreaView', 'ScrollView', 'KeyboardAvoidingView'].includes(name)) {
-      problems.push(`a <${name}> above the navigator would shift every screen`);
+  const gates = jsxElementsNamed(file, 'AuthGate');
+  if (gates.length !== 1) problems.push(`the root layout must render <AuthGate /> exactly once (found ${gates.length})`);
+
+  // Everything that wraps a navigator or the gate.
+  for (const anchor of [...stacks, ...gates]) {
+    for (let node = anchor.parent; node; node = node.parent) {
+      if (!ts.isJsxElement(node)) continue;
+      const name = jsxTagNameOf(node);
+      if (HOST_LAYOUT_ELEMENTS.includes(name)) {
+        problems.push(`a <${name}> above the navigator would shift every screen`);
+      }
+      if (jsxAttribute(node, 'style') || jsxAttribute(node, 'contentStyle')) {
+        problems.push(`<${name}> above the navigator takes a style of its own`);
+      }
     }
   }
-  return problems;
+  return [...new Set(problems)];
 }
 
 test('premise: nothing above the route pads the screen -- no native header, no modal presentation, no route layout, no host wrapper', () => {
@@ -328,4 +362,31 @@ test('negative control: a native header, a modal presentation, or a padded host 
 
   const wrapped = mutated(layout, /<AuthGate \/>/, '<View style={{ paddingTop: 20 }}><AuthGate /></View>');
   assert.match(routeHostProblems(wrapped).join('\n'), /a <View> above the navigator/);
+});
+
+test('negative control: padding applied to a navigator branch other than the last one is reported too', () => {
+  const layout = readSource('app/_layout.tsx');
+
+  // A padded View around the Stack of the first (auth-callback) branch.
+  const branchWrapper = mutated(
+    layout,
+    /return <Stack screenOptions=\{\{ headerShown: false \}\} \/>;\n  \}\n\n  if \(guardState\.action === 'loading'\)/,
+    "return <View style={{ flex: 1, paddingTop: 20 }}><Stack screenOptions={{ headerShown: false }} /></View>;\n  }\n\n  if (guardState.action === 'loading')",
+  );
+  assert.match(routeHostProblems(branchWrapper).join('\n'), /a <View> above the navigator/);
+
+  // A content style on a navigator, in the loading branch (which a screenOptions regex would not even parse).
+  const contentStyle = mutated(
+    layout,
+    /<Stack screenOptions=\{\{ headerShown: false \}\} \/>\n        <View testID="auth-gate-loading"/,
+    '<Stack screenOptions={{ headerShown: false, contentStyle: { paddingTop: 20 } }} />\n        <View testID="auth-gate-loading"',
+  );
+  assert.match(routeHostProblems(contentStyle).join('\n'), /restyles or re-presents its screens/);
+
+  // A style on the safe-area provider that every screen sits under.
+  const providerStyle = mutated(layout, /<SafeAreaProvider>/, '<SafeAreaProvider style={{ paddingTop: 20 }}>');
+  assert.match(routeHostProblems(providerStyle).join('\n'), /<SafeAreaProvider> above the navigator takes a style of its own/);
+
+  // Rendering the gate twice, or not at all, changes what the argument is about.
+  assert.match(routeHostProblems(mutated(layout, /<AuthGate \/>/, '<AuthGate /><AuthGate />')).join('\n'), /exactly once/);
 });

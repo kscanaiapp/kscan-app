@@ -31,6 +31,7 @@ const {
   createReactNativeStub,
   createRenderer,
   deepStub,
+  deferred,
   runModule,
   settle,
 } = require('./helpers/componentRenderer');
@@ -56,7 +57,13 @@ function mutated(source, from, to) {
  * `session`: the Supabase session the client reports (null = signed out, the local-only path).
  * `insertError`: what the content_reports insert answers (null = accepted).
  */
-function loadStack({ session = { user: { id: 'actor-a' } }, insertError = null, mutateContext } = {}) {
+function loadStack({
+  session = { user: { id: 'actor-a' } },
+  insertError = null,
+  sessionLookupThrows = false,
+  insertGate = null,
+  mutateContext,
+} = {}) {
   const renderer = createRenderer();
   const announcements = [];
   const actorContext = runModule('services/actorContext.js', {}, { jsx: false });
@@ -65,10 +72,16 @@ function loadStack({ session = { user: { id: 'actor-a' } }, insertError = null, 
 
   const inserts = [];
   const supabase = {
-    auth: { getSession: async () => ({ data: { session }, error: session ? null : new Error('No session') }) },
+    auth: {
+      getSession: async () => {
+        if (sessionLookupThrows) throw new Error('session storage unavailable');
+        return { data: { session }, error: session ? null : new Error('No session') };
+      },
+    },
     from: (table) => ({
       insert: async (row) => {
         inserts.push({ table, row });
+        if (insertGate) await insertGate; // holds the insert in flight
         return { error: insertError };
       },
     }),
@@ -227,6 +240,40 @@ test('an account switch between opening and submitting files nothing and never c
   assert.equal(ui.sheetVisible(), false, 'the stale sheet is dismissed (existing actor-boundary behaviour)');
 });
 
+test('an exception while submitting (the session lookup rejects) -> REPORT NOT SENT', async () => {
+  const stack = loadStack({ sessionLookupThrows: true });
+  const ui = mount(stack);
+  await fileReport(ui);
+
+  assert.equal(stack.inserts.length, 0);
+  assert.equal(ui.has('ai-output-report-success'), false);
+  assert.equal(ui.has('ai-output-report-error'), true);
+  assert.deepEqual(stack.announcements, ["Report not sent. We couldn't send your report."]);
+});
+
+test('a second Submit while the first is in flight files nothing more and claims nothing until the server answers', async () => {
+  const gate = deferred();
+  const stack = loadStack({ insertGate: gate.promise });
+  const ui = mount(stack);
+  ui.open();
+  ui.press('ai-output-report-reason-incorrect_or_misleading');
+  ui.press('ai-output-report-submit');
+  await settle();
+  ui.rerender();
+
+  ui.press('ai-output-report-submit'); // an impatient second tap
+  await settle();
+  ui.rerender();
+  assert.equal(stack.inserts.length, 1, 'one report, however many taps');
+  assert.equal(ui.has('ai-output-report-success'), false, 'nothing is claimed while the insert is in flight');
+  assert.equal(ui.has('ai-output-report-error'), false);
+
+  gate.resolve();
+  await ui.settled();
+  assert.equal(ui.has('ai-output-report-success'), true, 'the server answered: now, and only now, it is received');
+  assert.equal(stack.inserts.length, 1);
+});
+
 // ── Negative controls ───────────────────────────────────────────────────────
 
 test('NEGATIVE CONTROL: deciding the outcome from `ok` again turns a local-only result into REPORT SENT', async () => {
@@ -245,6 +292,37 @@ test('NEGATIVE CONTROL: deciding the outcome from `ok` again turns a local-only 
     'the regression being guarded against: with `ok` alone the sheet claims a receipt for a report that was never sent',
   );
   assert.ok(stack.announcements.includes(RECEIVED));
+});
+
+test('NEGATIVE CONTROL: a catch block that reports success turns a thrown submission into REPORT SENT', async () => {
+  const stack = loadStack({
+    sessionLookupThrows: true,
+    mutateContext: (source) => mutated(source, /\} catch \{\s*setState\('error'\);/, "} catch {\n      setState('success');"),
+  });
+  const ui = mount(stack);
+  await fileReport(ui);
+  assert.equal(ui.has('ai-output-report-success'), true, 'the regression being guarded against');
+});
+
+test('NEGATIVE CONTROL: claiming success when the submission gate refuses a second tap paints a receipt while nothing has been answered', async () => {
+  const gate = deferred();
+  const stack = loadStack({
+    insertGate: gate.promise,
+    mutateContext: (source) =>
+      mutated(source, /if \(!attempt\.started\) return;/, "if (!attempt.started) { setState('success'); return; }"),
+  });
+  const ui = mount(stack);
+  ui.open();
+  ui.press('ai-output-report-reason-incorrect_or_misleading');
+  ui.press('ai-output-report-submit');
+  await settle();
+  ui.rerender();
+  ui.press('ai-output-report-submit');
+  await settle();
+  ui.rerender();
+  assert.equal(ui.has('ai-output-report-success'), true, 'the regression being guarded against');
+  gate.resolve();
+  await settle();
 });
 
 test('NEGATIVE CONTROL: deciding from `ok` still passes the genuine cases, so only the local-only test can tell the difference', async () => {

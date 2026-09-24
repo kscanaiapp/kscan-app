@@ -608,3 +608,40 @@ test('NEGATIVE CONTROL: a handler whose saving check is removed lets Back dismis
   gate.resolve({ id: 'item-1' });
   await m.settled();
 });
+
+// ── The guard covers the close transition itself ────────────────────────────
+//
+// React Native keeps a Modal's children rendered after `visible` turns false until the
+// native dismissal completes (Libraries/Modal/Modal.js `_shouldShowModal`), so the sheet
+// is genuinely tappable while it fades out. That window is the one the guard exists for:
+// resetting it on CLOSE instead of on OPEN would re-arm it inside the window.
+
+test('HARDENING A: a tap on the still-mounted sheet after it was told to close is ignored', async () => {
+  const m = mount();
+  await reachSuccess(m);
+
+  m.press('View Dressing Room');
+  m.setVisible(false); // the parent closed it; the fade-out is still on screen
+  assert.ok(m.has('View Dressing Room'), 'the sheet content is still rendered during the fade-out');
+  m.press('View Dressing Room');
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.pushes, ['/dressing-rooms'], 'one navigation, however long the fade-out lasts');
+  assert.deepEqual(m.closes, ['close']);
+});
+
+test('NEGATIVE CONTROL: resetting the guard when the sheet closes lets a tap during the fade-out navigate again', async () => {
+  const m = mount({
+    mutate: mutatedSource(
+      /(navigatingRef\.current = false;\s*void reload\(\);\s*\})(\s*\}, \[visible, reload\]\);)/,
+      '$1 else {\n      navigatingRef.current = false;\n    }$2',
+    ),
+  });
+  await reachSuccess(m);
+
+  m.press('View Dressing Room');
+  m.setVisible(false);
+  m.press('View Dressing Room');
+
+  assert.deepEqual(m.pushes, ['/dressing-rooms', '/dressing-rooms'], 'the regression this test guards against');
+});
