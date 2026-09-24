@@ -186,15 +186,20 @@ export function ClosetIntakeModal({
     const operationId = startOperation();
     if (operationId === null) return;
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      // iOS "limited" Photos access is a usable grant, not a denial.
-      if (!hasUsablePhotoLibraryAccess(permission)) {
-        Alert.alert(
-          'Photo Access Required',
-          'Allow K Scan AI to access your photo library in Settings to add items to your Closet.',
-          [{ text: 'OK' }]
-        );
-        return;
+      // Android's system photo picker needs no media permission, and this app
+      // declares none; below Android 13 the request is auto-denied and blocked
+      // the picker outright (B34-AND-PICK-001).
+      if (Platform.OS !== 'android') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        // iOS "limited" Photos access is a usable grant, not a denial.
+        if (!hasUsablePhotoLibraryAccess(permission)) {
+          Alert.alert(
+            'Photo Access Required',
+            'Allow K Scan AI to access your photo library in Settings to add items to your Closet.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],

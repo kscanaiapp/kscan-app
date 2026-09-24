@@ -846,26 +846,31 @@ function DressingRoomDetailContent() {
   ]);
 
   const handleUploadInspiration = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!hasUsablePhotoLibraryAccess(permission)) {
-      Alert.alert(
-        'Photo Access Required',
-        'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Open Settings',
-            onPress: () => {
-              void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
-                if (!opened) {
-                  Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
-                }
-              });
+    // Android's system photo picker needs no media permission, and this app
+    // declares none; below Android 13 the request is auto-denied and blocked
+    // the picker outright (B34-AND-PICK-001).
+    if (Platform.OS !== 'android') {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!hasUsablePhotoLibraryAccess(permission)) {
+        Alert.alert(
+          'Photo Access Required',
+          'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
+                  if (!opened) {
+                    Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
+                  }
+                });
+              },
             },
-          },
-        ],
-      );
-      return;
+          ],
+        );
+        return;
+      }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],

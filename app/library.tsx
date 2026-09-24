@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Platform,
   TouchableOpacity,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -189,6 +190,11 @@ function formatDate(iso: string): string {
 }
 
 async function requestPhotoLibraryPermission(): Promise<boolean> {
+  // Android's system photo picker needs no media permission, and this app
+  // declares none (android/app/src/main/AndroidManifest.xml removes
+  // READ/WRITE_EXTERNAL_STORAGE). Below Android 13 the request is auto-denied,
+  // which blocked the picker outright (B34-AND-PICK-001).
+  if (Platform.OS === 'android') return true;
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (hasUsablePhotoLibraryAccess(permission)) return true;
   Alert.alert(
