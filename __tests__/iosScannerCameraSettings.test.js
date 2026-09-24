@@ -11,8 +11,10 @@ const path = require('node:path');
  * After a camera denial iOS never shows the prompt again, so requestPermission()
  * resolves without any UI. The "Grant Access" button did nothing while the copy
  * said "Enable it in settings to continue", with no way to get there. On iOS the
- * button now opens Settings once the prompt can no longer be shown; Android,
- * which can prompt again, still calls requestPermission().
+ * button now opens Settings once the prompt can no longer be shown. Android
+ * reaches Settings the same way once canAskAgain is false ("Don't ask again");
+ * that decision is asserted as behaviour in androidScannerCameraSettings.test.js.
+ * While canAskAgain is not false, both platforms still call requestPermission().
  */
 
 const ROOT = path.resolve(__dirname, '..');
@@ -27,7 +29,11 @@ function permissionGate(source) {
 
 function gateProblems(gate) {
   const problems = [];
-  if (!gate.includes("Platform.OS === 'ios' && permission.canAskAgain === false")) {
+  if (
+    !/const openSettingsInstead =\s*\(Platform\.OS === 'ios' \|\| Platform\.OS === 'android'\) && permission\.canAskAgain === false;/.test(
+      gate,
+    )
+  ) {
     problems.push('the gate does not detect an iOS denial that can no longer prompt');
   }
   if (!/openSettingsInstead \? \(\) => Linking\.openSettings\(\) : requestPermission/.test(gate)) {
