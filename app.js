@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Animated,
+  AppState,
   BackHandler,
   Modal,
   Alert,
@@ -264,8 +265,24 @@ function QAPanel({ status, onSelectFixture }) {
 }
 
 export default function App() {
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission, getPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
+
+  // Android does not relaunch the app after a user grants camera access in
+  // Settings. Re-read the permission whenever the app returns to the foreground
+  // so the scanner gate clears immediately instead of requiring a process restart.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active' || permission?.granted) return;
+      getPermission().catch(() => {
+        // Keep the existing denied gate if the OS permission read fails.
+      });
+    });
+
+    return () => subscription.remove();
+  }, [getPermission, permission?.granted]);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');

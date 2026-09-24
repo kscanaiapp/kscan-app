@@ -168,6 +168,10 @@ function AnalysisReportButton({
   testID: string;
 }) {
   const { openAiOutputReport } = useAiOutputReporting();
+  // A live scan is not reportable until persistence gives it a durable target id.
+  // ScanResultV2 already enforces this; keep the legacy card equally fail-closed.
+  if (!scanSourceId) return null;
+
   return (
     <TouchableOpacity
       onPress={() =>
