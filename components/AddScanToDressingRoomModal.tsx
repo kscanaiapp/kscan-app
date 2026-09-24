@@ -56,6 +56,10 @@ export function AddScanToDressingRoomModal({
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
   const savingRef = useRef(false);
+  // "View Dressing Room" closes the sheet and pushes a route. The sheet stays mounted
+  // and tappable for the whole close transition and React has not repainted between two
+  // rapid taps, so the once-only guard has to be a synchronous ref, not state.
+  const navigatingRef = useRef(false);
   // A create that succeeded but whose add then failed leaves a real, empty room.
   // It is kept, with the title it was created under and the actor that created it,
   // so a retry adds the scan to THAT room instead of creating a second one.
@@ -86,6 +90,9 @@ export function AddScanToDressingRoomModal({
       setNewRoomTitle('');
       setSavedRoomId(null);
       createdRoomRef.current = null;
+      // A new opening may navigate once again. Reset here, on OPEN, not on close: the
+      // sheet is still tappable while it fades out, which is the window being guarded.
+      navigatingRef.current = false;
       void reload();
     }
   }, [visible, reload]);
@@ -166,8 +173,20 @@ export function AddScanToDressingRoomModal({
   };
 
   const handleViewDressingRoom = () => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     onClose();
     router.push('/dressing-rooms');
+  };
+
+  // The Modal's own request-close path (Android hardware Back). The visible Close
+  // button is disabled while a save is in flight; this path must be too, or Back
+  // dismisses the sheet and the customer never sees the outcome of a write that still
+  // completes. The in-flight write itself is left alone. Read from the ref, the
+  // synchronous source of truth for "saving", not from state that may lag a repaint.
+  const handleRequestClose = () => {
+    if (savingRef.current) return;
+    onClose();
   };
 
   // Uses the same canonical contract as the rest of the Dressing Room add
@@ -178,7 +197,7 @@ export function AddScanToDressingRoomModal({
   const successState = !!savedRoomId;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleRequestClose}>
       <View style={styles.backdrop}>
         <KeyboardAvoidingView
           style={styles.keyboardContainer}
