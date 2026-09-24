@@ -204,6 +204,11 @@ function product(partial: Partial<RecommendedProduct> & { title: string; product
 
 Deno.test('v127 flag: version, default, and env override semantics', () => {
   assert.deepEqual(COMMERCE_FUNNEL_VERSION, 'v127');
+  assert.deepEqual(
+    COMMERCE_FUNNEL_DEFAULT_ENABLED,
+    true,
+    'Build 34 is commerce-first: v127 must default ON unless the emergency env kill switch disables it',
+  );
   assert.deepEqual(isCommerceFunnelEnabled(() => undefined), COMMERCE_FUNNEL_DEFAULT_ENABLED);
   assert.deepEqual(isCommerceFunnelEnabled(() => 'true'), true);
   assert.deepEqual(isCommerceFunnelEnabled(() => 'ON'), true);
