@@ -41,6 +41,10 @@ import {
 } from '../services/watchlist/watchNotificationRouting';
 import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
 import { runAppleCredentialStateCheck } from '../services/auth/appleCredentialState';
+import {
+  forgetThisDeviceAppleSubject,
+  readThisDeviceAppleSubject,
+} from '../services/auth/appleSignInDeviceRecord';
 import { reconcileTerminalDeletions } from '../services/deletion/terminalDeletionReconciler';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
@@ -380,7 +384,11 @@ function AppleCredentialStateBridge() {
   // since both surface here as the actor id becoming set.
   useEffect(() => {
     if (!userId) return;
-    void runAppleCredentialStateCheck(user, { signOut });
+    void runAppleCredentialStateCheck(user, {
+      signOut,
+      readThisDeviceAppleSubject,
+      forgetThisDeviceAppleSubject,
+    });
   }, [userId, user, signOut]);
 
   // Boundary 2 — a real background/inactive -> active transition. Deliberately
@@ -397,7 +405,11 @@ function AppleCredentialStateBridge() {
       if (!cameForward) return;
       // The module's own in-flight guard makes overlapping lifecycle events
       // collapse into a single Apple call and a single logout.
-      void runAppleCredentialStateCheck(user, { signOut });
+      void runAppleCredentialStateCheck(user, {
+        signOut,
+        readThisDeviceAppleSubject,
+        forgetThisDeviceAppleSubject,
+      });
     });
     return () => subscription.remove();
   }, [userId, user, signOut]);

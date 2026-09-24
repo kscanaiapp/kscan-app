@@ -20,10 +20,16 @@
  *    actor-scoped runtime state, and destroys local session material.
  *
  * The identifier this needs is Apple's stable subject id for the user. It is
- * NOT captured at sign-in (app/auth/index.tsx consumes only the identity token
- * and the authorization code), so it is recovered from the restored Supabase
- * session's Apple identity — see resolveAppleUserId. It is never inferred from
- * an email address, a K Scan AI user id, a display name, or an authorization code.
+ * recovered from the restored Supabase session's Apple identity — see
+ * resolveAppleUserId — and never inferred from an email address, a K Scan AI
+ * user id, a display name, or an authorization code.
+ *
+ * Apple only answers for the Apple ID signed in on the device, so a subject is
+ * checked only when it is the one that completed Sign in with Apple on THIS
+ * device (services/auth/appleSignInDeviceRecord.ts). An account that merely
+ * carries a linked Apple identity and signed in here with email or Google is
+ * never checked: Apple's REVOKED / NOT_FOUND about that identity would
+ * otherwise sign it out again on every sign-in.
  */
 import { Platform } from 'react-native';
 import type { User } from '@supabase/supabase-js';
@@ -38,6 +44,8 @@ export type AppleCredentialCheckOutcome =
   | 'unsupported_platform'
   /** No Apple identity on this actor (Google/email/anonymous) — never calls Apple. */
   | 'not_apple_actor'
+  /** The actor's Apple identity did not sign in with Apple on this device — never calls Apple. */
+  | 'not_this_device'
   /** Apple still authorizes this credential. The session is kept as-is. */
   | 'authorized'
   /** Apple reports the credential revoked. The session was invalidated. */
@@ -111,6 +119,17 @@ export interface AppleCredentialCheckDeps {
   loadAppleAuthentication?: () => Promise<AppleAuthenticationModuleLike>;
   /** The canonical logout authority. Invoked at most once per invalidating outcome. */
   signOut: () => Promise<void>;
+  /**
+   * The Apple subject that completed Sign in with Apple on this device
+   * (services/auth/appleSignInDeviceRecord.ts). Omitted, or answering null,
+   * means no such sign-in is known here and Apple is not consulted.
+   */
+  readThisDeviceAppleSubject?: () => Promise<string | null>;
+  /**
+   * Clears that record when Apple invalidates it, so a later email or Google
+   * sign-in by the same person is not signed out again.
+   */
+  forgetThisDeviceAppleSubject?: () => Promise<void>;
   /** Platform override for tests. Defaults to the real runtime. */
   platformOS?: string;
 }
@@ -140,7 +159,9 @@ export function __resetAppleCredentialCheckForTests(): void {
  * injected canonical logout path.
  *
  * Never throws. Every failure mode resolves to a bounded outcome, and only the
- * three explicitly-invalidating Apple answers can end a session:
+ * three explicitly-invalidating Apple answers can end a session. Apple is asked
+ * only when the actor's Apple identity is the subject that signed in with Apple
+ * on this device; otherwise the outcome is 'not_this_device':
  *
  *  - AUTHORIZED  -> nothing happens; the user sees no interruption.
  *  - REVOKED     -> canonical sign-out.
@@ -179,6 +200,15 @@ export async function runAppleCredentialStateCheck(
   const actorRequest = createActorRequest();
 
   try {
+    // Only the subject that signed in with Apple on this device is checked:
+    // Apple answers for the device's Apple ID, and an email or Google session
+    // on an account with a linked Apple identity is not an Apple session here.
+    const deviceSubject = deps.readThisDeviceAppleSubject
+      ? await deps.readThisDeviceAppleSubject()
+      : null;
+    if (!isActorRequestCurrent(actorRequest)) return 'stale_actor';
+    if (deviceSubject !== appleUserId) return 'not_this_device';
+
     const loadModule = deps.loadAppleAuthentication ?? defaultLoadAppleAuthentication;
     const AppleAuthentication = await loadModule();
     const state = await AppleAuthentication.getCredentialStateAsync(appleUserId);
@@ -209,6 +239,14 @@ export async function runAppleCredentialStateCheck(
 
     if (!isInvalidatingOutcome(outcome)) return outcome;
 
+    // Forget the record first so the person's next email or Google sign-in is
+    // not checked against the credential Apple just invalidated. A storage
+    // fault must never keep an invalidated session signed in.
+    try {
+      await deps.forgetThisDeviceAppleSubject?.();
+    } catch {
+      // Best effort; the sign-out below still runs.
+    }
     await deps.signOut();
     return outcome;
   } catch {

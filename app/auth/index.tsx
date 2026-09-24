@@ -31,6 +31,7 @@ import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 import { linkAppleCredential } from '../../services/appleCredentialLink';
+import { rememberThisDeviceAppleSubject } from '../../services/auth/appleSignInDeviceRecord';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -217,6 +218,10 @@ export default function AuthScreen() {
         setStep('idle');
         return;
       }
+
+      // Recorded before the session exists so the credential-state check that
+      // the new session triggers already knows this device's Apple ID signed in.
+      await rememberThisDeviceAppleSubject(credential.user);
 
       const { error: signInError } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
