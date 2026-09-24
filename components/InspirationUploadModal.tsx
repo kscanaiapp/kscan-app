@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -103,92 +106,117 @@ export function InspirationUploadModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {
         if (!uploading) onClose();
       }}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.title}>
-            {roomId ? 'Add to Room Inspiration' : 'Add to Style Closet'}
-          </Text>
-          <Text style={styles.subtitle}>
-            Upload clothing-focused images only. Avoid faces, bystanders, or sensitive information.
-          </Text>
-
-          {done ? (
-            <>
-              <Text style={styles.successText}>{doneMessage ?? 'Inspiration saved.'}</Text>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="Done uploading inspiration"
-              >
-                <Text style={styles.primaryText}>Done</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Image
-                source={{ uri: selectedUri }}
-                style={styles.preview}
-                resizeMode="cover"
-              />
-
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder="Add a note (optional)"
-                placeholderTextColor={LUXURY.colors.stone}
-                maxLength={INSPIRATION_NOTE_MAX_LENGTH + 20}
-                multiline
-                textAlignVertical="top"
-                style={styles.noteInput}
-                accessibilityLabel="Inspiration note"
-                accessibilityHint="Optional note about this inspiration image"
-              />
-              <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
-                {noteLength}/{INSPIRATION_NOTE_MAX_LENGTH}
-                {noteTooLong ? ` · max ${INSPIRATION_NOTE_MAX_LENGTH}` : ''}
+      {/* iOS: the note is multiline, so return adds a line instead of closing
+          the keyboard, and nothing else dismisses it. The keyboard covered the
+          note and the Upload / Cancel buttons of this bottom-anchored sheet.
+          The content now scrolls, and on iOS it rises above the keyboard. */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.backdrop}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.card}>
+              <Text style={styles.title}>
+                {roomId ? 'Add to Room Inspiration' : 'Add to Style Closet'}
+              </Text>
+              <Text style={styles.subtitle}>
+                Upload clothing-focused images only. Avoid faces, bystanders, or sensitive information.
               </Text>
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {done ? (
+                <>
+                  <Text style={styles.successText}>{doneMessage ?? 'Inspiration saved.'}</Text>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Done uploading inspiration"
+                  >
+                    <Text style={styles.primaryText}>Done</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Image
+                    source={{ uri: selectedUri }}
+                    style={styles.preview}
+                    resizeMode="cover"
+                  />
 
-              <TouchableOpacity
-                style={[styles.primaryButton, (uploading || noteTooLong) && styles.disabled]}
-                onPress={handleUpload}
-                disabled={uploading || noteTooLong}
-                accessibilityRole="button"
-                accessibilityLabel={roomId ? 'Save to room inspiration' : 'Save to style closet'}
-              >
-                {uploading ? (
-                  <Text style={styles.primaryText}>
-                    {roomId ? 'Saving Room' : 'Saving Closet'}
+                  <TextInput
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder="Add a note (optional)"
+                    placeholderTextColor={LUXURY.colors.stone}
+                    maxLength={INSPIRATION_NOTE_MAX_LENGTH + 20}
+                    multiline
+                    textAlignVertical="top"
+                    style={styles.noteInput}
+                    accessibilityLabel="Inspiration note"
+                    accessibilityHint="Optional note about this inspiration image"
+                  />
+                  <Text style={[styles.noteCount, noteTooLong ? styles.noteCountError : null]}>
+                    {noteLength}/{INSPIRATION_NOTE_MAX_LENGTH}
+                    {noteTooLong ? ` · max ${INSPIRATION_NOTE_MAX_LENGTH}` : ''}
                   </Text>
-                ) : (
-                  <Text style={styles.primaryText}>Upload</Text>
-                )}
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.secondaryButton, uploading && styles.disabled]}
-                onPress={onClose}
-                disabled={uploading}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel upload"
-              >
-                <Text style={styles.secondaryText}>Cancel</Text>
-              </TouchableOpacity>
-            </>
-          )}
+                  {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                  <TouchableOpacity
+                    style={[styles.primaryButton, (uploading || noteTooLong) && styles.disabled]}
+                    onPress={handleUpload}
+                    disabled={uploading || noteTooLong}
+                    accessibilityRole="button"
+                    accessibilityLabel={roomId ? 'Save to room inspiration' : 'Save to style closet'}
+                  >
+                    {uploading ? (
+                      <Text style={styles.primaryText}>
+                        {roomId ? 'Saving Room' : 'Saving Closet'}
+                      </Text>
+                    ) : (
+                      <Text style={styles.primaryText}>Upload</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, uploading && styles.disabled]}
+                    onPress={onClose}
+                    disabled={uploading}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel upload"
+                  >
+                    <Text style={styles.secondaryText}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoider: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: LUXURY.colors.plumDeep + 'C2',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
     padding: SPACING.xl,
   },
   card: {
@@ -197,7 +225,6 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     backgroundColor: LUXURY.colors.pearl,
     padding: SPACING.xl,
-    maxHeight: '90%',
     // Inert on phones; caps the sheet on regular-width iPad windows.
     width: '100%',
     maxWidth: MODAL_MAX_WIDTH,
