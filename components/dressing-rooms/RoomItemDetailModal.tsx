@@ -3,6 +3,7 @@ import {
   Image,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -121,7 +122,15 @@ export function RoomItemDetailModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      {/* iOS: an accessible Pressable is a single VoiceOver element, and this
+          one wraps the whole card, so Ask Elise, Select for Look, Remove,
+          View at retailer and Close were unreachable. The backdrop keeps its
+          tap-to-close for touch and stops hiding the card from VoiceOver. */}
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessible={Platform.OS === 'ios' ? false : undefined}
+      >
         <View style={styles.card}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {versionOk && item.imageUrl ? (
