@@ -44,6 +44,19 @@ function createRawNonce(length = 32) {
   return Array.from(randomBytes, (byte) => charset[byte % charset.length]).join('');
 }
 
+const APPLE_SIGN_IN_BLOCKED_MESSAGE =
+  "This account can't sign in right now. If you asked to delete it, use the restoration link we emailed you to restore it.";
+
+/**
+ * An account with a pending deletion request is banned for its 30-day
+ * restoration window (supabase/functions/handle-user-deletion), and Supabase
+ * refuses its sign-in with `user_banned`. Telling that person to "try again"
+ * sent them round in circles instead of to the restoration email.
+ */
+function isBannedSignInError(error: { code?: string; message?: string } | null | undefined): boolean {
+  return error?.code === 'user_banned' || /\bbanned\b/i.test(error?.message ?? '');
+}
+
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -230,7 +243,11 @@ export default function AuthScreen() {
       });
 
       if (signInError) {
-        setError('We could not complete Apple sign-in. Please try again.');
+        setError(
+          isBannedSignInError(signInError)
+            ? APPLE_SIGN_IN_BLOCKED_MESSAGE
+            : 'We could not complete Apple sign-in. Please try again.',
+        );
         setStep('idle');
         return;
       }
