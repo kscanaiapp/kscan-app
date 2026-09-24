@@ -441,14 +441,19 @@ export function StyleChatAttachmentBar({
     }
     setPickingImage(true);
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert(
-          'Photo Access Required',
-          'Allow K Scan AI to access your photo library in Settings to choose a photo. You can still take a photo or add from your Closet.',
-          [{ text: 'OK' }],
-        );
-        return;
+      // Android's system photo picker needs no media permission, and this app
+      // declares none; below Android 13 the request is auto-denied and blocked
+      // the picker outright (B34-AND-PICK-001).
+      if (Platform.OS !== 'android') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permission.status !== 'granted') {
+          Alert.alert(
+            'Photo Access Required',
+            'Allow K Scan AI to access your photo library in Settings to choose a photo. You can still take a photo or add from your Closet.',
+            [{ text: 'OK' }],
+          );
+          return;
+        }
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],

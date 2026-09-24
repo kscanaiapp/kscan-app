@@ -16,7 +16,7 @@
       manifest slot, so two independent capabilities that can each be on or
       off need a file per combination. Its content is deliberately nothing
       more than src/certification's Voice block plus src/push's push grant,
-      over the same src/release base -- there is no policy here that is not
+      over the same src/release base - there is no policy here that is not
       already stated in one of those two files, and
       scripts/check-native-config-parity.js holds all four to the same base
       so they cannot drift apart.
@@ -37,13 +37,13 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
 
     <!--
-      Voice grant -- identical to src/certification/AndroidManifest.xml. See
+      Voice grant - identical to src/certification/AndroidManifest.xml. See
       that file for the full Voice rationale; it is the governed home of this
       policy and this line is its combination-variant restatement.
     -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace"/>
 
-    <!-- Push grant -- identical to src/push/AndroidManifest.xml. -->
+    <!-- Push grant - identical to src/push/AndroidManifest.xml. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="replace"/>
 
     <!--

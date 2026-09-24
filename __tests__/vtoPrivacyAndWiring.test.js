@@ -600,6 +600,12 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/vto/vtoLiveGarment',
     './VtoLiveErrorBoundary', './VtoLivePanel', './VtoModeSelector',
     'react', 'react-native',
+    // B34-AND-UI-001 (Build 34 Android final hostile audit). Android draws the
+    // sheet's Modal edge-to-edge, so its bottom action row needs the bottom
+    // safe-area inset to clear the navigation bar. This is the app-wide inset
+    // authority (one SafeAreaProvider in app/_layout.tsx); it reads layout
+    // insets only and has no network, storage, or ownership capability.
+    'react-native-safe-area-context',
   ],
   'components/vto/TryItOnEntry.tsx': [
     '../../constants/theme', '../../hooks/useVtoAvailability',

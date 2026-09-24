@@ -11,7 +11,7 @@
       voiceNativeCapabilityMaterialized is false.
 
       pushNativeCapabilityMaterialized is the native projection of the SAME
-      decision Repair 05 already uses for runtime activation --
+      decision Repair 05 already uses for runtime activation -
       remotePushCapabilityEnabled, derived from EXPO_PUBLIC_SMART_WATCHLIST_V1
       and nothing else. It is deliberately NOT keyed on
       EAS_BUILD_PROFILE == staging-certification (a future production profile
@@ -32,7 +32,7 @@
       configuration only. Granting POST_NOTIFICATIONS in app.json + src/main
       would broaden the ORDINARY PRODUCTION artifact, which ships no remote-push
       consumer at all. app.json therefore keeps POST_NOTIFICATIONS in
-      android.blockedPermissions -- which remains true of the default artifact --
+      android.blockedPermissions - which remains true of the default artifact -
       and the grant lives only here. scripts/check-native-config-parity.js
       enforces exactly that relationship.
 
@@ -60,7 +60,7 @@
     <!--
       Repair 02 foreground-service removals, restated for this variant.
       src/main already removes both and an overlay only adds, so these are
-      belt-and-braces -- but naming them here means a library that later
+      belt-and-braces - but naming them here means a library that later
       contributes one cannot slip it into a push-capable artifact unnoticed,
       and the parity gate enforces their presence.
     -->
