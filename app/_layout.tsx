@@ -10,6 +10,7 @@ import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
+import { WearableCompanionHost } from '../components/wearables/WearableCompanionHost';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -93,6 +94,7 @@ export default function Layout() {
       <AuthSessionProvider>
         <PrivacyPreferencesProvider>
           <FeatureFreezeProvider>
+            <WearableCompanionHost />
             <AuthGate />
           </FeatureFreezeProvider>
         </PrivacyPreferencesProvider>
