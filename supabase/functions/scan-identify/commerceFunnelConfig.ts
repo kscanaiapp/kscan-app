@@ -22,14 +22,15 @@
 export const COMMERCE_FUNNEL_VERSION = 'v127';
 
 /**
- * Default OFF: this layer has not completed staging validation and it changes
- * the request/response sequence, which the client must opt into. Flip this
- * constant (or set the env var) once v127 has been validated on App Staging.
+ * Default ON for Build 34: commerce is a core Scanner capability and v127 is
+ * the governed orchestration path for deferred discovery/enrichment.
+ *
+ * Emergency rollback remains available without a redeploy:
  *
  *   BACKEND_COMMERCE_FUNNEL_V127_ENABLED=true  → enabled
  *   BACKEND_COMMERCE_FUNNEL_V127_ENABLED=false → disabled (exact Phase 3)
  */
-export const COMMERCE_FUNNEL_DEFAULT_ENABLED = false;
+export const COMMERCE_FUNNEL_DEFAULT_ENABLED = true;
 
 // ── Fast commerce path ───────────────────────────────────────────────────────
 
