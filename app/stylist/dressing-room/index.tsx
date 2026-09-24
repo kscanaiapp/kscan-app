@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +29,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
@@ -115,6 +117,14 @@ export default function PrivateDressingRoomScreen() {
   const [occasionDraft, setOccasionDraft] = useState('');
   const { width } = useWindowDimensions();
   const isWide = width >= TABLET_MIN_WIDTH;
+  const insets = useSafeAreaInsets();
+  // Android draws every Modal edge-to-edge (React Native 0.81 forces
+  // navigationBarTranslucent), so these bottom-anchored sheets reach under the
+  // navigation bar. Clear it there (B34-AND-UI-002).
+  const sheetStyle = [
+    styles.sheet,
+    Platform.OS === 'android' && { paddingBottom: SPACING.lg + insets.bottom },
+  ];
 
   // Android hardware back and the header control resolve the same way: back
   // when the stack has history, Home otherwise, so a deep link into the
@@ -977,7 +987,7 @@ export default function PrivateDressingRoomScreen() {
         onRequestClose={closeSlotEditor}
       >
         <View style={styles.sheetBackdrop}>
-          <View style={styles.sheet} testID="slot-editor">
+          <View style={sheetStyle} testID="slot-editor">
             <SectionHeader
               title={`Change ${slotEditor.slot ? PRIVATE_SLOT_LABELS[slotEditor.slot] : ''}`}
               subtitle={
@@ -1123,7 +1133,7 @@ export default function PrivateDressingRoomScreen() {
         onRequestClose={() => void closeComparison()}
       >
         <View style={styles.sheetBackdrop}>
-          <View style={styles.sheet} testID="comparison-view">
+          <View style={sheetStyle} testID="comparison-view">
             <SectionHeader
               title={PRIVATE_COMPARISON_COPY.title}
               subtitle={`${comparison?.leftLabel ?? ''} · ${comparison?.rightLabel ?? ''}`}
@@ -1199,7 +1209,7 @@ export default function PrivateDressingRoomScreen() {
         onRequestClose={cancelContextChange}
       >
         <View style={styles.sheetBackdrop}>
-          <View style={styles.sheet} testID="context-change-confirm">
+          <View style={sheetStyle} testID="context-change-confirm">
             <InlineNotice
               variant="info"
               title="Discard your edits?"
@@ -1238,7 +1248,7 @@ export default function PrivateDressingRoomScreen() {
         onRequestClose={dismissOccasionSheet}
       >
         <View style={styles.sheetBackdrop}>
-          <View style={styles.sheet} testID="elise-occasion-sheet">
+          <View style={sheetStyle} testID="elise-occasion-sheet">
             <SectionHeader title={PRIVATE_ELISE_COPY.occasionSheetTitle} />
             <TextInput
               style={styles.eliseInput}
