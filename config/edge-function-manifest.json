@@ -43,8 +43,8 @@
         ],
         "bundleFileCount": 42,
         "treeFileCount": 70,
-        "bundleHash": "c94d477b4af6acd03528f82fc9791b103f64f2d7f7c67e617e850c8a971695bb",
-        "treeHash": "83d3e5398e10862bd15771a0669c19996280a55b491a6616f23f927559911dcf",
+        "bundleHash": "2ca6909196a1a3f0de695581e832852e7ef4576cf3e9eeeee6e0d029ac7e8551",
+        "treeHash": "58a4a3eedac9bcaee8aef71fafd0d7d557e3c763ae159b9d4d2ccec992d2fc21",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -98,7 +98,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
-            "sha256": "eeb127d366c2bbf8f14033e2b5782bafb3c4bce260f4422dcb3df7862ee5f0ac",
+            "sha256": "2e4711a6c4e0f50c6c3458331eabde7f1760d82867f3905e11806356bb5e9f50",
             "bundle": false
           },
           {
@@ -218,7 +218,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "77eea66334b05119c3f2c1cbb8c2c82f16e98bf5c62cce33b3ec5e2d8a5e7316",
+            "sha256": "ac9626d050fdcc1d91e37744014ad0739b37228c41753c5043821ad519b15e7f",
             "bundle": true
           },
           {
@@ -298,7 +298,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "a3b71084145590293e730fcae0015e7900eaff27d88cb588200a9e9d4bbf6f15",
+            "sha256": "717bec5a58bd3e8d4d283da38c23cd0977933789da65cfe78a5042d87e70eb4f",
             "bundle": true
           },
           {
