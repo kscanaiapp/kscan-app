@@ -288,7 +288,7 @@ function seedSource(m, uri, marker = 'original') {
   return uri;
 }
 
-test('bounded relocation proof: a staged candidate returns an unusable old iOS thumbnail URI', async () => {
+test('relocated staged candidate thumbnail is usable in the StatusPanel on first list', async () => {
   const oldDocs = 'file:///var/mobile/Containers/Data/Application/1B6C2E0A-9F7D-4C2B-8E4A-2D3F5A6B7C8D/Documents/';
   const currentDocs = 'file:///var/mobile/Containers/Data/Application/7E1D4B2C-3A5F-4E6B-9C8D-0F1A2B3C4D5E/Documents/';
   const env = load('ios', { documentDirectory: currentDocs });
@@ -305,11 +305,38 @@ test('bounded relocation proof: a staged candidate returns an unusable old iOS t
 
   const listed = await env.store.listClosetCandidates(request);
   assert.equal(listed.ok, true);
-  assert.equal(listed.candidates[0].candidateThumbnailUri, oldThumbnail);
+  assert.equal(listed.candidates[0].candidateThumbnailUri, currentThumbnail);
   assert.equal((await env.m.api.getInfoAsync(oldThumbnail)).exists, false);
   assert.equal((await env.m.api.getInfoAsync(currentThumbnail)).exists, true);
+  assert.equal(JSON.parse(env.m.files.get(manifestPath))[0].candidateThumbnailUri, currentThumbnail);
   const panel = fs.readFileSync(path.join(ROOT, 'components/closet/ClosetCandidateStatusPanel.tsx'), 'utf8');
   assert.match(panel, /source=\{\{ uri: candidate\.candidateThumbnailUri \}\}/);
+});
+
+test('relocated staged candidate primary passes promotion media preflight on first list', async () => {
+  const oldDocs = 'file:///var/mobile/Containers/Data/Application/1B6C2E0A-9F7D-4C2B-8E4A-2D3F5A6B7C8D/Documents/';
+  const currentDocs = 'file:///var/mobile/Containers/Data/Application/7E1D4B2C-3A5F-4E6B-9C8D-0F1A2B3C4D5E/Documents/';
+  const env = load('ios', { documentDirectory: currentDocs });
+  const request = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/candidate-primary.jpg');
+  assert.equal((await stage(env, request, '/picker/candidate-primary.jpg')).kind, 'created');
+  const manifestPath = env.media.CANDIDATE_MANIFEST_PATH;
+  const raw = JSON.parse(env.m.files.get(manifestPath));
+  const currentImage = raw[0].candidateImageUri;
+  const oldImage = currentImage.replace(currentDocs, oldDocs);
+  raw[0].candidateImageUri = oldImage;
+  env.m.files.set(manifestPath, JSON.stringify(raw));
+
+  const listed = await env.store.listClosetCandidates(request);
+  assert.equal(listed.candidates[0].candidateImageUri, currentImage);
+  assert.equal((await env.m.api.getInfoAsync(oldImage)).exists, false);
+  assert.equal((await env.m.api.getInfoAsync(currentImage)).exists, true);
+  assert.equal((await env.media.preflightCandidateStorage(oldImage)).errorCode, 'candidate_media_unreadable');
+  assert.equal((await env.media.preflightCandidateStorage(currentImage)).ok, true);
+  assert.equal((await env.media.preflightCandidateStorage(listed.candidates[0].candidateImageUri)).ok, true);
+  assert.equal(JSON.parse(env.m.files.get(manifestPath))[0].candidateImageUri, currentImage);
+  const promotion = fs.readFileSync(path.join(ROOT, 'services/closetCandidatePromotion.js'), 'utf8');
+  assert.match(promotion, /preflightCandidateStorage\(candidate\.candidateImageUri\)/);
 });
 
 async function stage(env, actorRequest, sourceUri, overrides = {}) {
@@ -320,6 +347,237 @@ async function stage(env, actorRequest, sourceUri, overrides = {}) {
     ...overrides,
   });
 }
+
+const OLD_IOS_DOCS = 'file:///var/mobile/Containers/Data/Application/1B6C2E0A-9F7D-4C2B-8E4A-2D3F5A6B7C8D/Documents/';
+const CURRENT_IOS_DOCS = 'file:///var/mobile/Containers/Data/Application/7E1D4B2C-3A5F-4E6B-9C8D-0F1A2B3C4D5E/Documents/';
+
+async function relocatedCandidateFixture() {
+  const env = load('ios', { documentDirectory: CURRENT_IOS_DOCS });
+  const request = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/relocated.jpg');
+  assert.equal((await stage(env, request, '/picker/relocated.jpg')).kind, 'created');
+  const manifestPath = env.media.CANDIDATE_MANIFEST_PATH;
+  const raw = JSON.parse(env.m.files.get(manifestPath));
+  const currentImage = raw[0].candidateImageUri;
+  const currentThumbnail = raw[0].candidateThumbnailUri;
+  const oldImage = currentImage.replace(CURRENT_IOS_DOCS, OLD_IOS_DOCS);
+  const oldThumbnail = currentThumbnail.replace(CURRENT_IOS_DOCS, OLD_IOS_DOCS);
+  raw[0] = { ...raw[0], candidateImageUri: oldImage, candidateThumbnailUri: oldThumbnail };
+  env.m.files.set(manifestPath, JSON.stringify(raw));
+  return { env, request, manifestPath, raw, currentImage, currentThumbnail, oldImage, oldThumbnail };
+}
+
+test('candidate primary and thumbnail relocate independently when the other target is missing', async () => {
+  for (const missing of ['primary', 'thumbnail']) {
+    const fixture = await relocatedCandidateFixture();
+    const { env, request, manifestPath, currentImage, currentThumbnail, oldImage, oldThumbnail } = fixture;
+    env.m.files.delete(missing === 'primary' ? currentImage : currentThumbnail);
+    const listed = await env.store.listClosetCandidates(request);
+    assert.equal(listed.ok, true);
+    const row = listed.candidates[0];
+    assert.equal(row.candidateImageUri, missing === 'primary' ? oldImage : currentImage);
+    assert.equal(row.candidateThumbnailUri, missing === 'thumbnail' ? oldThumbnail : currentThumbnail);
+    const persisted = JSON.parse(env.m.files.get(manifestPath))[0];
+    assert.equal(persisted.candidateImageUri, row.candidateImageUri);
+    assert.equal(persisted.candidateThumbnailUri, row.candidateThumbnailUri);
+  }
+});
+
+test('missing and zero-byte candidate targets retain old references without a manifest write', async () => {
+  for (const absent of [true, false]) {
+    const { env, request, manifestPath, currentImage, currentThumbnail, oldImage, oldThumbnail } = await relocatedCandidateFixture();
+    for (const target of [currentImage, currentThumbnail]) {
+      if (absent) env.m.files.delete(target);
+      else env.m.files.set(target, '');
+    }
+    const before = env.m.files.get(manifestPath);
+    let stageWrites = 0;
+    const write = env.m.api.writeAsStringAsync;
+    env.m.api.writeAsStringAsync = async (uri, content) => {
+      if (uri === env.media.CANDIDATE_MANIFEST_TEMP_PATH) stageWrites += 1;
+      return write(uri, content);
+    };
+    const listed = await env.store.listClosetCandidates(request);
+    assert.equal(listed.candidates[0].candidateImageUri, oldImage);
+    assert.equal(listed.candidates[0].candidateThumbnailUri, oldThumbnail);
+    assert.equal(env.m.files.get(manifestPath), before);
+    assert.equal(stageWrites, 0);
+    const sweep = await env.media.sweepOrphanedCandidateMedia(JSON.parse(before), { manifestComplete: true, graceMs: 0 });
+    assert.equal(sweep.reason, 'foreign_container_references');
+    assert.equal(sweep.deleted, 0);
+  }
+});
+
+test('candidate resolver rejects remote, unrelated, traversal, malformed, and same-container paths', async () => {
+  const env = load('ios', { documentDirectory: CURRENT_IOS_DOCS });
+  const current = `${CURRENT_IOS_DOCS}kscan_closet_candidates/images/a.jpg`;
+  env.m.files.set(current, 'image');
+  env.m.files.set(`${CURRENT_IOS_DOCS}other/images/a.jpg`, 'image');
+  const rejected = [
+    'https://example.com/a.jpg', 'http://example.com/a.jpg', 'content://provider/a.jpg',
+    'asset://a.jpg', 'ph://asset/a.jpg',
+    `${OLD_IOS_DOCS}other/images/a.jpg`,
+    `${OLD_IOS_DOCS}notes/kscan_closet_candidates/images/a.jpg`,
+    `${OLD_IOS_DOCS}kscan_closet/images/a.jpg`,
+    `${OLD_IOS_DOCS}kscan_closet_candidates/images/../a.jpg`,
+    `${OLD_IOS_DOCS}kscan_closet_candidates/images/%2e%2e/a.jpg`,
+    `${OLD_IOS_DOCS}kscan_closet_candidates/images//a.jpg`,
+    `${OLD_IOS_DOCS}kscan_closet_candidates/images/a.jpg?x=1`,
+    current,
+  ];
+  for (const uri of rejected) {
+    assert.equal(await env.store.resolveRelocatedIosCandidateMediaUri(uri, CURRENT_IOS_DOCS), null, uri);
+  }
+});
+
+test('Android candidate reads neither probe nor rewrite relocated iOS paths', async () => {
+  const env = load('android', { documentDirectory: '/data/user/0/com.kscanai.app/files/' });
+  const request = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/android.jpg');
+  assert.equal((await stage(env, request, '/picker/android.jpg')).kind, 'created');
+  const manifestPath = env.media.CANDIDATE_MANIFEST_PATH;
+  const raw = JSON.parse(env.m.files.get(manifestPath));
+  const original = raw[0].candidateImageUri;
+  raw[0].candidateImageUri = `${OLD_IOS_DOCS}kscan_closet_candidates/images/android.jpg`;
+  env.m.files.set(manifestPath, JSON.stringify(raw));
+  let probes = 0;
+  const getInfo = env.m.api.getInfoAsync;
+  env.m.api.getInfoAsync = async (uri) => { if (uri.includes('Containers/Data/Application')) probes += 1; return getInfo(uri); };
+  const listed = await env.store.listClosetCandidates(request);
+  assert.equal(listed.candidates[0].candidateImageUri, raw[0].candidateImageUri);
+  assert.equal(probes, 0);
+  assert.equal(env.m.files.has(original), true);
+  assert.deepEqual(JSON.parse(env.m.files.get(manifestPath)), raw);
+});
+
+test('relocation preserves raw unknown fields, protected candidate data, owner, and actor partition', async () => {
+  const { env, request, manifestPath, raw, currentImage, currentThumbnail } = await relocatedCandidateFixture();
+  raw[0].futureOpaque = { nested: ['keep', 7] };
+  env.m.files.set(manifestPath, JSON.stringify(raw));
+  const listed = await env.store.listClosetCandidates(request);
+  assert.equal(listed.candidates.length, 1);
+  assert.deepEqual(JSON.parse(env.m.files.get(manifestPath))[0], {
+    ...raw[0], candidateImageUri: currentImage, candidateThumbnailUri: currentThumbnail,
+  });
+  const requestB = asActor(env.actorContext, 'user-b');
+  assert.deepEqual((await env.store.listClosetCandidates(requestB)).candidates, []);
+  assert.equal(JSON.parse(env.m.files.get(manifestPath))[0].ownerId, 'user-a');
+});
+
+test('candidate relocation refuses corrupt and partial manifests before any write', async () => {
+  for (const corruption of ['malformed', 'future', 'skipped']) {
+    const { env, request, manifestPath, raw } = await relocatedCandidateFixture();
+    const bytes = corruption === 'malformed' ? '{bad' : JSON.stringify([
+      ...raw,
+      corruption === 'future'
+        ? { schemaVersion: 99, candidateId: 'future' }
+        : { schemaVersion: 3, candidateId: null, batchId: 'bad' },
+    ]);
+    env.m.files.set(manifestPath, bytes);
+    let writes = 0;
+    const write = env.m.api.writeAsStringAsync;
+    env.m.api.writeAsStringAsync = async (uri, content) => {
+      if (uri === env.media.CANDIDATE_MANIFEST_TEMP_PATH) writes += 1;
+      return write(uri, content);
+    };
+    const listed = await env.store.listClosetCandidates(request);
+    assert.equal(listed.ok, true);
+    if (corruption !== 'malformed') assert.equal(listed.candidates[0].candidateImageUri, raw[0].candidateImageUri);
+    assert.equal(writes, 0);
+    assert.equal(env.m.files.get(manifestPath), bytes);
+  }
+});
+
+test('candidate persistence failure retains the prior manifest, old URI, and media', async () => {
+  const { env, request, manifestPath, currentImage, currentThumbnail, oldImage, oldThumbnail } = await relocatedCandidateFixture();
+  const oldManifest = env.m.files.get(manifestPath);
+  env.m.failNextWrite();
+  const listed = await env.store.listClosetCandidates(request);
+  assert.equal(listed.candidates[0].candidateImageUri, oldImage);
+  assert.equal(listed.candidates[0].candidateThumbnailUri, oldThumbnail);
+  assert.equal(env.m.files.get(manifestPath), oldManifest);
+  assert.equal(env.m.files.has(currentImage), true);
+  assert.equal(env.m.files.has(currentThumbnail), true);
+  const sweep = await env.media.sweepOrphanedCandidateMedia(JSON.parse(oldManifest), { manifestComplete: true, graceMs: 0 });
+  assert.equal(sweep.reason, 'foreign_container_references');
+  assert.equal(sweep.deleted, 0);
+});
+
+test('successful candidate relocation persists once, restores normal sweep, and keeps fresh or referenced media', async () => {
+  const { env, request, manifestPath, currentImage, currentThumbnail } = await relocatedCandidateFixture();
+  const orphan = `${CURRENT_IOS_DOCS}kscan_closet_candidates/images/orphan.jpg`;
+  const fresh = `${CURRENT_IOS_DOCS}kscan_closet_candidates/images/in-flight.jpg`;
+  env.m.files.set(orphan, 'old-orphan');
+  env.m.files.set(fresh, 'fresh-in-flight');
+  env.m.setModified(orphan, Date.now() - 60 * 60 * 1000);
+  env.m.setModified(fresh, Date.now());
+  let stageWrites = 0;
+  const write = env.m.api.writeAsStringAsync;
+  env.m.api.writeAsStringAsync = async (uri, content) => {
+    if (uri === env.media.CANDIDATE_MANIFEST_TEMP_PATH) stageWrites += 1;
+    return write(uri, content);
+  };
+  for (let i = 0; i < 2; i += 1) {
+    const listed = await env.store.listClosetCandidates(request);
+    assert.equal(listed.candidates[0].candidateImageUri, currentImage);
+    assert.equal(listed.candidates[0].candidateThumbnailUri, currentThumbnail);
+  }
+  assert.equal(stageWrites, 1);
+  assert.equal(JSON.parse(env.m.files.get(manifestPath))[0].candidateImageUri, currentImage);
+  const sweep = await env.store.sweepOrphanedClosetCandidateMedia(request);
+  assert.equal(sweep.deleted, 1);
+  assert.equal(env.m.files.has(orphan), false);
+  assert.equal(env.m.files.has(fresh), true);
+  assert.equal(env.m.files.has(currentImage), true);
+  assert.equal(env.m.files.has(currentThumbnail), true);
+});
+
+test('actor switch during candidate filesystem proof returns stale without exposing prior owner', async () => {
+  const { env, request, currentImage } = await relocatedCandidateFixture();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let entered;
+  const reached = new Promise((resolve) => { entered = resolve; });
+  const getInfo = env.m.api.getInfoAsync;
+  env.m.api.getInfoAsync = async (uri) => {
+    if (uri === currentImage) { entered(); await gate; }
+    return getInfo(uri);
+  };
+  const pending = env.store.listClosetCandidates(request);
+  await reached;
+  const requestB = asActor(env.actorContext, 'user-b');
+  release();
+  const stale = await pending;
+  assert.equal(stale.ok, false);
+  assert.equal(stale.errorCode, 'candidate_actor_stale');
+  assert.deepEqual(stale.candidates, []);
+  assert.deepEqual((await env.store.listClosetCandidates(requestB)).candidates, []);
+});
+
+test('candidate relocation and a concurrent metadata mutation serialize on the candidate queue', async () => {
+  const { env, request, manifestPath, raw, currentImage, currentThumbnail } = await relocatedCandidateFixture();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let entered;
+  const reached = new Promise((resolve) => { entered = resolve; });
+  const getInfo = env.m.api.getInfoAsync;
+  env.m.api.getInfoAsync = async (uri) => {
+    if (uri === currentImage) { entered(); await gate; }
+    return getInfo(uri);
+  };
+  const list = env.store.listClosetCandidates(request);
+  await reached;
+  const patch = env.store.updateClosetCandidate(request, raw[0].candidateId, { notes: 'after relocation' });
+  release();
+  const [listed, updated] = await Promise.all([list, patch]);
+  assert.equal(listed.candidates[0].candidateImageUri, currentImage);
+  assert.equal(updated.ok, true);
+  const persisted = JSON.parse(env.m.files.get(manifestPath));
+  assert.equal(persisted.length, 1);
+  assert.equal(persisted[0].candidateImageUri, currentImage);
+  assert.equal(persisted[0].candidateThumbnailUri, currentThumbnail);
+  assert.equal(persisted[0].notes, 'after relocation');
+});
 
 // ── Create / read ────────────────────────────────────────────────────────────
 
