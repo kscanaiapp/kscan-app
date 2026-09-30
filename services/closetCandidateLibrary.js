@@ -304,8 +304,8 @@ async function readAllCandidates() {
  * Reads (list/get) deliberately do NOT use this: showing the user the candidates
  * that ARE readable is correct, and is not destructive.
  */
-async function readCandidatesForMutation() {
-  const state = await readAllCandidates();
+async function readCandidatesForMutation(priorRead = null) {
+  const state = priorRead ?? await readAllCandidates();
   if (state.corrupt) {
     return { ok: false, errorCode: 'candidate_store_recovery_required' };
   }
@@ -318,7 +318,83 @@ async function readCandidatesForMutation() {
           : 'candidate_store_recovery_required',
     };
   }
-  return { ok: true, records: state.records };
+  return { ok: true, records: state.records, raw: state.raw };
+}
+
+/** Candidate-owned equivalent under the current iOS Documents directory, if proven usable. */
+export async function resolveRelocatedIosCandidateMediaUri(uri, currentDirectory) {
+  const iosDocuments = /^file:\/\/\/(.*\/)?Containers\/Data\/Application\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/Documents\/(.*)$/i;
+  if (typeof uri !== 'string' || typeof currentDirectory !== 'string') return null;
+  if (uri !== uri.trim() || currentDirectory !== currentDirectory.trim()) return null;
+  const old = iosDocuments.exec(uri);
+  const current = iosDocuments.exec(currentDirectory);
+  if (!old || !current || current[3] !== '') return null;
+  if (old[1] !== current[1] || old[2].toLowerCase() === current[2].toLowerCase()) return null;
+
+  const relative = old[3];
+  if (!relative.startsWith('kscan_closet_candidates/images/') &&
+      !relative.startsWith('kscan_closet_candidates/thumbnails/')) return null;
+  if (!/^[A-Za-z0-9._/-]+$/.test(relative)) return null;
+  if (relative.split('/').some((part) => !part || part === '.' || part === '..')) return null;
+
+  const target = currentDirectory + relative;
+  try {
+    const info = await FileSystem.getInfoAsync(target);
+    return info?.exists === true && info.isDirectory !== true &&
+      (typeof info.size !== 'number' || info.size > 0)
+      ? target
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Patch raw candidates only after the complete-manifest mutation interlock succeeds. */
+async function reanchorRelocatedCandidates(state, checkedMutation = null) {
+  if (Platform.OS !== 'ios' || !state.records.length ||
+      !FileSystem.documentDirectory?.includes('/Containers/Data/Application/')) return state;
+  const mutation = checkedMutation ?? await readCandidatesForMutation(state);
+  if (!mutation.ok) return state;
+
+  const patched = new Map();
+  for (let index = 0; index < mutation.raw.length; index += 1) {
+    const raw = mutation.raw[index];
+    const candidateImageUri = await resolveRelocatedIosCandidateMediaUri(
+      raw.candidateImageUri, FileSystem.documentDirectory,
+    );
+    const candidateThumbnailUri = await resolveRelocatedIosCandidateMediaUri(
+      raw.candidateThumbnailUri, FileSystem.documentDirectory,
+    );
+    if (candidateImageUri || candidateThumbnailUri) {
+      patched.set(index, {
+        ...raw,
+        ...(candidateImageUri ? { candidateImageUri } : {}),
+        ...(candidateThumbnailUri ? { candidateThumbnailUri } : {}),
+      });
+    }
+  }
+  if (patched.size === 0) return state;
+
+  const raw = mutation.raw.map((record, index) => patched.get(index) ?? record);
+  try {
+    await persistCandidates(raw);
+  } catch {
+    // The previous manifest remains authoritative; no media is unlinked.
+    return state;
+  }
+  const records = state.records.map((record, index) => {
+    const next = patched.get(index);
+    if (!next) return record;
+    const previous = mutation.raw[index];
+    return {
+      ...record,
+      ...(next.candidateImageUri !== previous.candidateImageUri
+        ? { candidateImageUri: next.candidateImageUri } : {}),
+      ...(next.candidateThumbnailUri !== previous.candidateThumbnailUri
+        ? { candidateThumbnailUri: next.candidateThumbnailUri } : {}),
+    };
+  });
+  return { ...state, raw, records };
 }
 
 function isVisibleToActor(record, actorId) {
@@ -396,15 +472,22 @@ export async function listClosetCandidates(actorRequest, options = {}) {
   const authority = resolveCandidateAuthority(actorRequest, undefined);
   if (!authority.ok) return { ok: false, errorCode: authority.errorCode, candidates: [] };
   try {
-    await candidateMutationQueue;
-    const nowMs = options.nowMs ?? Date.now();
-    const { records } = await readAllCandidates();
-    const candidates = records
-      .filter(
-        (record) => isVisibleToActor(record, authority.ownerId) && !isExpired(record, nowMs),
-      )
-      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
-    return { ok: true, candidates };
+    const result = await enqueue(async () => {
+      const nowMs = options.nowMs ?? Date.now();
+      const state = await reanchorRelocatedCandidates(await readAllCandidates());
+      if (!isActorRequestCurrent(actorRequest)) {
+        return { ok: false, errorCode: 'candidate_actor_stale', candidates: [] };
+      }
+      const candidates = state.records
+        .filter(
+          (record) => isVisibleToActor(record, authority.ownerId) && !isExpired(record, nowMs),
+        )
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+      return { ok: true, candidates };
+    });
+    return result && typeof result === 'object'
+      ? result
+      : { ok: false, errorCode: 'candidate_store_corrupt', candidates: [] };
   } catch {
     return { ok: false, errorCode: 'candidate_store_corrupt', candidates: [] };
   }
@@ -448,9 +531,13 @@ export async function listClosetCandidatesForRecovery(actorRequest, options = {}
       if (!readState.ok) {
         return { ok: false, errorCode: readState.errorCode, candidates: [] };
       }
+      const state = await reanchorRelocatedCandidates(readState, readState);
+      if (!isActorRequestCurrent(actorRequest)) {
+        return { ok: false, errorCode: 'candidate_actor_stale', candidates: [] };
+      }
       return {
         ok: true,
-        candidates: readState.records.filter((record) =>
+        candidates: state.records.filter((record) =>
           isVisibleToActor(record, authority.ownerId),
         ),
       };
