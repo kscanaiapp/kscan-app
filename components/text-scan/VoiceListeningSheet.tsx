@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Modal, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Linking, Modal, Platform, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { PrimaryButton, SecondaryButton } from '../luxury';
 import { VoiceScanIcon } from '../icons/kscan';
@@ -163,6 +163,11 @@ export function VoiceListeningSheet({
 
     const reason = unavailableReason ?? 'recognizer_error';
     const copy = UNAVAILABLE_COPY[reason];
+    // iOS shows the microphone and speech prompts once; after a denial the
+    // request resolves with no UI, so the copy's "Enable it in your device
+    // Settings" had no way there from this sheet. iOS only: Android's
+    // behaviour here is unchanged.
+    const offerSettings = Platform.OS === 'ios' && reason === 'permission_denied_permanently';
     return (
       <>
         <Text style={styles.eyebrow}>VOICE SCAN</Text>
@@ -175,6 +180,18 @@ export function VoiceListeningSheet({
             onPress={onDismiss}
             accessibilityLabel="Dismiss Voice Scan and use the text field"
           />
+          {offerSettings ? (
+            <SecondaryButton
+              testID="voice-scan-open-settings"
+              title="Open Settings"
+              onPress={() => {
+                // Leave the text field ready for when the user comes back. If
+                // Settings cannot open, keep the sheet so the reason stays visible.
+                Linking.openSettings().then(onDismiss, () => {});
+              }}
+              accessibilityLabel="Open Settings to allow microphone and speech recognition for K Scan AI"
+            />
+          ) : null}
         </View>
       </>
     );
