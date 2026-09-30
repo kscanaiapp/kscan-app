@@ -166,7 +166,7 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
             {state === 'success' ? (
               <View style={styles.resultContent} testID="ai-output-report-success" accessibilityLiveRegion="polite">
                 <Text style={styles.eyebrow}>REPORT SENT</Text>
-                <Text style={styles.title}>Thank you for helping keep K Scan safe.</Text>
+                <Text style={styles.title}>Thank you for helping keep K Scan AI safe.</Text>
                 <Text style={styles.body}>
                   Your report has been received for review.
                 </Text>
@@ -211,7 +211,7 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
                 <Text style={styles.eyebrow}>REPORT RESPONSE</Text>
                 <Text style={styles.title}>What&apos;s wrong with this AI response?</Text>
                 <Text style={styles.body}>
-                  Your report is sent to K Scan for review. Please avoid including private information.
+                  Your report is sent to K Scan AI for review. Please avoid including private information.
                 </Text>
 
                 <View style={styles.reasonList} accessibilityRole="radiogroup">

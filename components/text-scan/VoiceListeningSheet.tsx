@@ -46,7 +46,7 @@ const UNAVAILABLE_COPY: Record<VoiceUnavailableReason, { title: string; body: st
   },
   not_kplus: {
     title: 'Voice Scan is a K+ feature',
-    body: 'Upgrade to K+ to use Voice Scan.',
+    body: 'Unlock K+ to use Voice Scan. You can still search by typing below.',
   },
   flag_disabled: {
     title: 'Voice Scan is unavailable',

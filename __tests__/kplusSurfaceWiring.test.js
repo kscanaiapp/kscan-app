@@ -25,7 +25,11 @@ const authSessionContext = fs.readFileSync(
 
 test('Voice Scan pill shows the K+ acquisition copy, gated by KPLUS_EARLY_ACCESS_ENABLED', () => {
   assert.match(textScanFeatureRow, /KPLUS_EARLY_ACCESS_ENABLED/);
-  assert.match(textScanFeatureRow, /Upgrade to K\+/);
+  // POLISH-005 (Build 34 final polish): "Unlock with K+" replaces "Upgrade to
+  // K+" -- complimentary activation has no purchase path to upgrade through.
+  assert.match(textScanFeatureRow, /'Unlock with K\+'/);
+  assert.match(textScanFeatureRow, /'Voice Scan, unlock with K\+'/);
+  assert.doesNotMatch(textScanFeatureRow, /'Upgrade to K\+'|upgrade to K\+'/);
   assert.match(textScanFeatureRow, /Included with K\+/);
   assert.match(textScanFeatureRow, /KPlusGate/);
 });

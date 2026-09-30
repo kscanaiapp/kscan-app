@@ -116,7 +116,12 @@ test('tapping the mic while K+ is inactive opens the existing upgrade sheet and 
 test('the actionable Voice Scan control keeps visible K+ identity in locked and active states', () => {
   assert.match(voiceScanButton, />VOICE SCAN</);
   assert.match(voiceScanButton, />K\+</);
-  assert.match(voiceScanButton, /UPGRADE TO K\+/);
+  // POLISH-005 (Build 34 final polish): the locked state reads "UNLOCK WITH
+  // K+", not "UPGRADE TO K+". K+ in this build is complimentary activation with
+  // no purchase path; "Upgrade" implied one (flagged for App Review as
+  // IOS-SUB-02) and disagreed with Packing/onboarding's "UNLOCK WITH K+".
+  assert.match(voiceScanButton, /UNLOCK WITH K\+/);
+  assert.doesNotMatch(voiceScanButton, /UPGRADE TO K\+|upgrade to K\+/);
   assert.match(voiceScanButton, /INCLUDED · TAP TO SPEAK/);
 });
 

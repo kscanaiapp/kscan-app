@@ -168,7 +168,7 @@ export function PurchaseOptionsPanel({
                           testID={`purchase-option-watch-${option.id}`}
                           accessibilityRole="button"
                           accessibilityLabel={`Watch ${option.title ?? option.retailer}`}
-                          accessibilityHint="Get notified about price changes on this listing"
+                          accessibilityHint={isActive || resolving ? 'Get notified about price changes on this listing' : 'Available with K+. Opens K+ Early Access.'}
                           style={styles.watchButton}
                           activeOpacity={0.78}
                           disabled={resolving}
@@ -180,7 +180,10 @@ export function PurchaseOptionsPanel({
                             else openUpgrade();
                           }}
                         >
-                          <Text style={styles.watchButtonText}>Watch</Text>
+                          <Text style={styles.watchButtonText}>
+                            Watch
+                            {!isActive && !resolving ? ' · K+' : null}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     </KPlusGate>
@@ -235,7 +238,10 @@ export function PurchaseOptionsPanel({
       ) : (
         <EmptyStateCard
           title="Matching products will appear here for shoppable looks."
-          subtitle="Based on your scan — save this look to your Closet to keep it."
+          // POLISH-009: the scan is kept in Recent Scans automatically, and the
+          // Closet is owned wardrobe, so the old subtitle told people to put a
+          // scanned (not owned) look into their wardrobe to keep it.
+          subtitle="Based on your scan."
           testID="purchase-options-empty"
         />
       )}

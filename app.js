@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   View,
   Text,
   StyleSheet,
@@ -55,7 +56,12 @@ import {
   DEV_FALLBACK_STATUS,
   QA_TOOLS_ENABLED,
 } from './constants/build';
-import { TEXTSCAN_UI_ENABLED, SCAN_RESULTS_V2_UI_ENABLED, SCAN_ROOM_V2_UI_ENABLED } from './constants/featureFlags';
+import {
+  CLOSET_SEPARATION_V1,
+  TEXTSCAN_UI_ENABLED,
+  SCAN_RESULTS_V2_UI_ENABLED,
+  SCAN_ROOM_V2_UI_ENABLED,
+} from './constants/featureFlags';
 import { QA_FIXTURES } from './constants/qaFixtures';
 import {
   BUTTONS,
@@ -161,9 +167,19 @@ function SavedToast({ onDismiss }) {
     return () => clearTimeout(timer);
   }, [onDismiss, opacity]);
 
+  // POLISH-009: a scan is saved to Recent Scans. With the Closet separated into
+  // owned wardrobe (CLOSET_SEPARATION_V1), "Style Closet" named a place the
+  // scan never appears. The toast is also announced once, on mount -- it was
+  // sighted-only.
+  const message = CLOSET_SEPARATION_V1 ? 'Saved to Recent Scans' : 'Saved to Style Closet';
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility?.(message);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <Animated.View style={[styles.savedToast, { opacity }]}>
-      <Text style={styles.savedToastText}>Saved to Style Closet</Text>
+    <Animated.View style={[styles.savedToast, { opacity }]} accessibilityLiveRegion="polite">
+      <Text style={styles.savedToastText}>{message}</Text>
     </Animated.View>
   );
 }

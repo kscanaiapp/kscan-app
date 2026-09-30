@@ -93,13 +93,16 @@ function VoiceScanButtonInner({
         onPress={handlePress}
         disabled={disabled || resolving}
         style={[styles.button, !isKPlusActive && styles.buttonLocked]}
+        // POLISH-016: the pill is 40pt tall; extend the touch area to 48pt
+        // without changing the layout of the TextScan input row.
+        hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
         accessibilityRole="button"
         accessibilityLabel={
           resolving
             ? 'Voice Scan, K+, checking your K+ status'
             : isKPlusActive
               ? 'Voice Scan, K+, included with K+. Tap to speak'
-              : 'Voice Scan, K+, upgrade to K+'
+              : 'Voice Scan, K+, unlock with K+'
         }
       >
         <VoiceScanIcon size={20} color={isKPlusActive ? LUXURY.colors.plum : LUXURY.colors.stone} />
@@ -111,7 +114,7 @@ function VoiceScanButtonInner({
             </View>
           </View>
           <Text style={styles.status}>
-            {resolving ? 'CHECKING K+' : isKPlusActive ? 'INCLUDED · TAP TO SPEAK' : 'UPGRADE TO K+'}
+            {resolving ? 'CHECKING K+' : isKPlusActive ? 'INCLUDED · TAP TO SPEAK' : 'UNLOCK WITH K+'}
           </Text>
         </View>
       </Pressable>
