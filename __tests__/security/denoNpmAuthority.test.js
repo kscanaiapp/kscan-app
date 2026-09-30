@@ -61,6 +61,7 @@ function walk(dir, predicate, out = []) {
 function governedSurfaces() {
   const surfaces = [
     { label: '.github/workflows/security-code.yml', content: read('.github', 'workflows', 'security-code.yml') },
+    { label: '.github/workflows/staging-controlled-deploy.yml', content: read('.github', 'workflows', 'staging-controlled-deploy.yml') },
     { label: 'scripts/run-backend-tests.js', content: read('scripts', 'run-backend-tests.js') },
   ];
   for (const file of walk(path.join(ROOT, 'supabase', 'functions'), (name) => name.endsWith('.test.ts'))) {
@@ -84,6 +85,35 @@ function projectChecksBlock() {
   assert.notEqual(start, -1, 'security-code.yml must define the project-checks job');
   const end = content.indexOf('\n  gitleaks:', start);
   return withoutComments(content.slice(start, end === -1 ? undefined : end));
+}
+
+function sourceValidationBlock() {
+  const content = read('.github', 'workflows', 'staging-controlled-deploy.yml');
+  const start = content.indexOf('  source-validation:');
+  assert.notEqual(start, -1, 'staging-controlled-deploy.yml must define source-validation');
+  const end = content.indexOf('\n  deploy-one-function:', start);
+  assert.notEqual(end, -1, 'source-validation must precede deploy-one-function');
+  return withoutComments(content.slice(start, end));
+}
+
+function deployOneFunctionBlock() {
+  const content = read('.github', 'workflows', 'staging-controlled-deploy.yml');
+  const start = content.indexOf('  deploy-one-function:');
+  assert.notEqual(start, -1, 'staging-controlled-deploy.yml must define deploy-one-function');
+  const end = content.indexOf('\n  health-check:', start);
+  assert.notEqual(end, -1, 'deploy-one-function must precede health-check');
+  return withoutComments(content.slice(start, end));
+}
+
+function stepIndex(job, name) {
+  return job.search(new RegExp(`^\\s+- name: ${name}\\s*$`, 'm'));
+}
+
+function setupDenoStep(job, label) {
+  const start = stepIndex(job, 'Setup Deno');
+  assert.notEqual(start, -1, `${label} must set up Deno`);
+  const followingStep = job.indexOf('\n      - name:', start + 1);
+  return job.slice(start, followingStep === -1 ? undefined : followingStep);
 }
 
 test('deno.json makes the npm ci node_modules the authority for governed Deno commands', () => {
@@ -125,34 +155,63 @@ test('security-code.yml installs the locked graph with npm ci before any governe
   const npmCi = runIndex('npm ci');
   const backendSuite = runIndex('node scripts/run-backend-tests.js');
   const stylechatCheck = runIndex('deno check supabase/functions/stylechat-generate/index.ts');
+  const stagingHealthCheck = runIndex('deno check supabase/functions/staging-health/index.ts');
   assert.notEqual(npmCi, -1, 'project-checks must run `npm ci`');
   assert.notEqual(backendSuite, -1, 'project-checks must run the governed backend Deno suite');
   assert.notEqual(stylechatCheck, -1, 'project-checks must run the StyleChat deno check');
+  assert.notEqual(stagingHealthCheck, -1, 'project-checks must run the staging-health deno check');
   assert.ok(npmCi < backendSuite, 'npm ci must precede the governed backend Deno suite - manual mode consumes its node_modules');
   assert.ok(npmCi < stylechatCheck, 'npm ci must precede the StyleChat deno check - manual mode consumes its node_modules');
+  assert.ok(npmCi < stagingHealthCheck, 'npm ci must precede the staging-health deno check - manual mode consumes its node_modules');
 });
 
-test('the deploy source-validation job, which has no npm ci, opts out of manual mode explicitly', () => {
-  // nodeModulesDir=manual with no node_modules fails `deno check` outright, so
-  // a job that does not install the locked graph must say so on the command.
-  // Adding `npm ci` to that job is the deterministic alternative; either is
-  // acceptable, silently inheriting manual mode is not.
-  const content = read('.github', 'workflows', 'staging-controlled-deploy.yml');
-  const start = content.indexOf('  source-validation:');
-  assert.notEqual(start, -1, 'staging-controlled-deploy.yml must define source-validation');
-  const end = content.indexOf('\n  deploy-one-function:', start);
-  const job = withoutComments(content.slice(start, end === -1 ? undefined : end));
-
-  const denoChecks = job.split('\n').filter((line) => /\bdeno check\b/.test(line));
-  assert.ok(denoChecks.length > 0, 'source-validation must still run deno check');
-
-  if (!/\bnpm ci\b/.test(job)) {
-    for (const line of denoChecks) {
-      assert.match(
-        line,
-        /--node-modules-dir=auto/,
-        `source-validation has no npm ci, so its deno check needs an explicit --node-modules-dir=auto: ${line.trim()}`,
-      );
-    }
+test('release-critical Deno setup pins the same exact runtime in all three jobs', () => {
+  for (const [label, job] of [
+    ['security project-checks', projectChecksBlock()],
+    ['staging source-validation', sourceValidationBlock()],
+    ['staging deploy-one-function', deployOneFunctionBlock()],
+  ]) {
+    const step = setupDenoStep(job, label);
+    assert.match(step, /^\s*uses: denoland\/setup-deno@[a-f0-9]{40}(?:\s+#.*)?$/m, `${label} must use a SHA-pinned setup action`);
+    assert.match(step, /^\s*deno-version: ["']?2\.9\.7["']?\s*$/m, `${label} must pin Deno 2.9.7`);
   }
+});
+
+test('controlled deploy installs the locked graph and requires its internal pinned Deno check', () => {
+  const job = deployOneFunctionBlock();
+  const checkout = stepIndex(job, 'Checkout');
+  const node = stepIndex(job, 'Setup Node');
+  const install = stepIndex(job, 'Install dependencies');
+  const deno = stepIndex(job, 'Setup Deno');
+  const cli = stepIndex(job, 'Setup Supabase CLI');
+  const deploy = stepIndex(job, 'Deploy function');
+  assert.ok(checkout >= 0 && checkout < node && node < install && install < deno && deno < cli && cli < deploy,
+    'deploy-one-function must establish Node, locked dependencies, and pinned Deno before invoking the deploy script');
+  assert.match(job.slice(install, deno), /^\s*run: npm ci\s*$/m,
+    'deploy-one-function must run npm ci before its internal Deno check');
+  const deployStep = job.slice(deploy);
+  assert.match(deployStep, /^\s*REQUIRE_DENO_CHECK:\s*['"]?true['"]?\s*$/m,
+    'controlled deployment must fail closed when Deno is absent');
+  assert.match(deployStep, /^\s*node scripts\/deploy-staging-function\.mjs \| tee deploy-result\.json\s*$/m,
+    'controlled deployment must still invoke the checked deploy script');
+});
+
+test('staging source-validation installs the locked graph before pinned Deno and checks with manual mode', () => {
+  const job = sourceValidationBlock();
+  const checkout = stepIndex(job, 'Checkout');
+  const node = stepIndex(job, 'Setup Node');
+  const install = stepIndex(job, 'Install dependencies');
+  const deno = stepIndex(job, 'Setup Deno');
+  const check = stepIndex(job, 'Deno check');
+  assert.ok(checkout >= 0 && checkout < node && node < install && install < deno && deno < check,
+    'source-validation must run checkout, Node setup, locked install, pinned Deno setup, then Deno check in order');
+  const installStep = job.slice(install, deno);
+  assert.match(installStep, /^\s*run: npm ci\s*$/m, 'source-validation must run npm ci in the install step');
+  const checkStep = job.slice(check);
+  assert.match(checkStep, /^\s*deno check "supabase\/functions\/\$\{FN\}\/index\.ts"\s*$/m,
+    'source-validation must check the selected function with deno.json manual mode');
+  assert.doesNotMatch(checkStep, /--node-modules-dir(?:=|\s|$)/m,
+    'source-validation must not override the root nodeModulesDir authority');
+  assert.doesNotMatch(checkStep, /deno\.land\/install\.sh/,
+    'source-validation must use the pinned setup action rather than a floating installer');
 });

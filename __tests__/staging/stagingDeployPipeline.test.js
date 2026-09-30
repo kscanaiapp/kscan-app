@@ -256,6 +256,28 @@ test('workflows: no executable db push --project-ref and concurrency group prese
   assert.doesNotMatch(controlled, /Deno check \(best effort\)/);
 });
 
+test('controlled deploy workflow locks Deno and dependencies for both checks', () => {
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+  const source = workflow.split('  source-validation:')[1]?.split('  deploy-one-function:')[0];
+  const deploy = workflow.split('  deploy-one-function:')[1]?.split('  health-check:')[0];
+  assert.ok(source, 'source-validation job must exist');
+  assert.ok(deploy, 'deploy-one-function job must exist');
+
+  for (const [label, job] of [['source-validation', source], ['deploy-one-function', deploy]]) {
+    const install = job.indexOf('        run: npm ci');
+    const setup = job.indexOf('denoland/setup-deno@4606d5cc6fb3f673efd4f594850e3f4b3e9d29cd');
+    assert.ok(install >= 0 && install < setup, `${label} must install the locked graph before Deno setup`);
+    assert.match(job, /^\s*deno-version: "2\.9\.7"\s*$/m, `${label} must pin Deno 2.9.7`);
+  }
+  assert.doesNotMatch(source, /--node-modules-dir=auto|deno\.land\/install\.sh/);
+  assert.match(source, /deno check "supabase\/functions\/\$\{FN\}\/index\.ts"/);
+  assert.match(deploy, /^\s*REQUIRE_DENO_CHECK: 'true'\s*$/m);
+  assert.match(deploy, /node scripts\/deploy-staging-function\.mjs \| tee deploy-result\.json/);
+});
+
 test('deploy script: failed health check invokes rollback before exit', () => {
   const src = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy-staging-function.mjs'), 'utf8');
   assert.match(src, /Post-deploy health check failed — invoking rollback/);
