@@ -102,10 +102,13 @@ const CORE_SURFACE_READERS = {
   // 1 binding + 1 read: chooses Concierge vs base wait copy. The Elise
   // conversation itself is core/free and renders for every actor.
   'app/style-chat/[sessionId].tsx': 2,
-  // 1 binding + 11 reads: the Account screen's K+ status row — expiry label,
-  // status text, tone, action label, and one telemetry property. Display only;
-  // nothing on this screen is withheld from a non-K+ actor.
-  'app/privacy.tsx': 12,
+  // 1 binding + 5 reads: the Account screen's K+ status row — expiry label (2),
+  // the state handed to describeKPlusAccountStatus (which now owns the status
+  // text, tone and action label; POLISH-002 moved them out of this file, down
+  // from 11 reads), one telemetry property, and `refresh` for the unreadable
+  // state's Try Again. Display and re-check only; nothing on this screen is
+  // withheld from a non-K+ actor.
+  'app/privacy.tsx': 6,
 };
 
 function walk(dir) {

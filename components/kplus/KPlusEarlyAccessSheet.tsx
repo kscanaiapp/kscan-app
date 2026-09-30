@@ -3,14 +3,16 @@
 // -- there should never be a second, feature-specific paywall built
 // alongside this one.
 import React, { useEffect, useMemo, useState } from 'react';
-import { AccessibilityInfo, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { KPLUS_ACTIVATION_OFFER_TERM } from '../../constants/featureFlags';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
 import { resolveActivationCapabilities } from '../../services/kplus/kplusActivationCatalog';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
+import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import type { KPlusSource } from '../../types/kplusSource';
 
 function formatExpiry(expiresAt: string | null): string {
@@ -115,6 +117,13 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   // fresh eligible signup -- showing them "Activate K+ Early Access" again
   // implies a renewal flow that does not exist. Truthful, bounded, no CTA.
   const isExpired = state === 'expired';
+  // POLISH-001 -- RESOLVING != FREE. 'loading' and 'error' mean the answer is
+  // unknown, so the sheet shows neither the offer nor an Activate CTA for
+  // them. It used to fall through to the offer: a K+ member whose read failed
+  // (for example after tapping "CHECK K+" in onboarding) was pitched K+
+  // Early Access with a live Activate button and no way to re-check.
+  const resolving = isKPlusEntitlementUnresolved(state);
+  const unreadable = state === 'error';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -130,6 +139,8 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                     ? `Active through ${formatExpiry(expiresAt)}.`
                     : 'Your K+ Early Access is active.'}
                 </Text>
+                {/* POLISH-003: say what changed, not only that it worked. */}
+                <Text style={styles.body}>K+ features are now unlocked on this account.</Text>
                 <Text style={styles.finePrint}>No automatic charges.</Text>
               </>
             ) : isExpired ? (
@@ -145,6 +156,21 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                   confirmation before anything is charged.
                 </Text>
               </>
+            ) : resolving ? (
+              <View testID="kplus-sheet-resolving" style={styles.resolvingBlock}>
+                <Text style={styles.eyebrow}>K+</Text>
+                {unreadable ? null : (
+                  <ActivityIndicator color={LUXURY.colors.plum} style={styles.resolvingIndicator} />
+                )}
+                <Text style={styles.title} accessibilityRole="header">
+                  {unreadable ? 'We could not check your K+ access' : 'Checking your K+ access…'}
+                </Text>
+                <Text style={styles.body}>
+                  {unreadable
+                    ? 'Check your connection and try again. Nothing on your account has changed.'
+                    : 'One moment.'}
+                </Text>
+              </View>
             ) : (
               <>
                 <Text style={styles.eyebrow}>K+</Text>
@@ -157,7 +183,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                   ))}
                   <Text style={styles.benefit}>• More K+ features as they become available</Text>
                 </View>
-                <Text style={styles.body}>K+ Early Access is complimentary for 6 months.</Text>
+                {KPLUS_ACTIVATION_OFFER_TERM ? (
+                  <Text style={styles.body}>{KPLUS_ACTIVATION_OFFER_TERM}</Text>
+                ) : null}
                 <Text style={styles.finePrint}>No payment is required.</Text>
                 <Text style={styles.finePrint}>You will not be automatically charged when Early Access ends.</Text>
                 <Text style={styles.finePrint}>
@@ -170,7 +198,19 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
 
             <View style={styles.actions}>
               {isActive || isExpired ? (
-                <PrimaryButton title="Done" onPress={onClose} accessibilityLabel="Close" />
+                <PrimaryButton title="Done" onPress={onClose} accessibilityHint="Closes this sheet" />
+              ) : resolving ? (
+                <>
+                  {unreadable ? (
+                    <PrimaryButton
+                      title="Try Again"
+                      onPress={refresh}
+                      testID="kplus-sheet-retry"
+                      accessibilityHint="Checks your K+ access again"
+                    />
+                  ) : null}
+                  <SecondaryButton title="Not Now" onPress={onClose} />
+                </>
               ) : (
                 <>
                   <PrimaryButton
@@ -238,6 +278,12 @@ const styles = StyleSheet.create({
   },
   notice: {
     marginTop: SPACING.sm,
+  },
+  resolvingBlock: {
+    gap: SPACING.sm,
+  },
+  resolvingIndicator: {
+    alignSelf: 'flex-start',
   },
   actions: {
     marginTop: SPACING.lg,

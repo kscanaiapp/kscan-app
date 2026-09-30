@@ -195,7 +195,7 @@ export default function AuthCallbackScreen() {
             <Text style={styles.cardBody}>
               {message} Return to sign in when you are ready.
             </Text>
-            <Pressable style={styles.primaryButton} onPress={openAuth}>
+            <Pressable style={styles.primaryButton} onPress={openAuth} accessibilityRole="button">
               <Text style={styles.primaryButtonText}>RETURN TO SIGN IN</Text>
             </Pressable>
           </View>

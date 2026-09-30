@@ -45,6 +45,7 @@ import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
+import { describeKPlusAccountStatus } from '../services/kplus/kplusAccountStatus';
 import {
   listDressingRoomBlockedUsers,
   unblockDressingRoomUser,
@@ -311,23 +312,17 @@ export default function PrivacyScreen() {
         day: 'numeric',
       })
     : null;
-  const kPlusPillLabel =
-    kPlusEntitlement.state === 'active'
-      ? 'Early Access Active'
-      : kPlusEntitlement.state === 'expired'
-        ? 'Complimentary access ended'
-        : kPlusEntitlement.state === 'eligible'
-          ? 'Early Access available'
-          : null;
-  const kPlusPillVariant: 'success' | 'neutral' | 'gold' =
-    kPlusEntitlement.state === 'active' ? 'gold' : kPlusEntitlement.state === 'expired' ? 'neutral' : 'neutral';
-  const kPlusStatusSubtitle =
-    kPlusEntitlement.state === 'active' && kPlusExpiryLabel
-      ? `Active through ${kPlusExpiryLabel}.`
-      : kPlusEntitlement.state === 'expired'
-        ? 'Complimentary access ended.'
-        : 'Complimentary for 6 months. No payment required.';
-  const kPlusActionLabel = kPlusEntitlement.state === 'eligible' ? 'Activate' : undefined;
+  // POLISH-002: RESOLVING != FREE -- 'loading'/'error' no longer show the offer.
+  const kPlusStatus = describeKPlusAccountStatus(kPlusEntitlement.state, kPlusExpiryLabel);
+  const kPlusPillLabel = kPlusStatus.pillLabel;
+  const kPlusPillVariant = kPlusStatus.pillVariant;
+  const kPlusStatusSubtitle = kPlusStatus.subtitle;
+  const kPlusActionLabel =
+    kPlusStatus.action === 'activate'
+      ? 'Activate'
+      : kPlusStatus.action === 'retry'
+        ? 'Try Again'
+        : undefined;
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -667,7 +662,7 @@ export default function PrivacyScreen() {
                   actionLabel={kPlusActionLabel}
                   actionVariant="pill"
                   onAction={
-                    kPlusActionLabel
+                    kPlusStatus.action === 'activate'
                       ? () => {
                           emitKPlusEvent('kplus_feature_gate_opened', {
                             source: 'account',
@@ -676,7 +671,9 @@ export default function PrivacyScreen() {
                           });
                           setKPlusSheetVisible(true);
                         }
-                      : undefined
+                      : kPlusStatus.action === 'retry'
+                        ? kPlusEntitlement.refresh
+                        : undefined
                   }
                 />
                 {kPlusPillLabel ? (

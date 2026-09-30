@@ -565,7 +565,10 @@ export default function LibraryScreen() {
   const handleDeleteScan = (id: string) => {
     Alert.alert(
       'Delete Scan?',
-      'This will remove the scan from your Style Closet.',
+      // POLISH-009: scans live in Recent Scans once the Closet is owned-only.
+      CLOSET_SEPARATION_V1
+        ? 'This will remove the scan from your Recent Scans.'
+        : 'This will remove the scan from your Style Closet.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

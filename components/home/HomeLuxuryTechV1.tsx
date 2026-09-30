@@ -457,7 +457,7 @@ export default function HomeLuxuryTechV1() {
                   else openUpgrade();
                 }}
                 accessibilityLabel="Open Smart Watchlist"
-                accessibilityHint="Track prices on listings you're not ready to buy yet"
+                accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ Early Access.'}
                 style={styles.secondaryActionButton}
               />
             )}

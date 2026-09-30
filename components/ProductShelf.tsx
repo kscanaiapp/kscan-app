@@ -571,7 +571,7 @@ export function ProductShelf({
                         // cannot tell which item they are about to watch. The
                         // label must name the product the control acts on.
                         accessibilityLabel={`Watch ${getProductTitle(p)}`}
-                        accessibilityHint="Get notified about price changes on this item"
+                        accessibilityHint={isActive || resolving ? 'Get notified about price changes on this item' : 'Available with K+. Opens K+ Early Access.'}
                         style={styles.addToRoomButton}
                         disabled={resolving}
                         // RESOLVING != FREE: while the answer is unknown the
@@ -586,6 +586,7 @@ export function ProductShelf({
                       >
                         <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
                           Watch
+                          {!isActive && !resolving ? ' · K+' : null}
                         </Text>
                       </TouchableOpacity>
                     )}

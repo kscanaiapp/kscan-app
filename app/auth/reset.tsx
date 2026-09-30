@@ -109,6 +109,11 @@ export default function ResetPasswordScreen() {
             style={[styles.primaryButton, busy && styles.primaryButtonBusy]}
             onPress={submit}
             disabled={busy}
+            // POLISH-014: named and announced as a button, including while the
+            // spinner replaces its text.
+            accessibilityRole="button"
+            accessibilityLabel="Send reset link"
+            accessibilityState={{ disabled: busy, busy }}
           >
             {busy ? (
               <ActivityIndicator size="small" color={COLORS.textInverse} />

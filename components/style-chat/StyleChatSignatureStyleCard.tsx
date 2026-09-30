@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { STYLE_MEMORY_COPY } from '../../constants/elise';
@@ -79,8 +79,21 @@ export function StyleChatSignatureStyleCard({
         animationType="slide"
         onRequestClose={() => setDetailsOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setDetailsOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+        {/* POLISH-013. iOS: an accessible Pressable is one VoiceOver element
+            and hides its subviews. Both of these wrap the whole sheet (the
+            backdrop for tap-to-close, the sheet to swallow that tap), so Reset
+            local signals and Done were unreachable. Same repair as
+            RoomItemDetailModal: touch behaviour is unchanged. */}
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setDetailsOpen(false)}
+          accessible={Platform.OS === 'ios' ? false : undefined}
+        >
+          <Pressable
+            style={styles.sheet}
+            onPress={() => {}}
+            accessible={Platform.OS === 'ios' ? false : undefined}
+          >
             <View style={styles.sheetHandle} />
             <View style={styles.headerRow}>
               <View style={styles.badge}>

@@ -511,6 +511,19 @@ export default function TextScanScreen() {
                 testID="textscan-ask-stylechat"
               />
             )}
+            {/* POLISH-012: after a failure the only action was Scan Again,
+                which clears the query, so retrying meant retyping (or
+                re-speaking) it. Edit Search returns to the input with the
+                query intact; Analyze Request is then one tap. */}
+            {textScanError ? (
+              <SecondaryButton
+                title="Edit Search"
+                onPress={() => setViewState('input')}
+                accessibilityLabel="Edit search query"
+                accessibilityHint="Returns to your search with the text kept"
+                testID="textscan-edit-after-error"
+              />
+            ) : null}
             <PrimaryButton
               title="Scan Again"
               onPress={handleScanAgain}

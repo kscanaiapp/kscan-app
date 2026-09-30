@@ -67,8 +67,10 @@ function FeatureBlockView({ feature }: { feature: FeatureBlock }) {
  * a K+ entry point may not advertise a capability the build cannot execute.
  * Legacy "Coming Soon" placeholder covers both "K+ boundary off" and
  * "Voice Scan not implemented yet"; otherwise a live K+ upgrade surface --
- * "Upgrade to K+" opens the shared K+ Early Access sheet, "Included with K+"
- * for an active member.
+ * "Unlock with K+" opens the shared K+ Early Access sheet, "Included with K+"
+ * for an active member. (POLISH-005: "Unlock", not "Upgrade" -- K+ in this
+ * build is complimentary activation with no purchase path, and "Upgrade" sent
+ * people looking for one.)
  */
 function VoiceScanBlock() {
   if (!VOICESCAN_ENABLED || !KPLUS_EARLY_ACCESS_ENABLED) {
@@ -96,7 +98,7 @@ function VoiceScanBlock() {
               ? 'Voice Scan, checking your K+ status'
               : isActive
                 ? 'Voice Scan, included with K+'
-                : 'Voice Scan, upgrade to K+'
+                : 'Voice Scan, unlock with K+'
           }
           testID="text-scan-voice-kplus-block"
         >
@@ -108,7 +110,7 @@ function VoiceScanBlock() {
                 : isActive
                   ? 'Included with your K+ Early Access.'
                   : 'Unlock with K+ Early Access.',
-              badge: resolving ? 'K+' : isActive ? 'Included with K+' : 'Upgrade to K+',
+              badge: resolving ? 'K+' : isActive ? 'Included with K+' : 'Unlock with K+',
             }}
           />
         </Pressable>

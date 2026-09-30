@@ -103,6 +103,11 @@ export default function UpdatePasswordScreen() {
             style={[styles.primaryButton, busy && styles.primaryButtonBusy]}
             onPress={submit}
             disabled={busy}
+            // POLISH-014: named and announced as a button, including while the
+            // spinner replaces its text.
+            accessibilityRole="button"
+            accessibilityLabel="Update password"
+            accessibilityState={{ disabled: busy, busy }}
           >
             {busy ? (
               <ActivityIndicator size="small" color={COLORS.textInverse} />
