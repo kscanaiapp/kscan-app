@@ -840,6 +840,64 @@ async function readClosetManifest() {
   return { read: true, raw: parsed, records, skipped, futureSchema, recovered: recoveryState.recovered };
 }
 
+/** Resolve an exact committed Closet media path in the current iOS container. */
+export async function resolveRelocatedIosClosetMediaUri(uri, currentDirectory) {
+  const iosDocuments = /^file:\/\/\/(.*\/)?Containers\/Data\/Application\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/Documents\/(.*)$/i;
+  if (typeof uri !== 'string' || typeof currentDirectory !== 'string') return null;
+  if (uri !== uri.trim() || currentDirectory !== currentDirectory.trim()) return null;
+  const old = iosDocuments.exec(uri);
+  const current = iosDocuments.exec(currentDirectory);
+  if (!old || !current || current[3] !== '') return null;
+  if (old[1] !== current[1] || old[2].toLowerCase() === current[2].toLowerCase()) return null;
+
+  const relative = old[3];
+  if (!relative.startsWith('kscan_closet/images/') &&
+      !relative.startsWith('kscan_closet/thumbnails/')) return null;
+  if (!/^[A-Za-z0-9._/-]+$/.test(relative)) return null;
+  if (relative.split('/').some((part) => !part || part === '.' || part === '..')) return null;
+
+  const target = currentDirectory + relative;
+  try {
+    const info = await FileSystem.getInfoAsync(target);
+    return info?.exists === true && info.isDirectory !== true &&
+      (typeof info.size !== 'number' || info.size > 0)
+      ? target
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Patch only proven URI fields on raw records, using the existing durable writer. */
+async function reanchorRelocatedClosetRecords(state) {
+  if (!state.read || state.records.length === 0) return state;
+  if (Platform.OS !== 'ios' ||
+      !FileSystem.documentDirectory?.includes('/Containers/Data/Application/')) return state;
+  const repaired = new Map();
+  for (const raw of state.records) {
+    const imageUri = await resolveRelocatedIosClosetMediaUri(raw.imageUri, FileSystem.documentDirectory);
+    const thumbnailUri = await resolveRelocatedIosClosetMediaUri(raw.thumbnailUri, FileSystem.documentDirectory);
+    if (imageUri || thumbnailUri) {
+      repaired.set(raw, {
+        ...raw,
+        ...(imageUri ? { imageUri } : {}),
+        ...(thumbnailUri ? { thumbnailUri } : {}),
+      });
+    }
+  }
+  if (repaired.size === 0) return state;
+
+  const raw = state.raw.map((record) => repaired.get(record) ?? record);
+  try {
+    await persistCloset(raw);
+  } catch {
+    // Repair 3A keeps the old manifest authoritative. A later load may retry;
+    // no stale URI is claimed as durably repaired and the sweep guard remains.
+    return state;
+  }
+  return { ...state, raw, records: state.records.map((record) => repaired.get(record) ?? record) };
+}
+
 /**
  * Load Closet items for an actor WITH a typed outcome.
  *
@@ -875,7 +933,9 @@ export async function loadClosetTyped(actorId = undefined, options = {}) {
   });
 
   try {
-    const state = await enqueueClosetMutation(readClosetManifest);
+    const state = await enqueueClosetMutation(async () =>
+      reanchorRelocatedClosetRecords(await readClosetManifest())
+    );
 
     // Revalidated AFTER the await: the actor may have changed while reading, and
     // handing the new actor the previous actor's rows is the one outcome that
