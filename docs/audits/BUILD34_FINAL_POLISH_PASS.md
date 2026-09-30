@@ -466,6 +466,31 @@ Repair: `hitSlop` 4pt top/bottom → 48pt touch area, no layout change.
 Files: `components/text-scan/VoiceScanButton.tsx`. Validation: focused assertion. Regression risk:
 LOW. `DEVICE_QA_REQUIRED` (overlap with the query field). Status: FIXED
 
+
+### POLISH-029
+
+Severity: P2
+Surface: Shared K+ Early Access sheet
+
+Issue: the shared K+ sheet independently hardcoded "K+ Early Access is complimentary for 6 months."
+while the onboarding activation screen already uses `KPLUS_ACTIVATION_OFFER_TERM`, the repository's
+single copy authority for the current campaign term. Two customer-facing K+ surfaces could therefore
+make different duration claims if the configured offer changes.
+
+Evidence: `SOURCE_PROVEN`.
+
+Repair: the sheet now renders `KPLUS_ACTIVATION_OFFER_TERM` from `constants/featureFlags.ts` and
+renders no duration line when that authority is empty. No entitlement, grant-duration, pricing,
+activation, or backend semantics changed.
+
+Files: `components/kplus/KPlusEarlyAccessSheet.tsx`,
+`__tests__/build34FinalPolishPass.test.js`.
+
+Validation: focused source guard requires the sheet to consume the shared authority and forbids a
+hardcoded "6 months" visible string in the sheet. Regression risk: LOW. Independently revertible: YES.
+
+Status: FIXED
+
 ---
 
 ## 7. OWNER_DECISION_REQUIRED
@@ -573,7 +598,7 @@ Every changed file maps to a POLISH ID:
 
 | File | POLISH |
 | --- | --- |
-| `components/kplus/KPlusEarlyAccessSheet.tsx` | 001, 003, 007 |
+| `components/kplus/KPlusEarlyAccessSheet.tsx` | 001, 003, 007, 029 |
 | `services/kplus/kplusAccountStatus.ts` (new) | 002, 008 |
 | `app/privacy.tsx` | 002 |
 | `components/text-scan/TextScanFeatureRow.tsx` | 005 |
