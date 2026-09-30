@@ -39,6 +39,8 @@ import {
 
 const CLOSET_DIR    = FileSystem.documentDirectory + 'kscan_closet/';
 const CLOSET_PATH   = CLOSET_DIR + 'kscan_closet.json';
+const CLOSET_TEMP_PATH = CLOSET_PATH + '.tmp';
+const CLOSET_BACKUP_PATH = CLOSET_PATH + '.bak';
 const IMAGES_DIR    = CLOSET_DIR + 'images/';
 const THUMBS_DIR    = CLOSET_DIR + 'thumbnails/';
 // See services/library.js for the sizing rationale. Device pixels, not dp: the
@@ -76,13 +78,78 @@ async function ensureDirs() {
   } catch { /* non-fatal — directory may already exist */ }
 }
 
+function isCompleteClosetManifest(payload) {
+  if (typeof payload !== 'string' || payload.length === 0) return false;
+  try {
+    const parsed = JSON.parse(payload);
+    return Array.isArray(parsed) && parsed.every(
+      (item) => item && typeof item === 'object' && !Array.isArray(item)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** A pending .bak is authoritative until the replacement is verified and committed. */
+async function recoverClosetManifestFromBackup() {
+  const backup = await FileSystem.getInfoAsync(CLOSET_BACKUP_PATH);
+  if (!backup.exists) return false;
+  const oldPayload = await FileSystem.readAsStringAsync(CLOSET_BACKUP_PATH);
+  if (!isCompleteClosetManifest(oldPayload)) throw new Error('closet_backup_unreadable');
+
+  const canonical = await FileSystem.getInfoAsync(CLOSET_PATH);
+  if (canonical.exists) await FileSystem.deleteAsync(CLOSET_PATH);
+  await FileSystem.moveAsync({ from: CLOSET_BACKUP_PATH, to: CLOSET_PATH });
+  if (await FileSystem.readAsStringAsync(CLOSET_PATH) !== oldPayload) {
+    throw new Error('closet_backup_restore_unverified');
+  }
+  return true;
+}
+
+/** Stage and verify before moving the last good manifest aside. The queue owns this call. */
 async function persistCloset(items) {
-  await FileSystem.makeDirectoryAsync(CLOSET_DIR, { intermediates: true }).catch(() => null);
-  await FileSystem.writeAsStringAsync(
-    CLOSET_PATH,
-    JSON.stringify(items),
-    { encoding: FileSystem.EncodingType.UTF8 }
-  );
+  await FileSystem.makeDirectoryAsync(CLOSET_DIR, { intermediates: true });
+  const payload = JSON.stringify(items);
+  if (!isCompleteClosetManifest(payload)) throw new Error('closet_manifest_invalid');
+
+  await FileSystem.deleteAsync(CLOSET_TEMP_PATH, { idempotent: true });
+  await FileSystem.writeAsStringAsync(CLOSET_TEMP_PATH, payload, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+  const staged = await FileSystem.readAsStringAsync(CLOSET_TEMP_PATH);
+  if (staged !== payload || !isCompleteClosetManifest(staged)) {
+    throw new Error('closet_manifest_stage_unverified');
+  }
+
+  const current = await FileSystem.getInfoAsync(CLOSET_PATH);
+  try {
+    if (current.exists) {
+      await FileSystem.moveAsync({ from: CLOSET_PATH, to: CLOSET_BACKUP_PATH });
+    }
+    await FileSystem.moveAsync({ from: CLOSET_TEMP_PATH, to: CLOSET_PATH });
+    const committed = await FileSystem.readAsStringAsync(CLOSET_PATH);
+    if (committed !== payload || !isCompleteClosetManifest(committed)) {
+      throw new Error('closet_manifest_replace_unverified');
+    }
+  } catch (error) {
+    // The backup stays authoritative if restoration itself encounters an I/O fault.
+    if (current.exists) await recoverClosetManifestFromBackup().catch(() => null);
+    throw error;
+  }
+
+  if (current.exists) {
+    try {
+      await FileSystem.deleteAsync(CLOSET_BACKUP_PATH);
+    } catch (error) {
+      // Some filesystems can complete a delete before reporting an error. A
+      // missing backup means the already verified new manifest is authoritative.
+      const backup = await FileSystem.getInfoAsync(CLOSET_BACKUP_PATH);
+      if (backup.exists) {
+        await recoverClosetManifestFromBackup().catch(() => null);
+        throw error;
+      }
+    }
+  }
 }
 
 function cleanText(value, max = 200) {
@@ -342,13 +409,15 @@ function enqueueClosetMutation(operation) {
   return result;
 }
 
-async function readAllCloset() {
+async function readAllCloset(recoveryState = null) {
+  const recovered = await recoverClosetManifestFromBackup();
+  if (recoveryState) recoveryState.recovered = recovered;
   const info = await FileSystem.getInfoAsync(CLOSET_PATH);
   if (!info.exists) return [];
   const raw = await FileSystem.readAsStringAsync(CLOSET_PATH);
   const parsed = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  return parsed.filter((item) => item && typeof item === 'object');
+  if (!Array.isArray(parsed)) throw new Error('closet_manifest_invalid');
+  return parsed;
 }
 
 function isVisibleToActor(item, actorId) {
@@ -454,7 +523,7 @@ async function collectClosetMediaOwners() {
   const owners = new Map();
   let items = [];
   try {
-    items = await readAllCloset();
+    items = await enqueueClosetMutation(readAllCloset);
   } catch {
     // A manifest we cannot read cannot prove a destination is free. Callers
     // treat an empty map as "unknown", and the write below fails closed on any
@@ -648,7 +717,9 @@ async function cleanupRejectedClosetMedia(paths) {
   const candidates = paths.filter(Boolean);
   if (candidates.length === 0) return [];
   try {
-    return await unlinkUnreferencedMedia(candidates, await readAllCloset());
+    return await enqueueClosetMutation(async () =>
+      unlinkUnreferencedMedia(candidates, await readAllCloset())
+    );
   } catch {
     return candidates;
   }
@@ -712,16 +783,8 @@ export async function verifyClosetItemMedia(item) {
 /**
  * Outcome codes for a typed Closet read.
  *
- * `RECOVERED_WITH_ITEMS` / `RECOVERED_EMPTY` exist in the contract but are NOT
- * produced by any current code path, and that is a property of the store rather
- * than an oversight: `persistCloset` writes the committed manifest directly and
- * keeps no `.bak`, so there is nothing to recover FROM. (The candidate store, by
- * contrast, does write-verify-swap with a backup — see
- * services/closetCandidateLibrary.js.) The codes are carried here so a caller's
- * exhaustive handling stays correct if this store ever gains that durability,
- * and `readClosetManifest` is the single place that would set `recovered`.
- * Giving the committed Closet a backup is a Build 2 durability change and is
- * deliberately out of Phase 2 scope.
+ * Recovery codes mean an interrupted replacement left a verified prior manifest
+ * in .bak, which was restored before any records were returned to the caller.
  */
 export const CLOSET_LOAD_CODES = Object.freeze({
   SUCCESS_WITH_ITEMS: 'SUCCESS_WITH_ITEMS',
@@ -743,8 +806,9 @@ export const CLOSET_LOAD_CODES = Object.freeze({
  */
 async function readClosetManifest() {
   let parsed;
+  const recoveryState = { recovered: false };
   try {
-    parsed = await readAllCloset();
+    parsed = await readAllCloset(recoveryState);
   } catch {
     // A read or JSON failure. Reported, never repaired and never truncated on
     // disk — a transient fault must not cost the user their Closet.
@@ -773,7 +837,7 @@ async function readClosetManifest() {
     skipped += 1;
     if (migrated.reason === 'closet_store_future_schema') futureSchema += 1;
   }
-  return { read: true, raw: parsed, records, skipped, futureSchema, recovered: false };
+  return { read: true, raw: parsed, records, skipped, futureSchema, recovered: recoveryState.recovered };
 }
 
 /**
@@ -811,8 +875,7 @@ export async function loadClosetTyped(actorId = undefined, options = {}) {
   });
 
   try {
-    await closetMutationQueue;
-    const state = await readClosetManifest();
+    const state = await enqueueClosetMutation(readClosetManifest);
 
     // Revalidated AFTER the await: the actor may have changed while reading, and
     // handing the new actor the previous actor's rows is the one outcome that
@@ -1035,17 +1098,18 @@ export async function findClosetItemBySourceCandidate(sourceCandidateId, ownerId
   const candidateId = cleanText(sourceCandidateId, 120);
   if (!candidateId) return null;
   try {
-    await closetMutationQueue;
-    const items = await readAllCloset();
-    const found = items.find(
-      (item) =>
-        !item.deletedAt &&
-        item.sourceCandidateId === candidateId &&
-        (item.ownerId || null) === (ownerId ?? null)
-    );
-    // Hydrated, because promotion's read-back verifies TAXONOMY on what this
-    // returns: a raw v1 row would be missing the fields it is about to check.
-    return found ? hydrateClosetItem(found) : null;
+    return await enqueueClosetMutation(async () => {
+      const items = await readAllCloset();
+      const found = items.find(
+        (item) =>
+          !item.deletedAt &&
+          item.sourceCandidateId === candidateId &&
+          (item.ownerId || null) === (ownerId ?? null)
+      );
+      // Hydrated, because promotion's read-back verifies TAXONOMY on what this
+      // returns: a raw v1 row would be missing the fields it is about to check.
+      return found ? hydrateClosetItem(found) : null;
+    });
   } catch {
     return null;
   }
@@ -1056,15 +1120,16 @@ export async function findClosetItemByLineage(sourceLineageId, ownerId) {
   const lineage = cleanText(sourceLineageId, 300);
   if (!lineage) return null;
   try {
-    await closetMutationQueue;
-    const items = await readAllCloset();
-    const found = items.find(
-      (item) =>
-        !item.deletedAt &&
-        item.sourceLineageId === lineage &&
-        (item.ownerId || null) === (ownerId ?? null)
-    );
-    return found ? hydrateClosetItem(found) : null;
+    return await enqueueClosetMutation(async () => {
+      const items = await readAllCloset();
+      const found = items.find(
+        (item) =>
+          !item.deletedAt &&
+          item.sourceLineageId === lineage &&
+          (item.ownerId || null) === (ownerId ?? null)
+      );
+      return found ? hydrateClosetItem(found) : null;
+    });
   } catch {
     return null;
   }
@@ -1186,11 +1251,11 @@ export async function deleteClosetItem(id, { ownerId } = {}) {
       if (!target) return false;
 
       const survivors = items.filter((item) => item !== target);
+      await persistCloset(survivors);
       await unlinkUnreferencedMedia(
         [target.thumbnailUri, target.imageUri].filter(Boolean),
         survivors
       );
-      await persistCloset(survivors);
       return true;
     });
   } catch {
@@ -1353,6 +1418,11 @@ export const CLOSET_MEDIA_SWEEP_MAX_FILES = 200;
  * anything that is not a complete, interpretable array of objects REFUSES.
  */
 async function readClosetManifestForSweep() {
+  try {
+    await recoverClosetManifestFromBackup();
+  } catch {
+    return { ok: false, reason: 'manifest_unreadable' };
+  }
   let info;
   try {
     info = await FileSystem.getInfoAsync(CLOSET_PATH);
@@ -1541,11 +1611,11 @@ export async function purgeLocalClosetForOwner(capturedOwnerId) {
       const doomed = items.filter((item) => (item.ownerId || null) === owner);
       if (doomed.length === 0) return { ok: true, removed: 0, mediaFailures: [] };
       const survivors = items.filter((item) => (item.ownerId || null) !== owner);
+      await persistCloset(survivors);
       const mediaFailures = await unlinkUnreferencedMedia(
         doomed.flatMap((item) => [item.imageUri, item.thumbnailUri]).filter(Boolean),
         survivors
       );
-      await persistCloset(survivors);
       return { ok: mediaFailures.length === 0, removed: doomed.length, mediaFailures };
     });
   } catch {
@@ -1557,6 +1627,8 @@ export async function purgeLocalClosetForOwner(capturedOwnerId) {
 export const __closetInternals = {
   CLOSET_DIR,
   CLOSET_PATH,
+  CLOSET_TEMP_PATH,
+  CLOSET_BACKUP_PATH,
   IMAGES_DIR,
   THUMBS_DIR,
   buildClosetRecord,
