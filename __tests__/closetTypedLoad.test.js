@@ -251,14 +251,15 @@ test('the recovered codes exist in the contract', () => {
   }
 });
 
-test('RECOVERED_* is unreachable because the committed store keeps no backup', () => {
-  // Not an oversight, and asserted so it cannot silently become one: the
-  // committed manifest is written directly with no `.bak`, unlike the candidate
-  // store. If a backup is ever added, this assertion is the reminder to wire
-  // `recovered` through readClosetManifest.
-  const source = fs.readFileSync(path.join(ROOT, 'services/closetLibrary.js'), 'utf8');
-  assert.equal(/CLOSET_PATH \+ '\.bak'|CLOSET_BACKUP_PATH/.test(source), false);
-  assert.match(source, /recovered: false/);
+test('interrupted committed replacement restores the backup on typed load', async () => {
+  const env = load();
+  const previous = JSON.stringify([record()]);
+  env.m.files.set(CLOSET_MANIFEST + '.bak', previous);
+  env.m.files.set(CLOSET_MANIFEST, JSON.stringify([record({ title: 'Uncommitted' })]));
+  const result = await env.closetLibrary.loadClosetTyped('user-a');
+  assert.equal(result.code, 'RECOVERED_WITH_ITEMS');
+  assert.equal(result.items[0].title, 'Navy Coat');
+  assert.equal(env.m.files.get(CLOSET_MANIFEST), previous);
 });
 
 // ── Compatibility wrapper ────────────────────────────────────────────────────
