@@ -72,6 +72,14 @@ function memfs(documentDirectory) {
       files.set(p, c);
       modified.set(p, Date.now());
     },
+    async moveAsync({ from, to }) {
+      if (!files.has(from)) throw new Error('ENOENT');
+      if (files.has(to)) throw new Error('EEXIST');
+      files.set(to, files.get(from));
+      modified.set(to, modified.get(from) ?? Date.now());
+      files.delete(from);
+      modified.delete(from);
+    },
     async deleteAsync(p) {
       files.delete(p);
       modified.delete(p);
@@ -133,7 +141,13 @@ function load(documentDirectory) {
     return {};
   });
 
-  return { m, library, closetLibrary, candidateMedia };
+  return { m, library, closetLibrary, candidateMedia, actorContext };
+}
+
+function putClosetRows(env, rows) {
+  const manifestPath = `${env.m.api.documentDirectory}kscan_closet/kscan_closet.json`;
+  env.m.put(manifestPath, JSON.stringify(rows), 0);
+  return manifestPath;
 }
 
 function closetManifest(docs, names) {
@@ -146,6 +160,30 @@ function closetManifest(docs, names) {
     })),
   );
 }
+
+test('relocated committed image is usable on first load and durably re-anchored', async () => {
+  const env = load(NEW_DOCS);
+  const manifestPath = `${NEW_DOCS}kscan_closet/kscan_closet.json`;
+  const oldImage = `${OLD_DOCS}kscan_closet/images/a.jpg`;
+  const oldThumbnail = `${OLD_DOCS}kscan_closet/thumbnails/a.jpg`;
+  const newImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  const newThumbnail = `${NEW_DOCS}kscan_closet/thumbnails/a.jpg`;
+  env.m.put(manifestPath, JSON.stringify([{ id: 'a', ownerId: 'user-a', imageUri: oldImage, thumbnailUri: oldThumbnail }]));
+  env.m.put(newImage);
+  env.m.put(newThumbnail);
+
+  const before = await env.closetLibrary.sweepOrphanedClosetMedia({ nowMs: Date.now() });
+  assert.equal(before.reason, 'foreign_container_references');
+  assert.equal(before.deleted, 0);
+  assert.equal((await env.m.api.getInfoAsync(oldImage)).exists, false);
+  assert.equal((await env.m.api.getInfoAsync(newImage)).exists, true);
+
+  const loaded = await env.closetLibrary.loadClosetTyped('user-a');
+  assert.equal(loaded.ok, true);
+  assert.equal(loaded.items[0].imageUri, newImage);
+  assert.equal(loaded.items[0].thumbnailUri, newThumbnail);
+  assert.equal(JSON.parse(env.m.files.get(manifestPath))[0].imageUri, newImage);
+});
 
 test('committed sweep: a relocated container keeps every Closet photo', async () => {
   const env = load(NEW_DOCS);
@@ -243,4 +281,162 @@ test('referencesForeignDataContainer compares only iOS container identities', ()
   assert.equal(library.referencesForeignDataContainer([canonical('https://cdn.example.com/a.jpg')], NEW_DOCS), false);
   assert.equal(library.referencesForeignDataContainer([], NEW_DOCS), false);
   assert.equal(library.referencesForeignDataContainer([canonical(`${OLD_DOCS}a.jpg`)], null), false);
+});
+
+test('primary re-anchors even when its old thumbnail has no current target', async () => {
+  const env = load(NEW_DOCS);
+  const oldThumb = `${OLD_DOCS}kscan_closet/thumbnails/a.jpg`;
+  const currentImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  const path = putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: `${OLD_DOCS}kscan_closet/images/a.jpg`, thumbnailUri: oldThumb }]);
+  env.m.put(currentImage);
+  const loaded = await env.closetLibrary.loadClosetTyped('user-a');
+  assert.equal(loaded.items[0].imageUri, currentImage);
+  assert.equal(loaded.items[0].thumbnailUri, oldThumb);
+  assert.equal(JSON.parse(env.m.files.get(path))[0].thumbnailUri, oldThumb);
+});
+
+test('missing and known empty targets keep old references and the foreign sweep guard', async () => {
+  for (const content of [null, '']) {
+    const env = load(NEW_DOCS);
+    const oldImage = `${OLD_DOCS}kscan_closet/images/a.jpg`;
+    const currentImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+    const path = putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: oldImage }]);
+    if (content !== null) env.m.put(currentImage, content);
+    const loaded = await env.closetLibrary.loadClosetTyped('user-a');
+    assert.equal(loaded.items[0].imageUri, oldImage);
+    assert.equal(JSON.parse(env.m.files.get(path))[0].imageUri, oldImage);
+    const sweep = await env.closetLibrary.sweepOrphanedClosetMedia({ nowMs: Date.now() });
+    assert.equal(sweep.reason, 'foreign_container_references');
+    assert.equal(sweep.deleted, 0);
+  }
+});
+
+test('remote, arbitrary, traversal, malformed, and same-container URIs are inert', async () => {
+  const rejected = [
+    'https://cdn.example.com/a.jpg', 'http://cdn.example.com/a.jpg',
+    'content://provider/a.jpg', 'asset://a.jpg', 'ph://asset/a.jpg',
+    `${OLD_DOCS}some_other_store/images/a.jpg`,
+    `${OLD_DOCS}notes/kscan_closet/images/a.jpg`,
+    `${OLD_DOCS}kscan_closet/images/../a.jpg`,
+    `${OLD_DOCS}kscan_closet/images/%2e%2e/a.jpg`,
+    `${OLD_DOCS}kscan_closet/images//a.jpg`,
+    `${OLD_DOCS}kscan_closet/images/a.jpg?query=1`,
+    `${NEW_DOCS}kscan_closet/images/a.jpg`,
+  ];
+  const env = load(NEW_DOCS);
+  env.m.put(`${NEW_DOCS}kscan_closet/images/a.jpg`);
+  env.m.put(`${NEW_DOCS}some_other_store/images/a.jpg`);
+  for (const uri of rejected) {
+    assert.equal(await env.closetLibrary.resolveRelocatedIosClosetMediaUri(uri, NEW_DOCS), null, uri);
+  }
+  const rows = rejected.map((imageUri, i) => ({ id: `item-${i}`, ownerId: 'user-a', imageUri }));
+  const manifestPath = putClosetRows(env, rows);
+  assert.equal((await env.closetLibrary.loadClosetTyped('user-a')).items.length, rows.length);
+  assert.deepEqual(JSON.parse(env.m.files.get(manifestPath)), rows);
+});
+
+test('Android path does not attempt relocation or alter sweeping', async () => {
+  const env = load(ANDROID_DOCS);
+  const image = `${ANDROID_DOCS}kscan_closet/images/a.jpg`;
+  putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: image }]);
+  env.m.put(image);
+  env.m.put(`${ANDROID_DOCS}kscan_closet/images/orphan.jpg`);
+  let relocationProbes = 0;
+  const getInfo = env.m.api.getInfoAsync;
+  env.m.api.getInfoAsync = async (uri) => {
+    if (uri.includes('Application/')) relocationProbes += 1;
+    return getInfo(uri);
+  };
+  assert.equal((await env.closetLibrary.loadClosetTyped('user-a')).items[0].imageUri, image);
+  assert.equal(relocationProbes, 0);
+  const sweep = await env.closetLibrary.sweepOrphanedClosetMedia({ nowMs: Date.now() });
+  assert.equal(sweep.deleted, 1);
+  assert.equal(env.m.files.has(image), true);
+});
+
+test('raw fields and all actor partitions survive; only visible items are returned', async () => {
+  const env = load(NEW_DOCS);
+  const oldImage = `${OLD_DOCS}kscan_closet/images/a.jpg`;
+  const newImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  const a = { id: 'a', ownerId: 'user-a', imageUri: oldImage, sourceCandidateId: 'candidate-a', sourceLineageId: 'lineage-a', contentHash: 'exact-hash', brand: 'Acme', opaqueFutureField: { nested: [1, 'x'] } };
+  const b = { id: 'b', ownerId: 'user-b', imageUri: 'https://example.com/b.jpg', opaqueFutureField: 'b' };
+  const path = putClosetRows(env, [a, b]);
+  env.m.put(newImage);
+  const result = await env.closetLibrary.loadClosetTyped('user-a');
+  assert.deepEqual(result.items.map((item) => item.id), ['a']);
+  assert.equal(result.items[0].imageUri, newImage);
+  const saved = JSON.parse(env.m.files.get(path));
+  assert.deepEqual(saved[0], { ...a, imageUri: newImage });
+  assert.deepEqual(saved[1], b);
+  assert.deepEqual((await env.closetLibrary.loadClosetTyped('user-b')).items.map((item) => item.id), ['b']);
+});
+
+test('failed durable write retains the old raw record, media, and sweep guard', async () => {
+  const env = load(NEW_DOCS);
+  const oldImage = `${OLD_DOCS}kscan_closet/images/a.jpg`;
+  const currentImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  const path = putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: oldImage }]);
+  const original = env.m.files.get(path);
+  env.m.put(currentImage);
+  const write = env.m.api.writeAsStringAsync;
+  env.m.api.writeAsStringAsync = async (uri, content) => {
+    if (uri === `${path}.tmp`) throw new Error('ENOSPC');
+    return write(uri, content);
+  };
+  const loaded = await env.closetLibrary.loadClosetTyped('user-a');
+  assert.equal(loaded.items[0].imageUri, oldImage);
+  assert.equal(env.m.files.get(path), original);
+  assert.equal(env.m.files.has(currentImage), true);
+  const sweep = await env.closetLibrary.sweepOrphanedClosetMedia({ nowMs: Date.now() });
+  assert.equal(sweep.reason, 'foreign_container_references');
+  assert.equal(sweep.deleted, 0);
+});
+
+test('durable re-anchor permits normal sweeping, preserves references, and is idempotent', async () => {
+  const env = load(NEW_DOCS);
+  const currentImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  const orphan = `${NEW_DOCS}kscan_closet/images/orphan.jpg`;
+  const path = putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: `${OLD_DOCS}kscan_closet/images/a.jpg` }]);
+  env.m.put(currentImage);
+  env.m.put(orphan);
+  let stageWrites = 0;
+  const write = env.m.api.writeAsStringAsync;
+  env.m.api.writeAsStringAsync = async (uri, content) => {
+    if (uri === `${path}.tmp`) stageWrites += 1;
+    return write(uri, content);
+  };
+  assert.equal((await env.closetLibrary.loadClosetTyped('user-a')).items[0].imageUri, currentImage);
+  assert.equal((await env.closetLibrary.loadClosetTyped('user-a')).items[0].imageUri, currentImage);
+  assert.equal(stageWrites, 1);
+  assert.equal(env.library.referencesForeignDataContainer([env.library.canonicalizeMediaPath(JSON.parse(env.m.files.get(path))[0].imageUri)], NEW_DOCS), false);
+  const sweep = await env.closetLibrary.sweepOrphanedClosetMedia({ nowMs: Date.now() });
+  assert.equal(sweep.deleted, 1);
+  assert.equal(env.m.files.has(currentImage), true);
+  assert.equal(env.m.files.has(orphan), false);
+});
+
+test('actor generation change during async proof never exposes prior actor records', async () => {
+  const env = load(NEW_DOCS);
+  const currentImage = `${NEW_DOCS}kscan_closet/images/a.jpg`;
+  putClosetRows(env, [{ id: 'a', ownerId: 'user-a', imageUri: `${OLD_DOCS}kscan_closet/images/a.jpg` }]);
+  env.m.put(currentImage);
+  env.actorContext.advanceActorEpoch('user-a');
+  const request = env.actorContext.createActorRequest();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let entered;
+  const reached = new Promise((resolve) => { entered = resolve; });
+  const getInfo = env.m.api.getInfoAsync;
+  env.m.api.getInfoAsync = async (uri) => {
+    if (uri === currentImage) { entered(); await gate; }
+    return getInfo(uri);
+  };
+  const pending = env.closetLibrary.loadClosetTyped('user-a', { actorRequest: request });
+  await reached;
+  env.actorContext.advanceActorEpoch('user-b');
+  release();
+  const result = await pending;
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'ACTOR_CHANGED');
+  assert.deepEqual(result.items, []);
 });

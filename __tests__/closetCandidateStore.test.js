@@ -44,14 +44,14 @@ function runModule(rel, requireShim) {
  * returns something `base64ByteLength` can measure — which is what lets the exact
  * content-hash tests be about bytes rather than about a mock's return value.
  */
-function memfs() {
+function memfs(documentDirectory = '/doc/') {
   const files = new Map();
   const modified = new Map();
   let freeBytes = 10 * 1024 * 1024 * 1024;
   /** Injected faults, keyed by operation, for crash-window tests. */
   const faults = { write: null, move: null };
   const api = {
-    documentDirectory: '/doc/',
+    documentDirectory,
     EncodingType: { UTF8: 'utf8', Base64: 'base64' },
     async makeDirectoryAsync() {},
     async getInfoAsync(p) {
@@ -170,7 +170,7 @@ function cryptoShim() {
 }
 
 function load(platformOS = 'android', options = {}) {
-  const m = memfs();
+  const m = memfs(options.documentDirectory);
   const crypto = cryptoShim();
   const actorContext = runModule('services/actorContext.js', () => ({}));
 
@@ -287,6 +287,30 @@ function seedSource(m, uri, marker = 'original') {
   m.files.set(uri, Buffer.from(`${marker}:${uri}`).toString('base64'));
   return uri;
 }
+
+test('bounded relocation proof: a staged candidate returns an unusable old iOS thumbnail URI', async () => {
+  const oldDocs = 'file:///var/mobile/Containers/Data/Application/1B6C2E0A-9F7D-4C2B-8E4A-2D3F5A6B7C8D/Documents/';
+  const currentDocs = 'file:///var/mobile/Containers/Data/Application/7E1D4B2C-3A5F-4E6B-9C8D-0F1A2B3C4D5E/Documents/';
+  const env = load('ios', { documentDirectory: currentDocs });
+  const request = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/candidate.jpg');
+  const created = await stage(env, request, '/picker/candidate.jpg');
+  assert.equal(created.kind, 'created');
+  const manifestPath = env.media.CANDIDATE_MANIFEST_PATH;
+  const raw = JSON.parse(env.m.files.get(manifestPath));
+  const currentThumbnail = raw[0].candidateThumbnailUri;
+  const oldThumbnail = currentThumbnail.replace(currentDocs, oldDocs);
+  raw[0].candidateThumbnailUri = oldThumbnail;
+  env.m.files.set(manifestPath, JSON.stringify(raw));
+
+  const listed = await env.store.listClosetCandidates(request);
+  assert.equal(listed.ok, true);
+  assert.equal(listed.candidates[0].candidateThumbnailUri, oldThumbnail);
+  assert.equal((await env.m.api.getInfoAsync(oldThumbnail)).exists, false);
+  assert.equal((await env.m.api.getInfoAsync(currentThumbnail)).exists, true);
+  const panel = fs.readFileSync(path.join(ROOT, 'components/closet/ClosetCandidateStatusPanel.tsx'), 'utf8');
+  assert.match(panel, /source=\{\{ uri: candidate\.candidateThumbnailUri \}\}/);
+});
 
 async function stage(env, actorRequest, sourceUri, overrides = {}) {
   return env.store.createClosetCandidate(actorRequest, {
