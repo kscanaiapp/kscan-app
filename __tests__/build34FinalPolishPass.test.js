@@ -131,6 +131,20 @@ function visibleStrings(rel) {
 
 const SHEET = 'components/kplus/KPlusEarlyAccessSheet.tsx';
 
+test('POLISH-029: the shared K+ sheet uses the central activation-offer copy authority', () => {
+  const source = read(SHEET);
+  assert.match(
+    source,
+    /KPLUS_ACTIVATION_OFFER_TERM/,
+    'the sheet must consume the shared campaign-copy authority',
+  );
+  assert.doesNotMatch(
+    visibleStrings(SHEET).join('\n'),
+    /\b6 months\b/i,
+    'the shared sheet must not hardcode an offer duration independently',
+  );
+});
+
 function renderSheet(state, { mutate, refresh = () => {} } = {}) {
   const entitlements = load('types/entitlements.ts');
   const { KPlusEarlyAccessSheet } = load(SHEET, {
