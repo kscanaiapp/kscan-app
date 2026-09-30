@@ -207,6 +207,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@4606d5cc6fb3f673efd4f594850e3f4b3e9d29cd # v2.0.0
+        with:
+          deno-version: "2.9.7"
+
       - name: Validate function source exists
         run: |
           set -euo pipefail
@@ -214,27 +228,11 @@ jobs:
           test -f "supabase/functions/${FN}/index.ts"
           echo "source ok: ${FN}"
 
-      # The repository's deno.json sets nodeModulesDir=manual so that governed
-      # Deno commands consume the node_modules that `npm ci` installs from
-      # package-lock.json. This job does not run `npm ci`, so there is no
-      # node_modules for manual mode to consume; `deno check` would fail with
-      # 'Could not find "@supabase/supabase-js" in a node_modules folder'.
-      # The explicit flag preserves this job's existing behaviour exactly
-      # (Deno resolves npm packages itself). It does NOT make this job
-      # lock-deterministic; that needs an `npm ci` step and is a separate,
-      # owner-approved change to the deploy pipeline.
       - name: Deno check
         run: |
           set -euo pipefail
           FN="${{ needs.preflight.outputs.function_name }}"
-          if command -v deno >/dev/null 2>&1; then
-            deno check --node-modules-dir=auto "supabase/functions/${FN}/index.ts"
-          else
-            curl -fsSL https://deno.land/install.sh | sh
-            export DENO_INSTALL="$HOME/.deno"
-            export PATH="$DENO_INSTALL/bin:$PATH"
-            deno check --node-modules-dir=auto "supabase/functions/${FN}/index.ts"
-          fi
+          deno check "supabase/functions/${FN}/index.ts"
 
   deploy-one-function:
     name: Deploy one function
@@ -266,6 +264,15 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@4606d5cc6fb3f673efd4f594850e3f4b3e9d29cd # v2.0.0
+        with:
+          deno-version: "2.9.7"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -275,6 +282,7 @@ jobs:
       - name: Deploy function
         id: deploy
         env:
+          REQUIRE_DENO_CHECK: 'true'
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}

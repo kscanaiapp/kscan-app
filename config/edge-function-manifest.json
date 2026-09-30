@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-15T23:31:49.946Z",
-    "generatedFromGitSha": "209de12a8aea5c3ee83cd13601ebdb34f1ef343d"
+    "generatedAtUtc": "2026-09-30T19:05:53.513Z",
+    "generatedFromGitSha": "585bb377e8af2c09aedd889b7e7e0c02d7a9d870"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1535,8 +1535,8 @@
         "remoteSpecifiers": [],
         "bundleFileCount": 1,
         "treeFileCount": 2,
-        "bundleHash": "e3fcfecd587732fa5e49fdaf0da28b28265a46a3b9daa0ab6d92b244d0be9818",
-        "treeHash": "58f426eac8fdef4d673564cabe50b7cfb2ccfdd52e19db111f7de8d1914eea85",
+        "bundleHash": "cf024b07acd0fa194db12905bf48b6c6615e63e0fbe5a3f11923e5fd69a51412",
+        "treeHash": "368099e6010e27310af89d6c1cbb68727a074683599bd5c18164dc33268720e4",
         "files": [
           {
             "path": "supabase/functions/staging-health/config.toml",
@@ -1545,7 +1545,7 @@
           },
           {
             "path": "supabase/functions/staging-health/index.ts",
-            "sha256": "ac0f7dca696582b30006ab0f9c301a6add2f594aafc2b70952f6e91683401c6b",
+            "sha256": "d7afb87a5014d60882b0a3de171e4b6a126adfdc2b675c960ef547123dcb553d",
             "bundle": true
           }
         ]
