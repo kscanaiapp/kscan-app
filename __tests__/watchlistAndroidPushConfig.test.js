@@ -260,7 +260,7 @@ test('Objective D NEGATIVE CONTROL: the sweep fails closed when unprovisioned', 
   );
 });
 
-test('Objective D: enablement is governed by app_config and seeded OFF (no production activation)', () => {
+test('Objective D: enablement is governed by app_config and the migration remains safely seeded OFF', () => {
   const migration = 'supabase/migrations/20260831000100_watchlist_worker_enablement.sql';
   assert.ok(exists(migration), 'the kill-switch row must exist as a governed migration');
   const sql = read(migration);
@@ -276,16 +276,17 @@ test('Objective D: enablement is governed by app_config and seeded OFF (no produ
   );
 });
 
-test('Objective D: the schedule is inert and production is not targeted', () => {
+test('Objective D: the owner-authorized staging schedule is active and cannot target production', () => {
   const wf = read(WORKFLOW);
   const uncommented = wf
     .split('\n')
     .filter((line) => !line.trim().startsWith('#'))
     .join('\n');
-  assert.doesNotMatch(uncommented, /^\s*schedule:/m, 'the cron schedule must remain commented out');
+  assert.match(uncommented, /^\s*schedule:/m, 'the approved cron schedule must be active');
+  assert.match(uncommented, /cron:\s*'17 \*\/6 \* \* \*'/, 'cadence must remain six-hourly');
   assert.doesNotMatch(uncommented, /PRODUCTION|wyyuqfdxucjksghsmhry/i,
-    'the production project must never be targeted from this workflow');
-  assert.match(uncommented, /SUPABASE_STAGING_FUNCTIONS_URL/, 'staging is the only configured target');
+    'the staging workflow must never target production');
+  assert.match(uncommented, /SUPABASE_STAGING_FUNCTIONS_URL/, 'staging remains the only target of this workflow');
 });
 
 test('Objective D: no provider work runs from the scheduler, and retailer neutrality holds', () => {

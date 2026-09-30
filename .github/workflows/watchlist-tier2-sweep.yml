@@ -11,8 +11,7 @@
 # scheduling system, this reuses the one mechanism the repo already operates ops
 # on: a GitHub workflow, in the same style as staging-controlled-deploy.yml.
 #
-# THIS DOES NOT ACTIVATE ANYTHING. Three independent gates must ALL be satisfied
-# before a single row is claimed, and every one of them is off today:
+# THREE INDEPENDENT GATES must ALL be satisfied before a single row is claimed:
 #   1. the `WATCHLIST_WORKER_SECRET` repository secret must exist -- absent, the
 #      job stops before making any request (see "Preflight" below);
 #   2. `SUPABASE_STAGING_FUNCTIONS_URL` must be configured -- absent, likewise;
@@ -22,9 +21,9 @@
 # Gate 3 is the authority: it is enforced inside the function, so it holds even
 # if this workflow is invoked by hand.
 #
-# STAGING ONLY. The URL variable is staging-scoped by name and the schedule is
-# disabled; production activation is a separate, deliberate owner decision and
-# is intentionally not expressible from this file.
+# STAGING ONLY. Production is governed separately by
+# `watchlist-tier2-sweep-production.yml`, which binds its job to the protected
+# production Environment and only accepts the production Functions origin.
 #
 # THE SWEEP IS SELECTED BY THE HEADER, NOT BY A BODY ACTION. `Deno.serve` routes
 # to `runWorkerSweep()` on a valid `x-watchlist-worker-secret` and never reads an
@@ -48,11 +47,8 @@ on:
         required: true
         default: ''
         type: string
-  # Deliberately commented out, not merely disabled: the schedule is the last
-  # thing an owner turns on, after the secret exists and app_config is flipped.
-  # Uncommenting this alone still cannot refresh anything (gate 3 holds).
-  # schedule:
-  #   - cron: '17 */6 * * *'
+  schedule:
+    - cron: '17 */6 * * *'
 
 permissions:
   contents: read
@@ -65,6 +61,7 @@ jobs:
   sweep:
     name: Watchlist Tier 2 sweep
     runs-on: ubuntu-latest
+    environment: staging
     timeout-minutes: 10
     if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-SWEEP'
     steps:
@@ -86,9 +83,9 @@ jobs:
             echo "See docs/watchlist-tier2-operations.md for the exact owner provisioning steps."
             exit 1
           fi
-          case "${FUNCTIONS_URL}" in
-            https://*) ;;
-            *) echo "SUPABASE_STAGING_FUNCTIONS_URL must be an https origin"; exit 1 ;;
+          case "${FUNCTIONS_URL%/}" in
+            https://yzqjvdfgefveprobvvyw.functions.supabase.co) ;;
+            *) echo "SUPABASE_STAGING_FUNCTIONS_URL must be the staging Functions origin"; exit 1 ;;
           esac
           echo "configured=true" >> "$GITHUB_OUTPUT"
 
