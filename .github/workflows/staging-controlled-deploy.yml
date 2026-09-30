@@ -214,17 +214,26 @@ jobs:
           test -f "supabase/functions/${FN}/index.ts"
           echo "source ok: ${FN}"
 
+      # The repository's deno.json sets nodeModulesDir=manual so that governed
+      # Deno commands consume the node_modules that `npm ci` installs from
+      # package-lock.json. This job does not run `npm ci`, so there is no
+      # node_modules for manual mode to consume; `deno check` would fail with
+      # 'Could not find "@supabase/supabase-js" in a node_modules folder'.
+      # The explicit flag preserves this job's existing behaviour exactly
+      # (Deno resolves npm packages itself). It does NOT make this job
+      # lock-deterministic; that needs an `npm ci` step and is a separate,
+      # owner-approved change to the deploy pipeline.
       - name: Deno check
         run: |
           set -euo pipefail
           FN="${{ needs.preflight.outputs.function_name }}"
           if command -v deno >/dev/null 2>&1; then
-            deno check "supabase/functions/${FN}/index.ts"
+            deno check --node-modules-dir=auto "supabase/functions/${FN}/index.ts"
           else
             curl -fsSL https://deno.land/install.sh | sh
             export DENO_INSTALL="$HOME/.deno"
             export PATH="$DENO_INSTALL/bin:$PATH"
-            deno check "supabase/functions/${FN}/index.ts"
+            deno check --node-modules-dir=auto "supabase/functions/${FN}/index.ts"
           fi
 
   deploy-one-function:
