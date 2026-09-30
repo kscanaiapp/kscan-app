@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { KPLUS_ACTIVATION_OFFER_TERM } from '../../constants/featureFlags';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
@@ -182,7 +183,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                   ))}
                   <Text style={styles.benefit}>• More K+ features as they become available</Text>
                 </View>
-                <Text style={styles.body}>K+ Early Access is complimentary for 6 months.</Text>
+                {KPLUS_ACTIVATION_OFFER_TERM ? (
+                  <Text style={styles.body}>{KPLUS_ACTIVATION_OFFER_TERM}</Text>
+                ) : null}
                 <Text style={styles.finePrint}>No payment is required.</Text>
                 <Text style={styles.finePrint}>You will not be automatically charged when Early Access ends.</Text>
                 <Text style={styles.finePrint}>
