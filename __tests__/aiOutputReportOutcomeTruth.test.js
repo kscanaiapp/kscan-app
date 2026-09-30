@@ -297,7 +297,10 @@ test('NEGATIVE CONTROL: deciding the outcome from `ok` again turns a local-only 
 test('NEGATIVE CONTROL: a catch block that reports success turns a thrown submission into REPORT SENT', async () => {
   const stack = loadStack({
     sessionLookupThrows: true,
-    mutateContext: (source) => mutated(source, /\} catch \{\s*setState\('error'\);/, "} catch {\n      setState('success');"),
+    // `[^}]*?` spans the actor-ownership guard that precedes the write inside the catch
+    // (SHARED_REPORT_ACTOR_STATE_001); the current actor passes it, so the mutant still bites.
+    mutateContext: (source) =>
+      mutated(source, /(\} catch \{[^}]*?)setState\('error'\);/, "$1setState('success');"),
   });
   const ui = mount(stack);
   await fileReport(ui);
