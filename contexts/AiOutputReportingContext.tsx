@@ -76,7 +76,13 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
   // by the actor who opened it. Discard it the moment the actor generation
   // changes, unconditionally: unlike close(), this must fire even mid-submit,
   // because a report that survives the boundary is exactly the defect.
+  //
+  // SHARED_REPORT_ACTOR_STATE_001 — the duplicate-tap lock goes with it. A
+  // departed actor's request may still be in flight (it is not cancelled; it
+  // finishes in the background and releases only its own gate), and it must not
+  // leave the arriving actor's Submit refused.
   useEffect(() => {
+    submissionGateRef.current = createAiOutputReportSubmissionGate();
     clearReport();
   }, [actorScopeKey, clearReport]);
 
@@ -106,6 +112,11 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
       const attempt = await submissionGateRef.current.run(() =>
         submitAiOutputReport({ request, reasonId, notes }),
       );
+      // SHARED_REPORT_ACTOR_STATE_001 — re-validate after the await, on every
+      // path. If the actor generation changed while this was in flight, the
+      // outcome belongs to a departed actor and the sheet now belongs to someone
+      // else: mutate nothing. The epoch decides, so A -> B -> A does not revive it.
+      if (!isBoundAiOutputReportCurrent(request)) return;
       if (!attempt.started) return;
 
       // `ok` alone is not receipt: a local-only result (no session) is `ok: true`
@@ -113,6 +124,7 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
       // may show "received for review"; everything else says it was not sent.
       setState(isReportServerAccepted(attempt.value) ? 'success' : 'error');
     } catch {
+      if (!isBoundAiOutputReportCurrent(request)) return;
       setState('error');
     }
   }, [clearReport, notes, reasonId, request]);
