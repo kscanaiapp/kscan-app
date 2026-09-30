@@ -15,7 +15,9 @@ import {
 } from '../../services/style-chat/styleChatMessageState';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
 import { isEligibleForStyleFeedback } from '../../services/signature-style/signatureStyleEligibility';
-import * as FileSystem from 'expo-file-system';
+// /legacy, like every Closet media module: the Concierge image resolver needs the
+// async getInfoAsync contract, which the bare SDK 54 entry only stubs with a throw.
+import * as FileSystem from 'expo-file-system/legacy';
 import { ELISE_CONCIERGE_V1 } from '../../constants/featureFlags';
 import { ConciergeEvidenceBlock } from '../concierge/ConciergeEvidenceBlock';
 import {
