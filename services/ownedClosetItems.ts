@@ -1,6 +1,7 @@
 // Normalizers and queries for the unified owned-item styling contract.
 //
 // Sources normalized here:
+//   - user_closet_items rows (canonical)  → normalizeClosetItemRow
 //   - saved_scans rows (cloud)            → normalizeSavedScanRow
 //   - local SavedScanModel objects        → normalizeLocalSavedScan
 //   - inspiration_items rows/models       → normalizeInspirationItem
@@ -39,6 +40,14 @@ function cleanTags(value: unknown): string[] {
     .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
     .filter(Boolean)
     .slice(0, 12);
+}
+
+function cleanTextArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => cleanText(entry))
+    .filter((entry): entry is string => !!entry)
+    .slice(0, 8);
 }
 
 export function isServerVerifiableUuid(value: unknown): value is string {
@@ -88,6 +97,71 @@ function computeAiEligibility(input: {
   category: string | null;
 }): boolean {
   return input.remoteBacked && !input.unavailable && !!input.category;
+}
+
+export type CanonicalClosetItemRow = {
+  id: string;
+  title: string | null;
+  category: string | null;
+  clothing_type: string | null;
+  subtype: string | null;
+  brand: string | null;
+  primary_color: string | null;
+  secondary_colors: unknown;
+  material: unknown;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  thumbnail_storage_path: string | null;
+  media_status: 'pending' | 'ready' | 'failed' | null;
+  deleted_at: string | null;
+};
+
+// ── user_closet_items (canonical cross-device Closet) ────────────────────────
+
+export function normalizeClosetItemRow(row: CanonicalClosetItemRow): OwnedClosetItem {
+  const unavailable = row.deleted_at != null;
+  const remoteBacked = isServerVerifiableUuid(row.id);
+  const category = cleanText(row.clothing_type) || cleanText(row.category);
+  const subcategory = cleanText(row.subtype);
+  const secondaryColors = cleanTextArray(row.secondary_colors);
+  const materials = cleanTextArray(row.material);
+  const mediaReady =
+    row.media_status === 'ready' && !!cleanText(row.storage_bucket) && !!cleanText(row.storage_path);
+
+  return {
+    sourceType: 'closet_item',
+    sourceId: remoteBacked ? row.id : null,
+    localId: null,
+    title: cleanText(row.title) || category || subcategory || 'Closet item',
+    // Canonical Closet display media is restored to the device by the existing
+    // restore engine. This query preserves the durable primary reference and
+    // never creates a second signed-URL system.
+    imageUri: null,
+    storageBucket: mediaReady ? cleanText(row.storage_bucket) : null,
+    storagePath: mediaReady ? cleanText(row.storage_path) : null,
+    mediaStatus: row.media_status ?? null,
+    category,
+    subcategory,
+    color: cleanText(row.primary_color),
+    pattern: null,
+    material: materials.length > 0 ? materials.join(', ') : null,
+    silhouette: null,
+    fit: null,
+    brand: cleanText(row.brand),
+    styleTags: [],
+    normalizedAttributes: secondaryColors.length > 0
+      ? { secondaryColors: secondaryColors.join(', ') }
+      : {},
+    sourceMetadata: {},
+    unavailable,
+    remoteBacked,
+    aiEligible: computeAiEligibility({
+      remoteBacked,
+      unavailable,
+      category: category || subcategory,
+    }),
+    contractVersion: OWNED_ITEM_CONTRACT_VERSION,
+  };
 }
 
 // ── saved_scans (cloud row) ────────────────────────────────────────────────────
@@ -219,9 +293,9 @@ export function normalizeInspirationItem(item: InspirationItem): OwnedClosetItem
 
 /**
  * Lists the current user's styleable owned items for selection UIs.
- * Local scans are merged in by localId so devices without cloud sync still see
- * their closet; when a cloud row exists for the same local scan the cloud row
- * (with its stable UUID) wins.
+ * Canonical Closet rows are listed first. Legacy sources remain supported and
+ * local scans are merged by localId; there is deliberately no fuzzy dedupe
+ * across source tables because no shared stable provenance key exists.
  */
 export async function listOwnedClosetItems(input?: {
   localScans?: SavedScanModel[];
@@ -230,7 +304,14 @@ export async function listOwnedClosetItems(input?: {
   const seen = new Set<string>();
   const seenLocalIds = new Set<string>();
 
-  const [scanResult, inspirationResult] = await Promise.all([
+  const [closetResult, scanResult, inspirationResult] = await Promise.all([
+    supabase
+      .from('user_closet_items')
+      .select(
+        'id,title,category,clothing_type,subtype,brand,primary_color,secondary_colors,material,storage_bucket,storage_path,thumbnail_storage_path,media_status,deleted_at',
+      )
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false }),
     supabase
       .from('saved_scans')
       .select('*')
@@ -242,6 +323,15 @@ export async function listOwnedClosetItems(input?: {
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
   ]);
+
+  // Canonical Closet is the primary source for the Build 34 Closet experience.
+  for (const row of (closetResult.data ?? []) as CanonicalClosetItemRow[]) {
+    const item = normalizeClosetItemRow(row);
+    const key = ownedItemKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push(item);
+  }
 
   for (const row of (scanResult.data ?? []) as SavedScanRow[]) {
     const item = normalizeSavedScanRow(row);

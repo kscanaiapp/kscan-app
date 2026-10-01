@@ -40,6 +40,7 @@ import type {
   ScanImageSnapshotSource,
 } from '../types/styleObjects';
 import type { CanonicalItemSourceKind } from '../types/canonicalDressingRoomItem';
+import type { OwnedItemSourceType } from '../types/ownedClosetItem';
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
@@ -473,6 +474,7 @@ function mapLookItem(row: any): LookItem {
     sourceType: row.source_type ?? null,
     sourceSavedScanId: row.source_saved_scan_id ?? null,
     sourceInspirationItemId: row.source_inspiration_item_id ?? null,
+    sourceClosetItemId: row.source_closet_item_id ?? null,
   };
 }
 
@@ -1253,10 +1255,14 @@ export const LOOK_MIN_ITEMS = 2;
 export const LOOK_MAX_ITEMS = 6;
 
 export type OwnedLookItemInput = {
-  sourceType: 'saved_scan' | 'inspiration_item';
+  sourceType: OwnedItemSourceType;
   sourceId: string;
   role?: string | null;
 };
+
+function isOwnedLookItemSourceType(value: unknown): value is OwnedItemSourceType {
+  return value === 'saved_scan' || value === 'inspiration_item' || value === 'closet_item';
+}
 
 function validateOwnedLookItems(items: OwnedLookItemInput[]) {
   if (!Array.isArray(items) || items.length < LOOK_MIN_ITEMS) {
@@ -1270,7 +1276,7 @@ function validateOwnedLookItems(items: OwnedLookItemInput[]) {
     throw new Error('Each item can only appear once in a Look.');
   }
   for (const item of items) {
-    if (item.sourceType !== 'saved_scan' && item.sourceType !== 'inspiration_item') {
+    if (!isOwnedLookItemSourceType(item.sourceType)) {
       throw new Error('This item cannot be added to a Look yet.');
     }
     if (!item.sourceId || typeof item.sourceId !== 'string') {

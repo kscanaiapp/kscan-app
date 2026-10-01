@@ -34,7 +34,11 @@ import {
   type OutfitVariation,
   type StyleOutfitMode,
 } from '../types/fashionReasoning';
-import type { OwnedItemRef } from '../types/ownedClosetItem';
+import {
+  isOwnedItemSourceType,
+  type OwnedItemRef,
+  type OwnedItemSourceType,
+} from '../types/ownedClosetItem';
 
 export const STYLE_OUTFIT_FUNCTION_NAME = 'style-outfit-generate';
 export const UNAVAILABLE_COOLDOWN_MS = 30_000;
@@ -65,7 +69,7 @@ export type StyleOutfitRequest = {
 };
 
 export type OutfitSuggestionItemRef = {
-  sourceType: 'saved_scan' | 'inspiration_item';
+  sourceType: OwnedItemSourceType;
   sourceId: string;
   role: GarmentRole;
   position: number;
@@ -126,7 +130,7 @@ function parseSuggestion(raw: unknown): OutfitSuggestion | null {
     if (!rawItem || typeof rawItem !== 'object') return null;
     const item = rawItem as Record<string, unknown>;
     const sourceType = item.sourceType;
-    if (sourceType !== 'saved_scan' && sourceType !== 'inspiration_item') return null;
+    if (!isOwnedItemSourceType(sourceType)) return null;
     const sourceId = typeof item.sourceId === 'string' ? item.sourceId : '';
     if (!sourceId) return null;
     const key = `${sourceType}:${sourceId}`;
@@ -175,7 +179,7 @@ function parseSuccessPayload(payload: Record<string, unknown>): StyleOutfitResul
 }
 
 function sanitizeRef(ref?: OwnedItemRef | null) {
-  if (!ref || !ref.sourceId) return null;
+  if (!ref || !ref.sourceId || !isOwnedItemSourceType(ref.sourceType)) return null;
   return { sourceType: ref.sourceType, sourceId: ref.sourceId };
 }
 

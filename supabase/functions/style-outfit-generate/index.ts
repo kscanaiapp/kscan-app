@@ -9,7 +9,8 @@
 // would be wrong.
 //
 // TWO CONTRACTS LIVE HERE. The unversioned path below resolves its candidate
-// pool SERVER-side from the caller's saved_scans / inspiration_items. The
+// pool SERVER-side from the caller's canonical Closet plus supported legacy
+// saved_scans / inspiration_items. The
 // versioned private Dressing Room path (schemaVersion
 // "private-dressing-room-elise-v1") consumes a CLIENT-supplied sanitized
 // projection and never queries either table, because that Closet is
@@ -19,7 +20,7 @@
 //   - Supabase JWT verified via auth.getUser() before any data access
 //   - User identity derived from the token, never from the request body
 //   - The candidate pool is queried server-side from the caller's own
-//     saved_scans rows; client candidate arrays are never read
+//     canonical and legacy owned-item rows; client candidate arrays are never read
 //   - Daily + burst quotas via SECURITY DEFINER RPCs (limits env-configurable)
 //   - Environment kill switch, provider timeout, safe errors
 //   - Metadata-only logs: never closet contents, notes, images, or prompts
@@ -36,6 +37,7 @@ import {
   OUTFIT_VARIATIONS,
 } from './reasoningContract.ts';
 import {
+  buildCandidatesFromClosetItems,
   buildCandidatesFromInspirationItems,
   buildCandidatesFromSavedScans,
   finalizeCandidatePool,
@@ -99,9 +101,7 @@ function noResultResponse(requestId: string, reason: string): Response {
     contractVersion: FASHION_REASONING_CONTRACT_VERSION,
     status: 'no_result',
     reason,
-    // INT-KPLUS-001: this pool is saved scans + inspiration uploads, NOT the
-    // canonical Closet (public.user_closet_items). Say what it actually is.
-    message: "I couldn't build a complete option from your saved items yet.",
+    message: "I couldn't build a complete option from your closet yet.",
     outfits: [],
     closetGaps: [],
   });
@@ -120,7 +120,7 @@ const SYSTEM_PROMPT = `You are K Scan's outfit stylist. You build complete outfi
    Omit a variation rather than repeating nearly identical outfits.
 5. For each outfit write one concise "reason" sentence (max 200 characters) explaining why it works, grounded in the actual items. No percentages, no scores, no superlatives about the user.
 6. Respond with JSON only, matching:
-{"outfits":[{"variation":"reliable","itemRefs":[{"sourceType":"saved_scan","sourceId":"<id>"}],"reason":"...","confidence":"high|medium|low"}]}`;
+{"outfits":[{"variation":"reliable","itemRefs":[{"sourceType":"closet_item|saved_scan|inspiration_item","sourceId":"<id>"}],"reason":"...","confidence":"high|medium|low"}]}`;
 
 function describeCandidate(item: CandidateItem, index: number): string {
   const parts = [
@@ -473,10 +473,17 @@ Deno.serve(async (req) => {
   // 4. Ownership + sufficiency validation BEFORE any quota reservation.
   //    Deterministic rejections (foreign / unowned anchor, insufficient owned
   //    closet) must never consume a generation. The candidate pool is built
-  //    only from the caller's own active saved_scans (RLS also scopes this;
-  //    the explicit user filter is belt-and-braces). Client candidate arrays
-  //    are never read.
-  const [scanResult, inspirationResult] = await Promise.all([
+  //    only from the caller's own active canonical Closet and supported legacy
+  //    sources (RLS also scopes this; explicit user filters are belt-and-
+  //    braces). Client candidate arrays are never read.
+  const [closetResult, scanResult, inspirationResult] = await Promise.all([
+    userClient
+      .from('user_closet_items')
+      .select('id,user_id,title,category,clothing_type,subtype,brand,primary_color,material,deleted_at')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .limit(400),
     userClient
       .from('saved_scans')
       .select('id,user_id,title,analysis_result,deleted_at')
@@ -493,12 +500,17 @@ Deno.serve(async (req) => {
       .limit(100),
   ]);
 
-  if (scanResult.error) {
+  if (closetResult.error || scanResult.error) {
     console.error('[style-outfit-generate] closet query failed');
     return json({ error: 'Unable to load closet' }, 500);
   }
 
   const candidates = [
+    // Canonical Closet is primary; legacy sources remain supported without
+    // fuzzy cross-table dedupe because they share no stable provenance key.
+    ...buildCandidatesFromClosetItems(
+      (closetResult.data ?? []) as Array<Record<string, unknown>>,
+    ),
     ...buildCandidatesFromSavedScans((scanResult.data ?? []) as Array<Record<string, unknown>>),
     // Inspiration query failure degrades gracefully to saved scans only.
     ...buildCandidatesFromInspirationItems(

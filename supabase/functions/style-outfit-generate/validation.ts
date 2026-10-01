@@ -37,7 +37,7 @@ const NOTE_MAX_CHARS = 280;
 const REASON_MAX_CHARS = 240;
 const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
 
-export type OwnedSourceType = 'saved_scan' | 'inspiration_item';
+export type OwnedSourceType = 'saved_scan' | 'inspiration_item' | 'closet_item';
 
 export type ItemRef = {
   sourceType: OwnedSourceType;
@@ -88,7 +88,11 @@ function parseItemRef(raw: unknown): ItemRef | null {
   if (!raw || typeof raw !== 'object') return null;
   const record = raw as Record<string, unknown>;
   const sourceType = record.sourceType;
-  if (sourceType !== 'saved_scan' && sourceType !== 'inspiration_item') return null;
+  if (
+    sourceType !== 'saved_scan' &&
+    sourceType !== 'inspiration_item' &&
+    sourceType !== 'closet_item'
+  ) return null;
   if (!isValidUuid(record.sourceId)) return null;
   return { sourceType, sourceId: String(record.sourceId).trim().toLowerCase() };
 }
@@ -229,6 +233,55 @@ export function buildCandidatesFromSavedScans(rows: Array<Record<string, unknown
             .filter((tag): tag is string => !!tag)
             .slice(0, 8)
         : [],
+    });
+  }
+  return candidates;
+}
+
+/**
+ * Builds candidates from the caller-scoped canonical user_closet_items query.
+ * The most specific garment identity wins for role inference:
+ * clothing_type -> subtype -> category. Missing values stay missing.
+ */
+export function buildCandidatesFromClosetItems(
+  rows: Array<Record<string, unknown>>,
+): CandidateItem[] {
+  const candidates: CandidateItem[] = [];
+  for (const row of rows ?? []) {
+    if (!row || typeof row !== 'object') continue;
+    if (row.deleted_at != null) continue;
+    if (!isValidUuid(row.id)) continue;
+
+    const clothingType = cleanString(row.clothing_type, 60);
+    const subtype = cleanString(row.subtype, 60);
+    const fallbackCategory = cleanString(row.category, 60);
+    const category = clothingType ?? fallbackCategory;
+    const primaryRole = inferGarmentRole(clothingType, subtype);
+    const role = primaryRole !== 'other'
+      ? primaryRole
+      : inferGarmentRole(subtype, fallbackCategory);
+    if (role === 'other') continue;
+
+    const materials = Array.isArray(row.material)
+      ? (row.material as unknown[])
+          .map((value) => cleanString(value, 40))
+          .filter((value): value is string => !!value)
+          .slice(0, 8)
+      : [];
+
+    candidates.push({
+      sourceType: 'closet_item',
+      sourceId: String(row.id).toLowerCase(),
+      title: cleanString(row.title, 80) ?? category ?? subtype ?? 'Closet item',
+      role,
+      category,
+      subcategory: subtype,
+      color: cleanString(row.primary_color, 40),
+      pattern: null,
+      material: materials.length > 0 ? materials.join(', ') : null,
+      silhouette: null,
+      brand: cleanString(row.brand, 40),
+      styleTags: [],
     });
   }
   return candidates;

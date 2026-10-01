@@ -212,12 +212,17 @@ function CreateLookContent() {
         setNote(detail.look.contextNote ?? '');
         const keys: string[] = [];
         for (const lookItem of detail.items) {
-          const sourceId = lookItem.sourceSavedScanId || lookItem.sourceInspirationItemId;
-          const sourceType = lookItem.sourceSavedScanId
-            ? 'saved_scan'
-            : lookItem.sourceInspirationItemId
-              ? 'inspiration_item'
-              : null;
+          const sourceId =
+            lookItem.sourceClosetItemId ||
+            lookItem.sourceSavedScanId ||
+            lookItem.sourceInspirationItemId;
+          const sourceType = lookItem.sourceClosetItemId
+            ? 'closet_item'
+            : lookItem.sourceSavedScanId
+              ? 'saved_scan'
+              : lookItem.sourceInspirationItemId
+                ? 'inspiration_item'
+                : null;
           if (sourceType && sourceId) {
             const key = `${sourceType}:${sourceId}`;
             if (itemByKey.has(key)) keys.push(key);

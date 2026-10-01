@@ -2,8 +2,9 @@
 //
 // A single application-level shape for every "styleable owned item" regardless
 // of where it is stored today:
-//   - public.saved_scans        (cloud metadata rows for saved scans)
-//   - public.inspiration_items  (cloud-backed inspiration uploads)
+//   - public.user_closet_items  (canonical cross-device Closet)
+//   - public.saved_scans        (legacy cloud metadata rows for saved scans)
+//   - public.inspiration_items  (legacy cloud-backed inspiration uploads)
 //   - local saved scans         (device-only rows from kscan_library manifest)
 //
 // This is a read contract used by the manual Look builder, AI Stylist flows,
@@ -14,7 +15,7 @@
 
 export const OWNED_ITEM_CONTRACT_VERSION = 1;
 
-export const OWNED_ITEM_SOURCE_TYPES = ['saved_scan', 'inspiration_item'] as const;
+export const OWNED_ITEM_SOURCE_TYPES = ['saved_scan', 'inspiration_item', 'closet_item'] as const;
 export type OwnedItemSourceType = (typeof OWNED_ITEM_SOURCE_TYPES)[number];
 
 /** DR-2 Dressing Room attachment source (stable UUID only; never ownership claims). */
