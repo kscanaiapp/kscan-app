@@ -74,6 +74,13 @@ const EXPECTED_ENTITLEMENT_READERS = [
   'components/kplus/KPlusActivationStep.tsx',
   'components/kplus/KPlusEarlyAccessSheet.tsx',
   'components/kplus/KPlusGate.tsx',   // the shared gate itself
+  // Build 34 final UI integration: Home reads the shared entitlement snapshot
+  // to BADGE the Pack for a Trip chip (K+ / INCLUDED), nothing more. The read
+  // is display-only — the chip's tap still routes to /packing unchanged, the
+  // real gate stays on the packing screen, no second KPlusGate is mounted
+  // (which would duplicate the sheet and the exposure telemetry), and while
+  // the read is unresolved no marker is rendered at all. Home is not gated.
+  'components/home/HomeLuxuryTechV1.tsx',
 ];
 
 /** Core surfaces that must contain no K+ gate and make no K+ render decision. */
