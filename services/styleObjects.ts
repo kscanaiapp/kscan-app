@@ -40,10 +40,7 @@ import type {
   ScanImageSnapshotSource,
 } from '../types/styleObjects';
 import type { CanonicalItemSourceKind } from '../types/canonicalDressingRoomItem';
-import {
-  isOwnedItemSourceType,
-  type OwnedItemSourceType,
-} from '../types/ownedClosetItem';
+import type { OwnedItemSourceType } from '../types/ownedClosetItem';
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
@@ -1263,6 +1260,10 @@ export type OwnedLookItemInput = {
   role?: string | null;
 };
 
+function isOwnedLookItemSourceType(value: unknown): value is OwnedItemSourceType {
+  return value === 'saved_scan' || value === 'inspiration_item' || value === 'closet_item';
+}
+
 function validateOwnedLookItems(items: OwnedLookItemInput[]) {
   if (!Array.isArray(items) || items.length < LOOK_MIN_ITEMS) {
     throw new Error(`Select at least ${LOOK_MIN_ITEMS} items for a Look.`);
@@ -1275,7 +1276,7 @@ function validateOwnedLookItems(items: OwnedLookItemInput[]) {
     throw new Error('Each item can only appear once in a Look.');
   }
   for (const item of items) {
-    if (!isOwnedItemSourceType(item.sourceType)) {
+    if (!isOwnedLookItemSourceType(item.sourceType)) {
       throw new Error('This item cannot be added to a Look yet.');
     }
     if (!item.sourceId || typeof item.sourceId !== 'string') {
