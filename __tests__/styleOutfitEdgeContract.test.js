@@ -68,6 +68,22 @@ function scanRow(id, category, extras = {}) {
   };
 }
 
+function closetRow(id, clothingType, subtype, category, extras = {}) {
+  return {
+    id,
+    user_id: 'owner',
+    title: subtype || clothingType || category || 'Closet item',
+    clothing_type: clothingType,
+    subtype,
+    category,
+    brand: null,
+    primary_color: null,
+    material: [],
+    deleted_at: null,
+    ...extras,
+  };
+}
+
 const SERVER_ROWS = [
   scanRow(A, 'Blazer'),
   scanRow(B, 'T-Shirt'),
@@ -154,6 +170,24 @@ test('anchor is required for style_item and swap_item modes', () => {
   assert.equal(withAnchor.ok, true);
 });
 
+test('canonical refs parse for anchor, keep, and exclude while arbitrary sources stay closed', () => {
+  const parsed = validation.parseStyleOutfitRequest({
+    mode: 'style_item',
+    contractVersion: '1',
+    anchorItem: { sourceType: 'closet_item', sourceId: A },
+    keepItems: [{ sourceType: 'closet_item', sourceId: B }],
+    excludeItems: [
+      { sourceType: 'closet_item', sourceId: C },
+      { sourceType: 'arbitrary_source', sourceId: D },
+    ],
+  });
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.request.anchorItem.sourceType, 'closet_item');
+  assert.equal(parsed.request.keepItems[0].sourceType, 'closet_item');
+  assert.equal(parsed.request.excludeItems.length, 1);
+  assert.equal(parsed.request.excludeItems[0].sourceType, 'closet_item');
+});
+
 test('unsupported mode and contract version are rejected', () => {
   assert.equal(validation.parseStyleOutfitRequest({ mode: 'style_shopping', contractVersion: '1' }).ok, false);
   assert.equal(validation.parseStyleOutfitRequest({ mode: 'style_event', contractVersion: '99' }).ok, false);
@@ -170,6 +204,67 @@ test('server pool excludes deleted rows and rows without category metadata', () 
   ]);
   assert.equal(candidates.length, 1);
   assert.equal(candidates[0].sourceId, A);
+});
+
+test('canonical candidate builder maps specific garment identity and excludes deleted/unknown rows', () => {
+  const candidates = validation.buildCandidatesFromClosetItems([
+    closetRow(A, 'Hoodie', 'Pullover hoodie', 'Tops'),
+    closetRow(B, 'Jeans', 'Straight-leg jeans', 'Bottoms'),
+    closetRow(C, 'Jacket', 'Leather jacket', 'Outerwear'),
+    closetRow(D, 'Sneakers', 'Low-top sneakers', 'Shoes'),
+    closetRow(E, null, 'Gown', 'Dresses'),
+    closetRow(FOREIGN, 'Dress', null, 'Dresses', { deleted_at: '2026-10-01T00:00:00Z' }),
+    closetRow('not-a-uuid', 'Shoes', null, 'Shoes'),
+  ]);
+  assert.equal(candidates.length, 5);
+  assert.equal(
+    JSON.stringify(Array.from(candidates, (item) => item.role)),
+    JSON.stringify(['top', 'bottom', 'outerwear', 'shoes', 'dress']),
+  );
+  assert.ok(candidates.every((item) => item.sourceType === 'closet_item'));
+});
+
+test('canonical anchor must resolve inside the server-authorized pool', () => {
+  const parsed = validation.parseStyleOutfitRequest({
+    mode: 'style_item',
+    contractVersion: '1',
+    anchorItem: { sourceType: 'closet_item', sourceId: A },
+  });
+  const candidates = validation.buildCandidatesFromClosetItems([
+    closetRow(B, 'Top', null, 'Tops'),
+    closetRow(C, 'Jeans', null, 'Bottoms'),
+    closetRow(D, 'Sneakers', null, 'Shoes'),
+  ]);
+  const pool = validation.finalizeCandidatePool(candidates, parsed.request);
+  assert.equal(pool.ok, false);
+  assert.equal(pool.reason, 'anchor_not_owned');
+});
+
+test('provider closet_item refs are accepted only when present in the authorized pool', () => {
+  const parsed = validation.parseStyleOutfitRequest({ mode: 'style_event', contractVersion: '1' });
+  const candidates = validation.buildCandidatesFromClosetItems([
+    closetRow(B, 'Top', null, 'Tops'),
+    closetRow(C, 'Jeans', null, 'Bottoms'),
+    closetRow(D, 'Sneakers', null, 'Shoes'),
+  ]);
+  const pool = validation.finalizeCandidatePool(candidates, parsed.request);
+  assert.equal(pool.ok, true);
+  const outfits = validation.validateProviderOutfits({
+    outfits: [
+      {
+        variation: 'reliable',
+        itemRefs: [B, C, D].map((sourceId) => ({ sourceType: 'closet_item', sourceId })),
+        reason: 'Canonical outfit.',
+      },
+      {
+        variation: 'elevated',
+        itemRefs: [B, C, FOREIGN].map((sourceId) => ({ sourceType: 'closet_item', sourceId })),
+        reason: 'Invented item.',
+      },
+    ],
+  }, pool.pool, null, 3);
+  assert.equal(outfits.length, 1);
+  assert.ok(outfits[0].itemRefs.every((ref) => ref.sourceType === 'closet_item'));
 });
 
 test('foreign/deleted anchor is rejected against the server pool', () => {
@@ -406,7 +501,9 @@ test('edge function has a kill switch and safe provider errors', () => {
   assert.doesNotMatch(indexSource, /error\.stack/);
 });
 
-test('edge function queries only the caller\'s active saved_scans for the pool', () => {
+test('edge function queries caller-scoped active canonical and legacy sources for the pool', () => {
+  assert.match(indexSource, /from\('user_closet_items'\)/);
+  assert.match(indexSource, /buildCandidatesFromClosetItems/);
   assert.match(indexSource, /from\('saved_scans'\)/);
   assert.match(indexSource, /\.eq\('user_id', userId\)/);
   assert.match(indexSource, /\.is\('deleted_at', null\)/);
@@ -421,16 +518,9 @@ test('edge function logs metadata only (no closet contents, notes, or images)', 
 });
 
 test('no-result response inserts no shopping products', () => {
-  // INT-KPLUS-001: this pool is saved scans + inspiration uploads, not the
-  // canonical Closet (public.user_closet_items), so the copy no longer calls it
-  // "your closet". The assertion here is that a no-result response carries a
-  // truthful message and no products -- not that it uses one exact old string.
-  assert.match(indexSource, /couldn't build a complete option from your saved items yet/);
-  assert.doesNotMatch(
-    indexSource,
-    /complete option from your closet/,
-    'the no-result copy must not claim the canonical Closet',
-  );
+  // Canonical Closet now participates in the pool, so "your closet" is
+  // truthful. The response still carries no shopping products.
+  assert.match(indexSource, /couldn't build a complete option from your closet yet/);
   assert.match(indexSource, /closetGaps: \[\]/);
   // Responses never carry commerce fields ("retailer" appears only in the
   // prompt/comments forbidding it).

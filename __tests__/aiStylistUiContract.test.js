@@ -50,6 +50,7 @@ function loadTsModule(relativePath, requireMap = {}) {
 }
 
 const reasoning = loadTsModule('types/fashionReasoning.ts');
+const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
 
 function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
   return loadTsModule('services/styleOutfits.ts', {
@@ -66,7 +67,7 @@ function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
       AI_STYLIST_BACKEND_ENABLED: backendEnabled,
     },
     '../types/fashionReasoning': reasoning,
-    '../types/ownedClosetItem': {},
+    '../types/ownedClosetItem': ownedTypes,
   });
 }
 
@@ -310,6 +311,45 @@ test('success payload is validated: bad refs dropped, canonical variation order 
     JSON.stringify(Array.from(result.outfits, (outfit) => outfit.variation)),
     JSON.stringify(['reliable', 'elevated']),
   );
+});
+
+test('success payload accepts canonical closet_item refs but rejects arbitrary source strings', async () => {
+  const A = '11111111-1111-4111-8111-111111111111';
+  const B = '22222222-2222-4222-8222-222222222222';
+  const service = loadStyleOutfits({
+    uiEnabled: true,
+    backendEnabled: true,
+    invoke: async () => ({
+      data: {
+        status: 'success',
+        requestId: 'req-canonical',
+        outfits: [
+          {
+            suggestionId: 'canonical',
+            variation: 'reliable',
+            itemRefs: [
+              { sourceType: 'closet_item', sourceId: A, role: 'dress' },
+              { sourceType: 'closet_item', sourceId: B, role: 'shoes' },
+            ],
+            reason: 'Canonical Closet outfit.',
+          },
+          {
+            suggestionId: 'arbitrary',
+            variation: 'elevated',
+            itemRefs: [
+              { sourceType: 'anything', sourceId: A, role: 'dress' },
+              { sourceType: 'closet_item', sourceId: B, role: 'shoes' },
+            ],
+          },
+        ],
+      },
+      error: null,
+    }),
+  });
+  const result = await service.generateOutfits({ mode: 'style_event' });
+  assert.equal(result.status, 'success');
+  assert.equal(result.outfits.length, 1);
+  assert.equal(result.outfits[0].itemRefs[0].sourceType, 'closet_item');
 });
 
 test('kill-switch (disabled) response is safe and enters cooldown', async () => {

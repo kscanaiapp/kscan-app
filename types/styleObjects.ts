@@ -79,7 +79,11 @@ export type Look = {
   contractVersion?: string | null;
 };
 
-export type LookItemSourceType = 'dressing_room_item' | 'saved_scan' | 'inspiration_item';
+export type LookItemSourceType =
+  | 'dressing_room_item'
+  | 'saved_scan'
+  | 'inspiration_item'
+  | 'closet_item';
 
 export type LookItem = {
   id: string;
@@ -103,6 +107,7 @@ export type LookItem = {
   sourceType?: LookItemSourceType | null;
   sourceSavedScanId?: string | null;
   sourceInspirationItemId?: string | null;
+  sourceClosetItemId?: string | null;
 };
 
 export type ProductMatchSnapshotSource = {

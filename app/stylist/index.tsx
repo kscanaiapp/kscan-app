@@ -75,7 +75,12 @@ import {
   type OutfitOccasion,
   type OutfitSetting,
 } from '../../types/fashionReasoning';
-import { ownedItemKey, type OwnedClosetItem, type OwnedItemRef } from '../../types/ownedClosetItem';
+import {
+  isOwnedItemSourceType,
+  ownedItemKey,
+  type OwnedClosetItem,
+  type OwnedItemRef,
+} from '../../types/ownedClosetItem';
 
 const OCCASIONS: Array<{ value: OutfitOccasion; label: string }> = [
   { value: 'casual', label: 'Casual' },
@@ -174,7 +179,7 @@ function StylistContent() {
 
   // Anchor: from params (Style This entry) or picked in-screen.
   const paramAnchorKey =
-    (params.anchorSourceType === 'saved_scan' || params.anchorSourceType === 'inspiration_item') &&
+    isOwnedItemSourceType(params.anchorSourceType) &&
     typeof params.anchorSourceId === 'string' &&
     params.anchorSourceId
       ? `${params.anchorSourceType}:${params.anchorSourceId}`

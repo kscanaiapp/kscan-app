@@ -48,6 +48,26 @@ const contract = loadTsModule('services/ownedClosetItems.ts', {
 
 const REMOTE_UUID = '123e4567-e89b-42d3-a456-426614174000';
 
+function makeClosetRow(overrides = {}) {
+  return {
+    id: REMOTE_UUID,
+    title: 'Black leather jacket',
+    category: 'Outerwear',
+    clothing_type: 'Jacket',
+    subtype: 'Leather jacket',
+    brand: 'K Scan Atelier',
+    primary_color: 'Black',
+    secondary_colors: ['Chrome'],
+    material: ['Leather'],
+    storage_bucket: 'style-library-images',
+    storage_path: `user/closet/${REMOTE_UUID}-primary.jpg`,
+    thumbnail_storage_path: `user/closet/${REMOTE_UUID}-thumb.jpg`,
+    media_status: 'ready',
+    deleted_at: null,
+    ...overrides,
+  };
+}
+
 function makeSavedScanRow(overrides = {}) {
   return {
     id: REMOTE_UUID,
@@ -92,6 +112,39 @@ test('saved_scan normalization maps metadata and classifies remote-backed + AI-e
   assert.equal(item.remoteBacked, true);
   assert.equal(item.aiEligible, true);
   assert.equal(item.unavailable, false);
+});
+
+test('owned source vocabulary is closed and includes canonical closet_item', () => {
+  assert.equal(
+    JSON.stringify(Array.from(ownedTypes.OWNED_ITEM_SOURCE_TYPES)),
+    JSON.stringify(['saved_scan', 'inspiration_item', 'closet_item']),
+  );
+  assert.equal(ownedTypes.isOwnedItemSourceType('closet_item'), true);
+  assert.equal(ownedTypes.isOwnedItemSourceType('arbitrary_source'), false);
+});
+
+test('canonical Closet normalization uses server UUID and truthful bounded fields', () => {
+  const item = contract.normalizeClosetItemRow(makeClosetRow());
+  assert.equal(item.sourceType, 'closet_item');
+  assert.equal(item.sourceId, REMOTE_UUID);
+  assert.equal(item.localId, null);
+  assert.equal(item.category, 'Jacket');
+  assert.equal(item.subcategory, 'Leather jacket');
+  assert.equal(item.color, 'Black');
+  assert.equal(item.material, 'Leather');
+  assert.equal(item.storagePath, `user/closet/${REMOTE_UUID}-primary.jpg`);
+  assert.equal(item.remoteBacked, true);
+  assert.equal(item.aiEligible, true);
+  assert.equal('clientId' in item, false);
+  assert.equal('notes' in item, false);
+});
+
+test('deleted canonical Closet rows are unavailable and never AI-eligible', () => {
+  const item = contract.normalizeClosetItemRow(
+    makeClosetRow({ deleted_at: '2026-10-01T00:00:00Z' }),
+  );
+  assert.equal(item.unavailable, true);
+  assert.equal(item.aiEligible, false);
 });
 
 test('soft-deleted saved_scan is unavailable and not AI-eligible', () => {
