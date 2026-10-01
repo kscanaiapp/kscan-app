@@ -7,6 +7,10 @@ function workflow(name) {
   return fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', name), 'utf8');
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\function assertFailClosedSweep(source, environment, variable, origin) {');
+}
+
 function assertFailClosedSweep(source, environment, variable, origin) {
   assert.match(source, /workflow_dispatch:/, 'manual dispatch must remain available');
   assert.match(source, /confirm:\n\s+description: Must be RUN-SWEEP/, 'manual dispatch must require confirmation');
