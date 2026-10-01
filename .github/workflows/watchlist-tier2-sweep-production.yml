@@ -1,0 +1,85 @@
+# K+ Smart Watchlist — Tier 2 refresh sweep (PRODUCTION, protected).
+#
+# The actual sweep remains solely inside `commerce-watch-refresh`. This workflow
+# provides the governed invocation path: a protected Environment, a fail-closed
+# preflight, an exact production-origin assertion, and the same six-hour cadence
+# as staging. It intentionally carries no product, customer, or provider logic.
+
+name: Watchlist Tier 2 Sweep (production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Must be RUN-SWEEP to proceed
+        required: true
+        default: ''
+        type: string
+  schedule:
+    - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchlist-tier2-sweep-production
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Watchlist Tier 2 sweep
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-SWEEP'
+    steps:
+      - name: Preflight — refuse to run unconfigured
+        id: preflight
+        env:
+          WORKER_SECRET: ${{ secrets.WATCHLIST_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ vars.SUPABASE_PRODUCTION_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -n "${WORKER_SECRET:-}" ] || MISSING="${MISSING} WATCHLIST_WORKER_SECRET(secret)"
+          [ -n "${FUNCTIONS_URL:-}" ] || MISSING="${MISSING} SUPABASE_PRODUCTION_FUNCTIONS_URL(variable)"
+          if [ -n "${MISSING}" ]; then
+            echo "Watchlist Tier 2 production sweep is NOT provisioned. Missing:${MISSING}"
+            exit 1
+          fi
+          case "${FUNCTIONS_URL%/}" in
+            https://wyyuqfdxucjksghsmhry.functions.supabase.co) ;;
+            *) echo "SUPABASE_PRODUCTION_FUNCTIONS_URL must be the production Functions origin"; exit 1 ;;
+          esac
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Invoke the governed sweep
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          WORKER_SECRET: ${{ secrets.WATCHLIST_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ vars.SUPABASE_PRODUCTION_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          STATUS="$(curl --silent --show-error --fail-with-body \
+            --max-time 120 \
+            --request POST \
+            --header "content-type: application/json" \
+            --header "x-watchlist-worker-secret: ${WORKER_SECRET}" \
+            --data '{}' \
+            --output "${BODY_FILE}" \
+            --write-out '%{http_code}' \
+            "${FUNCTIONS_URL%/}/commerce-watch-refresh")" || CURL_FAILED=1
+
+          echo "HTTP ${STATUS}"
+          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k: d.get(k) for k in ('mode','enabled','claimed')}))" "${BODY_FILE}" \
+            || echo "(unparseable response body withheld)"
+
+          if [ "${CURL_FAILED:-0}" = "1" ] || [ "${STATUS}" != "200" ]; then
+            echo "Sweep request did not succeed."
+            exit 1
+          fi
+
+          if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('enabled') is False else 1)" "${BODY_FILE}"; then
+            echo "app_config.watchlist_worker_enabled is FALSE — nothing was claimed."
+          fi
