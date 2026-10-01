@@ -9,7 +9,7 @@
 // they drive deterministic coverage on the server. The free-text note exists
 // for everything the chips cannot say, and is treated as data end to end.
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PrimaryButton } from '../luxury';
@@ -22,28 +22,25 @@ import {
   type PackingTripDraft,
   type PackingTripType,
 } from '../../types/packing';
+import {
+  formatPackingCanonicalDate,
+  isValidCanonicalPackingDate,
+  normalizePackingDateRange,
+  packingTripNights,
+} from './packingDates';
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_NIGHTS = 30;
 
 export function validateTripDraft(draft: PackingTripDraft): string | null {
   if (!draft.destination.trim()) return 'Where are you going?';
-  if (!ISO_DATE_RE.test(draft.startDate) || !ISO_DATE_RE.test(draft.endDate)) {
-    return 'Enter both dates as YYYY-MM-DD.';
-  }
-  const start = Date.parse(`${draft.startDate}T00:00:00Z`);
-  const end = Date.parse(`${draft.endDate}T00:00:00Z`);
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return 'Those dates are not valid.';
-  // Re-render and compare so an impossible calendar date (2026-02-31) is
-  // rejected here rather than silently rolling over into a different trip.
   if (
-    new Date(start).toISOString().slice(0, 10) !== draft.startDate ||
-    new Date(end).toISOString().slice(0, 10) !== draft.endDate
-  ) {
-    return 'Those dates are not valid.';
+    !isValidCanonicalPackingDate(draft.startDate) ||
+    !isValidCanonicalPackingDate(draft.endDate)
+  ) return 'Those dates are not valid.';
+  if (draft.endDate < draft.startDate) return 'Your return date is before your departure date.';
+  if (packingTripNights(draft.startDate, draft.endDate) > MAX_NIGHTS) {
+    return `Trips longer than ${MAX_NIGHTS} nights are not supported yet.`;
   }
-  if (end < start) return 'Your return date is before your departure date.';
-  if ((end - start) / 86_400_000 > MAX_NIGHTS) return `Trips longer than ${MAX_NIGHTS} nights are not supported yet.`;
   return null;
 }
 
@@ -57,17 +54,16 @@ export function PackingTripForm({
   onSubmit: (draft: PackingTripDraft) => void;
 }) {
   const [destination, setDestination] = useState(initial?.destination ?? '');
-  const [startDate, setStartDate] = useState(initial?.startDate ?? '');
-  const [endDate, setEndDate] = useState(initial?.endDate ?? '');
+  const [startDate, setStartDate] = useState(
+    formatPackingCanonicalDate(initial?.startDate ?? ''),
+  );
+  const [endDate, setEndDate] = useState(
+    formatPackingCanonicalDate(initial?.endDate ?? ''),
+  );
   const [tripType, setTripType] = useState<PackingTripType>(initial?.tripType ?? 'leisure');
   const [activities, setActivities] = useState<PackingActivity[]>(initial?.activities ?? []);
   const [note, setNote] = useState(initial?.note ?? '');
   const [error, setError] = useState<string | null>(null);
-
-  const draft = useMemo<PackingTripDraft>(
-    () => ({ destination, startDate, endDate, tripType, activities, note }),
-    [destination, startDate, endDate, tripType, activities, note],
-  );
 
   const toggleActivity = (activity: PackingActivity) => {
     setActivities((current) =>
@@ -80,6 +76,19 @@ export function PackingTripForm({
   };
 
   const submit = () => {
+    const dates = normalizePackingDateRange(startDate, endDate, MAX_NIGHTS);
+    if (dates.ok === false) {
+      setError(dates.message);
+      return;
+    }
+    const draft: PackingTripDraft = {
+      destination,
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+      tripType,
+      activities,
+      note,
+    };
     const problem = validateTripDraft(draft);
     setError(problem);
     if (!problem) onSubmit(draft);
@@ -105,12 +114,12 @@ export function PackingTripForm({
           <TextInput
             value={startDate}
             onChangeText={setStartDate}
-            placeholder="2026-09-12"
+            placeholder="MM/DD/YYYY"
             placeholderTextColor={LUXURY.colors.stone}
             style={styles.input}
             maxLength={10}
             autoCapitalize="none"
-            accessibilityLabel="Departure date, year dash month dash day"
+            accessibilityLabel="Departure date, month slash day slash year"
             testID="packing-start-date"
           />
         </View>
@@ -119,12 +128,12 @@ export function PackingTripForm({
           <TextInput
             value={endDate}
             onChangeText={setEndDate}
-            placeholder="2026-09-16"
+            placeholder="MM/DD/YYYY"
             placeholderTextColor={LUXURY.colors.stone}
             style={styles.input}
             maxLength={10}
             autoCapitalize="none"
-            accessibilityLabel="Return date, year dash month dash day"
+            accessibilityLabel="Return date, month slash day slash year"
             testID="packing-end-date"
           />
         </View>

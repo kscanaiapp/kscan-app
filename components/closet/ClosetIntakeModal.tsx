@@ -29,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
@@ -290,7 +291,10 @@ export function ClosetIntakeModal({
       onRequestClose={onClose}
       testID="closet-intake-modal"
     >
-      <View style={styles.container}>
+      <SafeAreaView
+        style={styles.container}
+        edges={Platform.OS === 'android' ? ['top'] : []}
+      >
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.heading}>Add to Closet</Text>
           <Text style={styles.sub}>
@@ -353,7 +357,7 @@ export function ClosetIntakeModal({
             </View>
           ) : null}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
