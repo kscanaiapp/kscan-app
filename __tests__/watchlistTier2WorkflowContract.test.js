@@ -8,7 +8,7 @@ function workflow(name) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\function assertFailClosedSweep(source, environment, variable, origin) {');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function assertFailClosedSweep(source, environment, variable, origin) {
@@ -20,7 +20,7 @@ function assertFailClosedSweep(source, environment, variable, origin) {
     source.includes('FUNCTIONS_URL: ${{ vars.' + variable + ' }}'),
     'workflow must use its scoped Functions URL',
   );
-  assert.match(source, new RegExp(origin.replace(/[.]/g, '\\.'), 'g'), 'workflow must require its exact Functions origin');
+  assert.match(source, new RegExp(escapeRegExp(origin), 'g'), 'workflow must require its exact Functions origin');
   assert.match(source, /\[ -n "\$\{WORKER_SECRET:-\}" \]\s+\|\|\s+MISSING=/, 'worker secret preflight must fail closed');
   assert.match(source, /x-watchlist-worker-secret: \$\{WORKER_SECRET\}/, 'worker request must authenticate with the governed header');
   assert.doesNotMatch(source, /echo[^\n]*WORKER_SECRET/, 'workflow must never log the worker secret');
