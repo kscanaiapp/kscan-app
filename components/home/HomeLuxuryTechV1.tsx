@@ -39,6 +39,9 @@ import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { PACKING_INTELLIGENCE_V1, SMART_WATCHLIST_V1, TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
 import { KPlusGate } from '../kplus/KPlusGate';
+import { KPlusMarkerBadge } from '../kplus/KPlusMarkerBadge';
+import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
+import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 
 
 interface FeatureChipProps {
@@ -116,6 +119,14 @@ export default function HomeLuxuryTechV1() {
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
   const packingEnabled = PACKING_INTELLIGENCE_V1;
   const watchlistEnabled = SMART_WATCHLIST_V1;
+
+  // Display-only K+ marker state for the Packing home entry. Reads the shared
+  // entitlement snapshot directly (no KPlusGate mount, no sheet, no extra
+  // telemetry): the chip's tap behavior and the on-screen K+ gate are
+  // unchanged. RESOLVING != FREE: while the entitlement answer is unknown,
+  // no marker is rendered at all.
+  const { state: packingKPlusState, isActive: packingKPlusActive } = useKPlusEntitlement();
+  const packingKPlusResolving = isKPlusEntitlementUnresolved(packingKPlusState);
 
   const preferredName = resolvePreferredName(user);
 
@@ -413,7 +424,15 @@ export default function HomeLuxuryTechV1() {
             testID="home-luxury-feature-packing"
             accessibilityLabel="Pack for a trip"
             accessibilityHint="Build a packing plan from the clothes in your Closet"
-          />
+          >
+            {!packingKPlusResolving && (
+              <KPlusMarkerBadge
+                state={packingKPlusActive ? 'included' : 'locked'}
+                testID="home-luxury-packing-kplus-badge"
+                style={styles.chipKPlusBadge}
+              />
+            )}
+          </FeatureChip>
         )}
       </View>
 
@@ -444,22 +463,34 @@ export default function HomeLuxuryTechV1() {
         {watchlistEnabled && (
           <KPlusGate source="watchlist">
             {({ isActive, resolving, openUpgrade }) => (
-              <SecondaryButton
-                testID="home-luxury-watchlist"
-                title="WATCHLIST"
-                icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
-                // RESOLVING != FREE: until the entitlement answer is known, a
-                // tap must not route an entitled customer into the upsell.
-                disabled={resolving}
-                onPress={() => {
-                  if (resolving) return;
-                  if (isActive) router.push('/watchlist');
-                  else openUpgrade();
-                }}
-                accessibilityLabel="Open Smart Watchlist"
-                accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ Early Access.'}
-                style={styles.secondaryActionButton}
-              />
+              <View style={styles.secondaryActionWrap}>
+                <SecondaryButton
+                  testID="home-luxury-watchlist"
+                  title="WATCHLIST"
+                  icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
+                  // RESOLVING != FREE: until the entitlement answer is known, a
+                  // tap must not route an entitled customer into the upsell.
+                  disabled={resolving}
+                  onPress={() => {
+                    if (resolving) return;
+                    if (isActive) router.push('/watchlist');
+                    else openUpgrade();
+                  }}
+                  accessibilityLabel="Open Smart Watchlist"
+                  accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ Early Access.'}
+                  style={styles.watchlistActionButton}
+                />
+                {!resolving && (
+                  <KPlusMarkerBadge
+                    state={isActive ? 'included' : 'locked'}
+                    testID="home-luxury-watchlist-kplus-badge"
+                    style={styles.secondaryActionKPlusBadge}
+                    // The badge is a corner marker on the button; it must not
+                    // intercept taps. Tap behavior (free -> K+ sheet, active ->
+                    // Watchlist, resolving -> disabled) is unchanged.
+                  />
+                )}
+              </View>
             )}
           </KPlusGate>
         )}
@@ -663,9 +694,32 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     marginBottom: SPACING.xl,
   },
+  secondaryActionWrap: {
+    flex: 1,
+    alignSelf: 'stretch',
+  },
   secondaryActionButton: {
     flex: 1,
     alignSelf: 'stretch',
     minWidth: undefined,
+  },
+  watchlistActionButton: {
+    flex: 1,
+    alignSelf: 'stretch',
+    minWidth: undefined,
+    paddingHorizontal: SPACING.md,
+  },
+  // Corner K+ marker on secondary entries (Watchlist). Sits on the button's
+  // top edge; decorative only (pointerEvents="none" in KPlusMarkerBadge).
+  secondaryActionKPlusBadge: {
+    position: 'absolute',
+    top: -7,
+    right: 10,
+  },
+  // Corner K+ marker on feature-grid chips (Pack for a Trip).
+  chipKPlusBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
   },
 });
