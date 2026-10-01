@@ -25,6 +25,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TextField } from '../StyleObjectCards';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
@@ -124,7 +125,10 @@ export function ClosetCandidateManualClassifyModal({
       onRequestClose={onClose}
       testID="closet-candidate-manual-modal"
     >
-      <View style={styles.container}>
+      <SafeAreaView
+        style={styles.container}
+        edges={Platform.OS === 'android' ? ['top'] : []}
+      >
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.heading}>Add details</Text>
           <Text style={styles.sub}>
@@ -182,7 +186,7 @@ export function ClosetCandidateManualClassifyModal({
             </View>
           )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

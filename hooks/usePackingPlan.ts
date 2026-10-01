@@ -13,6 +13,7 @@
 // plan, so the structured state and the screen cannot drift apart.
 
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import * as ExpoCrypto from 'expo-crypto';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useKPlusEntitlement } from './useKPlusEntitlement';
@@ -72,13 +73,21 @@ const EMPTY_SNAPSHOT: PackingSnapshot = {
   packedOff: [],
 };
 
-function newSessionId(): string {
+type RandomUuidProvider = { randomUUID?: () => string } | undefined;
+
+export function newSessionId(
+  webCrypto: RandomUuidProvider = globalThis.crypto,
+  expoRandomUUID: () => string = ExpoCrypto.randomUUID,
+): string {
   // The Packing task is carried on a StyleChat session id so the backend records
   // burst/daily usage against the same Elise budget. No new identity space.
   //
   // The id is NOT a persistence handle: nothing writes this session's message
   // stream, and a plan is never restored from it. See packingPlanStore.ts.
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  if (typeof webCrypto?.randomUUID === 'function') {
+    return webCrypto.randomUUID();
+  }
+  return expoRandomUUID();
 }
 
 export function usePackingPlan(): UsePackingPlanResult {
