@@ -15,7 +15,7 @@ import {
   normalizeVtoFeatureConfig,
   readVtoFeatureConfig,
 } from './vtoFeatureControl.ts';
-import { isEntitlementRowActive, resolveVtoEntitlement } from './vtoEntitlement.ts';
+import { resolveVtoEntitlement } from './vtoEntitlement.ts';
 import { evaluateServerVtoEligibility, toCanonicalVtoCategory } from './vtoEligibility.ts';
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { MOCK_VTO_RESULT_DATA_URI } from './providers/mockResultAsset.ts';
@@ -140,90 +140,83 @@ Deno.test('feature control: the mock latency knob is bounded', () => {
 
 // ── Entitlement ──────────────────────────────────────────────────────────────
 
-Deno.test('entitlement: an unreadable table is unknown, not denied and not active', async () => {
+Deno.test('entitlement: an unavailable canonical authority is unknown, not free', async () => {
   const outcome = await resolveVtoEntitlement('user-1', {
-    rest: () => Promise.resolve(new Response('nope', { status: 500 })),
+    rpc: () => Promise.resolve(new Response('nope', { status: 500 })),
   });
   assertEquals(outcome.state, 'unknown');
 });
 
-Deno.test('entitlement: no row means denied', async () => {
+Deno.test('entitlement: a confirmed canonical no-access answer is denied', async () => {
   const outcome = await resolveVtoEntitlement('user-1', {
-    rest: () => Promise.resolve(jsonResponse([])),
+    rpc: () => Promise.resolve(jsonResponse(false)),
   });
   assertEquals(outcome.state, 'denied');
 });
 
-Deno.test('entitlement: an active, unexpired grant is active', async () => {
-  const outcome = await resolveVtoEntitlement('user-1', {
-    rest: () =>
-      Promise.resolve(jsonResponse([{ status: 'active', expires_at: '2027-01-01T00:00:00Z' }])),
-    nowMs: Date.parse('2026-08-30T00:00:00Z'),
-  });
-  assertEquals(outcome.state, 'active');
-});
-
-Deno.test('entitlement: a row left active past its expiry is NOT access', async () => {
-  const outcome = await resolveVtoEntitlement('user-1', {
-    rest: () =>
-      Promise.resolve(jsonResponse([{ status: 'active', expires_at: '2026-01-01T00:00:00Z' }])),
-    nowMs: Date.parse('2026-08-30T00:00:00Z'),
-  });
-  assertEquals(outcome.state, 'denied');
-});
-
-Deno.test('entitlement: revoked and expired statuses are denied', () => {
-  const now = Date.parse('2026-08-30T00:00:00Z');
-  for (const status of ['revoked', 'expired', 'pending', '']) {
-    assertEquals(
-      isEntitlementRowActive({ status, expires_at: '2027-01-01T00:00:00Z' }, now),
-      false,
-      status,
-    );
+Deno.test('entitlement: every canonical active grant family is allowed identically', async () => {
+  for (const source of ['complimentary', 'store_subscription', 'trial', 'store_lifetime']) {
+    const outcome = await resolveVtoEntitlement(`actor-${source}`, {
+      rpc: () => Promise.resolve(jsonResponse(true)),
+    });
+    assertEquals(outcome.state, 'active', source);
   }
 });
 
-Deno.test('entitlement: a NULL-expiry grant is NOT active (SEC-KPLUS-003)', () => {
-  // This test previously asserted the opposite -- that a null expiry meant a
-  // legitimate non-expiring staff/admin grant. That was a VTO-only fork.
-  // Canonical K+ has no such concept: public.kplus_has_active_entitlement
-  // requires `expires_at is not null and expires_at > now()`, and even
-  // grant_kplus_early_access derives "active" the same way. VTO was the sole
-  // surface that would have honoured a null-expiry row.
-  const now = Date.parse('2026-08-30T00:00:00Z');
-  assertEquals(isEntitlementRowActive({ status: 'active', expires_at: null }, now), false);
-  assertEquals(isEntitlementRowActive({ status: 'active' }, now), false);
+Deno.test('entitlement: expiry, revocation and refund remain canonical denied answers', async () => {
+  for (const lifecycle of ['expired', 'revoked', 'refunded']) {
+    const outcome = await resolveVtoEntitlement(`actor-${lifecycle}`, {
+      rpc: () => Promise.resolve(jsonResponse(false)),
+    });
+    assertEquals(outcome.state, 'denied', lifecycle);
+  }
 });
 
-Deno.test('entitlement: a revoked grant is not active (SEC-KPLUS-003)', () => {
-  // Canonical additionally requires `revoked_at is null`; VTO never read it.
-  const now = Date.parse('2026-08-30T00:00:00Z');
-  assertEquals(
-    isEntitlementRowActive(
-      { status: 'active', expires_at: '2026-12-31T00:00:00Z', revoked_at: '2026-08-01T00:00:00Z' },
-      now,
-    ),
-    false,
-  );
+Deno.test('entitlement: malformed canonical responses are unknown, never free', async () => {
+  for (const value of [null, undefined, 0, 1, 'true', [], {}, { hasAccess: true }]) {
+    const response = value === undefined
+      ? new Response(undefined, { status: 200 })
+      : jsonResponse(value);
+    const outcome = await resolveVtoEntitlement('user-1', {
+      rpc: () => Promise.resolve(response),
+    });
+    assertEquals(outcome.state, 'unknown', JSON.stringify(value));
+  }
 });
 
-Deno.test('entitlement: an unparseable expiry is denied rather than assumed valid', () => {
-  const now = Date.parse('2026-08-30T00:00:00Z');
-  assertEquals(isEntitlementRowActive({ status: 'active', expires_at: 'soon' }, now), false);
-});
-
-Deno.test('entitlement: the query is scoped to the k_plus key and the given user', async () => {
-  let path = '';
-  await resolveVtoEntitlement('user-42', {
-    rest: (p: string) => {
-      path = p;
-      return Promise.resolve(jsonResponse([]));
+Deno.test('entitlement: canonical lookup is bound to the authenticated actor and K+ key', async () => {
+  const calls: Array<{ fn: string; body: Record<string, unknown> }> = [];
+  const rpc = (fn: string, body: Record<string, unknown>) => {
+    calls.push({ fn, body });
+    return Promise.resolve(jsonResponse(body.p_user_id === 'actor-a'));
+  };
+  const actorA = await resolveVtoEntitlement('actor-a', { rpc });
+  const actorB = await resolveVtoEntitlement('actor-b', { rpc });
+  assertEquals(actorA.state, 'active');
+  assertEquals(actorB.state, 'denied', 'actor A\'s positive result must not be reused for actor B');
+  assertEquals(calls, [
+    {
+      fn: 'kplus_has_active_entitlement',
+      body: { p_user_id: 'actor-a', p_entitlement_key: 'k_plus' },
     },
-  });
-  assert(path.includes('user_id=eq.user-42'));
-  assert(path.includes('entitlement_key=eq.k_plus'));
-  // No VTO-specific entitlement key exists, and none is invented here.
-  assert(!path.includes('vto'));
+    {
+      fn: 'kplus_has_active_entitlement',
+      body: { p_user_id: 'actor-b', p_entitlement_key: 'k_plus' },
+    },
+  ]);
+});
+
+Deno.test('entitlement: a fresh retry recovers after temporary authority failure', async () => {
+  let attempts = 0;
+  const rpc = () => {
+    attempts += 1;
+    return attempts === 1
+      ? Promise.reject(new Error('temporary outage'))
+      : Promise.resolve(jsonResponse(true));
+  };
+  assertEquals((await resolveVtoEntitlement('user-1', { rpc })).state, 'unknown');
+  assertEquals((await resolveVtoEntitlement('user-1', { rpc })).state, 'active');
+  assertEquals(attempts, 2);
 });
 
 // ── Eligibility ──────────────────────────────────────────────────────────────
