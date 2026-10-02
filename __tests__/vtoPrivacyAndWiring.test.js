@@ -911,6 +911,21 @@ test('no VTO module invents a second entitlement key', () => {
   );
 });
 
+test('VTO entitlement authorization cannot reintroduce the legacy direct-table fallback', () => {
+  const source = read('supabase/functions/vto-generate/vtoEntitlement.ts');
+  assert.doesNotMatch(
+    source,
+    /user_entitlements/,
+    'VTO must ask only the canonical K+ authority, never the legacy entitlement table',
+  );
+  assert.doesNotMatch(
+    source,
+    /\brest\s*\(|\.from\(\s*['"]user_entitlements['"]\s*\)/,
+    'VTO entitlement authorization must not add a direct table read under another call shape',
+  );
+  assert.match(source, /call\('kplus_has_active_entitlement'/);
+});
+
 // ── Commerce identity integrity (product-integration continuation) ──────────
 
 test('Shop is driven only by the onShop prop, never reconstructed from a result or provider response', () => {
