@@ -6,7 +6,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { KPLUS_ACTIVATION_OFFER_TERM } from '../../constants/featureFlags';
+import {
+  KPLUS_ACTIVATION_OFFER_TERM,
+  KPLUS_EARLY_ACCESS_ENABLED,
+} from '../../constants/featureFlags';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
@@ -47,7 +50,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   // lines, so it promised Voice Scan whatever the build compiled in and two
   // vague lines ("style intelligence", "wardrobe tools") whether or not any
   // capability behind them worked.
-  const { signals: liveSignals } = useKPlusLiveCapabilitySignals(visible);
+  const { signals: liveSignals } = useKPlusLiveCapabilitySignals(
+    visible && KPLUS_EARLY_ACCESS_ENABLED,
+  );
   const advertisedCapabilities = useMemo(
     () => resolveActivationCapabilities({}, undefined, liveSignals),
     [liveSignals],
@@ -57,7 +62,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
     if (visible) {
       setError(null);
       refresh();
-      emitKPlusEvent('kplus_early_access_viewed', { source, feature: source, entitlement_state: state });
+      if (KPLUS_EARLY_ACCESS_ENABLED) {
+        emitKPlusEvent('kplus_early_access_viewed', { source, feature: source, entitlement_state: state });
+      }
     }
     // entitlement_state deliberately excluded from deps: this reports the
     // state AT THE MOMENT the sheet became visible, not on every subsequent
@@ -66,6 +73,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   }, [visible, refresh, source]);
 
   const handleActivate = async () => {
+    // Defense in depth for a stale mounted control. The hook repeats this
+    // guard, so an off build cannot reach the complimentary network mutation.
+    if (!KPLUS_EARLY_ACCESS_ENABLED) return;
     setActivating(true);
     setError(null);
     emitKPlusEvent('kplus_activation_started', { source, feature: source, entitlement_state: state });
@@ -83,11 +93,9 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
     }
     // CERT-CLIENT-002 -- 'campaign_consumed' is not an activation.
     //
-    // The activate CTA is shown to anyone whose state is not 'active', which
-    // includes an expired and a revoked member. For them the store returns
-    // 'campaign_consumed': the campaign is spent, nothing was granted, and the
-    // sheet correctly keeps showing the non-active copy. But this handler
-    // treated every non-'failed' outcome as success -- so it announced "K+
+    // A stale activation attempt for an expired or revoked member returns
+    // 'campaign_consumed': the campaign is spent and nothing was granted. This
+    // handler once treated every non-'failed' outcome as success -- so it announced "K+
     // Early Access activated." to screen-reader users and counted a
     // kplus_activation_completed in the funnel. The announcement is the only
     // channel where that false claim was ever actually delivered, which is
@@ -124,6 +132,8 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   // Early Access with a live Activate button and no way to re-check.
   const resolving = isKPlusEntitlementUnresolved(state);
   const unreadable = state === 'error';
+  const complimentaryOfferAvailable =
+    KPLUS_EARLY_ACCESS_ENABLED && state === 'eligible';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -133,15 +143,14 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
             {isActive ? (
               <>
                 <Text style={styles.eyebrow}>K+ ACTIVATED</Text>
-                <Text style={styles.title}>Complimentary Early Access</Text>
+                <Text style={styles.title}>K+ access is active</Text>
                 <Text style={styles.body}>
                   {expiresAt
                     ? `Active through ${formatExpiry(expiresAt)}.`
-                    : 'Your K+ Early Access is active.'}
+                    : 'Your K+ access is active.'}
                 </Text>
                 {/* POLISH-003: say what changed, not only that it worked. */}
                 <Text style={styles.body}>K+ features are now unlocked on this account.</Text>
-                <Text style={styles.finePrint}>No automatic charges.</Text>
               </>
             ) : isExpired ? (
               <>
@@ -171,7 +180,7 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                     : 'One moment.'}
                 </Text>
               </View>
-            ) : (
+            ) : complimentaryOfferAvailable ? (
               <>
                 <Text style={styles.eyebrow}>K+</Text>
                 <Text style={styles.title}>More ways to use K Scan AI.</Text>
@@ -192,14 +201,20 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                   If paid K+ becomes available later, continuing will require a separate purchase confirmation.
                 </Text>
               </>
+            ) : (
+              <>
+                <Text style={styles.eyebrow}>K+</Text>
+                <Text style={styles.title}>K+ access</Text>
+                <Text style={styles.body}>
+                  Complimentary Early Access activation is not available in this build.
+                </Text>
+              </>
             )}
 
             {error ? <InlineNotice variant="error" body={error} style={styles.notice} /> : null}
 
             <View style={styles.actions}>
-              {isActive || isExpired ? (
-                <PrimaryButton title="Done" onPress={onClose} accessibilityHint="Closes this sheet" />
-              ) : resolving ? (
+              {resolving ? (
                 <>
                   {unreadable ? (
                     <PrimaryButton
@@ -211,13 +226,14 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                   ) : null}
                   <SecondaryButton title="Not Now" onPress={onClose} />
                 </>
+              ) : isActive || isExpired || !complimentaryOfferAvailable ? (
+                <PrimaryButton title="Done" onPress={onClose} accessibilityHint="Closes this sheet" />
               ) : (
                 <>
                   <PrimaryButton
                     title="Activate K+ Early Access"
                     onPress={handleActivate}
                     loading={activating}
-                    disabled={state === 'loading'}
                   />
                   <SecondaryButton title="Not Now" onPress={onClose} />
                 </>

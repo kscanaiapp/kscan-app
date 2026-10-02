@@ -314,7 +314,7 @@ test('activation events fire started -> (completed | failed), in that order, fro
 
 test('Voice Scan K+ pill checks VOICESCAN_ENABLED before rendering (K+ cannot bypass the feature flag)', () => {
   const src = read('components/text-scan/TextScanFeatureRow.tsx');
-  assert.match(src, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
+  assert.match(src, /if \(!VOICESCAN_ENABLED\)/);
   // The guard must precede the KPlusGate render, not follow it.
   const guardIdx = src.indexOf('if (!VOICESCAN_ENABLED');
   const gateIdx = src.indexOf('<KPlusGate source="voice_scan">');
@@ -351,8 +351,8 @@ test('Voice Scan pill disables its own press and never opens the sheet for an ac
   // BUILD34-KPLUS-RESOLVING-001 widened both guards from `isActive` to
   // `isActive || resolving`: an UNREAD entitlement must not open the sheet
   // either, so the block is inert for an active member AND while resolving.
-  assert.match(fn, /onPress=\{isActive \|\| resolving \? undefined : openUpgrade\}/);
-  assert.match(fn, /disabled=\{isActive \|\| resolving\}/);
+  assert.match(fn, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED \? undefined : openUpgrade/);
+  assert.match(fn, /disabled=\{isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED\}/);
 });
 
 test('Watchlist entry points route active members straight to the feature, never to openUpgrade', () => {
@@ -395,7 +395,7 @@ test('the shared sheet renders a distinct, truthful expired state with no Activa
   const expiredCopyIdx = sheet.indexOf('K+ Early Access period ended');
   const activateButtonIdx = sheet.indexOf('title="Activate K+ Early Access"');
   assert.ok(expiredCopyIdx > 0 && activateButtonIdx > expiredCopyIdx);
-  assert.match(sheet, /isActive \|\| isExpired \? \(/);
+  assert.match(sheet, /resolving \? \([\s\S]*isActive \|\| isExpired \|\| !complimentaryOfferAvailable \? \(/);
 });
 
 // ---------------------------------------------------------------------------

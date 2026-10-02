@@ -1,4 +1,4 @@
-// K+ boundary FEATURE FLAG suite.
+// K+ legacy complimentary-acquisition FEATURE FLAG suite.
 //
 // Proves KPLUS_EARLY_ACCESS_ENABLED fails closed on anything but the exact
 // string 'true', and that VOICESCAN_ENABLED is a SEPARATE gate that fails
@@ -10,14 +10,13 @@
 // was nothing to switch on. The two flags answer different questions and are
 // asserted independently here:
 //
-//   KPLUS_EARLY_ACCESS_ENABLED  does the K+ boundary EXIST in this build
+//   KPLUS_EARLY_ACCESS_ENABLED  may this build offer complimentary activation
 //   VOICESCAN_ENABLED           is the Voice capability BUILT in this build
 //   the user's entitlement      may THIS user use it (runtime, not a flag)
 //
-// All three must be true for Voice to run. Build 34 K+ Early Access shell
-// (section 8) reads both flags from components/text-scan/TextScanFeatureRow.tsx
-// so the K+ Voice pill cannot advertise a capability the build lacks -- see
-// kplusSurfaceWiring.test.js.
+// Voice availability and canonical entitlement must be true for Voice to run.
+// The Early Access flag controls only whether a free actor sees the legacy
+// complimentary acquisition CTA; it never hides Voice from an active K+ actor.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -80,8 +79,8 @@ test('KPLUS_EARLY_ACCESS_ENABLED turns on only via EXPO_PUBLIC_KPLUS_EARLY_ACCES
 // What the test protects is unchanged, and is what actually mattered:
 // K+ and Voice are INDEPENDENT gates, and Voice fails closed by default.
 test('VOICESCAN_ENABLED is env-driven and defaults OFF, independently of K+', () => {
-  // K+ on, Voice unset -> Voice still off. The K+ boundary existing must
-  // never imply a K+-gated capability is available.
+  // Complimentary acquisition on, Voice unset -> Voice still off. An
+  // acquisition surface must never imply a K+-gated capability is available.
   const flags = loadFlags({ EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED: 'true' });
   assert.equal(flags.VOICESCAN_ENABLED, false);
   assert.doesNotMatch(

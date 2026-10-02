@@ -300,7 +300,7 @@ export default function PrivacyScreen() {
   const kPlusEntitlement = useKPlusEntitlement();
 
   useEffect(() => {
-    if (isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED) {
+    if (isAuthenticated) {
       emitKPlusEvent('kplus_feature_exposed', { source: 'account', feature: 'account' });
     }
   }, [isAuthenticated]);
@@ -313,7 +313,11 @@ export default function PrivacyScreen() {
       })
     : null;
   // POLISH-002: RESOLVING != FREE -- 'loading'/'error' no longer show the offer.
-  const kPlusStatus = describeKPlusAccountStatus(kPlusEntitlement.state, kPlusExpiryLabel);
+  const kPlusStatus = describeKPlusAccountStatus(
+    kPlusEntitlement.state,
+    kPlusExpiryLabel,
+    KPLUS_EARLY_ACCESS_ENABLED,
+  );
   const kPlusPillLabel = kPlusStatus.pillLabel;
   const kPlusPillVariant = kPlusStatus.pillVariant;
   const kPlusStatusSubtitle = kPlusStatus.subtitle;
@@ -654,7 +658,7 @@ export default function PrivacyScreen() {
               </View>
             ) : null}
 
-            {isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED ? (
+            {isAuthenticated ? (
               <View style={styles.sectionCard}>
                 <SectionHeader
                   title="K+"
@@ -662,7 +666,7 @@ export default function PrivacyScreen() {
                   actionLabel={kPlusActionLabel}
                   actionVariant="pill"
                   onAction={
-                    kPlusStatus.action === 'activate'
+                    kPlusStatus.action === 'activate' && KPLUS_EARLY_ACCESS_ENABLED
                       ? () => {
                           emitKPlusEvent('kplus_feature_gate_opened', {
                             source: 'account',

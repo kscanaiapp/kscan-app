@@ -208,10 +208,15 @@ test('POLISH-001 CONTROL: an eligible actor still gets the offer (the harness re
 });
 
 test('POLISH-001 NEGATIVE CONTROL: without the resolving branch the error state pitches the offer again', () => {
-  const mutate = (s) => s.replace(
-    'const resolving = isKPlusEntitlementUnresolved(state);',
-    'const resolving = false;',
-  );
+  const mutate = (s) => s
+    .replace(
+      'const resolving = isKPlusEntitlementUnresolved(state);',
+      'const resolving = false;',
+    )
+    .replace(
+      "KPLUS_EARLY_ACCESS_ENABLED && state === 'eligible';",
+      'true;',
+    );
   assert.notEqual(mutate(read(SHEET)), read(SHEET), 'the mutation must apply');
   assertFails(() => assertUnresolvedShowsNoOffer(renderSheet('error', { mutate }), 'error'), 'error renders offer');
   assertFails(() => assertUnresolvedShowsNoOffer(renderSheet('loading', { mutate }), 'loading'), 'loading renders offer');
@@ -236,8 +241,9 @@ test('POLISH-007: the Done button is announced as "Done", not "Close"', () => {
 const ACCOUNT_STATUS = 'services/kplus/kplusAccountStatus.ts';
 const OFFER_COPY = 'Complimentary for 6 months. No payment required.';
 
-function accountStatus(mutate) {
-  return load(ACCOUNT_STATUS, { mutate }).describeKPlusAccountStatus;
+function accountStatus(mutate, complimentaryAcquisitionEnabled = true) {
+  const describe = load(ACCOUNT_STATUS, { mutate }).describeKPlusAccountStatus;
+  return (state, expiryLabel) => describe(state, expiryLabel, complimentaryAcquisitionEnabled);
 }
 
 function assertResolvingIsNotFree(describe) {
@@ -263,9 +269,16 @@ test('POLISH-002: the resolved states keep their existing presentation', () => {
   );
   const active = describe('active', 'March 1, 2027');
   assert.equal(active.subtitle, 'Active through March 1, 2027.');
-  assert.equal(active.pillLabel, 'Early Access Active');
+  assert.equal(active.pillLabel, 'K+ Active');
   assert.equal(active.pillVariant, 'gold');
   assert.equal(active.action, null);
+});
+
+test('Build 35: acquisition OFF keeps the resolved Free account state but removes complimentary offer copy', () => {
+  const eligible = accountStatus(undefined, false)('eligible', null);
+  assert.equal(eligible.subtitle, 'K+ is not active on this account.');
+  assert.equal(eligible.pillLabel, 'K Scan AI Free');
+  assert.equal(eligible.action, null);
 });
 
 test('POLISH-002 NEGATIVE CONTROL: the pre-repair fallthrough (offer for every unknown state) is caught', () => {
@@ -287,7 +300,7 @@ test('POLISH-008: the expired subtitle adds information instead of repeating the
 
 test('POLISH-002: the Account screen renders the helper and wires retry to refresh', () => {
   const privacy = read('app/privacy.tsx');
-  assert.match(privacy, /describeKPlusAccountStatus\(kPlusEntitlement\.state, kPlusExpiryLabel\)/);
+  assert.match(privacy, /describeKPlusAccountStatus\([\s\S]*kPlusEntitlement\.state,[\s\S]*KPLUS_EARLY_ACCESS_ENABLED/);
   assert.match(privacy, /kPlusStatus\.action === 'retry'\s*\?\s*kPlusEntitlement\.refresh/);
   assert.ok(!privacy.includes(OFFER_COPY), 'the offer copy lives in one place, the helper');
 });

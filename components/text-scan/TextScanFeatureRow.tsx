@@ -63,17 +63,13 @@ function FeatureBlockView({ feature }: { feature: FeatureBlock }) {
  *
  * Build 34 K+ Early Access shell, section 8 (Voice Scan special case): the
  * K+-branded pill must never render while Voice Scan's own implementation
- * flag (VOICESCAN_ENABLED) is off, regardless of the K+ boundary rollout --
- * a K+ entry point may not advertise a capability the build cannot execute.
- * Legacy "Coming Soon" placeholder covers both "K+ boundary off" and
- * "Voice Scan not implemented yet"; otherwise a live K+ upgrade surface --
- * "Unlock with K+" opens the shared K+ Early Access sheet, "Included with K+"
- * for an active member. (POLISH-005: "Unlock", not "Upgrade" -- K+ in this
- * build is complimentary activation with no purchase path, and "Upgrade" sent
- * people looking for one.)
+ * flag (VOICESCAN_ENABLED) is off -- a K+ entitlement may not advertise a
+ * capability the build cannot execute. Once Voice Scan exists, canonical
+ * `isActive` alone authorizes it. The Early Access flag controls only whether
+ * a free actor can open the legacy complimentary acquisition sheet.
  */
 function VoiceScanBlock() {
-  if (!VOICESCAN_ENABLED || !KPLUS_EARLY_ACCESS_ENABLED) {
+  if (!VOICESCAN_ENABLED) {
     return (
       <FeatureBlockView
         feature={{ title: 'VOICE TO SEARCH', body: 'Future', badge: 'Coming Soon' }}
@@ -90,15 +86,19 @@ function VoiceScanBlock() {
           // block states neither "included" nor "upgrade" -- both would be a
           // claim about an entitlement nobody has read yet -- and the tap is
           // inert rather than routed into the upsell.
-          onPress={isActive || resolving ? undefined : openUpgrade}
-          disabled={isActive || resolving}
+          onPress={
+            isActive || resolving || !KPLUS_EARLY_ACCESS_ENABLED ? undefined : openUpgrade
+          }
+          disabled={isActive || resolving || !KPLUS_EARLY_ACCESS_ENABLED}
           accessibilityRole="button"
           accessibilityLabel={
             resolving
               ? 'Voice Scan, checking your K+ status'
               : isActive
                 ? 'Voice Scan, included with K+'
-                : 'Voice Scan, unlock with K+'
+                : KPLUS_EARLY_ACCESS_ENABLED
+                  ? 'Voice Scan, unlock with K+'
+                  : 'Voice Scan, K+ required'
           }
           testID="text-scan-voice-kplus-block"
         >
@@ -108,9 +108,17 @@ function VoiceScanBlock() {
               body: resolving
                 ? 'Checking your K+ status.'
                 : isActive
-                  ? 'Included with your K+ Early Access.'
-                  : 'Unlock with K+ Early Access.',
-              badge: resolving ? 'K+' : isActive ? 'Included with K+' : 'Unlock with K+',
+                  ? 'Included with K+.'
+                  : KPLUS_EARLY_ACCESS_ENABLED
+                    ? 'Unlock with K+ Early Access.'
+                    : 'Available with K+.',
+              badge: resolving
+                ? 'K+'
+                : isActive
+                  ? 'Included with K+'
+                  : KPLUS_EARLY_ACCESS_ENABLED
+                    ? 'Unlock with K+'
+                    : 'K+',
             }}
           />
         </Pressable>

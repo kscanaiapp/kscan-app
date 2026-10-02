@@ -65,7 +65,7 @@ export type KPlusResolvedState =
   | 'eligible' // authenticated, no grant yet -- can activate
   | 'active'
   | 'expired' // campaign consumed, not active
-  | 'unavailable' // not authenticated, or KPLUS_EARLY_ACCESS_ENABLED is off
+  | 'unavailable' // not authenticated -- acquisition flags never hide entitlement truth
   | 'error'; // transient read failure -- fails closed to "no premium access"
 
 export interface KPlusEntitlementSnapshot {
@@ -109,9 +109,9 @@ export const KPLUS_TERMS_VERSION = 'kplus_early_access_v1' as const;
  * read, so the two cannot drift.
  *
  * NOT INCLUDED, deliberately:
- *   'unavailable' -- a definite answer ("K+ does not apply to this build or
- *                    this signed-out session"), which each surface already
- *                    handles through its own build flag / auth check.
+ *   'unavailable' -- a definite signed-out answer, which each surface handles
+ *                    through its own auth check. Acquisition flags do not
+ *                    produce entitlement state.
  *   'eligible' / 'expired' -- genuine free-tier states. The upsell is correct
  *                    and intended there; suppressing it would break conversion.
  *

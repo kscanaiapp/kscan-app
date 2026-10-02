@@ -36,7 +36,10 @@ import {
 } from 'react-native';
 import { InlineNotice, PrimaryButton } from '../luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { KPLUS_ACTIVATION_OFFER_TERM } from '../../constants/featureFlags';
+import {
+  KPLUS_ACTIVATION_OFFER_TERM,
+  KPLUS_EARLY_ACCESS_ENABLED,
+} from '../../constants/featureFlags';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
@@ -62,8 +65,8 @@ export interface KPlusActivationStepProps {
   /** Continue into the K Scan AI Free experience (also used after a successful
    *  activation, and after any terminal state that is not an offer). */
   onContinue: () => void;
-  /** The actor already holds K+ (or K+ is not presentable in this build), so
-   *  this step must not be shown at all. */
+  /** The actor already holds K+, or complimentary acquisition is unavailable,
+   *  so this step must not be shown at all. */
   onSkip: () => void;
 }
 
@@ -107,11 +110,11 @@ export function KPlusActivationStep({ onContinue, onSkip }: KPlusActivationStepP
     [liveSignals],
   );
 
-  // Nothing to offer: either K+ is already the actor's, K+ is not presentable
-  // in this build/session ('unavailable'), or -- once the live answer is in --
-  // this build advertises none of the approved capabilities. Never advertise an
-  // empty offer.
-  const nothingToOffer = isActive || state === 'unavailable' ||
+  // Nothing to offer: either complimentary acquisition is disabled, K+ is
+  // already the actor's, the actor is signed out ('unavailable'), or -- once
+  // the live answer is in -- this build advertises none of the approved
+  // capabilities. The acquisition flag never decides entitlement truth.
+  const nothingToOffer = !KPLUS_EARLY_ACCESS_ENABLED || isActive || state === 'unavailable' ||
     (liveSignalsSettled && capabilities.length === 0);
 
   useEffect(() => {
