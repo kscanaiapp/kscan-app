@@ -145,6 +145,12 @@ test('committed manifest governs every governed function and the approved projec
   // It is separately governed rather than folded into process-account-deletions
   // because production runs that worker at v25, and merging it in would drag
   // the whole newer worker source into a production deploy.
+  //
+  // kplus-revenuecat-webhook joined under Build 35 K+ Phase C -- the inbound
+  // RevenueCat lifecycle webhook. New source governed from birth: manifest
+  // entry, verify_jwt = false in supabase/config.toml (RevenueCat cannot send a
+  // Supabase JWT; the function authenticates every request itself), and
+  // deliberately absent from the staging auto-deploy allowlist.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
@@ -154,6 +160,7 @@ test('committed manifest governs every governed function and the approved projec
     'kickscrew-sneaker-description',
     'kplus-activate',
     'kplus-reconcile-revenuecat',
+    'kplus-revenuecat-webhook',
     'nike-shoe-details',
     'privacy-correction-request',
     'privacy-data-export',

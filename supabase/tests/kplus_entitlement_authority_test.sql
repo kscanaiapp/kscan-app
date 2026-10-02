@@ -204,7 +204,7 @@ select ok(pg_temp.summary('free')->'store' = 'null'::jsonb and pg_temp.summary('
 select is((pg_temp.summary('free')->'accountManagement'->>'storeManagementRelevant')::boolean, false,
   'B6: free has no store management');
 select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.summary('free')) k),
-  array['access', 'accountManagement', 'billingState', 'contractVersion', 'displaySource',
+  array['access', 'accountManagement', 'billingState', 'complimentaryHistory', 'contractVersion', 'displaySource',
         'effectiveExpiresAt', 'entitlementKey', 'isOpenEnded', 'snapshotIssuedAt', 'store',
         'trialEndsAt', 'willRenew'],
   'B7: the summary exposes exactly the contract keys');
