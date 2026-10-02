@@ -40,6 +40,7 @@ import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGre
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
+import { resetKPlusCommerce } from '../services/kplus/kplusCommerceService';
 import {
   claimDeviceForCurrentActor,
   revokeWatchAlertsForThisDevice,
@@ -113,6 +114,10 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // K+ status is account-scoped: never let it survive a sign-out or leak
   // into the next signed-in actor on this device.
   resetKPlusEntitlementCache();
+  // The native commerce layer holds the previous actor's offerings and is bound
+  // to that actor's RevenueCat customer: drop both, discard any in-flight
+  // purchase / restore completion, and detach the SDK from the old customer.
+  resetKPlusCommerce();
   // A Packing plan names garments from ONE account's Closet. It must not stay
   // visible, refinable, or even readable after the actor changes -- and the
   // trip itself (destination, dates, notes) is personal too. Cleared here
