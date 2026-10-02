@@ -1,77 +1,21 @@
 /**
- * K+ entitlement client. Server-authoritative -- this module only ever
- * reads the caller's own RLS-scoped user_entitlements row and invokes the
- * kplus-activate Edge Function. It never computes, extends, or invents an
- * entitlement locally.
+ * K+ Early Access activation client. Server-authoritative -- this module only
+ * invokes the kplus-activate Edge Function. It never computes, extends, or
+ * invents an entitlement locally.
+ *
+ * It does NOT read entitlement state. Since Build 35 Phase A the one reader is
+ * services/kplus/kplusEntitlementReader.ts (get_my_kplus_entitlement_summary),
+ * which sees every grant the server holds; the Build 34 direct read of the
+ * caller's user_entitlements row was removed because it could only see the
+ * legacy complimentary row.
  */
 import { supabase } from '../supabaseClient';
 import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSession';
-import {
-  KPLUS_ENTITLEMENT_KEY,
-  type KPlusEntitlementRow,
-  type KPlusExternalSyncStatus,
-} from '../../types/entitlements';
-
-export type FetchKPlusStatusResult =
-  | { ok: true; row: KPlusEntitlementRow | null }
-  | { ok: false; reason: 'signed_out' | 'read_failed' };
+import type { KPlusEntitlementRow } from '../../types/entitlements';
 
 export type ActivateKPlusResult =
   | { ok: true; row: KPlusEntitlementRow }
   | { ok: false; reason: 'signed_out' | 'session_expired' | 'request_failed' };
-
-interface RawEntitlementRow {
-  entitlement_key: string;
-  status: string;
-  grant_reason: string;
-  campaign_key: string | null;
-  granted_at: string;
-  expires_at: string | null;
-  revoked_at: string | null;
-  external_sync_status: string;
-}
-
-function toEntitlementRow(raw: RawEntitlementRow): KPlusEntitlementRow {
-  return {
-    entitlementKey: raw.entitlement_key,
-    status: raw.status as KPlusEntitlementRow['status'],
-    grantReason: raw.grant_reason as KPlusEntitlementRow['grantReason'],
-    campaignKey: raw.campaign_key,
-    grantedAt: raw.granted_at,
-    expiresAt: raw.expires_at,
-    // CERT-CLIENT-001: revoked_at is part of the canonical K+ predicate. The
-    // client used to neither select nor carry it, so an operator revocation
-    // that set revoked_at without also rewriting status rendered as ACTIVE.
-    revokedAt: raw.revoked_at ?? null,
-    externalSyncStatus: raw.external_sync_status as KPlusExternalSyncStatus,
-  };
-}
-
-/**
- * Reads the caller's own K+ row directly (RLS: `auth.uid() = user_id`).
- * Returns `row: null` when the user has never activated -- that is not an
- * error, it is the 'eligible' state.
- */
-export async function fetchKPlusStatus(): Promise<FetchKPlusStatusResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user?.id) {
-    return { ok: false, reason: 'signed_out' };
-  }
-
-  const { data, error } = await supabase
-    .from('user_entitlements')
-    .select('entitlement_key, status, grant_reason, campaign_key, granted_at, expires_at, revoked_at, external_sync_status')
-    .eq('entitlement_key', KPLUS_ENTITLEMENT_KEY)
-    .maybeSingle();
-
-  if (error) {
-    return { ok: false, reason: 'read_failed' };
-  }
-
-  return { ok: true, row: data ? toEntitlementRow(data as RawEntitlementRow) : null };
-}
 
 /**
  * Calls the kplus-activate Edge Function. The server derives identity from

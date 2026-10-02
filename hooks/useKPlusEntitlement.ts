@@ -66,6 +66,8 @@ export function useKPlusEntitlement(): UseKPlusEntitlementResult {
       expiresAt: null,
       campaignKey: null,
       externalSyncStatus: null,
+      displaySource: null,
+      isOpenEnded: false,
       isActive: false,
       refresh,
       activate,

@@ -13,20 +13,27 @@ import {
   KPLUS_COMPLIMENTARY_SOURCES,
   KPLUS_ENTITLEMENT_ACTIVATED_EVENT,
   KPLUS_GRANT_SOURCES,
+  KPLUS_LIFETIME_EVENT_LIFECYCLE,
+  KPLUS_LIFETIME_PROVIDER_EVENT_TYPES,
   KPLUS_PERIOD_TYPES,
   KPLUS_PROVIDER_EVENT_TYPES,
+  KPLUS_STORE_GRANT_SOURCES,
   REVENUECAT_ENVIRONMENT_TO_KPLUS,
   REVENUECAT_EVENT_FIELDS_NEVER_PERSISTED,
   REVENUECAT_EVENT_TYPE_TO_KPLUS,
+  REVENUECAT_EVENT_TYPE_TO_KPLUS_LIFETIME,
   REVENUECAT_PERIOD_TYPE_TO_KPLUS,
   REVENUECAT_STORE_TO_KPLUS_STORE,
   REVENUECAT_STORES_NEVER_AUTHORITATIVE,
+  deriveKPlusLifetimePurchaseRefDigest,
   deriveKPlusSubscriptionRefDigest,
   kplusDeletionRequiresSubscriptionNotice,
+  toApplyKPlusProviderLifetimeTransitionArgs,
   toApplyKPlusProviderTransitionArgs,
   toGrantKPlusComplimentaryArgs,
   toKPlusEntitlementActivatedEvent,
   type KPlusEntitlementSummary,
+  type KPlusLifetimeTransitionInput,
   type KPlusProviderTransitionInput,
 } from './kplusEntitlementContract.ts';
 
@@ -38,6 +45,15 @@ function migrationSql(): string {
     .map((entry) => entry.name)
     .filter((name) => /^\d{14}_kplus_entitlement_authority\.sql$/.test(name));
   assert.equal(names.length, 1, 'exactly one K+ entitlement authority migration must exist');
+  return Deno.readTextFileSync(new URL(names[0], MIGRATIONS));
+}
+
+/** The Build 35 Phase A migration (lifetime store grant). */
+function lifetimeMigrationSql(): string {
+  const names = [...Deno.readDirSync(MIGRATIONS)]
+    .map((entry) => entry.name)
+    .filter((name) => /^\d{14}_kplus_paid_lifetime_entitlement_foundation\.sql$/.test(name));
+  assert.equal(names.length, 1, 'exactly one K+ lifetime foundation migration must exist');
   return Deno.readTextFileSync(new URL(names[0], MIGRATIONS));
 }
 
@@ -90,12 +106,79 @@ test('the complimentary grant arguments are exactly the SQL function parameters'
   assert.equal(args.p_expires_at, null, 'an omitted expiry is a deliberate open-ended grant');
 });
 
-test('the complimentary boundary cannot name a store subscription source', () => {
+test('the complimentary boundary cannot name a store source (subscription or lifetime)', () => {
   assert.ok(!(KPLUS_COMPLIMENTARY_SOURCES as readonly string[]).includes('store_subscription'));
+  assert.ok(!(KPLUS_COMPLIMENTARY_SOURCES as readonly string[]).includes('store_lifetime'));
   assert.deepEqual(
     [...KPLUS_COMPLIMENTARY_SOURCES].sort(),
-    KPLUS_GRANT_SOURCES.filter((source) => source !== 'store_subscription').sort(),
+    KPLUS_GRANT_SOURCES.filter((source) => !(KPLUS_STORE_GRANT_SOURCES as readonly string[]).includes(source)).sort(),
   );
+});
+
+// ── Build 35 Phase A: the lifetime store grant ────────────────────────────────
+
+const LIFETIME: KPlusLifetimeTransitionInput = {
+  userId: '11111111-1111-4111-8111-111111111111',
+  provider: 'revenuecat',
+  cause: 'provider_event',
+  externalEventId: 'evt-life-1',
+  providerEventType: 'lifetime_purchase',
+  providerOccurredAt: '2026-10-02T00:00:00.000Z',
+  environment: 'production',
+  store: 'apple',
+  productId: 'kscan.kplus.synthetic.lifetime',
+  purchaseRefDigest: DIGEST,
+  lifecycleState: 'active',
+  purchasedAt: '2026-10-02T00:00:00.000Z',
+};
+
+test('the lifetime transition arguments are exactly the SQL function parameters', () => {
+  const args = toApplyKPlusProviderLifetimeTransitionArgs(LIFETIME);
+  assert.deepEqual(Object.keys(args).sort(), sqlParameterNames(lifetimeMigrationSql(), 'apply_kplus_provider_lifetime_transition').sort());
+  assert.equal(args.p_entitlement_key, 'k_plus');
+});
+
+test('a raw purchase reference, or a contradictory event/lifecycle pair, never reaches the lifetime RPC', () => {
+  for (const raw of ['1000000123456789', 'A'.repeat(64), '']) {
+    assert.throws(() => toApplyKPlusProviderLifetimeTransitionArgs({ ...LIFETIME, purchaseRefDigest: raw }));
+  }
+  assert.throws(() => toApplyKPlusProviderLifetimeTransitionArgs({ ...LIFETIME, lifecycleState: 'refunded' }));
+  assert.throws(() => toApplyKPlusProviderLifetimeTransitionArgs({ ...LIFETIME, providerEventType: 'refund', lifecycleState: 'active' }));
+});
+
+test('the lifetime contract cannot express a subscription', () => {
+  assert.deepEqual([...KPLUS_LIFETIME_PROVIDER_EVENT_TYPES].sort(),
+    ['lifetime_purchase', 'reconciliation_snapshot', 'refund', 'refund_reversed', 'transfer']);
+  for (const states of Object.values(KPLUS_LIFETIME_EVENT_LIFECYCLE)) {
+    for (const state of states) assert.ok(['active', 'refunded', 'revoked'].includes(state), state);
+  }
+  assert.ok((KPLUS_PROVIDER_EVENT_TYPES as readonly string[]).includes('lifetime_purchase'));
+  assert.ok((KPLUS_ACTIVATION_CLASSES as readonly string[]).includes('lifetime'));
+  const keys = Object.keys(LIFETIME);
+  assert.ok(!keys.some((key) => /period|renew|trial|billing|grace|expires|pause|price|amount|currency|receipt|token|email/i.test(key)));
+});
+
+test('lifetime digests are domain-separated, deterministic and scoped by store and environment', async () => {
+  const base = { provider: 'revenuecat', store: 'apple', environment: 'production', storePurchaseReference: '1000000123456789' } as const;
+  const digest = await deriveKPlusLifetimePurchaseRefDigest(base);
+  assert.match(digest, /^[0-9a-f]{64}$/);
+  assert.equal(await deriveKPlusLifetimePurchaseRefDigest({ ...base, storePurchaseReference: ' 1000000123456789 ' }), digest);
+  assert.notEqual(await deriveKPlusLifetimePurchaseRefDigest({ ...base, store: 'google' }), digest);
+  assert.notEqual(await deriveKPlusLifetimePurchaseRefDigest({ ...base, environment: 'sandbox' }), digest);
+  assert.ok(!digest.includes('1000000123456789'));
+  const subscription = await deriveKPlusSubscriptionRefDigest({
+    provider: 'revenuecat', store: 'apple', environment: 'production', storeSubscriptionReference: '1000000123456789',
+  });
+  assert.notEqual(digest, subscription, 'the same provider reference must not collide across lifetime and subscription');
+  await assert.rejects(() => deriveKPlusLifetimePurchaseRefDigest({ ...base, storePurchaseReference: '   ' }));
+});
+
+test('a non-renewing purchase is a lifetime signal only, and lands in the closed vocabulary', () => {
+  assert.equal(REVENUECAT_EVENT_TYPE_TO_KPLUS_LIFETIME.NON_RENEWING_PURCHASE, 'lifetime_purchase');
+  assert.equal(REVENUECAT_EVENT_TYPE_TO_KPLUS.NON_RENEWING_PURCHASE, null, 'it is still not a subscription signal');
+  for (const [type, value] of Object.entries(REVENUECAT_EVENT_TYPE_TO_KPLUS_LIFETIME)) {
+    assert.ok(value === null || (KPLUS_LIFETIME_PROVIDER_EVENT_TYPES as readonly string[]).includes(value), type);
+  }
 });
 
 test('subscription digests are deterministic, one-way and scoped by store and environment', async () => {
@@ -172,10 +255,26 @@ test('an active store relationship requires a pre-deletion subscription notice',
     willRenew: true,
     store: 'google',
     billingState: 'normal',
+    complimentaryHistory: false,
     accountManagement: { storeManagementRelevant: true, managementStore: 'google' },
     snapshotIssuedAt: '2026-09-15T00:00:00.000Z',
   };
   assert.equal(kplusDeletionRequiresSubscriptionNotice(summary), true);
+  // A lifetime purchase has no renewal for deletion to leave running, so it
+  // requires no subscription notice.
+  assert.equal(
+    kplusDeletionRequiresSubscriptionNotice({
+      ...summary,
+      displaySource: 'lifetime',
+      effectiveExpiresAt: null,
+      isOpenEnded: true,
+      store: null,
+      willRenew: null,
+      billingState: null,
+      accountManagement: { storeManagementRelevant: false, managementStore: null },
+    }),
+    false,
+  );
   assert.equal(
     kplusDeletionRequiresSubscriptionNotice({
       ...summary,

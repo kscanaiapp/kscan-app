@@ -39,6 +39,26 @@ globalThis.__DEV__ = false;
 const USER_A = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
 const USER_B = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb';
 
+/** A canonical entitlement summary as get_my_kplus_entitlement_summary() returns it. */
+function kplusSummary(overrides = {}) {
+  return {
+    contractVersion: 1,
+    entitlementKey: 'k_plus',
+    access: 'k_plus',
+    displaySource: 'complimentary',
+    effectiveExpiresAt: '2099-01-01T00:00:00.000Z',
+    isOpenEnded: false,
+    trialEndsAt: null,
+    willRenew: null,
+    store: null,
+    billingState: null,
+    complimentaryHistory: true,
+    accountManagement: { storeManagementRelevant: false, managementStore: null },
+    snapshotIssuedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 /** Every free-tier store the B34-FE-FT-001 repair brought under actor scope. */
 const FREE_TIER_KEYS = {
   brandSizing: 'kscan.freeTier.brandSizing.v1',
@@ -138,6 +158,7 @@ function boot(initialStorage = new Map()) {
         return { Platform: { OS: 'android', select: (o) => o.android ?? o.default } };
       }
       if (id.endsWith('/kplusClient')) return kplusClientStub;
+      if (id.endsWith('/kplusEntitlementReader')) return kplusReaderStub;
       if (id.startsWith('.')) return load(path.resolve(path.dirname(resolved), id));
       try {
         return require(id);
@@ -161,11 +182,18 @@ function boot(initialStorage = new Map()) {
     return module.exports;
   }
 
-  /** Controllable K+ backend, so a late response can be made to land after a switch. */
+  /**
+   * Controllable K+ backend, so a late response can be made to land after a
+   * switch. Build 35 Phase A: the store reads the canonical entitlement summary
+   * through kplusEntitlementReader (the legacy user_entitlements read is gone),
+   * so that is what is scripted here.
+   */
   const kplusClientStub = {
-    fetchKPlusStatus: async () => kplusClientStub.__next,
     activateKPlusEarlyAccess: async () => ({ ok: false, reason: 'request_failed' }),
-    __next: { ok: true, row: null },
+  };
+  const kplusReaderStub = {
+    readKPlusEntitlementSummary: async () => kplusReaderStub.__next,
+    __next: { status: 'resolved', summary: kplusSummary({ access: 'free', displaySource: null, effectiveExpiresAt: null, complimentaryHistory: false }) },
   };
 
   const actorContext = load(path.join(ROOT, 'services/actorContext'));
@@ -180,6 +208,7 @@ function boot(initialStorage = new Map()) {
     freeTier,
     kplus,
     kplusClientStub,
+    kplusReaderStub,
     posthogSync,
     purge,
     /** What AuthSessionContext.resetActorScopedRuntimeState does, in order. */
@@ -382,19 +411,7 @@ test('RACE: a late K+ response from the previous actor is discarded, not applied
   const app = boot();
 
   app.signIn(USER_A);
-  app.kplusClientStub.__next = {
-    ok: true,
-    row: {
-      entitlementKey: 'k_plus',
-      status: 'active',
-      grantReason: 'complimentary_early_access',
-      campaignKey: 'c',
-      grantedAt: '2026-01-01T00:00:00.000Z',
-      expiresAt: '2099-01-01T00:00:00.000Z',
-      revokedAt: null,
-      externalSyncStatus: 'not_required',
-    },
-  };
+  app.kplusReaderStub.__next = { status: 'resolved', summary: kplusSummary() };
 
   const inFlight = app.kplus.refreshKPlusEntitlement();
   // A leaves and B arrives while A's entitlement read is still outstanding.
@@ -586,19 +603,7 @@ test('POSTHOG: re-syncing the same actor is a no-op, so a re-render cannot churn
 test('KPLUS: an active grant for A is gone the moment the actor boundary is crossed', async () => {
   const app = boot();
   app.signIn(USER_A);
-  app.kplusClientStub.__next = {
-    ok: true,
-    row: {
-      entitlementKey: 'k_plus',
-      status: 'active',
-      grantReason: 'complimentary_early_access',
-      campaignKey: 'c',
-      grantedAt: '2026-01-01T00:00:00.000Z',
-      expiresAt: '2099-01-01T00:00:00.000Z',
-      revokedAt: null,
-      externalSyncStatus: 'not_required',
-    },
-  };
+  app.kplusReaderStub.__next = { status: 'resolved', summary: kplusSummary() };
   await app.kplus.refreshKPlusEntitlement();
   assert.equal(app.kplus.getKPlusEntitlementSnapshot().state, 'active');
 
@@ -609,27 +614,39 @@ test('KPLUS: an active grant for A is gone the moment the actor boundary is cros
   app.kplus.__clearKPlusExpiryTimerForTests();
 });
 
-test('KPLUS: a revoked-but-still-active row fails closed, and a read failure is never Free', async () => {
+test('KPLUS: an open-ended lifetime purchase for A is gone the moment the actor boundary is crossed', async () => {
+  const app = boot();
+  app.signIn(USER_A);
+  app.kplusReaderStub.__next = {
+    status: 'resolved',
+    summary: kplusSummary({ displaySource: 'lifetime', effectiveExpiresAt: null, isOpenEnded: true, complimentaryHistory: false }),
+  };
+  await app.kplus.refreshKPlusEntitlement();
+  const snapshot = app.kplus.getKPlusEntitlementSnapshot();
+  assert.equal(snapshot.state, 'active');
+  assert.equal(snapshot.isOpenEnded, true);
+
+  app.signOut();
+  assert.equal(app.kplus.getKPlusEntitlementSnapshot().state, 'loading', 'lifetime must not outlive its actor');
+  app.signIn(USER_B);
+  assert.notEqual(app.kplus.getKPlusEntitlementSnapshot().state, 'active', "A's lifetime purchase was shown to B");
+  assert.equal(app.kplus.getKPlusEntitlementSnapshot().isOpenEnded, false);
+  app.kplus.__clearKPlusExpiryTimerForTests();
+});
+
+test('KPLUS: a revoked grant fails closed (the server says free), and a read failure is never Free', async () => {
   const app = boot();
   app.signIn(USER_A);
 
-  app.kplusClientStub.__next = {
-    ok: true,
-    row: {
-      entitlementKey: 'k_plus',
-      status: 'active',
-      grantReason: 'complimentary_early_access',
-      campaignKey: 'c',
-      grantedAt: '2026-01-01T00:00:00.000Z',
-      expiresAt: '2099-01-01T00:00:00.000Z',
-      revokedAt: '2026-02-01T00:00:00.000Z',
-      externalSyncStatus: 'not_required',
-    },
+  // A revocation recorded as revoked_at alone is, to the server, simply "free".
+  app.kplusReaderStub.__next = {
+    status: 'resolved',
+    summary: kplusSummary({ access: 'free', displaySource: null, effectiveExpiresAt: null, complimentaryHistory: true }),
   };
   await app.kplus.refreshKPlusEntitlement();
   assert.equal(app.kplus.getKPlusEntitlementSnapshot().state, 'expired');
 
-  app.kplusClientStub.__next = { ok: false, reason: 'read_failed' };
+  app.kplusReaderStub.__next = { status: 'unavailable', reason: 'network' };
   await app.kplus.refreshKPlusEntitlement();
   const snapshot = app.kplus.getKPlusEntitlementSnapshot();
   assert.equal(snapshot.state, 'error');

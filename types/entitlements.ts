@@ -2,9 +2,15 @@
  * K+ product-tier / entitlement contract (client-side types only).
  *
  * The client never decides tier or capability access -- it only renders
- * whatever the server (user_entitlements, via kplus-activate / a direct
- * RLS-scoped select) already decided. See docs/kplus-foundation.md.
+ * whatever the server already decided. Since Build 35 Phase A the answer is
+ * read through get_my_kplus_entitlement_summary() (types/kplusEntitlementContract.ts
+ * via services/kplus/kplusEntitlementReader.ts); the client no longer reads
+ * user_entitlements. The server resolves the union of every grant (complimentary,
+ * store subscription, store lifetime) and this module's types only describe how
+ * that single answer is presented. See docs/kplus-foundation.md.
  */
+
+import type { KPlusDisplaySource } from './kplusEntitlementContract';
 
 export type ProductTier = 'free' | 'k_plus';
 
@@ -64,9 +70,17 @@ export type KPlusResolvedState =
 
 export interface KPlusEntitlementSnapshot {
   state: KPlusResolvedState;
+  /** Effective end of access. null when not active, and null for open-ended
+   *  access (lifetime) -- use `isOpenEnded` to tell those apart. */
   expiresAt: string | null;
+  /** Not reported by the canonical summary; always null since Build 35 Phase A. */
   campaignKey: string | null;
+  /** Not reported by the canonical summary; always null since Build 35 Phase A. */
   externalSyncStatus: KPlusExternalSyncStatus | null;
+  /** The strongest contributing source, for PRESENTATION only. Never a gate. */
+  displaySource: KPlusDisplaySource | null;
+  /** True when active access has no end date (lifetime). */
+  isOpenEnded: boolean;
 }
 
 export const KPLUS_ENTITLEMENT_KEY = 'k_plus' as const;

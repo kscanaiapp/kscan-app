@@ -1,205 +1,239 @@
-// K+ entitlement store contract tests.
+// K+ entitlement store contract tests (Build 35 Phase A).
 //
-// constants/featureFlags.ts-style VM-transpile with an injected requireMap
-// (same technique as __tests__/styleOutfitEdgeContract.test.js) so the
-// store's pure state-machine logic is tested against controlled fake
-// kplusClient responses, with no real network/Supabase dependency.
+// The store's truth is the CANONICAL client state of
+// types/kplusEntitlementContract.ts (resolved | resolving | unavailable |
+// signed_out), read through services/kplus/kplusEntitlementReader.ts. The
+// UI-facing snapshot every K+ surface already consumes is a projection of it.
+//
+// This file previously pinned the Build 34 behaviour where the CLIENT re-derived
+// "active" from a raw user_entitlements row (status, revoked_at, expires_at).
+// That read is gone: a store subscription or lifetime purchase is invisible to
+// it. Each legacy test's INTENT is kept below -- the client never grants itself
+// K+, revocation is never presented as active, a failed read is never Free, an
+// actor change cannot resurrect old state -- but the evidence is now the server's
+// summary, not a row the client interprets.
+//
+// Collaborators are scripted and time is fake (__tests__/helpers/
+// kplusStoreHarness.js): no network, no Supabase, no real-clock races.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');
-const vm = require('node:vm');
+const h = require('./helpers/kplusStoreHarness');
 
-const ROOT = path.resolve(__dirname, '..');
-const STORE_PATH = path.join(ROOT, 'services', 'kplus', 'kplusEntitlementStore.ts');
+const { build, resolved, unavailable, SIGNED_OUT, DAY } = h;
 
-function loadStore(clientMock) {
-  const source = fs.readFileSync(STORE_PATH, 'utf8');
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true,
-    },
-  }).outputText;
-  const mod = { exports: {} };
-  const sandbox = {
-    console,
-    // INT-KPLUS-006: the store schedules a notification at the entitlement's
-    // expiry boundary, so the sandbox needs real timers.
-    setTimeout,
-    clearTimeout,
-    Date,
-    exports: mod.exports,
-    module: mod,
-    require: (specifier) => {
-      if (specifier === './kplusClient') return clientMock;
-      throw new Error(`Unexpected import in kplusEntitlementStore.ts: ${specifier}`);
-    },
-  };
-  vm.createContext(sandbox);
-  new vm.Script(output, { filename: STORE_PATH }).runInContext(sandbox);
-  return mod.exports;
-}
-
-function futureIso(daysFromNow = 30) {
-  return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
-}
-function pastIso(daysAgo = 30) {
-  return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+function boot(opts) {
+  return h.loadKPlusStore(opts);
 }
 
 test('default snapshot is loading, and reset restores it', () => {
-  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: null }) });
+  const { store } = boot();
   assert.equal(store.getKPlusEntitlementSnapshot().state, 'loading');
   store.resetKPlusEntitlementCache();
   assert.deepEqual(store.getKPlusEntitlementSnapshot(), store.DEFAULT_KPLUS_SNAPSHOT);
 });
 
-test('refresh resolves eligible when there is no row', async () => {
-  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: null }) });
+test('a free answer for an account that never held complimentary access resolves eligible', async () => {
+  const { store, reader, clock } = boot();
+  reader.answer(resolved(build.free(clock, { history: false })));
   await store.refreshKPlusEntitlement();
   assert.equal(store.getKPlusEntitlementSnapshot().state, 'eligible');
 });
 
-test('refresh resolves active only when status is active AND expires_at is in the future', async () => {
-  const store = loadStore({
-    fetchKPlusStatus: async () => ({
-      ok: true,
-      row: { status: 'active', expiresAt: futureIso(), campaignKey: 'kplus_early_access_2026', externalSyncStatus: 'synced' },
-    }),
-  });
+test('a K+ answer resolves active, and carries its end date and display source', async () => {
+  const { store, reader, clock } = boot();
+  const s = build.complimentary(clock, 30);
+  reader.answer(resolved(s));
   await store.refreshKPlusEntitlement();
-  assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
+  const snap = store.getKPlusEntitlementSnapshot();
+  assert.equal(snap.state, 'active');
+  assert.equal(snap.expiresAt, s.effectiveExpiresAt);
+  assert.equal(snap.displaySource, 'complimentary');
+  assert.equal(snap.isOpenEnded, false);
+  store.__clearKPlusExpiryTimerForTests();
 });
 
-test('a stale-but-status-active row past its own expiry resolves to expired, never active', async () => {
-  const store = loadStore({
-    fetchKPlusStatus: async () => ({
-      ok: true,
-      row: { status: 'active', expiresAt: pastIso(), campaignKey: 'kplus_early_access_2026', externalSyncStatus: 'synced' },
-    }),
-  });
+test('a free answer for an account whose complimentary access ended resolves expired, never active', async () => {
+  const { store, reader, clock } = boot();
+  reader.answer(resolved(build.free(clock, { history: true })));
   await store.refreshKPlusEntitlement();
   assert.equal(store.getKPlusEntitlementSnapshot().state, 'expired');
 });
 
-test('a signed-out read resolves to unavailable, a failed read resolves to error (fail closed, never active)', async () => {
-  const signedOutStore = loadStore({ fetchKPlusStatus: async () => ({ ok: false, reason: 'signed_out' }) });
-  await signedOutStore.refreshKPlusEntitlement();
-  assert.equal(signedOutStore.getKPlusEntitlementSnapshot().state, 'unavailable');
+test('a signed-out read resolves to unavailable, a failed read resolves to error (fail closed, never active, never free)', async () => {
+  const a = boot();
+  a.reader.answer(SIGNED_OUT);
+  await a.store.refreshKPlusEntitlement();
+  assert.equal(a.store.getKPlusEntitlementSnapshot().state, 'unavailable');
 
-  const errorStore = loadStore({ fetchKPlusStatus: async () => ({ ok: false, reason: 'read_failed' }) });
-  await errorStore.refreshKPlusEntitlement();
-  assert.equal(errorStore.getKPlusEntitlementSnapshot().state, 'error');
+  for (const reason of ['network', 'server_error', 'malformed_response']) {
+    const b = boot();
+    b.reader.answer(unavailable(reason));
+    await b.store.refreshKPlusEntitlement();
+    const state = b.store.getKPlusEntitlementSnapshot().state;
+    assert.equal(state, 'error', reason);
+    assert.notEqual(state, 'eligible');
+    assert.notEqual(state, 'expired');
+    assert.notEqual(state, 'active');
+  }
+});
+
+test('a reader that throws is a failed read, never an unhandled rejection or a free answer', async () => {
+  const { store, reader } = boot();
+  reader.answer(new Error('boom'));
+  await store.refreshKPlusEntitlement();
+  assert.equal(store.getKPlusEntitlementSnapshot().state, 'error');
 });
 
 test('resetKPlusEntitlementCache invalidates an in-flight refresh so a late response cannot resurrect a previous actor\'s state', async () => {
-  let resolveFetch;
-  const store = loadStore({
-    fetchKPlusStatus: () => new Promise((resolve) => { resolveFetch = resolve; }),
-  });
+  const { store, reader, clock } = boot();
   const refreshPromise = store.refreshKPlusEntitlement();
   store.resetKPlusEntitlementCache(); // actor changed mid-flight
-  resolveFetch({ ok: true, row: { status: 'active', expiresAt: futureIso(), campaignKey: null, externalSyncStatus: 'synced' } });
+  reader.release(resolved(build.complimentary(clock, 120)));
   await refreshPromise;
   assert.deepEqual(store.getKPlusEntitlementSnapshot(), store.DEFAULT_KPLUS_SNAPSHOT);
+  assert.equal(store.getKPlusEntitlementClientState().status, 'resolving');
 });
 
-test('activateKPlus outcome mapping: granted, already_active, campaign_consumed, failed', async () => {
-  const grantedStore = loadStore({
-    activateKPlusEarlyAccess: async () => ({
-      ok: true,
-      row: { entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access', campaignKey: 'kplus_early_access_2026', grantedAt: new Date().toISOString(), expiresAt: futureIso(), externalSyncStatus: 'pending' },
-    }),
-  });
-  assert.equal(await grantedStore.activateKPlus(), 'granted');
+// ── Lifetime ──────────────────────────────────────────────────────────────────
 
-  const consumedStore = loadStore({
-    activateKPlusEarlyAccess: async () => ({
-      ok: true,
-      row: { entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access', campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(200), expiresAt: pastIso(), externalSyncStatus: 'synced' },
-    }),
-  });
-  assert.equal(await consumedStore.activateKPlus(), 'campaign_consumed');
-
-  const failedStore = loadStore({ activateKPlusEarlyAccess: async () => ({ ok: false, reason: 'request_failed' }) });
-  assert.equal(await failedStore.activateKPlus(), 'failed');
+test('LIFETIME: resolves active and open-ended, with no end date, and is never downgraded as time passes', async () => {
+  const { store, reader, clock, timers } = boot();
+  reader.answer(resolved(build.lifetime(clock)));
+  await store.refreshKPlusEntitlement();
+  let snap = store.getKPlusEntitlementSnapshot();
+  assert.equal(snap.state, 'active');
+  assert.equal(snap.isOpenEnded, true);
+  assert.equal(snap.expiresAt, null, 'open-ended access has no end date');
+  assert.equal(snap.displaySource, 'lifetime');
+  assert.equal(timers.pending(), 0, 'open-ended access schedules no expiry boundary');
+  // Years later, with no refresh: still the server's last answer, never a local expiry.
+  clock.advance(5 * 365 * DAY);
+  snap = store.getKPlusEntitlementSnapshot();
+  assert.equal(snap.state, 'active', 'a lifetime purchase must not be treated as an expiring subscription');
 });
 
-test('activateKPlus reports already_active on a second call once the store already observed an active grant (double-tap / re-open)', async () => {
-  const row = { entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access', campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(10), expiresAt: futureIso(), externalSyncStatus: 'synced' };
-  const store = loadStore({
-    fetchKPlusStatus: async () => ({ ok: true, row }),
-    activateKPlusEarlyAccess: async () => ({ ok: true, row }),
-  });
+test('LIFETIME + complimentary and subscription: the strongest source is presented, access stays open-ended', async () => {
+  const { store, reader, clock } = boot();
+  reader.answer(resolved(build.lifetime(clock, { complimentaryHistory: true })));
+  await store.refreshKPlusEntitlement();
+  const snap = store.getKPlusEntitlementSnapshot();
+  assert.equal(snap.state, 'active');
+  assert.equal(snap.displaySource, 'lifetime');
+});
+
+test('a refunded lifetime purchase with no other grant is a positively resolved FREE answer', async () => {
+  const { store, reader, clock } = boot();
+  reader.answer(resolved(build.lifetime(clock)));
   await store.refreshKPlusEntitlement();
   assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
-  assert.equal(await store.activateKPlus(), 'already_active');
+  reader.answer(resolved(build.free(clock, { history: false })));
+  await store.refreshKPlusEntitlement();
+  const state = store.getKPlusEntitlementSnapshot().state;
+  assert.notEqual(state, 'active', 'the device follows the server: a refund ends access');
+  assert.equal(state, 'eligible');
 });
 
-// ── CERT-CLIENT-001 / CERT-CLIENT-002 ──────────────────────────────────────
-// Found by the Build 34 K+ entitlement / failure-state certification, live on
-// staging: a synthetic actor revoked with `revoked_at` alone was denied by
-// EVERY server authority (kplus_has_active_entitlement, has_active_k_plus,
-// the Closet RLS write gate) while the client resolved 'active'.
+// ── The client never grants itself K+ ────────────────────────────────────────
 
-test('CERT-CLIENT-001: a revoked_at-only revocation is NOT active on the client either', () => {
-  const revoked = {
-    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
-    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
-    expiresAt: futureIso(120),           // still in the future, as a real revocation leaves it
-    revokedAt: pastIso(0.04),            // the only signal that it is gone
-    externalSyncStatus: 'synced',
-  };
-  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: revoked }) });
-  return store.refreshKPlusEntitlement().then(() => {
-    assert.notEqual(store.getKPlusEntitlementSnapshot().state, 'active',
-      'the client must not resolve active for a grant every server authority denies');
-    assert.equal(store.getKPlusEntitlementSnapshot().state, 'expired');
-  });
+test('CERT-CLIENT-001 (intent kept): a revoked grant is never presented as active -- the server answer decides, the client interprets no row', async () => {
+  const { store, reader, clock } = boot();
+  // A revocation recorded as revoked_at alone is, to the server, simply "free".
+  reader.answer(resolved(build.free(clock, { history: true })));
+  await store.refreshKPlusEntitlement();
+  assert.notEqual(store.getKPlusEntitlementSnapshot().state, 'active');
+  assert.equal(store.getKPlusEntitlementSnapshot().state, 'expired');
 });
 
-test('CERT-CLIENT-001: revocation does not change the answer for a genuinely active grant', () => {
-  const live = {
-    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
-    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
-    expiresAt: futureIso(120), revokedAt: null, externalSyncStatus: 'synced',
-  };
-  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: live }) });
-  return store.refreshKPlusEntitlement().then(() => {
-    assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
-  });
-});
-
-test('CERT-CLIENT-001: activateKPlus also refuses to call a revoked grant active', async () => {
+test('CERT-CLIENT-001 (intent kept): activateKPlus never calls a revoked grant active, even when the re-read fails', async () => {
   const revokedRow = {
     entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
-    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
-    expiresAt: futureIso(120), revokedAt: pastIso(0.04), externalSyncStatus: 'synced',
+    campaignKey: 'kplus_early_access_2026', grantedAt: new Date(Date.now() - DAY).toISOString(),
+    expiresAt: new Date(Date.now() + 120 * DAY).toISOString(), revokedAt: new Date().toISOString(), externalSyncStatus: 'synced',
   };
-  const store = loadStore({
-    fetchKPlusStatus: async () => ({ ok: true, row: null }),
-    activateKPlusEarlyAccess: async () => ({ ok: true, row: revokedRow }),
-  });
-  assert.equal(await store.activateKPlus(), 'campaign_consumed');
+  const a = boot({ activation: h.createActivationClient({ ok: true, row: revokedRow }) });
+  a.reader.answer(resolved(build.free(a.clock, { history: true })));
+  assert.equal(await a.store.activateKPlus(), 'campaign_consumed');
+  assert.notEqual(a.store.getKPlusEntitlementSnapshot().state, 'active');
+
+  const b = boot({ activation: h.createActivationClient({ ok: true, row: revokedRow }) });
+  b.reader.answer(unavailable('network'));
+  assert.equal(await b.store.activateKPlus(), 'campaign_consumed', 'an unreadable re-read falls back to the server response, which says revoked');
+  assert.notEqual(b.store.getKPlusEntitlementSnapshot().state, 'active', 'the activation response alone never sets the entitlement state');
+});
+
+test('the activation response never sets the entitlement state; only the canonical re-read does', async () => {
+  const row = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 30 * DAY).toISOString(), revokedAt: null, externalSyncStatus: 'pending',
+  };
+  const { store, reader } = boot({ activation: h.createActivationClient({ ok: true, row }) });
+  reader.answer(unavailable('network')); // the re-read cannot be completed
+  const outcome = await store.activateKPlus();
+  assert.equal(outcome, 'granted', 'the label comes from the server\'s own activation response');
+  assert.equal(store.getKPlusEntitlementSnapshot().state, 'error', 'but the device did not grant itself K+');
   assert.notEqual(store.getKPlusEntitlementSnapshot().state, 'active');
 });
 
-test('CERT-CLIENT-001: the client SELECTS revoked_at, so the predicate has something to read', () => {
-  const fs2 = require('node:fs');
-  const clientSrc = fs2.readFileSync(
-    require('node:path').join(ROOT, 'services', 'kplus', 'kplusClient.ts'), 'utf8');
-  assert.match(clientSrc, /revoked_at/, 'the column must be requested, not just consulted');
-  assert.match(clientSrc, /revokedAt: raw\.revoked_at/);
+test('activateKPlus outcome mapping: granted, already_active, campaign_consumed, failed', async () => {
+  const mk = (expiresInDays) => ({
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + expiresInDays * DAY).toISOString(), revokedAt: null, externalSyncStatus: 'pending',
+  });
+
+  const granted = boot({ activation: h.createActivationClient({ ok: true, row: mk(30) }) });
+  granted.reader.answer(resolved(build.complimentary(granted.clock, 30)));
+  assert.equal(await granted.store.activateKPlus(), 'granted');
+  assert.equal(granted.store.getKPlusEntitlementSnapshot().state, 'active');
+  granted.store.__clearKPlusExpiryTimerForTests();
+
+  const consumed = boot({ activation: h.createActivationClient({ ok: true, row: mk(-1) }) });
+  consumed.reader.answer(resolved(build.free(consumed.clock, { history: true })));
+  assert.equal(await consumed.store.activateKPlus(), 'campaign_consumed');
+
+  const failed = boot({ activation: h.createActivationClient({ ok: false, reason: 'request_failed' }) });
+  assert.equal(await failed.store.activateKPlus(), 'failed');
 });
 
+test('activateKPlus reports already_active on a second call once the store already observed an active grant (double-tap / re-open)', async () => {
+  const row = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 10 * DAY).toISOString(), revokedAt: null, externalSyncStatus: 'synced',
+  };
+  const { store, reader, clock } = boot({ activation: h.createActivationClient({ ok: true, row }) });
+  reader.answer(resolved(build.complimentary(clock, 10)), resolved(build.complimentary(clock, 10)));
+  await store.refreshKPlusEntitlement();
+  assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
+  assert.equal(await store.activateKPlus(), 'already_active');
+  store.__clearKPlusExpiryTimerForTests();
+});
+
+test('an actor change while activation is re-reading discards the outcome (the answer belongs to the previous actor)', async () => {
+  const row = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'k', grantedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 30 * DAY).toISOString(), revokedAt: null, externalSyncStatus: 'pending',
+  };
+  const { store, reader, clock } = boot({ activation: h.createActivationClient({ ok: true, row }) });
+  const activation = store.activateKPlus();
+  await h.flush(); // activation response is in; the re-read is now held open
+  store.resetKPlusEntitlementCache(); // actor changed mid re-read
+  reader.release(resolved(build.complimentary(clock, 30)));
+  assert.equal(await activation, 'failed');
+  assert.equal(store.getKPlusEntitlementSnapshot().state, 'loading');
+});
+
+// ── Static: the legacy read is gone and the doctrine is written down ─────────
+
+const read = (...p) => fs.readFileSync(path.join(h.ROOT, ...p), 'utf8');
+
 test('CERT-CLIENT-002: a consumed campaign is never announced or counted as an activation', () => {
-  const fs2 = require('node:fs');
-  const sheet = fs2.readFileSync(
-    require('node:path').join(ROOT, 'components', 'kplus', 'KPlusEarlyAccessSheet.tsx'), 'utf8');
+  const sheet = read('components', 'kplus', 'KPlusEarlyAccessSheet.tsx');
   const consumedIdx = sheet.indexOf("outcome === 'campaign_consumed'");
   // #258 (merged ahead of this repair) renamed the sheet's telemetry
   // vocabulary repo-wide: kplus_activation_success -> kplus_activation_completed,
@@ -215,4 +249,12 @@ test('CERT-CLIENT-002: a consumed campaign is never announced or counted as an a
   const block = sheet.slice(consumedIdx, successIdx);
   assert.match(block, /return;/, 'the consumed branch must return');
   assert.match(block, /kplus_activation_failed/, 'a consumed campaign is not a success event');
+});
+
+test('the Build 34 direct user_entitlements read is gone from the mobile client', () => {
+  const client = read('services', 'kplus', 'kplusClient.ts');
+  assert.doesNotMatch(client, /from\(['"]user_entitlements['"]\)/);
+  assert.doesNotMatch(client, /fetchKPlusStatus/);
+  const code = read('services', 'kplus', 'kplusEntitlementStore.ts').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.doesNotMatch(code, /fetchKPlusStatus|user_entitlements/);
 });

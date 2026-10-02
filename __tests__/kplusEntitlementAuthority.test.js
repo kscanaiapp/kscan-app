@@ -79,12 +79,38 @@ function fn(name) {
   return { header: SQL.slice(start, bodyStart), body: SQL.slice(bodyStart, bodyEnd) };
 }
 
+// BUILD 35 PHASE A: the K+ vocabulary now spans more than one migration (the
+// lifetime source widens CHECK lists and replaces two functions in a forward
+// migration; migrations are immutable once recorded). Parity is therefore judged
+// against the EFFECTIVE definition -- the latest migration that defines the
+// object, which is what the database actually runs -- not against the original.
+const ALL_MIGRATIONS = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
+const ALL_MIGRATION_SQL = new Map(ALL_MIGRATIONS.map((f) => [f, fs.readFileSync(path.join(MIGRATIONS_DIR, f), 'utf8')]));
+
+function effectiveFn(name) {
+  const marker = `create or replace function public.${name}(`;
+  for (const file of [...ALL_MIGRATIONS].reverse()) {
+    const source = ALL_MIGRATION_SQL.get(file);
+    const start = source.indexOf(marker);
+    if (start < 0) continue;
+    const bodyStart = source.indexOf('as $$', start);
+    const bodyEnd = source.indexOf('\n$$;', bodyStart);
+    assert.ok(bodyStart > start && bodyEnd > bodyStart, `${name}: body anchors must be found in ${file}`);
+    return { file, header: source.slice(start, bodyStart), body: source.slice(bodyStart, bodyEnd) };
+  }
+  assert.fail(`${name} must be defined in a migration`);
+}
+
 function checkList(constraintName, column) {
-  const match = SQL.match(new RegExp(`constraint ${constraintName}\\s+check \\((?:${column} is null or )?${column} in \\(([\\s\\S]*?)\\)\\)`));
-  assert.ok(match, `${constraintName} must be found`);
-  const values = [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  assert.ok(values.length >= 2, `${constraintName} must list its values`);
-  return values;
+  const pattern = new RegExp(`constraint ${constraintName}\\s+check \\((?:${column} is null or )?${column} in \\(([\\s\\S]*?)\\)\\)`);
+  for (const file of [...ALL_MIGRATIONS].reverse()) {
+    const match = ALL_MIGRATION_SQL.get(file).match(pattern);
+    if (!match) continue;
+    const values = [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    assert.ok(values.length >= 2, `${constraintName} must list its values`);
+    return values;
+  }
+  assert.fail(`${constraintName} must be found`);
 }
 
 function interfaceKeys(source, name) {
@@ -260,7 +286,7 @@ test('the SQL CHECK vocabularies and both typed contracts are identical', () => 
   assert.deepEqual(plain(client.KPLUS_STORES), plain(server.KPLUS_STORES));
   assert.deepEqual(plain(client.KPLUS_BILLING_STATES), plain(server.KPLUS_BILLING_STATES));
   assert.deepEqual(plain(client.KPLUS_DISPLAY_SOURCES), plain(server.KPLUS_DISPLAY_SOURCES));
-  const facts = fn('kplus_entitlement_facts').body;
+  const facts = effectiveFn('kplus_entitlement_facts').body;
   for (const source of server.KPLUS_DISPLAY_SOURCES) {
     assert.match(facts, new RegExp(`'${source}'`), `the resolver must produce display source ${source}`);
   }
@@ -270,7 +296,7 @@ test('the SQL CHECK vocabularies and both typed contracts are identical', () => 
 });
 
 test('the summary JSON keys match both typed contracts exactly', () => {
-  const { body } = fn('kplus_entitlement_summary');
+  const { body } = effectiveFn('kplus_entitlement_summary');
   const top = body.slice(body.indexOf('return jsonb_build_object('));
   const sqlKeys = [...top.matchAll(/^\s{4}'([a-zA-Z]+)',/gm)].map((m) => m[1]).sort();
   const nestedKeys = [...top.matchAll(/^\s{6}'([a-zA-Z]+)',/gm)].map((m) => m[1]).sort();
@@ -306,6 +332,7 @@ function summary(overrides = {}) {
     willRenew: null,
     store: null,
     billingState: null,
+    complimentaryHistory: true,
     accountManagement: { storeManagementRelevant: false, managementStore: null },
     snapshotIssuedAt: new Date(ISSUED).toISOString(),
     ...overrides,
@@ -376,6 +403,10 @@ test('the summary parser accepts the contract and rejects anything malformed or 
     summary({ ...FREE, displaySource: 'complimentary' }),
     summary({ store: 'amazon' }),
     summary({ billingState: 'suspended' }),
+    // Build 35 Phase A: lifetime is open-ended by definition, and the additive
+    // history flag must be a boolean when present.
+    summary({ displaySource: 'lifetime' }),
+    summary({ complimentaryHistory: 'yes' }),
     summary({ snapshotIssuedAt: '2026-09-15 12:00' }),
     summary({ effectiveExpiresAt: '2027-03-15T12:00:00+02:00' }),
     summary({ accountManagement: null }),
@@ -413,19 +444,27 @@ test('the new K+ tables are registered in both deletion-purge registries', () =>
   }
 });
 
-test('no K+ surface consumes the new client contract yet: Phase 1 changes no UI', () => {
+// Phase 1 asserted that NOTHING consumed the client contract ("Phase 1 changes
+// no UI"). Build 35 Phase A is the phase that was reserved for moving the mobile
+// reader onto it, so the invariant is now the stricter, positive one: exactly the
+// canonical reader and store consume the contract, and no UI surface does. Every
+// K+ gate keeps asking only the hook "does this actor have K+".
+test('only the canonical mobile reader and store consume the client contract; no UI surface does', () => {
   const offenders = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else if (/\.(tsx?|jsx?)$/.test(entry.name) && fs.readFileSync(full, 'utf8').includes('kplusEntitlementContract')) {
-        offenders.push(path.relative(ROOT, full));
+        offenders.push(path.relative(ROOT, full).split(path.sep).join('/'));
       }
     }
   };
   for (const dir of ['app', 'components', 'hooks', 'services', 'contexts']) walk(path.join(ROOT, dir));
-  assert.deepEqual(offenders, []);
+  assert.deepEqual(offenders.sort(), [
+    'services/kplus/kplusEntitlementReader.ts',
+    'services/kplus/kplusEntitlementStore.ts',
+  ]);
 });
 
 test('new K+ authority files carry no invented price and never shorten the product name', () => {

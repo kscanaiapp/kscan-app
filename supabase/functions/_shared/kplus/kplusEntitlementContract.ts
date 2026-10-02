@@ -1,14 +1,17 @@
 /**
- * K Scan AI -- K+ entitlement authority contract (K+ Paywall Program, Phase 1).
+ * K Scan AI -- K+ entitlement authority contract (K+ Paywall Program, Phase 1;
+ * Build 35 Phase A adds the lifetime store grant).
  *
  * The typed server-side contract every later K+ phase implements against:
  * store purchase, restore, access codes, reconciliation, Welcome to K+
- * delivery and Account -> K+. The authority itself is SQL, in migration
- * `*_kplus_entitlement_authority.sql`:
+ * delivery and Account -> K+. The authority itself is SQL, in migrations
+ * `*_kplus_entitlement_authority.sql` and
+ * `*_kplus_paid_lifetime_entitlement_foundation.sql`:
  *
  *   read        get_my_kplus_entitlement_summary()   (authenticated, auth.uid())
  *               kplus_entitlement_summary(uuid,text)  (service_role)
  *   transition  apply_kplus_provider_transition(...)  (service_role)
+ *               apply_kplus_provider_lifetime_transition(...)  (service_role)
  *   grant       grant_kplus_complimentary(...)        (service_role)
  *   revoke      revoke_kplus_grant(uuid, uuid)        (service_role)
  *
@@ -33,6 +36,7 @@ export const KPLUS_SUMMARY_CONTRACT_VERSION = 1 as const;
 
 export const KPLUS_GRANT_SOURCES = [
   'store_subscription',
+  'store_lifetime',
   'complimentary',
   'complimentary_code',
   'employee',
@@ -42,8 +46,14 @@ export const KPLUS_GRANT_SOURCES = [
 ] as const;
 export type KPlusGrantSource = (typeof KPLUS_GRANT_SOURCES)[number];
 
+/** Grants that are a store purchase. Both are written only by a verified
+ *  provider transition, never by a client and never by an operator. */
+export const KPLUS_STORE_GRANT_SOURCES = ['store_subscription', 'store_lifetime'] as const;
+export type KPlusStoreGrantSource = (typeof KPLUS_STORE_GRANT_SOURCES)[number];
+
 /** Sources grant_kplus_complimentary accepts. A store trial is NOT one of
- *  them: a trial is a store subscription lifecycle state. */
+ *  them: a trial is a store subscription lifecycle state, and a lifetime
+ *  purchase is a store grant. */
 export const KPLUS_COMPLIMENTARY_SOURCES = [
   'complimentary',
   'complimentary_code',
@@ -54,7 +64,8 @@ export const KPLUS_COMPLIMENTARY_SOURCES = [
 ] as const;
 export type KPlusComplimentarySource = (typeof KPLUS_COMPLIMENTARY_SOURCES)[number];
 
-export const KPLUS_DISPLAY_SOURCES = ['subscription', 'trial', 'complimentary', 'unknown'] as const;
+/** Presentation precedence among contributing grants, strongest first. */
+export const KPLUS_DISPLAY_SOURCES = ['lifetime', 'subscription', 'trial', 'complimentary', 'unknown'] as const;
 export type KPlusDisplaySource = (typeof KPLUS_DISPLAY_SOURCES)[number];
 
 export const KPLUS_STORES = ['apple', 'google'] as const;
@@ -110,10 +121,11 @@ export const KPLUS_PROVIDER_EVENT_TYPES = [
   'refund_reversed',
   'transfer',
   'reconciliation_snapshot',
+  'lifetime_purchase',
 ] as const;
 export type KPlusProviderEventType = (typeof KPLUS_PROVIDER_EVENT_TYPES)[number];
 
-export const KPLUS_ACTIVATION_CLASSES = ['subscription_or_trial', 'complimentary'] as const;
+export const KPLUS_ACTIVATION_CLASSES = ['subscription_or_trial', 'complimentary', 'lifetime'] as const;
 export type KPlusActivationClass = (typeof KPLUS_ACTIVATION_CLASSES)[number];
 
 export const KPLUS_PROVIDER_REJECTION_REASONS = [
@@ -157,6 +169,11 @@ export interface KPlusEntitlementSummary {
   willRenew: boolean | null;
   store: KPlusStore | null;
   billingState: KPlusBillingState | null;
+  /** True when the account has ever held a complimentary-family or legacy K+
+   *  grant, active or not. It carries no provenance, id, date or campaign. It
+   *  lets a client tell a never-activated account from one whose complimentary
+   *  access has ended. Never a statement about access. */
+  complimentaryHistory: boolean;
   accountManagement: KPlusAccountManagement;
   /** Server time the snapshot was computed (UTC ISO-8601). */
   snapshotIssuedAt: string;
@@ -279,6 +296,150 @@ export async function deriveKPlusSubscriptionRefDigest(params: {
   const reference = params.storeSubscriptionReference.trim();
   if (!reference) throw new Error('storeSubscriptionReference is required');
   const material = `${params.provider}|${params.store}|${params.environment}|${reference}`;
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
+  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+// ── B2. Trusted provider lifetime transition (Build 35 Phase A) ────────────────
+
+/**
+ * Lifetime is a one-time, non-consumable store purchase. It is NOT a
+ * subscription: it has no period, renewal, trial, billing retry, grace period
+ * or expiry, and none of those can be expressed here. Ownership is open-ended
+ * until authoritative provider state reports a refund or revocation.
+ */
+export const KPLUS_LIFETIME_LIFECYCLE_STATES = ['active', 'refunded', 'revoked'] as const;
+export type KPlusLifetimeLifecycleState = (typeof KPLUS_LIFETIME_LIFECYCLE_STATES)[number];
+
+export const KPLUS_LIFETIME_PROVIDER_EVENT_TYPES = [
+  'lifetime_purchase',
+  'refund',
+  'refund_reversed',
+  'transfer',
+  'reconciliation_snapshot',
+] as const;
+export type KPlusLifetimeProviderEventType = (typeof KPLUS_LIFETIME_PROVIDER_EVENT_TYPES)[number];
+
+/** Which lifecycle states each event type may carry. A payload cannot claim
+ *  contradictory facts; only a reconciliation snapshot may report any state. */
+export const KPLUS_LIFETIME_EVENT_LIFECYCLE: Readonly<
+  Record<KPlusLifetimeProviderEventType, readonly KPlusLifetimeLifecycleState[]>
+> = Object.freeze({
+  lifetime_purchase: ['active'],
+  refund_reversed: ['active'],
+  refund: ['refunded'],
+  transfer: ['revoked'],
+  reconciliation_snapshot: ['active', 'refunded', 'revoked'],
+});
+
+export const KPLUS_LIFETIME_PROVIDER_REJECTION_REASONS = [
+  'unknown_user',
+  'anonymous_identity',
+  'purchase_owned_by_other_user',
+  'environment_mismatch',
+  'provider_time_in_future',
+  'event_identity_conflict',
+] as const;
+export type KPlusLifetimeProviderRejectionReason = (typeof KPLUS_LIFETIME_PROVIDER_REJECTION_REASONS)[number];
+
+/**
+ * Normalized, verified provider state for one lifetime purchase. Built only by
+ * trusted server code (a future RevenueCat webhook or reconciliation pull),
+ * after it has authenticated the provider and resolved userId from the
+ * provider App User ID. No field is a price, currency, receipt or token.
+ */
+export interface KPlusLifetimeTransitionInput {
+  userId: string;
+  provider: KPlusProvider;
+  cause: KPlusProviderTransitionCause;
+  /** Provider event id (retries reuse it); for a reconciliation pull, a fresh
+   *  server-generated id prefixed `reconcile:`. */
+  externalEventId: string;
+  providerEventType: KPlusLifetimeProviderEventType;
+  /** Provider clock: the event timestamp, or the provider response time for a
+   *  reconciliation pull. Never server receipt time. */
+  providerOccurredAt: string;
+  environment: KPlusProviderEnvironment;
+  store: KPlusStore;
+  productId: string;
+  /** deriveKPlusLifetimePurchaseRefDigest(...). Never the raw reference. */
+  purchaseRefDigest: string;
+  lifecycleState: KPlusLifetimeLifecycleState;
+  /** When the customer bought it, as the provider reports it. */
+  purchasedAt: string;
+}
+
+export type KPlusLifetimeTransitionResult =
+  | {
+    classification: 'applied';
+    transitionId: string;
+    grantId: string;
+    activationId: string | null;
+    accessBefore: boolean;
+    accessAfter: boolean;
+  }
+  | {
+    classification: 'duplicate';
+    originalOutcome: 'applied' | 'stale';
+    transitionId: string;
+    grantId: string | null;
+  }
+  | {
+    classification: 'stale';
+    transitionId: string;
+    grantId: string;
+    accessBefore: boolean;
+    accessAfter: boolean;
+  }
+  | { classification: 'rejected'; reason: KPlusLifetimeProviderRejectionReason };
+
+export const KPLUS_APPLY_PROVIDER_LIFETIME_TRANSITION_RPC = 'apply_kplus_provider_lifetime_transition' as const;
+
+/** Maps the typed input onto the RPC's named arguments, refusing a raw purchase
+ *  reference and any contradictory event/lifecycle pair before they can reach
+ *  the database. */
+export function toApplyKPlusProviderLifetimeTransitionArgs(input: KPlusLifetimeTransitionInput): Record<string, unknown> {
+  if (!SHA256_HEX.test(input.purchaseRefDigest)) {
+    throw new Error('purchaseRefDigest must be a lowercase hex SHA-256 digest');
+  }
+  const allowed = KPLUS_LIFETIME_EVENT_LIFECYCLE[input.providerEventType];
+  if (!allowed || !allowed.includes(input.lifecycleState)) {
+    throw new Error('lifetime event type and lifecycle state disagree');
+  }
+  return {
+    p_user_id: input.userId,
+    p_provider: input.provider,
+    p_cause: input.cause,
+    p_external_event_id: input.externalEventId,
+    p_provider_event_type: input.providerEventType,
+    p_provider_occurred_at: input.providerOccurredAt,
+    p_environment: input.environment,
+    p_store: input.store,
+    p_product_id: input.productId,
+    p_purchase_ref_digest: input.purchaseRefDigest,
+    p_lifecycle_state: input.lifecycleState,
+    p_purchased_at: input.purchasedAt,
+    p_entitlement_key: KPLUS_ENTITLEMENT_KEY,
+  };
+}
+
+/**
+ * The only form a lifetime purchase reference takes inside K Scan AI: SHA-256
+ * over a domain tag, provider, store, environment and the provider's stable
+ * purchase reference (for RevenueCat, `original_transaction_id`). The domain
+ * tag keeps a lifetime digest from ever colliding with a subscription digest
+ * of the same reference. Deterministic, so the same purchase always maps to the
+ * same grant, and one-way, so the ledger never holds a raw transaction id.
+ */
+export async function deriveKPlusLifetimePurchaseRefDigest(params: {
+  provider: KPlusProvider;
+  store: KPlusStore;
+  environment: KPlusProviderEnvironment;
+  storePurchaseReference: string;
+}): Promise<string> {
+  const reference = params.storePurchaseReference.trim();
+  if (!reference) throw new Error('storePurchaseReference is required');
+  const material = `lifetime|${params.provider}|${params.store}|${params.environment}|${reference}`;
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(material));
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -416,6 +577,26 @@ export const REVENUECAT_EVENT_TYPE_TO_KPLUS: Readonly<Record<string, KPlusProvid
   SUBSCRIBER_ALIAS: null,
   PRICE_INCREASE_CONSENT_REQUIRED: null,
   PRICE_INCREASE_CONSENT_APPROVED: null,
+});
+
+/**
+ * RevenueCat webhook `type` -> normalized LIFETIME event type, for the future
+ * adapter. A non-renewing purchase is only a lifetime signal when its product
+ * is the verified lifetime product; the adapter must check that, because
+ * NON_RENEWING_PURCHASE also describes consumables and other one-time items,
+ * which are never K+. RevenueCat reports a refund as CANCELLATION with
+ * `cancel_reason = CUSTOMER_SUPPORT`; the adapter maps that to 'refund' for a
+ * lifetime product exactly as it does for a subscription, so CANCELLATION is
+ * deliberately absent from the type map below. `null` = not a lifetime signal.
+ */
+export const REVENUECAT_EVENT_TYPE_TO_KPLUS_LIFETIME: Readonly<Record<string, KPlusLifetimeProviderEventType | null>> = Object.freeze({
+  NON_RENEWING_PURCHASE: 'lifetime_purchase',
+  REFUND_REVERSED: 'refund_reversed',
+  TRANSFER: 'transfer',
+  INITIAL_PURCHASE: null,
+  RENEWAL: null,
+  EXPIRATION: null,
+  TEST: null,
 });
 
 /** RevenueCat webhook fields that must never be persisted by K Scan AI.
