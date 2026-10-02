@@ -1,12 +1,13 @@
 /**
  * K Scan AI -- K+ entitlement read contract, client side (K+ Paywall Program,
- * Phase 1).
+ * Phase 1; Build 35 Phase A adds the lifetime display source).
  *
- * Types and pure policy only. Nothing imports this yet: the Build 34 client
- * still reads its own user_entitlements row through services/kplus. A later
- * phase moves every K+ surface (Voice Scan, still-image Virtual Try-On,
- * Wardrobe Concierge, Packing Intelligence, onboarding, Account -> K+) onto
- * get_my_kplus_entitlement_summary() and this module.
+ * Types and pure policy only. Since Build 35 Phase A the one consumer is the
+ * mobile entitlement reader (services/kplus/kplusEntitlementReader.ts) and the
+ * store built on it (services/kplus/kplusEntitlementStore.ts); every K+ surface
+ * reads the store through hooks/useKPlusEntitlement and none reads
+ * user_entitlements directly. No UI imports this module: surfaces ask only
+ * "does this actor have K+", never how it was obtained.
  *
  * The server is the authority. This module only decides what the client may
  * PRESENT while it cannot reach the server:
@@ -24,7 +25,8 @@
 export const KPLUS_SUMMARY_CONTRACT_VERSION = 1 as const;
 export const KPLUS_CLIENT_SUMMARY_RPC = 'get_my_kplus_entitlement_summary' as const;
 
-export const KPLUS_DISPLAY_SOURCES = ['subscription', 'trial', 'complimentary', 'unknown'] as const;
+/** Presentation precedence among contributing grants, strongest first. */
+export const KPLUS_DISPLAY_SOURCES = ['lifetime', 'subscription', 'trial', 'complimentary', 'unknown'] as const;
 export type KPlusDisplaySource = (typeof KPLUS_DISPLAY_SOURCES)[number];
 
 export const KPLUS_STORES = ['apple', 'google'] as const;
@@ -55,6 +57,12 @@ export interface KPlusEntitlementSummary {
   willRenew: boolean | null;
   store: KPlusStore | null;
   billingState: KPlusBillingState | null;
+  /**
+   * Whether the account has ever held a complimentary-family or legacy K+
+   * grant, active or not. `null` means the server did not report it (a Phase 1
+   * server that predates the field); it is never a statement about access.
+   */
+  complimentaryHistory: boolean | null;
   accountManagement: KPlusAccountManagement;
   snapshotIssuedAt: string;
 }
@@ -111,6 +119,9 @@ export function parseKPlusEntitlementSummary(value: unknown): KPlusEntitlementSu
   if (raw.willRenew !== null && typeof raw.willRenew !== 'boolean') return null;
   if (raw.store !== null && !isOneOf(KPLUS_STORES, raw.store)) return null;
   if (raw.billingState !== null && !isOneOf(KPLUS_BILLING_STATES, raw.billingState)) return null;
+  // Additive field: absent on a Phase 1 server (-> null), but a present value
+  // must be a boolean. Anything else is a malformed answer.
+  if (raw.complimentaryHistory !== undefined && typeof raw.complimentaryHistory !== 'boolean') return null;
   if (!management || typeof management !== 'object') return null;
   if (typeof management.storeManagementRelevant !== 'boolean') return null;
   if (management.managementStore !== null && !isOneOf(KPLUS_STORES, management.managementStore)) return null;
@@ -121,6 +132,9 @@ export function parseKPlusEntitlementSummary(value: unknown): KPlusEntitlementSu
   if (raw.access === 'k_plus') {
     if (raw.displaySource === null) return null;
     if (raw.isOpenEnded === (raw.effectiveExpiresAt !== null)) return null;
+    // A lifetime purchase is open-ended by definition. A "lifetime" answer with
+    // an end date is a contradiction, never a bounded entitlement.
+    if (raw.displaySource === 'lifetime' && !raw.isOpenEnded) return null;
   } else if (raw.displaySource !== null || raw.effectiveExpiresAt !== null || raw.isOpenEnded) {
     return null;
   }
@@ -136,6 +150,7 @@ export function parseKPlusEntitlementSummary(value: unknown): KPlusEntitlementSu
     willRenew: raw.willRenew as boolean | null,
     store: raw.store as KPlusStore | null,
     billingState: raw.billingState as KPlusBillingState | null,
+    complimentaryHistory: typeof raw.complimentaryHistory === 'boolean' ? raw.complimentaryHistory : null,
     accountManagement: {
       storeManagementRelevant: management.storeManagementRelevant,
       managementStore: management.managementStore as KPlusStore | null,
