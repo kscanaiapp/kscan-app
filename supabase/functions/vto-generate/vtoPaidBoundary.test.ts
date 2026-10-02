@@ -7,7 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isEntitlementRowActive, resolveVtoEntitlement } from './vtoEntitlement.ts';
+import { resolveVtoEntitlement } from './vtoEntitlement.ts';
 import { buildVtoIdempotencyKey, reserveVtoGeneration } from './vtoReservation.ts';
 import {
   assertSafeRemoteMediaUrl,
@@ -15,54 +15,13 @@ import {
   resolveSafeRemoteMedia,
 } from '../_shared/net/safeRemoteMedia.ts';
 
-const NOW = Date.parse('2026-08-31T12:00:00Z');
-const FUTURE = '2026-12-31T00:00:00Z';
-const PAST = '2026-01-01T00:00:00Z';
 const USER = '11111111-1111-4111-8111-111111111111';
 
 function jsonResponse(body: unknown, ok = true): Response {
   return new Response(JSON.stringify(body), { status: ok ? 200 : 500 });
 }
 
-// ── SEC-KPLUS-003 — canonical K+ semantics parity ────────────────────────────
-
-test('a null / missing expiry is NOT active (canonical requires expires_at is not null)', () => {
-  for (const row of [
-    { status: 'active', expires_at: null },
-    { status: 'active' },
-    { status: 'active', expires_at: '' },
-    { status: 'active', expires_at: '   ' },
-  ]) {
-    assert.equal(
-      isEntitlementRowActive(row, NOW),
-      false,
-      `a null-expiry grant must not be active: ${JSON.stringify(row)}`,
-    );
-  }
-});
-
-test('a REVOKED grant is not active even when status still says active', () => {
-  assert.equal(
-    isEntitlementRowActive({ status: 'active', expires_at: FUTURE, revoked_at: PAST }, NOW),
-    false,
-  );
-});
-
-test('expired / malformed / wrong-status rows are not active', () => {
-  assert.equal(isEntitlementRowActive({ status: 'active', expires_at: PAST }, NOW), false);
-  assert.equal(isEntitlementRowActive({ status: 'active', expires_at: 'nope' }, NOW), false);
-  assert.equal(isEntitlementRowActive({ status: 'expired', expires_at: FUTURE }, NOW), false);
-  assert.equal(isEntitlementRowActive({ status: 'revoked', expires_at: FUTURE }, NOW), false);
-  assert.equal(isEntitlementRowActive(null, NOW), false);
-  assert.equal(isEntitlementRowActive(undefined, NOW), false);
-});
-
-test('a genuinely active, unrevoked, unexpired grant IS active', () => {
-  assert.equal(
-    isEntitlementRowActive({ status: 'active', expires_at: FUTURE, revoked_at: null }, NOW),
-    true,
-  );
-});
+// ── SEC-KPLUS-003 — canonical K+ authority parity ────────────────────────────
 
 test('resolveVtoEntitlement DELEGATES to the canonical RPC', async () => {
   const calls: string[] = [];
@@ -70,9 +29,6 @@ test('resolveVtoEntitlement DELEGATES to the canonical RPC', async () => {
     rpc: async (fn) => {
       calls.push(fn);
       return jsonResponse(true);
-    },
-    rest: async () => {
-      throw new Error('the REST fallback must not run when the RPC answers');
     },
   });
   assert.deepEqual(calls, ['kplus_has_active_entitlement']);
@@ -82,9 +38,6 @@ test('resolveVtoEntitlement DELEGATES to the canonical RPC', async () => {
 test('a canonical false is denied, not unknown', async () => {
   const outcome = await resolveVtoEntitlement(USER, {
     rpc: async () => jsonResponse(false),
-    rest: async () => {
-      throw new Error('must not fall back on a definite answer');
-    },
   });
   assert.equal(outcome.state, 'denied');
 });
@@ -92,34 +45,17 @@ test('a canonical false is denied, not unknown', async () => {
 test('an unreadable authority is unknown (not denied, and never active)', async () => {
   const outcome = await resolveVtoEntitlement(USER, {
     rpc: async () => jsonResponse(null, false),
-    rest: async () => jsonResponse(null, false),
   });
   assert.equal(outcome.state, 'unknown');
 });
 
-test('the REST fallback applies the SAME canonical rule as the RPC', async () => {
-  // RPC unavailable, row has a null expiry -> denied, exactly as canonical.
+test('a thrown canonical authority failure is unknown, never denied-as-upgrade', async () => {
   const outcome = await resolveVtoEntitlement(USER, {
     rpc: async () => {
       throw new Error('rpc down');
     },
-    rest: async () => jsonResponse([{ status: 'active', expires_at: null }]),
-    nowMs: NOW,
   });
-  assert.equal(outcome.state, 'denied');
-  // And the fallback must actually request revoked_at.
-  let requestedPath = '';
-  await resolveVtoEntitlement(USER, {
-    rpc: async () => {
-      throw new Error('rpc down');
-    },
-    rest: async (path) => {
-      requestedPath = path;
-      return jsonResponse([]);
-    },
-    nowMs: NOW,
-  });
-  assert.match(requestedPath, /revoked_at/);
+  assert.equal(outcome.state, 'unknown');
 });
 
 // ── SEC-KPLUS-002 — remote garment URL authority ─────────────────────────────

@@ -22,6 +22,11 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
+const BUILD35_ENTITLEMENT_BACKEND_PATHS = new Set([
+  'supabase/functions/vto-generate/vtoEntitlement.ts',
+  'supabase/functions/vto-generate/vtoGuards.test.ts',
+  'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
+]);
 
 // ── The manifest parses, and every row carries its justification ────────────
 
@@ -204,17 +209,19 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only; certification may expose the governed VTO UI', (t) => {
+test('guard: generative backend stays read-only outside the exact Build 35 entitlement repair', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
   const forbiddenBackendTouches = changed.filter(
-    (file) => file.startsWith('supabase/') || file === 'app.json',
+    (file) =>
+      (file.startsWith('supabase/') && !BUILD35_ENTITLEMENT_BACKEND_PATHS.has(file)) ||
+      file === 'app.json',
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO; supabase/** and app.json remain read-only in this lane',
+    'only the three exact Build 35 entitlement resolver/test paths may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {

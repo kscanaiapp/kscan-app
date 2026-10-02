@@ -73,10 +73,14 @@ added to a list without a justification.
 | `config/migration-authority-manifest.json` | `RP-106` / `VTO-MIG-001`: the staging environment declared `20260902150000` `GENUINELY_UNAPPLIED` on evidence captured 2026-09-03. By 2026-09-07 that was false — the ledger carried the version and `release_vto_generation` existed with a byte-identical body. A governance manifest asserting a false fact about staging is worse than one asserting nothing, so the entry moves to `appliedSinceReconciliation` with the certification evidence. Descriptive correction only: no gate consumes `genuinelyUnapplied` for a blocking decision. | Owner-authorized Build 34 repair `RP-106` (2026-09-06), Lane D §11, §18 |
 | `__tests__/staging/stagingMigrationReconciliation.test.js` | Regression proof for the `RP-106` manifest correction above — it pinned the now-false `GENUINELY_UNAPPLIED` shape by name and count. Updated to pin the corrected shape while keeping the structural invariant it exists for (nothing declared both unapplied and reconciled; every declared version still on disk). Does not authorize non-VTO tests generally. | Owner-authorized Build 34 repair `RP-106` (2026-09-06), Lane D §18 |
 | `docs/audits/rp106-vto-attempt-release-promotion.md` | The production promotion record `RP-106` §23 requires: what was certified on staging, the evidence, and the explicit statement that production remains frozen during Apple review. Declared exactly rather than by widening `docs/audits/**`. | Owner-authorized Build 34 repair `RP-106` (2026-09-06), Lane D §23 |
+| `supabase/functions/vto-generate/vtoEntitlement.ts` | Build 35 removes VTO's direct legacy-table fallback so this server boundary delegates exclusively to the canonical K+ predicate while preserving ACTIVE, DENIED, and UNKNOWN. Exact resolver path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §2-§7 (2026-10-01) |
+| `supabase/functions/vto-generate/vtoGuards.test.ts` | Backend regression coverage for canonical grant families, lifecycle denials, malformed/unavailable authority, authenticated-actor binding, cross-actor isolation, and fresh recovery. Exact test path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §8 (2026-10-01) |
+| `supabase/functions/vto-generate/vtoPaidBoundary.test.ts` | Narrow paid-boundary regression coverage proving the canonical RPC is the sole entitlement authority and failures remain UNKNOWN rather than free or upgrade-denied. Exact test path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §8 (2026-10-01) |
 
 ### Explicitly NOT authorized, and not touched
 
-`supabase/functions/vto-generate/**` (read only), the Commerce
+`supabase/functions/vto-generate/**` except the three exact Build 35 entitlement
+authority paths authorized above (all other files remain read only), the Commerce
 implementation, the scan/identification pipeline, checkout, closet, packing,
 Elise, analytics infrastructure except the two exact audit repair files above, unrelated hooks/services/components,
 deployment workflows, release credentials, and staging/production backend
@@ -308,7 +312,7 @@ against the contract and the reducer, never against a runtime.
 - **Request:** `{ requestId, origin, person: { dataUri }, garment: { productRef, imageUrl, category, brand, commerceSource }, requestGeneration?, devScenario? }`
 - **Response:** `{ requestId, provider, result: { dataUri, mediaType, width, height, latencyMs } }`, or `{ error: { code } }` from the K Scan failure taxonomy.
 - **Async model:** synchronous invoke, 45s server generation timeout inside a 55s client ceiling, so a server-classified `provider_timeout` wins the race.
-- **Entitlement:** K+ from `user_entitlements`, server-side, identity from the verified JWT only.
+- **Entitlement:** K+ from the canonical `kplus_has_active_entitlement` server predicate, identity from the verified JWT only; VTO performs no direct grant-table read.
 - **Quota / reservation / idempotency:** reservation taken before the provider call; `buildVtoIdempotencyKey` keyed on the client's `requestGeneration` intent sequence; `billable: false` releases the attempt.
 - **Feature controls:** the `vto_generation` `app_config` row, re-read server-side with the service role.
 - **Validation:** person data-URI pattern + size bound, `assertSafeRemoteMediaUrl` (SSRF) on the garment URL, and result media validation.
