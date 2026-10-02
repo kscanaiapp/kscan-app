@@ -40,7 +40,7 @@ path is separate and additive.
 
 | file | role |
 |---|---|
-| `supabase/functions/kplus-revenuecat-webhook/index.ts` | thin Deno entry; wires env, clock, logger, service-role RPC |
+| `supabase/functions/kplus-revenuecat-webhook/index.ts` | thin Deno entry; wires env, clock, logger and ONE service-role RPC call. It deliberately does **not** import `_shared/deletion/common.ts`: the endpoint is reachable without a JWT, so its closure carries no `auth.admin` code (privilege profile: service role + RPC only, no table access; same approach as `deletion-status`) |
 | `_shared/revenuecat/revenueCatWebhookHandler.ts` | request path, HTTP semantics, telemetry |
 | `_shared/revenuecat/revenueCatWebhookAuth.ts` | Authorization secret + optional HMAC verification |
 | `_shared/revenuecat/revenueCatWebhookEvent.ts` | strict parse, actor mapping, RevenueCat event -> internal transition |

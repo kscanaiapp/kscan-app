@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-02T15:15:06.669Z",
-    "generatedFromGitSha": "c017e63b377d5e9466a6279d936eeb9bb9372343"
+    "generatedAtUtc": "2026-10-02T15:47:50.836Z",
+    "generatedFromGitSha": "a3238ba02cbccfdbe3e90fca71eb8d0e77ed62bb"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -45,7 +45,7 @@
         "bundleFileCount": 42,
         "treeFileCount": 69,
         "bundleHash": "00a37116b65c91e9bcb4760b12afc5b3a7f19d486d5a5b9b2749c149f255689b",
-        "treeHash": "fd7ab4f9785b39489c80205886b30abba85add222053b7ac0da56b58ef0e1b3f",
+        "treeHash": "5d0f59b963437f7959d1be492fde9ad77e6428cd7ff96f342a337ce80cd03bd5",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -254,7 +254,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "bc38b095e27aecc1477d55c04406f6bbf124e351c4c3ff7f8c542ec75fdcaca0",
+            "sha256": "56dc1711a894e34d486cce668ee7a82c20d709f2dc067a76f8dd43d2278a8566",
             "bundle": false
           },
           {
@@ -1409,19 +1409,12 @@
       {
         "name": "kplus-revenuecat-webhook",
         "entry": "supabase/functions/kplus-revenuecat-webhook/index.ts",
-        "remoteSpecifiers": [
-          "npm:@supabase/supabase-js@2"
-        ],
-        "bundleFileCount": 7,
-        "treeFileCount": 7,
-        "bundleHash": "b07158f5000299696c4960a548bcb6ebf50ad2c74ecd5a816a45967231fe3675",
-        "treeHash": "b07158f5000299696c4960a548bcb6ebf50ad2c74ecd5a816a45967231fe3675",
+        "remoteSpecifiers": [],
+        "bundleFileCount": 6,
+        "treeFileCount": 6,
+        "bundleHash": "b1e234e1f84e33e44170c996cd4348ea5b23b2a2dff1923e5324daf5f53a907b",
+        "treeHash": "b1e234e1f84e33e44170c996cd4348ea5b23b2a2dff1923e5324daf5f53a907b",
         "files": [
-          {
-            "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
-            "bundle": true
-          },
           {
             "path": "supabase/functions/_shared/kplus/kplusEntitlementContract.ts",
             "sha256": "20ee434a6eea640900357654536d1d307bb371379cee98a046f7752bd1251ee7",
@@ -1449,7 +1442,7 @@
           },
           {
             "path": "supabase/functions/kplus-revenuecat-webhook/index.ts",
-            "sha256": "bb33a486d01ae3e78557e9ea7f3dbc57b7b7a50815e36dc010f2309235422404",
+            "sha256": "7d16eeee4fe24694b604f41aff116bf1c20741b8ab6495a5c788aa6ecaac2d53",
             "bundle": true
           }
         ]
