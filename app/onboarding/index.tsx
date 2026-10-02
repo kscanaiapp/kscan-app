@@ -30,7 +30,7 @@ import {
   AccountSetupStepV1,
   PermissionsStepV1,
 } from '../../components/account-home';
-import { KPlusActivationStep } from '../../components/kplus/KPlusActivationStep';
+import { KPlusMembershipStep } from '../../components/kplus/KPlusMembershipStep';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import {
   TERMS_VERSION,
@@ -57,7 +57,7 @@ type OnboardingStep =
   | 3  // Create Account / Email Auth
   | 4  // Terms + Privacy
   | 5  // Permissions Preferences
-  | 6  // K+ Activation
+  | 6  // K+ Membership
   | 7; // Home Handoff
 
 // ── Main Route ───────────────────────────────────────────────────────────────
@@ -231,13 +231,14 @@ export default function OnboardingScreen() {
     router.push('/auth');
   }, [router]);
 
-  /** Permissions -> K+ activation (step 6).
+  /** Permissions -> K+ membership (step 6).
    *
    *  Authentication already happened at step 3, so every actor reaching this
-   *  point is signed in and the activation screen can read a real, actor-scoped
-   *  entitlement. The screen itself decides whether an offer is appropriate --
-   *  an existing K+ member, an unresolved read, or a build with no K+
-   *  capabilities compiled in all route straight on without showing an upsell. */
+   *  point is signed in and the membership screen can read a real, actor-scoped
+   *  canonical entitlement. The screen itself decides what applies -- an active
+   *  member is confirmed, a complimentary member is acknowledged, an unresolved
+   *  read is never treated as Free, and only a positively Free actor sees the
+   *  paid membership options. */
   const goToKPlusActivation = useCallback(() => {
     setStep(6);
   }, []);
@@ -728,8 +729,10 @@ export default function OnboardingScreen() {
     );
   };
 
+  // Keyed by actor: a different signed-in actor never inherits this screen's
+  // plan selection, notices or in-flight state.
   const renderKPlusActivation = () => (
-    <KPlusActivationStep onContinue={goToHome} onSkip={goToHome} />
+    <KPlusMembershipStep key={user?.id ?? 'signed-out'} onContinue={goToHome} onSkip={goToHome} />
   );
 
   const renderHomeHandoff = () => (

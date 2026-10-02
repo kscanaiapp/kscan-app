@@ -46,6 +46,7 @@ import {
   normalizeKPlusOfferings,
   resolveKPlusRevenueCatConfig,
   type KPlusCommerceSnapshot,
+  type KPlusIntroEligibility,
   type KPlusNativeCommercePort,
   type KPlusProductCatalog,
   type KPlusProductKind,
@@ -233,8 +234,24 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     return { state: 'ok', gen, actorId };
   }
 
+  /** The store's answer for the Monthly intro offer. Anything short of a clean
+   *  answer is 'UNKNOWN', which never produces trial copy. */
+  async function readMonthlyIntroEligibility(catalog: KPlusProductCatalog): Promise<KPlusIntroEligibility> {
+    const monthly = catalog.monthly;
+    if (monthly.status !== 'available' || !monthly.product.introOffer) return 'NO_INTRO_OFFER';
+    if (typeof port.checkIntroEligibility !== 'function') return 'UNKNOWN';
+    try {
+      const answer = await port.checkIntroEligibility(monthly.product.storeProductIdentifier);
+      return answer === 'ELIGIBLE' || answer === 'INELIGIBLE' || answer === 'NO_INTRO_OFFER' ? answer : 'UNKNOWN';
+    } catch {
+      return 'UNKNOWN';
+    }
+  }
+
   async function fetchCatalog(prepared: { gen: number; actorId: string }): Promise<
-    { state: 'ok'; catalog: KPlusProductCatalog } | { state: 'discarded' } | { state: 'unavailable'; reason: KPlusUnavailableReason }
+    | { state: 'ok'; catalog: KPlusProductCatalog; eligibility: KPlusIntroEligibility }
+    | { state: 'discarded' }
+    | { state: 'unavailable'; reason: KPlusUnavailableReason }
   > {
     let raw;
     try {
@@ -246,8 +263,10 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     }
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     const catalog = normalizeKPlusOfferings(raw, deps.mapping);
+    const eligibility = await readMonthlyIntroEligibility(catalog);
+    if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     catalogActorId = prepared.actorId;
-    return { state: 'ok', catalog };
+    return { state: 'ok', catalog, eligibility };
   }
 
   async function loadOfferings(): Promise<KPlusCommerceSnapshot> {
@@ -265,9 +284,15 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     }
     // Do not clobber a purchase / restore that is mid-flight or resolving.
     if (inFlight === null && !isResolvingStatus() && snapshot.status !== 'ENTITLEMENT_CONFIRMED') {
-      setSnapshot({ status: 'READY', unavailableReason: null, catalog: result.catalog, pendingKind: null });
+      setSnapshot({
+        status: 'READY',
+        unavailableReason: null,
+        catalog: result.catalog,
+        pendingKind: null,
+        monthlyIntroEligibility: result.eligibility,
+      });
     } else {
-      setSnapshot({ catalog: result.catalog });
+      setSnapshot({ catalog: result.catalog, monthlyIntroEligibility: result.eligibility });
     }
     return snapshot;
   }
@@ -330,7 +355,13 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
           return { outcome: 'UNAVAILABLE', reason: fetched.reason };
         }
         catalog = fetched.catalog;
-        setSnapshot({ status: 'READY', unavailableReason: null, catalog, pendingKind: null });
+        setSnapshot({
+          status: 'READY',
+          unavailableReason: null,
+          catalog,
+          pendingKind: null,
+          monthlyIntroEligibility: fetched.eligibility,
+        });
       }
 
       const entry = kind === 'MONTHLY' ? catalog.monthly : catalog.lifetime;

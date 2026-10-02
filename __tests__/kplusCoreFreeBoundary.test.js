@@ -72,6 +72,11 @@ const EXPECTED_ENTITLEMENT_READERS = [
   // continuing into the app, and an unresolved read shows neither the offer
   // nor the free framing.
   'components/kplus/KPlusActivationStep.tsx',
+  // Build 35 Phase D: Welcome Step 6 membership orchestrator. Reads canonical
+  // state only to choose WHICH membership screen applies (confirm / acknowledge
+  // complimentary / never-Free while unresolved / paid options); it gates no
+  // capability, core or K+.
+  'components/kplus/KPlusMembershipStep.tsx',
   'components/kplus/KPlusEarlyAccessSheet.tsx',
   'components/kplus/KPlusGate.tsx',   // the shared gate itself
   // Build 34 final UI integration: Home reads the shared entitlement snapshot
