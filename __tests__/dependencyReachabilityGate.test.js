@@ -110,9 +110,9 @@ test('B34-DEF-014: the committed manifest accepts the real tree\'s critical/high
   // claim is asserted directly instead: every high finding the real tree currently
   // produces must resolve to an approved exception, with none left unapproved.
   const realHighFindings = [
-    '@expo/cli', '@expo/metro', '@expo/metro-config', 'brace-expansion', 'expo',
+    '@expo/cli', '@expo/code-signing-certificates', '@expo/metro', '@expo/metro-config', 'brace-expansion', 'expo',
     'image-size', 'js-yaml', 'metro', 'metro-config', 'metro-transform-worker',
-    'nanoid', 'postcss', 'ws',
+    'nanoid', 'node-forge', 'postcss', 'ws',
   ];
   const report = auditReport(
     Object.fromEntries(realHighFindings.map((name) => [name, { severity: 'high' }])),
@@ -167,6 +167,43 @@ test('B34-DEF-014 negative control: an excepted package imported by app source f
   const drifted = evaluate(report, ['nanoid']);
   assert.equal(drifted.failures.length, 1);
   assert.match(drifted.failures[0], /now directly imported from shipped app source/);
+});
+
+test('Build 35 negative control: the Expo signing exception fails if node-forge reaches app source', () => {
+  const report = auditReport({ 'node-forge': { severity: 'high' } }, { high: 1, total: 1 });
+
+  const clean = evaluate(report, []);
+  assert.deepEqual(clean.failures, [], 'the evidenced Expo CLI-only path remains accepted');
+
+  const drifted = evaluate(report, ['node-forge']);
+  assert.equal(drifted.failures.length, 1);
+  assert.match(drifted.failures[0], /node-forge \(high\): now directly imported from shipped app source/);
+});
+
+test('Build 35 negative control: document-like names cannot disguise package reachability', () => {
+  const report = auditReport(
+    { 'release-evidence.docx': { severity: 'high' } },
+    { high: 1, total: 1 },
+  );
+  const unapproved = evaluate(report, []);
+  assert.equal(unapproved.failures.length, 1);
+  assert.match(unapproved.failures[0], /release-evidence\.docx \(high\): no approved exception/);
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dep-reach-document-like-'));
+  const sourceDir = path.join(root, 'app', 'records');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(sourceDir, 'release-evidence.docx.ts'),
+    "import forge from 'node-forge';\nvoid forge;\n",
+    'utf8',
+  );
+
+  const checker = gate.makeImportChecker(gate.readAppSource(root));
+  assert.equal(
+    checker('node-forge'),
+    true,
+    'a real source import must remain visible even when its stem resembles a non-code document',
+  );
 });
 
 test('B34-DEF-014: reachability is enforced even when this run\'s audit omits the package', () => {
