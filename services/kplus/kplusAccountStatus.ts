@@ -24,12 +24,13 @@ export interface KPlusAccountStatus {
 export function describeKPlusAccountStatus(
   state: KPlusResolvedState,
   expiryLabel: string | null,
+  complimentaryAcquisitionEnabled: boolean,
 ): KPlusAccountStatus {
   switch (state) {
     case 'active':
       return {
-        subtitle: expiryLabel ? `Active through ${expiryLabel}.` : 'Your K+ Early Access is active.',
-        pillLabel: 'Early Access Active',
+        subtitle: expiryLabel ? `Active through ${expiryLabel}.` : 'Your K+ access is active.',
+        pillLabel: 'K+ Active',
         pillVariant: 'gold',
         action: null,
       };
@@ -43,6 +44,14 @@ export function describeKPlusAccountStatus(
         action: null,
       };
     case 'eligible':
+      if (!complimentaryAcquisitionEnabled) {
+        return {
+          subtitle: 'K+ is not active on this account.',
+          pillLabel: 'K Scan AI Free',
+          pillVariant: 'neutral',
+          action: null,
+        };
+      }
       return {
         subtitle: 'Complimentary for 6 months. No payment required.',
         pillLabel: 'Early Access available',

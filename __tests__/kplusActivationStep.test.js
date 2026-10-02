@@ -313,7 +313,10 @@ test('ENTITLEMENT_ERROR: a failed read is not classified as Free', () => {
 });
 
 test('EXISTING_KPLUS_BYPASSES_PAYWALL: an active member is never shown the offer', () => {
-  assert.match(code, /const nothingToOffer = isActive \|\| state === 'unavailable'/);
+  assert.match(
+    code,
+    /const nothingToOffer = !KPLUS_EARLY_ACCESS_ENABLED \|\| isActive \|\| state === 'unavailable'/,
+  );
   assert.match(code, /if \(nothingToOffer && !resolving\) onSkip\(\)/);
 
   // And the skip must be evaluated before the offer render path.

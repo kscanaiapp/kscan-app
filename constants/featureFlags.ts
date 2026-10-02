@@ -121,11 +121,12 @@ export const VOICESCAN_ENABLED = resolveVoiceScanEnabled();
 
 // ── K+ entitlement boundary ──────────────────────────────────────────────────
 /**
- * Master client rollout switch for the K+ product boundary (status row,
- * upgrade surfaces, Voice Scan pill conversion). Independent of whether any
- * individual K+-gated FEATURE (e.g. Voice Scan itself) is built --
- * "does K+ exist as a concept the user can see" and "is a specific K+
- * capability implemented" are deliberately separate questions. Defaults off.
+ * LEGACY COMPLIMENTARY EARLY ACCESS ACQUISITION FLAG.
+ *
+ * Controls only whether this build may present and invoke the Build 34
+ * complimentary activation experience. It is NOT a master K+ flag and never
+ * gates canonical entitlement reads or recognition of trial, subscription,
+ * lifetime, promotional, employee, or support grants. Defaults off.
  */
 export function resolveKPlusEarlyAccessEnabled(
   value: string | undefined = process.env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED,

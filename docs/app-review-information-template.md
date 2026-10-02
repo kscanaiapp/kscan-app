@@ -71,7 +71,7 @@ literal string `'true'`), so "not declared" means "off".
 |---|---|
 | Scanner, TextScan (+ backend) | VoiceScan (`EXPO_PUBLIC_VOICESCAN_ENABLED` not declared) |
 | Retailer-neutral commerce discovery | Virtual Try-On (`EXPO_PUBLIC_VTO_UI_ENABLED` not declared) |
-| Closet, batch review, candidate staging, direct intake | K+ premium boundary (`EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` not declared) |
+| Closet, batch review, candidate staging, direct intake | K+ complimentary Early Access acquisition (`EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` not declared) |
 | Signature Style (profile, context, reason feedback) | Packing Intelligence (`EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` not declared) |
 | StyleChat / Elise, attachments, identification V2 | Wardrobe Concierge (`EXPO_PUBLIC_ELISE_CONCIERGE_V1` not declared) |
 | Dressing Rooms, room chat, shared rooms, private rooms | Smart Watchlist (`EXPO_PUBLIC_SMART_WATCHLIST_V1` not declared) |

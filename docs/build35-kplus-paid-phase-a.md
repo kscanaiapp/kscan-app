@@ -200,10 +200,11 @@ harness is not committed: it needs a dependency the repository does not carry.
    reads the legacy table, which would deny a lifetime or subscription customer during
    an outage. That path is VTO-owned (read-only under the VTO scope guard) and was not
    touched. It becomes a real defect once paid grants exist.
-3. **Feature flag coupling.** `useKPlusEntitlement` returns `unavailable` for everyone
-   unless `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` is `true`, and it is set in only two
-   EAS profiles. Paid K+ must not be hidden behind an Early-Access-named flag. Not
-   changed here (environment handling).
+3. **Feature flag coupling (resolved by the Build 35 decoupling follow-up).**
+   `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` now controls only the legacy complimentary
+   acquisition experience. `useKPlusEntitlement` always reads canonical entitlement
+   truth for authenticated actors, including when the variable is absent, false, or
+   malformed. No EAS profile values were changed.
 4. **Ownership transfer (Phase C).** A purchase is bound to one K Scan AI user for good.
    RevenueCat transfers a purchase between App User IDs on restore. The current design
    refuses to move a grant, so restore-after-account-switch needs an explicit, verified

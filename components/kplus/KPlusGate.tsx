@@ -1,7 +1,7 @@
 // Reusable K+ capability gate. Every future K+ feature entry point should
 // render through this component rather than building a feature-specific
-// paywall/gate -- see KPlusEarlyAccessSheet for the one shared upgrade
-// surface it opens.
+// paywall/gate -- see KPlusEarlyAccessSheet for the one shared K+ status and
+// legacy complimentary-acquisition surface it opens.
 import React, { useEffect, useState } from 'react';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from './KPlusEarlyAccessSheet';
@@ -31,7 +31,7 @@ export interface KPlusGateRenderArgs {
    * __tests__/kplusResolvingNeverFree.test.js.
    */
   resolving: boolean;
-  /** Opens the shared K+ Early Access sheet. */
+  /** Opens the shared K+ status / legacy complimentary-acquisition sheet. */
   openUpgrade: () => void;
 }
 

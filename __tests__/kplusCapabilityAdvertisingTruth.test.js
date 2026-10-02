@@ -345,13 +345,13 @@ test('SURFACES: an unsettled live answer is not "nothing to offer" (the step mus
   const screen = stripComments(read('components', 'kplus', 'KPlusActivationStep.tsx'));
   assert.match(
     screen,
-    /const nothingToOffer = isActive \|\| state === 'unavailable' \|\|\s*\(liveSignalsSettled && capabilities\.length === 0\);/,
+    /const nothingToOffer = !KPLUS_EARLY_ACCESS_ENABLED \|\| isActive \|\| state === 'unavailable' \|\|\s*\(liveSignalsSettled && capabilities\.length === 0\);/,
   );
 });
 
 test('SURFACES: the early-access sheet derives its benefit list from the same catalog and signal', () => {
   const sheet = stripComments(read('components', 'kplus', 'KPlusEarlyAccessSheet.tsx'));
-  assert.match(sheet, /useKPlusLiveCapabilitySignals\(visible\)/);
+  assert.match(sheet, /useKPlusLiveCapabilitySignals\(\s*visible && KPLUS_EARLY_ACCESS_ENABLED,?\s*\)/);
   assert.match(sheet, /resolveActivationCapabilities\(\{\}, undefined, liveSignals\)/);
   assert.match(sheet, /advertisedCapabilities\.map\(/);
   for (const stale of ['Advanced style intelligence', 'Smarter wardrobe tools']) {

@@ -30,7 +30,7 @@ export function useKPlusEntitlement(): UseKPlusEntitlementResult {
   const snapshot = useSyncExternalStore(subscribeToKPlusEntitlement, getKPlusEntitlementSnapshot);
 
   useEffect(() => {
-    if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated || !user?.id) return;
+    if (!isAuthenticated || !user?.id) return;
     void refreshKPlusEntitlement();
   }, [isAuthenticated, user?.id]);
 
@@ -41,7 +41,7 @@ export function useKPlusEntitlement(): UseKPlusEntitlementResult {
   // reconcile with the server rather than sit on a locally-expired snapshot.
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   useEffect(() => {
-    if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated || !user?.id) return;
+    if (!isAuthenticated || !user?.id) return;
     const subscription = AppState.addEventListener('change', (next) => {
       const cameForward = appStateRef.current.match(/inactive|background/) && next === 'active';
       appStateRef.current = next;
@@ -51,16 +51,19 @@ export function useKPlusEntitlement(): UseKPlusEntitlementResult {
   }, [isAuthenticated, user?.id]);
 
   const refresh = useCallback(() => {
-    if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated) return;
+    if (!isAuthenticated) return;
     void refreshKPlusEntitlement();
   }, [isAuthenticated]);
 
+  // This is the only flag-gated operation in the hook. The flag controls the
+  // legacy complimentary acquisition mutation; it never controls entitlement
+  // truth, including paid, trial, lifetime, promotional, or manual grants.
   const activate = useCallback(async (): Promise<ActivateOutcome> => {
     if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated) return 'failed';
     return activateKPlus();
   }, [isAuthenticated]);
 
-  if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated) {
+  if (!isAuthenticated) {
     return {
       state: 'unavailable',
       expiresAt: null,

@@ -34,16 +34,17 @@ test('Voice Scan pill shows the K+ acquisition copy, gated by KPLUS_EARLY_ACCESS
   assert.match(textScanFeatureRow, /KPlusGate/);
 });
 
-test('Voice Scan pill falls back to the legacy Coming Soon copy when the K+ boundary or Voice Scan itself is off', () => {
-  assert.match(textScanFeatureRow, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
+test('Voice Scan falls back to Coming Soon only when Voice Scan itself is off', () => {
+  assert.match(textScanFeatureRow, /if \(!VOICESCAN_ENABLED\)/);
+  assert.doesNotMatch(textScanFeatureRow, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
   assert.match(textScanFeatureRow, /Coming Soon/);
 });
 
 test('Voice Scan pill never opens a nonexistent feature for an active K+ member', () => {
   const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
   // BUILD34-KPLUS-RESOLVING-001 widened both guards to `isActive || resolving`.
-  assert.match(block, /disabled=\{isActive \|\| resolving\}/);
-  assert.match(block, /onPress=\{isActive \|\| resolving \? undefined : openUpgrade\}/);
+  assert.match(block, /disabled=\{isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED\}/);
+  assert.match(block, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED \? undefined : openUpgrade/);
 });
 
 test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundary flag (Build 34 K+ Early Access shell, section 8)', () => {
@@ -53,7 +54,8 @@ test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundar
   // KPLUS_EARLY_ACCESS_ENABLED was on, regardless of whether Voice Scan
   // itself was implemented.
   const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
-  assert.match(block, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
+  assert.match(block, /if \(!VOICESCAN_ENABLED\)/);
+  assert.match(block, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED/);
 });
 
 test('KPlusGate always renders the shared K+ Early Access sheet, never a feature-specific paywall', () => {
@@ -69,17 +71,19 @@ test('K+ sheet uses complimentary-access language and never subscription/billing
   }
 });
 
-test('Account/Profile screen renders a K+ status row gated by auth and the feature flag', () => {
+test('Account/Profile screen renders canonical K+ status for every authenticated actor', () => {
   assert.match(privacyScreen, /KPLUS_EARLY_ACCESS_ENABLED/);
   assert.match(privacyScreen, /useKPlusEntitlement/);
   assert.match(privacyScreen, /title="K\+"/);
+  assert.match(privacyScreen, /\{isAuthenticated \? \(/);
+  assert.doesNotMatch(privacyScreen, /isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED \? \(/);
   assert.doesNotMatch(privacyScreen, /Manage Subscription/);
 });
 
 test('Account/Profile K+ row never renders a "Manage Subscription" action (no subscription exists)', () => {
   const kPlusSection = privacyScreen.slice(
-    privacyScreen.indexOf('isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED'),
-    privacyScreen.indexOf('isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED') + 600,
+    privacyScreen.indexOf('{isAuthenticated ? ('),
+    privacyScreen.indexOf('{isAuthenticated ? (') + 800,
   );
   assert.doesNotMatch(kPlusSection, /Manage Subscription/i);
 });
