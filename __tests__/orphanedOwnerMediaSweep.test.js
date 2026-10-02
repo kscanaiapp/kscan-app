@@ -252,7 +252,10 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // into the worker would drag the whole newer worker source into a production
   // deploy. Keeping it separate holds its blast radius on the deletion path at
   // exactly zero.
-  assert.equal(dirs.length, 25, 'no unexplained Edge Function has appeared');
+  // Now 26: Build 35 K+ Phase C added kplus-revenuecat-webhook, the inbound
+  // RevenueCat lifecycle webhook. Unrelated to this sweep and to the deletion
+  // path: it touches only the K+ provider transition functions.
+  assert.equal(dirs.length, 26, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant

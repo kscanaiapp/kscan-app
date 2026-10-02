@@ -332,6 +332,19 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 K+ Phase C: the inbound RevenueCat lifecycle webhook. It is reachable
+  // without a Supabase JWT (verify_jwt = false), so it is built like deletion-status:
+  // it does NOT import _shared/deletion/common.ts and therefore carries no
+  // auth.admin.* code. Its only privileged operation is a service-role call to the
+  // two provider transition RPCs (apply_kplus_provider_transition /
+  // apply_kplus_provider_lifetime_transition). It performs no direct table read or
+  // write and no storage access. The caller boundary is provider authentication
+  // (an Authorization secret, plus an HMAC signature when configured), enforced
+  // before the body is parsed.
+  'kplus-revenuecat-webhook': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'nike-shoe-details': {
     serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: false,
@@ -571,6 +584,18 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/kplus-reconcile-revenuecat/index.ts':
     'Internal-secret-protected reconciliation worker invokes the bounded K+ '
     + 'RevenueCat RPC batch.',
+  'supabase/functions/kplus-revenuecat-webhook/index.ts':
+    'verify_jwt = false (RevenueCat cannot send a Supabase JWT); the function '
+    + 'authenticates every request itself -- a constant-time compare against a '
+    + 'server-only Authorization secret, plus an HMAC signature when a signing '
+    + 'secret is configured -- before the body is parsed, and refuses everything '
+    + 'when the secret is unset. Service role is used for exactly one thing: '
+    + 'calling apply_kplus_provider_transition / apply_kplus_provider_lifetime_'
+    + 'transition, which are service-role-only and own ordering, idempotency, '
+    + 'cross-user ownership and environment checks. It reads and writes no table '
+    + 'directly, never calls auth.admin, does not import the shared deletion '
+    + 'module, and takes the actor only from the provider-authenticated '
+    + 'app_user_id (a K Scan UUID), never from a caller-supplied field.',
   'supabase/functions/privacy-correction-request/index.ts':
     'Authenticated correction intake writes the verified caller id, never a '
     + 'body-supplied actor.',
