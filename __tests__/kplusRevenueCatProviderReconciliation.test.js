@@ -115,3 +115,12 @@ test('product lookup strategy is embedded then cache then authoritative cache-mi
   assert.ok(embedded >= 0 && cache > embedded && lookup > cache);
   assert.match(MIGRATION, /create table if not exists public\.kplus_revenuecat_product_cache/);
 });
+
+test('per-actor lease and configurable cooldown bound provider calls', () => {
+  assert.match(ENDPOINT, /KPLUS_REVENUECAT_RECONCILE_COOLDOWN_SECONDS/);
+  assert.match(ENDPOINT, /KPLUS_REVENUECAT_RECONCILE_LEASE_SECONDS/);
+  assert.match(ENDPOINT, /claim_kplus_provider_reconciliation/);
+  assert.match(MIGRATION, /kplus_provider_reconcile:' \|\| p_user_id::text \|\| ':' \|\| p_environment/);
+  assert.match(MIGRATION, /'classification', 'in_flight'/);
+  assert.match(MIGRATION, /not p_force and v_row\.cooldown_until/);
+});

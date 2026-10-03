@@ -480,6 +480,14 @@ export async function reconcileRevenueCatProviderState(
       counters[classification] += 1;
       const drift = (result.body as { driftDetected?: unknown }).driftDetected === true;
       deps.log('kplus_rc_pull_transition', { family: observation.family, outcome: classification, drift });
+      if (drift) {
+        deps.log('kplus_rc_pull_drift_detected', { family: observation.family });
+        if (classification === 'applied') {
+          deps.log('kplus_rc_pull_drift_resolved', { family: observation.family });
+        }
+      } else {
+        deps.log('kplus_rc_pull_no_drift', { family: observation.family });
+      }
     } else return { status: 'canonical_transition_failed', retryable: true };
   }
 

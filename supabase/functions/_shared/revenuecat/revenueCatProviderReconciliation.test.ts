@@ -135,6 +135,18 @@ test('valid current subscription state repairs an absent grant without an event-
   assert.match(String(r.rpcCalls[0].args.p_external_event_id), /^rcpull_[0-9a-f]{64}$/);
   assert.equal(r.urls.some((url) => url.pathname.endsWith('/events')), false);
   assert.equal(r.urls.every((url) => url.searchParams.get('environment') === 'production'), true);
+  assert.ok(r.logs.includes('kplus_rc_pull_drift_detected'));
+  assert.ok(r.logs.includes('kplus_rc_pull_drift_resolved'));
+});
+
+test('identical pulls produce the same deterministic state identity', async () => {
+  const first = rig({ subscriptions: [subscription()] });
+  const second = rig({ subscriptions: [subscription()] });
+  await reconcileRevenueCatProviderState(ACTOR, { provider: CONFIG, classification: CLASSIFICATION }, first.deps);
+  await reconcileRevenueCatProviderState(ACTOR, { provider: CONFIG, classification: CLASSIFICATION }, second.deps);
+  assert.equal(first.rpcCalls.length, 1);
+  assert.equal(second.rpcCalls.length, 1);
+  assert.equal(first.rpcCalls[0].args.p_external_event_id, second.rpcCalls[0].args.p_external_event_id);
 });
 
 test('newer terminal local state rejects stale active pull without mutation', async () => {
