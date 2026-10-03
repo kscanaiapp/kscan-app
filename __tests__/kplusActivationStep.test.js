@@ -459,14 +459,20 @@ test('LEGAL_LINKS: each link is a real, reachable, labelled target', () => {
 test('the activation step runs AFTER authentication, never before', () => {
   // Step 3 is account creation; the activation step is 6, reached only from
   // the permissions step (5).
-  assert.match(onboarding, /\| 6 {2}\/\/ K\+ Activation/);
+  assert.match(onboarding, /\| 6 {2}\/\/ K\+ Membership/);
   assert.match(onboarding, /\| 7; \/\/ Home Handoff/);
   assert.match(onboarding, /const goToKPlusActivation = useCallback\(\(\) => \{\n {4}setStep\(6\);/);
   assert.match(onboarding, /onContinueToHome=\{goToKPlusActivation\}/);
   assert.match(onboarding, /onNotNow=\{goToKPlusActivation\}/);
 
-  // And both of its exits lead into the existing completion handoff.
-  assert.match(onboarding, /<KPlusActivationStep onContinue=\{goToHome\} onSkip=\{goToHome\} \/>/);
+  // Build 35 Phase D replaced the complimentary-only presentation at step 6
+  // with the K+ membership orchestrator (pinned by kplusPaywallPhaseD.test.js);
+  // both of its exits still lead into the existing completion handoff.
+  assert.match(
+    onboarding,
+    /<KPlusMembershipStep key=\{user\?\.id \?\? 'signed-out'\} onContinue=\{goToHome\} onSkip=\{goToHome\} \/>/,
+  );
+  assert.doesNotMatch(onboarding, /<KPlusActivationStep/);
 });
 
 test('the step count is consistent across the shell, the indicator and the union', () => {

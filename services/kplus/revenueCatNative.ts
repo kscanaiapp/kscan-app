@@ -21,6 +21,7 @@ import { NativeModules, Platform } from 'react-native';
 import Purchases, { LOG_LEVEL, PURCHASES_ERROR_CODE } from 'react-native-purchases';
 import type {
   KPlusCommercePlatform,
+  KPlusIntroEligibility,
   KPlusNativeCommercePort,
   KPlusPortPurchaseResult,
   KPlusPortRestoreResult,
@@ -139,6 +140,24 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
       return { status: 'ok', providerOwnership: hasProviderOwnership(info as unknown as ProviderOwnershipView) };
     } catch (error) {
       return { status: 'error', code: errorCodeOf(error) };
+    }
+  },
+
+  async checkIntroEligibility(storeProductIdentifier): Promise<KPlusIntroEligibility> {
+    // RevenueCat answers UNKNOWN whenever it cannot decide (always on Android),
+    // and anything unexpected here is UNKNOWN too. Only the store's explicit
+    // ELIGIBLE may ever turn into trial copy.
+    try {
+      const statuses = Purchases.INTRO_ELIGIBILITY_STATUS;
+      const result = await Purchases.checkTrialOrIntroductoryPriceEligibility([storeProductIdentifier]);
+      const status = result?.[storeProductIdentifier]?.status;
+      if (!statuses || status === undefined) return 'UNKNOWN';
+      if (status === statuses.INTRO_ELIGIBILITY_STATUS_ELIGIBLE) return 'ELIGIBLE';
+      if (status === statuses.INTRO_ELIGIBILITY_STATUS_INELIGIBLE) return 'INELIGIBLE';
+      if (status === statuses.INTRO_ELIGIBILITY_STATUS_NO_INTRO_OFFER_EXISTS) return 'NO_INTRO_OFFER';
+      return 'UNKNOWN';
+    } catch {
+      return 'UNKNOWN';
     }
   },
 

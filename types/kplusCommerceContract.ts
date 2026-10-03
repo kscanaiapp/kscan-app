@@ -336,6 +336,15 @@ export type KPlusRestoreOutcome =
   | { outcome: 'DISCARDED_ACTOR_CHANGED' }
   | { outcome: 'BUSY' };
 
+/**
+ * Whether the STORE says this customer can still redeem the Monthly intro
+ * offer (Build 35 Phase D). Only 'ELIGIBLE' may ever produce trial copy.
+ * 'UNKNOWN' is what RevenueCat returns when it cannot decide -- always on
+ * Android, and on iOS when subscription-group data is missing -- and its own
+ * guidance is to present the non-intro price in that case.
+ */
+export type KPlusIntroEligibility = 'ELIGIBLE' | 'INELIGIBLE' | 'NO_INTRO_OFFER' | 'UNKNOWN';
+
 export interface KPlusCommerceSnapshot {
   status: KPlusCommerceStatus;
   unavailableReason: KPlusUnavailableReason | null;
@@ -343,6 +352,8 @@ export interface KPlusCommerceSnapshot {
   catalog: KPlusProductCatalog | null;
   /** The product kind an in-flight / just-completed purchase concerns. */
   pendingKind: KPlusProductKind | null;
+  /** Store-reported Monthly intro eligibility for the current actor's catalog. */
+  monthlyIntroEligibility: KPlusIntroEligibility;
 }
 
 export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.freeze({
@@ -350,6 +361,7 @@ export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.fre
   unavailableReason: null,
   catalog: null,
   pendingKind: null,
+  monthlyIntroEligibility: 'UNKNOWN' as KPlusIntroEligibility,
 });
 
 // ── Native commerce port ─────────────────────────────────────────────────────
@@ -387,6 +399,11 @@ export interface KPlusNativeCommercePort {
   getOfferings(): Promise<RawOfferings>;
   purchasePackage(packageIdentifier: string): Promise<KPlusPortPurchaseResult>;
   restorePurchases(): Promise<KPlusPortRestoreResult>;
+  /**
+   * Store-reported intro-offer eligibility for one store product. Optional: a
+   * port without it is treated as 'UNKNOWN', which never produces trial copy.
+   */
+  checkIntroEligibility?(storeProductIdentifier: string): Promise<KPlusIntroEligibility>;
   /** Provider-state observation only. The callback gets the customer id, nothing else. */
   subscribeToProviderUpdates(onUpdate: (update: { appUserId: string }) => void): () => void;
 }

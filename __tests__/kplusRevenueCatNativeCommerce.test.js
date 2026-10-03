@@ -1153,3 +1153,93 @@ test('NEGATIVE: persisting or logging a raw receipt / token / CustomerInfo is ca
   assert.equal(findProviderPayloadHandling('const r = purchaseToken;'), true);
   assert.equal(findProviderPayloadHandling('log(customerInfo)'), true);
 });
+
+// ── Build 35 Phase D: store-reported Monthly intro eligibility ──────────────
+// The paywall may claim a free trial only when the STORE says this customer is
+// eligible. Presence of an intro offer is not eligibility; anything short of a
+// clean answer is UNKNOWN.
+
+scn.PD_eligibilityFromStoreOnly = async (sources) => {
+  const answers = { 'store.m': 'ELIGIBLE' };
+  const port = makePort();
+  port.calls.eligibility = [];
+  port.checkIntroEligibility = async (id) => { port.calls.eligibility.push(id); return answers[id]; };
+  const r = rigWithMocks({ sources, port });
+  const snap = plain(await r.svc.loadOfferings());
+  assert.equal(snap.monthlyIntroEligibility, 'ELIGIBLE');
+  assert.deepEqual(port.calls.eligibility, ['store.m'], 'asked about the Monthly store product only');
+
+  answers['store.m'] = 'definitely';
+  const bogus = plain(await r.svc.loadOfferings());
+  assert.equal(bogus.monthlyIntroEligibility, 'UNKNOWN', 'an unrecognized answer is UNKNOWN, never eligible');
+
+  port.checkIntroEligibility = async () => { throw new Error('store down'); };
+  const thrown = plain(await r.svc.loadOfferings());
+  assert.equal(thrown.monthlyIntroEligibility, 'UNKNOWN', 'a failed eligibility read is UNKNOWN, never eligible');
+};
+
+test('PD-1: Monthly intro eligibility is the store\'s answer, and anything else is UNKNOWN', async () => {
+  await scn.PD_eligibilityFromStoreOnly();
+});
+
+test('PD-2: a port without an eligibility read, or a product without an intro offer, never reads ELIGIBLE', async () => {
+  const noMethod = rigWithMocks();
+  assert.equal(plain(await noMethod.svc.loadOfferings()).monthlyIntroEligibility, 'UNKNOWN');
+
+  const noIntro = pkg('pkg_m', 'MONTHLY', product('store.m', { price: 7.49, priceString: '€7,49', subscriptionPeriod: 'P1M' }));
+  const port = makePort({ offerings: offeringOf(noIntro, LIFETIME) });
+  let asked = 0;
+  port.checkIntroEligibility = async () => { asked += 1; return 'ELIGIBLE'; };
+  const r = rigWithMocks({ port });
+  assert.equal(plain(await r.svc.loadOfferings()).monthlyIntroEligibility, 'NO_INTRO_OFFER');
+  assert.equal(asked, 0, 'no intro offer -> the store is not asked, and nothing is assumed');
+});
+
+test('PD-3: eligibility is actor-scoped -- reset clears it and a late answer for the old actor is discarded', async () => {
+  const gate = deferred();
+  const port = makePort();
+  port.checkIntroEligibility = async () => { await gate.promise; return 'ELIGIBLE'; };
+  const r = rigWithMocks({ port });
+  const pending = r.svc.loadOfferings();
+  await flush();
+  switchActor(r, ACTOR_B);
+  gate.resolve();
+  await pending;
+  const snap = plain(r.svc.getSnapshot());
+  assert.equal(snap.monthlyIntroEligibility, 'UNKNOWN', 'actor B never sees actor A\'s eligibility');
+  assert.equal(snap.catalog, null);
+});
+
+test('PD-4: the real adapter maps RevenueCat eligibility statuses and fails closed to UNKNOWN', async () => {
+  const STATUS = {
+    INTRO_ELIGIBILITY_STATUS_UNKNOWN: 0,
+    INTRO_ELIGIBILITY_STATUS_INELIGIBLE: 1,
+    INTRO_ELIGIBILITY_STATUS_ELIGIBLE: 2,
+    INTRO_ELIGIBILITY_STATUS_NO_INTRO_OFFER_EXISTS: 3,
+  };
+  const make = (status, extra = {}) => loadAdapter({
+    nativeModule: { RNPurchases: {} },
+    sdkOverrides: {
+      INTRO_ELIGIBILITY_STATUS: STATUS,
+      checkTrialOrIntroductoryPriceEligibility: async (ids) => ({ [ids[0]]: { status, description: 'x' } }),
+      ...extra,
+    },
+  }).port;
+  assert.equal(await make(2).checkIntroEligibility('store.m'), 'ELIGIBLE');
+  assert.equal(await make(1).checkIntroEligibility('store.m'), 'INELIGIBLE');
+  assert.equal(await make(3).checkIntroEligibility('store.m'), 'NO_INTRO_OFFER');
+  assert.equal(await make(0).checkIntroEligibility('store.m'), 'UNKNOWN', 'Android always answers UNKNOWN');
+  const throwing = make(2, { checkTrialOrIntroductoryPriceEligibility: async () => { throw new Error('nope'); } });
+  assert.equal(await throwing.checkIntroEligibility('store.m'), 'UNKNOWN');
+  const otherProduct = make(2, { checkTrialOrIntroductoryPriceEligibility: async () => ({ other: { status: 2 } }) });
+  assert.equal(await otherProduct.checkIntroEligibility('store.m'), 'UNKNOWN', 'an answer about another product is not an answer');
+  const noEnum = make(2, { INTRO_ELIGIBILITY_STATUS: undefined });
+  assert.equal(await noEnum.checkIntroEligibility('store.m'), 'UNKNOWN');
+});
+
+test('NEGATIVE PD: treating an intro offer\'s presence as eligibility is caught', async () => {
+  const sources = mutate(SERVICE, "return answer === 'ELIGIBLE' || answer === 'INELIGIBLE' || answer === 'NO_INTRO_OFFER' ? answer : 'UNKNOWN';", "return 'ELIGIBLE';");
+  await expectRed(() => scn.PD_eligibilityFromStoreOnly(sources), 'intro presence -> eligible');
+  const catchAll = mutate(SERVICE, "    } catch {\n      return 'UNKNOWN';\n    }\n  }\n\n  async function fetchCatalog", "    } catch {\n      return 'ELIGIBLE';\n    }\n  }\n\n  async function fetchCatalog");
+  await expectRed(() => scn.PD_eligibilityFromStoreOnly(catchAll), 'failed read -> eligible');
+});
