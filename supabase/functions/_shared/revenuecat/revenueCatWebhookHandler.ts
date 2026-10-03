@@ -1,8 +1,9 @@
 /**
  * K+ RevenueCat lifecycle webhook handler (Build 35 Phase C).
  *
- *   STORE -> REVENUECAT -> [this] -> apply_kplus_provider_transition /
- *   apply_kplus_provider_lifetime_transition -> Supabase K+ authority
+ *   STORE -> REVENUECAT -> [this] -> reconcile_kplus_provider_transition /
+ *   reconcile_kplus_provider_lifetime_transition -> existing apply RPCs ->
+ *   Supabase K+ authority
  *
  * The request path, in order, each step failing closed:
  *
@@ -30,9 +31,9 @@
  * app user id.
  */
 import {
-  KPLUS_APPLY_PROVIDER_LIFETIME_TRANSITION_RPC,
-  KPLUS_APPLY_PROVIDER_TRANSITION_RPC,
   KPLUS_PROVIDER_ENVIRONMENTS,
+  KPLUS_RECONCILE_PROVIDER_LIFETIME_TRANSITION_RPC,
+  KPLUS_RECONCILE_PROVIDER_TRANSITION_RPC,
   toApplyKPlusProviderLifetimeTransitionArgs,
   toApplyKPlusProviderTransitionArgs,
   type KPlusProviderEnvironment,
@@ -185,11 +186,11 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
   try {
     rpcResult = isLifetime
       ? await deps.callRpc(
-        KPLUS_APPLY_PROVIDER_LIFETIME_TRANSITION_RPC,
+        KPLUS_RECONCILE_PROVIDER_LIFETIME_TRANSITION_RPC,
         toApplyKPlusProviderLifetimeTransitionArgs(normalized.input),
       )
       : await deps.callRpc(
-        KPLUS_APPLY_PROVIDER_TRANSITION_RPC,
+        KPLUS_RECONCILE_PROVIDER_TRANSITION_RPC,
         toApplyKPlusProviderTransitionArgs(normalized.input),
       );
   } catch {

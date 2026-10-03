@@ -248,6 +248,10 @@ export type KPlusProviderTransitionResult =
   | { classification: 'rejected'; reason: KPlusProviderRejectionReason };
 
 export const KPLUS_APPLY_PROVIDER_TRANSITION_RPC = 'apply_kplus_provider_transition' as const;
+/** Shared webhook/pull wrapper. It preserves the apply RPC's ordering and
+ * advisory-lock boundary while collapsing a changed provider reference onto a
+ * single unambiguous same-actor grant. */
+export const KPLUS_RECONCILE_PROVIDER_TRANSITION_RPC = 'reconcile_kplus_provider_transition' as const;
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -394,6 +398,8 @@ export type KPlusLifetimeTransitionResult =
   | { classification: 'rejected'; reason: KPlusLifetimeProviderRejectionReason };
 
 export const KPLUS_APPLY_PROVIDER_LIFETIME_TRANSITION_RPC = 'apply_kplus_provider_lifetime_transition' as const;
+export const KPLUS_RECONCILE_PROVIDER_LIFETIME_TRANSITION_RPC =
+  'reconcile_kplus_provider_lifetime_transition' as const;
 
 /** Maps the typed input onto the RPC's named arguments, refusing a raw purchase
  *  reference and any contradictory event/lifecycle pair before they can reach
@@ -493,23 +499,32 @@ export type KPlusGrantRevocationResult =
 
 export const KPLUS_REVOKE_GRANT_RPC = 'revoke_kplus_grant' as const;
 
-// ── D. Provider reconciliation (defined here, implemented in a later phase) ────
+// ── D. Provider reconciliation ─────────────────────────────────────────────────
 
 /**
- * `POST` to a future authenticated Edge Function. The body is deliberately
- * empty: identity comes from the verified JWT and the server pulls provider
- * state itself. A client can never tell the server what it purchased.
+ * `POST` to the authenticated pull Edge Function. Identity comes exclusively
+ * from the verified JWT; the body can select only a bounded trigger. A client
+ * can never tell the server who or what it purchased.
  */
-export type KPlusReconciliationRequest = Record<string, never>;
+export interface KPlusReconciliationRequest {
+  trigger?: 'post_purchase_unresolved' | 'restore_unresolved' | 'check_again';
+  force?: boolean;
+}
 
 export type KPlusReconciliationResponse =
   | {
     status: 'reconciled';
     transitions: { applied: number; duplicate: number; stale: number; rejected: number };
-    summary: KPlusEntitlementSummary;
+    /** Callers must reread the canonical summary; this response is not access. */
+    canonicalRefreshRequired: true;
+    unresolvedDrift: number;
   }
-  /** Provider unreachable: authority is unchanged and still returned. */
-  | { status: 'provider_unavailable'; summary: KPlusEntitlementSummary }
+  /** Provider unreachable: canonical authority is unchanged. */
+  | { status: 'provider_unavailable'; retryable: true }
+  | { status: 'provider_throttled'; retryAfterSeconds: number }
+  | { status: 'provider_malformed'; retryable: false }
+  | { status: 'canonical_transition_failed'; retryable: true }
+  | { status: 'ownership_conflict'; canonicalRefreshRequired: true }
   | { status: 'rate_limited'; retryAfterSeconds: number }
   | { status: 'not_eligible'; reason: 'anonymous_identity' | 'account_not_active' };
 
@@ -517,10 +532,11 @@ export const KPLUS_RECONCILIATION_POLICY = Object.freeze({
   method: 'POST',
   identity: 'verified_jwt',
   providerAppUserId: 'supabase_auth_user_uuid',
-  /** The pull applies each subscription as cause 'provider_reconciliation'. */
+  /** Supported observations apply as cause 'provider_reconciliation'. */
   transitionCause: 'provider_reconciliation',
-  /** providerOccurredAt for a pull is the provider response time. */
-  observedAt: 'provider_response_time',
+  /** Fetch time is observation metadata, never transition chronology. */
+  observedAt: 'k_scan_observation_time',
+  providerOccurredAt: 'provider_native_material_timestamp',
   /** Rate limited per user; a burst never becomes provider traffic. */
   rateLimited: true,
 } as const);

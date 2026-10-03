@@ -121,6 +121,9 @@ verify_jwt = false
 [functions.kplus-revenuecat-webhook]
 verify_jwt = false
 
+[functions.kplus-revenuecat-pull-reconcile]
+verify_jwt = true
+
 # ── Virtual Try-On ───────────────────────────────────────────────────────────
 
 # Generation orchestration. Always authenticated; the function additionally

@@ -178,7 +178,7 @@ const scenarios = {
     const h = makeHandler(sources);
     const r = await h(body({ type: 'NON_RENEWING_PURCHASE', product_id: 'fixture.apple.lifetime', expiration_at_ms: null, period_type: null }));
     assert.equal(r.rpcCalls.length, 1);
-    assert.equal(r.rpcCalls[0].fn, 'apply_kplus_provider_lifetime_transition', 'lifetime uses the lifetime authority, not the subscription one');
+    assert.equal(r.rpcCalls[0].fn, 'reconcile_kplus_provider_lifetime_transition', 'lifetime uses the shared lifetime reconciliation authority, not the subscription one');
   },
   sandboxCannotReachProduction: async (sources) => {
     const h = makeHandler(sources);
