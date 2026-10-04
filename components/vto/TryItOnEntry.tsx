@@ -9,9 +9,10 @@
  * user is already looking at.
  *
  * It renders nothing at all unless the item is genuinely eligible, or unless
- * the ONLY missing thing is K+ -- in which case it opens the one shared K+
- * surface (KPlusGate / KPlusEarlyAccessSheet) rather than inventing a
- * VTO-specific paywall.
+ * the ONLY missing thing is K+ -- in which case it opens the one shared K+ gate
+ * (KPlusGate) rather than inventing a VTO-specific paywall. For this source the
+ * gate presents the paid K+ membership paywall, the same one Welcome Step 6
+ * renders (services/kplus/kplusAcquisitionSurface.ts).
  *
  * CUSTOMER ACTIVATION. This is also where a product surface makes Try It On
  * discoverable, and it stays presentation: what the control does is decided by
@@ -170,7 +171,7 @@ export function TryItOnEntry({
                 style={styles.button}
                 accessibilityRole="button"
                 accessibilityLabel="Try It On is available with K+"
-                accessibilityHint="Opens K+ early access"
+                accessibilityHint="Opens K+ membership options"
                 testID={testID ? `${testID}-upgrade` : 'try-it-on-upgrade'}
               >
                 <Text style={styles.label} numberOfLines={1}>

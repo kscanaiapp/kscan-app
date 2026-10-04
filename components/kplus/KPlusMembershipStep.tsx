@@ -25,7 +25,10 @@ import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusCommerceSnapshot } from '../../hooks/useKPlusCommerce';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
-import { resolveActivationCapabilities } from '../../services/kplus/kplusActivationCatalog';
+import {
+  resolveActivationCapabilities,
+  selectPromotedCapabilities,
+} from '../../services/kplus/kplusActivationCatalog';
 import {
   KPLUS_COMMERCE_RECHECK_DELAYS_MS,
   loadKPlusOfferings,
@@ -82,9 +85,21 @@ export interface KPlusMembershipStepProps {
    * today, so the link is absent rather than dead.
    */
   onRedeemOffer?: () => void;
+  /**
+   * Where this step is being shown. It changes NOTHING commercial -- the same
+   * model, plans, store terms, Restore and Free path either way. It exists only
+   * so awareness bookkeeping can tell Welcome Step 6 from the post-onboarding
+   * membership sheet. Defaults to onboarding.
+   */
+  context?: 'onboarding' | 'sheet';
 }
 
-export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlusMembershipStepProps) {
+export function KPlusMembershipStep({
+  onContinue,
+  onSkip,
+  onRedeemOffer,
+  context = 'onboarding',
+}: KPlusMembershipStepProps) {
   const entitlement = useKPlusEntitlement();
   const commerce = useKPlusCommerceSnapshot();
   const [ui, setUi] = useState<KPlusPaywallUiState>(INITIAL_KPLUS_PAYWALL_UI);
@@ -106,17 +121,36 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
     authoritativeChargeDate: null,
   });
 
-  // Benefits are the K+ capabilities this build ships AND the server serves --
-  // the same truth rule the activation catalog enforces everywhere else.
-  const { signals: liveSignals, settled: liveSignalsSettled } = useKPlusLiveCapabilitySignals();
+  // TWO QUESTIONS, DELIBERATELY SEPARATE.
+  //
+  //   sellable  -- the K+ capabilities this build ships AND the server serves:
+  //                the same truth rule the activation catalog enforces
+  //                everywhere else. This is what decides whether there is a
+  //                membership to offer at all.
+  //   benefits  -- the subset whose benefit line is currently PROMOTED. This
+  //                decides only which lines are listed.
+  //
+  // They were one list. That made the step skip itself whenever promotion of
+  // the last listed capability was dimmed, even though the capability still
+  // worked and the membership was still real: hiding a marketing line removed
+  // the paywall. Promotion must never decide whether K+ can be bought.
+  const {
+    signals: liveSignals,
+    promotion: livePromotion,
+    settled: liveSignalsSettled,
+  } = useKPlusLiveCapabilitySignals();
+  const sellable = useMemo(
+    () => resolveActivationCapabilities({}, undefined, liveSignals),
+    [liveSignals],
+  );
   const benefits: KPlusBenefitRow[] = useMemo(
-    () => resolveActivationCapabilities({}, undefined, liveSignals).map((capability) => ({
+    () => selectPromotedCapabilities(sellable, livePromotion).map((capability) => ({
       id: capability.id,
       glyph: capability.glyph,
       title: capability.title,
       description: capability.description,
     })),
-    [liveSignals],
+    [sellable, livePromotion],
   );
 
   // Try It On was just introduced here, as a benefit row. Recording that is
@@ -124,7 +158,11 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
   // later in the same session. Presentation bookkeeping only: it reads the
   // benefit list this screen already rendered and changes nothing about plans,
   // prices, the Free path or Restore.
-  const vtoBenefitShown = view.paywall !== null
+  //
+  // Onboarding only. Opened later from a product (KPlusMembershipSheet), this
+  // same step is not "Step 6", and the tap that opened it was already recorded
+  // against the surface it came from.
+  const vtoBenefitShown = context === 'onboarding' && view.paywall !== null
     && benefits.some((benefit) => benefit.id === 'virtual_try_on');
   useEffect(() => {
     if (!vtoBenefitShown) return;
@@ -139,7 +177,7 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
   }, [vtoBenefitShown, entitlement.state, entitlement.displaySource]);
 
   const isAcquisitionEntry = ACQUISITION_ENTRIES.has(view.entry);
-  const nothingToSell = isAcquisitionEntry && liveSignalsSettled && benefits.length === 0
+  const nothingToSell = isAcquisitionEntry && liveSignalsSettled && sellable.length === 0
     && ui.lastOperation === null;
 
   useEffect(() => {

@@ -1,10 +1,19 @@
 // Reusable K+ capability gate. Every future K+ feature entry point should
 // render through this component rather than building a feature-specific
-// paywall/gate -- see KPlusEarlyAccessSheet for the one shared K+ status and
-// legacy complimentary-acquisition surface it opens.
+// paywall/gate.
+//
+// WHICH SURFACE IT OPENS is decided per source by
+// services/kplus/kplusAcquisitionSurface.ts, not here and not by the caller:
+//   'membership'    KPlusMembershipSheet -- the paid K+ membership paywall, the
+//                   same orchestrator Welcome Step 6 renders;
+//   'early_access'  KPlusEarlyAccessSheet -- the shared K+ status and legacy
+//                   complimentary-acquisition surface.
+// Exactly one of the two is ever mounted for a given gate.
 import React, { useEffect, useState } from 'react';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from './KPlusEarlyAccessSheet';
+import { KPlusMembershipSheet } from './KPlusMembershipSheet';
+import { resolveKPlusAcquisitionSurface } from '../../services/kplus/kplusAcquisitionSurface';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import {
   isKPlusEntitlementUnresolved,
@@ -31,7 +40,8 @@ export interface KPlusGateRenderArgs {
    * __tests__/kplusResolvingNeverFree.test.js.
    */
   resolving: boolean;
-  /** Opens the shared K+ status / legacy complimentary-acquisition sheet. */
+  /** Opens this gate's K+ surface: the membership paywall or the shared
+   *  status / legacy complimentary-acquisition sheet, by source. */
   openUpgrade: () => void;
 }
 
@@ -46,6 +56,7 @@ export interface KPlusGateProps {
 export function KPlusGate({ children, source }: KPlusGateProps) {
   const { state, isActive } = useKPlusEntitlement();
   const [sheetVisible, setSheetVisible] = useState(false);
+  const surface = resolveKPlusAcquisitionSurface(source);
 
   // Fires once per mount (i.e. once per real presentation of this gate),
   // never on a state/entitlement re-render -- section 17.
@@ -62,7 +73,11 @@ export function KPlusGate({ children, source }: KPlusGateProps) {
   return (
     <>
       {children({ state, isActive, resolving: isKPlusEntitlementUnresolved(state), openUpgrade })}
-      <KPlusEarlyAccessSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} source={source} />
+      {surface === 'membership' ? (
+        <KPlusMembershipSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} />
+      ) : (
+        <KPlusEarlyAccessSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} source={source} />
+      )}
     </>
   );
 }

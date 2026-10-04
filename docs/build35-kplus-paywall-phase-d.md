@@ -29,6 +29,21 @@ state storyboard), with the contract corrections below.
 kept unchanged (the complimentary acquisition presentation and its tests);
 complimentary activation remains reachable through `KPlusEarlyAccessSheet`.
 
+## Post-onboarding entry (added by the VTO activation closure, #499)
+
+`components/kplus/KPlusMembershipSheet.tsx` hosts this same `KPlusMembershipStep`
+in a sheet, so a K+ gate can reach the membership paywall after onboarding. It is
+a host only: no price, period, trial, product or purchase call lives in it.
+Which gates open it is decided per source by
+`services/kplus/kplusAcquisitionSurface.ts` — today only `vto`; every other gate
+still opens `KPlusEarlyAccessSheet`. The step takes an optional
+`context: 'onboarding' | 'sheet'` that changes nothing commercial.
+
+Step 6 existence now follows the **served** capabilities
+(`resolveActivationCapabilities`); the benefit list follows the **promoted**
+subset (`selectPromotedCapabilities`). Dimming a capability's promotion hides its
+line and never removes the step.
+
 ## Entry evaluation (canonical only)
 
 | Canonical state | Entry | Step 6 shows |

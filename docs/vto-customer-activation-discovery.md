@@ -103,22 +103,38 @@ qualify.
 ## Free-user upgrade seam
 
 ```
-FREE_USER_UPGRADE_SEAM=KPlusGate source="vto" → KPlusEarlyAccessSheet
-FREE_USER_UPGRADE_SEAM_EXISTING=YES
-FREE_USER_UPGRADE_SEAM_REUSE_DECISION=REUSED (already wired from TryItOnEntry; no wrapper created)
-PAYWALL_COMPONENT_OR_MODEL_REUSED=components/kplus/KPlusGate.tsx + KPlusEarlyAccessSheet.tsx
+FREE_USER_UPGRADE_SEAM=KPlusGate source="vto" → KPlusMembershipSheet → KPlusMembershipStep
+OLD_UPGRADE_DESTINATION=KPlusEarlyAccessSheet (complimentary Early Access)
+NEW_UPGRADE_DESTINATION=KPlusMembershipSheet (the Step 6 paywall, in a sheet)
+PAYWALL_COMPONENT_OR_MODEL_REUSED=components/kplus/KPlusMembershipStep.tsx
+  + services/kplus/kplusPaywallModel.ts + hooks/useKPlusCommerce.ts + the K+ commerce service
 NEW_PRICING_MODEL_CREATED=NO
+EARLY_ACCESS_GLOBALLY_REMOVED=NO
 RESOLVING_KPLUS_TREATED_AS_FREE=NO
 ```
 
-**Finding for the K+ lane (not changed here).** The shared post-onboarding
-surface presents the _complimentary Early Access_ offer (or "not available in
-this build" when that flag is off). Step 6 now sells Monthly / Lifetime (#496).
-So a Free actor who taps `TRY IT ON · K+` — or any other K+ gate — after
-onboarding is offered something different from what Step 6 offered. That is a
-property of the one shared sheet and affects Voice Scan, Watchlist and Packing
-equally; converging it onto the paywall model is a K+ commerce decision and was
-deliberately not made inside a VTO lane.
+**Closure FC-01.** The activation lane first reused the one shared K+ gate,
+which opened the _complimentary Early Access_ sheet — so a Free actor tapping
+`TRY IT ON · K+` was offered something different from the Monthly / Lifetime
+plans Step 6 had just sold. Repaired narrowly:
+
+- `services/kplus/kplusAcquisitionSurface.ts` decides, per K+ source, which
+  surface a gate opens. `vto` → `membership`; every other source is unchanged
+  (`early_access`). Moving another gate is a one-entry, deliberate edit.
+- `components/kplus/KPlusMembershipSheet.tsx` is an entry wrapper: a Modal, a
+  scroll container and a Close control around the **same** `KPlusMembershipStep`
+  Welcome Step 6 renders. It holds no price, period, trial, product or purchase
+  call — asserted by test — and its commercial surface is proven deep-equal to
+  Step 6's for every store-eligibility answer.
+- `KPlusGate` mounts exactly one of the two sheets for a given source.
+
+Active and complimentary K+ never reach a gate (the control opens the try-on
+sheet directly). Resolving or unreadable K+ renders no control at all.
+
+Left for the K+ lane: Voice Scan, Watchlist and Packing gates still open the
+Early Access sheet, by design of this narrow repair. Left for design polish: the
+Free path's accessibility hint ("Finishes setup without a K+ membership") is
+onboarding wording and is spoken unchanged inside the sheet.
 
 ## Consent routing
 
@@ -202,10 +218,23 @@ MEANINGFULLY_VIEWED_DEFINITION=the whole Try It On control measures inside the w
   (sampled every 400 ms). Mounted off-screen, clipped, or passing through does not count.
 COACHMARK_COLLISION_POLICY=suppressed while K+ is resolving, another modal is presenting,
   a try-on request or photo choice is active, a purchase/restore is processing, the host
-  screen is unfocused, or the app is not foreground-active. Suppressed is SPENT, not
-  queued: nothing appears when the collision clears; the cue is reconsidered only after
-  the control has left the window and been viewed afresh.
+  screen is unfocused, or the app is not foreground-active. A collision DEFERS the cue:
+  nothing is shown and nothing is recorded (no presentation, no dismissal, no telemetry,
+  no use of the session's one presentation), so the education is still owed. It is not
+  queued either: nothing appears when the collision clears. A later stable encounter --
+  the control leaves the window and is viewed again, or a new product surface mounts --
+  is judged from the top.
 ```
+
+**Closure FC-03.** The encounter state a collision produces was named `spent`,
+and the record described it as "spent, not queued". It never wrote anything, but
+the name invited exactly the wrong reading and nothing proved the property. It is
+now `deferred`; the one place a presentation is recorded is guarded by
+`vtoCueDecisionRecordsPresentation`, which is true only for a cue that is really
+about to be on screen; and tests prove a collision leaves the account history,
+the session and telemetry untouched and that a later encounter still shows the
+cue. Permanent suppression is unchanged: "Not now", any try-on use, and the
+two-session cap reached through real presentations.
 
 Known limit: "another modal is presenting" is known only for modals that declare
 themselves. The try-on sheet and the scan-results Watch modal do. Modals hosted
@@ -251,9 +280,22 @@ and the product control keep working. It can only reduce: absent / malformed
 behaves exactly as before, and it is `false` whenever `enabled` is. No row was
 changed by this lane.
 
-Release consideration: dimming removes the Try It On benefit line. If that was
-the only advertised capability, Step 6 skips itself, exactly as it already does
-when VTO is switched off.
+**Closure FC-02.** Dimming used to remove Try It On from the one list Step 6
+used both to render benefit lines and to decide whether it had anything to sell,
+so dimming the last listed capability made the paywall skip itself. They are now
+two questions:
+
+| | Authority | Decides |
+| --- | --- | --- |
+| `KPLUS_ACQUISITION_AVAILABLE` | `resolveActivationCapabilities` — capabilities compiled in **and served** | whether Step 6 (and the membership sheet) exists |
+| `VTO_PROMOTION_VISIBLE` | `selectPromotedCapabilities` over the row's `awareness.enabled` | only which benefit lines are listed |
+
+With promotion off the Try It On line is hidden, the Home card and cue are
+hidden, and Step 6 is still there with the same plans, default, trial terms,
+Restore and Free path. If no line is left, the existing membership header
+carries the screen; no capability is invented. Step 6 still routes on when
+nothing K+ is **served** at all — that rule is about capability truth, and it is
+the one #496 shipped.
 
 ## Public / anonymous
 

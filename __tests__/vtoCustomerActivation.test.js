@@ -56,6 +56,9 @@ const HOME_CARD = 'components/home/HomeVtoDiscoveryCard.tsx';
 const HOME = 'components/home/HomeLuxuryTechV1.tsx';
 const PANEL = 'components/scan-results/PurchaseOptionsPanel.tsx';
 const SIGNALS = 'services/kplus/kplusLiveCapabilitySignals.ts';
+const GATE = 'components/kplus/KPlusGate.tsx';
+const ACQUISITION = 'services/kplus/kplusAcquisitionSurface.ts';
+const MEMBERSHIP_SHEET = 'components/kplus/KPlusMembershipSheet.tsx';
 const CATALOG = 'services/kplus/kplusActivationCatalog.ts';
 const PUBLIC_ROOM = 'app/(public)/rooms/[token].tsx';
 
@@ -286,6 +289,8 @@ function createWorld(o = {}) {
 
   const world = {
     env,
+    useKPlusEntitlement,
+    mutationFor: mutate,
     discovery,
     telemetry,
     eligibility,
@@ -630,8 +635,14 @@ test('remote dimming: awareness can be reduced while the product control keeps w
   assert.equal(product.cta, 'try_it_on', 'the control on an eligible item is not promotion');
   const home = await dimmed.mountHook((m) => m.awarenessHooks.useVtoHomeCard);
   assert.equal(home.current.visible, false, 'the Home introduction is dimmed');
+  // The K+ benefit LINE is dimmed too -- but the capability is still reported
+  // as SERVED, so dimming cannot make the membership look empty (FC-02).
   const signals = runModule(SIGNALS, { '../vto/vtoFeatureControl': dimmed.featureControl }, { jsx: false });
-  assert.deepEqual(await signals.readKPlusLiveCapabilitySignals(), { virtual_try_on: false }, 'so is the K+ benefit line');
+  assert.deepEqual(await signals.readKPlusLiveCapabilityState(), {
+    signals: { virtual_try_on: true },
+    promotion: { virtual_try_on: false },
+  });
+  assert.deepEqual(await signals.readKPlusLiveCapabilitySignals(), { virtual_try_on: true });
 
   // It can only REDUCE: every row written before the field existed is unchanged.
   const { normalizeVtoRemoteConfig: normalize } = dimmed.featureControl;
@@ -1095,13 +1106,14 @@ test('MEANINGFULLY_VIEWED: whole control in the window, continuously, for the dw
   assert.equal(step({ inWindow: true, stable: true, nowMs: 2600 }), true, 'exactly the dwell, continuously');
   assert.equal(step({ inWindow: false, stable: true, nowMs: 2700 }), false, 'leaving the window resets it');
 
-  // One encounter: a view at the wrong moment is spent until the control leaves.
+  // One encounter: a view at the wrong moment is DEFERRED until the control
+  // leaves -- never shown the moment the collision clears, never used up.
   const advance = discovery.advanceVtoCueEncounter;
   const no = { show: false, reason: 'collision' };
   const yes = { show: true, reason: 'show' };
-  assert.equal(advance('watching', { type: 'viewed', decision: no }), 'spent');
-  assert.equal(advance('spent', { type: 'viewed', decision: yes }), 'spent', 'not queued');
-  assert.equal(advance('spent', { type: 'left_window' }), 'watching', 're-armed by leaving');
+  assert.equal(advance('watching', { type: 'viewed', decision: no }), 'deferred');
+  assert.equal(advance('deferred', { type: 'viewed', decision: yes }), 'deferred', 'not queued');
+  assert.equal(advance('deferred', { type: 'left_window' }), 'watching', 're-armed by leaving');
   assert.equal(advance('watching', { type: 'viewed', decision: yes }), 'presented');
   assert.equal(advance('presented', { type: 'left_window' }), 'presented', 'a shown cue is not withdrawn by scrolling');
 });
@@ -1226,6 +1238,35 @@ function renderEntry(o = {}) {
   const renderer = createRenderer();
   const { availability, awarenessHooks } = world.hookModules(renderer.react);
   const calls = world.env.calls;
+  // By default the gate is a stub that hands back `openUpgrade`. With
+  // `realGate`, the REAL components/kplus/KPlusGate.tsx is rendered over the
+  // REAL acquisition-surface resolver, with only the two sheets it can open
+  // replaced by named hosts -- so "which sheet does Try It On open" is answered
+  // by the shipped routing, not by the test.
+  const gateModule = o.realGate
+    ? runModule(
+      GATE,
+      {
+        ...renderer.runtimeModules,
+        '../../hooks/useKPlusEntitlement': { useKPlusEntitlement: world.useKPlusEntitlement },
+        './KPlusEarlyAccessSheet': { KPlusEarlyAccessSheet: 'KPlusEarlyAccessSheet' },
+        './KPlusMembershipSheet': { KPlusMembershipSheet: 'KPlusMembershipSheet' },
+        '../../services/kplus/kplusTelemetry': {
+          emitKPlusEvent: (event, payload) => { (world.env.kplusEvents ??= []).push({ event, ...payload }); },
+        },
+        '../../services/kplus/kplusAcquisitionSurface': runModule(
+          ACQUISITION, {}, { jsx: false, mutate: world.mutationFor(ACQUISITION) },
+        ),
+        '../../types/entitlements': world.entitlements,
+      },
+      { mutate: world.mutationFor(GATE) },
+    )
+    : {
+      KPlusGate: ({ children, source }) => {
+        world.env.gateSource = source;
+        return children({ openUpgrade: () => { calls.openUpgrade += 1; } });
+      },
+    };
   const entry = runModule(
     ENTRY,
     {
@@ -1233,12 +1274,7 @@ function renderEntry(o = {}) {
       'react-native': createReactNativeStub(),
       '../../constants/theme': { LUXURY: deepStub(), RADIUS: deepStub(), SPACING: deepStub() },
       '../../services/haptics': { selectionTick: () => { calls.haptics += 1; } },
-      '../kplus/KPlusGate': {
-        KPlusGate: ({ children, source }) => {
-          world.env.gateSource = source;
-          return children({ openUpgrade: () => { calls.openUpgrade += 1; } });
-        },
-      },
+      '../kplus/KPlusGate': gateModule,
       '../../hooks/useVtoAvailability': availability,
       '../../hooks/useVtoAwareness': awarenessHooks,
       '../../hooks/useVtoLiveCapability': { useVtoLiveCapability: () => ({ kind: 'ai_photo_only' }) },
@@ -1768,4 +1804,388 @@ test('no new remote-config system: awareness reads the existing row through the 
   assert.doesNotMatch(hooks, /app_config|supabase|\.from\(/, 'no second reader');
   const flags = read('constants/featureFlags.ts');
   assert.doesNotMatch(flags, /VTO_AWARENESS|VTO_DISCOVERY|VTO_COACHMARK|VTO_HOME_CARD/, 'no new build flag for awareness');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// FUNCTIONAL CLOSURE (FC-01, FC-03)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Two repairs to the activation lane, each with its own negative control:
+//
+//   FC-01  A Free actor who taps Try It On reaches the PAID K+ membership
+//          paywall (the Step 6 orchestrator, in a sheet) -- not the legacy
+//          complimentary Early Access sheet.
+//   FC-03  A collision DEFERS the first-use cue. It records nothing, so the
+//          education is still owed on a later stable encounter.
+//
+// FC-02 (the promotion dimmer must not remove Step 6) and the sheet's own
+// commercial proof live in __tests__/kplusPaywallPhaseD.test.js, next to the
+// paywall harness they need.
+
+// ── FC-01 ───────────────────────────────────────────────────────────────────
+
+/** T1 + T2: Free + eligible -> the membership surface, and never Early Access. */
+async function checkFreeUnlockReachesMembership(o = {}) {
+  const ui = renderEntry({ ...o, kplus: FREE, realGate: true });
+  await ui.render();
+  assert.equal(ui.host('entry-upgrade').length, 1, 'the control is rendered for a Free actor on an eligible item');
+  assert.equal(ui.host('entry-upgrade')[0].props.accessibilityHint, 'Opens K+ membership options');
+
+  // Before the tap: exactly one K+ surface is mounted, closed, and it is the
+  // membership one. The Early Access sheet is not in the tree at all.
+  assert.equal(ui.ofType('KPlusEarlyAccessSheet').length, 0, 'the VTO path must not mount the Early Access sheet');
+  assert.equal(ui.ofType('KPlusMembershipSheet').length, 1);
+  assert.equal(ui.ofType('KPlusMembershipSheet')[0].props.visible, false);
+
+  await ui.press('entry-upgrade');
+  const membership = ui.ofType('KPlusMembershipSheet');
+  assert.equal(membership.length, 1);
+  assert.equal(membership[0].props.visible, true, 'Try It On opens the paid K+ membership surface');
+  assert.equal(ui.ofType('KPlusEarlyAccessSheet').length, 0, 'and still never the Early Access sheet');
+  assert.equal(ui.ofType('VirtualTryOnSheet').length, 0, 'a Free actor gets no try-on surface');
+  assert.equal(ui.world.env.calls.functionInvocations, 0, 'and no generation');
+  assert.deepEqual(ui.world.env.kplusEvents.filter((entry) => entry.event === 'kplus_feature_gate_opened'), [
+    { event: 'kplus_feature_gate_opened', source: 'vto', feature: 'vto', entitlement_state: 'eligible' },
+  ]);
+
+  // Closing it returns to the product; nothing else was opened.
+  membership[0].props.onClose();
+  await ui.render();
+  assert.equal(ui.ofType('KPlusMembershipSheet')[0].props.visible, false);
+}
+
+test('FC-01 T1/T2: a Free actor tapping Try It On reaches the paid K+ membership surface, not Early Access', () =>
+  checkFreeUnlockReachesMembership());
+
+test('NC-FC-01: routing VTO back to KPlusEarlyAccessSheet is caught', async () => {
+  // The resolver sends the vto source to the legacy surface again.
+  await expectRed(
+    () => checkFreeUnlockReachesMembership({
+      mutate: { [ACQUISITION]: mutateOpt(ACQUISITION, "Object.freeze(['vto'])", 'Object.freeze([])') },
+    }),
+    'resolver routes vto to Early Access',
+  );
+  // The gate ignores the resolver and always opens the legacy surface.
+  await expectRed(
+    () => checkFreeUnlockReachesMembership({
+      mutate: { [GATE]: mutateOpt(GATE, "{surface === 'membership' ? (", "{surface === 'no-such-surface' ? (") },
+    }),
+    'gate always opens Early Access',
+  );
+});
+
+test('FC-01: Early Access is not globally retired -- every other K+ gate still opens it', () => {
+  const acquisition = runModule(ACQUISITION, {}, { jsx: false });
+  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto']);
+  assert.equal(acquisition.resolveKPlusAcquisitionSurface('vto'), 'membership');
+  const sources = runModule('types/kplusSource.ts', {}, { jsx: false }).KPLUS_SOURCES;
+  for (const source of sources) {
+    if (source === 'vto') continue;
+    assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'early_access', `${source} is unchanged`);
+  }
+  assert.equal(acquisition.resolveKPlusAcquisitionSurface('not-a-source'), 'early_access', 'an unknown source is not upgraded by accident');
+
+  // The gate mounts exactly one surface per source, and the legacy component
+  // and its file are still there, untouched in purpose.
+  const gate = stripComments(read(GATE));
+  assert.match(gate, /\{surface === 'membership' \? \(\s*<KPlusMembershipSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} \/>\s*\) : \(\s*<KPlusEarlyAccessSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} source=\{source\} \/>\s*\)\}/);
+  assert.ok(fs.existsSync(path.join(ROOT, 'components/kplus/KPlusEarlyAccessSheet.tsx')));
+  // No other gate consumer was edited to pass anything new.
+  for (const rel of [
+    'components/home/HomeVoiceScanPill.tsx',
+    'components/text-scan/VoiceScanButton.tsx',
+    'app/packing/index.tsx',
+    'components/ProductShelf.tsx',
+  ]) {
+    assert.doesNotMatch(stripComments(read(rel)), /KPlusMembershipSheet|kplusAcquisitionSurface/, rel);
+  }
+});
+
+/** T3 + T4: a member is never sent to acquisition. */
+async function checkMembersBypassAcquisition(o = {}) {
+  for (const [label, kplus] of [['active', ACTIVE], ['complimentary', COMPLIMENTARY]]) {
+    const ui = renderEntry({ ...o, kplus, realGate: true });
+    await ui.render();
+    assert.equal(ui.host('entry').length, 1, `${label} K+ gets the direct control`);
+    assert.equal(ui.host('entry-upgrade').length, 0);
+    assert.equal(ui.ofType('KPlusMembershipSheet').length, 0, `${label} K+ mounts no acquisition surface`);
+    assert.equal(ui.ofType('KPlusEarlyAccessSheet').length, 0);
+    await ui.press('entry');
+    assert.equal(ui.ofType('VirtualTryOnSheet').length, 1, `${label} K+ goes straight to the try-on flow`);
+    assert.equal(ui.ofType('KPlusMembershipSheet').length, 0);
+    assert.equal((ui.world.env.kplusEvents ?? []).length, 0, `${label} K+ never opens a K+ gate`);
+  }
+}
+
+test('FC-01 T3/T4: active and complimentary K+ bypass acquisition entirely', () => checkMembersBypassAcquisition());
+
+/** T5: an unknown K+ answer is not routed to paid acquisition. */
+async function checkResolvingIsNotSentToAcquisition(o = {}) {
+  for (const kplus of [RESOLVING, UNREADABLE]) {
+    const ui = renderEntry({ ...o, kplus, realGate: true });
+    await ui.render();
+    assert.equal(ui.host('entry-upgrade').length, 0, `K+ '${kplus.state}' must not be offered an upgrade`);
+    assert.equal(ui.host('entry').length, 0);
+    assert.equal(ui.ofType('KPlusMembershipSheet').length, 0, `K+ '${kplus.state}' mounts no acquisition surface`);
+    assert.equal(ui.ofType('KPlusEarlyAccessSheet').length, 0);
+    assert.equal(findAll(ui.tree, (node) => typeof node.type === 'string').length, 0, 'nothing is rendered at all');
+  }
+}
+
+test('FC-01 T5: resolving or unreadable K+ is never routed to paid acquisition', () =>
+  checkResolvingIsNotSentToAcquisition());
+
+test('NC-FC-04: treating resolving K+ as Free is caught', async () => {
+  await expectRed(
+    () => checkResolvingIsNotSentToAcquisition({
+      mutate: {
+        [AVAILABILITY_HOOK]: mutateOpt(
+          AVAILABILITY_HOOK,
+          'upgradeOpportunity: !eligibility.eligible && !loading && eligibleWithKPlus,',
+          'upgradeOpportunity: !eligibility.eligible && eligibleWithKPlus,',
+        ),
+        [DISCOVERY]: mutateOpt(DISCOVERY, "  if (signal.loading) return 'UNRESOLVED';\n", ''),
+      },
+    }),
+    'resolving K+ sent to acquisition',
+  );
+});
+
+test('FC-01: the VTO modules carry no acquisition of their own -- the gate decides', () => {
+  const entry = stripComments(read(ENTRY));
+  assert.match(entry, /<KPlusGate source="vto">/, 'still the one shared gate, with the bounded source');
+  assert.doesNotMatch(entry, /KPlusEarlyAccessSheet|KPlusMembershipSheet|KPlusMembershipStep|kplusAcquisitionSurface/, 'the entry names no K+ surface');
+  assert.doesNotMatch(entry, /early access/i, 'no stale Early Access wording on the VTO path');
+  // The membership sheet is an entry wrapper: it holds no commercial term.
+  // (Its commercial behaviour is proven against the real paywall in
+  // __tests__/kplusPaywallPhaseD.test.js.)
+  assert.ok(fs.existsSync(path.join(ROOT, MEMBERSHIP_SHEET)));
+});
+
+// ── FC-03 ───────────────────────────────────────────────────────────────────
+
+const coachmarkEvents = (world) => world.env.events.filter((entry) => entry.surface === 'coachmark');
+
+/**
+ * T13 + T14 + T17: a collision defers the cue without spending anything, and a
+ * later stable encounter shows it.
+ */
+async function checkCollisionDefersWithoutSpending(o = {}) {
+  const world = createWorld(o);
+  await withFakeTimers(world, async () => {
+    const release = world.awareness.acquireVtoAwarenessBlocker();
+    const cue = await mountCue(world);
+    await cue.elapse(DWELL * 2);
+
+    // T13: hidden, and NOTHING was used up.
+    assert.equal(cue.hook.current.visible, false, 'no cue during a collision');
+    assert.equal(world.storedRecord(), null, 'a collision writes nothing to the account history');
+    assert.equal(world.awareness.readVtoAwareness().cuePresentations, 0, 'it is not a presentation');
+    assert.equal(world.awareness.readVtoAwareness().cueDismissed, false, 'it is not a dismissal');
+    assert.equal(world.awareness.readVtoAwarenessSession().cueShown, false, "the session's one presentation is still available");
+    // T17: no false impression, and no false dismissal either.
+    assert.deepEqual(coachmarkEvents(world), [], 'a collision emits no awareness telemetry');
+    assert.ok(activeTimers(world).length > 0, 'the control is still being watched: the education is still owed');
+
+    // Not a queue: the collision clearing shows nothing.
+    release();
+    await cue.elapse(DWELL * 3);
+    assert.equal(cue.hook.current.visible, false, 'nothing appears the moment the collision clears');
+    assert.equal(world.storedRecord(), null);
+    assert.deepEqual(coachmarkEvents(world), []);
+
+    // T14: a later stable encounter (the control left the window and was
+    // viewed again) shows the cue, judged from the top.
+    world.env.rect = { ...OFFSCREEN };
+    await cue.elapse(800);
+    world.env.rect = { ...ONSCREEN };
+    await cue.elapse(DWELL);
+    assert.equal(cue.hook.current.visible, true, 'a later stable encounter shows the cue');
+    assert.equal(world.storedRecord().cuePresentations, 1, 'and only NOW is a presentation counted');
+    assert.deepEqual(coachmarkEvents(world), [
+      { event: 'vto_awareness_impression', surface: 'coachmark', actor_kplus_state: 'active' },
+    ]);
+  });
+
+  // The other kind of later encounter: a different product surface, in the
+  // same session, after an earlier control was deferred.
+  const other = createWorld(o);
+  await withFakeTimers(other, async () => {
+    const release = other.awareness.acquireVtoAwarenessBlocker();
+    const first = await mountCue(other);
+    await first.elapse(DWELL * 2);
+    assert.equal(first.hook.current.visible, false);
+    release();
+    const second = await mountCue(other);
+    await second.elapse(DWELL);
+    assert.equal(second.hook.current.visible, true, 'a new eligible product, viewed stably, shows the cue');
+    assert.equal(other.storedRecord().cuePresentations, 1);
+  });
+
+  // Every momentary collision behaves the same way -- none of them spends it.
+  for (const [label, begin, end] of [
+    ['a try-on request', (env) => { env.vtoStatus = 'generating'; }, (env) => { env.vtoStatus = 'idle'; }],
+    ['a purchase', (env) => { env.commerceStatus = 'PURCHASING'; }, (env) => { env.commerceStatus = 'IDLE'; }],
+  ]) {
+    const again = createWorld(o);
+    begin(again.env);
+    await withFakeTimers(again, async () => {
+      const cue = await mountCue(again);
+      await cue.elapse(DWELL * 2);
+      assert.equal(again.storedRecord(), null, `${label}: nothing recorded`);
+      assert.equal(again.awareness.readVtoAwarenessSession().cueShown, false, label);
+      end(again.env);
+      await cue.hook.flush();
+      again.env.rect = { ...OFFSCREEN };
+      await cue.elapse(800);
+      again.env.rect = { ...ONSCREEN };
+      await cue.elapse(DWELL);
+      assert.equal(cue.hook.current.visible, true, `${label}: a later stable encounter still shows the cue`);
+    });
+  }
+}
+
+test('FC-03 T13/T14/T17: a collision defers the cue, spends nothing, and a later stable encounter shows it', () =>
+  checkCollisionDefersWithoutSpending());
+
+test('NC-FC-03: a collision that marks the cue as spent is caught', async () => {
+  // The collision is recorded as a presentation (history + session + telemetry).
+  await expectRed(
+    () => checkCollisionDefersWithoutSpending({
+      mutate: {
+        [AWARENESS_HOOKS]: mutateOpt(
+          AWARENESS_HOOKS,
+          '        if (vtoCueDecisionRecordsPresentation(decision)) {',
+          "        if (vtoCueDecisionRecordsPresentation(decision) || decision.reason === 'collision') {",
+        ),
+      },
+    }),
+    'collision counted as a presentation',
+  );
+  // The collision is recorded as a dismissal.
+  await expectRed(
+    () => checkCollisionDefersWithoutSpending({
+      mutate: {
+        [AWARENESS_HOOKS]: mutateOpt(
+          AWARENESS_HOOKS,
+          "        moveEncounter({ type: 'viewed', decision });",
+          "        if (decision.reason === 'collision') dismissVtoCue();\n        moveEncounter({ type: 'viewed', decision });",
+        ),
+      },
+    }),
+    'collision counted as a dismissal',
+  );
+  // A deferral that never ends: the later encounter is never evaluated.
+  await expectRed(
+    () => checkCollisionDefersWithoutSpending({
+      mutate: {
+        [DISCOVERY]: mutateOpt(
+          DISCOVERY,
+          "  if (event.type === 'left_window') return current === 'presented' ? 'presented' : 'watching';",
+          "  if (event.type === 'left_window') return current;",
+        ),
+      },
+    }),
+    'deferral is permanent',
+  );
+});
+
+test('FC-03: only a real presentation records anything', () => {
+  const { discovery } = createWorld();
+  const records = discovery.vtoCueDecisionRecordsPresentation;
+  assert.equal(records({ show: true, reason: 'show' }), true);
+  for (const reason of [
+    'collision', 'not_viewed', 'dismissed', 'retired', 'already_used', 'shown_this_session',
+    'pitched_at_step6', 'history_unknown', 'not_eligible', 'surface_unavailable',
+  ]) {
+    assert.equal(records({ show: false, reason }), false, `${reason} records nothing`);
+  }
+  // A malformed "show" with a refusal reason is not trusted either.
+  assert.equal(records({ show: true, reason: 'collision' }), false);
+  assert.deepEqual(
+    ['watching', 'presented', 'deferred'].map((state) => discovery.advanceVtoCueEncounter(state, { type: 'left_window' })),
+    ['watching', 'presented', 'watching'],
+  );
+  // The hook has exactly one place a presentation can be recorded.
+  const hooks = stripComments(read(AWARENESS_HOOKS));
+  assert.equal([...hooks.matchAll(/noteVtoCuePresented\(\)/g)].length, 1);
+  assert.match(hooks, /if \(vtoCueDecisionRecordsPresentation\(decision\)\) \{\s*noteVtoCuePresented\(\);\s*emitVtoAwarenessImpression\(\{ surface: 'coachmark', kplus: live\.kplus \}\);\s*\}/);
+});
+
+test('FC-03 T15: an explicit "Not now" still suppresses the cue permanently', async () => {
+  const storage = new Map();
+  const world = createWorld({ storage });
+  await withFakeTimers(world, async () => {
+    const cue = await mountCue(world);
+    await cue.elapse(DWELL);
+    assert.equal(cue.hook.current.visible, true);
+    cue.hook.current.dismiss();
+    await cue.hook.flush();
+    assert.equal(cue.hook.current.visible, false);
+    assert.equal(world.storedRecord().cueDismissed, true);
+    assert.deepEqual(coachmarkEvents(world).map((entry) => entry.event), ['vto_awareness_impression', 'vto_awareness_dismissed']);
+    // Leaving and returning does NOT bring a dismissed cue back.
+    world.env.rect = { ...OFFSCREEN };
+    await cue.elapse(800);
+    world.env.rect = { ...ONSCREEN };
+    await cue.elapse(DWELL * 2);
+    assert.equal(cue.hook.current.visible, false, 'dismissal is not a deferral');
+    assert.equal(activeTimers(world).length, 0, 'a dismissed cue is no longer measured at all');
+  });
+  for (let launch = 0; launch < 3; launch += 1) {
+    const relaunched = createWorld({ storage });
+    await withFakeTimers(relaunched, async () => {
+      const cue = await mountCue(relaunched);
+      await cue.elapse(DWELL * 2);
+      assert.equal(cue.hook.current.visible, false, `launch ${launch + 2}: still dismissed`);
+    });
+  }
+});
+
+test('FC-03 T16: real presentations still respect one-per-session and the two-session cap', async () => {
+  const storage = new Map();
+
+  // Session 1: shown once; a collision earlier in the session did not use it up.
+  const first = createWorld({ storage });
+  await withFakeTimers(first, async () => {
+    const release = first.awareness.acquireVtoAwarenessBlocker();
+    const deferred = await mountCue(first);
+    await deferred.elapse(DWELL * 2);
+    release();
+    assert.equal(first.storedRecord(), null, 'the deferred view did not count toward the cap');
+
+    const shown = await mountCue(first);
+    await shown.elapse(DWELL);
+    assert.equal(shown.hook.current.visible, true);
+    assert.equal(first.storedRecord().cuePresentations, 1);
+
+    const again = await mountCue(first);
+    await again.elapse(DWELL * 3);
+    assert.equal(again.hook.current.visible, false, 'one per session');
+    assert.equal(first.storedRecord().cuePresentations, 1, 'and it is not counted twice');
+  });
+
+  // Session 2: shown once more -- the second and last valid exposure.
+  const second = createWorld({ storage });
+  await withFakeTimers(second, async () => {
+    const cue = await mountCue(second);
+    await cue.elapse(DWELL);
+    assert.equal(cue.hook.current.visible, true);
+    assert.equal(second.storedRecord().cuePresentations, 2);
+  });
+
+  // Session 3 and after: retired, reached through two REAL exposures.
+  const third = createWorld({ storage });
+  await withFakeTimers(third, async () => {
+    const cue = await mountCue(third);
+    await cue.elapse(DWELL * 3);
+    assert.equal(cue.hook.current.visible, false, 'retired after the cap');
+    assert.equal(activeTimers(third).length, 0);
+    assert.equal(third.storedRecord().cuePresentations, 2);
+  });
+  assert.equal(
+    [first, second, third].flatMap((world) => coachmarkEvents(world)).filter((entry) => entry.event === 'vto_awareness_impression').length,
+    2,
+    'exactly two impressions were ever reported -- one per real presentation',
+  );
 });

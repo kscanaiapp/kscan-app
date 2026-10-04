@@ -43,6 +43,7 @@ import {
   resolveVtoFirstUseCue,
   resolveVtoHomeCard,
   resolveVtoSurfaceAvailability,
+  vtoCueDecisionRecordsPresentation,
   VTO_MEANINGFUL_VIEW,
   VTO_VIEW_DWELL_IDLE,
   type VtoActorKPlusState,
@@ -197,9 +198,11 @@ export interface UseVtoFirstUseCueResult {
  *
  * The control is only measured while the cue could still be shown to this
  * account in this session; for everyone else no timer runs at all. A view that
- * completes at the wrong moment is spent, not queued: nothing is shown when the
- * collision clears, and the cue is considered again only after the control has
- * left the window and been viewed afresh.
+ * completes during a collision is DEFERRED: nothing is shown, and nothing is
+ * recorded -- no presentation, no dismissal, no telemetry -- so the education
+ * is still owed. It is not queued either: nothing appears when the collision
+ * clears. The cue is considered again on a later encounter, once the control
+ * has left the window and been viewed afresh, or on a new product surface.
  */
 export function useVtoFirstUseCue({ cta, targetRef }: UseVtoFirstUseCueArgs): UseVtoFirstUseCueResult {
   const surface = useVtoSurfaceAvailability();
@@ -302,7 +305,9 @@ export function useVtoFirstUseCue({ cta, targetRef }: UseVtoFirstUseCueArgs): Us
           meaningfullyViewed: true,
           collisions,
         });
-        if (decision.show) {
+        // The ONLY place a presentation is recorded, and only for a cue that is
+        // really about to be on screen. A deferred view falls straight through.
+        if (vtoCueDecisionRecordsPresentation(decision)) {
           noteVtoCuePresented();
           emitVtoAwarenessImpression({ surface: 'coachmark', kplus: live.kplus });
         }

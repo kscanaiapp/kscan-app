@@ -223,6 +223,30 @@ export function resolveActivationCapabilities(
 }
 
 /**
+ * PROMOTION is not AVAILABILITY.
+ *
+ * `resolveActivationCapabilities` answers "which K+ capabilities can a member
+ * actually use here" -- and that is the commercial question: it is what makes a
+ * K+ membership worth offering at all. Whether a capability is currently being
+ * PROMOTED is a separate, softer one. An operator can quieten promotion of a
+ * capability that keeps working (Virtual Try-On has such a dimmer), and doing
+ * so must hide that capability's benefit line without making the membership
+ * itself look like it has nothing in it.
+ *
+ * So a surface that decides whether to offer K+ asks the function above, and
+ * only the benefit LIST is passed through this one. Only an explicit `false`
+ * hides: a capability with no promotion answer is promoted exactly as before.
+ */
+export type KPlusCapabilityPromotion = Partial<Record<KPlusActivationCapabilityId, boolean | null>>;
+
+export function selectPromotedCapabilities<T extends { id: KPlusActivationCapabilityId }>(
+  capabilities: readonly T[],
+  promotion: KPlusCapabilityPromotion = {},
+): T[] {
+  return capabilities.filter((capability) => promotion[capability.id] !== false);
+}
+
+/**
  * The verb each capability contributes to the activation sub-headline, in
  * sentence order. The order is the one the previous fixed sentence used
  * ("scan, style, try on, and plan"), so a build where all four are advertised

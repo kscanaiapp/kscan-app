@@ -363,8 +363,8 @@ export interface VtoCueDecision {
  *
  * The permanent reasons are checked before the momentary ones, so a customer
  * who said "Not now" is never re-evaluated at all. A collision is the last
- * check and it is not a queue: the caller treats the encounter as spent and a
- * later, stable encounter is evaluated from the top.
+ * check and it is neither a queue nor a verdict: the cue is deferred for this
+ * encounter only, and a later, stable encounter is evaluated from the top.
  */
 export function resolveVtoFirstUseCue(input: VtoCueInput): VtoCueDecision {
   const no = (reason: VtoCueReason): VtoCueDecision => ({ show: false, reason });
@@ -386,11 +386,19 @@ export function resolveVtoFirstUseCue(input: VtoCueInput): VtoCueDecision {
  *
  *   'watching'   measuring; nothing decided
  *   'presented'  this card is showing the cue
- *   'spent'      the view happened at the wrong moment, or the cue is no
- *                longer wanted; nothing is shown until the control has left
- *                the window and come back
+ *   'deferred'   the view completed at the wrong moment, so nothing is shown
+ *                NOW. Deferring records nothing: it is not an impression, not a
+ *                dismissal, and it does not touch the session's or the
+ *                account's history, so the education is still owed.
+ *
+ * WHAT ENDS A DEFERRAL. Not the collision clearing: a cue that appeared the
+ * moment another modal closed would be the queue this policy forbids. A
+ * deferred encounter ends when the customer has moved on and come back -- the
+ * control leaves the window (`left_window`), or a new product surface mounts,
+ * which starts at 'watching' by construction. That later encounter is judged
+ * from the top, against every limit, exactly like a first one.
  */
-export type VtoCueEncounter = 'watching' | 'presented' | 'spent';
+export type VtoCueEncounter = 'watching' | 'presented' | 'deferred';
 
 export function advanceVtoCueEncounter(
   current: VtoCueEncounter,
@@ -400,7 +408,19 @@ export function advanceVtoCueEncounter(
 ): VtoCueEncounter {
   if (event.type === 'left_window') return current === 'presented' ? 'presented' : 'watching';
   if (current !== 'watching') return current;
-  return event.decision.show ? 'presented' : 'spent';
+  return event.decision.show ? 'presented' : 'deferred';
+}
+
+/**
+ * Does this decision leave anything behind?
+ *
+ * Only an actual presentation does. Every refusal -- and a collision above all
+ * -- must leave the account's history, the session's one presentation and the
+ * telemetry exactly as they were, or a busy moment would quietly use up the
+ * one chance to introduce the feature.
+ */
+export function vtoCueDecisionRecordsPresentation(decision: VtoCueDecision): boolean {
+  return decision.show === true && decision.reason === 'show';
 }
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
