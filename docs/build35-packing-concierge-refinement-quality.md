@@ -12,3 +12,5 @@ Preserved value:
 PR #454 now owns the current Elise conversation-quality frame, so the historical parallel Concierge state machine was not restored.
 
 No deployment, migration, provider, quota, entitlement, or production configuration change is part of this convergence.
+
+Convergence base: `805c02a6458fa72564f8a0718f913357e4aba28a`.
