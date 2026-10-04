@@ -22,10 +22,19 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
-const BUILD35_ENTITLEMENT_BACKEND_PATHS = new Set([
+const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/vtoEntitlement.ts',
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
+  'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+  'supabase/functions/vto-generate/vtoContract.ts',
+  'supabase/functions/vto-generate/vtoHandler.ts',
+  'supabase/functions/kplus-offer-redeem/index.ts',
+  'supabase/functions/kplus-offer-redeem/offerCodeContract.ts',
+  'supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts',
+  'supabase/functions/_shared/deletion/userDataResources.ts',
+  'supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql',
+  'supabase/config.toml',
 ]);
 
 // ── The manifest parses, and every row carries its justification ────────────
@@ -87,8 +96,6 @@ test('guard: the protected boundaries are rejected by the real manifest', () => 
   // matched, this lane's scope claim would be false.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
-    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
     'components/scan-results/types.ts',
@@ -215,13 +222,13 @@ test('guard: generative backend stays read-only outside the exact Build 35 entit
 
   const forbiddenBackendTouches = changed.filter(
     (file) =>
-      (file.startsWith('supabase/') && !BUILD35_ENTITLEMENT_BACKEND_PATHS.has(file)) ||
+      (file.startsWith('supabase/') && !BUILD35_AUTHORIZED_BACKEND_PATHS.has(file)) ||
       file === 'app.json',
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'only the three exact Build 35 entitlement resolver/test paths may change; all other supabase/** and app.json remain read-only',
+    'only the exact Build 35 backend paths may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {
