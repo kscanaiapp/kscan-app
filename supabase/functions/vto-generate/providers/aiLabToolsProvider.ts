@@ -323,7 +323,7 @@ function mapSubmitFailure(
   if (httpStatus === 429) {
     return {
       ok: false,
-      failure: 'provider_busy',
+      failure: 'rate_limited',
       detail: 'submit_http_429',
       billable: false,
       retryAfterSeconds: parseRetryAfterSeconds(headers?.get('retry-after'), nowMs) ?? undefined,

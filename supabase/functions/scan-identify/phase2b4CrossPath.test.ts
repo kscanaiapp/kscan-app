@@ -328,6 +328,15 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 K+ offer-code redemption. The endpoint is JWT-authenticated and
+  // derives the actor from the verified subject before calling the
+  // service-role redemption RPC. Its imported account guard carries the
+  // shared auth-admin footprint; the source-accounting heuristic observes the
+  // POST-shaped REST operation in this deployed closure as a write.
+  'kplus-offer-redeem': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'kplus-reconcile-revenuecat': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
