@@ -55,6 +55,8 @@ TEST_EVIDENCE: 689 Deno tests passed across RevenueCat, K+, VTO, Elise, outfit g
 
 STATUS: SOURCE_REPAIR_COMPLETE_EXTERNAL_ACTION_REQUIRED. Merge this backend promotion PR into rebuild/backend-authority-v2, then use the required-reviewer production-controlled-deploy workflow. Do not substitute an unmerged branch or bypass the gate. Existing functions require exact live-bundle rollback capture before replacement.
 
+Release-validation dependency: the canonical backend branch also lacked the already-merged #498 dependency reachability repair. Its exact gate, approved evidence manifest and regression tests were ported from the merged integration source (scripts/check-dependency-reachability.js, config/dependency-reachability-exceptions.json, __tests__/dependencyReachabilityGate.test.js). All 22 tests pass; a fresh npm audit-backed gate passes with 28 narrowly classified high findings, zero critical and no unapproved high findings. No new exception or package upgrade was invented.
+
 ### B35-PROD-003 — P1 / CONFIGURATION
 
 LOCATION: production function secrets; services/kplus/revenueCatConfig.ts; RevenueCat provider/store configuration.
@@ -128,6 +130,7 @@ P4_FOUND=2; P5_FOUND=0; P6_FOUND=0; P7_FOUND=0; P8_FOUND=1; P9_FOUND=0; P10_FOUN
 - 52 canonical mobile/lifecycle Node checks: PASS; 27 disposable-database tests SKIPPED, not certified.
 - New readiness regression: 2 PASS, including undeclared-ledger drift negative control.
 - Production governance/migration/readiness regression fence: 157 PASS after fixing the Windows test harness; internal Build 35 APK profile check: 1 PASS.
+- Dependency reachability regression: 22 PASS; fresh audit-backed reachability gate: PASS.
 - TestSprite CLI/auth available. The only listed project is the staging Build 29 backend suite; it is not evidence for these undeployed production bundles. Build 35 runtime TestSprite validation remains unverified-because-undeployed. Do not run the staging suite and label it production certification.
 
 ## Remaining testing handoff
