@@ -258,8 +258,9 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // Now 27: Build 35 K+ Phase E added kplus-revenuecat-pull-reconcile, the
   // separately governed authenticated per-actor provider repair primitive.
   // It is likewise unrelated to this deletion sweep.
-  // Now 29: VTO post-Kimi adds kplus-offer-redeem. It is independently
-  // governed and unrelated to retained-owner-media deletion.
+  // Now 28: Build 35 Receipt Intelligence added purchase-import-extract.
+  // Now 29: the VTO post-Kimi lane adds kplus-offer-redeem, the authenticated
+  // HMAC-only offer-code ingestion boundary. Neither belongs to this sweep.
   assert.equal(dirs.length, 29, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
 
