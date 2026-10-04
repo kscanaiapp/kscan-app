@@ -207,6 +207,14 @@ COACHMARK_COLLISION_POLICY=suppressed while K+ is resolving, another modal is pr
   the control has left the window and been viewed afresh.
 ```
 
+Known limit: "another modal is presenting" is known only for modals that declare
+themselves. The try-on sheet and the scan-results Watch modal do. Modals hosted
+above the results surface by `app.js` / `AnalysisCard` (for example Add to
+Dressing Room) do not, so a dwell can complete underneath one. The cue is inline,
+so it can never stack on such a modal — the worst case is that it is already
+present when the modal closes. Declaring those hosts is a one-line
+`useVtoAwarenessBlocker(visible)` each and is left for device review.
+
 Limits: once per session; at most two sessions ever; "Not now" retires it
 permanently; any try-on use retires it; not shown in a session where Step 6
 already pitched Try It On. Controls are only measured while the cue could still
