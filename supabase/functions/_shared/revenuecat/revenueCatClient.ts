@@ -13,7 +13,8 @@
  * external_sync_status and move on without rolling back a valid local grant.
  *
  * API version note: this calls RevenueCat's V2 REST API
- * (`/v2/projects/{project_id}/customers/{customer_id}/actions/grant_entitlement`).
+ * (`/v2/projects/{project_id}/customers/{customer_id}/actions/grant_entitlement`
+ * and `.../actions/revoke_granted_entitlement`).
  * The account's Secret API Keys are issued V2-only -- a V2 key returns
  * `403 {"code":7723}` ("incompatible with RevenueCat API V1") against the
  * legacy V1 promotional-entitlement endpoint this file used to call, and no
@@ -23,6 +24,27 @@
  */
 
 const REVENUECAT_API_BASE = 'https://api.revenuecat.com/v2';
+
+/**
+ * The two -- and only two -- RevenueCat V2 customer actions this project
+ * performs. Named as constants so the contract tests can pin them, and so a
+ * mutation back to an obsolete path fails a targeted assertion instead of
+ * hiding behind retireMirroredEntitlement's 404 branch (an unknown action path
+ * also answers 404, which that branch reads as "already retired" -- which is
+ * exactly how an obsolete revoke endpoint could stay in place unnoticed while
+ * every mirror it was supposed to retire stayed alive).
+ *
+ * Current RevenueCat V2 semantics: `grant_entitlement` creates a granted
+ * entitlement and its associated promotional subscription;
+ * `revoke_granted_entitlement` -- NOT the older `revoke_entitlement` -- revokes
+ * that granted entitlement, which expires the associated promotional
+ * subscription. Granted entitlements are tracked separately from store
+ * purchases, so neither action cancels, refunds, transfers or otherwise mutates
+ * an App Store or Google Play subscription. No Apple or Google billing endpoint
+ * is called anywhere in this module.
+ */
+export const REVENUECAT_GRANT_ACTION = 'grant_entitlement';
+export const REVENUECAT_REVOKE_ACTION = 'revoke_granted_entitlement';
 
 export type RevenueCatSyncOutcome =
   | { ok: true; status: 'synced'; externalCustomerId: string }
@@ -130,7 +152,7 @@ export async function syncPromotionalEntitlement(params: {
   }
 
   const entitlementId = getKPlusEntitlementId();
-  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/grant_entitlement`;
+  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/${REVENUECAT_GRANT_ACTION}`;
 
   let response: Response;
   try {
@@ -210,6 +232,16 @@ export function isBlockingRevenueCatCleanupStatus(status: unknown): boolean {
  * prior attempt) is success, not an error. Every other non-2xx is reported
  * as retryable or terminal, matching syncPromotionalEntitlement's policy,
  * for the caller's own retry/dead-letter lifecycle to act on.
+ *
+ * ENDPOINT. Uses REVENUECAT_REVOKE_ACTION ('revoke_granted_entitlement'),
+ * V2's action for revoking a granted entitlement, which expires the
+ * associated promotional subscription. It does NOT use the older
+ * 'revoke_entitlement' path. Because the 404 branch above reads any 404 as
+ * "already retired", an obsolete action path would answer 404 and be recorded
+ * as a clean retirement while every mirror it was meant to retire stayed
+ * alive -- silent, and invisible to a caller that never asserts the URL. The
+ * path is therefore pinned by contract tests rather than trusted to
+ * observation (see __tests__/revenueCatCleanupClient.test.js).
  */
 export async function retireMirroredEntitlement(params: {
   appUserId: string;
@@ -229,7 +261,7 @@ export async function retireMirroredEntitlement(params: {
   }
 
   const entitlementId = getKPlusEntitlementId();
-  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/revoke_entitlement`;
+  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/${REVENUECAT_REVOKE_ACTION}`;
 
   let response: Response;
   try {

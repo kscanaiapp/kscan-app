@@ -38,7 +38,7 @@ export interface EliseBackendFlags {
   adviceMetadataClientV1: boolean;
   /**
    * Build 34 / Track B / Phase B5. THE SINGLE B5 KILL SWITCH. Gates BOTH the
-   * Track B Closet wardrobe-retrieval source and the server-derived Style DNA
+   * Track B Closet wardrobe-retrieval source and the server-derived Signature Style
    * context together, not decomposed per-stage (same reasoning as every other
    * single-flag Track B phase). Independent of adviceIntentsV1/
    * closetRetrievalV1, which continue to gate the pre-Track-B Dressing-Room-
@@ -71,8 +71,11 @@ export interface EliseBackendFlags {
    *                              reach the client at all. Predates Concierge and
    *                              keeps its existing meaning unchanged.
    *   closetWardrobeContextV1 -- SOURCE. Whether the authoritative Track B
-   *                              Closet participates in retrieval (plus the
-   *                              server-derived Style DNA context), K+ gated.
+   *                              Closet participates in retrieval (K+ gated),
+   *                              plus the server-derived Signature Style
+   *                              context (FREE -- see the Build 34 entitlement
+   *                              matrix; this flag decides only whether the
+   *                              source exists, never who is entitled to it).
    *   conciergeV1             -- CAPABILITY. Whether the new customer-visible
    *                              Concierge behaviour exists: v2 display facts,
    *                              the wardrobe-context signal, text->Closet focus

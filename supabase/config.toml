@@ -3,9 +3,8 @@
 # Declares the JWT posture of every deployed Edge Function so a deploy can never
 # silently change it. Without this file the CLI applies its own default, which
 # would flip scan-identify from its deployed verify_jwt = false to true and
-# bypass the function's custom auth/error contract. MODE B now requires a
-# verified, non-anonymous bearer token, but validation remains inside the
-# function so missing and malformed credentials keep their governed response.
+# break the commerce-only (MODE B) request, which genuinely has no bearer
+# token by design.
 #
 # Changing any verify_jwt value here changes production authentication
 # behaviour and is an owner decision, not a deployment side effect.
@@ -114,6 +113,21 @@ verify_jwt = true
 # x-kplus-reconcile-secret header, not a user JWT.
 [functions.kplus-reconcile-revenuecat]
 verify_jwt = false
+
+# Inbound RevenueCat lifecycle webhook (Build 35 Phase C). RevenueCat cannot send a
+# Supabase JWT, so the gateway check is off; the function authenticates every
+# request itself (Authorization secret, plus an HMAC signature when configured)
+# and refuses everything when that secret is unset.
+[functions.kplus-revenuecat-webhook]
+verify_jwt = false
+
+[functions.kplus-revenuecat-pull-reconcile]
+verify_jwt = true
+
+# ── Receipt & Purchase Intelligence ──────────────────────────────────────────
+
+[functions.purchase-import-extract]
+verify_jwt = true
 
 # ── Virtual Try-On ───────────────────────────────────────────────────────────
 

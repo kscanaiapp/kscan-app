@@ -87,7 +87,7 @@ const ALLOWED_KEYS = new Set([
   // Build 34 / Track B / Phase B5 — bounded booleans only, never a profile
   // value, a Closet field, or a K+ grant source/reason.
   'kPlusActive',
-  'styleDnaAvailable',
+  'signatureStyleAvailable',
   // Build 34 / K+ Wardrobe Concierge V1 (section 54) — aggregate dimensions
   // only. `conflictCodes` carries garment CLASS codes ("unsupported_owned_
   // jacket"), never the sentence that was removed or the item that was named.

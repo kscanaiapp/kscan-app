@@ -82,7 +82,7 @@ Deno.test('DEFAULT_HENRY_MODEL_PERSONA / CUSTOM_ALEX_MODEL_PERSONA: the persona 
   assert.doesNotMatch(alexBlock, /Henry/);
 });
 
-Deno.test('persona block is compact, bracketed, and self-contained (matches the Style DNA / gender-context block convention)', () => {
+Deno.test('persona block is compact, bracketed, and self-contained (matches the Signature Style / gender-context block convention)', () => {
   const block = buildStylistPersonaBlock('Henry');
   assert.ok(block.startsWith('[Stylist Persona]'));
   assert.ok(block.endsWith('[/Stylist Persona]'));

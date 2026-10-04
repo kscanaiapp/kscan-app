@@ -58,7 +58,7 @@ export function resolveStylistDisplayName(customName: unknown, avatarId: unknown
 
 /**
  * Compact, bracketed, self-contained persona instruction — same shape as the
- * Style DNA / gender-styling-context blocks. No user-supplied free text is
+ * Signature Style / gender-styling-context blocks. No user-supplied free text is
  * interpolated here beyond the already-sanitized (length-bounded,
  * control-character-stripped) resolved name.
  */

@@ -17,7 +17,7 @@ export const AI_INPUT_LIMITS = {
   conversationHistoryMessages: 6,
   closetContext: 500,
   signatureStyleContext: 500,
-  styleDnaContext: 280,
+  signatureStyleFeedbackContext: 280,
   sharedRoomContent: 500,
   totalPromptChars: 24_000,
   arrayItems: 8,

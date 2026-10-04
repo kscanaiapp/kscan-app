@@ -32,6 +32,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { execFileSync, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -137,7 +138,16 @@ function observeGateUnderCapture(captureTarget) {
     // The probe imports the REAL gate, so this test cannot drift from it.
     fs.writeFileSync(
       path.join(repo, 'probe.mjs'),
-      `import { gitWorkingTreeClean } from ${JSON.stringify(HELPERS)};\n` +
+      `import { gitWorkingTreeClean } from ${JSON.stringify(pathToFileURL(HELPERS).href)};\n` +
+        `import fs from 'node:fs';\n` +
+        `import { setTimeout } from 'node:timers/promises';\n` +
+        // Observe tee opening the output before the gate. This tests the
+        // failure sequence deterministically, not relative shell startup speed.
+        `const deadline = Date.now() + 5000;\n` +
+        `while (!fs.existsSync(process.argv[2])) {\n` +
+        `  if (Date.now() > deadline) throw new Error('tee did not create capture');\n` +
+        `  await setTimeout(10);\n` +
+        `}\n` +
         `process.stderr.write('CLEAN=' + gitWorkingTreeClean() + '\\n');\n` +
         `process.stdout.write(JSON.stringify({ ok: true }) + '\\n');\n`,
     );
@@ -150,17 +160,27 @@ function observeGateUnderCapture(captureTarget) {
 
     const capture = captureTarget === 'INSIDE' ? 'preflight.json' : path.join(outside, 'production-preflight.json');
 
-    const run = spawnSync('bash', ['-c', `node probe.mjs | tee ${JSON.stringify(capture)} >/dev/null`], {
+    // Windows' system bash is WSL and cannot use this native Node/Git fixture.
+    // Use Git's matching shell, keeping the actual node | tee pipeline intact.
+    const bash = process.platform === 'win32'
+      ? path.resolve(execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(), '../../../bin/bash.exe')
+      : 'bash';
+    const quotedCapture = JSON.stringify(capture.replace(/\\/g, '/'));
+    const run = spawnSync(bash, ['-c', `node probe.mjs ${quotedCapture} | tee ${quotedCapture} >/dev/null`], {
       cwd: repo,
       encoding: 'utf8',
     });
+    assert.ifError(run.error);
+    assert.equal(run.status, 0, run.stderr);
 
     const sawClean = /CLEAN=true/.test(run.stderr);
     const captureLanded = fs.existsSync(path.isAbsolute(capture) ? capture : path.join(repo, capture));
     return { sawClean, captureLanded, stderr: run.stderr };
   } finally {
-    fs.rmSync(repo, { recursive: true, force: true });
-    fs.rmSync(outside, { recursive: true, force: true });
+    // Windows scanners can briefly retain handles after the child git exits.
+    // Keep cleanup bounded; a lasting failure still fails this test.
+    fs.rmSync(repo, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    fs.rmSync(outside, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 }
 

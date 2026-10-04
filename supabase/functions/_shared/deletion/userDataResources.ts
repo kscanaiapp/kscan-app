@@ -111,6 +111,9 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'kplus_entitlement_grants', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_transitions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_activations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Phase E per-actor pull lease/cooldown state. Operational only and removed
+  // with the Auth user; listed so deletion coverage verifies the cascade.
+  { table: 'kplus_provider_reconciliation_controls', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // RevenueCat promotional-mirror reconciliation queue
   // (REVENUECAT_REVOCATION_RETIREMENT). ON DELETE CASCADE to auth.users clears
   // any queued work for a purged account, so a retirement can never outlive the
@@ -137,7 +140,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // above; listed for the same reason: coverage counting and post-purge
   // residual verification, not because any user-facing feature depends on it.
   { table: 'watchlist_push_receipts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
+  // Build 34 Track B B4 server-derived Signature Style profile (K+-adjacent, but
   // deletion is independent of K+ status like every other entry here). ON
   // DELETE CASCADE to auth.users already removes this row; this entry adds it
   // to the worker's coverage counting and post-purge residual verification.
