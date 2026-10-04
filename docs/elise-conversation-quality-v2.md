@@ -8,14 +8,13 @@ new persistence, no additional model call.
 
 | Field | Value |
 |---|---|
-| `BUILD35_BASE_BRANCH` | `fix/notifications-final-convergence-v1` (Build 35 product authority; every Build 35 lane since #403 merges here) |
-| `BASE_SHA` | `d66f03d6126bdfb65bfa0301bf8474d2e584a544` (PR #414 merge, current remote tip at dispatch) |
-| `UPSTREAM_SHA` | `d66f03d6126bdfb65bfa0301bf8474d2e584a544` |
+| `BUILD35_BASE_BRANCH` | `integration/build35-v1-convergence` (current Build 35 integration authority) |
+| `BASE_SHA` | `de75f643fac91a91d60e82b8748601dfc1760a4c` (integration authority at convergence start) |
+| `UPSTREAM_SHA` | `de75f643fac91a91d60e82b8748601dfc1760a4c` |
 | Branch | `feature/build35-elise-conversation-quality-v2` |
 | `WORKTREE_CLEAN` at start | `YES` (fresh worktree `C:/src/B35-ELISE-Q2-20260922`) |
 
-The Build 34 line and `rebuild/backend-authority-v2` (the active Supabase/backend
-lane) were not touched.
+No Supabase schema, migration, Edge Function, deployment, store configuration, or production runtime state is changed by this lane.
 
 ## B. The Elise conversation path, as it actually is
 
@@ -26,43 +25,38 @@ CLIENT CHAT STATE     hooks/useStyleChat.ts  (messages[], isSendingRef, sendScop
                       retry state, actor epoch via services/actorScope.ts)
   ↓
 MESSAGE CONTRACT      services/style-chat/providers/edgeStyleChatProvider.ts
-                      {sessionId, message, weatherLocation, styleDnaContext, activeContext,
+                      {sessionId, message, weatherLocation, signatureStyleContext, activeContext,
                        genderStylingContext, sourceMessageId[, attachments, fashionContextV2]}
   ↓
 CONTEXT ASSEMBLY      supabase/functions/stylechat-generate/index.ts (SERVER)
                       newest 6 non-greeting messages (+3 greeting buffer), contextMessages.ts;
                       Signature Style / Closet / Concierge / weather / attachments blocks
   ↓
-INTENT / ROUTING      server: eliseAdviceIntents.ts, eliseCommerceIntent.ts (reducer),
-                      eliseOutfitState.ts (Concierge V2), packingHandler/packingPlannerHandler
+INTENT / ROUTING      server: fashion/styling guidance + validated structured actions;
+                      external product shopping is not auto-launched from useStyleChat
   ↓
 MODEL REQUEST         ONE Gemini call (SINGLE_PASS); ≤1 provider-error retry, ≤1
                       incomplete-response retry
   ↓
-STRUCTURED RESPONSE   {message, whyThisWorks, actions, adviceMetadata, shoppingIntent,
-                       signatureStyleTokens, weatherContext, usage}
+STRUCTURED RESPONSE   {message, whyThisWorks, actions, adviceMetadata, weatherContext, usage}
   ↓
 UI BLOCKS / ACTIONS   ui_blocks jsonb: why_this_works, stylechat_actions, concierge_evidence,
-                      concierge_outfit_state, commerce_shopping_intent, commerce_products
+                      plus Elise conversation notices introduced by this lane
                       → components/style-chat/StyleChatBubble.tsx
   ↓
-FOLLOW-UP STATE       next turn: server re-reads outfit state + shopping intent from the
-                      SAME fetched rows (assistant rows only); client Commerce shelf memory
-                      re-read from loaded commerce_products blocks
+FOLLOW-UP STATE       next turn: the server re-reads bounded conversation history; the
+                      client deterministically re-derives the task frame from loaded messages
 ```
 
 Source authorities: `useStyleChat` — `hooks/useStyleChat.ts`; message type —
 `services/style-chat/types.ts`; history — `style_chat_messages` via
 `services/style-chat/styleChatRepository.ts` (client) and the server window in
 `index.ts`; `ui_blocks` — the hook (writer) and `StyleChatBubble.tsx` (renderer);
-shopping intent — `eliseCommerceIntent.ts` (server reducer) +
-`services/style-chat/commerceActivation.ts` (client activation); Closet context —
-server retrieval + `services/ownedClosetItems.ts`; Signature Style — server
-`styleDnaContext`/profile + `signatureStyleTokens`; Packing — `packingHandler.ts`;
-Dressing Room — `eliseRoomItemEvidence.ts`/`eliseSharedRoomAccess.ts`; VTO actions —
-`stylechat_actions`; Commerce activation — `runCommerceActivation`; product
-references — `commerceShelfMemory.ts`; reason feedback —
-`StyleChatReasonChips.tsx`; reset — hook effect on `[actorId, sessionId]`; stale
+shopping requests — governed by the current StyleChat server prompt, which routes buying requests to K Scan scan/search rather than auto-launching client Commerce; Closet context —
+server-derived evidence and ownership fields; Signature Style — server/client
+`signatureStyleContext` background context; Packing — existing packing surfaces;
+Dressing Room — existing room evidence/access services; VTO-related actions —
+validated `stylechat_actions`; reset — hook effect on `[actorId, sessionId]`; stale
 protection — `isCurrentSend()` (scope version + actor epoch); retries —
 `styleChatRetryState.ts`; errors — `styleChatErrors.ts`/`styleChatOutcome.ts`.
 
