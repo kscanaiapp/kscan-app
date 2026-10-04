@@ -57,6 +57,7 @@ import {
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
+  RECEIPT_INTELLIGENCE_V1,
 } from '../constants/featureFlags';
 import { resolveMirrorSelfieAvailable } from '../services/mirror/mirrorSelfieAvailability';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
@@ -1057,6 +1058,14 @@ export default function LibraryScreen() {
           onSaveBatch={handleClosetIntakeBatchSave}
           stagingActive={CLOSET_CANDIDATE_STAGING_ACTIVE}
           batchIntakeActive={CLOSET_BATCH_REVIEW_V2_ACTIVE}
+          onImportPurchase={
+            RECEIPT_INTELLIGENCE_V1
+              ? () => {
+                  setClosetIntakeVisible(false);
+                  router.push('/purchase-import');
+                }
+              : undefined
+          }
         />
       ) : null}
 
