@@ -517,6 +517,9 @@ export function ProductShelf({
                     garmentTitle={productTitle}
                     origin="commerce_product"
                     onShop={hasLink ? () => handleLinkPress(purchaseUrl) : undefined}
+                    onWatch={watchlistAvailable && canWatch
+                      ? () => setWatchModalProduct(p)
+                      : undefined}
                     testID={`try-it-on-${productKey}`}
                   />
                 ) : null}

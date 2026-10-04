@@ -56,6 +56,7 @@ export interface TryItOnEntryProps {
   garmentTitle: string;
   origin?: VtoOrigin;
   onShop?: () => void;
+  onWatch?: () => void;
   /** Retailer size-guide page, when Commerce has one. Presentation only. */
   sizeGuideUrl?: string | null;
   devScenario?: string;
@@ -78,6 +79,7 @@ export function TryItOnEntry({
   garmentTitle,
   origin = 'commerce_product',
   onShop,
+  onWatch,
   sizeGuideUrl,
   devScenario,
   surface = 'product',
@@ -134,6 +136,14 @@ export function TryItOnEntry({
     emitVtoEvent('vto_restored', { origin });
     setMinimized(false);
   }, [origin]);
+
+  const watchFromTryOn = useCallback(() => {
+    if (!onWatch) return;
+    // Native watch UI must not stack over the VTO Modal. Keep the result alive
+    // and expose a truthful return affordance while Commerce owns the action.
+    setMinimized(true);
+    onWatch();
+  }, [onWatch]);
 
   // Counted once per surface per session, however many eligible items render.
   useEffect(() => {
@@ -248,6 +258,7 @@ export function TryItOnEntry({
           garmentTitle={garmentTitle}
           origin={origin}
           onShop={onShop}
+          onWatch={onWatch ? watchFromTryOn : undefined}
           sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
           capability={capability}
@@ -264,6 +275,9 @@ export function TryItOnEntry({
       {sheetVisible && minimized ? (
         <VtoMinimizedPill
           ready={session.status === 'success'}
+          returnOnly={session.status !== 'preparing'
+            && session.status !== 'generating'
+            && session.status !== 'validating_result'}
           onPress={restoreSheet}
           testID={testID ? `${testID}-pill` : undefined}
         />

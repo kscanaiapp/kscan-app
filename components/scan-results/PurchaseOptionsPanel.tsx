@@ -218,6 +218,9 @@ export function PurchaseOptionsPanel({
                       surface="scan_result"
                       firstUseEducation
                       onShop={destination ? () => Linking.openURL(destination) : undefined}
+                      onWatch={watchlistAvailable && canWatch
+                        ? () => setWatchCandidate(option.watchCandidate ?? null)
+                        : undefined}
                       testID={`purchase-option-try-it-on-${option.id}`}
                     />
                   ) : null}

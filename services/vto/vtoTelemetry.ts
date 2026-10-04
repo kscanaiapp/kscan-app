@@ -39,6 +39,13 @@ export const VTO_EVENTS = [
   'vto_minimized',
   'vto_restored',
   'vto_result_save_opened',
+  'vto_result_viewed',
+  'vto_result_shop',
+  'vto_result_watch',
+  'vto_result_try_another',
+  /** Emitted only after the Dressing Room write confirms. */
+  'vto_result_saved',
+  'vto_exited',
   // Live/AI Photo mode choice. Content-free: it records WHICH of the two
   // visualization modes the customer selected and nothing about the person,
   // the photo, the camera, or the session. Added deliberately rather than

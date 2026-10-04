@@ -21,8 +21,8 @@
  * upload and error copy stay in one place.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { AddScanToDressingRoomModal } from '../AddScanToDressingRoomModal';
 import { InlineNotice, SecondaryButton } from '../luxury';
@@ -44,6 +44,8 @@ export interface VtoSaveToDressingRoomProps {
   brand?: string | null;
   productRef?: string | null;
   origin: VtoOrigin;
+  onLeaveForDressingRoom?: () => void;
+  style?: ViewStyle;
   testID?: string;
 }
 
@@ -56,13 +58,32 @@ export function VtoSaveToDressingRoom({
   brand,
   productRef,
   origin,
+  onLeaveForDressingRoom,
+  style,
   testID,
 }: VtoSaveToDressingRoomProps) {
   const [exportedUri, setExportedUri] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [savedTo, setSavedTo] = useState<string | null>(null);
   const busyRef = useRef(false);
+  const exportedRef = useRef<string | null>(null);
+  exportedRef.current = exportedUri;
+  const dataUriRef = useRef(dataUri);
+  dataUriRef.current = dataUri;
+
+  // A confirmation and cache export belong to exactly one result.
+  useEffect(() => {
+    setSavedTo(null);
+    setError(null);
+    setModalVisible(false);
+    return () => {
+      const uri = exportedRef.current;
+      exportedRef.current = null;
+      if (uri) void discardVtoResultExport(uri);
+    };
+  }, [dataUri]);
 
   const handlePress = useCallback(async () => {
     if (busyRef.current || !dataUri) return;
@@ -72,6 +93,10 @@ export function VtoSaveToDressingRoom({
     try {
       // The ONLY place a try-on result becomes a file on disk.
       const exported = await exportVtoResultToCache({ dataUri, requestId });
+      if (dataUriRef.current !== dataUri) {
+        void discardVtoResultExport(exported.localUri);
+        return;
+      }
       setExportedUri(exported.localUri);
       setModalVisible(true);
       emitVtoEvent('vto_result_save_opened', { origin });
@@ -84,12 +109,18 @@ export function VtoSaveToDressingRoom({
     }
   }, [dataUri, requestId, origin]);
 
+  const handleSaved = useCallback((roomTitle: string) => {
+    setSavedTo(roomTitle);
+    emitVtoEvent('vto_result_saved', { origin });
+  }, [origin]);
+
   const handleClose = useCallback(() => {
     setModalVisible(false);
     // Whether the user saved or backed out, the cache copy has served its
     // purpose: a completed save already uploaded the bytes, and an abandoned
     // one must leave nothing behind.
     const uri = exportedUri;
+    exportedRef.current = null;
     setExportedUri(null);
     void discardVtoResultExport(uri);
   }, [exportedUri]);
@@ -97,16 +128,27 @@ export function VtoSaveToDressingRoom({
   if (!dataUri) return null;
 
   return (
-    <View style={styles.wrap} testID={testID ?? 'vto-save-to-dressing-room'}>
+    <View style={[styles.wrap, style]} testID={testID ?? 'vto-save-to-dressing-room'}>
       <SecondaryButton
-        title="Save to Dressing Room"
+        title={savedTo ? 'Save to another room' : 'Save this try-on'}
         onPress={() => {
           selectionTick();
           void handlePress();
         }}
         disabled={busy}
+        loading={busy}
+        accessibilityHint="Choose a Dressing Room to keep this try-on in"
         testID="vto-save-button"
       />
+      {savedTo ? (
+        <InlineNotice
+          variant="success"
+          body={`Saved to ${savedTo}.`}
+          accessibilityRole="alert"
+          testID="vto-save-confirmed"
+          style={styles.notice}
+        />
+      ) : null}
       {error ? (
         <InlineNotice
           variant="error"
@@ -120,8 +162,11 @@ export function VtoSaveToDressingRoom({
       {modalVisible ? (
         <AddScanToDressingRoomModal
           visible
+          variant="vto_try_on"
           localImageUri={exportedUri}
           onClose={handleClose}
+          onSaved={handleSaved}
+          onBeforeNavigate={onLeaveForDressingRoom}
           scan={{
             // 'upload_inspiration' is an EXISTING kind in the Dressing Room
             // taxonomy that maps to `inspiration_item`. A try-on is exactly

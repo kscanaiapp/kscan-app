@@ -58,6 +58,10 @@ import {
   ALLOWED_MEDIA_CONTENT_TYPES,
   assertSafeRemoteMediaUrl,
 } from '../../_shared/net/safeRemoteMedia.ts';
+import {
+  VTO_RETRY_AFTER_MAX_SECONDS,
+  VTO_RETRY_AFTER_MIN_SECONDS,
+} from '../vtoContract.ts';
 import type {
   VtoProvider,
   VtoProviderInput,
@@ -272,6 +276,29 @@ export interface AiLabToolsAdapterOptions {
   pollMaxAttempts?: number;
 }
 
+/** Parse either Retry-After delta-seconds or HTTP-date; discard unusable bounds. */
+export function parseRetryAfterSeconds(
+  raw: string | null | undefined,
+  nowMs: number = Date.now(),
+): number | null {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (!value) return null;
+
+  let seconds: number;
+  if (/^\d+$/.test(value)) {
+    if (value.length > 10) return null;
+    seconds = Number(value);
+  } else {
+    const at = Date.parse(value);
+    if (!Number.isFinite(at)) return null;
+    seconds = Math.ceil((at - nowMs) / 1000);
+  }
+  if (!Number.isFinite(seconds)) return null;
+  if (seconds < VTO_RETRY_AFTER_MIN_SECONDS || seconds > VTO_RETRY_AFTER_MAX_SECONDS) return null;
+  return seconds;
+}
+
 /**
  * VTO-QUOTA-003. `billable` on the gateway refusals below is not a guess.
  *
@@ -282,14 +309,25 @@ export interface AiLabToolsAdapterOptions {
  * an attempt. A 4xx that is NOT one of those means the vendor looked at the
  * request and rejected it, which is left billable.
  */
-function mapSubmitFailure(httpStatus: number, body: unknown): VtoProviderOutcome & { ok: false } {
+function mapSubmitFailure(
+  httpStatus: number,
+  body: unknown,
+  headers?: Headers,
+  nowMs?: number,
+): VtoProviderOutcome & { ok: false } {
   if (httpStatus === 401 || httpStatus === 403) {
     return {
       ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
     };
   }
   if (httpStatus === 429) {
-    return { ok: false, failure: 'rate_limited', detail: 'submit_http_429', billable: false };
+    return {
+      ok: false,
+      failure: 'provider_busy',
+      detail: 'submit_http_429',
+      billable: false,
+      retryAfterSeconds: parseRetryAfterSeconds(headers?.get('retry-after'), nowMs) ?? undefined,
+    };
   }
   if (httpStatus >= 500) {
     return {
@@ -373,11 +411,11 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
       const submitBody = await submitResponse.json().catch(() => null);
       if (!submitResponse.ok) {
-        return mapSubmitFailure(submitResponse.status, submitBody);
+        return mapSubmitFailure(submitResponse.status, submitBody, submitResponse.headers);
       }
       const errorCode = (submitBody as Record<string, unknown> | null)?.error_code;
       if (typeof errorCode === 'number' && errorCode !== 0) {
-        return mapSubmitFailure(submitResponse.status, submitBody);
+        return mapSubmitFailure(submitResponse.status, submitBody, submitResponse.headers);
       }
       const taskId = (submitBody as Record<string, unknown> | null)?.task_id;
       if (typeof taskId !== 'string' || !taskId) {
@@ -420,12 +458,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         // retrying within the poll budget.
         if (!pollResponse.ok) {
           if (pollBody && typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-            return mapSubmitFailure(pollResponse.status, pollBody);
+            return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
           }
           continue;
         }
         if (typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-          return mapSubmitFailure(pollResponse.status, pollBody);
+          return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
         }
 
         const taskStatus = (pollBody as Record<string, unknown> | null)?.task_status;

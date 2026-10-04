@@ -590,6 +590,9 @@ const VTO_ALLOWED_IMPORTS = {
     //   VtoSilhouetteGuide   -- presentational SVG overlay.
     '../../services/openExternalUrl',
     '../../services/responsiveLayout',
+    // POST-KIMI DECISION LOOP. Pure result identity/action/retry policy; it
+    // imports only types/vto and acquires no persistence or ownership power.
+    '../../services/vto/vtoDecisionLoop',
     '../../services/vto/vtoProgressStages',
     '../../services/vto/vtoTelemetry',
     '../../types/vto', '../luxury',

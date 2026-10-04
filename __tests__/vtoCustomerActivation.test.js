@@ -1388,9 +1388,9 @@ test('the first-use cue is opt-in per host, and only the shipped scan surface op
   const panel = stripComments(read(PANEL));
   assert.match(panel, /<TryItOnEntry[\s\S]*?surface="scan_result"[\s\S]*?firstUseEducation[\s\S]*?\/>/);
   assert.match(panel, /useVtoAwarenessBlocker\(!!watchCandidate\);/, 'the host declares its own modal');
-  // ProductShelf belongs to the unmerged Commerce lane (#457): untouched here.
+  // The legacy shelf still does not opt in to first-use education.
   const shelf = stripComments(read('components/ProductShelf.tsx'));
-  assert.doesNotMatch(shelf, /firstUseEducation|useVtoAwarenessBlocker|surface="/);
+  assert.doesNotMatch(shelf, /firstUseEducation|surface="/);
 });
 
 test('product impressions are counted once per surface per session, not once per card', async () => {
@@ -1759,15 +1759,15 @@ test('J12: an active member who hits the limit gets the governed message, not an
   const failures = runModule('services/vto/vtoFailures.ts', {
     '../../types/vto': runModule('types/vto.ts', {}, { jsx: false }),
   }, { jsx: false });
-  const limited = failures.toVtoFailure('rate_limited');
-  assert.equal(limited.code, 'rate_limited');
+  const limited = failures.toVtoFailure('quota_exhausted');
+  assert.equal(limited.code, 'quota_exhausted');
   assert.equal(limited.message, "You've reached the try-on limit for now. Try again later.");
   assert.doesNotMatch(limited.message, /K\+|upgrade|unlock|subscribe|\d/, 'no upsell and no hardcoded number');
   assert.notEqual(limited.message, failures.toVtoFailure('unknown').message, 'not a generic unexplained failure');
 
   // The sheet renders that message in place; nothing in it opens the K+ surface.
   const sheet = stripComments(read('components/vto/VirtualTryOnSheet.tsx'));
-  assert.match(sheet, /body=\{vto\.failure\.message\}/);
+  assert.match(sheet, /body=\{\[vto\.failure\.message, retryGuidance\]/);
   assert.doesNotMatch(sheet, /KPlusGate|KPlusEarlyAccessSheet|openUpgrade|KPlusMembershipStep/);
 });
 

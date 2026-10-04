@@ -21,6 +21,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Animated,
@@ -44,6 +45,13 @@ import { openExternalUrl } from '../../services/openExternalUrl';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
+import {
+  formatVtoRetryGuidance,
+  VTO_DECISION_COPY,
+  vtoFailureOffersRetry,
+  vtoResultBelongsToProduct,
+  vtoRetryCooldownMs,
+} from '../../services/vto/vtoDecisionLoop';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import {
   resolveVtoProgress,
@@ -78,6 +86,8 @@ export interface VirtualTryOnSheetProps {
   origin: VtoOrigin;
   /** Opens the retailer page. Commerce keeps owning where "Shop" goes. */
   onShop?: () => void;
+  /** Opens Commerce's existing watch surface. VTO never owns watch state. */
+  onWatch?: () => void;
   /**
    * Collapses the sheet while a generation runs. Supplying this is what makes
    * the surface minimizable. The owner MUST keep this component mounted while
@@ -143,6 +153,7 @@ export function VirtualTryOnSheet({
   garmentTitle,
   origin,
   onShop,
+  onWatch,
   onMinimize,
   sizeGuideUrl,
   devScenario,
@@ -154,6 +165,7 @@ export function VirtualTryOnSheet({
   const insets = useSafeAreaInsets();
   const [elapsedMs, setElapsedMs] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [retryCoolingDown, setRetryCoolingDown] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
 
   // ── Third-party AI consent ─────────────────────────────────────────────────
@@ -442,6 +454,27 @@ export function VirtualTryOnSheet({
     if (vto.status === 'success') setShowOriginal(false);
   }, [vto.status, vto.result]);
 
+  const resultOnScreen = vtoResultBelongsToProduct(vto, garment);
+  const viewedRequestRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!resultOnScreen || !vto.result) return;
+    if (viewedRequestRef.current === vto.result.requestId) return;
+    viewedRequestRef.current = vto.result.requestId;
+    emitVtoEvent('vto_result_viewed', { origin });
+    void AccessibilityInfo.announceForAccessibility(`Try-on ready for ${garmentTitle}`);
+  }, [garmentTitle, origin, resultOnScreen, vto.result]);
+
+  useEffect(() => {
+    const cooldownMs = vtoRetryCooldownMs(vto.failure);
+    if (cooldownMs <= 0) {
+      setRetryCoolingDown(false);
+      return;
+    }
+    setRetryCoolingDown(true);
+    const timer = setTimeout(() => setRetryCoolingDown(false), cooldownMs);
+    return () => clearTimeout(timer);
+  }, [vto.failure]);
+
   const handleSelectPhoto = useCallback(async () => {
     selectionTick();
     emitVtoEvent('vto_entry_tap', { origin });
@@ -466,9 +499,17 @@ export function VirtualTryOnSheet({
     // this actor tries on. leaveVtoSurface also runs on unmount, which this
     // triggers via onClose -- calling it here too just makes the teardown
     // happen before the close animation instead of after.
+    emitVtoEvent('vto_exited', { origin });
     vto.dismiss();
     onClose();
-  }, [onClose, vto]);
+  }, [onClose, origin, vto]);
+
+  const handleTryAnother = useCallback(() => {
+    selectionTick();
+    emitVtoEvent('vto_result_try_another', { origin });
+    vto.dismiss();
+    onClose();
+  }, [onClose, origin, vto]);
 
   // Collapsing is NOT cancelling and NOT closing. It calls neither dismiss nor
   // leaveVtoSurface: the request lives in the module-scoped store and keeps
@@ -522,19 +563,21 @@ export function VirtualTryOnSheet({
     });
   }, [origin]);
 
-  // The stage shown is the LATER of the real status floor and the elapsed
-  // clock, and `complete` can only ever come from the store. See
-  // services/vto/vtoProgressStages.ts for the honesty rule.
+  // The stage is derived from the real store status. Elapsed time can add an
+  // honest still-working note, but can never advance or complete the request.
   const progress = resolveVtoProgress({ status: vto.status, elapsedMs });
 
   const comparisonAvailable = useMemo(
-    () => vto.status === 'success' && !!vto.person?.sanitizedUri && !!vto.result,
-    [vto.status, vto.person, vto.result],
+    () => resultOnScreen && !!vto.person?.sanitizedUri && !!vto.result,
+    [resultOnScreen, vto.person, vto.result],
   );
 
-  const displayUri = showOriginal && vto.person
-    ? vto.person.sanitizedUri
-    : vto.result?.dataUri ?? null;
+  const displayUri = resultOnScreen
+    ? showOriginal && vto.person
+      ? vto.person.sanitizedUri
+      : vto.result?.dataUri ?? null
+    : null;
+  const retryGuidance = formatVtoRetryGuidance(vto.failure?.retryAfterSeconds);
 
   return (
     <Modal
@@ -629,7 +672,7 @@ export function VirtualTryOnSheet({
                 ScrollView -- never a second Modal (see VtoConsentStep). */}
             {consentOpen ? <VtoConsentStep error={consentError} /> : null}
 
-            {vto.status === 'success' && displayUri ? (
+            {resultOnScreen && displayUri ? (
               <View style={styles.resultBlock}>
                 <Image
                   source={{ uri: displayUri }}
@@ -681,6 +724,7 @@ export function VirtualTryOnSheet({
                   brand={garment.brand}
                   productRef={garment.productRef}
                   origin={origin}
+                  onLeaveForDressingRoom={handleClose}
                 />
                 {comparisonAvailable ? (
                   <Pressable
@@ -726,6 +770,13 @@ export function VirtualTryOnSheet({
                 <Text style={styles.stepCount}>
                   {`STEP ${progress.index + 1} OF ${progress.total}`}
                 </Text>
+                {progress.stillWorking ? (
+                  <Text style={styles.stillWorking} testID="vto-still-working">
+                    {canMinimize
+                      ? VTO_DECISION_COPY.stillWorking
+                      : VTO_DECISION_COPY.stillWorkingNoMinimize}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
 
@@ -733,7 +784,7 @@ export function VirtualTryOnSheet({
               <InlineNotice
                 variant="error"
                 title="Try-on didn't finish"
-                body={vto.failure.message}
+                body={[vto.failure.message, retryGuidance].filter(Boolean).join(' ')}
                 accessibilityRole="alert"
                 testID="vto-failure-notice"
                 style={styles.notice}
@@ -835,27 +886,57 @@ export function VirtualTryOnSheet({
                 ) : null}
                 <SecondaryButton title="Cancel" onPress={vto.cancel} testID="vto-cancel" />
               </>
-            ) : vto.status === 'success' ? (
+            ) : resultOnScreen ? (
               <>
-                <PrimaryButton
-                  title="Shop this piece"
-                  onPress={() => {
-                    selectionTick();
-                    onShop?.();
-                  }}
-                  disabled={!onShop}
-                  testID="vto-shop"
+                {onShop ? (
+                  <PrimaryButton
+                    title="Shop this piece"
+                    onPress={() => {
+                      selectionTick();
+                      emitVtoEvent('vto_result_shop', { origin });
+                      onShop();
+                    }}
+                    testID="vto-shop"
+                  />
+                ) : (
+                  <Text style={styles.shopUnavailable} testID="vto-shop-unavailable">
+                    {VTO_DECISION_COPY.shopUnavailable}
+                  </Text>
+                )}
+                {onWatch ? (
+                  <SecondaryButton
+                    title="Watch this piece"
+                    onPress={() => {
+                      selectionTick();
+                      emitVtoEvent('vto_result_watch', { origin });
+                      onWatch();
+                    }}
+                    testID="vto-watch"
+                  />
+                ) : null}
+                <TertiaryButton
+                  title="Try again"
+                  onPress={requestRetry}
+                  accessibilityHint={VTO_DECISION_COPY.tryAgainHint}
+                  testID="vto-retry"
                 />
-                <SecondaryButton title="Try again" onPress={requestRetry} testID="vto-retry" />
+                <TertiaryButton
+                  title={VTO_DECISION_COPY.tryAnother}
+                  accessibilityHint={VTO_DECISION_COPY.tryAnotherHint}
+                  onPress={handleTryAnother}
+                  testID="vto-try-another"
+                />
               </>
-            ) : vto.person ? (
+            ) : vto.status === 'success' ? null : vto.person ? (
               <>
-                <PrimaryButton
-                  title={vto.status === 'failed' && vto.failure?.retryable ? 'Try again' : 'Try it on'}
-                  onPress={vto.status === 'failed' ? requestRetry : requestGenerate}
-                  disabled={!vto.canGenerate}
-                  testID="vto-generate"
-                />
+                {vto.status !== 'failed' || vtoFailureOffersRetry(vto.failure) ? (
+                  <PrimaryButton
+                    title={vto.status === 'failed' ? 'Try again' : 'Try it on'}
+                    onPress={vto.status === 'failed' ? requestRetry : requestGenerate}
+                    disabled={!vto.canGenerate || retryCoolingDown}
+                    testID="vto-generate"
+                  />
+                ) : null}
                 <SecondaryButton
                   title="Choose a different photo"
                   onPress={handleSelectPhoto}
@@ -974,6 +1055,14 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     marginTop: SPACING.md,
   },
+  stillWorking: {
+    ...LUXURY.typography.caption,
+    marginTop: SPACING.sm,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    textTransform: 'none',
+    letterSpacing: 0.2,
+  },
   stepRow: {
     flexDirection: 'row',
     gap: SPACING.xs,
@@ -1019,6 +1108,13 @@ const styles = StyleSheet.create({
   disclaimerLink: {
     color: LUXURY.colors.plum,
     textDecorationLine: 'underline',
+  },
+  shopUnavailable: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+    textTransform: 'none',
+    letterSpacing: 0.2,
   },
   compareToggle: {
     marginTop: SPACING.sm,
