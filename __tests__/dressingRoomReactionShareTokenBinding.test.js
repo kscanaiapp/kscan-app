@@ -322,38 +322,35 @@ test('every batch of a chunked read carries the same share token', async () => {
 
 // ─── Call-site binding ────────────────────────────────────────────────────────
 
-test('the public room screen binds the route share token at BOTH reaction call sites', () => {
+test('the public room screen binds reaction-count reads to the live route share token through the shared hook', () => {
   const screen = read('app/(public)/rooms/[token].tsx');
+  const hook = read('hooks/useDressingRoomReactions.ts');
 
-  const callSites = screen.match(/getItemReactionCounts\(/g) ?? [];
-  assert.equal(callSites.length, 2, 'expected exactly two reaction-count call sites');
+  // The route owns token truth and hands a live getter to the shared reaction
+  // authority. The hook is the only place that performs the count read.
+  assert.match(screen, /const getReactionShareToken = useCallback\(\(\) => routeTokenRef\.current, \[\]\);/);
+  assert.match(screen, /getShareToken: getReactionShareToken/);
+  assert.match(screen, /scopeKey: `\$\{normalizedRouteToken \?\? 'no-token'\}:/);
+  assert.match(hook, /const token = contextRef\.current\.getShareToken\?\.\(\) \?\? null;/);
+  assert.match(hook, /getItemReactionCounts\(ids, token \? \{ shareToken: token \} : undefined\)/);
 
-  // Initial load uses the normalized route token; the refresh path uses the
-  // ref so it cannot close over a stale token after a route change.
-  assert.match(
-    screen,
-    /getItemReactionCounts\(itemIds, \{\s*shareToken: normalizedRouteToken,\s*\}\)/,
-  );
-  assert.match(
-    screen,
-    /getItemReactionCounts\(normalizedItemIds, \{\s*shareToken: routeTokenRef\.current,\s*\}\)/,
-  );
-
-  // The effect must re-run when the token changes, or a room-to-room
-  // navigation reuses the previous room's token.
-  assert.match(screen, /\[capabilities\.canReact, joinedRoomId, normalizedRouteToken, state\]/);
+  // A route-token change changes the hook scope and also resets local reaction
+  // state, so an old room's token/counts cannot bleed into the new room.
+  assert.match(screen, /resetReactions\(\);[\s\S]*membershipCaptureTracker\.current\.reset\(\);[\s\S]*\}, \[normalizedRouteToken\]\);/);
 });
 
-test('the authenticated in-room screen deliberately sends no share token', () => {
+test('the authenticated in-room screen deliberately supplies no share-token getter', () => {
   const screen = read('app/dressing-rooms/[id].tsx');
-  // Bare single-argument calls: this screen's caller is always an
-  // authenticated owner/member, which the deployed predicate admits through
-  // shared_room_memberships / can_access_room_messages() without a token.
-  assert.match(screen, /getItemReactionCounts\(reactionItemIds\)/);
-  assert.match(screen, /getItemReactionCounts\(normalizedItemIds\)/);
-  // The screen manages room SHARES elsewhere, so the assertion is scoped to
-  // the reaction call sites rather than the whole file.
-  assert.doesNotMatch(screen, /getItemReactionCounts\([^)]*shareToken/);
+  const hook = read('hooks/useDressingRoomReactions.ts');
+
+  assert.match(screen, /useDressingRoomReactions\(reactionItemIds, reactionContext\)/);
+  const contextBlock = screen.slice(
+    screen.indexOf('const reactionContext = useMemo'),
+    screen.indexOf('const {', screen.indexOf('const reactionContext = useMemo')),
+  );
+  assert.doesNotMatch(contextBlock, /getShareToken/);
+  assert.match(hook, /getShareToken\?: \(\) => string \| null/);
+  assert.match(hook, /token \? \{ shareToken: token \} : undefined/);
 });
 
 test('the service forwards p_share_token and nothing else new', () => {

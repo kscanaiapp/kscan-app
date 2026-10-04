@@ -347,8 +347,12 @@ test('haptics are fire-and-forget and can never gate or delay the transcript pat
 });
 
 test('the listening haptic is distinct from the transcript-ready haptic', () => {
-  assert.match(voiceListeningSheet, /Haptics\.impactAsync\(Haptics\.ImpactFeedbackStyle\.Light\)/);
-  assert.match(voiceScanButton, /Haptics\.notificationAsync\(Haptics\.NotificationFeedbackType\.Success\)/);
+  assert.match(voiceListeningSheet, /import \{ softImpact \} from '\.\.\/\.\.\/services\/haptics';/);
+  assert.match(voiceListeningSheet, /softImpact\(\);/);
+  assert.match(voiceScanButton, /import \{ successPulse \} from '\.\.\/\.\.\/services\/haptics';/);
+  assert.match(voiceScanButton, /successPulse\(\);/);
+  assert.doesNotMatch(voiceListeningSheet, /successPulse/);
+  assert.doesNotMatch(voiceScanButton, /softImpact/);
 });
 
 test('haptics never reach the pure voice services -- they stay in the UI layer', () => {

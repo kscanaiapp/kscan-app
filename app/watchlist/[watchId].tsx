@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
+import { errorPulse, softImpact } from '../../services/haptics';
 import {
   captureActorScope,
   currentActorScopeKey,
@@ -165,6 +166,7 @@ function WatchDetailContent() {
 
   const handlePause = useCallback(async () => {
     if (!watchId) return;
+    softImpact();
     setBusy(true);
     const result = await pauseWatch(watchId);
     if (result.ok) setWatch(result.data);
@@ -174,6 +176,7 @@ function WatchDetailContent() {
   const handleResume = useCallback(
     async (openUpgrade: () => void) => {
       if (!watchId) return;
+      softImpact();
       setBusy(true);
       const result = await resumeWatch(watchId);
       if (result.ok) {
@@ -194,6 +197,7 @@ function WatchDetailContent() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          errorPulse();
           setBusy(true);
           const result = await deleteWatch(watchId);
           setBusy(false);

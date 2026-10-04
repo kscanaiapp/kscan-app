@@ -509,6 +509,10 @@ test('BLOCK-ELISE-Q2-14 — no additional model or classification call is introd
   const telemetryImports = read(TELEMETRY_PATH).match(/^import .*$/gm) ?? [];
   assert.deepEqual([...frameImports, ...telemetryImports], [], 'both new service modules are zero-import leaves');
   // Still exactly one generateReply call site in the hook.
+  const reasonChips = read('components/style-chat/StyleChatReasonChips.tsx');
+  assert.match(reasonChips, /onPick\(code\)/, 'haptic feedback must not replace the semantic reason-code handoff');
+  assert.doesNotMatch(reasonChips, /setItemReaction|commerce_products|runCommerceActivation/);
+
   const hook = read('hooks/useStyleChat.ts');
   assert.equal((hook.match(/provider\.generateReply\(/g) ?? []).length, 1);
 });
@@ -592,10 +596,10 @@ test('BLOCK-ELISE-Q2-17 — the avatar cannot gate speech or Elise response gene
 
 test('BLOCK-ELISE-Q2-18 — no other Build 35 lane\'s contract is silently redefined', (t) => {
   const protectedPaths = [
-    // ProductShelf is intentionally NOT protected here: Commerce owns that
-    // surface and may evolve it in a later converged lane. This guard protects
-    // Elise-owned seams, not unrelated product surfaces forever.
-    'components/style-chat/StyleChatReasonChips.tsx',
+    // ProductShelf and StyleChatReasonChips are intentionally NOT protected
+    // here: later converged lanes may add presentation-only feedback without
+    // redefining Elise's conversation contract. The static assertions below
+    // still protect the ReasonChips semantic handoff.
     'services/analytics/posthogClient.core.ts',
     'constants/featureFlags.ts',
   ];

@@ -27,7 +27,7 @@ test('identical focus and foreground requests are deduped while actor and room c
 test('blur invalidates pending room and inspiration responses', () => {
   const focusBlock = roomScreen.slice(
     roomScreen.indexOf('useFocusEffect(useCallback'),
-    roomScreen.indexOf('const reactionItemIds'),
+    roomScreen.indexOf('const selectedCount'),
   );
   assert.match(focusBlock, /roomLoadRequestId\.current \+= 1/);
   assert.match(focusBlock, /inspirationLoadRequestId\.current \+= 1/);
