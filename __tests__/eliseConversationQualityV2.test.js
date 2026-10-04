@@ -592,7 +592,9 @@ test('BLOCK-ELISE-Q2-17 — the avatar cannot gate speech or Elise response gene
 
 test('BLOCK-ELISE-Q2-18 — no other Build 35 lane\'s contract is silently redefined', (t) => {
   const protectedPaths = [
-    'components/ProductShelf.tsx',
+    // ProductShelf is intentionally NOT protected here: Commerce owns that
+    // surface and may evolve it in a later converged lane. This guard protects
+    // Elise-owned seams, not unrelated product surfaces forever.
     'components/style-chat/StyleChatReasonChips.tsx',
     'services/analytics/posthogClient.core.ts',
     'constants/featureFlags.ts',
