@@ -192,6 +192,14 @@ function createHarness(options = {}) {
     },
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: actorId } }) },
     '../services/actorScope': actorScope,
+    '../services/style-chat/eliseConversationFrame': loadTsModule(
+      'services/style-chat/eliseConversationFrame.ts',
+      {},
+    ),
+    '../services/style-chat/eliseConversationTelemetry': loadTsModule(
+      'services/style-chat/eliseConversationTelemetry.ts',
+      {},
+    ),
     './useStylistIdentity': {
       useStylistIdentity: () => ({
         identity: { avatarId: 'elise_default', displayName: 'Elise' },
