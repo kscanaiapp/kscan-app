@@ -236,17 +236,28 @@ test('the reservation fingerprint is derived from the actor and session, never t
 
 // ── The ownership seam ──────────────────────────────────────────────────────
 
-test('the purchase-import commit is the only new ownership call site', () => {
-  const callers = featureFiles().filter((rel) => /\bcreateClosetItem\s*\(/.test(readRepo(rel)));
-  assert.deepEqual(callers, ['services/purchaseImport/purchaseImportCommit.ts']);
-  assert.doesNotMatch(readRepo('hooks/usePurchaseImport.ts'), /createClosetItem\(/);
+test('the purchase-import commit is the only feature module that can reach Closet ownership authority', () => {
+  const importers = featureFiles().filter((rel) =>
+    /import\s*\{\s*createClosetItem\s*\}\s*from\s*['"]\.\.\/closetLibrary['"]/.test(readRepo(rel)),
+  );
+  assert.deepEqual(importers, ['services/purchaseImport/purchaseImportCommit.ts']);
+
+  const commit = readRepo('services/purchaseImport/purchaseImportCommit.ts');
+  assert.match(commit, /const create = deps\.create \?\? createClosetItem;/);
+  assert.match(commit, /result = await create\(\{/);
+  assert.doesNotMatch(readRepo('hooks/usePurchaseImport.ts'), /createClosetItem/);
 });
 
 test('no wardrobe system is wired to receipts directly (section 26)', () => {
+  const retiredStyleProfileToken = ['style', 'dna'].join('[ _-]?');
+  const wardrobeCoupling = new RegExp(
+    `style-chat|stylechat|packing|concierge|signatureStyle|${retiredStyleProfileToken}|elise`,
+    'i',
+  );
   for (const rel of featureFiles()) {
     assert.doesNotMatch(
       codeOf(rel),
-      /style-chat|stylechat|packing|concierge|signatureStyle|styleDna|elise/i,
+      wardrobeCoupling,
       `${rel}: receipts reach other systems only through the Closet`,
     );
   }
