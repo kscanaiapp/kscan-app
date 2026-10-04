@@ -391,6 +391,10 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
+  'purchase-import-extract': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   // B33-STO-002 orphan-owner media reconciliation. It holds service role because
   // its whole job is to see across every user's media: the objects it targets are
   // owned by accounts that no longer exist, so no RLS role can read them. Actor
