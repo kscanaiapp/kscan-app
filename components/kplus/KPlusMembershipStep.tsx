@@ -44,6 +44,8 @@ import {
   type KPlusPaywallView,
 } from '../../services/kplus/kplusPaywallModel';
 import type { KPlusProductKind } from '../../types/kplusCommerceContract';
+import { emitVtoAwarenessImpression, noteVtoPitchedAtStep6 } from '../../services/vto/vtoAwareness';
+import { resolveVtoActorKPlusState } from '../../services/vto/vtoDiscovery';
 import {
   KPlusBanner,
   KPlusBenefitsList,
@@ -116,6 +118,25 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
     })),
     [liveSignals],
   );
+
+  // Try It On was just introduced here, as a benefit row. Recording that is
+  // what stops Home and the first product from introducing it again moments
+  // later in the same session. Presentation bookkeeping only: it reads the
+  // benefit list this screen already rendered and changes nothing about plans,
+  // prices, the Free path or Restore.
+  const vtoBenefitShown = view.paywall !== null
+    && benefits.some((benefit) => benefit.id === 'virtual_try_on');
+  useEffect(() => {
+    if (!vtoBenefitShown) return;
+    noteVtoPitchedAtStep6();
+    emitVtoAwarenessImpression({
+      surface: 'kplus_step6',
+      kplus: resolveVtoActorKPlusState({
+        state: entitlement.state,
+        displaySource: entitlement.displaySource,
+      }),
+    });
+  }, [vtoBenefitShown, entitlement.state, entitlement.displaySource]);
 
   const isAcquisitionEntry = ACQUISITION_ENTRIES.has(view.entry);
   const nothingToSell = isAcquisitionEntry && liveSignalsSettled && benefits.length === 0

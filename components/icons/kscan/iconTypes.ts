@@ -8,7 +8,8 @@ export type KScanIconName =
   | 'save-organize'
   | 'voice-scan'
   | 'style'
-  | 'watchlist';
+  | 'watchlist'
+  | 'try-on';
 
 export type KScanIconVariant = 'compact' | 'standard';
 

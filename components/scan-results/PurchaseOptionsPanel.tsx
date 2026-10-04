@@ -24,6 +24,9 @@ import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAva
 // the sheet; this surface only decides which rows may offer it.
 import { VTO_UI_ENABLED } from '../../constants/featureFlags';
 import { TryItOnEntry } from '../vto/TryItOnEntry';
+// Customer activation: this is the surface the one-time Try It On cue teaches
+// from, so it declares its own modal -- the cue never appears while it is up.
+import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -77,6 +80,7 @@ export function PurchaseOptionsPanel({
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
   const [watchCandidate, setWatchCandidate] = useState<WatchCandidate | null>(null);
+  useVtoAwarenessBlocker(!!watchCandidate);
   // Watchlist Repair 06. Availability first, entitlement second -- the same
   // ordering components/home/HomeLuxuryTechV1.tsx and ProductShelf use. This is
   // the SHIPPED scan-results commerce surface, so it carries the identical
@@ -211,6 +215,8 @@ export function PurchaseOptionsPanel({
                       garment={option.vtoGarment}
                       garmentTitle={option.title ?? option.retailer}
                       origin="commerce_product"
+                      surface="scan_result"
+                      firstUseEducation
                       onShop={destination ? () => Linking.openURL(destination) : undefined}
                       testID={`purchase-option-try-it-on-${option.id}`}
                     />

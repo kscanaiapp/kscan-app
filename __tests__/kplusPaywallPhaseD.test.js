@@ -182,11 +182,12 @@ function mount(o = {}) {
   const catalog = runModule(CATALOG, {
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: o.voiceScan ?? true,
-      VTO_UI_ENABLED: false,
+      VTO_UI_ENABLED: o.vto ?? false,
       ELISE_CONCIERGE_V1: false,
       PACKING_INTELLIGENCE_V1: false,
     },
   }, { jsx: false });
+  const discovery = runModule('services/vto/vtoDiscovery.ts', {}, { jsx: false });
   const themeTokens = {
     LUXURY: deepStub(),
     SPACING: { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
@@ -227,6 +228,13 @@ function mount(o = {}) {
     '../../services/kplus/kplusActivationCatalog': catalog,
     '../../services/kplus/kplusCommerceService': commerceService,
     '../../services/kplus/kplusPaywallModel': m,
+    // Build 35 VTO customer activation: Step 6 records that the Try It On
+    // benefit was shown. Observed here so a test can prove it is bookkeeping.
+    '../../services/vto/vtoAwareness': {
+      noteVtoPitchedAtStep6: () => { env.calls.vtoPitched = (env.calls.vtoPitched ?? 0) + 1; },
+      emitVtoAwarenessImpression: (context) => { (env.calls.vtoImpressions ??= []).push(context); },
+    },
+    '../../services/vto/vtoDiscovery': discovery,
     './KPlusPaywallParts': parts,
   }, { mutate: o.mutateStep });
 
@@ -1116,4 +1124,131 @@ test('NEGATIVE: a fabricated charge date is caught', async () => {
     "const date = typeof authoritativeChargeDate === 'string' ? authoritativeChargeDate.trim() : '';",
     "const date = new Date(Date.UTC(2026, 9, 9)).toUTCString().slice(5, 16);"));
   await expectRed(() => checkNoFabricatedChargeDate(m), 'fabricated date');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Build 35 VTO customer activation -- the Try It On benefit is presentation only
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Step 6 gained one thing in the VTO activation lane: the Try It On benefit
+// row carries the customer-facing name, and showing it is recorded so Home and
+// the first product do not introduce it again a moment later. Everything the
+// customer pays against, or declines with, must be exactly what it was.
+
+const VTO_LIVE = Object.freeze({ signals: { virtual_try_on: true }, settled: true });
+
+/** Everything on Step 6 the customer pays against, or declines with. */
+function commercialSurface(ui) {
+  const text = (id) => (ui.has(id) ? textContent(ui.node(id)) : null);
+  const control = (id) => (ui.has(id)
+    ? { label: ui.node(id).props.accessibilityLabel, state: plain(ui.node(id).props.accessibilityState) }
+    : null);
+  return {
+    screen: screenOf(ui),
+    monthly: control('kplus-plan-monthly'),
+    lifetime: control('kplus-plan-lifetime'),
+    monthlyBadge: text('kplus-plan-monthly-badge'),
+    monthlyPrice: text('kplus-plan-monthly-price'),
+    lifetimePrice: text('kplus-plan-lifetime-price'),
+    disclosure: text('kplus-paywall-disclosure'),
+    cta: control('kplus-paywall-cta'),
+    restore: control('kplus-paywall-restore'),
+    freePath: control('kplus-paywall-free-path'),
+  };
+}
+
+async function checkVtoBenefitIsNotCommercial(o = {}) {
+  for (const eligibility of ['ELIGIBLE', 'INELIGIBLE', 'UNKNOWN']) {
+    const base = { voiceScan: true, commerce: commerce({ monthlyIntroEligibility: eligibility }) };
+    const without = mount({ ...base, vto: false });
+    const withVto = mount({ ...base, vto: true, live: VTO_LIVE, mutateStep: o.mutateStep });
+    assert.ok(withVto.has('kplus-paywall-benefit-virtual_try_on'), 'the Try It On benefit is shown');
+    assert.ok(!without.has('kplus-paywall-benefit-virtual_try_on'));
+    const shown = commercialSurface(withVto);
+
+    // MONTHLY_DEFAULT_UNCHANGED
+    assert.equal(shown.monthly.state.selected, true, 'Monthly is still the default plan');
+    assert.equal(shown.lifetime.state.selected, false);
+    // FREE_PATH_UNCHANGED
+    assert.ok(shown.freePath, 'the Free path is still on the paywall');
+    assert.equal(shown.freePath.label, 'Continue with K Scan AI Free');
+    assert.equal(shown.freePath.state.disabled, false);
+    // RESTORE_VISIBILITY_UNCHANGED
+    assert.ok(shown.restore, 'Restore Purchases is still on the paywall');
+    assert.equal(shown.restore.label, 'Restore Purchases');
+    assert.equal(shown.restore.state.disabled, false);
+    // TRIAL_METADATA_AUTHORITY_UNCHANGED: a trial is named only when the STORE says so.
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null);
+    assert.equal(/free for|free trial/i.test(`${shown.disclosure} ${shown.cta.label}`), eligibility === 'ELIGIBLE');
+
+    assert.deepEqual(shown, commercialSurface(without), 'the benefit row changes nothing commercial');
+  }
+}
+
+test('VTO activation J1: Step 6 shows the Try It On benefit and Free stays clearly available', async () => {
+  const ui = mount({ voiceScan: true, vto: true, live: VTO_LIVE });
+  const benefit = ui.node('kplus-paywall-benefit-virtual_try_on');
+  assert.equal(
+    benefit.props.accessibilityLabel,
+    'Try it on with AI. See how an eligible look might work on you before you buy.',
+  );
+  assert.doesNotMatch(textContent(benefit), /\bfit\b|\bsize|exact|photoreal|perfect|measure/i);
+  await ui.press('kplus-paywall-free-path');
+  assert.equal(ui.env.calls.continue, 1, 'Free continues to Home through the existing handoff');
+  assert.equal(ui.env.calls.monthly + ui.env.calls.lifetime + ui.env.calls.restore, 0);
+});
+
+test('VTO activation: MONTHLY_DEFAULT / FREE_PATH / RESTORE / TRIAL authority are unchanged by the benefit', () =>
+  checkVtoBenefitIsNotCommercial());
+
+test('VTO activation NC-11: VTO promotion removing the Step 6 Free path is caught', async () => {
+  await expectRed(
+    () => checkVtoBenefitIsNotCommercial({
+      mutateStep: mutateOpt(
+        STEP,
+        '      <KPlusFreePath onPress={onFree} disabled={freeDisabled} />\n      <KPlusLegalFooter />\n    </View>\n  );\n}\n\nconst styles',
+        "      {benefits.some((benefit) => benefit.id === 'virtual_try_on') ? null : (\n        <KPlusFreePath onPress={onFree} disabled={freeDisabled} />\n      )}\n      <KPlusLegalFooter />\n    </View>\n  );\n}\n\nconst styles",
+      ),
+    }),
+    'Free path removed by VTO promotion',
+  );
+});
+
+test('VTO activation NEGATIVE: VTO promotion disabling Restore is caught', async () => {
+  await expectRed(
+    () => checkVtoBenefitIsNotCommercial({
+      mutateStep: mutateOpt(
+        STEP,
+        '          disabled={!paywall.restoreEnabled}\n        />\n      </View>\n      <KPlusFreePath',
+        "          disabled={!paywall.restoreEnabled || benefits.some((benefit) => benefit.id === 'virtual_try_on')}\n        />\n      </View>\n      <KPlusFreePath",
+      ),
+    }),
+    'Restore disabled by VTO promotion',
+  );
+});
+
+test('VTO activation: showing the benefit is recorded once, and only when it was actually shown', () => {
+  const shown = mount({ voiceScan: true, vto: true, live: VTO_LIVE });
+  shown.render();
+  assert.equal(shown.env.calls.vtoPitched, 1, 'recorded once across re-renders');
+  assert.deepEqual(plain(shown.env.calls.vtoImpressions), [{ surface: 'kplus_step6', kplus: 'free' }]);
+
+  // No Try It On row -> nothing to coordinate.
+  const absent = mount({ voiceScan: true, vto: false });
+  assert.equal(absent.env.calls.vtoPitched, undefined);
+  // The live switch is off or unread -> the row is absent, and so is the record.
+  const dark = mount({ voiceScan: true, vto: true, live: { signals: { virtual_try_on: false }, settled: true } });
+  assert.ok(!dark.has('kplus-paywall-benefit-virtual_try_on'));
+  assert.equal(dark.env.calls.vtoPitched, undefined);
+  // An existing member is shown no benefit list, so nothing is recorded.
+  const member = mount({
+    voiceScan: true,
+    vto: true,
+    live: VTO_LIVE,
+    entitlement: { state: 'active', displaySource: 'store_subscription' },
+  });
+  assert.equal(screenOf(member), 'active');
+  assert.equal(member.env.calls.vtoPitched, undefined);
+  // And a store operation is never started by it.
+  assert.equal(shown.env.calls.monthly + shown.env.calls.lifetime + shown.env.calls.restore, 0);
 });

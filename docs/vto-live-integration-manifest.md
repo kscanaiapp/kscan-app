@@ -76,6 +76,7 @@ added to a list without a justification.
 | `supabase/functions/vto-generate/vtoEntitlement.ts` | Build 35 removes VTO's direct legacy-table fallback so this server boundary delegates exclusively to the canonical K+ predicate while preserving ACTIVE, DENIED, and UNKNOWN. Exact resolver path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §2-§7 (2026-10-01) |
 | `supabase/functions/vto-generate/vtoGuards.test.ts` | Backend regression coverage for canonical grant families, lifecycle denials, malformed/unavailable authority, authenticated-actor binding, cross-actor isolation, and fresh recovery. Exact test path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §8 (2026-10-01) |
 | `supabase/functions/vto-generate/vtoPaidBoundary.test.ts` | Narrow paid-boundary regression coverage proving the canonical RPC is the sole entitlement authority and failures remain UNKNOWN rather than free or upgrade-denied. Exact test path only. | Owner-authorized Build 35 VTO canonical-entitlement fallback repair §8 (2026-10-01) |
+| `docs/vto-customer-activation-discovery.md` | Build 35 VTO customer activation record: the eligibility source, K+ seam, consent routing, Home/cue lifecycles, awareness-state scope, telemetry attribution and the #455/#457 convergence notes the activation brief requires. Declared as an exact path rather than by widening `docs/vto-*`. | Owner-authorized Build 35 VTO Customer Activation & Discovery V2 brief §30 (2026-10-04) |
 
 ### Explicitly NOT authorized, and not touched
 

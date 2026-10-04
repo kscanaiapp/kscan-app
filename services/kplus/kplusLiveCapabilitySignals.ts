@@ -19,7 +19,9 @@
 import { getVtoRemoteConfig } from '../vto/vtoFeatureControl';
 import type { KPlusLiveSignals } from './kplusActivationCatalog';
 
-type VtoConfigReader = () => Promise<{ enabled?: unknown } | null | undefined>;
+type VtoConfigReader = () => Promise<
+  { enabled?: unknown; awarenessEnabled?: unknown } | null | undefined
+>;
 
 export async function readKPlusLiveCapabilitySignals(deps?: {
   /** Injected in tests. */
@@ -28,7 +30,12 @@ export async function readKPlusLiveCapabilitySignals(deps?: {
   const read: VtoConfigReader = deps?.readVtoConfig ?? getVtoRemoteConfig;
   try {
     const config = await read();
-    return { virtual_try_on: config?.enabled === true };
+    // Advertising a capability is promotion, so it also obeys the row's
+    // promotion dimmer. Only an explicit `false` dims: a reader that does not
+    // report the field at all advertises exactly as it did before.
+    return {
+      virtual_try_on: config?.enabled === true && config?.awarenessEnabled !== false,
+    };
   } catch {
     return { virtual_try_on: false };
   }

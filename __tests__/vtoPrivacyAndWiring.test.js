@@ -634,7 +634,47 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/haptics', '../../services/vto/vtoTelemetry',
     '../../types/vto', '../kplus/KPlusGate',
     './VirtualTryOnSheet', './VtoMinimizedPill',
+    // BUILD 35 CUSTOMER ACTIVATION. The entry renders what the pure discovery
+    // model decides, records awareness history through vtoAwareness (which
+    // holds no device storage itself), and may show the inline first-use cue.
+    // None of the four can start a request, open a photo chooser, or write
+    // ownership state; all four are enrolled in their own right below.
+    '../../hooks/useVtoAwareness',
+    '../../services/vto/vtoAwareness', '../../services/vto/vtoDiscovery',
+    './VtoFirstUseCue',
     'react', 'react-native',
+  ],
+
+  // ── BUILD 35 CUSTOMER ACTIVATION (awareness is presentation) ──────────────
+  // Enrolled for the reason every surface here is: a module this control does
+  // not name is a module it does not guard, and enrolment subjects each of them
+  // to the forbidden-call scan below.
+  //   vtoDiscovery     -- PURE. No imports at all: every awareness decision is a
+  //                       function of inputs other authorities already resolved.
+  //   vtoAwareness     -- history, session memory and modal blockers. The
+  //                       persisted history lives in the shared
+  //                       services/featureAwareness (not enrolled, for the same
+  //                       reason services/thirdPartyAiConsent is not: device
+  //                       storage is banned in every VTO file).
+  //   useVtoAwareness  -- gathers the model's inputs from the existing
+  //                       authorities. expo-router supplies screen focus only.
+  //                       Nothing it imports can pick a photo, reach a camera,
+  //                       or call the try-on client.
+  //   VtoFirstUseCue   -- presentational inline cue.
+  'services/vto/vtoDiscovery.ts': [],
+  'services/vto/vtoAwareness.ts': [
+    '../actorContext', '../featureAwareness', './vtoDiscovery', './vtoTelemetry',
+  ],
+  'hooks/useVtoAwareness.ts': [
+    '../constants/featureFlags', '../contexts/AuthSessionContext',
+    '../services/vto/vtoAwareness', '../services/vto/vtoDiscovery',
+    '../services/vto/vtoFeatureControl', '../types/entitlements',
+    './useKPlusCommerce', './useKPlusEntitlement', './useVtoSessionStatus',
+    'expo-router', 'react', 'react-native',
+  ],
+  'components/vto/VtoFirstUseCue.tsx': [
+    '../../constants/theme', '../../hooks/useVtoAwareness', '../../services/haptics',
+    '../../services/vto/vtoDiscovery', 'react', 'react-native',
   ],
 
   // CONVERGENCE #276 + #277. The UX lane introduced six NEW VTO surfaces. They

@@ -100,7 +100,9 @@ test('CAPABILITY_LIST: the approved K+ catalog is exactly the four capabilities'
   const titles = plain(catalog.KPLUS_ACTIVATION_CAPABILITIES.map((c) => c.title));
   assert.deepEqual(titles, [
     'Voice Scan',
-    'Virtual Try-On',
+    // Build 35 customer activation: the benefit carries the customer-facing
+    // name every other surface introduces it by (VTO_DISCOVERY_COPY.title).
+    'Try it on with AI',
     'Wardrobe Concierge',
     'Packing Intelligence',
   ]);

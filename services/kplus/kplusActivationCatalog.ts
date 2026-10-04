@@ -64,7 +64,10 @@ export interface KPlusActivationCapability {
  *   - Voice Scan speaks a search instead of typing one. It is not an
  *     assistant and does not act on the user's behalf.
  *   - Virtual Try-On visualizes a selected garment. It makes no claim about
- *     fit, sizing accuracy, or photorealism.
+ *     fit, sizing accuracy, or photorealism. Its title and line are the
+ *     customer-facing name the rest of the app introduces it by
+ *     (VTO_DISCOVERY_COPY in services/vto/vtoDiscovery.ts), and "eligible" is
+ *     load-bearing: only some garments can be tried on.
  *   - Wardrobe Concierge conditions Elise's recommendations on owned items.
  *     It does not shop, buy, or act autonomously.
  *   - Packing Intelligence plans a trip from the user's Closet. It is not a
@@ -81,8 +84,8 @@ export const KPLUS_ACTIVATION_CAPABILITIES: ReadonlyArray<
   }),
   Object.freeze({
     id: 'virtual_try_on' as const,
-    title: 'Virtual Try-On',
-    description: 'Visualize selected styles on you.',
+    title: 'Try it on with AI',
+    description: 'See how an eligible look might work on you before you buy.',
     glyph: '◇',
   }),
   Object.freeze({
