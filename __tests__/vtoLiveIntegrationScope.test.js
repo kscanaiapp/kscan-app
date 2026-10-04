@@ -32,6 +32,7 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/kplus-offer-redeem/index.ts',
   'supabase/functions/kplus-offer-redeem/offerCodeContract.ts',
   'supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts',
+  'supabase/functions/scan-identify/phase2b4CrossPath.test.ts',
   'supabase/functions/_shared/deletion/userDataResources.ts',
   'supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql',
   'supabase/config.toml',
