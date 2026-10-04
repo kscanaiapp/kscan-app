@@ -26,6 +26,7 @@
       "packages": ["metro", "metro-config", "metro-transform-worker"],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
+      "aggregateParents": ["@react-native/community-cli-plugin", "react-native"],
       "reachability": "React Native's own bundler, pulled in via @react-native/community-cli-plugin. Build/dev-server only.",
       "evidence": "nodes: node_modules/@react-native/community-cli-plugin/node_modules/metro* and top-level node_modules/metro*; no direct app import.",
       "fixAvailable": false
