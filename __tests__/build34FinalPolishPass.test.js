@@ -164,6 +164,9 @@ function renderSheet(state, { mutate, refresh = () => {} } = {}) {
       },
       '../../services/kplus/kplusActivationCatalog': {
         resolveActivationCapabilities: () => [{ id: 'voice_scan', title: 'Voice Scan' }],
+        // FC-02: the list is passed through the promotion filter. Nothing is
+        // dimmed in this harness, so it is the identity.
+        selectPromotedCapabilities: (capabilities) => capabilities,
       },
       '../../services/kplus/kplusTelemetry': { emitKPlusEvent: () => {} },
       '../../types/entitlements': entitlements,

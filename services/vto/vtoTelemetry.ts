@@ -18,6 +18,14 @@
 export const VTO_EVENTS = [
   'vto_entry_impression',
   'vto_entry_tap',
+  // Customer-activation awareness. These say WHERE Try It On was put in front
+  // of someone (`surface`) and what they did with it -- never anything about
+  // the item, the person or a photo. Separate from the two entry events above,
+  // which describe the try-on sheet itself: an awareness impression happens
+  // before any sheet exists, on a surface that cannot start a generation.
+  'vto_awareness_impression',
+  'vto_awareness_tap',
+  'vto_awareness_dismissed',
   'vto_person_selected',
   'vto_request_start',
   'vto_request_success',
@@ -31,6 +39,13 @@ export const VTO_EVENTS = [
   'vto_minimized',
   'vto_restored',
   'vto_result_save_opened',
+  'vto_result_viewed',
+  'vto_result_shop',
+  'vto_result_watch',
+  'vto_result_try_another',
+  /** Emitted only after the Dressing Room write confirms. */
+  'vto_result_saved',
+  'vto_exited',
   // Live/AI Photo mode choice. Content-free: it records WHICH of the two
   // visualization modes the customer selected and nothing about the person,
   // the photo, the camera, or the session. Added deliberately rather than
@@ -44,6 +59,10 @@ export type VtoEvent = (typeof VTO_EVENTS)[number];
 
 export const VTO_EVENT_PROPERTIES = [
   'origin',
+  /** Which awareness surface: one of VTO_AWARENESS_SURFACES, nothing else. */
+  'surface',
+  /** 'free' | 'active' | 'complimentary' | 'resolving'. Never an account id. */
+  'actor_kplus_state',
   'provider',
   'slot',
   'category',
@@ -69,6 +88,21 @@ export type VtoAnalyticsSink = (event: VtoEvent, payload: VtoEventPayload) => vo
 const EVENT_SET = new Set<string>(VTO_EVENTS);
 const PROPERTY_SET = new Set<string>(VTO_EVENT_PROPERTIES);
 const SAFE_STRING = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+/**
+ * Properties whose value must be a member of a closed set, not merely a
+ * safe-looking string. A value outside the set is dropped, exactly like an
+ * unknown property.
+ *
+ * The two sets mirror VTO_AWARENESS_SURFACES and VTO_ACTOR_KPLUS_STATES in
+ * services/vto/vtoDiscovery.ts. They are written out here rather than imported
+ * so this sink keeps having no dependencies at all;
+ * __tests__/vtoCustomerActivation.test.js pins the two copies equal.
+ */
+export const VTO_BOUNDED_PROPERTY_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  surface: Object.freeze(['kplus_step6', 'home', 'coachmark', 'product', 'scan_result', 'commerce']),
+  actor_kplus_state: Object.freeze(['free', 'active', 'complimentary', 'resolving']),
+});
 
 function scrub(value: unknown): string | number | boolean | null | undefined {
   if (value === null) return null;
@@ -116,6 +150,8 @@ export function emitVtoEvent(event: string, payload: Record<string, unknown> = {
       if (!PROPERTY_SET.has(key)) continue;
       const scrubbed = scrub(value);
       if (scrubbed === undefined) continue;
+      const bounded = VTO_BOUNDED_PROPERTY_VALUES[key];
+      if (bounded && !(typeof scrubbed === 'string' && bounded.includes(scrubbed))) continue;
       (safe as Record<string, unknown>)[key] = scrubbed;
     }
     sink(event as VtoEvent, safe);

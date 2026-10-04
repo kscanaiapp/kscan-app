@@ -36,7 +36,38 @@ type Props = {
   imageUrl?: string | null;
   scan?: Partial<ScanImageSnapshotSource> | null;
   onClose: () => void;
+  variant?: 'scan' | 'vto_try_on';
+  /** Fired only after the durable Dressing Room write is confirmed. */
+  onSaved?: (roomTitle: string) => void;
+  onBeforeNavigate?: () => void;
 };
+
+const COPY = {
+  scan: {
+    title: 'Add Scan to Dressing Room',
+    subtitle: 'Save this clothing-focused image to a Dressing Room. Avoid faces, bystanders, or sensitive information.',
+    missingImage: "This scan doesn't have a usable image yet, so it can't be added to a Dressing Room.",
+    continueLabel: 'Continue scanning',
+    createAndSave: 'CREATE + SAVE SCAN',
+    createAndSaveA11y: 'Create new room and save scan',
+    newRoomHint: 'Create a new room and save the scan to it',
+    saveToRoomA11y: (room: string) => `Save scan to ${room}`,
+    saveToRoomHint: (room: string) => `Adds this scan to ${room}`,
+    saveFailed: 'Could not save scan. Please try again.',
+  },
+  vto_try_on: {
+    title: 'Save this try-on',
+    subtitle: "This try-on contains the photo you chose. It's added to the Dressing Room you pick, and anyone that room is shared with can see it.",
+    missingImage: "This try-on isn't ready to save yet.",
+    continueLabel: 'Back to try-on',
+    createAndSave: 'CREATE + SAVE TRY-ON',
+    createAndSaveA11y: 'Create new room and save this try-on',
+    newRoomHint: 'Create a new room and save this try-on to it',
+    saveToRoomA11y: (room: string) => `Save try-on to ${room}`,
+    saveToRoomHint: (room: string) => `Adds this try-on to ${room}`,
+    saveFailed: 'Could not save this try-on. Please try again.',
+  },
+} as const;
 
 export function AddScanToDressingRoomModal({
   visible,
@@ -46,7 +77,11 @@ export function AddScanToDressingRoomModal({
   imageUrl,
   scan,
   onClose,
+  variant = 'scan',
+  onSaved,
+  onBeforeNavigate,
 }: Props) {
+  const copy = COPY[variant];
   const { user } = useAuthSession();
   const [rooms, setRooms] = useState<DressingRoom[]>([]);
   const [loading, setLoading] = useState(false);
@@ -126,9 +161,10 @@ export function AddScanToDressingRoomModal({
       if (!isActorScopeCurrent(scope)) return;
       setSavedRoomId(roomId);
       setMessage(`Added to ${roomTitle}.`);
+      onSaved?.(roomTitle);
     } catch (err: any) {
       if (!isActorScopeCurrent(scope)) return;
-      setMessage(err?.message || 'Could not save scan. Please try again.');
+      setMessage(err?.message || copy.saveFailed);
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -163,9 +199,10 @@ export function AddScanToDressingRoomModal({
       if (!isActorScopeCurrent(scope)) return;
       setSavedRoomId(room.id);
       setMessage(`Added to ${room.title}.`);
+      onSaved?.(room.title);
     } catch (err: any) {
       if (!isActorScopeCurrent(scope)) return;
-      setMessage(err?.message || 'Could not save scan. Please try again.');
+      setMessage(err?.message || copy.saveFailed);
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -175,6 +212,7 @@ export function AddScanToDressingRoomModal({
   const handleViewDressingRoom = () => {
     if (navigatingRef.current) return;
     navigatingRef.current = true;
+    onBeforeNavigate?.();
     onClose();
     router.push('/dressing-rooms');
   };
@@ -210,13 +248,11 @@ export function AddScanToDressingRoomModal({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.title}>Add Scan to Dressing Room</Text>
-              <Text style={styles.subtitle}>
-                Save this clothing-focused image to a Dressing Room. Avoid faces, bystanders, or sensitive information.
-              </Text>
+              <Text style={styles.title} accessibilityRole="header">{copy.title}</Text>
+              <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
               {missingImage ? (
-                <Text style={styles.message}>This scan doesn't have a usable image yet, so it can't be added to a Dressing Room.</Text>
+                <Text style={styles.message}>{copy.missingImage}</Text>
               ) : successState ? (
                 <>
                   <Text style={styles.successTitle}>Added to Dressing Room</Text>
@@ -233,9 +269,9 @@ export function AddScanToDressingRoomModal({
                     style={styles.secondaryButton}
                     onPress={onClose}
                     accessibilityRole="button"
-                    accessibilityLabel="Continue scanning"
+                    accessibilityLabel={copy.continueLabel}
                   >
-                    <Text style={styles.secondaryText}>Continue Scanning</Text>
+                    <Text style={styles.secondaryText}>{copy.continueLabel}</Text>
                   </TouchableOpacity>
                 </>
               ) : loading ? (
@@ -255,8 +291,8 @@ export function AddScanToDressingRoomModal({
                           onPress={() => handleSave(room.id, room.title)}
                           disabled={saving}
                           accessibilityRole="button"
-                          accessibilityLabel={`Save scan to ${room.title}`}
-                          accessibilityHint={`Adds this scan to ${room.title}`}
+                          accessibilityLabel={copy.saveToRoomA11y(room.title)}
+                          accessibilityHint={copy.saveToRoomHint(room.title)}
                         >
                           <Text style={styles.roomChoiceTitle}>{room.title}</Text>
                           <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
@@ -278,7 +314,7 @@ export function AddScanToDressingRoomModal({
                       blurOnSubmit
                       onSubmitEditing={Keyboard.dismiss}
                       accessibilityLabel="New dressing room title"
-                      accessibilityHint="Create a new room and save the scan to it"
+                      accessibilityHint={copy.newRoomHint}
                     />
                   </View>
 
@@ -287,12 +323,12 @@ export function AddScanToDressingRoomModal({
                     onPress={handleCreateAndSave}
                     disabled={!newRoomTitle.trim() || saving}
                     accessibilityRole="button"
-                    accessibilityLabel="Create new room and save scan"
+                    accessibilityLabel={copy.createAndSaveA11y}
                   >
                     {saving ? (
                       <ActivityIndicator color={LUXURY.colors.inverse} />
                     ) : (
-                      <Text style={styles.primaryText}>CREATE + SAVE SCAN</Text>
+                      <Text style={styles.primaryText}>{copy.createAndSave}</Text>
                     )}
                   </TouchableOpacity>
                 </>

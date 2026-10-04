@@ -34,6 +34,7 @@ import {
 import { KScanIcon } from '../icons/kscan';
 import { HomeStylistCard } from './HomeStylistCard';
 import { HomeVoiceScanPill } from './HomeVoiceScanPill';
+import { HomeVtoDiscoveryCard } from './HomeVtoDiscoveryCard';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -372,6 +373,14 @@ export default function HomeLuxuryTechV1() {
         </View>
       )}
 
+      {/*
+        Try It On introduction. Renders nothing unless Virtual Try-On is live
+        for this build AND this account has neither dismissed it nor opened a
+        try-on. It routes into the Scanner, never into a try-on: Home has no
+        product to try on. See components/home/HomeVtoDiscoveryCard.tsx.
+      */}
+      <HomeVtoDiscoveryCard style={styles.vtoDiscoveryCard} />
+
       {/* Feature explanation row */}
       {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
@@ -644,6 +653,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: LUXURY.colors.graphite,
     marginTop: SPACING.xs,
+  },
+  vtoDiscoveryCard: {
+    marginBottom: SPACING.xxl,
   },
   featuresRow: {
     flexDirection: 'row',

@@ -16,17 +16,29 @@
 import { useEffect, useState } from 'react';
 
 import { VTO_UI_ENABLED } from '../constants/featureFlags';
-import type { KPlusLiveSignals } from '../services/kplus/kplusActivationCatalog';
-import { readKPlusLiveCapabilitySignals } from '../services/kplus/kplusLiveCapabilitySignals';
+import type {
+  KPlusCapabilityPromotion,
+  KPlusLiveSignals,
+} from '../services/kplus/kplusActivationCatalog';
+import { readKPlusLiveCapabilityState } from '../services/kplus/kplusLiveCapabilitySignals';
 
 export interface KPlusLiveCapabilitySignalsResult {
+  /** SERVED: decides whether a capability is real for a member. */
   signals: KPlusLiveSignals;
+  /**
+   * PROMOTED: decides only whether a capability's benefit line is shown. Kept
+   * apart from `signals` on purpose -- dimming promotion must never read as
+   * "this capability is not served". See selectPromotedCapabilities.
+   */
+  promotion: KPlusCapabilityPromotion;
   settled: boolean;
 }
 
 const NO_SIGNALS: KPlusLiveSignals = Object.freeze({});
+const NO_PROMOTION: KPlusCapabilityPromotion = Object.freeze({});
 const NOTHING_TO_ASK: KPlusLiveCapabilitySignalsResult = Object.freeze({
   signals: NO_SIGNALS,
+  promotion: NO_PROMOTION,
   settled: true,
 });
 
@@ -34,14 +46,15 @@ export function useKPlusLiveCapabilitySignals(active: boolean = true): KPlusLive
   const needed = active && VTO_UI_ENABLED;
   const [result, setResult] = useState<KPlusLiveCapabilitySignalsResult>({
     signals: NO_SIGNALS,
+    promotion: NO_PROMOTION,
     settled: false,
   });
 
   useEffect(() => {
     if (!needed) return undefined;
     let alive = true;
-    void readKPlusLiveCapabilitySignals().then((signals) => {
-      if (alive) setResult({ signals, settled: true });
+    void readKPlusLiveCapabilityState().then(({ signals, promotion }) => {
+      if (alive) setResult({ signals, promotion, settled: true });
     });
     return () => {
       alive = false;

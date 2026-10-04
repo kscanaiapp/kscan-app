@@ -25,7 +25,10 @@ import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusCommerceSnapshot } from '../../hooks/useKPlusCommerce';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
-import { resolveActivationCapabilities } from '../../services/kplus/kplusActivationCatalog';
+import {
+  resolveActivationCapabilities,
+  selectPromotedCapabilities,
+} from '../../services/kplus/kplusActivationCatalog';
 import {
   KPLUS_COMMERCE_RECHECK_DELAYS_MS,
   loadKPlusOfferings,
@@ -44,6 +47,8 @@ import {
   type KPlusPaywallView,
 } from '../../services/kplus/kplusPaywallModel';
 import type { KPlusProductKind } from '../../types/kplusCommerceContract';
+import { emitVtoAwarenessImpression, noteVtoPitchedAtStep6 } from '../../services/vto/vtoAwareness';
+import { resolveVtoActorKPlusState } from '../../services/vto/vtoDiscovery';
 import {
   KPlusBanner,
   KPlusBenefitsList,
@@ -60,6 +65,8 @@ import {
   kplusPaywallStyles as S,
   type KPlusBenefitRow,
 } from './KPlusPaywallParts';
+import { KPlusRedeemOfferPanel } from './KPlusRedeemOfferPanel';
+import type { KPlusOfferRedemptionPort } from '../../services/kplus/kplusOfferRedemption';
 
 /** How long "Finishing your K+ setup…" waits before offering a way on: the
  *  commerce service's own bounded canonical re-check schedule, plus a margin. */
@@ -74,18 +81,36 @@ export interface KPlusMembershipStepProps {
   /** No membership screen applies (signed out, or nothing K+ can be offered). */
   onSkip: () => void;
   /**
-   * Promo-redemption seam. "Redeem an offer" renders only when a real
-   * store-native or server-authoritative destination is passed here AND
-   * KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable is true. Neither exists
-   * today, so the link is absent rather than dead.
+   * Offer-redemption port. "Redeem an offer" opens the in-step redemption
+   * surface (components/kplus/KPlusRedeemOfferPanel.tsx); each submission is
+   * handed to this port and nothing else. Production uses the authenticated
+   * server adapter by default; the prop remains as a test/host override. A
+   * redemption success never mutates entitlement state: only the canonical
+   * summary can say "You're K+".
    */
-  onRedeemOffer?: () => void;
+  redeemOfferCode?: KPlusOfferRedemptionPort;
+  /**
+   * Where this step is being shown. It changes NOTHING commercial -- the same
+   * model, plans, store terms, Restore and Free path either way. It exists only
+   * so awareness bookkeeping can tell Welcome Step 6 from the post-onboarding
+   * membership sheet. Defaults to onboarding.
+   */
+  context?: 'onboarding' | 'sheet';
 }
 
-export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlusMembershipStepProps) {
+export function KPlusMembershipStep({
+  onContinue,
+  onSkip,
+  redeemOfferCode,
+  context = 'onboarding',
+}: KPlusMembershipStepProps) {
   const entitlement = useKPlusEntitlement();
   const commerce = useKPlusCommerceSnapshot();
   const [ui, setUi] = useState<KPlusPaywallUiState>(INITIAL_KPLUS_PAYWALL_UI);
+  // The redemption surface is an in-step view, not a second sheet: it swaps
+  // with the paywall body and hands back with Cancel / Done. It decides
+  // nothing commercial -- every submission goes through the supplied port.
+  const [redeemOpen, setRedeemOpen] = useState(false);
   const dispatch = useCallback((action: KPlusPaywallUiAction) => {
     setUi((current) => reduceKPlusPaywallUi(current, action));
   }, []);
@@ -104,21 +129,63 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
     authoritativeChargeDate: null,
   });
 
-  // Benefits are the K+ capabilities this build ships AND the server serves --
-  // the same truth rule the activation catalog enforces everywhere else.
-  const { signals: liveSignals, settled: liveSignalsSettled } = useKPlusLiveCapabilitySignals();
+  // TWO QUESTIONS, DELIBERATELY SEPARATE.
+  //
+  //   sellable  -- the K+ capabilities this build ships AND the server serves:
+  //                the same truth rule the activation catalog enforces
+  //                everywhere else. This is what decides whether there is a
+  //                membership to offer at all.
+  //   benefits  -- the subset whose benefit line is currently PROMOTED. This
+  //                decides only which lines are listed.
+  //
+  // They were one list. That made the step skip itself whenever promotion of
+  // the last listed capability was dimmed, even though the capability still
+  // worked and the membership was still real: hiding a marketing line removed
+  // the paywall. Promotion must never decide whether K+ can be bought.
+  const {
+    signals: liveSignals,
+    promotion: livePromotion,
+    settled: liveSignalsSettled,
+  } = useKPlusLiveCapabilitySignals();
+  const sellable = useMemo(
+    () => resolveActivationCapabilities({}, undefined, liveSignals),
+    [liveSignals],
+  );
   const benefits: KPlusBenefitRow[] = useMemo(
-    () => resolveActivationCapabilities({}, undefined, liveSignals).map((capability) => ({
+    () => selectPromotedCapabilities(sellable, livePromotion).map((capability) => ({
       id: capability.id,
       glyph: capability.glyph,
       title: capability.title,
       description: capability.description,
     })),
-    [liveSignals],
+    [sellable, livePromotion],
   );
 
+  // Try It On was just introduced here, as a benefit row. Recording that is
+  // what stops Home and the first product from introducing it again moments
+  // later in the same session. Presentation bookkeeping only: it reads the
+  // benefit list this screen already rendered and changes nothing about plans,
+  // prices, the Free path or Restore.
+  //
+  // Onboarding only. Opened later from a product (KPlusMembershipSheet), this
+  // same step is not "Step 6", and the tap that opened it was already recorded
+  // against the surface it came from.
+  const vtoBenefitShown = context === 'onboarding' && view.paywall !== null
+    && benefits.some((benefit) => benefit.id === 'virtual_try_on');
+  useEffect(() => {
+    if (!vtoBenefitShown) return;
+    noteVtoPitchedAtStep6();
+    emitVtoAwarenessImpression({
+      surface: 'kplus_step6',
+      kplus: resolveVtoActorKPlusState({
+        state: entitlement.state,
+        displaySource: entitlement.displaySource,
+      }),
+    });
+  }, [vtoBenefitShown, entitlement.state, entitlement.displaySource]);
+
   const isAcquisitionEntry = ACQUISITION_ENTRIES.has(view.entry);
-  const nothingToSell = isAcquisitionEntry && liveSignalsSettled && benefits.length === 0
+  const nothingToSell = isAcquisitionEntry && liveSignalsSettled && sellable.length === 0
     && ui.lastOperation === null;
 
   useEffect(() => {
@@ -380,7 +447,12 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
   }
 
   const restoring = view.screen === 'RESTORING_PURCHASES';
-  const content = (
+  const content = redeemOpen ? (
+    <KPlusRedeemOfferPanel
+      redeemOfferCode={redeemOfferCode}
+      onClose={() => setRedeemOpen(false)}
+    />
+  ) : (
     <PaywallBody
       paywall={paywall}
       benefits={benefits}
@@ -389,7 +461,7 @@ export function KPlusMembershipStep({ onContinue, onSkip, onRedeemOffer }: KPlus
       onPurchase={() => void handlePurchase()}
       onRestore={() => void handleRestore()}
       onFree={handleFree}
-      onRedeemOffer={onRedeemOffer}
+      onRedeem={() => setRedeemOpen(true)}
     />
   );
 
@@ -430,7 +502,7 @@ function PaywallBody({
   onPurchase,
   onRestore,
   onFree,
-  onRedeemOffer,
+  onRedeem,
 }: {
   paywall: KPlusPaywallView;
   benefits: KPlusBenefitRow[];
@@ -439,7 +511,7 @@ function PaywallBody({
   onPurchase: () => void;
   onRestore: () => void;
   onFree: () => void;
-  onRedeemOffer?: () => void;
+  onRedeem: () => void;
 }) {
   return (
     <View style={styles.body} testID="kplus-paywall">
@@ -464,8 +536,8 @@ function PaywallBody({
         onPress={onPurchase}
       />
       <View style={S.secondaryRow}>
-        {paywall.promoVisible && onRedeemOffer ? (
-          <KPlusTextAction testID="kplus-paywall-promo" label={COPY.promo} onPress={onRedeemOffer} disabled={!paywall.restoreEnabled} />
+        {paywall.promoVisible ? (
+          <KPlusTextAction testID="kplus-paywall-promo" label={COPY.promo} onPress={onRedeem} disabled={!paywall.restoreEnabled} />
         ) : null}
         <KPlusTextAction
           testID="kplus-paywall-restore"

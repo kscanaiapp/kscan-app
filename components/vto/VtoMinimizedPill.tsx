@@ -18,37 +18,44 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   VTO_PILL_READY_LABEL,
+  VTO_PILL_RETURN_LABEL,
   VTO_PILL_RENDERING_LABEL,
 } from '../../services/vto/vtoProgressStages';
 
 export interface VtoMinimizedPillProps {
   /** True only once the store reports a validated result. */
   ready: boolean;
+  /** The sheet was collapsed to open another native surface, not to generate. */
+  returnOnly?: boolean;
   onPress: () => void;
   testID?: string;
 }
 
-export function VtoMinimizedPill({ ready, onPress, testID }: VtoMinimizedPillProps) {
-  const label = ready ? VTO_PILL_READY_LABEL : VTO_PILL_RENDERING_LABEL;
+export function VtoMinimizedPill({ ready, returnOnly = false, onPress, testID }: VtoMinimizedPillProps) {
+  const label = returnOnly
+    ? VTO_PILL_RETURN_LABEL
+    : ready
+      ? VTO_PILL_READY_LABEL
+      : VTO_PILL_RENDERING_LABEL;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={
-        ready ? 'Opens your finished try-on' : 'Reopens the try-on while it finishes'
+        returnOnly || ready ? 'Opens your finished try-on' : 'Reopens the try-on while it finishes'
       }
       // A still-running try-on is a status message, not an alert.
       accessibilityLiveRegion="polite"
       style={({ pressed }) => [
         styles.pill,
-        ready ? styles.pillReady : styles.pillBusy,
+        ready || returnOnly ? styles.pillReady : styles.pillBusy,
         pressed ? styles.pressed : null,
       ]}
       testID={testID ?? 'vto-minimized-pill'}
     >
       <View style={styles.row}>
-        {ready ? (
+        {ready || returnOnly ? (
           <View style={styles.readyDot} />
         ) : (
           <ActivityIndicator size="small" color={LUXURY.colors.plum} />

@@ -16,6 +16,7 @@ import React from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
+import { KScanIcon } from '../icons/kscan';
 import {
   KPLUS_PAYWALL_COPY as COPY,
   KPLUS_PAYWALL_LEGAL_LINKS,
@@ -69,8 +70,25 @@ export function KPlusBenefitsList({ benefits }: { benefits: KPlusBenefitRow[] })
           accessibilityLabel={`${benefit.title}. ${benefit.description}`}
           testID={`kplus-paywall-benefit-${benefit.id}`}
         >
-          <View style={styles.benefitGlyph} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-            <Text style={styles.benefitGlyphText}>{benefit.glyph}</Text>
+          <View
+            style={[styles.benefitGlyph, benefit.id === 'virtual_try_on' && styles.benefitGlyphTryOn]}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+          >
+            {/* Try It On is the one benefit with a canonical drawn glyph: the
+                same garment-and-sparkle mark every Try It On surface carries.
+                Other benefits keep their typographic glyph. */}
+            {benefit.id === 'virtual_try_on' ? (
+              <KScanIcon
+                name="try-on"
+                size={14}
+                variant="compact"
+                color={P.deepPlum}
+                accentColor={P.brushedGold}
+              />
+            ) : (
+              <Text style={styles.benefitGlyphText}>{benefit.glyph}</Text>
+            )}
           </View>
           <View style={styles.benefitCopy}>
             <Text style={styles.benefitTitle}>{benefit.title}</Text>
@@ -209,7 +227,7 @@ export function KPlusFreePath({ onPress, disabled = false }: { onPress: () => vo
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={COPY.freePath}
-      accessibilityHint="Finishes setup without a K+ membership"
+      accessibilityHint="Continue without K+"
       accessibilityState={{ disabled }}
       style={styles.freePath}
     >
@@ -360,6 +378,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
+  },
+  // The drawn Try It On mark reads better with a little more room than a
+  // typographic glyph.
+  benefitGlyphTryOn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginTop: 0,
   },
   benefitGlyphText: { fontSize: 12, color: P.goldDeep },
   benefitCopy: { flex: 1, gap: 2 },

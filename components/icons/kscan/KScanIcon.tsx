@@ -4,6 +4,7 @@ import { RecentScansIcon } from './RecentScansIcon';
 import { SaveOrganizeIcon } from './SaveOrganizeIcon';
 import { StyleIcon } from './StyleIcon';
 import { TextScanIcon } from './TextScanIcon';
+import { TryOnIcon } from './TryOnIcon';
 import { VisualSearchIcon } from './VisualSearchIcon';
 import { VoiceScanIcon } from './VoiceScanIcon';
 import { WatchlistIcon } from './WatchlistIcon';
@@ -25,6 +26,7 @@ export const KSCAN_ICON_REGISTRY = {
   'voice-scan': VoiceScanIcon,
   style: StyleIcon,
   watchlist: WatchlistIcon,
+  'try-on': TryOnIcon,
 } as const satisfies Record<KScanIconName, KScanIconComponent>;
 
 export const KSCAN_ICON_NAMES = Object.keys(KSCAN_ICON_REGISTRY) as KScanIconName[];

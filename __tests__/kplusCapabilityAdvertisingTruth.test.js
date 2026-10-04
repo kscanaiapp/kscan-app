@@ -365,8 +365,11 @@ test('SURFACES: the early-access sheet derives its benefit list from the same ca
 test('HOOK: reads the signal only when something depends on it, and ignores a late answer', () => {
   const hook = stripComments(read('hooks', 'useKPlusLiveCapabilitySignals.ts'));
   assert.match(hook, /const needed = active && VTO_UI_ENABLED;/);
-  assert.match(hook, /readKPlusLiveCapabilitySignals\(\)/);
-  assert.match(hook, /if \(alive\) setResult\(\{ signals, settled: true \}\);/);
+  // Build 35 VTO activation closure (FC-02): one read answers SERVED and
+  // PROMOTED separately, and the hook carries both. `signals` is still the
+  // served answer this file is about; promotion never feeds it.
+  assert.match(hook, /readKPlusLiveCapabilityState\(\)/);
+  assert.match(hook, /if \(alive\) setResult\(\{ signals, promotion, settled: true \}\);/);
   assert.match(hook, /alive = false;/);
   assert.match(hook, /return needed \? result : NOTHING_TO_ASK;/);
   assert.match(hook, /settled: true,\s*\}\);/, 'the nothing-to-ask result is already settled');

@@ -39,6 +39,18 @@ export interface VtoRemoteConfig {
   /** Categories Live may render, narrowable by config. Never widened past what
    *  the native runtime implements -- see services/vto/vtoLiveGarment.ts. */
   liveSupportedCategories: readonly string[];
+  /**
+   * PROMOTION dimmer, read from the same row. It governs awareness only -- the
+   * Home introduction, the first-use tip and the K+ benefit line -- and never
+   * whether a try-on may happen: `enabled` keeps that job, and the Try It On
+   * control on an eligible item is not promotion.
+   *
+   * It exists so an operator can quieten promotion while generation stays
+   * healthy. It can only REDUCE: it is true unless the row carries
+   * `awareness: { enabled: false }`, so every row written before this field
+   * existed behaves exactly as it did, and it is false whenever `enabled` is.
+   */
+  awarenessEnabled: boolean;
 }
 
 export const DISABLED_VTO_REMOTE_CONFIG: VtoRemoteConfig = Object.freeze({
@@ -46,6 +58,7 @@ export const DISABLED_VTO_REMOTE_CONFIG: VtoRemoteConfig = Object.freeze({
   supportedCategories: DEFAULT_VTO_SUPPORTED_CATEGORIES,
   liveEnabled: false,
   liveSupportedCategories: DEFAULT_LIVE_VTO_SUPPORTED_CATEGORIES,
+  awarenessEnabled: false,
 });
 
 export function normalizeVtoRemoteConfig(payload: unknown): VtoRemoteConfig {
@@ -67,8 +80,17 @@ export function normalizeVtoRemoteConfig(payload: unknown): VtoRemoteConfig {
       ? (raw.live as Record<string, unknown>)
       : null;
 
+  // Nested for the same reason `live` is: editing the generative switch cannot
+  // touch it by accident. Only an explicit `false` dims; absent, malformed and
+  // non-boolean all leave promotion following `enabled`.
+  const awareness =
+    raw.awareness && typeof raw.awareness === 'object' && !Array.isArray(raw.awareness)
+      ? (raw.awareness as Record<string, unknown>)
+      : null;
+
   return {
     enabled: raw.enabled === true,
+    awarenessEnabled: raw.enabled === true && awareness?.enabled !== false,
     supportedCategories: categories,
     liveEnabled: live?.enabled === true,
     liveSupportedCategories: normalizeCategoryList(

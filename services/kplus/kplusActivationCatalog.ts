@@ -64,7 +64,10 @@ export interface KPlusActivationCapability {
  *   - Voice Scan speaks a search instead of typing one. It is not an
  *     assistant and does not act on the user's behalf.
  *   - Virtual Try-On visualizes a selected garment. It makes no claim about
- *     fit, sizing accuracy, or photorealism.
+ *     fit, sizing accuracy, or photorealism. Its title and line are the
+ *     customer-facing name the rest of the app introduces it by
+ *     (VTO_DISCOVERY_COPY in services/vto/vtoDiscovery.ts), and "eligible" is
+ *     load-bearing: only some garments can be tried on.
  *   - Wardrobe Concierge conditions Elise's recommendations on owned items.
  *     It does not shop, buy, or act autonomously.
  *   - Packing Intelligence plans a trip from the user's Closet. It is not a
@@ -81,8 +84,8 @@ export const KPLUS_ACTIVATION_CAPABILITIES: ReadonlyArray<
   }),
   Object.freeze({
     id: 'virtual_try_on' as const,
-    title: 'Virtual Try-On',
-    description: 'Visualize selected styles on you.',
+    title: 'Try it on with AI',
+    description: 'See how an eligible look might work on you before you buy.',
     glyph: '◇',
   }),
   Object.freeze({
@@ -217,6 +220,30 @@ export function resolveActivationCapabilities(
   return KPLUS_ACTIVATION_CAPABILITIES
     .filter((capability) => compiledIn[capability.id] && servedByServer(capability.id))
     .map((capability) => ({ ...capability, available: true }));
+}
+
+/**
+ * PROMOTION is not AVAILABILITY.
+ *
+ * `resolveActivationCapabilities` answers "which K+ capabilities can a member
+ * actually use here" -- and that is the commercial question: it is what makes a
+ * K+ membership worth offering at all. Whether a capability is currently being
+ * PROMOTED is a separate, softer one. An operator can quieten promotion of a
+ * capability that keeps working (Virtual Try-On has such a dimmer), and doing
+ * so must hide that capability's benefit line without making the membership
+ * itself look like it has nothing in it.
+ *
+ * So a surface that decides whether to offer K+ asks the function above, and
+ * only the benefit LIST is passed through this one. Only an explicit `false`
+ * hides: a capability with no promotion answer is promoted exactly as before.
+ */
+export type KPlusCapabilityPromotion = Partial<Record<KPlusActivationCapabilityId, boolean | null>>;
+
+export function selectPromotedCapabilities<T extends { id: KPlusActivationCapabilityId }>(
+  capabilities: readonly T[],
+  promotion: KPlusCapabilityPromotion = {},
+): T[] {
+  return capabilities.filter((capability) => promotion[capability.id] !== false);
 }
 
 /**

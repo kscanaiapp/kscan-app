@@ -77,13 +77,13 @@ test('progress: each running status pins a minimum stage', () => {
   }
 });
 
-test('progress: a long generating phase still advances on elapsed time', () => {
-  // The whole reason the stage list exists: `generating` is one status that
-  // can last most of a 30s wait, and a frozen indicator reads as a hang.
+test('progress: elapsed time adds a still-working note without inventing a stage', () => {
   const early = progress.resolveVtoProgress({ status: 'generating', elapsedMs: 0 });
   const late = progress.resolveVtoProgress({ status: 'generating', elapsedMs: 20_000 });
   assert.equal(early.index, 1);
-  assert.equal(late.index, 2);
+  assert.equal(late.index, 1);
+  assert.equal(early.stillWorking, false);
+  assert.equal(late.stillWorking, true);
 });
 
 test('progress: time NEVER produces completion, however long it runs', () => {
@@ -123,7 +123,11 @@ test('progress: the status floor wins when it is ahead of the clock', () => {
 
 test('progress: stage labels name the real work and promise no fit judgement', () => {
   const labels = Array.from(progress.VTO_PROGRESS_STAGES, (stage) => stage.label);
-  assert.deepEqual(labels, ['Analyzing garment', 'Mapping the fit', 'Rendering visualization']);
+  assert.deepEqual(labels, [
+    'Preparing your photo…',
+    'Creating your try-on…',
+    'Finishing your result…',
+  ]);
   for (const label of labels) {
     assert.doesNotMatch(label, /\d+\s*%/, 'no invented percentage');
     for (const forbidden of ['size', 'measurement', 'fits you', 'your size']) {
@@ -329,7 +333,10 @@ test('save: there is NO auto-save -- a file is written only from a press handler
   // An effect-driven export would quietly break that while every existing
   // test stayed green.
   const bridge = code('components/vto/VtoSaveToDressingRoom.tsx');
-  assert.ok(!bridge.includes('useEffect'), 'no effect may trigger a save');
+  const effects = [...bridge.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)];
+  for (const effect of effects) {
+    assert.ok(!effect[1].includes('exportVtoResultToCache'), 'no effect may trigger a save');
+  }
   assert.match(
     bridge,
     /const handlePress = useCallback\(async \(\) => \{[\s\S]*?exportVtoResultToCache/,

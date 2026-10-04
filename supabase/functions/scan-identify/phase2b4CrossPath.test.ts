@@ -328,6 +328,11 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 K+ offer-code redemption. JWT-authenticated and actor-bound.
+  'kplus-offer-redeem': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'kplus-reconcile-revenuecat': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,

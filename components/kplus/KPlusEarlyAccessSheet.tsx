@@ -13,7 +13,10 @@ import {
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
-import { resolveActivationCapabilities } from '../../services/kplus/kplusActivationCatalog';
+import {
+  resolveActivationCapabilities,
+  selectPromotedCapabilities,
+} from '../../services/kplus/kplusActivationCatalog';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import type { KPlusSource } from '../../types/kplusSource';
@@ -50,12 +53,17 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   // lines, so it promised Voice Scan whatever the build compiled in and two
   // vague lines ("style intelligence", "wardrobe tools") whether or not any
   // capability behind them worked.
-  const { signals: liveSignals } = useKPlusLiveCapabilitySignals(
+  const { signals: liveSignals, promotion: livePromotion } = useKPlusLiveCapabilitySignals(
     visible && KPLUS_EARLY_ACCESS_ENABLED,
   );
+  // A capability whose promotion is dimmed keeps working; it is simply not
+  // listed. See selectPromotedCapabilities.
   const advertisedCapabilities = useMemo(
-    () => resolveActivationCapabilities({}, undefined, liveSignals),
-    [liveSignals],
+    () => selectPromotedCapabilities(
+      resolveActivationCapabilities({}, undefined, liveSignals),
+      livePromotion,
+    ),
+    [liveSignals, livePromotion],
   );
 
   useEffect(() => {

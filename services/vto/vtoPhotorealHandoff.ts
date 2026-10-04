@@ -128,6 +128,9 @@ export function photorealOutcomeForGenerativeFailure(
     case 'provider_unavailable':
     case 'provider_timeout':
     case 'rate_limited':
+    case 'provider_busy':
+    case 'quota_exhausted':
+    case 'request_in_flight':
       return handlePhotorealFailure('provider_unavailable');
     case 'cancelled':
       return handlePhotorealFailure('capture_cancelled');

@@ -34,6 +34,8 @@ const STEP = 'components/kplus/KPlusMembershipStep.tsx';
 const PARTS = 'components/kplus/KPlusPaywallParts.tsx';
 const THEME = 'constants/kplusPaywallTheme.ts';
 const CATALOG = 'services/kplus/kplusActivationCatalog.ts';
+const SHEET = 'components/kplus/KPlusMembershipSheet.tsx';
+const ACQUISITION = 'services/kplus/kplusAcquisitionSurface.ts';
 const ONBOARDING = 'app/onboarding/index.tsx';
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const stripComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(?<!:)\/\/.*$/gm, '');
@@ -171,7 +173,7 @@ function mount(o = {}) {
     entitlement: { ...(o.entitlement ?? FREE) },
     commerce: o.commerce ?? commerce(),
     live: o.live ?? { signals: {}, settled: true },
-    calls: { load: 0, monthly: 0, lifetime: 0, restore: 0, refresh: 0, continue: 0, skip: 0 },
+    calls: { load: 0, monthly: 0, lifetime: 0, restore: 0, refresh: 0, continue: 0, skip: 0, close: 0 },
     loadImpl: o.loadImpl ?? (async () => env.commerce),
     purchaseImpl: o.purchaseImpl ?? (async () => ({ outcome: 'ENTITLEMENT_RESOLVING' })),
     restoreImpl: o.restoreImpl ?? (async () => ({ outcome: 'NOTHING_RESTORED' })),
@@ -182,11 +184,12 @@ function mount(o = {}) {
   const catalog = runModule(CATALOG, {
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: o.voiceScan ?? true,
-      VTO_UI_ENABLED: false,
+      VTO_UI_ENABLED: o.vto ?? false,
       ELISE_CONCIERGE_V1: false,
       PACKING_INTELLIGENCE_V1: false,
     },
   }, { jsx: false });
+  const discovery = runModule('services/vto/vtoDiscovery.ts', {}, { jsx: false });
   const themeTokens = {
     LUXURY: deepStub(),
     SPACING: { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
@@ -197,6 +200,7 @@ function mount(o = {}) {
     '../../constants/theme': themeTokens,
     '../../constants/kplusPaywallTheme': theme,
     '../../services/kplus/kplusPaywallModel': m,
+    '../icons/kscan': { KScanIcon: 'KScanIcon' },
   }, { mutate: o.mutateParts });
   const commerceService = {
     KPLUS_COMMERCE_RECHECK_DELAYS_MS: [2000, 5000, 10000, 20000],
@@ -227,7 +231,18 @@ function mount(o = {}) {
     '../../services/kplus/kplusActivationCatalog': catalog,
     '../../services/kplus/kplusCommerceService': commerceService,
     '../../services/kplus/kplusPaywallModel': m,
+    // Build 35 VTO customer activation: Step 6 records that the Try It On
+    // benefit was shown. Observed here so a test can prove it is bookkeeping.
+    '../../services/vto/vtoAwareness': {
+      noteVtoPitchedAtStep6: () => { env.calls.vtoPitched = (env.calls.vtoPitched ?? 0) + 1; },
+      emitVtoAwarenessImpression: (context) => { (env.calls.vtoImpressions ??= []).push(context); },
+    },
+    '../../services/vto/vtoDiscovery': discovery,
     './KPlusPaywallParts': parts,
+    // The redemption surface is exercised for real in
+    // __tests__/kplusRedeemOfferPresentation.test.js; here a named host proves
+    // the step's wiring (entry -> panel -> back) without duplicating it.
+    './KPlusRedeemOfferPanel': { KPlusRedeemOfferPanel: 'KPlusRedeemOfferPanel' },
   }, { mutate: o.mutateStep });
 
   const props = {
@@ -237,12 +252,32 @@ function mount(o = {}) {
   };
   let key = o.actorKey ?? 'actor-a';
   let tree = null;
+
+  // `host: 'sheet'` renders the SAME step module through the post-onboarding
+  // entry wrapper (components/kplus/KPlusMembershipSheet.tsx) instead of
+  // directly, so every assertion made about Step 6 can be made about the sheet.
+  const sheet = o.host === 'sheet'
+    ? runModule(SHEET, {
+      ...renderer.runtimeModules,
+      'react-native': rn,
+      'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) },
+      '../../constants/theme': themeTokens,
+      '../../constants/kplusPaywallTheme': theme,
+      '../../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: key } }) },
+      '../../hooks/useKPlusCommerce': { useKPlusCommerceSnapshot: () => env.commerce },
+      '../../hooks/useReducedMotion': { useReducedMotion: () => true },
+      './KPlusMembershipStep': step,
+    }, { mutate: o.mutateSheet })
+    : null;
+  const sheetProps = { visible: o.sheetVisible ?? true, onClose: () => { env.calls.close += 1; } };
   const api = {
     env,
     announcements,
     opened,
     render() {
-      tree = renderer.render(renderer.jsx(step.KPlusMembershipStep, props, key));
+      tree = sheet
+        ? renderer.render(renderer.jsx(sheet.KPlusMembershipSheet, sheetProps, 'sheet'))
+        : renderer.render(renderer.jsx(step.KPlusMembershipStep, props, key));
       return tree;
     },
     get tree() { return tree; },
@@ -924,15 +959,43 @@ test('copy corrections: no permanence promise, Lifetime CTA and subline as appro
   assert.match(model.KPLUS_PAYWALL_COPY.eyebrow, /K SCAN AI/, 'product name is K Scan AI, never bare K Scan');
 });
 
-test('promo: "Redeem an offer" is a hidden seam until a real destination exists (no dead link)', async () => {
-  assert.equal(model.KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable, false);
+test('promo: "Redeem an offer" opens the real in-step redemption surface (presentation seam)', async () => {
+  // The dormant seam is replaced by the real presentation seam: the entry is
+  // rendered because the destination -- the in-step redemption surface --
+  // exists. What does NOT exist yet is the ingestion authority, which the
+  // integration audit supplies through the redeemOfferCode port; the surface
+  // itself is proven in __tests__/kplusRedeemOfferPresentation.test.js.
+  assert.equal(model.KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable, true);
+
   const ui = mount();
-  assert.ok(!ui.has('kplus-paywall-promo'));
-  assert.doesNotMatch(ui.text(), /Redeem/);
-  // Even with a handler, the presentation switch must also be on.
-  const withHandler = mount({ props: { onRedeemOffer: () => {} } });
-  assert.ok(!withHandler.has('kplus-paywall-promo'));
-  assert.doesNotMatch(stripComments(read(STEP)), /redeem.*code|TextInput|access.?code/i, 'no text-code backend invented');
+  assert.ok(ui.has('kplus-paywall-promo'), 'the Redeem an offer entry renders on the paywall');
+  assert.match(ui.text(), /Redeem an offer/);
+  // Secondary to the plans, Restore and the Free path, which are untouched.
+  assert.ok(ui.has('kplus-paywall-plans'));
+  assert.ok(ui.has('kplus-paywall-restore'));
+  assert.ok(ui.has('kplus-paywall-free-path'));
+
+  await ui.press('kplus-paywall-promo');
+  const panels = findAll(ui.tree, (n) => n.type === 'KPlusRedeemOfferPanel');
+  assert.equal(panels.length, 1, 'the entry opens the redemption surface');
+  assert.ok(!ui.has('kplus-paywall'), 'the paywall body swaps out while redeeming');
+  // No port wired yet: the panel receives none and answers UNAVAILABLE itself.
+  assert.equal(panels[0].props.redeemOfferCode, undefined);
+
+  // Cancel returns to the unchanged paywall.
+  panels[0].props.onClose();
+  await settle();
+  ui.render();
+  assert.ok(ui.has('kplus-paywall'), 'closing the surface returns to the paywall');
+  assert.ok(ui.has('kplus-paywall-promo'));
+
+  // The step stays a host: the code input and its states live in the panel.
+  assert.doesNotMatch(stripComments(read(STEP)), /TextInput/, 'no code input in the step itself');
+  assert.doesNotMatch(
+    stripComments(read(STEP)),
+    /functions\.invoke|supabaseClient|revenuecat|presentPaywall/i,
+    'no redemption backend call in the step',
+  );
 });
 
 test('legal: Privacy, Terms, Billing/Cancellation/Refunds and Restore are reachable and match the K+ legal authority', async () => {
@@ -1116,4 +1179,431 @@ test('NEGATIVE: a fabricated charge date is caught', async () => {
     "const date = typeof authoritativeChargeDate === 'string' ? authoritativeChargeDate.trim() : '';",
     "const date = new Date(Date.UTC(2026, 9, 9)).toUTCString().slice(5, 16);"));
   await expectRed(() => checkNoFabricatedChargeDate(m), 'fabricated date');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Build 35 VTO customer activation -- the Try It On benefit is presentation only
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Step 6 gained one thing in the VTO activation lane: the Try It On benefit
+// row carries the customer-facing name, and showing it is recorded so Home and
+// the first product do not introduce it again a moment later. Everything the
+// customer pays against, or declines with, must be exactly what it was.
+
+const VTO_LIVE = Object.freeze({ signals: { virtual_try_on: true }, settled: true });
+
+/** Everything on Step 6 the customer pays against, or declines with. */
+function commercialSurface(ui) {
+  const text = (id) => (ui.has(id) ? textContent(ui.node(id)) : null);
+  const control = (id) => (ui.has(id)
+    ? { label: ui.node(id).props.accessibilityLabel, state: plain(ui.node(id).props.accessibilityState) }
+    : null);
+  return {
+    screen: screenOf(ui),
+    monthly: control('kplus-plan-monthly'),
+    lifetime: control('kplus-plan-lifetime'),
+    monthlyBadge: text('kplus-plan-monthly-badge'),
+    monthlyPrice: text('kplus-plan-monthly-price'),
+    lifetimePrice: text('kplus-plan-lifetime-price'),
+    disclosure: text('kplus-paywall-disclosure'),
+    cta: control('kplus-paywall-cta'),
+    restore: control('kplus-paywall-restore'),
+    freePath: control('kplus-paywall-free-path'),
+  };
+}
+
+async function checkVtoBenefitIsNotCommercial(o = {}) {
+  for (const eligibility of ['ELIGIBLE', 'INELIGIBLE', 'UNKNOWN']) {
+    const base = { voiceScan: true, commerce: commerce({ monthlyIntroEligibility: eligibility }) };
+    const without = mount({ ...base, vto: false });
+    const withVto = mount({ ...base, vto: true, live: VTO_LIVE, mutateStep: o.mutateStep });
+    assert.ok(withVto.has('kplus-paywall-benefit-virtual_try_on'), 'the Try It On benefit is shown');
+    assert.ok(!without.has('kplus-paywall-benefit-virtual_try_on'));
+    const shown = commercialSurface(withVto);
+
+    // MONTHLY_DEFAULT_UNCHANGED
+    assert.equal(shown.monthly.state.selected, true, 'Monthly is still the default plan');
+    assert.equal(shown.lifetime.state.selected, false);
+    // FREE_PATH_UNCHANGED
+    assert.ok(shown.freePath, 'the Free path is still on the paywall');
+    assert.equal(shown.freePath.label, 'Continue with K Scan AI Free');
+    assert.equal(shown.freePath.state.disabled, false);
+    // RESTORE_VISIBILITY_UNCHANGED
+    assert.ok(shown.restore, 'Restore Purchases is still on the paywall');
+    assert.equal(shown.restore.label, 'Restore Purchases');
+    assert.equal(shown.restore.state.disabled, false);
+    // TRIAL_METADATA_AUTHORITY_UNCHANGED: a trial is named only when the STORE says so.
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null);
+    assert.equal(/free for|free trial/i.test(`${shown.disclosure} ${shown.cta.label}`), eligibility === 'ELIGIBLE');
+
+    assert.deepEqual(shown, commercialSurface(without), 'the benefit row changes nothing commercial');
+  }
+}
+
+test('VTO activation J1: Step 6 shows the Try It On benefit and Free stays clearly available', async () => {
+  const ui = mount({ voiceScan: true, vto: true, live: VTO_LIVE });
+  const benefit = ui.node('kplus-paywall-benefit-virtual_try_on');
+  assert.equal(
+    benefit.props.accessibilityLabel,
+    'Try it on with AI. See how an eligible look might work on you before you buy.',
+  );
+  assert.doesNotMatch(textContent(benefit), /\bfit\b|\bsize|exact|photoreal|perfect|measure/i);
+  await ui.press('kplus-paywall-free-path');
+  assert.equal(ui.env.calls.continue, 1, 'Free continues to Home through the existing handoff');
+  assert.equal(ui.env.calls.monthly + ui.env.calls.lifetime + ui.env.calls.restore, 0);
+});
+
+test('VTO activation: MONTHLY_DEFAULT / FREE_PATH / RESTORE / TRIAL authority are unchanged by the benefit', () =>
+  checkVtoBenefitIsNotCommercial());
+
+test('VTO activation NC-11: VTO promotion removing the Step 6 Free path is caught', async () => {
+  await expectRed(
+    () => checkVtoBenefitIsNotCommercial({
+      mutateStep: mutateOpt(
+        STEP,
+        '      <KPlusFreePath onPress={onFree} disabled={freeDisabled} />\n      <KPlusLegalFooter />\n    </View>\n  );\n}\n\nconst styles',
+        "      {benefits.some((benefit) => benefit.id === 'virtual_try_on') ? null : (\n        <KPlusFreePath onPress={onFree} disabled={freeDisabled} />\n      )}\n      <KPlusLegalFooter />\n    </View>\n  );\n}\n\nconst styles",
+      ),
+    }),
+    'Free path removed by VTO promotion',
+  );
+});
+
+test('VTO activation NEGATIVE: VTO promotion disabling Restore is caught', async () => {
+  await expectRed(
+    () => checkVtoBenefitIsNotCommercial({
+      mutateStep: mutateOpt(
+        STEP,
+        '          disabled={!paywall.restoreEnabled}\n        />\n      </View>\n      <KPlusFreePath',
+        "          disabled={!paywall.restoreEnabled || benefits.some((benefit) => benefit.id === 'virtual_try_on')}\n        />\n      </View>\n      <KPlusFreePath",
+      ),
+    }),
+    'Restore disabled by VTO promotion',
+  );
+});
+
+test('VTO activation: showing the benefit is recorded once, and only when it was actually shown', () => {
+  const shown = mount({ voiceScan: true, vto: true, live: VTO_LIVE });
+  shown.render();
+  assert.equal(shown.env.calls.vtoPitched, 1, 'recorded once across re-renders');
+  assert.deepEqual(plain(shown.env.calls.vtoImpressions), [{ surface: 'kplus_step6', kplus: 'free' }]);
+
+  // No Try It On row -> nothing to coordinate.
+  const absent = mount({ voiceScan: true, vto: false });
+  assert.equal(absent.env.calls.vtoPitched, undefined);
+  // The live switch is off or unread -> the row is absent, and so is the record.
+  const dark = mount({ voiceScan: true, vto: true, live: { signals: { virtual_try_on: false }, settled: true } });
+  assert.ok(!dark.has('kplus-paywall-benefit-virtual_try_on'));
+  assert.equal(dark.env.calls.vtoPitched, undefined);
+  // An existing member is shown no benefit list, so nothing is recorded.
+  const member = mount({
+    voiceScan: true,
+    vto: true,
+    live: VTO_LIVE,
+    entitlement: { state: 'active', displaySource: 'store_subscription' },
+  });
+  assert.equal(screenOf(member), 'active');
+  assert.equal(member.env.calls.vtoPitched, undefined);
+  // And a store operation is never started by it.
+  assert.equal(shown.env.calls.monthly + shown.env.calls.lifetime + shown.env.calls.restore, 0);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Build 35 VTO activation -- FUNCTIONAL CLOSURE (FC-01 sheet, FC-02 dimmer)
+// ════════════════════════════════════════════════════════════════════════════
+//
+//   FC-01  The post-onboarding K+ membership sheet is an ENTRY WRAPPER around
+//          this same step. It must present exactly the commercial surface
+//          Step 6 does, from the same model and the same store data, and add
+//          no commercial term of its own.
+//   FC-02  Dimming Try It On PROMOTION hides its benefit line. It must not
+//          make Step 6 skip itself, and it must not change anything a customer
+//          pays against or declines with.
+
+const VTO_DIMMED = Object.freeze({
+  signals: { virtual_try_on: true },
+  promotion: { virtual_try_on: false },
+  settled: true,
+});
+const VTO_PROMOTED = Object.freeze({
+  signals: { virtual_try_on: true },
+  promotion: { virtual_try_on: true },
+  settled: true,
+});
+
+// ── FC-01: the membership sheet ─────────────────────────────────────────────
+
+/** T6: the sheet's commercial surface IS Step 6's, from the same store data. */
+async function checkSheetReusesThePaywall(o = {}) {
+  for (const eligibility of ['ELIGIBLE', 'INELIGIBLE', 'UNKNOWN']) {
+    const base = { voiceScan: true, vto: true, live: VTO_PROMOTED, commerce: commerce({ monthlyIntroEligibility: eligibility }) };
+    const step6 = mount(base);
+    const sheet = mount({ ...base, host: 'sheet', mutateSheet: o.mutateSheet });
+    assert.ok(sheet.has('kplus-paywall-sheet-close'), 'the wrapper adds a way out');
+    assert.ok(sheet.has('kplus-paywall'), 'and hosts the real paywall');
+
+    const shown = commercialSurface(sheet);
+    assert.deepEqual(shown, commercialSurface(step6), 'the sheet presents exactly the Step 6 commercial surface');
+
+    // Verbatim store values, never a string of the wrapper's own.
+    assert.equal(shown.monthlyPrice, '€7,49');
+    assert.equal(shown.lifetimePrice, '¥18,800');
+    assert.equal(shown.monthly.state.selected, true, 'Monthly default');
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null, 'trial only on store eligibility');
+    assert.equal(shown.restore.label, 'Restore Purchases');
+    assert.equal(shown.freePath.label, 'Continue with K Scan AI Free');
+  }
+
+  // A different store answer changes the sheet, because the sheet has no
+  // answer of its own.
+  const repriced = mount({
+    voiceScan: true,
+    host: 'sheet',
+    mutateSheet: o.mutateSheet,
+    commerce: commerce({
+      monthly: available(monthlyProduct({ localizedPrice: 'kr 89,00', subscriptionPeriod: 'P3M', introOffer: null })),
+      lifetime: available(lifetimeProduct({ localizedPrice: 'R$ 499,90' })),
+      monthlyIntroEligibility: 'NO_INTRO_OFFER',
+    }),
+  });
+  const surface = commercialSurface(repriced);
+  assert.equal(surface.monthlyPrice, 'kr 89,00');
+  assert.equal(surface.lifetimePrice, 'R$ 499,90');
+  assert.equal(surface.monthlyBadge, null);
+  assert.match(surface.disclosure, /kr 89,00 every 3 months/);
+  assert.doesNotMatch(textContent(repriced.tree), /€7,49|free trial|free for/i);
+
+  // The wrapper's own source carries no commercial term and no store call.
+  const source = stripComments(o.sheetSource ?? read(SHEET));
+  for (const forbidden of [
+    /[$€£¥]\s?\d/, /\d+[.,]\d{2}\b/, /\/\s?(month|year|week)\b/i, /\bper (month|year|week)\b/i,
+    /\b\d+\s*-?\s*(day|week|month)s?\b/i, /free trial/i, /\btrial\b/i, /\bprice\b/i, /localizedPrice/,
+    /purchaseKPlus|restoreKPlusPurchases|loadKPlusOfferings|kplusCommerceService|revenueCat|Purchases\./i,
+    /kplusPaywallModel|KPLUS_PAYWALL_COPY|introOffer|subscriptionPeriod|storeProductIdentifier/,
+  ]) {
+    assert.doesNotMatch(source, forbidden, `${SHEET} must not carry a commercial term or a store call (${forbidden})`);
+  }
+  assert.match(source, /<KPlusMembershipStep\b/, 'it renders the one membership orchestrator');
+  const acquisition = stripComments(read(ACQUISITION));
+  assert.doesNotMatch(acquisition, /[$€£¥]\s?\d|trial|price|month|lifetime/i, `${ACQUISITION} decides a surface, never a term`);
+}
+
+test('FC-01 T6: the membership sheet reuses the Step 6 model and store metadata -- no pricing of its own', () =>
+  checkSheetReusesThePaywall());
+
+test('NC-FC-05: a hardcoded VTO-specific price or trial in the upgrade route is caught', async () => {
+  const hardcoded = mutateOpt(
+    SHEET,
+    '            <KPlusMembershipStep\n',
+    "            <Text>Try It On with K+ — $4.99/month after a 7-day free trial</Text>\n            <KPlusMembershipStep\n",
+  );
+  await expectRed(
+    () => checkSheetReusesThePaywall({ mutateSheet: hardcoded, sheetSource: hardcoded(read(SHEET)) }),
+    'hardcoded VTO price and trial',
+  );
+  // A wrapper that swaps in its own purchase call is caught as well.
+  const ownPurchase = mutateOpt(
+    SHEET,
+    '              onContinue={onClose}\n',
+    "              onContinue={() => { void require('../../services/kplus/kplusCommerceService').purchaseKPlusMonthly(); }}\n",
+  );
+  await expectRed(
+    () => checkSheetReusesThePaywall({ sheetSource: ownPurchase(read(SHEET)) }),
+    'wrapper makes its own store call',
+  );
+});
+
+test('FC-01: the sheet buys, restores and declines through the existing step, and only closes itself', async () => {
+  const ui = mount({ voiceScan: true, host: 'sheet' });
+  await ui.press('kplus-paywall-cta');
+  assert.equal(ui.env.calls.monthly, 1, 'the existing Monthly purchase call, once');
+  assert.equal(ui.env.calls.lifetime, 0);
+
+  const restoring = mount({ voiceScan: true, host: 'sheet' });
+  await restoring.press('kplus-paywall-restore');
+  assert.equal(restoring.env.calls.restore, 1, 'the existing Restore');
+
+  const declining = mount({ voiceScan: true, host: 'sheet' });
+  await declining.press('kplus-paywall-free-path');
+  assert.equal(declining.env.calls.close, 1, 'the Free path closes the sheet');
+  assert.equal(declining.env.calls.monthly + declining.env.calls.lifetime + declining.env.calls.restore, 0);
+
+  const closing = mount({ voiceScan: true, host: 'sheet' });
+  await closing.press('kplus-paywall-sheet-close');
+  assert.equal(closing.env.calls.close, 1);
+
+  // A hidden sheet mounts no paywall and asks the store for nothing.
+  const hidden = mount({ voiceScan: true, host: 'sheet', sheetVisible: false, commerce: IDLE });
+  await settle();
+  hidden.render();
+  assert.ok(!hidden.has('kplus-paywall'));
+  assert.ok(!hidden.has('kplus-paywall-sheet-close'));
+  assert.equal(hidden.env.calls.load, 0, 'no offerings request while hidden');
+});
+
+test('FC-01: the sheet cannot be dismissed while the store sheet is up, and never treats unknown as Free', async () => {
+  const purchasing = mount({ voiceScan: true, host: 'sheet', commerce: commerce({ status: 'PURCHASING', pendingKind: 'MONTHLY' }) });
+  const close = purchasing.node('kplus-paywall-sheet-close');
+  assert.equal(close.props.disabled, true);
+  assert.equal(close.props.accessibilityState.disabled, true);
+  close.props.onPress();
+  assert.equal(purchasing.env.calls.close, 0, 'a tap during a purchase does not dismiss');
+  assert.equal(findAll(purchasing.tree, (n) => n.type === 'Modal')[0].props.onRequestClose(), undefined);
+  assert.equal(purchasing.env.calls.close, 0, 'nor does the system back gesture');
+
+  // Canonical states are the step's, unchanged: no acquisition for a member,
+  // and no paywall on an unknown answer.
+  const member = mount({ voiceScan: true, host: 'sheet', entitlement: { state: 'active', displaySource: 'complimentary' } });
+  assert.equal(screenOf(member), 'complimentary');
+  assert.ok(!member.has('kplus-paywall-cta'), 'a complimentary member is offered no purchase');
+  for (const state of ['loading', 'error']) {
+    const unknown = mount({ voiceScan: true, host: 'sheet', entitlement: { state, displaySource: null } });
+    assert.ok(!unknown.has('kplus-paywall-cta'), `'${state}' is never the acquisition paywall`);
+    assert.ok(unknown.has('kplus-paywall-sheet-close'), 'and the sheet can still be closed');
+  }
+
+  // Accessibility of the one control the wrapper adds.
+  const ui = mount({ voiceScan: true, host: 'sheet' });
+  const button = ui.node('kplus-paywall-sheet-close');
+  assert.equal(button.props.accessibilityRole, 'button');
+  assert.equal(button.props.accessibilityLabel, 'Close');
+  assert.match(stripComments(read(SHEET)), /close:\s*\{[\s\S]*?minHeight: 44,[\s\S]*?minWidth: 44/);
+});
+
+test('FC-01: opened from a product, the step does not record a "Step 6" pitch', () => {
+  const sheet = mount({ voiceScan: true, vto: true, live: VTO_PROMOTED, host: 'sheet' });
+  sheet.render();
+  assert.ok(sheet.has('kplus-paywall-benefit-virtual_try_on'), 'the benefit line is still listed');
+  assert.equal(sheet.env.calls.vtoPitched, undefined, 'the sheet is not onboarding');
+  assert.equal(sheet.env.calls.vtoImpressions, undefined, 'and reports no kplus_step6 impression');
+  // Onboarding still does.
+  const step6 = mount({ voiceScan: true, vto: true, live: VTO_PROMOTED });
+  assert.equal(step6.env.calls.vtoPitched, 1);
+});
+
+// ── FC-02: the promotion dimmer ─────────────────────────────────────────────
+
+/** T8-T12: dimming hides the line; the step and everything commercial stay. */
+async function checkDimmerDoesNotRemoveStep6(o = {}) {
+  for (const eligibility of ['ELIGIBLE', 'INELIGIBLE', 'UNKNOWN']) {
+    const store = { commerce: commerce({ monthlyIntroEligibility: eligibility }) };
+
+    // The hard case: Try It On is the ONLY sellable capability, and its
+    // promotion is dimmed. There is no benefit line left to list.
+    const dimmedOnly = mount({ ...store, voiceScan: false, vto: true, live: VTO_DIMMED, mutateStep: o.mutateStep });
+    assert.equal(dimmedOnly.env.calls.skip, 0, 'Step 6 must not skip itself because VTO promotion is off');
+    assert.ok(dimmedOnly.has('kplus-paywall'), 'the membership paywall is still there');
+    assert.ok(!dimmedOnly.has('kplus-paywall-benefit-virtual_try_on'), 'the Try It On line is hidden');
+    assert.ok(!dimmedOnly.has('kplus-paywall-benefits'), 'and no capability was invented to fill the list');
+    assert.ok(dimmedOnly.has('kplus-paywall-header'), 'the existing membership header carries the screen');
+    assert.equal(dimmedOnly.env.calls.vtoPitched, undefined, 'a hidden line is not recorded as shown');
+
+    // T9-T12: identical to the same store answer with promotion on.
+    const promoted = mount({ ...store, voiceScan: false, vto: true, live: VTO_PROMOTED });
+    assert.ok(promoted.has('kplus-paywall-benefit-virtual_try_on'));
+    const shown = commercialSurface(dimmedOnly);
+    assert.deepEqual(shown, commercialSurface(promoted), 'dimming changes nothing commercial');
+    assert.equal(shown.monthly.state.selected, true, 'MONTHLY_DEFAULT_UNCHANGED');
+    assert.equal(shown.freePath.label, 'Continue with K Scan AI Free', 'FREE_PATH_UNCHANGED');
+    assert.equal(shown.freePath.state.disabled, false);
+    assert.equal(shown.restore.label, 'Restore Purchases', 'RESTORE_UNCHANGED');
+    assert.equal(shown.restore.state.disabled, false);
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null, 'TRIAL_METADATA_UNCHANGED');
+
+    // With another capability advertised, only the Try It On line goes.
+    const dimmedWithVoice = mount({ ...store, voiceScan: true, vto: true, live: VTO_DIMMED, mutateStep: o.mutateStep });
+    assert.ok(dimmedWithVoice.has('kplus-paywall-benefit-voice_scan'));
+    assert.ok(!dimmedWithVoice.has('kplus-paywall-benefit-virtual_try_on'));
+    assert.deepEqual(commercialSurface(dimmedWithVoice), shown);
+  }
+
+  // The purchase still works from the dimmed screen.
+  const buying = mount({ voiceScan: false, vto: true, live: VTO_DIMMED, mutateStep: o.mutateStep });
+  await buying.press('kplus-paywall-cta');
+  assert.equal(buying.env.calls.monthly, 1);
+}
+
+test('FC-02 T7: with VTO awareness ON, Step 6 behaves normally', () => {
+  const ui = mount({ voiceScan: true, vto: true, live: VTO_PROMOTED });
+  assert.ok(ui.has('kplus-paywall-benefit-virtual_try_on'));
+  assert.ok(ui.has('kplus-paywall-benefit-voice_scan'));
+  assert.equal(ui.env.calls.skip, 0);
+  assert.equal(ui.env.calls.vtoPitched, 1);
+  // A reader that reports no promotion answer at all promotes as before.
+  const legacy = mount({ voiceScan: true, vto: true, live: { signals: { virtual_try_on: true }, settled: true } });
+  assert.ok(legacy.has('kplus-paywall-benefit-virtual_try_on'));
+});
+
+test('FC-02 T8-T12: with VTO awareness OFF the line is hidden and Step 6, plans, Free, Restore and trial are unchanged', () =>
+  checkDimmerDoesNotRemoveStep6());
+
+test('NC-FC-02: VTO awareness OFF skipping Step 6 is caught', async () => {
+  await expectRed(
+    () => checkDimmerDoesNotRemoveStep6({
+      mutateStep: mutateOpt(
+        STEP,
+        'const nothingToSell = isAcquisitionEntry && liveSignalsSettled && sellable.length === 0',
+        'const nothingToSell = isAcquisitionEntry && liveSignalsSettled && benefits.length === 0',
+      ),
+    }),
+    'Step 6 existence tied to the promoted benefit list',
+  );
+});
+
+test('FC-02: the step still routes on when NOTHING is sellable -- that rule is about capability, not promotion', () => {
+  // Try It On switched OFF (not dimmed) and nothing else compiled in.
+  const unavailable = mount({
+    voiceScan: false,
+    vto: true,
+    live: { signals: { virtual_try_on: false }, promotion: { virtual_try_on: null }, settled: true },
+  });
+  assert.equal(unavailable.env.calls.skip, 1, 'no working K+ capability -> nothing to sell');
+  // Still asking -> not skipped on a guess.
+  const asking = mount({ voiceScan: false, vto: true, live: { signals: {}, promotion: {}, settled: false } });
+  assert.equal(asking.env.calls.skip, 0);
+});
+
+test('FC-02: served and promoted are separate answers from one read, and promotion never feeds availability', async () => {
+  const signals = runModule('services/kplus/kplusLiveCapabilitySignals.ts', {
+    '../vto/vtoFeatureControl': { getVtoRemoteConfig: async () => ({ enabled: true, awarenessEnabled: false }) },
+  }, { jsx: false });
+  const read1 = (config) => signals.readKPlusLiveCapabilityState({ readVtoConfig: async () => config });
+
+  assert.deepEqual(plain(await read1({ enabled: true, awarenessEnabled: false })), {
+    signals: { virtual_try_on: true }, promotion: { virtual_try_on: false },
+  });
+  assert.deepEqual(plain(await read1({ enabled: true, awarenessEnabled: true })), {
+    signals: { virtual_try_on: true }, promotion: { virtual_try_on: true },
+  });
+  // A reader that predates the field promotes exactly as before.
+  assert.deepEqual(plain(await read1({ enabled: true })), {
+    signals: { virtual_try_on: true }, promotion: { virtual_try_on: true },
+  });
+  // Off is off: served=false, and promotion is not an answer at all.
+  assert.deepEqual(plain(await read1({ enabled: false, awarenessEnabled: true })), {
+    signals: { virtual_try_on: false }, promotion: { virtual_try_on: null },
+  });
+  for (const junk of [null, undefined, {}]) {
+    assert.deepEqual(plain(await read1(junk)).signals, { virtual_try_on: false });
+  }
+  const failed = await signals.readKPlusLiveCapabilityState({ readVtoConfig: async () => { throw new Error('x'); } });
+  assert.deepEqual(plain(failed), { signals: { virtual_try_on: false }, promotion: {} });
+  // The served-only reader is untouched by the dimmer.
+  assert.deepEqual(plain(await signals.readKPlusLiveCapabilitySignals()), { virtual_try_on: true });
+
+  // The catalog: availability ignores promotion; the filter only removes on an
+  // explicit false.
+  const catalog = runModule(CATALOG, {
+    '../../constants/featureFlags': {
+      VOICESCAN_ENABLED: true, VTO_UI_ENABLED: true, ELISE_CONCIERGE_V1: false, PACKING_INTELLIGENCE_V1: false,
+    },
+  }, { jsx: false });
+  const sellable = catalog.resolveActivationCapabilities({}, undefined, { virtual_try_on: true });
+  assert.deepEqual(sellable.map((c) => c.id), ['voice_scan', 'virtual_try_on']);
+  const ids = (promotion) => catalog.selectPromotedCapabilities(sellable, promotion).map((c) => c.id);
+  assert.deepEqual(ids({ virtual_try_on: false }), ['voice_scan']);
+  assert.deepEqual(ids({ virtual_try_on: true }), ['voice_scan', 'virtual_try_on']);
+  assert.deepEqual(ids({ virtual_try_on: null }), ['voice_scan', 'virtual_try_on']);
+  assert.deepEqual(ids({}), ['voice_scan', 'virtual_try_on']);
+  assert.deepEqual(ids(undefined), ['voice_scan', 'virtual_try_on']);
 });
