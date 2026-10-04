@@ -116,6 +116,12 @@ export interface PackingPlanWeather {
   resolvedLocation: string | null;
 }
 
+export interface PackingPlanChange {
+  outfitIndex: number;
+  removedItemIds: string[];
+  addedItemIds: string[];
+}
+
 export interface PackingPlan {
   contractVersion: string;
   planId: string;
@@ -133,6 +139,8 @@ export interface PackingPlan {
   outfits: PackingPlanOutfit[];
   gaps: PackingGap[];
   assumptions: string[];
+  /** Presentation-only metadata derived from two validated server plans. */
+  changes?: PackingPlanChange[];
   constraints: {
     excludedItemIds: string[];
     packLight: boolean;
