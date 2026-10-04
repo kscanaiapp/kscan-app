@@ -124,6 +124,11 @@ verify_jwt = false
 [functions.kplus-revenuecat-pull-reconcile]
 verify_jwt = true
 
+# Customer offer-code ingestion. The function authenticates the actor, hashes
+# the code with a server-only HMAC secret, and invokes the service-only RPC.
+[functions.kplus-offer-redeem]
+verify_jwt = true
+
 # ── Receipt & Purchase Intelligence ──────────────────────────────────────────
 
 [functions.purchase-import-extract]
