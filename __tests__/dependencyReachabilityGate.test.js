@@ -210,6 +210,34 @@ test('Build 35 negative control: aggregate acceptance fails if the braces leaf b
   assert.ok(result.failures.some((failure) => /braces \(high\): now directly imported/.test(failure)));
 });
 
+test('Build 35: runtime aggregate may terminate at an explicitly governed Metro build-only boundary', () => {
+  const report = auditReport({
+    metro: {
+      severity: 'high',
+      via: [{ source: 999010, name: 'metro', dependency: 'metro', severity: 'high' }],
+    },
+    '@react-native/community-cli-plugin': { severity: 'high', via: ['metro'] },
+    'react-native': { severity: 'high', via: ['@react-native/community-cli-plugin'] },
+  }, { high: 3, total: 3 });
+
+  const result = evaluate(report, []);
+  assert.deepEqual(result.failures, []);
+  assert.ok(
+    result.accepted.some(
+      (item) => item.name === '@react-native/community-cli-plugin' &&
+        item.classification === 'TRANSITIVE_BUILD_DEV_ONLY' &&
+        item.via === 'metro',
+    ),
+  );
+  assert.ok(
+    result.accepted.some(
+      (item) => item.name === 'react-native' &&
+        item.classification === 'TRANSITIVE_BUILD_DEV_ONLY' &&
+        item.via === 'metro',
+    ),
+  );
+});
+
 // ------------------------------------------------- negative A: exception removed
 
 test('B34-DEF-014 negative control: removing an approved exception fails the gate', () => {
