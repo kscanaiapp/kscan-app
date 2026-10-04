@@ -287,6 +287,10 @@ export function PackingPlanView({
   }, [plan.packedItems]);
 
   const sections = useMemo(() => groupByRole(plan.packedItems), [plan.packedItems]);
+  const changedOutfitIndexes = useMemo(
+    () => new Set((plan.changes ?? []).map((change) => change.outfitIndex)),
+    [plan.changes],
+  );
   const checked = useMemo(() => new Set(packedOff ?? []), [packedOff]);
   // Counted from the items actually rendered, so the header can never claim a
   // tick for an item this plan does not contain.
@@ -370,11 +374,22 @@ export function PackingPlanView({
       ) : null}
 
       <SectionHeader title="LOOKS" />
-      {plan.outfits.map((outfit) => (
+      {plan.outfits.map((outfit, outfitIndex) => (
         <View key={outfit.outfitId} style={styles.outfitCard} testID={`packing-outfit-${outfit.outfitId}`}>
-          <Text style={styles.outfitLabel}>
-            {(outfit.activity ? PACKING_ACTIVITY_LABELS[outfit.activity] : outfit.label).toUpperCase()}
-          </Text>
+          <View style={styles.outfitHeadingRow}>
+            <Text style={styles.outfitLabel}>
+              {(outfit.activity ? PACKING_ACTIVITY_LABELS[outfit.activity] : outfit.label).toUpperCase()}
+            </Text>
+            {changedOutfitIndexes.has(outfitIndex) ? (
+              <Text
+                style={styles.updatedBadge}
+                accessibilityLabel="Updated by your last change"
+                testID={`packing-outfit-updated-${outfitIndex}`}
+              >
+                UPDATED
+              </Text>
+            ) : null}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.outfitRow}>
             {outfit.itemIds.map((itemId) => {
               const item = itemsById.get(itemId);
@@ -694,6 +709,22 @@ const styles = StyleSheet.create({
     borderColor: LUXURY.colors.border,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+  },
+  outfitHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  updatedBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: LUXURY.colors.gold,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    overflow: 'hidden',
   },
   outfitLabel: {
     ...LUXURY.typography.sectionLabel,

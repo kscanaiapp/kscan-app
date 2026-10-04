@@ -40,8 +40,10 @@ import {
   writeCachedPackedOff,
   writeCachedPackingPlan,
 } from '../services/packing/packingPlanCache';
-import type { PackingTripDraft } from '../types/packing';
+import type { PackingPlan, PackingTripDraft } from '../types/packing';
 import { resolveRefinementIntent } from '../services/packing/packingRefinement';
+import { createRefinementSequence } from '../services/packing/packingRefinementSequence';
+import { diffPackingPlanChanges } from '../services/packing/packingPlanChanges';
 
 export interface UsePackingPlanResult extends PackingSnapshot {
   available: boolean;
@@ -106,13 +108,20 @@ export function usePackingPlan(): UsePackingPlanResult {
 
   const available = PACKING_INTELLIGENCE_V1 && isAuthenticated;
 
+  const requestGenerationRef = useRef(0);
+  const refinementSequenceRef = useRef<ReturnType<typeof createRefinementSequence> | null>(null);
+  refinementSequenceRef.current ??= createRefinementSequence();
+
   const run = useCallback(
     async (
       trip: PackingTripDraft,
       constraints: { excludeItemIds: string[]; notes: string[]; packLight: boolean },
       sessionId: string,
+      markChanges = false,
     ) => {
       if (!actorId) return;
+      const requestGeneration = ++requestGenerationRef.current;
+      const priorPlan: PackingPlan | null = markChanges ? getPackingSnapshotFor(actorId).plan : null;
       // Capture the actor generation before the request. An A -> B -> A cycle
       // returns the same actorId but a new epoch, so the epoch-based scope
       // (not actorId alone) is what correctly rejects a response that resolves
@@ -148,12 +157,16 @@ export function usePackingPlan(): UsePackingPlanResult {
       // late completion across an actor boundary is discarded, exactly as
       // useCloset()/useLibrary() discard theirs.
       if (!isActorScopeCurrent(scope)) return;
+      if (requestGenerationRef.current !== requestGeneration) return;
 
       if (result.status === 'success' && result.plan) {
-        applyPackingPlan({ actorId, plan: result.plan, message: result.message });
+        const nextPlan: PackingPlan = priorPlan
+          ? { ...result.plan, changes: diffPackingPlanChanges(priorPlan, result.plan) }
+          : result.plan;
+        applyPackingPlan({ actorId, plan: nextPlan, message: result.message });
         // UX-4. Cached AFTER the actor-scope check above, so a plan that
         // belongs to a departed actor is never written to this device at all.
-        void writeCachedPackingPlan({ actorId, plan: result.plan, message: result.message });
+        void writeCachedPackingPlan({ actorId, plan: nextPlan, message: result.message });
         emitKPlusEvent('kplus_feature_completed', { source: 'packing', feature: 'packing' });
         return;
       }
@@ -239,6 +252,7 @@ export function usePackingPlan(): UsePackingPlanResult {
         current.trip,
         { excludeItemIds, notes: current.constraintNotes, packLight: current.packLight },
         current.sessionId ?? newSessionId(),
+        true,
       );
     },
     [available, actorId, run],
@@ -246,27 +260,25 @@ export function usePackingPlan(): UsePackingPlanResult {
 
   const refineWith = useCallback(
     async (note: string) => {
-      const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
-      if (!available || !actorId || !current.trip || !note.trim()) return;
+      if (!available || !actorId || !note.trim()) return;
+      await refinementSequenceRef.current!(async () => {
+        const current = getPackingSnapshotFor(actorId);
+        if (!current.trip) return;
 
-      // A refinement that unambiguously names one item in the plan on screen
-      // becomes a HARD exclusion the server enforces in post-model
-      // validation -- so "don't bring the boots" removes the boots whether or
-      // not the model cooperates. Anything the resolver cannot decode still
-      // reaches the model as a constraint, so a refinement never silently
-      // does nothing.
-      const intent = resolveRefinementIntent(note, current.plan);
-      const notes = addPackingConstraintNote(actorId, intent.note);
-      let excludeItemIds = current.excludedItemIds;
-      for (const itemId of intent.excludeItemIds) {
-        excludeItemIds = excludePackingItem(actorId, itemId);
-      }
+        const intent = resolveRefinementIntent(note, current.plan);
+        const notes = addPackingConstraintNote(actorId, intent.note);
+        let excludeItemIds = current.excludedItemIds;
+        for (const itemId of intent.excludeItemIds) {
+          excludeItemIds = excludePackingItem(actorId, itemId);
+        }
 
-      await run(
-        current.trip,
-        { excludeItemIds, notes, packLight: current.packLight },
-        current.sessionId ?? newSessionId(),
-      );
+        await run(
+          current.trip,
+          { excludeItemIds, notes, packLight: current.packLight },
+          current.sessionId ?? newSessionId(),
+          true,
+        );
+      });
     },
     [available, actorId, run],
   );
@@ -280,6 +292,7 @@ export function usePackingPlan(): UsePackingPlanResult {
         current.trip,
         { excludeItemIds: current.excludedItemIds, notes: current.constraintNotes, packLight },
         current.sessionId ?? newSessionId(),
+        true,
       );
     },
     [available, actorId, run],

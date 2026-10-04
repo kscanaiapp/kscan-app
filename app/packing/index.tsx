@@ -26,6 +26,7 @@ import { useCloset } from '../../hooks/useCloset';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
 import type { PackingTripDraft } from '../../types/packing';
+import { PACKING_REFINEMENT_CHIPS, packingChipIsActive, type RefinementChip } from '../../services/refinementChips';
 
 /**
  * The visible stages correspond to real server-side work, IN THE ORDER THE
@@ -136,6 +137,19 @@ export default function PackingScreen() {
       if (timer) clearTimeout(timer);
     };
   }, [busy]);
+
+  const [pendingChipId, setPendingChipId] = useState<string | null>(null);
+  React.useEffect(() => {
+    if (!busy) setPendingChipId(null);
+  }, [busy]);
+
+  const handleChip = useCallback(
+    (chip: RefinementChip) => {
+      setPendingChipId(chip.id);
+      void packing.refineWith(chip.message);
+    },
+    [packing],
+  );
 
   const handleRefine = useCallback(() => {
     const note = refinement.trim();
@@ -313,6 +327,29 @@ export default function PackingScreen() {
                     // Nothing here edits the visible plan directly.
                     <View style={styles.refineBlock} testID="packing-refine">
                       <Text style={styles.refineLabel}>REFINE WITH ELISE</Text>
+                      <View style={styles.chipRow} testID="packing-refine-chips">
+                        {PACKING_REFINEMENT_CHIPS.map((chip) => {
+                          const active = packingChipIsActive(chip, packing.plan);
+                          const pending = pendingChipId === chip.id;
+                          return (
+                            <Pressable
+                              key={chip.id}
+                              onPress={() => handleChip(chip)}
+                              disabled={busy || active}
+                              style={[styles.chip, active || pending ? styles.chipOn : null]}
+                              accessibilityRole="button"
+                              accessibilityLabel={active ? `${chip.label}, already applied` : chip.label}
+                              accessibilityState={{ selected: active, disabled: busy || active, busy: pending }}
+                              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                              testID={`packing-chip-${chip.id}`}
+                            >
+                              <Text style={[styles.chipText, active || pending ? styles.chipTextOn : null]}>
+                                {chip.label.toUpperCase()}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                       <TextInput
                         value={refinement}
                         onChangeText={setRefinement}
@@ -433,6 +470,36 @@ const styles = StyleSheet.create({
   refineLabel: {
     ...LUXURY.typography.sectionLabel,
     marginBottom: SPACING.sm,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  chip: {
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.pearl,
+  },
+  chipOn: {
+    borderColor: LUXURY.colors.gold,
+    backgroundColor: 'rgba(198, 161, 91, 0.14)',
+  },
+  chipText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.graphite,
+    letterSpacing: 0.6,
+  },
+  chipTextOn: {
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
   },
   refineInput: {
     ...LUXURY.typography.body,
