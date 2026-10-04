@@ -292,6 +292,98 @@ function loadExceptions(exceptionsPath = EXCEPTIONS_PATH) {
 }
 
 /**
+ * Resolve the blocking direct-advisory leaves behind one npm-audit finding.
+ * npm audit propagates a leaf advisory's severity to every parent in the
+ * dependency chain. In audit v2, direct advisories are objects in `via`; parent
+ * findings normally point at another vulnerable package by string name.
+ *
+ * This distinction matters for packages such as react-native: the package is
+ * part of the shipped runtime, but an aggregate HIGH can still be inherited
+ * solely through its bundled Jest/Metro build tooling. We must not label the
+ * runtime package BUILD_DEV_ONLY; we instead prove the audit's `via` graph ends
+ * at an explicitly approved build/dev-only advisory leaf.
+ */
+function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set()) {
+  const vulnerabilities = report.vulnerabilities || {};
+  const finding = vulnerabilities[packageName];
+  const leaves = new Set();
+  const unresolved = new Set();
+
+  if (!finding || typeof finding !== 'object') {
+    unresolved.add(packageName);
+    return { leaves, unresolved };
+  }
+  if (stack.has(packageName)) {
+    unresolved.add(packageName);
+    return { leaves, unresolved };
+  }
+
+  const nextStack = new Set(stack);
+  nextStack.add(packageName);
+  const via = Array.isArray(finding.via) ? finding.via : [];
+
+  for (const item of via) {
+    if (typeof item === 'string') {
+      const nested = resolveBlockingAdvisoryLeaves(report, item, nextStack);
+      for (const leaf of nested.leaves) leaves.add(leaf);
+      for (const missing of nested.unresolved) unresolved.add(missing);
+      continue;
+    }
+    if (!item || typeof item !== 'object' || !BLOCKING_SEVERITIES.has(item.severity)) continue;
+    const dependency =
+      (typeof item.dependency === 'string' && item.dependency) ||
+      (typeof item.name === 'string' && item.name) ||
+      packageName;
+    leaves.add(dependency);
+  }
+
+  // A blocking finding with no usable `via` metadata is never assumed to be an
+  // aggregate. Treat the package itself as the direct leaf so it still needs an
+  // explicit exception (or remediation) and therefore fails closed by default.
+  if (leaves.size === 0 && unresolved.size === 0 && BLOCKING_SEVERITIES.has(finding.severity)) {
+    leaves.add(packageName);
+  }
+
+  return { leaves, unresolved };
+}
+
+/**
+ * An unexcepted parent may be accepted only when ALL of its blocking advisory
+ * leaves are explicitly approved BUILD_DEV_ONLY exceptions and each leaf's
+ * manifest entry explicitly names this parent in `aggregateParents`.
+ *
+ * This is deliberately stricter than "the leaf has an exception": it prevents
+ * a broad leaf waiver from automatically blessing unrelated runtime parents.
+ */
+function evaluateApprovedAggregate({ report, name, byPackage, isImported }) {
+  const { leaves, unresolved } = resolveBlockingAdvisoryLeaves(report, name);
+  if (unresolved.size > 0 || leaves.size === 0 || leaves.has(name)) return { ok: false };
+
+  for (const leaf of leaves) {
+    const leafFinding = (report.vulnerabilities || {})[leaf];
+    const exception = byPackage.get(leaf);
+    if (!leafFinding || !exception) return { ok: false };
+    if (exception.classification !== 'BUILD_DEV_ONLY') return { ok: false };
+    // A severity escalation is new risk. Do not let yesterday's HIGH waiver
+    // silently cover tomorrow's CRITICAL advisory.
+    if (exception.severity !== leafFinding.severity) return { ok: false };
+    if (!Array.isArray(exception.aggregateParents) || !exception.aggregateParents.includes(name)) {
+      return { ok: false };
+    }
+    if (isImported(leaf)) {
+      return {
+        ok: false,
+        failure:
+          `${name} (${report.vulnerabilities[name].severity}): inherited advisory leaf ${leaf} is now directly imported ` +
+          `from shipped app source — the documented BUILD_DEV_ONLY leaf exception no longer holds.`,
+      };
+    }
+  }
+
+  return { ok: true, leaves: [...leaves].sort() };
+}
+
+/**
  * Pure evaluation: given a validated audit report, the exceptions manifest and
  * an import oracle, decide what fails. Separated from process/IO so every
  * negative control can be exercised from a deterministic fixture instead of a
@@ -307,6 +399,20 @@ function evaluateReachability({ report, manifest, byPackage, isImported }) {
 
     const exception = byPackage.get(name);
     if (!exception) {
+      const aggregate = evaluateApprovedAggregate({ report, name, byPackage, isImported });
+      if (aggregate.ok) {
+        accepted.push({
+          name,
+          severity: finding.severity,
+          classification: 'TRANSITIVE_BUILD_DEV_ONLY',
+          via: aggregate.leaves.join(','),
+        });
+        continue;
+      }
+      if (aggregate.failure) {
+        failures.push(aggregate.failure);
+        continue;
+      }
       failures.push(
         `${name} (${finding.severity}): no approved exception on file. ` +
           'Either this is genuinely new, or it must be triaged and added to ' +
@@ -411,6 +517,7 @@ module.exports = {
   makeImportChecker,
   parseAuditOutput,
   readAppSource,
+  resolveBlockingAdvisoryLeaves,
   resolveNpmInvocation,
   runAudit,
 };
