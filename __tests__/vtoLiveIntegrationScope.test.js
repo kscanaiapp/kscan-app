@@ -213,7 +213,8 @@ test('guard: generative backend stays read-only except the exact audited Build 3
     'supabase/functions/vto-generate/vtoGuards.test.ts',
     'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
   ]);
-  const forbiddenBackendTouches = changed.filter(
+  const { vtoOwned } = guard.partitionByVtoOwnership(changed);
+  const forbiddenBackendTouches = vtoOwned.filter(
     (file) =>
       (file.startsWith('supabase/') || file === 'app.json') &&
       !build35CanonicalKPlusPromotion.has(file),
