@@ -50,20 +50,24 @@ function ItemReactionsComponent({
     <View style={styles.row}>
       {reactions.map(({ reactionType, emoji, label, count }) => {
         const selected = selectedReaction === reactionType;
-        const buttonDisabled = disabled || isMutating || !onReact;
+        // A request already in flight must not make the control go dead:
+        // another tap represents a newer intent and is coalesced by the shared
+        // reaction queue. Mutating is therefore a busy cue, not a disable.
+        const buttonDisabled = disabled || !onReact;
         return (
           <Pressable
             key={reactionType}
             accessibilityRole="button"
             accessibilityLabel={`${label} reaction, count ${count}${selected ? ', selected' : ''}`}
             accessibilityHint={buttonDisabled ? undefined : `Toggle ${label} reaction`}
-            accessibilityState={{ disabled: buttonDisabled, selected }}
+            accessibilityState={{ disabled: buttonDisabled, selected, busy: isMutating }}
             disabled={buttonDisabled}
             onPress={() => onReact?.(itemId, reactionType)}
             style={({ pressed }) => [
               styles.reactionButton,
               selected ? styles.reactionButtonSelected : null,
               buttonDisabled ? styles.reactionButtonDisabled : null,
+              isMutating && !buttonDisabled ? styles.reactionButtonMutating : null,
               pressed && !buttonDisabled ? styles.reactionButtonPressed : null,
             ]}
           >
@@ -105,6 +109,9 @@ const styles = StyleSheet.create({
   },
   reactionButtonDisabled: {
     opacity: 0.6,
+  },
+  reactionButtonMutating: {
+    opacity: 0.85,
   },
   reactionButtonPressed: {
     backgroundColor: LUXURY.colors.pearl,
