@@ -45,7 +45,7 @@ export function HomeVtoDiscoveryCard({ style }: HomeVtoDiscoveryCardProps) {
     <View style={[styles.card, style]} testID="home-vto-discovery-card">
       <View style={styles.headerRow}>
         <View
-          style={styles.iconWrap}
+          style={styles.iconTile}
           accessible={false}
           importantForAccessibility="no"
           accessibilityElementsHidden
@@ -69,18 +69,20 @@ export function HomeVtoDiscoveryCard({ style }: HomeVtoDiscoveryCardProps) {
         </View>
         <Pressable
           onPress={handleDismiss}
-          style={styles.dismiss}
+          style={({ pressed }) => [styles.dismiss, pressed && styles.dismissPressed]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={COPY.homeDismissA11y}
           testID="home-vto-discovery-dismiss"
         >
-          <Text style={styles.dismissGlyph}>×</Text>
+          <View style={styles.dismissCircle}>
+            <Text style={styles.dismissGlyph}>×</Text>
+          </View>
         </Pressable>
       </View>
       <Pressable
         onPress={handleScan}
-        style={styles.primary}
+        style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
         accessibilityRole="button"
         accessibilityLabel={COPY.homePrimaryA11y}
         accessibilityHint={COPY.homePrimaryHint}
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: LUXURY.colors.hairline,
     padding: SPACING.lg,
-    gap: SPACING.md,
+    gap: SPACING.lg,
     ...SHADOWS.editorialSmall,
   },
   headerRow: {
@@ -107,9 +109,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: SPACING.md,
   },
-  iconWrap: {
-    width: 28,
-    height: 28,
+  iconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.champagne,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -124,13 +130,14 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   title: {
-    ...LUXURY.typography.bodyStrong,
-    fontSize: 15,
+    ...LUXURY.typography.displayTitle,
+    fontSize: 20,
+    lineHeight: 26,
     color: LUXURY.colors.ink,
   },
   body: {
     ...LUXURY.typography.body,
-    fontSize: 13,
+    fontSize: 13.5,
     lineHeight: 20,
     color: LUXURY.colors.graphite,
   },
@@ -142,9 +149,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dismissPressed: {
+    opacity: 0.6,
+  },
+  dismissCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dismissGlyph: {
-    fontSize: 20,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 20,
     color: LUXURY.colors.graphite,
   },
   primary: {
@@ -152,15 +171,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.gold,
-    backgroundColor: LUXURY.colors.champagne,
+    backgroundColor: LUXURY.colors.plumDeep,
+  },
+  primaryPressed: {
+    backgroundColor: LUXURY.colors.plum,
   },
   primaryText: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.plumDeep,
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.pearl,
     textAlign: 'center',
   },
 });

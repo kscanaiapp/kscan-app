@@ -1274,6 +1274,7 @@ function renderEntry(o = {}) {
       'react-native': createReactNativeStub(),
       '../../constants/theme': { LUXURY: deepStub(), RADIUS: deepStub(), SPACING: deepStub() },
       '../../services/haptics': { selectionTick: () => { calls.haptics += 1; } },
+      '../icons/kscan': { KScanIcon: 'KScanIcon' },
       '../kplus/KPlusGate': gateModule,
       '../../hooks/useVtoAvailability': availability,
       '../../hooks/useVtoAwareness': awarenessHooks,

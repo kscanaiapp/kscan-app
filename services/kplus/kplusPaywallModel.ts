@@ -21,8 +21,10 @@
  *      no discount percentage. A plan whose terms cannot be stated truthfully is
  *      not offered.
  *   4. Promise what is not operational. The trial-reminder line and the promo
- *      entry point are gated by KPLUS_PAYWALL_PRESENTATION, which is false until
- *      the owning systems are proven (Build 35 Phase E).
+ *      entry point are gated by KPLUS_PAYWALL_PRESENTATION. The promo entry
+ *      opens the in-step redemption surface, which makes no commercial promise
+ *      and answers UNAVAILABLE until the integration audit supplies the
+ *      ingestion port; the trial reminder stays off until reminders are proven.
  */
 import type {
   KPlusCommerceSnapshot,
@@ -44,15 +46,20 @@ export interface KPlusPaywallPresentationConfig {
    */
   trialReminderDeliveryOperational: boolean;
   /**
-   * True only once a store-native or server-authoritative redemption mechanism
-   * exists. Until then "Redeem an offer" is not rendered (no dead link).
+   * True once a real redemption destination exists. The membership step now
+   * hosts the customer-facing redemption surface itself
+   * (components/kplus/KPlusRedeemOfferPanel.tsx): the entry opens a genuine
+   * surface with bounded states, so the link is no longer dead. The
+   * server-side ingestion authority is supplied later, through the
+   * redeemOfferCode port, by the integration audit; until then submissions
+   * resolve to the honest UNAVAILABLE state.
    */
   promoRedemptionAvailable: boolean;
 }
 
 export const KPLUS_PAYWALL_PRESENTATION: KPlusPaywallPresentationConfig = Object.freeze({
   trialReminderDeliveryOperational: false,
-  promoRedemptionAvailable: false,
+  promoRedemptionAvailable: true,
 });
 
 // ── Copy ─────────────────────────────────────────────────────────────────────

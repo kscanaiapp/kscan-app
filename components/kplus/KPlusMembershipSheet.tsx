@@ -13,7 +13,9 @@
  * identifier or purchase call in this file, and there must never be one: every
  * one of those comes from services/kplus/kplusPaywallModel.ts and the K+
  * commerce service through the step it renders. What this file adds is a host
- * (a Modal, a scroll container, safe-area padding) and a way to close it.
+ * (a Modal, a scroll container, safe-area padding) and a way to close it, plus
+ * a pass-through for the redeemOfferCode port the integration audit will
+ * supply to the step's "Redeem an offer" surface.
  *
  * The step is mounted only while the sheet is visible, so store products are
  * requested when a customer actually asks and its UI state starts fresh each
@@ -29,6 +31,7 @@ import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useKPlusCommerceSnapshot } from '../../hooks/useKPlusCommerce';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { KPlusMembershipStep } from './KPlusMembershipStep';
+import type { KPlusOfferRedemptionPort } from '../../services/kplus/kplusOfferRedemption';
 
 /** The store's own sheet is up. Leaving now would hide what it is asking. */
 const STORE_OPERATION_IN_FLIGHT = new Set<string>(['PURCHASING', 'RESTORING']);
@@ -36,9 +39,15 @@ const STORE_OPERATION_IN_FLIGHT = new Set<string>(['PURCHASING', 'RESTORING']);
 export interface KPlusMembershipSheetProps {
   visible: boolean;
   onClose: () => void;
+  /**
+   * Offer-redemption port, handed straight through to the membership step's
+   * "Redeem an offer" surface. Optional: without it the surface answers
+   * UNAVAILABLE (the ingestion authority arrives with the integration audit).
+   */
+  redeemOfferCode?: KPlusOfferRedemptionPort;
 }
 
-export function KPlusMembershipSheet({ visible, onClose }: KPlusMembershipSheetProps) {
+export function KPlusMembershipSheet({ visible, onClose, redeemOfferCode }: KPlusMembershipSheetProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const { user } = useAuthSession();
@@ -61,11 +70,19 @@ export function KPlusMembershipSheet({ visible, onClose }: KPlusMembershipSheetP
     >
       {visible ? (
         <View style={[styles.root, { paddingTop: insets.top }]}>
+          {/* Sheet affordance: a quiet grabber marks this as a card that can be
+              dismissed, so the Close action below never carries that meaning alone. */}
+          <View
+            style={styles.grabber}
+            accessible={false}
+            importantForAccessibility="no"
+            accessibilityElementsHidden
+          />
           <View style={styles.bar}>
             <Pressable
               onPress={close}
               disabled={locked}
-              style={styles.close}
+              style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
               accessibilityRole="button"
               accessibilityLabel="Close"
               accessibilityHint="Closes K+ membership options"
@@ -86,6 +103,7 @@ export function KPlusMembershipSheet({ visible, onClose }: KPlusMembershipSheetP
               context="sheet"
               onContinue={onClose}
               onSkip={onClose}
+              redeemOfferCode={redeemOfferCode}
             />
           </ScrollView>
         </View>
@@ -96,10 +114,21 @@ export function KPlusMembershipSheet({ visible, onClose }: KPlusMembershipSheetP
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: LUXURY.colors.ivory },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: P.plumHairline,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
   bar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.plumHairline,
   },
   close: {
     minHeight: 44,
@@ -108,8 +137,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.sm,
   },
+  closePressed: { opacity: 0.6 },
   closeText: { ...LUXURY.typography.body, fontSize: 14, fontWeight: '600', color: P.graphite },
   closeTextLocked: { color: P.graphiteLight },
   scroll: { flex: 1 },
-  content: { flexGrow: 1, paddingHorizontal: SPACING.lg },
+  // On wide phones the membership content stays a composed column instead of
+  // stretching edge to edge.
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
 });

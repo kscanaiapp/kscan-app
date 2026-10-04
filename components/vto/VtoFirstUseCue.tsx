@@ -19,6 +19,7 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { useVtoFirstUseCue, type VtoMeasurable } from '../../hooks/useVtoAwareness';
 import { selectionTick } from '../../services/haptics';
 import { VTO_DISCOVERY_COPY as COPY, type VtoProductCta } from '../../services/vto/vtoDiscovery';
+import { KScanIcon } from '../icons/kscan';
 
 export interface VtoFirstUseCueProps {
   /** What the control this cue points at currently does. */
@@ -47,14 +48,30 @@ export function VtoFirstUseCue({ cta, targetRef, onTry, testID = 'vto-first-use-
 
   return (
     <View style={styles.cue} testID={testID} accessibilityLiveRegion="polite">
-      <Text style={styles.title} accessibilityRole="header">
-        {COPY.title}
-      </Text>
+      <View style={styles.titleRow}>
+        <View
+          style={styles.titleIcon}
+          accessible={false}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        >
+          <KScanIcon
+            name="try-on"
+            size={16}
+            variant="compact"
+            color={LUXURY.colors.plumDeep}
+            accentColor={LUXURY.colors.gold}
+          />
+        </View>
+        <Text style={styles.title} accessibilityRole="header">
+          {COPY.title}
+        </Text>
+      </View>
       <Text style={styles.body}>{COPY.cueBody}</Text>
       <View style={styles.actions}>
         <Pressable
           onPress={handleTry}
-          style={[styles.action, styles.primary]}
+          style={({ pressed }) => [styles.action, styles.primary, pressed && styles.primaryPressed]}
           accessibilityRole="button"
           accessibilityLabel={COPY.title}
           testID={`${testID}-try`}
@@ -63,7 +80,7 @@ export function VtoFirstUseCue({ cta, targetRef, onTry, testID = 'vto-first-use-
         </Pressable>
         <Pressable
           onPress={handleDismiss}
-          style={styles.action}
+          style={({ pressed }) => [styles.action, pressed && styles.dismissPressed]}
           accessibilityRole="button"
           accessibilityLabel={COPY.cueDismissA11y}
           testID={`${testID}-dismiss`}
@@ -71,6 +88,13 @@ export function VtoFirstUseCue({ cta, targetRef, onTry, testID = 'vto-first-use-
           <Text style={styles.dismissText}>{COPY.cueDismiss}</Text>
         </Pressable>
       </View>
+      {/*
+          The cue teaches the control directly beneath it, so it carries a
+          small diamond pointer on its bottom edge -- a nudge from a fashion
+          assistant, visually connected to the button it describes. Pure
+          layout: in flow, decorative, and it never intercepts a touch.
+      */}
+      <View style={styles.pointer} pointerEvents="none" />
     </View>
   );
 }
@@ -78,12 +102,29 @@ export function VtoFirstUseCue({ cta, targetRef, onTry, testID = 'vto-first-use-
 const styles = StyleSheet.create({
   cue: {
     marginTop: SPACING.sm,
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
     gap: SPACING.xs,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: LUXURY.colors.hairline,
     backgroundColor: LUXURY.colors.pearl,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  titleIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.sm,
+    backgroundColor: LUXURY.colors.champagne,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     ...LUXURY.typography.bodyStrong,
@@ -111,16 +152,35 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
   },
   primary: {
-    borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
-    backgroundColor: LUXURY.colors.champagne,
+    backgroundColor: LUXURY.colors.plumDeep,
+  },
+  primaryPressed: {
+    backgroundColor: LUXURY.colors.plum,
   },
   primaryText: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.plumDeep,
+    ...LUXURY.typography.cta,
+    fontSize: 12,
+    color: LUXURY.colors.pearl,
+  },
+  dismissPressed: {
+    opacity: 0.6,
   },
   dismissText: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.graphite,
+  },
+  // A rotated square sitting on the cue's bottom hairline: the half below the
+  // edge reads as the pointer aimed at the Try It On control.
+  pointer: {
+    alignSelf: 'center',
+    width: 12,
+    height: 12,
+    marginTop: SPACING.xxs,
+    marginBottom: -6,
+    backgroundColor: LUXURY.colors.pearl,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    transform: [{ rotate: '45deg' }],
   },
 });

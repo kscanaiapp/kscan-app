@@ -200,6 +200,7 @@ function mount(o = {}) {
     '../../constants/theme': themeTokens,
     '../../constants/kplusPaywallTheme': theme,
     '../../services/kplus/kplusPaywallModel': m,
+    '../icons/kscan': { KScanIcon: 'KScanIcon' },
   }, { mutate: o.mutateParts });
   const commerceService = {
     KPLUS_COMMERCE_RECHECK_DELAYS_MS: [2000, 5000, 10000, 20000],
@@ -238,6 +239,10 @@ function mount(o = {}) {
     },
     '../../services/vto/vtoDiscovery': discovery,
     './KPlusPaywallParts': parts,
+    // The redemption surface is exercised for real in
+    // __tests__/kplusRedeemOfferPresentation.test.js; here a named host proves
+    // the step's wiring (entry -> panel -> back) without duplicating it.
+    './KPlusRedeemOfferPanel': { KPlusRedeemOfferPanel: 'KPlusRedeemOfferPanel' },
   }, { mutate: o.mutateStep });
 
   const props = {
@@ -954,15 +959,43 @@ test('copy corrections: no permanence promise, Lifetime CTA and subline as appro
   assert.match(model.KPLUS_PAYWALL_COPY.eyebrow, /K SCAN AI/, 'product name is K Scan AI, never bare K Scan');
 });
 
-test('promo: "Redeem an offer" is a hidden seam until a real destination exists (no dead link)', async () => {
-  assert.equal(model.KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable, false);
+test('promo: "Redeem an offer" opens the real in-step redemption surface (presentation seam)', async () => {
+  // The dormant seam is replaced by the real presentation seam: the entry is
+  // rendered because the destination -- the in-step redemption surface --
+  // exists. What does NOT exist yet is the ingestion authority, which the
+  // integration audit supplies through the redeemOfferCode port; the surface
+  // itself is proven in __tests__/kplusRedeemOfferPresentation.test.js.
+  assert.equal(model.KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable, true);
+
   const ui = mount();
-  assert.ok(!ui.has('kplus-paywall-promo'));
-  assert.doesNotMatch(ui.text(), /Redeem/);
-  // Even with a handler, the presentation switch must also be on.
-  const withHandler = mount({ props: { onRedeemOffer: () => {} } });
-  assert.ok(!withHandler.has('kplus-paywall-promo'));
-  assert.doesNotMatch(stripComments(read(STEP)), /redeem.*code|TextInput|access.?code/i, 'no text-code backend invented');
+  assert.ok(ui.has('kplus-paywall-promo'), 'the Redeem an offer entry renders on the paywall');
+  assert.match(ui.text(), /Redeem an offer/);
+  // Secondary to the plans, Restore and the Free path, which are untouched.
+  assert.ok(ui.has('kplus-paywall-plans'));
+  assert.ok(ui.has('kplus-paywall-restore'));
+  assert.ok(ui.has('kplus-paywall-free-path'));
+
+  await ui.press('kplus-paywall-promo');
+  const panels = findAll(ui.tree, (n) => n.type === 'KPlusRedeemOfferPanel');
+  assert.equal(panels.length, 1, 'the entry opens the redemption surface');
+  assert.ok(!ui.has('kplus-paywall'), 'the paywall body swaps out while redeeming');
+  // No port wired yet: the panel receives none and answers UNAVAILABLE itself.
+  assert.equal(panels[0].props.redeemOfferCode, undefined);
+
+  // Cancel returns to the unchanged paywall.
+  panels[0].props.onClose();
+  await settle();
+  ui.render();
+  assert.ok(ui.has('kplus-paywall'), 'closing the surface returns to the paywall');
+  assert.ok(ui.has('kplus-paywall-promo'));
+
+  // The step stays a host: the code input and its states live in the panel.
+  assert.doesNotMatch(stripComments(read(STEP)), /TextInput/, 'no code input in the step itself');
+  assert.doesNotMatch(
+    stripComments(read(STEP)),
+    /functions\.invoke|supabaseClient|revenuecat|presentPaywall/i,
+    'no redemption backend call in the step',
+  );
 });
 
 test('legal: Privacy, Terms, Billing/Cancellation/Refunds and Restore are reachable and match the K+ legal authority', async () => {

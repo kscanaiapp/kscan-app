@@ -24,10 +24,11 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, type View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { selectionTick } from '../../services/haptics';
+import { KScanIcon } from '../icons/kscan';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { useVtoAvailability } from '../../hooks/useVtoAvailability';
 import { useVtoActorKPlusState, useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
@@ -168,15 +169,29 @@ export function TryItOnEntry({
               <Pressable
                 ref={controlRef}
                 onPress={unlock}
-                style={styles.button}
+                style={({ pressed }) => [styles.button, styles.buttonUnlock, pressed && styles.buttonUnlockPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="Try It On is available with K+"
                 accessibilityHint="Opens K+ membership options"
                 testID={testID ? `${testID}-upgrade` : 'try-it-on-upgrade'}
               >
-                <Text style={styles.label} numberOfLines={1}>
-                  {VTO_DISCOVERY_COPY.productUnlockLabel}
-                </Text>
+                <View
+                  style={styles.buttonContent}
+                  accessible={false}
+                  importantForAccessibility="no"
+                  accessibilityElementsHidden
+                >
+                  <KScanIcon
+                    name="try-on"
+                    size={16}
+                    variant="compact"
+                    color={LUXURY.colors.plumDeep}
+                    accentColor={LUXURY.colors.gold}
+                  />
+                  <Text style={[styles.label, styles.labelUnlock]} numberOfLines={1}>
+                    {VTO_DISCOVERY_COPY.productUnlockLabel}
+                  </Text>
+                </View>
               </Pressable>
             </>
           );
@@ -193,15 +208,29 @@ export function TryItOnEntry({
       <Pressable
         ref={controlRef}
         onPress={openSheet}
-        style={styles.button}
+        style={({ pressed }) => [styles.button, styles.buttonTryOn, pressed && styles.buttonTryOnPressed]}
         accessibilityRole="button"
         accessibilityLabel={`Try on ${garmentTitle}`}
         accessibilityHint="Opens virtual try-on with a photo you choose"
         testID={testID ?? 'try-it-on-button'}
       >
-        <Text style={styles.label} numberOfLines={1}>
-          {VTO_DISCOVERY_COPY.productLabel}
-        </Text>
+        <View
+          style={styles.buttonContent}
+          accessible={false}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
+        >
+          <KScanIcon
+            name="try-on"
+            size={16}
+            variant="compact"
+            color={LUXURY.colors.pearl}
+            accentColor={LUXURY.colors.goldLight}
+          />
+          <Text style={[styles.label, styles.labelTryOn]} numberOfLines={1}>
+            {VTO_DISCOVERY_COPY.productLabel}
+          </Text>
+        </View>
       </Pressable>
       {/*
           Mounted only while open, deliberately. The sheet binds the
@@ -244,19 +273,49 @@ export function TryItOnEntry({
 }
 
 const styles = StyleSheet.create({
+  // The product-level Try It On is the natural next action on an eligible
+  // item, so it reads as the one primary control on the card: a filled pill
+  // with the canonical garment glyph, not another bordered utility row.
   button: {
     marginTop: SPACING.sm,
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  buttonTryOn: {
+    backgroundColor: LUXURY.colors.plumDeep,
+  },
+  buttonTryOnPressed: {
+    backgroundColor: LUXURY.colors.plum,
+  },
+  // K+ membership context is expressed warmly -- the same action in a softer
+  // champagne treatment with the membership named in the label -- never as a
+  // locked or disabled control.
+  buttonUnlock: {
     backgroundColor: LUXURY.colors.champagne,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.gold,
+  },
+  buttonUnlockPressed: {
+    backgroundColor: LUXURY.colors.goldLight,
   },
   label: {
-    ...LUXURY.typography.caption,
+    ...LUXURY.typography.cta,
+    fontSize: 12,
+  },
+  labelTryOn: {
+    color: LUXURY.colors.pearl,
+  },
+  labelUnlock: {
     color: LUXURY.colors.plumDeep,
   },
 });

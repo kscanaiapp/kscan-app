@@ -65,6 +65,8 @@ import {
   kplusPaywallStyles as S,
   type KPlusBenefitRow,
 } from './KPlusPaywallParts';
+import { KPlusRedeemOfferPanel } from './KPlusRedeemOfferPanel';
+import type { KPlusOfferRedemptionPort } from '../../services/kplus/kplusOfferRedemption';
 
 /** How long "Finishing your K+ setup…" waits before offering a way on: the
  *  commerce service's own bounded canonical re-check schedule, plus a margin. */
@@ -79,12 +81,14 @@ export interface KPlusMembershipStepProps {
   /** No membership screen applies (signed out, or nothing K+ can be offered). */
   onSkip: () => void;
   /**
-   * Promo-redemption seam. "Redeem an offer" renders only when a real
-   * store-native or server-authoritative destination is passed here AND
-   * KPLUS_PAYWALL_PRESENTATION.promoRedemptionAvailable is true. Neither exists
-   * today, so the link is absent rather than dead.
+   * Offer-redemption port. "Redeem an offer" opens the in-step redemption
+   * surface (components/kplus/KPlusRedeemOfferPanel.tsx); each submission is
+   * handed to this port and nothing else. While no port is supplied -- the
+   * ingestion authority lands in the integration audit -- the surface answers
+   * honestly with the UNAVAILABLE state. A redemption success never touches
+   * entitlement state: only the canonical summary can say "You're K+".
    */
-  onRedeemOffer?: () => void;
+  redeemOfferCode?: KPlusOfferRedemptionPort;
   /**
    * Where this step is being shown. It changes NOTHING commercial -- the same
    * model, plans, store terms, Restore and Free path either way. It exists only
@@ -97,12 +101,16 @@ export interface KPlusMembershipStepProps {
 export function KPlusMembershipStep({
   onContinue,
   onSkip,
-  onRedeemOffer,
+  redeemOfferCode,
   context = 'onboarding',
 }: KPlusMembershipStepProps) {
   const entitlement = useKPlusEntitlement();
   const commerce = useKPlusCommerceSnapshot();
   const [ui, setUi] = useState<KPlusPaywallUiState>(INITIAL_KPLUS_PAYWALL_UI);
+  // The redemption surface is an in-step view, not a second sheet: it swaps
+  // with the paywall body and hands back with Cancel / Done. It decides
+  // nothing commercial -- every submission goes through the supplied port.
+  const [redeemOpen, setRedeemOpen] = useState(false);
   const dispatch = useCallback((action: KPlusPaywallUiAction) => {
     setUi((current) => reduceKPlusPaywallUi(current, action));
   }, []);
@@ -439,7 +447,12 @@ export function KPlusMembershipStep({
   }
 
   const restoring = view.screen === 'RESTORING_PURCHASES';
-  const content = (
+  const content = redeemOpen ? (
+    <KPlusRedeemOfferPanel
+      redeemOfferCode={redeemOfferCode}
+      onClose={() => setRedeemOpen(false)}
+    />
+  ) : (
     <PaywallBody
       paywall={paywall}
       benefits={benefits}
@@ -448,7 +461,7 @@ export function KPlusMembershipStep({
       onPurchase={() => void handlePurchase()}
       onRestore={() => void handleRestore()}
       onFree={handleFree}
-      onRedeemOffer={onRedeemOffer}
+      onRedeem={() => setRedeemOpen(true)}
     />
   );
 
@@ -489,7 +502,7 @@ function PaywallBody({
   onPurchase,
   onRestore,
   onFree,
-  onRedeemOffer,
+  onRedeem,
 }: {
   paywall: KPlusPaywallView;
   benefits: KPlusBenefitRow[];
@@ -498,7 +511,7 @@ function PaywallBody({
   onPurchase: () => void;
   onRestore: () => void;
   onFree: () => void;
-  onRedeemOffer?: () => void;
+  onRedeem: () => void;
 }) {
   return (
     <View style={styles.body} testID="kplus-paywall">
@@ -523,8 +536,8 @@ function PaywallBody({
         onPress={onPurchase}
       />
       <View style={S.secondaryRow}>
-        {paywall.promoVisible && onRedeemOffer ? (
-          <KPlusTextAction testID="kplus-paywall-promo" label={COPY.promo} onPress={onRedeemOffer} disabled={!paywall.restoreEnabled} />
+        {paywall.promoVisible ? (
+          <KPlusTextAction testID="kplus-paywall-promo" label={COPY.promo} onPress={onRedeem} disabled={!paywall.restoreEnabled} />
         ) : null}
         <KPlusTextAction
           testID="kplus-paywall-restore"

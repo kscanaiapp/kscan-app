@@ -642,6 +642,12 @@ const VTO_ALLOWED_IMPORTS = {
     '../../hooks/useVtoAwareness',
     '../../services/vto/vtoAwareness', '../../services/vto/vtoDiscovery',
     './VtoFirstUseCue',
+    // BUILD 35 DESIGN POLISH. The control now carries the one canonical Try It
+    // On glyph (the icon registry already enrolled with the icon test suite as
+    // its authority). The registry renders SVG marks only: no network, no
+    // storage, no ownership -- and the VTO-NC-010 forbidden-call scan below
+    // applies to this surface unchanged.
+    '../icons/kscan',
     'react', 'react-native',
   ],
 
@@ -674,7 +680,12 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'components/vto/VtoFirstUseCue.tsx': [
     '../../constants/theme', '../../hooks/useVtoAwareness', '../../services/haptics',
-    '../../services/vto/vtoDiscovery', 'react', 'react-native',
+    '../../services/vto/vtoDiscovery',
+    // BUILD 35 DESIGN POLISH. The cue carries the same canonical Try It On
+    // glyph as the control it points at (see the TryItOnEntry enrolment
+    // above): presentation only, no new capability.
+    '../icons/kscan',
+    'react', 'react-native',
   ],
 
   // CONVERGENCE #276 + #277. The UX lane introduced six NEW VTO surfaces. They
