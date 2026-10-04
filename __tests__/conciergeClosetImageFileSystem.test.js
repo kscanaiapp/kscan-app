@@ -458,6 +458,11 @@ function loadBubble(world, graph, { mutate } = {}) {
       '../../constants/featureFlags': { ELISE_CONCIERGE_V1: true },
       './StyleChatUiBlock': { StyleChatUiBlockView: () => null },
       './StyleChatActionCards': { StyleChatActionCards: () => null },
+      './EliseConversationNotice': { EliseConversationNotice: () => null },
+      '../../services/style-chat/eliseConversationFrame': runModule(
+        'services/style-chat/eliseConversationFrame.ts',
+        {},
+      ),
       './StyleChatFeedbackControls': { StyleChatFeedbackControls: () => null },
       './StyleChatVoiceRetry': { StyleChatVoiceRetry: () => null },
       '../../hooks/useStylistIdentity': { useStylistIdentity: () => STUB_IDENTITY },
