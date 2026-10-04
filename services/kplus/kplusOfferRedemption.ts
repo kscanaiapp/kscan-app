@@ -8,13 +8,10 @@
  *   - what a code grants (no discount, duration, or entitlement is named here);
  *   - K+ authorization (a success NEVER sets local entitlement state -- the
  *     canonical entitlement summary remains the only "You're K+" authority);
- *   - any network, store, or backend call (this file imports nothing).
+ *   - any client-side offer decision or entitlement mutation.
  *
- * The offer-code ingestion authority (server-side validation, entitlement
- * issuance, idempotency, limits, telemetry) is delivered by the later
- * integration audit, which supplies the real implementation of
- * KPlusOfferRedemptionPort. Until then the default port reports UNAVAILABLE,
- * which is the honest answer -- never a fake success.
+ * The production adapter lives in kplusOfferRedemptionClient.ts so this model
+ * and port remain pure and straightforward to exercise.
  */
 
 // ── The port ─────────────────────────────────────────────────────────────────

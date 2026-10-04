@@ -83,10 +83,10 @@ export interface KPlusMembershipStepProps {
   /**
    * Offer-redemption port. "Redeem an offer" opens the in-step redemption
    * surface (components/kplus/KPlusRedeemOfferPanel.tsx); each submission is
-   * handed to this port and nothing else. While no port is supplied -- the
-   * ingestion authority lands in the integration audit -- the surface answers
-   * honestly with the UNAVAILABLE state. A redemption success never touches
-   * entitlement state: only the canonical summary can say "You're K+".
+   * handed to this port and nothing else. Production uses the authenticated
+   * server adapter by default; the prop remains as a test/host override. A
+   * redemption success never mutates entitlement state: only the canonical
+   * summary can say "You're K+".
    */
   redeemOfferCode?: KPlusOfferRedemptionPort;
   /**

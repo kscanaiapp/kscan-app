@@ -32,7 +32,6 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import {
   canSubmitOfferCode,
-  KPLUS_OFFER_REDEMPTION_UNAVAILABLE_PORT,
   KPLUS_REDEEM_OFFER_COPY as COPY,
   KPLUS_REDEEM_OFFER_INITIAL,
   normalizeOfferCodeInput,
@@ -40,6 +39,7 @@ import {
   reduceKPlusRedeemOffer,
   type KPlusOfferRedemptionPort,
 } from '../../services/kplus/kplusOfferRedemption';
+import { redeemKPlusOfferCode } from '../../services/kplus/kplusOfferRedemptionClient';
 import {
   KPlusGoldCheck,
   KPlusPrimaryCta,
@@ -49,8 +49,8 @@ import {
 
 export interface KPlusRedeemOfferPanelProps {
   /**
-   * The redemption port the integration audit supplies. Optional on purpose:
-   * without one the surface still works end to end and answers UNAVAILABLE.
+   * Optional test/host override. Production defaults to the authenticated,
+   * server-authoritative adapter in services/kplus/kplusOfferRedemption.ts.
    */
   redeemOfferCode?: KPlusOfferRedemptionPort;
   /** Leaves the redemption surface (back to the membership options). */
@@ -96,7 +96,7 @@ export function KPlusRedeemOfferPanel({
     if (!canSubmitOfferCode(code) || inFlightRef.current) return;
     inFlightRef.current = true;
     dispatch({ type: 'SUBMIT' });
-    const port = redeemOfferCode ?? KPLUS_OFFER_REDEMPTION_UNAVAILABLE_PORT;
+    const port = redeemOfferCode ?? redeemKPlusOfferCode;
     try {
       const result = await port(code);
       if (aliveRef.current) dispatch({ type: 'RESOLVED', result });

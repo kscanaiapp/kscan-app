@@ -78,6 +78,9 @@ function mountPanel(o = {}) {
     '../../constants/theme': themeTokens,
     '../../constants/kplusPaywallTheme': theme,
     '../../services/kplus/kplusOfferRedemption': redemption,
+    '../../services/kplus/kplusOfferRedemptionClient': {
+      redeemKPlusOfferCode: async () => 'UNAVAILABLE',
+    },
     './KPlusPaywallParts': parts,
   });
 

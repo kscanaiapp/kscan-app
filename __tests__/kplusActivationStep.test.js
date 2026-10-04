@@ -415,20 +415,22 @@ test('ACTIVATE_KPLUS: activation goes through the existing server-authoritative 
 
 // ── ACCESS CODE ─────────────────────────────────────────────────────────────
 
-test('ACCESS_CODE: no client-side access-code logic is introduced', () => {
-  // There is no shipped access-code redemption flow in this build -- no route,
-  // no client module, no Edge Function. Rather than ship a CTA that leads
-  // nowhere, the affordance is absent. What this test pins is the part that
-  // would be a DEFECT either way: the screen must never implement redemption
-  // itself. When a server-side flow is authorized, the CTA can be added here
-  // and this assertion still holds.
-  assert.doesNotMatch(code, /redeem|redemption/i);
+test('ACCESS_CODE: the paywall delegates to the server-authoritative redemption panel', () => {
+  // Onboarding activation retains its existing offer. The reusable paid K+
+  // membership surface owns redemption, and neither screen decides validity.
+  assert.doesNotMatch(code, /validCodes|promoCodes|switch\s*\(\s*code/i);
   assert.doesNotMatch(code, /grantReason|campaignKey|campaign_key/);
+  const membership = fs.readFileSync(
+    path.join(ROOT, 'components', 'kplus', 'KPlusMembershipStep.tsx'),
+    'utf8',
+  );
+  assert.match(membership, /KPlusRedeemOfferPanel/);
+  assert.doesNotMatch(membership, /validCodes|promoCodes|switch\s*\(\s*code/i);
 
   const edgeFunctions = fs.readdirSync(path.join(ROOT, 'supabase', 'functions'));
   assert.ok(
-    !edgeFunctions.some((name) => /access.?code|redeem/i.test(name)),
-    'if an access-code Edge Function now exists, the CTA can be wired and this test updated',
+    edgeFunctions.includes('kplus-offer-redeem'),
+    'redemption must terminate at the governed Edge boundary',
   );
 });
 
