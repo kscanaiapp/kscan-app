@@ -170,6 +170,7 @@ test('committed manifest governs every governed function and the approved projec
     'privacy-data-export',
     'process-account-deletions',
     'product-search-deals',
+    'purchase-import-extract',
     'reconcile-orphan-media',
     'resend-restoration-email',
     'restore-account',

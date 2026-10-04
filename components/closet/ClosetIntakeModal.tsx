@@ -56,9 +56,12 @@ export function ClosetIntakeModal({
   onSaveBatch,
   stagingActive = false,
   batchIntakeActive = false,
+  onImportPurchase,
 }: {
   visible: boolean;
   onClose: () => void;
+  /** Opens the reviewed receipt/order import flow when that feature is enabled. */
+  onImportPurchase?: () => void;
   /**
    * When candidate staging is on this photo goes to a REVIEW QUEUE, not into the
    * committed Closet. The copy has to say so — a button reading "Save to Closet"
@@ -319,6 +322,15 @@ export function ClosetIntakeModal({
                 accessibilityLabel="Choose a photo from your library to add to your Closet"
                 testID="closet-intake-library"
               />
+              {onImportPurchase ? (
+                <SecondaryButton
+                  title="Import from an Order"
+                  onPress={onImportPurchase}
+                  accessibilityLabel="Import items from an order confirmation or receipt"
+                  accessibilityHint="Opens a review screen. Nothing is added until you confirm."
+                  testID="closet-intake-import-purchase"
+                />
+              ) : null}
               <SecondaryButton title="Cancel" onPress={onClose} testID="closet-intake-cancel" />
             </View>
           ) : null}

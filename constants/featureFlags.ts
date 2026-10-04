@@ -1057,3 +1057,16 @@ export function resolveSmartWatchlistEnabled(
 }
 
 export const SMART_WATCHLIST_V1 = resolveSmartWatchlistEnabled();
+
+
+/**
+ * Receipt & Purchase Intelligence V1.
+ * Default OFF. Exact string "true" only; all other values fail closed.
+ */
+export function resolveReceiptIntelligenceEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_RECEIPT_INTELLIGENCE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const RECEIPT_INTELLIGENCE_V1 = resolveReceiptIntelligenceEnabled();

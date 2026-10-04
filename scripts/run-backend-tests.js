@@ -81,6 +81,7 @@ const GOVERNED = [
   'style-outfit-generate',
   'commerce-watch-refresh',
   'vto-generate',
+  'purchase-import-extract',
   '_shared',
 ];
 

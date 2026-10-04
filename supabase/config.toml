@@ -124,6 +124,11 @@ verify_jwt = false
 [functions.kplus-revenuecat-pull-reconcile]
 verify_jwt = true
 
+# ── Receipt & Purchase Intelligence ──────────────────────────────────────────
+
+[functions.purchase-import-extract]
+verify_jwt = true
+
 # ── Virtual Try-On ───────────────────────────────────────────────────────────
 
 # Generation orchestration. Always authenticated; the function additionally

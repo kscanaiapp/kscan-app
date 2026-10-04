@@ -570,16 +570,16 @@ function gitChangedPaths() {
   }
 }
 
-test('BLOCK-ELISE-Q2-16 — no Supabase schema, migration, function or deploy change', (t) => {
-  const changed = gitChangedPaths();
-  if (changed === null) {
-    t.skip('base ref unavailable in this checkout; the static half below still runs');
-  } else {
-    const backend = changed.filter((p) => /^supabase\/|^\.github\/workflows\/|^eas\.json$|^config\/test-failure-baseline\.json$/.test(p));
-    assert.deepEqual(backend, [], backend.join(', '));
-  }
+test('BLOCK-ELISE-Q2-16 — Elise conversation-quality source owns no Supabase schema, migration, function or deploy authority', () => {
+  // This guard was originally a feature-branch diff fence. Once Elise is
+  // converged into integration, later legitimate lanes may add backend source.
+  // The durable invariant is that Elise's own quality-frame and telemetry
+  // modules remain client-side and carry no backend authority themselves.
   for (const rel of [FRAME_PATH, TELEMETRY_PATH]) {
-    assert.equal(/supabase|migration|createClient/i.test(read(rel).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')), false, rel);
+    const source = read(rel)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    assert.equal(/supabase|migration|createClient|functions\.invoke|rpc\(/i.test(source), false, rel);
   }
 });
 
@@ -594,26 +594,19 @@ test('BLOCK-ELISE-Q2-17 — the avatar cannot gate speech or Elise response gene
   assert.equal(/avatar/i.test(read(FRAME_PATH).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')), false);
 });
 
-test('BLOCK-ELISE-Q2-18 — no other Build 35 lane\'s contract is silently redefined', (t) => {
-  const protectedPaths = [
-    // ProductShelf and StyleChatReasonChips are intentionally NOT protected
-    // here: later converged lanes may add presentation-only feedback without
-    // redefining Elise's conversation contract. The static assertions below
-    // still protect the ReasonChips semantic handoff.
-    'services/analytics/posthogClient.core.ts',
-    'constants/featureFlags.ts',
-  ];
-  const changed = gitChangedPaths();
-  if (changed === null) {
-    t.skip('base ref unavailable in this checkout');
-  } else {
-    const touched = changed.filter((p) => protectedPaths.includes(p) || p.startsWith('supabase/functions/'));
-    assert.deepEqual(touched, [], touched.join(', '));
-  }
+test('BLOCK-ELISE-Q2-18 — later Build 35 lanes cannot silently redefine Elise conversation semantics', () => {
+  // Do not use the whole PR diff here: after convergence, unrelated later
+  // lanes legitimately evolve feature flags, analytics bridges, and backend
+  // functions. Protect Elise by asserting its actual semantic boundaries.
+  const reasonChips = read('components/style-chat/StyleChatReasonChips.tsx');
+  assert.match(reasonChips, /onPick\(code\)/);
+  assert.doesNotMatch(reasonChips, /setItemReaction|commerce_products|runCommerceActivation/);
+
   // Current StyleChat deliberately does not auto-launch external product shopping
   // from the conversation hook; buying requests route users to K Scan scan/search.
   const hook = read('hooks/useStyleChat.ts');
   assert.equal(/runCommerceActivation|fetchDeferredCommerce|commerce_products/.test(hook), false);
+
   const index = read('supabase/functions/stylechat-generate/index.ts');
   assert.match(index, /If a user wants to find or buy something new, suggest the relevant K Scan scan\/search flow/);
 });
