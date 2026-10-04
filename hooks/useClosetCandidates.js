@@ -25,6 +25,7 @@ import {
 } from '../services/actorContext';
 import { resolveClosetBatchFocus } from '../services/closetBatchReview';
 import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
+import { softImpact, successPulse } from '../services/haptics';
 import { runClosetStartupRecovery } from '../services/closetRecovery';
 import { stageMirrorSelfieGarmentCrops } from '../services/closetMirrorStaging';
 import { integrateMirrorExtractionSelection } from '../services/mirror/mirrorCandidateIntegration';
@@ -619,6 +620,7 @@ export function useClosetCandidates() {
         startedUnder.actorKey === actorKey &&
         startedUnder.actorEpoch === actorEpoch;
 
+      softImpact();
       promotionLiveRef.current = true;
       const batchId = activeBatchId ?? null;
       setPromotion({
@@ -677,6 +679,7 @@ export function useClosetCandidates() {
             ? { ...current, activeCandidateId: null, pendingCandidateIds: [], done: true }
             : current,
         );
+        if (result?.ok && result.promotedCount > 0) successPulse();
         return result;
       } finally {
         promotionLiveRef.current = false;

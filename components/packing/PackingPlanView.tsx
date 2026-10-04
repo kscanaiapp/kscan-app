@@ -18,6 +18,7 @@
 import React, { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { selectionTick } from '../../services/haptics';
 import { SectionHeader } from '../luxury';
 import {
   PACKING_ACTIVITY_LABELS,
@@ -208,7 +209,14 @@ const PackingChecklistRow = React.memo(
     const subtitle = itemSubtitle(item);
     return (
       <Pressable
-        onPress={onToggle ? () => onToggle(item.itemId) : undefined}
+        onPress={
+          onToggle
+            ? () => {
+                selectionTick();
+                onToggle(item.itemId);
+              }
+            : undefined
+        }
         disabled={!onToggle}
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
