@@ -85,7 +85,7 @@ test('attempt tracker resets on token and user changes', () => {
   );
   assert.match(
     publicRoomScreen,
-    /useEffect\(\(\) => \{\s+membershipCaptureTracker\.current\.reset\(\);[\s\S]*?\}, \[user\?\.id\]\);/,
+    /useEffect\(\(\) => \{\s+membershipCaptureTracker\.current\.reset\(\);[\s\S]*?\}, \[resetReactions, user\?\.id\]\);/,
   );
   assert.match(publicRoomScreen, /mountedRef\.current = false/);
   assert.match(publicRoomScreen, /if \(mountedRef\.current\) \{\s+onJoined\(joinedRoomId\);/);
