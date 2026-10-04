@@ -367,6 +367,20 @@
       "notes": "K+ entitlement authority (Phase 1) lifecycle activation events (future Welcome to K+). ON DELETE CASCADE FK to auth.users; nothing retained after purge."
     },
     {
+      "table": "kplus_offer_redemption_attempts",
+      "column": "actor_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Offer-code abuse/audit attempts. Contains only an HMAC digest and bounded reasons, never the raw code; ON DELETE CASCADE removes the actor-scoped ledger at purge."
+    },
+    {
+      "table": "kplus_offer_redemptions",
+      "column": "actor_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Successful offer-redemption/idempotency ledger. ON DELETE CASCADE removes actor-scoped rows; campaign definitions and HMAC-only code records contain no customer identity and remain operational data."
+    },
+    {
       "table": "kplus_provider_reconciliation_controls",
       "column": "user_id",
       "action": "auth_delete_cascade",
