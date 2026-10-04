@@ -258,9 +258,9 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // Now 27: Build 35 K+ Phase E added kplus-revenuecat-pull-reconcile, the
   // separately governed authenticated per-actor provider repair primitive.
   // It is likewise unrelated to this deletion sweep.
-  // Now 28: the VTO post-Kimi lane added kplus-offer-redeem, the authenticated
-  // HMAC-only code-ingestion boundary. It is unrelated to this sweep.
-  assert.equal(dirs.length, 28, 'no unexplained Edge Function has appeared');
+  // Now 29: VTO post-Kimi adds kplus-offer-redeem. It is independently
+  // governed and unrelated to retained-owner-media deletion.
+  assert.equal(dirs.length, 29, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant

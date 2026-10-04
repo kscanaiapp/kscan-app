@@ -154,9 +154,6 @@ test('committed manifest governs every governed function and the approved projec
   // kplus-revenuecat-pull-reconcile joined under Build 35 K+ Phase E -- the
   // separate JWT-authenticated inbound current-state repair primitive. It is
   // governed from birth and remains absent from deployment allowlists.
-  // kplus-offer-redeem joined in the VTO post-Kimi integration lane. It is a
-  // JWT-authenticated, HMAC-only code-ingestion boundary and likewise remains
-  // absent from deployment allowlists pending an explicit staging decision.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
@@ -174,6 +171,7 @@ test('committed manifest governs every governed function and the approved projec
     'privacy-data-export',
     'process-account-deletions',
     'product-search-deals',
+    'purchase-import-extract',
     'reconcile-orphan-media',
     'resend-restoration-email',
     'restore-account',

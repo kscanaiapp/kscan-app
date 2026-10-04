@@ -149,6 +149,7 @@ const GOVERNED_FUNCTIONS = [
   'deletion-status',
   'vto-generate',
   'reconcile-orphan-media',
+  'purchase-import-extract',
 ];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');

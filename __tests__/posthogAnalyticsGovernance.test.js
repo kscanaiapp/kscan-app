@@ -147,7 +147,7 @@ test('no alternative analytics/tracking SDK is a project dependency', () => {
   assert.deepEqual(hit, []);
 });
 
-// ─── The five bridged sinks: allowlist + no prohibited property names ──────
+// ─── The bridged bounded sinks: allowlist + no prohibited property names ──────
 
 const BRIDGED_SINKS = [
   { file: 'services/closetTelemetry.ts', arrayName: 'CLOSET_CANDIDATE_EVENT_PROPERTIES' },
@@ -155,6 +155,10 @@ const BRIDGED_SINKS = [
   { file: 'services/todayWithElise/analytics.ts', arrayName: 'TODAY_WITH_ELISE_EVENT_PROPERTIES' },
   { file: 'services/voice/voiceTelemetry.ts', arrayName: 'VOICE_EVENT_PROPERTIES' },
   { file: 'services/vto/vtoTelemetry.ts', arrayName: 'VTO_EVENT_PROPERTIES' },
+  {
+    file: 'services/purchaseImport/purchaseImportTelemetry.ts',
+    arrayName: 'PURCHASE_IMPORT_EVENT_PROPERTIES',
+  },
 ];
 
 // Whole-word matches only (see wordsOf below) — a substring check would

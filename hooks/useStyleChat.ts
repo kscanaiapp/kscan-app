@@ -25,6 +25,20 @@ import { createStyleChatRetryState } from '../services/style-chat/styleChatRetry
 import { classifyStyleChatOperationalFailure } from '../services/style-chat/styleChatOutcome';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
+import {
+  ELISE_CONVERSATION_QUALITY_V2_ENABLED,
+  ELISE_LOCAL_CLARIFICATION_PROVIDER,
+  analyzeEliseTurn,
+  buildEliseConversationNotices,
+  validateEliseReply,
+  type EliseReplyViolation,
+  type EliseTurnAnalysis,
+} from '../services/style-chat/eliseConversationFrame';
+import {
+  constraintBucket,
+  frameMsBucket,
+  recordEliseConversationTurn,
+} from '../services/style-chat/eliseConversationTelemetry';
 import { useStylistIdentity } from './useStylistIdentity';
 import { useScreenReaderEnabled, useScreenReaderReady } from './useScreenReaderEnabled';
 import { getStylistVoiceProfile } from '../constants/stylistIdentity';
@@ -81,6 +95,34 @@ const ENABLE_STYLECHAT_EXPLANATIONS = true;
 
 function getSafeCount(value: number | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
+}
+
+function recordConversationTurn(
+  turn: EliseTurnAnalysis,
+  frameMs: number,
+  outcome: 'model_reply' | 'local_clarification',
+  violations: readonly EliseReplyViolation[] | null,
+): void {
+  const conflict = violations?.some((v) => v.kind === 'negation') ?? false;
+  const repeat = violations?.some((v) => v.kind === 'rejected_repeat') ?? false;
+  const frame = turn.frame;
+  recordEliseConversationTurn({
+    relation: turn.relation,
+    taskKind: frame.taskKind,
+    taskReset: turn.taskReset,
+    ownedOnly: frame.ownedOnly,
+    outcome,
+    reference: turn.reference.status,
+    commerce: 'none',
+    validation: violations === null
+      ? 'skipped'
+      : conflict && repeat ? 'both' : conflict ? 'constraint_conflict' : repeat ? 'rejected_repeat' : 'clean',
+    constraintBucket: constraintBucket(
+      frame.negations.length + frame.rejections.length + frame.colors.length +
+        (frame.budget ? 1 : 0) + (frame.occasion ? 1 : 0) + (frame.ownedOnly ? 1 : 0),
+    ),
+    frameMsBucket: frameMsBucket(frameMs),
+  });
 }
 
 export interface UseStyleChatReturn {
@@ -469,6 +511,23 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       // Attachment sends defer persistence until backend v2 acknowledgement,
       // but still render an optimistic bubble.
       const deferUserPersistence = skipUserPersistence || requiresContextAcknowledgement;
+      const frameStartedAt = Date.now();
+      const conversationTurn: EliseTurnAnalysis | null = ELISE_CONVERSATION_QUALITY_V2_ENABLED
+        ? analyzeEliseTurn({
+            messages: options?.existingUserMessageId
+              ? messages.filter((m) => m.id !== options.existingUserMessageId)
+              : messages,
+            message: trimmed,
+          })
+        : null;
+      const frameMs = Date.now() - frameStartedAt;
+      const localClarification =
+        conversationTurn?.localClarification &&
+        !skipUserPersistence &&
+        !requiresContextAcknowledgement &&
+        !activeContextSnapshot
+          ? conversationTurn.localClarification
+          : null;
       let persistedUserMessageId = options?.existingUserMessageId ?? null;
 
       // 1. Optimistic user bubble
@@ -509,6 +568,46 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
           options?.onUserMessagePersisted?.();
+        }
+
+        if (localClarification && conversationTurn) {
+          const optimisticClarification: StyleChatMessage = {
+            id: `optimistic-assistant-${Date.now()}`,
+            sessionId,
+            sender: 'assistant',
+            content: localClarification,
+            referencedScanIds: [],
+            referencedSavedItemIds: [],
+            referencedDressingRoomIds: [],
+            referencedCatalogItems: [],
+            uiBlocks: [],
+            provider: ELISE_LOCAL_CLARIFICATION_PROVIDER,
+            tokenEstimate: 0,
+            createdAt: new Date().toISOString(),
+          };
+          setMessages(prev => [...prev, optimisticClarification]);
+          const savedClarification = await saveStyleChatMessage({
+            sessionId,
+            sender: 'assistant',
+            content: localClarification,
+            uiBlocks: [],
+            provider: ELISE_LOCAL_CLARIFICATION_PROVIDER,
+            tokenEstimate: 0,
+          }, actorId);
+          if (!isCurrentSend()) return;
+          setMessages(prev => prev.map(m => (m.id === optimisticClarification.id ? savedClarification : m)));
+          if (canSpeakNewMessages) {
+            void speakAvatarMessage({
+              actorId,
+              sessionId,
+              messageId: savedClarification.id,
+              stylistId: identity.avatarId,
+              avatarId: identity.avatarId,
+              source: 'message',
+            });
+          }
+          recordConversationTurn(conversationTurn, frameMs, 'local_clarification', null);
+          return true;
         }
 
         // 3. Call the secure Edge Function proxy. Server enforces quota, assembles
@@ -700,6 +799,16 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             ? [{ type: 'why_this_works', title: 'Why this works', body: result.message.whyThisWorks }]
             : [];
 
+        const replyViolations: EliseReplyViolation[] | null =
+          conversationTurn && trimmedAssistant
+            ? validateEliseReply(conversationTurn.frame, trimmedAssistant)
+            : null;
+        if (replyViolations?.length) {
+          explanationBlocks.push(
+            ...(buildEliseConversationNotices({ violations: replyViolations }) as unknown as StyleChatUiBlock[]),
+          );
+        }
+
         // v2 validated structured actions persist alongside the assistant
         // message (app-controlled rendering; never raw JSON in the bubble).
         if (Array.isArray(result.actions) && result.actions.length > 0) {
@@ -783,6 +892,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // 6. Update displayed daily usage from server response.
         setMessagesUsed(getSafeCount(result.usage.messagesUsed, messagesUsed + 1));
         setMessagesLimit(getSafeCount(result.usage.messagesLimit, messagesLimit));
+
+        if (conversationTurn) {
+          recordConversationTurn(conversationTurn, frameMs, 'model_reply', replyViolations);
+        }
 
         return true;
 

@@ -47,6 +47,14 @@ import { VTO_UI_ENABLED } from '../constants/featureFlags';
 import { TryItOnEntry } from './vto/TryItOnEntry';
 import { buildVtoGarmentFromCommerceRecord } from '../services/vto/vtoCommerceGarment';
 import type { VtoGarmentInput } from '../types/vto';
+import { ProductCompareSheet } from './commerce/ProductCompareSheet';
+import {
+  shelfCardKey,
+  shelfPriceView,
+  shelfPurchaseState,
+  toggleCompareSelection,
+  watchListingPrice,
+} from '../services/commerce/productShelfPresentation';
 
 export interface Product {
   id?:         string;
@@ -107,7 +115,7 @@ interface ProductShelfProps {
   onRetry?: () => void;
 }
 
-const CARD_WIDTH  = 144;
+const CARD_WIDTH  = 160;
 const IMAGE_SIZE  = CARD_WIDTH;
 const PLACEHOLDER_CATEGORIES = new Set([
   'footwear',
@@ -347,6 +355,8 @@ export function ProductShelf({
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [watchModalProduct, setWatchModalProduct] = useState<Product | null>(null);
+  const [compareKeys, setCompareKeys] = useState<string[]>([]);
+  const [compareVisible, setCompareVisible] = useState(false);
   // Watchlist Repair 06. Availability first, entitlement second -- the ordering
   // components/home/HomeLuxuryTechV1.tsx already uses. Read once per render
   // from the one authority, never recomposed from the raw flag here.
@@ -423,7 +433,7 @@ export function ProductShelf({
           const productImageUrl = getProductImageUrl(p);
           const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
-          const productKey = p.id ?? String(i);
+          const productKey = shelfCardKey(p, i);
           // A product that arrives without a usable name is a gap in OUR data,
           // not a mystery object. "Unknown Product" reads as an accusation about
           // the item; this says what is actually true for the shopper.
@@ -433,10 +443,11 @@ export function ProductShelf({
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
           const retailer = getRetailer(p);
-          const priceText = formatPrice(p);
+          const priceView = shelfPriceView(p);
+          const priceText = priceView.text;
+          const purchaseState = shelfPurchaseState(p);
+          const compared = compareKeys.includes(productKey);
           const vtoGarment = buildVtoGarmentFromProduct(p);
-          const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
-          const isOutOfStock = availability === 'out_of_stock' || availability === 'out of stock';
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
             console.log(
               '[K-SCAN ProductShelf] fallback',
@@ -450,8 +461,23 @@ export function ProductShelf({
           return (
             <View
               key={productKey}
-              style={[styles.card, !hasLink && styles.cardNoLink]}
+              style={[styles.card, !hasLink && styles.cardNoLink, compared && styles.cardCompared]}
             >
+              <TouchableOpacity
+                style={[styles.compareToggle, compared && styles.compareToggleOn]}
+                onPress={() => {
+                  selectionTick();
+                  setCompareKeys((currentKeys) => toggleCompareSelection(currentKeys, productKey));
+                }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: compared }}
+                accessibilityLabel={compared ? `Remove ${productTitle} from comparison` : `Compare ${productTitle}`}
+                testID={`compare-product-${i}`}
+              >
+                <Text style={[styles.compareToggleText, compared && styles.compareToggleTextOn]}>
+                  {compared ? '✓ COMPARE' : 'COMPARE'}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => handleLinkPress(purchaseUrl)}
                 activeOpacity={hasLink ? 0.78 : 1}
@@ -495,14 +521,29 @@ export function ProductShelf({
                   {productTitle}
                 </Text>
                 {priceText ? (
-                  <Text style={styles.price} numberOfLines={1}>
+                  <Text style={styles.price} numberOfLines={1} accessibilityLabel={priceView.accessibilityText ?? undefined}>
                     {priceText}
                   </Text>
                 ) : null}
-                {isOutOfStock ? (
+                {priceView.currencyUnconfirmed ? (
+                  <Text style={styles.currencyNotice}>Currency not confirmed</Text>
+                ) : null}
+                {purchaseState.status ? (
                   <Text style={styles.availabilityLabel} numberOfLines={1}>
-                    Out of stock
+                    {purchaseState.status}
                   </Text>
+                ) : null}
+                {purchaseState.action && purchaseUrl ? (
+                  <TouchableOpacity
+                    style={styles.viewButton}
+                    onPress={() => handleLinkPress(purchaseUrl)}
+                    accessibilityRole="link"
+                    accessibilityLabel={`${purchaseState.action}, ${productTitle}`}
+                    accessibilityHint="Opens this listing in your browser"
+                    testID={`product-primary-${i}`}
+                  >
+                    <Text style={styles.viewButtonText}>{purchaseState.action}</Text>
+                  </TouchableOpacity>
                 ) : null}
                 {/*
                     VTO seam: additive only. TryItOnEntry renders nothing
@@ -597,14 +638,33 @@ export function ProductShelf({
                 ) : null}
               </View>
 
-              {hasLink && (
-                <View style={styles.linkDot} accessibilityLabel="Has product link" />
-              )}
-
             </View>
           );
         })}
       </ScrollView>
+
+      {compareKeys.length > 0 ? (
+        <View style={styles.compareBar} testID="product-compare-bar">
+          <Text style={styles.compareBarText}>{`${compareKeys.length} selected`}</Text>
+          <TouchableOpacity
+            onPress={() => setCompareKeys([])}
+            accessibilityRole="button"
+            accessibilityLabel="Clear comparison"
+          >
+            <Text style={styles.compareBarClear}>CLEAR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.compareBarButton}
+            disabled={compareKeys.length < 2}
+            onPress={() => setCompareVisible(true)}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: compareKeys.length < 2 }}
+            accessibilityLabel="Compare selected products"
+          >
+            <Text style={styles.compareBarButtonText}>COMPARE</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {linkErrorVisible && (
         <Text style={styles.linkError}>LINK UNAVAILABLE</Text>
@@ -629,6 +689,16 @@ export function ProductShelf({
           onClose={() => setWatchModalProduct(null)}
         />
       ) : null}
+
+      <ProductCompareSheet
+        visible={compareVisible}
+        products={products
+          .map((product, index) => ({ product, key: shelfCardKey(product, index) }))
+          .filter(({ key }) => compareKeys.includes(key))
+          .map(({ product }) => product)}
+        retailerOf={getRetailer}
+        onClose={() => setCompareVisible(false)}
+      />
     </View>
   );
 }
@@ -650,6 +720,7 @@ export function AddToRoomModal({
 
   const handleAdd = async (roomId: string) => {
     if (!product || saving) return;
+    selectionTick();
     setSaving(true);
     setMessage(null);
     try {
@@ -670,6 +741,7 @@ export function AddToRoomModal({
 
   const handleCreateAndAdd = async () => {
     if (!newRoomTitle.trim() || !product || saving) return;
+    selectionTick();
     setSaving(true);
     setMessage(null);
     try {
@@ -844,6 +916,7 @@ export function WatchThisModal({
       setMessage('Enter a target price to watch for.');
       return;
     }
+    selectionTick();
     setSaving(true);
     setMessage(null);
     // Section 22: creating a Watch is a real, deterministic K+ feature
@@ -854,7 +927,7 @@ export function WatchThisModal({
       listing: {
         productUrl: purchaseUrl || '',
         title: getProductTitle(product),
-        price: product.price != null ? String(product.price) : undefined,
+        price: watchListingPrice(product),
         source: getRetailer(product) || product.source || '',
         imageUrl: getProductImageUrl(product) || undefined,
         type: product.type ?? 'retail',
@@ -1303,15 +1376,90 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
     marginTop: SPACING.xxs,
   },
-  linkDot: {
-    position:        'absolute',
-    top:             SPACING.xs,
-    right:           SPACING.xs,
-    width:           6,
-    height:          6,
-    borderRadius:    3,
-    backgroundColor: COLORS.gold,
-    opacity:         0.7,
+  currencyNotice: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    color: LUXURY.colors.stone,
+    textTransform: 'none',
+  },
+  cardCompared: {
+    borderColor: LUXURY.colors.plum,
+    borderWidth: 1.5,
+  },
+  compareToggle: {
+    position: 'absolute',
+    top: SPACING.xs,
+    right: SPACING.xs,
+    zIndex: 2,
+    minHeight: 28,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.pearl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compareToggleOn: {
+    backgroundColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.plum,
+  },
+  compareToggleText: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 0.7,
+    color: LUXURY.colors.plum,
+  },
+  compareToggleTextOn: {
+    color: COLORS.textInverse,
+  },
+  viewButton: {
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  viewButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    fontSize: 10,
+    letterSpacing: 0.9,
+  },
+  compareBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  compareBarText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    flex: 1,
+    textTransform: 'none',
+  },
+  compareBarClear: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontSize: 10,
+  },
+  compareBarButton: {
+    minHeight: 40,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compareBarButtonText: {
+    ...LUXURY.typography.caption,
+    color: COLORS.textInverse,
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   linkError: {
     ...TYPOGRAPHY.caption,

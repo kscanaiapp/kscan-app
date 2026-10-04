@@ -81,6 +81,11 @@ const itemReactions = fs.readFileSync(
   'utf8',
 );
 
+const dressingRoomReactionsHook = fs.readFileSync(
+  path.join(__dirname, '..', 'hooks', 'useDressingRoomReactions.ts'),
+  'utf8',
+);
+
 const dressingRoomItemContract = fs.readFileSync(
   path.join(__dirname, '..', 'services', 'dressingRoomItemContract.ts'),
   'utf8',
@@ -226,23 +231,24 @@ test('thumbs-down reaction migration preserves legacy favorite rows while hiding
   assert.doesNotMatch(thumbsDownReactionMigration, /\(values \('like'\), \('love'\), \('favorite'\), \('looking'\)\)/);
 });
 
-test('public room preview exposes item ids and gates reactions: anonymous read-only counts, writes require auth + room join', () => {
+test('public room preview exposes item ids and keeps shared reactions token-bound and participant-gated', () => {
   assert.match(publicPreviewItemIdMigration, /create or replace function public\.get_public_room_preview/);
   assert.match(publicPreviewItemIdMigration, /'id', dri\.id/);
   assert.match(publicRoomScreen, /build-14 compatibility alias for sourceId/);
-  // Aggregate counts are always available (anonymous + authenticated).
-  assert.match(publicRoomScreen, /getItemReactionCounts/);
-  assert.match(publicRoomScreen, /<ItemReactions/);
-  // Personal reaction read (getMyItemReaction) and writes (setItemReaction /
-  // removeItemReaction) are an authenticated-participant feature, NOT exposed to
-  // anonymous viewers. The privacy gate is enforced two ways in the screen:
-  //   1. Loading "my" reactions is skipped unless signed in AND joined the room.
-  //   2. The reaction UI is interactive only when `canReact` (auth + joinedRoomId).
-  assert.match(publicRoomScreen, /if \(!capabilities\.canReact \|\| !joinedRoomId\)/);
-  assert.match(publicRoomScreen, /const canReact = Boolean\(capabilities\.canReact && joinedRoomId/);
+  assert.match(publicRoomScreen, /useDressingRoomReactions\(reactionItemIds, reactionContext\)/);
+  assert.match(publicRoomScreen, /getReactionShareToken = useCallback\(\(\) => routeTokenRef\.current/);
+  assert.match(publicRoomScreen, /enabled: Boolean\(capabilities\.canReact && joinedRoomId\)/);
   assert.match(publicRoomScreen, /onReact=\{canReact \? handleReact : undefined\}/);
-  // handleReact itself refuses to mutate when not signed-in/joined.
-  assert.match(publicRoomScreen, /if \(!capabilities\.canReact \|\| !joinedRoomId \|\| mutatingReactionItemId === itemId\) return;/);
+  assert.match(publicRoomScreen, /disabled=\{!canReact\}/);
+
+  // The shared hook owns the network authority. Public aggregate reads remain
+  // bound to the live share token and personal reads/writes remain behind
+  // context.enabled (authenticated participant + joined room).
+  assert.match(dressingRoomReactionsHook, /getItemReactionCounts\(ids, token \? \{ shareToken: token \} : undefined\)/);
+  assert.match(dressingRoomReactionsHook, /if \(!contextRef\.current\.enabled\)/);
+  assert.match(dressingRoomReactionsHook, /getMyItemReaction\(normalized\)/);
+  assert.match(dressingRoomReactionsHook, /setItemReaction\(itemId, payload\.reactionType/);
+  assert.match(dressingRoomReactionsHook, /contextRef\.current\.getIdentity\(\) !== payload\.identityAtTap/);
 });
 
 test('audit migration hardens legacy public room preview storage and response bounds', () => {

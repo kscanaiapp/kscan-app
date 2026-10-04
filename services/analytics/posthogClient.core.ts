@@ -52,6 +52,7 @@ import { setKPlusAnalyticsSink } from '../kplus/kplusTelemetry';
 import { setTodayWithEliseAnalyticsSink } from '../todayWithElise/analytics';
 import { setVoiceAnalyticsSink } from '../voice/voiceTelemetry';
 import { setVtoAnalyticsSink } from '../vto/vtoTelemetry';
+import { setPurchaseImportTelemetrySink } from '../purchaseImport/purchaseImportTelemetry';
 
 export { PostHogProvider };
 
@@ -124,7 +125,7 @@ export function forwardTelemetryToPostHog(
 }
 
 /**
- * The five sinks bridged in V1. `services/style-chat/
+ * The bounded feature sinks bridged into PostHog. `services/style-chat/
  * eliseVisualAttachmentTelemetry.ts` is DELIBERATELY EXCLUDED — unlike its
  * siblings it has no event-name allowlist and its `resolutionOutcome`/
  * `transportOutcome`/etc. properties pass through as raw, unscrubbed strings
@@ -141,12 +142,13 @@ const SINK_SETTERS = [
   setTodayWithEliseAnalyticsSink,
   setVoiceAnalyticsSink,
   setVtoAnalyticsSink,
+  setPurchaseImportTelemetrySink,
 ];
 
 let bridged = false;
 
 /**
- * Wires the five safe feature telemetry sinks to PostHog. Idempotent and
+ * Wires the safe feature telemetry sinks to PostHog. Idempotent and
  * safe to call before the client exists — it just bridges to a no-op.
  */
 export function bridgeAllTelemetrySinks(): void {
