@@ -262,38 +262,40 @@ test('a pending message is never presented as delivered or actionable', () => {
   assert.match(panel, /\{!message\.isMine && !pending \? \(/);
 });
 
-test('a rejected reaction restores the exact prior selection and counts', () => {
-  for (const screen of ['app/dressing-rooms/[id].tsx', 'app/(public)/rooms/[token].tsx']) {
-    const source = read(screen);
-    assert.match(source, /const previousSelection = currentReaction;/, screen);
-    assert.match(source, /const previousCounts = reactionCounts\[itemId\] \?\? createEmptyReactionCounts\(\);/, screen);
-    assert.match(
-      source,
-      /setSelectedReactions\(\(current\) => \(\{ \.\.\.current, \[itemId\]: previousSelection \}\)\);\s*setReactionCounts\(\(current\) => \(\{ \.\.\.current, \[itemId\]: previousCounts \}\)\);/,
-      `${screen} must restore both halves of the snapshot`,
-    );
-    // And it must not roll back into a room or an account that has moved on.
-    assert.match(source, /const stillThisRoomAndActor = \(\) =>/, screen);
-  }
+test('a rejected reaction restores the exact prior selection and counts through the shared mutation authority', () => {
+  const hook = read('hooks/useDressingRoomReactions.ts');
+
+  assert.match(hook, /previousSelection: currentReaction/);
+  assert.match(hook, /previousCounts/);
+  assert.match(
+    hook,
+    /storeSelected\(\{ \.\.\.selectedRef\.current, \[itemId\]: payload\.previousSelection \}\);\s*storeCounts\(\{ \.\.\.countsRef\.current, \[itemId\]: payload\.previousCounts \}\);/,
+  );
+  // A stale actor/room may neither reconcile nor roll back into the new scope.
+  assert.match(hook, /contextRef\.current\.getIdentity\(\) !== payload\.identityAtTap/);
+  assert.match(hook, /if \(isSuperseded\(\) \|\| contextRef\.current\.getIdentity\(\) !== payload\.identityAtTap\) return;/);
 });
 
 test('the access-revoked screen shows nothing from the room behind it', () => {
   const screen = read('app/dressing-rooms/[id].tsx');
+  const hook = read('hooks/useDressingRoomReactions.ts');
   assert.match(screen, /testID="dressing-room-access-revoked"/);
-  // Every painter of room content is flushed before the state renders.
+
   for (const flush of [
     'setRoom\\(null\\)',
     'setItems\\(\\[\\]\\)',
     'setInspirations\\(\\[\\]\\)',
-    'setReactionCounts\\(\\{\\}\\)',
-    'setSelectedReactions\\(\\{\\}\\)',
+    'resetReactions\\(\\)',
     'setSelectedItem\\(null\\)',
   ]) {
     assert.match(screen, new RegExp(flush), `access loss must flush: ${flush}`);
   }
-  // The stale room title must not survive into the header either.
+  // resetReactions is authoritative for both reaction halves.
+  assert.match(hook, /const reset = useCallback\(\(\) => \{/);
+  assert.match(hook, /storeCounts|setReactionCounts\(\{\}\)/);
+  assert.match(hook, /setSelectedReactions\(\{\}\)/);
+
   assert.match(screen, /title=\{accessLost \? 'Dressing Room' : room\?\.title \|\| 'Untitled Room'\}/);
-  // No Retry on an authorization loss - it could only fail again.
   assert.match(screen, /title="Return to Rooms"/);
 });
 
