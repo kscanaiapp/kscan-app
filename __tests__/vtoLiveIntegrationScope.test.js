@@ -204,17 +204,24 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only; certification may expose the governed VTO UI', (t) => {
+test('guard: generative backend stays read-only except the exact audited Build 35 K+ promotion files', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
+  const build35CanonicalKPlusPromotion = new Set([
+    'supabase/functions/vto-generate/vtoEntitlement.ts',
+    'supabase/functions/vto-generate/vtoGuards.test.ts',
+    'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
+  ]);
   const forbiddenBackendTouches = changed.filter(
-    (file) => file.startsWith('supabase/') || file === 'app.json',
+    (file) =>
+      (file.startsWith('supabase/') || file === 'app.json') &&
+      !build35CanonicalKPlusPromotion.has(file),
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO; supabase/** and app.json remain read-only in this lane',
+    'supabase/** and app.json remain read-only except the three exact Build 35 canonical-K+ promotion files',
   );
 
   if (changed.includes('eas.json')) {
