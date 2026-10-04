@@ -47,7 +47,7 @@
         "bundleFileCount": 42,
         "treeFileCount": 69,
         "bundleHash": "00a37116b65c91e9bcb4760b12afc5b3a7f19d486d5a5b9b2749c149f255689b",
-        "treeHash": "cb1f397ab31d8febef77c766f6d338c49d82eac9f498085f3a10dc9acd11b378",
+        "treeHash": "d98d40afd209d5eb74ef179059839aa978ceeea6e108a9fe5cb930f2781f36a5",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -256,7 +256,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "7d6442e1aaca6b88a52ed1e33220e4ee454ab42137c961676c426902161b4127",
+            "sha256": "9805224a0fd182c2a0c4def97cc63c28d0331936d87db553243c39bc422b9fbb",
             "bundle": false
           },
           {
