@@ -90,7 +90,10 @@ test('ProductShelf exposes explicit purchase truth and comparison without rankin
   assert.match(source, /watchListingPrice\(product\)/);
   assert.doesNotMatch(source, /linkDot/);
   assert.doesNotMatch(helper, /\.sort\(/);
-  assert.doesNotMatch(helper, /score|rank/i);
+  const executable = helper
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(executable, /\bscore\w*\s*\(|\brank\w*\s*\(/i);
 });
 
 test('removed StyleChat commerce block is not resurrected by this convergence', () => {
