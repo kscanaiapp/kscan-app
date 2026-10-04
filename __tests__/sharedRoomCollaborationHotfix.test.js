@@ -288,8 +288,9 @@ test('Shared-With-Me route upgrades only collaborator-mode authenticated session
   assert.match(route, /resolveSharedRoomCapabilities\(\{/);
   assert.match(route, /canChat=\{capabilities\.canChat\}/);
   assert.match(route, /autoJoin=\{collaboratorMode\}/);
-  assert.match(route, /capabilities\.canReact && joinedRoomId/);
-  assert.match(route, /setJoinedRoomId\(null\)[\s\S]*\[user\?\.id\]/);
+  assert.match(route, /enabled: Boolean\(capabilities\.canReact && joinedRoomId\)/);
+  assert.match(route, /useDressingRoomReactions\(reactionItemIds, reactionContext\)/);
+  assert.match(route, /setJoinedRoomId\(null\)[\s\S]*resetReactions\(\)[\s\S]*\[resetReactions, user\?\.id\]/);
 });
 
 test('public preview cannot receive collaborator controls from a query mode alone', () => {
