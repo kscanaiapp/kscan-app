@@ -111,6 +111,11 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'kplus_entitlement_grants', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_transitions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_activations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 35 offer-code attempt/redemption rows contain an Auth actor UUID and
+  // HMAC-only code material. Both cascade with Auth deletion; definitions/codes
+  // contain no actor data and therefore are not user-data resources.
+  { table: 'kplus_offer_redemption_attempts', column: 'actor_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'kplus_offer_redemptions', column: 'actor_id', action: 'auth_delete_cascade', optional: true },
   // Phase E per-actor pull lease/cooldown state. Operational only and removed
   // with the Auth user; listed so deletion coverage verifies the cascade.
   { table: 'kplus_provider_reconciliation_controls', column: 'user_id', action: 'auth_delete_cascade', optional: true },
