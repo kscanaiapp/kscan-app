@@ -28,7 +28,11 @@ export const VTO_FAILURE_CODES = [
   'provider_moderation',
   'provider_timeout',
   'provider_unavailable',
+  /** Legacy ambiguous code retained for older clients; no longer emitted. */
   'rate_limited',
+  'quota_exhausted',
+  'request_in_flight',
+  'provider_busy',
   'generation_failed',
   'invalid_output',
   'authorization_failed',
@@ -59,6 +63,10 @@ export type VtoMediaType = (typeof VTO_ALLOWED_MEDIA_TYPES)[number];
  *  VTO_PERSON_PAYLOAD_MAX_CHARS on the client. A safety bound, not a vendor
  *  limit -- it exists so an absurd body is rejected cheaply. */
 export const VTO_PERSON_PAYLOAD_MAX_CHARS = 2_000_000;
+
+/** Bounds on vendor Retry-After guidance K Scan will repeat to a caller. */
+export const VTO_RETRY_AFTER_MIN_SECONDS = 1;
+export const VTO_RETRY_AFTER_MAX_SECONDS = 3600;
 
 /** Lower bound on a plausible decoded image. Anything under this is a
  *  truncated or empty result masquerading as success. */
@@ -117,6 +125,8 @@ export type VtoProviderOutcome =
        * unbounded retry loop, which is what VTO-QUOTA-001 closed.
        */
       billable?: boolean;
+      /** Bounded vendor guidance. No server or client code retries automatically. */
+      retryAfterSeconds?: number;
     };
 
 export interface VtoProvider {
