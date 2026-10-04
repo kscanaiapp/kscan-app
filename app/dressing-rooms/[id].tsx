@@ -369,7 +369,7 @@ function DressingRoomDetailContent() {
         setInspirationLoading(false);
       }
     }
-  }, [resetReactions, roomId, user?.id]);
+  }, [roomId, user?.id]);
 
   const reload = useCallback(async () => {
     const requestedActorId = user?.id ?? null;
@@ -491,7 +491,7 @@ function DressingRoomDetailContent() {
         setLoading(false);
       }
     }
-  }, [roomId, user?.id]);
+  }, [resetReactions, roomId, user?.id]);
 
   useFocusEffect(useCallback(() => {
     void reload();
