@@ -101,30 +101,113 @@ function evaluate(report, importedPackages = []) {
   });
 }
 
+/**
+ * Current 2026-10-04 HIGH audit shape. The new braces advisory is the only
+ * direct leaf in the newly-red chain; npm propagates its severity through
+ * micromatch/Jest/Metro parents and ultimately to react-native.
+ */
+function currentHighAuditReport() {
+  const vulnerabilities = Object.fromEntries([
+    '@expo/cli', '@expo/code-signing-certificates', '@expo/metro', '@expo/metro-config',
+    'brace-expansion', 'expo', 'image-size', 'js-yaml', 'metro', 'metro-config',
+    'metro-transform-worker', 'nanoid', 'node-forge', 'postcss', 'undici', 'ws',
+  ].map((name) => [name, { severity: 'high', via: [] }]));
+
+  Object.assign(vulnerabilities, {
+    braces: {
+      severity: 'high',
+      via: [{ source: 999001, name: 'braces', dependency: 'braces', severity: 'high' }],
+    },
+    micromatch: { severity: 'high', via: ['braces'] },
+    'jest-message-util': { severity: 'high', via: ['micromatch'] },
+    'jest-haste-map': { severity: 'high', via: ['micromatch'] },
+    '@jest/transform': { severity: 'high', via: ['jest-haste-map', 'micromatch'] },
+    '@jest/fake-timers': { severity: 'high', via: ['jest-message-util'] },
+    '@jest/environment': { severity: 'high', via: ['@jest/fake-timers'] },
+    'jest-environment-node': { severity: 'high', via: ['@jest/environment', '@jest/fake-timers'] },
+    'babel-jest': { severity: 'high', via: ['@jest/transform'] },
+    'metro-file-map': { severity: 'high', via: ['micromatch'] },
+    '@react-native/community-cli-plugin': { severity: 'high', via: ['metro-file-map'] },
+    'react-native': {
+      severity: 'high',
+      via: ['@react-native/community-cli-plugin', 'babel-jest', 'jest-environment-node'],
+    },
+  });
+
+  const total = Object.keys(vulnerabilities).length;
+  return auditReport(vulnerabilities, { high: total, total });
+}
+
 // ------------------------------------------------------------ positive
 
 test('B34-DEF-014: the committed manifest accepts the real tree\'s critical/high set', () => {
   // The live end-to-end positive control is `npm run verify:dependency-reachability`,
-  // which CI runs as its own step. Duplicating that live audit here doubled a
-  // multi-minute network call for no extra signal, so the manifest-covers-the-tree
-  // claim is asserted directly instead: every high finding the real tree currently
-  // produces must resolve to an approved exception, with none left unapproved.
-  const realHighFindings = [
-    '@expo/cli', '@expo/code-signing-certificates', '@expo/metro', '@expo/metro-config', 'brace-expansion', 'expo',
-    'image-size', 'js-yaml', 'metro', 'metro-config', 'metro-transform-worker',
-    'nanoid', 'node-forge', 'postcss', 'ws',
-  ];
-  const report = auditReport(
-    Object.fromEntries(realHighFindings.map((name) => [name, { severity: 'high' }])),
-    { high: realHighFindings.length, total: realHighFindings.length },
-  );
-
+  // which CI runs as its own step. The deterministic fixture mirrors the
+  // current audit's propagated braces chain so this test proves the same policy
+  // without another registry call.
+  const report = currentHighAuditReport();
   const isImported = gate.makeImportChecker(gate.readAppSource());
   const { manifest, byPackage } = loadRealManifest();
   const { failures, accepted } = gate.evaluateReachability({ report, manifest, byPackage, isImported });
 
-  assert.deepEqual(failures, [], 'the real tree\'s high findings must all be approved and unreachable');
-  assert.equal(accepted.length, realHighFindings.length);
+  assert.deepEqual(failures, [], 'the real tree\'s high findings must all be approved with evidenced reachability');
+  assert.equal(accepted.length, Object.keys(report.vulnerabilities).length);
+  assert.ok(
+    accepted.some((a) => a.name === 'react-native' && a.classification === 'TRANSITIVE_BUILD_DEV_ONLY'),
+    'react-native must be accepted as an aggregate parent, never mislabeled BUILD_DEV_ONLY',
+  );
+});
+
+test('Build 35: propagated parent findings resolve to the approved braces advisory leaf', () => {
+  const report = currentHighAuditReport();
+  const resolved = gate.resolveBlockingAdvisoryLeaves(report, 'react-native');
+  assert.deepEqual([...resolved.leaves].sort(), ['braces']);
+  assert.deepEqual([...resolved.unresolved], []);
+
+  const result = evaluate(report, []);
+  assert.deepEqual(result.failures, []);
+  const aggregate = result.accepted.find((item) => item.name === 'react-native');
+  assert.equal(aggregate.classification, 'TRANSITIVE_BUILD_DEV_ONLY');
+  assert.equal(aggregate.via, 'braces');
+});
+
+test('Build 35 negative control: a direct react-native HIGH is not hidden by the braces aggregate exception', () => {
+  const report = auditReport({
+    braces: {
+      severity: 'high',
+      via: [{ source: 999001, name: 'braces', dependency: 'braces', severity: 'high' }],
+    },
+    'react-native': {
+      severity: 'high',
+      via: [
+        'braces',
+        { source: 999002, name: 'react-native', dependency: 'react-native', severity: 'high' },
+      ],
+    },
+  }, { high: 2, total: 2 });
+
+  const result = evaluate(report, []);
+  assert.ok(result.failures.some((failure) => /react-native \(high\): no approved exception/.test(failure)));
+});
+
+test('Build 35 negative control: an unlisted runtime aggregate parent cannot inherit the braces waiver', () => {
+  const report = auditReport({
+    braces: {
+      severity: 'high',
+      via: [{ source: 999001, name: 'braces', dependency: 'braces', severity: 'high' }],
+    },
+    'unexpected-runtime-parent': { severity: 'high', via: ['braces'] },
+  }, { high: 2, total: 2 });
+
+  const result = evaluate(report, []);
+  assert.ok(result.failures.some((failure) => /unexpected-runtime-parent \(high\): no approved exception/.test(failure)));
+});
+
+test('Build 35 negative control: aggregate acceptance fails if the braces leaf becomes app-reachable', () => {
+  const report = currentHighAuditReport();
+  const result = evaluate(report, ['braces']);
+  assert.ok(result.failures.some((failure) => /inherited advisory leaf braces is now directly imported/.test(failure)));
+  assert.ok(result.failures.some((failure) => /braces \(high\): now directly imported/.test(failure)));
 });
 
 // ------------------------------------------------- negative A: exception removed
