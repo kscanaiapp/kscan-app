@@ -1340,7 +1340,11 @@ export async function updateClosetItem(id, patch, { actorRequest, ownerId } = {}
     }
 
     if (next.purchase && typeof next.purchase === 'object' && patch && typeof patch === 'object') {
-      const edited = ['title', ...CLOSET_ITEM_TAXONOMY_FIELDS].filter(
+      // updateClosetItem intentionally permits only title/category/notes.
+      // Purchase provenance may change only for fields this authority actually
+      // writes; merely naming brand/size/etc. in a rejected patch must never
+      // falsely mark those facts USER_CONFIRMED.
+      const edited = ['title', 'category'].filter(
         (field) =>
           Object.prototype.hasOwnProperty.call(patch, field) &&
           CLOSET_PURCHASE_PROVENANCE_FIELDS.includes(field)
