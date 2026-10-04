@@ -357,18 +357,28 @@ function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set()) {
  */
 function evaluateApprovedAggregate({ report, name, byPackage, isImported }) {
   const { leaves, unresolved } = resolveBlockingAdvisoryLeaves(report, name);
-  if (unresolved.size > 0 || leaves.size === 0 || leaves.has(name)) return { ok: false };
+  const leafNames = [...leaves].sort();
+  const unresolvedNames = [...unresolved].sort();
+  if (unresolved.size > 0 || leaves.size === 0 || leaves.has(name)) {
+    return { ok: false, leaves: leafNames, unresolved: unresolvedNames, reason: 'not-a-pure-aggregate' };
+  }
 
   for (const leaf of leaves) {
     const leafFinding = (report.vulnerabilities || {})[leaf];
     const exception = byPackage.get(leaf);
-    if (!leafFinding || !exception) return { ok: false };
-    if (exception.classification !== 'BUILD_DEV_ONLY') return { ok: false };
+    if (!leafFinding || !exception) {
+      return { ok: false, leaves: leafNames, unresolved: unresolvedNames, reason: `leaf-${leaf}-unapproved` };
+    }
+    if (exception.classification !== 'BUILD_DEV_ONLY') {
+      return { ok: false, leaves: leafNames, unresolved: unresolvedNames, reason: `leaf-${leaf}-not-build-dev-only` };
+    }
     // A severity escalation is new risk. Do not let yesterday's HIGH waiver
     // silently cover tomorrow's CRITICAL advisory.
-    if (exception.severity !== leafFinding.severity) return { ok: false };
+    if (exception.severity !== leafFinding.severity) {
+      return { ok: false, leaves: leafNames, unresolved: unresolvedNames, reason: `leaf-${leaf}-severity-mismatch` };
+    }
     if (!Array.isArray(exception.aggregateParents) || !exception.aggregateParents.includes(name)) {
-      return { ok: false };
+      return { ok: false, leaves: leafNames, unresolved: unresolvedNames, reason: `leaf-${leaf}-parent-not-approved` };
     }
     if (isImported(leaf)) {
       return {
@@ -380,7 +390,7 @@ function evaluateApprovedAggregate({ report, name, byPackage, isImported }) {
     }
   }
 
-  return { ok: true, leaves: [...leaves].sort() };
+  return { ok: true, leaves: leafNames, unresolved: unresolvedNames };
 }
 
 /**
@@ -413,10 +423,15 @@ function evaluateReachability({ report, manifest, byPackage, isImported }) {
         failures.push(aggregate.failure);
         continue;
       }
+      const aggregateTrace =
+        aggregate.leaves || aggregate.unresolved
+          ? ` Aggregate trace: reason=${aggregate.reason || 'not-approved'}; leaves=[${(aggregate.leaves || []).join(',')}]; unresolved=[${(aggregate.unresolved || []).join(',')}].`
+          : '';
       failures.push(
         `${name} (${finding.severity}): no approved exception on file. ` +
           'Either this is genuinely new, or it must be triaged and added to ' +
-          'config/dependency-reachability-exceptions.json with evidence.',
+          'config/dependency-reachability-exceptions.json with evidence.' +
+          aggregateTrace,
       );
       continue;
     }
