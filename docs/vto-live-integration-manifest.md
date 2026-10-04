@@ -79,7 +79,7 @@ added to a list without a justification.
 
 ### Explicitly NOT authorized, and not touched
 
-`supabase/functions/vto-generate/**` (read only), the Commerce
+`supabase/functions/vto-generate/**` (read only except the three exact Build 35 canonical-K+ promotion files declared above), the Commerce
 implementation, the scan/identification pipeline, checkout, closet, packing,
 Elise, analytics infrastructure except the two exact audit repair files above, unrelated hooks/services/components,
 deployment workflows, release credentials, and staging/production backend
