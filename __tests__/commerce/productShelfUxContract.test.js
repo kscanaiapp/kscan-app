@@ -84,11 +84,11 @@ test('compare selection is bounded to three and reversible', () => {
 
 test('ProductShelf exposes explicit purchase truth and comparison without ranking', () => {
   const source = read('components/ProductShelf.tsx');
-  assert.match(source, /VIEW AT RETAILER/);
   assert.match(source, /ProductCompareSheet/);
+  const helper = read('services/commerce/productShelfPresentation.ts');
+  assert.match(helper, /VIEW AT RETAILER/);
   assert.match(source, /watchListingPrice\(product\)/);
   assert.doesNotMatch(source, /linkDot/);
-  const helper = read('services/commerce/productShelfPresentation.ts');
   assert.doesNotMatch(helper, /\.sort\(/);
   assert.doesNotMatch(helper, /score|rank/i);
 });
