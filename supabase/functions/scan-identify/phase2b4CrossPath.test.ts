@@ -332,12 +332,20 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 K+ Phase E: authenticated per-actor inbound state repair. It
+  // imports the shared account guard, so its deployed closure carries that
+  // module's full REST/RPC/auth-admin footprint. The function itself uses the
+  // service role only for the private lease/cache/provider-transition RPCs;
+  // actor identity is the verified JWT subject and no table is directly read.
+  'kplus-revenuecat-pull-reconcile': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   // Build 35 K+ Phase C: the inbound RevenueCat lifecycle webhook. It is reachable
   // without a Supabase JWT (verify_jwt = false), so it is built like deletion-status:
   // it does NOT import _shared/deletion/common.ts and therefore carries no
   // auth.admin.* code. Its only privileged operation is a service-role call to the
-  // two provider transition RPCs (apply_kplus_provider_transition /
-  // apply_kplus_provider_lifetime_transition). It performs no direct table read or
+  // two shared provider transition wrappers. It performs no direct table read or
   // write and no storage access. The caller boundary is provider authentication
   // (an Authorization secret, plus an HMAC signature when configured), enforced
   // before the body is parsed.
@@ -590,8 +598,8 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
     + 'server-only Authorization secret, plus an HMAC signature when a signing '
     + 'secret is configured -- before the body is parsed, and refuses everything '
     + 'when the secret is unset. Service role is used for exactly one thing: '
-    + 'calling apply_kplus_provider_transition / apply_kplus_provider_lifetime_'
-    + 'transition, which are service-role-only and own ordering, idempotency, '
+    + 'calling the shared provider transition wrappers, which are service-role-'
+    + 'only and own ordering, idempotency, '
     + 'cross-user ownership and environment checks. It reads and writes no table '
     + 'directly, never calls auth.admin, does not import the shared deletion '
     + 'module, and takes the actor only from the provider-authenticated '

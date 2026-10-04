@@ -151,6 +151,9 @@ test('committed manifest governs every governed function and the approved projec
   // entry, verify_jwt = false in supabase/config.toml (RevenueCat cannot send a
   // Supabase JWT; the function authenticates every request itself), and
   // deliberately absent from the staging auto-deploy allowlist.
+  // kplus-revenuecat-pull-reconcile joined under Build 35 K+ Phase E -- the
+  // separate JWT-authenticated inbound current-state repair primitive. It is
+  // governed from birth and remains absent from deployment allowlists.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
@@ -160,6 +163,7 @@ test('committed manifest governs every governed function and the approved projec
     'kickscrew-sneaker-description',
     'kplus-activate',
     'kplus-reconcile-revenuecat',
+    'kplus-revenuecat-pull-reconcile',
     'kplus-revenuecat-webhook',
     'nike-shoe-details',
     'privacy-correction-request',

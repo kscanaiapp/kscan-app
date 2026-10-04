@@ -137,6 +137,7 @@ const GOVERNED_FUNCTIONS = [
   'kickscrew-sneaker-description',
   'kplus-activate',
   'kplus-reconcile-revenuecat',
+  'kplus-revenuecat-pull-reconcile',
   'kplus-revenuecat-webhook',
   'nike-shoe-details',
   'product-search-deals',
