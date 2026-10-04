@@ -44,7 +44,7 @@ function loadSheet({ platformOS, openSettings, mutate }) {
     {
       ...renderer.runtimeModules,
       'react-native': rn,
-      'expo-haptics': { impactAsync: () => Promise.resolve(), ImpactFeedbackStyle: { Light: 'light' } },
+      '../../services/haptics': { softImpact: () => undefined },
       '../luxury': { PrimaryButton: Button, SecondaryButton: Button },
       '../icons/kscan': { VoiceScanIcon: Button },
       '../../constants/theme': { LUXURY: deepStub(), MOTION: deepStub(), RADIUS: deepStub(), SHADOWS: deepStub(), SPACING: deepStub() },
