@@ -255,7 +255,10 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // Now 26: Build 35 K+ Phase C added kplus-revenuecat-webhook, the inbound
   // RevenueCat lifecycle webhook. Unrelated to this sweep and to the deletion
   // path: it touches only the K+ provider transition functions.
-  assert.equal(dirs.length, 26, 'no unexplained Edge Function has appeared');
+  // Now 27: Build 35 K+ Phase E added kplus-revenuecat-pull-reconcile, the
+  // separately governed authenticated per-actor provider repair primitive.
+  // It is likewise unrelated to this deletion sweep.
+  assert.equal(dirs.length, 27, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant

@@ -367,6 +367,13 @@
       "notes": "K+ entitlement authority (Phase 1) lifecycle activation events (future Welcome to K+). ON DELETE CASCADE FK to auth.users; nothing retained after purge."
     },
     {
+      "table": "kplus_provider_reconciliation_controls",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 35 Phase E per-actor RevenueCat pull lease, cooldown and bounded outcome state. ON DELETE CASCADE FK to auth.users; no provider payload, receipt, token or transaction identifier is stored."
+    },
+    {
       "table": "kplus_revenuecat_mirror_queue",
       "column": "user_id",
       "action": "auth_delete_cascade",

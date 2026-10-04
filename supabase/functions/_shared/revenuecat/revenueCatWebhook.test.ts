@@ -440,7 +440,7 @@ test('G: initial paid purchase -> an active paid period', async () => {
   assert.equal(res.status, 200);
   assert.deepEqual(res.json, { status: 'applied' });
   const { fn, args } = only(r);
-  assert.equal(fn, 'apply_kplus_provider_transition');
+  assert.equal(fn, 'reconcile_kplus_provider_transition');
   assert.equal(args.p_user_id, USER_A);
   assert.equal(args.p_provider, 'revenuecat');
   assert.equal(args.p_cause, 'provider_event');
@@ -604,7 +604,7 @@ test('O: a lifetime purchase goes to the LIFETIME transition, never the subscrip
   }));
   assert.equal(res.status, 200);
   const { fn, args } = only(r);
-  assert.equal(fn, 'apply_kplus_provider_lifetime_transition');
+  assert.equal(fn, 'reconcile_kplus_provider_lifetime_transition');
   assert.equal(args.p_provider_event_type, 'lifetime_purchase');
   assert.equal(args.p_lifecycle_state, 'active');
   assert.equal(args.p_purchased_at, new Date(NOW - 1000).toISOString());
@@ -616,7 +616,7 @@ test('O: a lifetime purchase goes to the LIFETIME transition, never the subscrip
 test('P: a lifetime refund -> refunded (and a CUSTOMER_SUPPORT expiration is the same fact)', async () => {
   const r = rig();
   await send(r, body({ type: 'CANCELLATION', cancel_reason: 'CUSTOMER_SUPPORT', product_id: 'fixture.apple.lifetime', expiration_at_ms: null, period_type: null }));
-  assert.equal(only(r).fn, 'apply_kplus_provider_lifetime_transition');
+  assert.equal(only(r).fn, 'reconcile_kplus_provider_lifetime_transition');
   assert.equal(only(r).args.p_provider_event_type, 'refund');
   assert.equal(only(r).args.p_lifecycle_state, 'refunded');
   const r2 = rig();
@@ -786,7 +786,7 @@ test('Z: the handler touches the database through the two provider transition RP
   await send(r, body({ id: 'e2', type: 'NON_RENEWING_PURCHASE', product_id: 'fixture.apple.lifetime', expiration_at_ms: null, period_type: null }));
   await send(r, body({ id: 'e3', type: 'CANCELLATION', cancel_reason: 'CUSTOMER_SUPPORT' }));
   const names = new Set(r.rpcCalls.map((c) => c.fn));
-  assert.deepEqual([...names].sort(), ['apply_kplus_provider_lifetime_transition', 'apply_kplus_provider_transition']);
+  assert.deepEqual([...names].sort(), ['reconcile_kplus_provider_lifetime_transition', 'reconcile_kplus_provider_transition']);
   const source = Deno.readTextFileSync(new URL('./revenueCatWebhookHandler.ts', import.meta.url));
   assert.doesNotMatch(source, /revoke_kplus_grant|grant_kplus_complimentary|user_entitlements|kplus_entitlement_grants|supabase\.from\(|rest\(/, 'no direct table access, no revoke, no complimentary grant');
 });
