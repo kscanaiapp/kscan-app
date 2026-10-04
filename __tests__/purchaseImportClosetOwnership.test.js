@@ -119,17 +119,37 @@ test('records that are not purchase imports keep exactly their previous key set'
   assert.equal(Object.prototype.hasOwnProperty.call(r.item, 'purchase'), false);
 });
 
-test('Q / RPI-30 after commit: editing a purchase-imported field flips its provenance to USER_CONFIRMED', async () => {
+test('Q / RPI-30 after commit: editable purchase-import fields update provenance without widening Closet authority', async () => {
   const store = loadClosetStore();
-  const r = await create(store, { title: 'Coat', brand: 'Atelier Nine', size: 'M', origin: 'purchase_import', purchase: purchase() });
+  const r = await create(store, {
+    title: 'Coat',
+    category: 'outerwear',
+    brand: 'Atelier Nine',
+    size: 'M',
+    origin: 'purchase_import',
+    purchase: purchase({ fieldProvenance: {
+      title: 'RECEIPT_EXPLICIT',
+      category: 'MODEL_NORMALIZED',
+      brand: 'RECEIPT_EXPLICIT',
+      size: 'RECEIPT_EXPLICIT',
+      pricePaid: 'RECEIPT_EXPLICIT',
+      currency: 'RECEIPT_EXPLICIT',
+    } }),
+  });
   const updated = await store.closetLibrary.updateClosetItem(
     r.item.id,
-    { brand: 'Atelier 9', size: null },
+    { title: 'Camel coat', category: null, brand: 'SHOULD NOT APPLY', size: null },
     { actorRequest: store.actorContext.createActorRequest(), ownerId: 'user-1' },
   );
   assert.equal(updated.ok, true);
-  assert.equal(updated.item.purchase.fieldProvenance.brand, 'USER_CONFIRMED');
-  assert.equal(updated.item.purchase.fieldProvenance.size, 'UNKNOWN', 'a cleared field is absent, not user-confirmed');
+  assert.equal(updated.item.title, 'Camel coat');
+  assert.equal(updated.item.category, null);
+  assert.equal(updated.item.brand, 'Atelier Nine', 'brand remains outside updateClosetItem authority');
+  assert.equal(updated.item.size, 'M', 'size remains outside updateClosetItem authority');
+  assert.equal(updated.item.purchase.fieldProvenance.title, 'USER_CONFIRMED');
+  assert.equal(updated.item.purchase.fieldProvenance.category, 'UNKNOWN', 'a cleared editable field is absent, not user-confirmed');
+  assert.equal(updated.item.purchase.fieldProvenance.brand, 'RECEIPT_EXPLICIT', 'rejected patch keys cannot falsify provenance');
+  assert.equal(updated.item.purchase.fieldProvenance.size, 'RECEIPT_EXPLICIT', 'rejected patch keys cannot falsify provenance');
   assert.equal(updated.item.purchase.pricePaid, 98, 'an unrelated edit leaves purchase facts alone');
 });
 
