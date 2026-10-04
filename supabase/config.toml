@@ -124,8 +124,9 @@ verify_jwt = false
 [functions.kplus-revenuecat-pull-reconcile]
 verify_jwt = true
 
-# Customer offer-code ingestion. Always authenticated; actor identity comes
-# from the verified JWT and raw codes are never logged or stored.
+# Customer offer-code ingestion. Always authenticated; the function derives the
+# actor from auth.getUser(), HMACs the code with a server-only secret, and calls
+# the service-only atomic redemption RPC. Raw codes are never logged or stored.
 [functions.kplus-offer-redeem]
 verify_jwt = true
 
