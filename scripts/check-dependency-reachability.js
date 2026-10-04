@@ -303,7 +303,7 @@ function loadExceptions(exceptionsPath = EXCEPTIONS_PATH) {
  * runtime package BUILD_DEV_ONLY; we instead prove the audit's `via` graph ends
  * at an explicitly approved build/dev-only advisory leaf.
  */
-function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set()) {
+function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set(), stopAt = null) {
   const vulnerabilities = report.vulnerabilities || {};
   const finding = vulnerabilities[packageName];
   const leaves = new Set();
@@ -318,13 +318,22 @@ function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set()) {
     return { leaves, unresolved };
   }
 
+  // A caller may nominate already-governed direct exceptions as trust
+  // boundaries. This prevents aggregate parents from recursively reopening a
+  // BUILD_DEV_ONLY package whose own advisory/reachability has already been
+  // separately approved and checked.
+  if (stack.size > 0 && typeof stopAt === 'function' && stopAt(packageName)) {
+    leaves.add(packageName);
+    return { leaves, unresolved };
+  }
+
   const nextStack = new Set(stack);
   nextStack.add(packageName);
   const via = Array.isArray(finding.via) ? finding.via : [];
 
   for (const item of via) {
     if (typeof item === 'string') {
-      const nested = resolveBlockingAdvisoryLeaves(report, item, nextStack);
+      const nested = resolveBlockingAdvisoryLeaves(report, item, nextStack, stopAt);
       for (const leaf of nested.leaves) leaves.add(leaf);
       for (const missing of nested.unresolved) unresolved.add(missing);
       continue;
@@ -356,7 +365,22 @@ function resolveBlockingAdvisoryLeaves(report, packageName, stack = new Set()) {
  * a broad leaf waiver from automatically blessing unrelated runtime parents.
  */
 function evaluateApprovedAggregate({ report, name, byPackage, isImported }) {
-  const { leaves, unresolved } = resolveBlockingAdvisoryLeaves(report, name);
+  const stopAtApprovedBoundary = (candidate) => {
+    const finding = (report.vulnerabilities || {})[candidate];
+    const exception = byPackage.get(candidate);
+    return Boolean(
+      finding &&
+      exception &&
+      exception.classification === 'BUILD_DEV_ONLY' &&
+      exception.severity === finding.severity,
+    );
+  };
+  const { leaves, unresolved } = resolveBlockingAdvisoryLeaves(
+    report,
+    name,
+    new Set(),
+    stopAtApprovedBoundary,
+  );
   const leafNames = [...leaves].sort();
   const unresolvedNames = [...unresolved].sort();
   if (unresolved.size > 0 || leaves.size === 0 || leaves.has(name)) {
