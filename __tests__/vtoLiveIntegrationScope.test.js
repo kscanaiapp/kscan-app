@@ -29,6 +29,8 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
   'supabase/functions/vto-generate/vtoContract.ts',
   'supabase/functions/vto-generate/vtoHandler.ts',
+  'supabase/functions/vto-generate/vtoOwnedGarment.ts',
+  'supabase/functions/vto-generate/vtoOwnedGarment.test.ts',
   'supabase/functions/kplus-offer-redeem/index.ts',
   'supabase/functions/kplus-offer-redeem/offerCodeContract.ts',
   'supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts',
