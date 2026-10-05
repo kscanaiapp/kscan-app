@@ -36,6 +36,8 @@ export interface SavedLookCardProps {
    * all before this existed (BUG-16).
    */
   onEdit?: () => void;
+  /** Separate owned-garment action, with a VoiceOver action on pressable cards. */
+  onTryOn?: () => void;
   /** Label for the edit action. */
   editLabel?: string;
   /** Test ID for E2E. */
@@ -64,6 +66,7 @@ export function SavedLookCard({
   onDelete,
   viewLabel = 'View',
   onEdit,
+  onTryOn,
   editLabel = 'Edit',
   testID,
   accessibilityLabel,
@@ -125,9 +128,13 @@ export function SavedLookCard({
           </View>
         ) : null}
         {date ? <Text style={styles.date}>{date}</Text> : null}
-        {onPress || onEdit ? (
+        {onPress || onEdit || onTryOn ? (
           <View style={styles.actionRow}>
             {onPress ? <Text style={styles.viewLabel}>{viewLabel}</Text> : null}
+            {onTryOn ? <Pressable onPress={onTryOn} style={styles.editButton}
+              accessibilityRole="button" accessibilityLabel={`Try on ${title}`} testID="closet-try-on-action">
+              <Text style={styles.editLabel}>Try it on</Text>
+            </Pressable> : null}
             {onEdit ? (
               <Pressable
                 onPress={onEdit}
@@ -154,6 +161,7 @@ export function SavedLookCard({
       Platform.OS === 'ios'
         ? [
             ...(onEdit ? [{ name: 'edit', label: `Edit ${title}` }] : []),
+            ...(onTryOn ? [{ name: 'try-on', label: `Try on ${title}` }] : []),
             ...(onDelete ? [{ name: 'delete', label: `Delete ${title}` }] : []),
           ]
         : [];
@@ -169,6 +177,7 @@ export function SavedLookCard({
           voiceOverActions.length > 0
             ? (event) => {
                 if (event.nativeEvent.actionName === 'edit') onEdit?.();
+                if (event.nativeEvent.actionName === 'try-on') onTryOn?.();
                 if (event.nativeEvent.actionName === 'delete') onDelete?.();
               }
             : undefined

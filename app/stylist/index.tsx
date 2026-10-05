@@ -10,7 +10,7 @@
 // manual builder visible, preserve the anchor and event context, and respect
 // the service-level 30s cooldown. Nothing here throws for expected failures.
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,7 +23,8 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
-import { captureActorScope, isActorScopeCurrent } from '../../services/actorScope';
+import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from '../../services/actorScope';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { StatusBar } from 'expo-status-bar';
 
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -158,6 +159,10 @@ type RejectTarget = {
 };
 
 function StylistContent() {
+  const screenScope = useRef(captureActorScope()).current;
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const isCurrent = useCallback(() => mountedRef.current && isActorScopeCurrent(screenScope), [screenScope]);
   const params = useLocalSearchParams<{
     anchorSourceType?: string;
     anchorSourceId?: string;
@@ -213,6 +218,7 @@ function StylistContent() {
 
   const runGenerate = useCallback(
     async (input?: { keepItems?: OwnedItemRef[]; mode?: 'style_item' | 'style_event' | 'restyle_remaining' }) => {
+      if (!isCurrent()) return;
       if (generatingRef.current || isGenerationInFlight()) return; // rapid-tap guard
       generatingRef.current = true;
       setGenerating(true);
@@ -243,7 +249,7 @@ function StylistContent() {
         });
         // Stale actor: discard the whole result. No render, no telemetry, and
         // therefore no Ask Elise handoff (which is driven off `result`).
-        if (!isActorScopeCurrent(scope)) return;
+        if (!isActorScopeCurrent(scope) || !isCurrent()) return;
         setResult(response);
 
         if (response.status === 'success') {
@@ -256,11 +262,10 @@ function StylistContent() {
           }
         }
       } finally {
-        generatingRef.current = false;
-        setGenerating(false);
+        if (isCurrent()) { generatingRef.current = false; setGenerating(false); }
       }
     },
-    [anchorItem, occasion, dressCode, setting, note, excludedRefs],
+    [anchorItem, occasion, dressCode, setting, note, excludedRefs, isCurrent],
   );
 
   // ── Swap actions ─────────────────────────────────────────────────────────────
@@ -339,6 +344,7 @@ function StylistContent() {
 
   const saveSuggestionAsLook = useCallback(
     async (suggestion: OutfitSuggestion): Promise<string | null> => {
+      if (!isCurrent()) return null;
       const existing =
         savedLookIdBySuggestionRef.current[suggestion.suggestionId] ??
         savedLookIdBySuggestion[suggestion.suggestionId];
@@ -369,6 +375,7 @@ function StylistContent() {
             role: ref.role,
           })),
         });
+        if (!isCurrent()) return null;
         savedLookIdBySuggestionRef.current = {
           ...savedLookIdBySuggestionRef.current,
           [suggestion.suggestionId]: look.id,
@@ -384,24 +391,23 @@ function StylistContent() {
         });
         return look.id;
       } catch (err: any) {
-        setActionError(err?.message || 'Unable to save this Look. Please try again.');
+        if (isCurrent()) setActionError(err?.message || 'Unable to save this Look. Please try again.');
         return null;
       } finally {
-        savingSuggestionIdsRef.current.delete(suggestion.suggestionId);
-        setSavingSuggestionId(null);
+        if (isCurrent()) { savingSuggestionIdsRef.current.delete(suggestion.suggestionId); setSavingSuggestionId(null); }
       }
     },
-    [savedLookIdBySuggestion, occasion, dressCode, setting, note],
+    [savedLookIdBySuggestion, occasion, dressCode, setting, note, isCurrent],
   );
 
   const handleSaveLook = async (suggestion: OutfitSuggestion) => {
     const lookId = await saveSuggestionAsLook(suggestion);
-    if (lookId) router.push(`/looks/${lookId}`);
+    if (lookId && isCurrent()) router.push(`/looks/${lookId}`);
   };
 
   const handleAskRoomSingle = async (suggestion: OutfitSuggestion) => {
     const lookId = await saveSuggestionAsLook(suggestion);
-    if (lookId) setAskRoomLookIds([lookId]);
+    if (lookId && isCurrent()) setAskRoomLookIds([lookId]);
   };
 
   const handleAskRoomAll = async (suggestions: OutfitSuggestion[]) => {
@@ -412,7 +418,7 @@ function StylistContent() {
       if (!lookId) return; // error already surfaced; drafts preserved
       lookIds.push(lookId);
     }
-    if (lookIds.length > 0) setAskRoomLookIds(lookIds);
+    if (lookIds.length > 0 && isCurrent()) setAskRoomLookIds(lookIds);
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -805,6 +811,7 @@ function StylistContent() {
 }
 
 export default function StylistScreen() {
+  useAuthSession();
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;
@@ -812,7 +819,7 @@ export default function StylistScreen() {
   if (!AI_STYLIST_UI_ENABLED || !isFeatureEnabled('aiStylist')) {
     return <FeatureFreezeFallback cta="closet" />;
   }
-  return <StylistContent />;
+  return <StylistContent key={currentActorScopeKey()} />;
 }
 
 const styles = StyleSheet.create({

@@ -73,6 +73,21 @@ function loadLaunch(actorScope) {
   });
 }
 
+test('Build35: actor change during an empty resume lookup must not create for the new actor', async () => {
+  const scope = createActorScopeStub();
+  scope.setActor(ACTOR_A);
+  const { createStyleChatSessionLaunchGuard, launchStyleChatSession } = loadLaunch(scope.module);
+  let creates = 0;
+  const result = await launchStyleChatSession({
+    guard: createStyleChatSessionLaunchGuard(),
+    resolveExistingSessionId: async () => { scope.setActor(ACTOR_B); return null; },
+    createSession: async () => { creates++; return { id: A_SESSION_ID }; },
+    navigate: () => assert.fail('stale launch must not navigate'),
+  });
+  assert.equal(creates, 0);
+  assert.equal(result.status, 'cancelled');
+});
+
 test('ELISE-002: an account switch during session creation cancels the navigation', async () => {
   const scope = createActorScopeStub();
   scope.setActor(ACTOR_A);

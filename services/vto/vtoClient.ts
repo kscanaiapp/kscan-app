@@ -105,7 +105,7 @@ function withRetryAfter<T extends { code: VtoFailureCode }>(
   return typeof retryAfterSeconds === 'number' ? { ...detail, retryAfterSeconds } : detail;
 }
 
-function normalizeSuccess(requestId: string, data: unknown): VtoGenerateOutcome {
+function normalizeSuccess(requestId: string, data: unknown, garment: VtoGarmentInput): VtoGenerateOutcome {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return { ok: false, code: 'invalid_output' };
   }
@@ -122,6 +122,15 @@ function normalizeSuccess(requestId: string, data: unknown): VtoGenerateOutcome 
   }
 
   const result = body.result;
+  if (body.requestId !== requestId) {
+    return { ok: false, code: 'invalid_output' };
+  }
+  if (garment.source) {
+    const source = body.garmentSource as { type?: unknown; closetItemId?: unknown } | undefined;
+    if (source?.type !== 'closet_item' || source.closetItemId !== garment.source.closetItemId) {
+      return { ok: false, code: 'invalid_output' };
+    }
+  }
   if (!result || typeof result !== 'object' || Array.isArray(result)) {
     return { ok: false, code: 'invalid_output' };
   }
@@ -136,7 +145,7 @@ function normalizeSuccess(requestId: string, data: unknown): VtoGenerateOutcome 
   }
   return {
     ok: true,
-    requestId: typeof body.requestId === 'string' ? body.requestId : requestId,
+    requestId,
     provider: typeof body.provider === 'string' ? body.provider : 'unknown',
     dataUri,
     mediaType,
@@ -175,7 +184,7 @@ export async function requestVtoGeneration(
       requestId: args.requestId,
       origin: args.origin,
       person: { dataUri: args.personDataUri },
-      garment: {
+      garment: args.garment.source ? { source: args.garment.source } : {
         productRef: args.garment.productRef,
         imageUrl: args.garment.imageUrl,
         category: args.garment.category,
@@ -189,7 +198,13 @@ export async function requestVtoGeneration(
     const { data, error } = await invoke(VTO_EDGE_FUNCTION, {
       body,
       signal: controller.signal,
+      headers: { Authorization: `Bearer ${session.accessToken}` },
     });
+
+    // Abort remains authoritative even if the underlying transport resolves
+    // successfully after cancellation (for example after an actor reset).
+    if (args.signal?.aborted) return { ok: false, code: 'cancelled' };
+    if (controller.signal.aborted) return { ok: false, code: 'provider_timeout' };
 
     if (error) {
       if (args.signal?.aborted) return { ok: false, code: 'cancelled' };
@@ -197,7 +212,7 @@ export async function requestVtoGeneration(
       return detail ? { ok: false, ...detail } : { ok: false, code: 'network_failure' };
     }
 
-    return normalizeSuccess(args.requestId, data);
+    return normalizeSuccess(args.requestId, data, args.garment);
   } catch (err) {
     const aborted = (err as { name?: string })?.name === 'AbortError';
     if (aborted && args.signal?.aborted) return { ok: false, code: 'cancelled' };

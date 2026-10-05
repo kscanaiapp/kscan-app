@@ -1,0 +1,171 @@
+✖ Closet picker rejects a late A load after B loads, including A -> B -> A (334.2154ms)
+✖ Closet picker keeps newest refresh and discards departed actor errors/finally (113.8847ms)
+✖ canonical Closet query failure is an error, not an empty wardrobe (131.2259ms)
+✖ Elise conversation list rejects departed actor history and reloads for B (42.1851ms)
+✖ late receipt staging cannot put A image into B workflow (122.1675ms)
+✖ navigation away invalidates receipt staging and releases its late file (105.2897ms)
+✖ receipt crop completion cannot send A document after actor epoch changes before React renders (72.3581ms)
+✖ receipt cancellation during auth preflight makes no invoke (171.9125ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2013.9487
+
+✖ failing tests:
+
+test at __tests__\build35IntegrationActorSeams.test.js:65:1
+✖ Closet picker rejects a late A load after B loads, including A -> B -> A (334.2154ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+  +     title: 'A wardrobe'
+  -     title: 'B wardrobe'
+      }
+    ]
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:74:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { title: 'A wardrobe' } ],
+    expected: [ { title: 'B wardrobe' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:84:1
+✖ Closet picker keeps newest refresh and discards departed actor errors/finally (113.8847ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'old wardrobe'
+  - 'current wardrobe'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:91:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'old wardrobe',
+    expected: 'current wardrobe',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:103:1
+✖ canonical Closet query failure is an error, not an empty wardrobe (131.2259ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:114:3)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /closet/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:117:1
+✖ Elise conversation list rejects departed actor history and reloads for B (42.1851ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+  +     id: 'A',
+  +     title: 'A private conversation'
+  -     id: 'B',
+  -     title: 'B conversation'
+      }
+    ]
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:130:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'A', title: 'A private conversation' } ],
+    expected: [ { id: 'B', title: 'B conversation' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:155:1
+✖ late receipt staging cannot put A image into B workflow (122.1675ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   stagedUri: '/cache/A-receipt.jpg'
+  + }
+  - null
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:161:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { stagedUri: '/cache/A-receipt.jpg' },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:166:1
+✖ navigation away invalidates receipt staging and releases its late file (105.2897ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(h.discarded.includes('/cache/abandoned-receipt.jpg'))
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:172:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:175:1
+✖ receipt crop completion cannot send A document after actor epoch changes before React renders (72.3581ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:182:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:186:1
+✖ receipt cancellation during auth preflight makes no invoke (171.9125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:201:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

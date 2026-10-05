@@ -1,0 +1,16 @@
+✔ Closet picker rejects a late A load after B loads, including A -> B -> A (268.4541ms)
+✔ Closet picker keeps newest refresh and discards departed actor errors/finally (62.4251ms)
+✔ canonical Closet query failure is an error, not an empty wardrobe (123.3139ms)
+✔ Elise conversation list rejects departed actor history and reloads for B (49.4531ms)
+✔ late receipt staging cannot put A image into B workflow (119.5688ms)
+✔ navigation away invalidates receipt staging and releases its late file (82.4083ms)
+✔ receipt crop completion cannot send A document after actor epoch changes before React renders (45.1954ms)
+✔ receipt cancellation during auth preflight makes no invoke (137.1026ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1835.4685

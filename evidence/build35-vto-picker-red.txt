@@ -1,0 +1,72 @@
+✔ Closet picker rejects a late A load after B loads, including A -> B -> A (91.8149ms)
+✔ Closet picker keeps newest refresh and discards departed actor errors/finally (15.6799ms)
+✔ canonical Closet query failure is an error, not an empty wardrobe (37.1167ms)
+✔ Elise conversation list rejects departed actor history and reloads for B (17.2677ms)
+✔ late receipt staging cannot put A image into B workflow (65.5116ms)
+✔ navigation away invalidates receipt staging and releases its late file (70.3377ms)
+✔ receipt crop completion cannot send A document after actor epoch changes before React renders (51.6274ms)
+✔ receipt cancellation during auth preflight makes no invoke (72.7796ms)
+✖ person photo picker completion after actor change cannot attach private imagery (18.8703ms)
+✖ person photo picker completion after unmount cannot attach private imagery (10.2208ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 741.769
+
+✖ failing tests:
+
+test at __tests__\build35IntegrationActorSeams.test.js:224:3
+✖ person photo picker completion after actor change cannot attach private imagery (18.8703ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   ok: true,
+  +   person: {
+  +     sanitizedUri: '/cache/A-person.jpg',
+  +     source: 'photo_library'
+  +   }
+  -   ok: false,
+  -   reason: 'cancelled'
+    }
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:230:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: true, person: { sanitizedUri: '/cache/A-person.jpg', source: 'photo_library' } },
+    expected: { ok: false, reason: 'cancelled' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35IntegrationActorSeams.test.js:224:3
+✖ person photo picker completion after unmount cannot attach private imagery (10.2208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   ok: true,
+  +   person: {
+  +     sanitizedUri: '/cache/A-person.jpg',
+  +     source: 'photo_library'
+  +   }
+  -   ok: false,
+  -   reason: 'cancelled'
+    }
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35IntegrationActorSeams.test.js:230:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { ok: true, person: { sanitizedUri: '/cache/A-person.jpg', source: 'photo_library' } },
+    expected: { ok: false, reason: 'cancelled' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

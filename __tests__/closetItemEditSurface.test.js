@@ -17,7 +17,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 test('the Closet grid offers an edit affordance on every card', () => {
   const library = read('app/library.tsx');
 
-  const closetCards = library.match(/status="Closet"[\s\S]{0,400}?\/>/g) ?? [];
+  const closetCards = library.match(/status="Closet"[\s\S]{0,650}?\/>/g) ?? [];
   assert.ok(closetCards.length >= 2, 'expected both Closet grid cards');
   for (const card of closetCards) {
     assert.match(card, /onEdit=\{/, 'a Closet card renders without an edit affordance');

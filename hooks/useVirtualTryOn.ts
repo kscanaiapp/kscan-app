@@ -36,10 +36,12 @@ import {
 } from '../services/vto/vtoRequestStore';
 import {
   pickVtoPersonInput,
+  releaseVtoPersonInput,
   type VtoPersonPickOutcome,
 } from '../services/vto/vtoPersonInput';
 import { hasVtoConsent } from '../services/vto/vtoConsent';
 import type { VtoGarmentInput, VtoOrigin, VtoPersonInput } from '../types/vto';
+import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 
 export interface UseVirtualTryOnArgs {
   garment: VtoGarmentInput;
@@ -80,6 +82,7 @@ export interface UseVirtualTryOnResult extends VtoSnapshot {
 const BUSY_STATUSES = new Set(['preparing', 'generating', 'validating_result']);
 
 export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResult {
+  const mountedRef = useRef(true);
   const snapshot = useSyncExternalStore(subscribeToVto, getVtoSnapshot, getVtoSnapshot);
   const argsRef = useRef(args);
   argsRef.current = args;
@@ -100,13 +103,20 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
   // has no authority to update anything), but the chosen photo is kept for
   // the next product this actor tries on.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       leaveVtoSurface();
     };
   }, []);
 
   const selectPerson = useCallback(async (): Promise<VtoPersonPickOutcome> => {
+    const scope = captureActorScope();
     const outcome = await pickVtoPersonInput();
+    if (!mountedRef.current || !isActorScopeCurrent(scope)) {
+      if (outcome.ok === true) await releaseVtoPersonInput(outcome.person.sanitizedUri);
+      return { ok: false, reason: 'cancelled' };
+    }
     if (outcome.ok) {
       setVtoPersonInput(outcome.person, argsRef.current.garment, argsRef.current.origin);
     }

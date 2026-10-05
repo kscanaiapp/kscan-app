@@ -18,6 +18,7 @@
  *  future wearable surfaces initiating a request. */
 export const VTO_ORIGINS = [
   'commerce_product',
+  'closet_item',
   'scan_result',
   'dressing_room',
   'elise',
@@ -127,6 +128,10 @@ export interface VtoPersonInput {
  * reference plus the fields a generation provider actually needs.
  */
 export interface VtoGarmentInput {
+  /** Reference only. The server resolves ownership and private media. */
+  source?: { type: 'closet_item'; closetItemId: string };
+  /** Advisory UI evidence; never sent as authority. */
+  ownedMediaReady?: boolean;
   /** Stable-ish reference to the commerce candidate this came from. */
   productRef: string;
   /** Remote https image of the garment (retailer/catalog image). */

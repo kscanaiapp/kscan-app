@@ -11,7 +11,7 @@ export type StyleChatSessionLaunchGuard = {
 export type StyleChatSessionLaunchResult =
   | { status: 'navigated'; sessionId: string }
   | { status: 'ignored' }
-  | { status: 'cancelled'; sessionId: string }
+  | { status: 'cancelled'; sessionId: string | null }
   | { status: 'failed'; error: unknown };
 
 export async function launchStyleChatSession(input: {
@@ -47,6 +47,10 @@ export async function launchStyleChatSession(input: {
     let sessionId = guard.getPendingSessionId();
     if (!sessionId && input.resolveExistingSessionId) {
       const existingSessionId = await input.resolveExistingSessionId();
+      if (!isActorScopeCurrent(launchActorScope) || (input.isCurrent && !input.isCurrent())) {
+        guard.resetOnFocus();
+        return { status: 'cancelled', sessionId: existingSessionId };
+      }
       if (existingSessionId) {
         sessionId = existingSessionId;
         guard.rememberSession(sessionId);

@@ -89,6 +89,8 @@ export const DEFAULT_VTO_SUPPORTED_CATEGORIES: readonly string[] = [
 ];
 
 export interface VtoEligibilityInput {
+  /** Advisory readiness only. The server resolves the owned reference anew. */
+  ownedMediaReady?: boolean;
   /** Free-form category as commerce produced it. */
   category: string | null | undefined;
   /** Remote https garment image. A garment with no image cannot be rendered. */
@@ -134,7 +136,7 @@ export function evaluateVtoEligibility(input: VtoEligibilityInput): VtoEligibili
     return { eligible: false, reason: 'unsupported_category' };
   }
 
-  if (!isSupportedGarmentImageUrl(input.imageUrl)) {
+  if (input.ownedMediaReady !== true && !isSupportedGarmentImageUrl(input.imageUrl)) {
     return { eligible: false, reason: 'missing_garment_image' };
   }
 

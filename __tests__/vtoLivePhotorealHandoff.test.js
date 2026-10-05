@@ -332,5 +332,9 @@ test('governance: the person source never reaches the server', () => {
   const client = code('services/vto/vtoClient.ts');
   const body = client.match(/const body: Record<string, unknown> = \{[\s\S]*?\};/)[0];
   assert.ok(body.includes('person: { dataUri: args.personDataUri }'));
-  assert.ok(!body.includes('source'), 'where the image came from is not sent');
+  assert.ok(
+    !/person\\s*:\\s*\\{[^}]*\\bsource\\b/i.test(body),
+    'where the person image came from is not sent',
+  );
+  assert.ok(!/personSource|photo_library|live_capture/.test(body), 'person provenance must stay client-only');
 });

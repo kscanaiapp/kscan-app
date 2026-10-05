@@ -97,6 +97,7 @@ export function TryItOnEntry({
       category: garment.category,
       imageUrl: garment.imageUrl,
       productRef: garment.productRef,
+      ownedMediaReady: garment.source?.type === 'closet_item' && garment.ownedMediaReady === true,
     });
   // The single presentation decision. 'none' covers ineligible, unavailable,
   // signed out AND still-resolving alike, so a control is never drawn and then

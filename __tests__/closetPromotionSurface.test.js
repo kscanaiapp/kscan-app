@@ -566,6 +566,7 @@ function mountLibrary(options = {}) {
     },
     '../components/closet/ClosetCandidateStatusPanel': statusPanel,
     '../services/closetPromotion': { isScanPromoted: async () => false },
+    '../services/vto/vtoOwnedGarment': { canOfferOwnedClosetVto: () => false },
   };
 
   const LibraryScreen = runModule(

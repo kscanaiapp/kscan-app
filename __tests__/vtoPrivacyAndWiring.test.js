@@ -572,8 +572,24 @@ const VTO_ALLOWED_IMPORTS = {
   // and imports only the shared consent service. The hook itself still touches
   // no storage and no network client.
   'hooks/useVirtualTryOn.ts': [
+    // Build35: canonical actor epoch rejects a late private photo picker.
+    '../services/actorScope',
     '../services/vto/vtoConsent', '../services/vto/vtoPersonInput',
     '../services/vto/vtoRequestStore', '../types/vto', 'react',
+  ],
+  // Build35 owned input is read-only. These imports resolve existing Closet
+  // identity/media; generation still reaches only the existing governed client.
+  'services/vto/vtoOwnedGarment.ts': [
+    '../supabaseClient', '../actorScope', '../closet/closetSyncStore',
+    './vtoEligibility', '../../types/vto', '../closetItemProjection',
+  ],
+  'app/closet/try-on.tsx': [
+    'react', 'react-native', 'expo-router', '../../components/luxury',
+    '../../components/vto/TryItOnEntry', '../../contexts/AuthSessionContext',
+    '../../hooks/useVtoAvailability',
+    '../../services/actorScope', '../../services/closetLibrary',
+    '../../services/closetItemProjection', '../../services/vto/vtoOwnedGarment',
+    '../../services/navigationExit', '../../constants/theme', '../../types/vto',
   ],
   'components/vto/VirtualTryOnSheet.tsx': [
     '../../constants/theme', '../../hooks/useReducedMotion', '../../hooks/useVirtualTryOn',
@@ -930,7 +946,16 @@ test('VTO-NC-010: a successful generation reaches no ownership or persistence ca
   ];
   for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
     const source = read(file);
+    // Owned VTO requires a canonical Closet SELECT. Permit exactly that new
+    // reader while explicitly rejecting writes; all other surfaces retain
+    // the existing blanket Closet-table ban.
+    const ownedReader = file === 'services/vto/vtoOwnedGarment.ts';
+    if (ownedReader) {
+      assert.ok(/\.from\('user_closet_items'\)\s*\.select\(/.test(source));
+      assert.ok(!/\.(?:insert|upsert|update|delete|rpc)\s*\(/.test(source), 'owned VTO resolution must remain read-only');
+    }
     for (const pattern of forbiddenCalls) {
+      if (ownedReader && pattern.source.includes('user_closet_items')) continue;
       assert.ok(
         !pattern.test(source),
         `${file} must not call ${pattern} -- a try-on is not an acquisition`,

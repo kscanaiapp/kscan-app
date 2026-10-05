@@ -324,6 +324,12 @@ export async function listOwnedClosetItems(input?: {
       .order('created_at', { ascending: false }),
   ]);
 
+  // An unreadable source is not an empty wardrobe. Do not publish a partial
+  // pool that silently drops owned items or leaks raw database diagnostics.
+  if (closetResult.error || scanResult.error || inspirationResult.error) {
+    throw new Error('Unable to load your closet. Please try again.');
+  }
+
   // Canonical Closet is the primary source for the Build 34 Closet experience.
   for (const row of (closetResult.data ?? []) as CanonicalClosetItemRow[]) {
     const item = normalizeClosetItemRow(row);

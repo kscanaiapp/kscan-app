@@ -1,0 +1,78 @@
+✖ app/looks/create.tsx: account switch resets private draft, including A→B→A (615.7726ms)
+✖ app/stylist/index.tsx: account switch resets private draft, including A→B→A (250.5344ms)
+✖ manual Look save completed after actor change cannot navigate the arriving actor (147.1509ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1920.318
+
+✖ failing tests:
+
+test at __tests__\build35OutfitScreenActors.test.js:50:3
+✖ app/looks/create.tsx: account switch resets private draft, including A→B→A (615.7726ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'A private draft'
+  - ''
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitScreenActors.test.js:55:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'A private draft',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitScreenActors.test.js:50:3
+✖ app/stylist/index.tsx: account switch resets private draft, including A→B→A (250.5344ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'A private draft'
+  - ''
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitScreenActors.test.js:55:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'A private draft',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitScreenActors.test.js:61:1
+✖ manual Look save completed after actor change cannot navigate the arriving actor (147.1509ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   '/looks/A-look'
+  + ]
+  - []
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitScreenActors.test.js:70:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '/looks/A-look' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
