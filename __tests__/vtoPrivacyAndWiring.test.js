@@ -566,8 +566,14 @@ const VTO_ALLOWED_IMPORTS = {
   'services/vto/vtoMediaCache.ts': [
     'expo-crypto', 'expo-file-system/legacy',
   ],
+  // THIRD-PARTY AI CONSENT. The hook reads the customer's consent through
+  // hasVtoConsent (a synchronous cache read) and hands the store a proof of it
+  // in the same call that starts the generation. That module is enrolled below
+  // and imports only the shared consent service. The hook itself still touches
+  // no storage and no network client.
   'hooks/useVirtualTryOn.ts': [
-    '../services/vto/vtoPersonInput', '../services/vto/vtoRequestStore', '../types/vto', 'react',
+    '../services/vto/vtoConsent', '../services/vto/vtoPersonInput',
+    '../services/vto/vtoRequestStore', '../types/vto', 'react',
   ],
   'components/vto/VirtualTryOnSheet.tsx': [
     '../../constants/theme', '../../hooks/useReducedMotion', '../../hooks/useVirtualTryOn',
@@ -584,6 +590,9 @@ const VTO_ALLOWED_IMPORTS = {
     //   VtoSilhouetteGuide   -- presentational SVG overlay.
     '../../services/openExternalUrl',
     '../../services/responsiveLayout',
+    // POST-KIMI DECISION LOOP. Pure result identity/action/retry policy; it
+    // imports only types/vto and acquires no persistence or ownership power.
+    '../../services/vto/vtoDecisionLoop',
     '../../services/vto/vtoProgressStages',
     '../../services/vto/vtoTelemetry',
     '../../types/vto', '../luxury',
@@ -599,7 +608,22 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/vto/vtoLiveCapability',
     '../../services/vto/vtoLiveGarment',
     './VtoLiveErrorBoundary', './VtoLivePanel', './VtoModeSelector',
+    // THIRD-PARTY AI CONSENT. The photo leaves the device for an external AI
+    // service, so the sheet asks first. VtoConsentStep is the presentational
+    // disclosure, rendered INSIDE the sheet (never a second Modal), and
+    // vtoConsent holds the single source of the wording plus the grant/check
+    // wrappers. Neither writes ownership state, and the consent record itself
+    // lives in the shared services/thirdPartyAiConsent -- deliberately NOT
+    // enrolled here, because the forbidden-call scan below bans device storage
+    // in every VTO file.
+    '../../services/vto/vtoConsent', './VtoConsentStep',
     'react', 'react-native',
+    // B34-AND-UI-001 (Build 34 Android final hostile audit). Android draws the
+    // sheet's Modal edge-to-edge, so its bottom action row needs the bottom
+    // safe-area inset to clear the navigation bar. This is the app-wide inset
+    // authority (one SafeAreaProvider in app/_layout.tsx); it reads layout
+    // insets only and has no network, storage, or ownership capability.
+    'react-native-safe-area-context',
   ],
   'components/vto/TryItOnEntry.tsx': [
     '../../constants/theme', '../../hooks/useVtoAvailability',
@@ -613,6 +637,57 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/haptics', '../../services/vto/vtoTelemetry',
     '../../types/vto', '../kplus/KPlusGate',
     './VirtualTryOnSheet', './VtoMinimizedPill',
+    // BUILD 35 CUSTOMER ACTIVATION. The entry renders what the pure discovery
+    // model decides, records awareness history through vtoAwareness (which
+    // holds no device storage itself), and may show the inline first-use cue.
+    // None of the four can start a request, open a photo chooser, or write
+    // ownership state; all four are enrolled in their own right below.
+    '../../hooks/useVtoAwareness',
+    '../../services/vto/vtoAwareness', '../../services/vto/vtoDiscovery',
+    './VtoFirstUseCue',
+    // BUILD 35 DESIGN POLISH. The control now carries the one canonical Try It
+    // On glyph (the icon registry already enrolled with the icon test suite as
+    // its authority). The registry renders SVG marks only: no network, no
+    // storage, no ownership -- and the VTO-NC-010 forbidden-call scan below
+    // applies to this surface unchanged.
+    '../icons/kscan',
+    'react', 'react-native',
+  ],
+
+  // ── BUILD 35 CUSTOMER ACTIVATION (awareness is presentation) ──────────────
+  // Enrolled for the reason every surface here is: a module this control does
+  // not name is a module it does not guard, and enrolment subjects each of them
+  // to the forbidden-call scan below.
+  //   vtoDiscovery     -- PURE. No imports at all: every awareness decision is a
+  //                       function of inputs other authorities already resolved.
+  //   vtoAwareness     -- history, session memory and modal blockers. The
+  //                       persisted history lives in the shared
+  //                       services/featureAwareness (not enrolled, for the same
+  //                       reason services/thirdPartyAiConsent is not: device
+  //                       storage is banned in every VTO file).
+  //   useVtoAwareness  -- gathers the model's inputs from the existing
+  //                       authorities. expo-router supplies screen focus only.
+  //                       Nothing it imports can pick a photo, reach a camera,
+  //                       or call the try-on client.
+  //   VtoFirstUseCue   -- presentational inline cue.
+  'services/vto/vtoDiscovery.ts': [],
+  'services/vto/vtoAwareness.ts': [
+    '../actorContext', '../featureAwareness', './vtoDiscovery', './vtoTelemetry',
+  ],
+  'hooks/useVtoAwareness.ts': [
+    '../constants/featureFlags', '../contexts/AuthSessionContext',
+    '../services/vto/vtoAwareness', '../services/vto/vtoDiscovery',
+    '../services/vto/vtoFeatureControl', '../types/entitlements',
+    './useKPlusCommerce', './useKPlusEntitlement', './useVtoSessionStatus',
+    'expo-router', 'react', 'react-native',
+  ],
+  'components/vto/VtoFirstUseCue.tsx': [
+    '../../constants/theme', '../../hooks/useVtoAwareness', '../../services/haptics',
+    '../../services/vto/vtoDiscovery',
+    // BUILD 35 DESIGN POLISH. The cue carries the same canonical Try It On
+    // glyph as the control it points at (see the TryItOnEntry enrolment
+    // above): presentation only, no new capability.
+    '../icons/kscan',
     'react', 'react-native',
   ],
 
@@ -647,6 +722,22 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'hooks/useVtoSessionStatus.ts': [
     '../services/vto/vtoRequestStore', 'react',
+  ],
+
+  // THIRD-PARTY AI CONSENT. Enrolled in their own right, for the same reason as
+  // every surface above: a module this control does not name is a module it does
+  // not guard, and enrolling them subjects both to the forbidden-call scan below.
+  //   vtoConsent      -- pure: the wording, the provider disclosures, and thin
+  //                      wrappers over the shared consent service. Its ONLY
+  //                      import is that service.
+  //   VtoConsentStep  -- presentational disclosure. openExternalUrl opens the
+  //                      Privacy Policy through the shared https-only guard.
+  'services/vto/vtoConsent.ts': [
+    '../thirdPartyAiConsent',
+  ],
+  'components/vto/VtoConsentStep.tsx': [
+    '../../constants/theme', '../../services/openExternalUrl',
+    '../../services/vto/vtoConsent', '../luxury', 'react', 'react-native',
   ],
 
   // ── P3-C LIVE VTO (feature-gated, default OFF) ────────────────────────────
@@ -872,6 +963,21 @@ test('no VTO module invents a second entitlement key', () => {
     read('supabase/functions/vto-generate/vtoEntitlement.ts').includes("'k_plus'"),
     'the existing K+ key is the authority',
   );
+});
+
+test('VTO entitlement authorization cannot reintroduce the legacy direct-table fallback', () => {
+  const source = read('supabase/functions/vto-generate/vtoEntitlement.ts');
+  assert.doesNotMatch(
+    source,
+    /user_entitlements/,
+    'VTO must ask only the canonical K+ authority, never the legacy entitlement table',
+  );
+  assert.doesNotMatch(
+    source,
+    /\brest\s*\(|\.from\(\s*['"]user_entitlements['"]\s*\)/,
+    'VTO entitlement authorization must not add a direct table read under another call shape',
+  );
+  assert.match(source, /call\('kplus_has_active_entitlement'/);
 });
 
 // ── Commerce identity integrity (product-integration continuation) ──────────
