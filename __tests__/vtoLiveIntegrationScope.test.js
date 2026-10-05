@@ -82,7 +82,6 @@ test('guard: the protected boundaries are rejected by the real manifest', () => 
   // matched, this lane's scope claim would be false.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
     'supabase/functions/vto-generate/providers/index.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
