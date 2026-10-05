@@ -23,7 +23,7 @@ const styleChatThinkingIndicator = fs.readFileSync(path.join(ROOT, 'components',
 const styleChatInput = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatInput.tsx'), 'utf8');
 const styleChatAttachmentBar = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatAttachmentBar.tsx'), 'utf8');
 const styleChatBubble = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'), 'utf8');
-const styleChatSignatureStyleCard = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatSignatureStyleCard.tsx'), 'utf8');
+const styleChatStyleDnaCard = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatStyleDnaCard.tsx'), 'utf8');
 const styleChatErrors = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'styleChatErrors.ts'), 'utf8');
 const styleChatRepository = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'styleChatRepository.ts'), 'utf8');
 const styleMemoryRepository = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'styleMemoryRepository.ts'), 'utf8');
@@ -59,11 +59,6 @@ const userStylistPreferencesMigration = fs.readFileSync(
 );
 const packageJson = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
 
-// Built programmatically (never written as a literal) so this file itself
-// cannot be mistaken for a live occurrence of the retired term by
-// __tests__/signatureStyleTerminologyGuard.test.js's repo-wide scan.
-const LEGACY_TERM = ['Style', 'DNA'].join(' ');
-
 // ── Identity constants ───────────────────────────────────────────────────────
 
 test('centralized Elise identity exports required copy', () => {
@@ -75,7 +70,7 @@ test('centralized Elise identity exports required copy', () => {
   assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, your AI-powered virtual stylist'/);
 });
 
-test(`centralized Signature Style copy replaces legacy "${LEGACY_TERM}" user-facing strings`, () => {
+test('centralized Signature Style copy replaces Style DNA user-facing strings', () => {
   assert.match(eliseConstants, /featureName:\s*'Signature Style'/);
   assert.match(eliseConstants, /onDeviceLabel:\s*'Signature Style · On-device'/);
   assert.match(eliseConstants, /learningLabel:\s*'Signature Style is learning · Rate a few replies'/);
@@ -161,30 +156,27 @@ test('Edge Function action defaults are app-controlled Elise labels', () => {
 
 // ── Signature Style terminology ──────────────────────────────────────────────
 
-test(`legacy "${LEGACY_TERM}" strings are absent from audited surfaces (Signature Style rename regression guard)`, () => {
-  // Signature Style is the canonical name now; this pins the rename so the
-  // old, competitor-associated term cannot silently creep back into
-  // consumer-facing copy.
+test('user-facing Style DNA strings are absent from audited surfaces', () => {
   const surfaces = [
-    styleChatConstants, styleChatSessionList, styleChatSessionScreen, styleChatSignatureStyleCard,
+    styleChatConstants, styleChatSessionList, styleChatSessionScreen, styleChatStyleDnaCard,
     styleChatErrors, styleChatPrompts, eliseConstants, libraryScreen, looksIndex,
     lookDetail, stylistScreen, homeV1, homeLegacy, textScan,
   ];
   for (const source of surfaces) {
-    assert.doesNotMatch(source, new RegExp(LEGACY_TERM));
+    assert.doesNotMatch(source, /Style DNA/);
   }
 });
 
 test('Signature Style strings are present where appropriate', () => {
-  assert.match(styleChatSignatureStyleCard, /Signature Style/);
+  assert.match(styleChatStyleDnaCard, /Signature Style/);
   assert.match(eliseConstants, /Signature Style/);
   assert.match(edgeSignatureStyleContext, /Signature Style/);
 });
 
-test('internal Signature Style identifiers are preserved in code', () => {
-  assert.match(styleChatSessionScreen, /StyleChatSignatureStyleCard/);
-  assert.match(styleChatSessionScreen, /LocalSignatureStyleProfileSummary/);
-  assert.match(styleChatSessionScreen, /getSignatureStyleProfileSummary/);
+test('internal Style DNA identifiers are preserved in code', () => {
+  assert.match(styleChatSessionScreen, /StyleChatStyleDnaCard/);
+  assert.match(styleChatSessionScreen, /LocalStyleDnaProfileSummary/);
+  assert.match(styleChatSessionScreen, /getStyleDnaProfileSummary/);
 });
 
 // ── System prompt identity ───────────────────────────────────────────────────
