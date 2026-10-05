@@ -4,7 +4,11 @@
 
 Database preparation is complete for the merged Build 35 scope. Full application testing is **not yet certified**: Edge Function promotion, RevenueCat configuration, and a correctly flagged mobile artifact remain required. No staging changes, paid provider requests, store configuration changes, secret creation, or EAS builds were performed in this readiness pass.
 
-Production: KScan App Production, `wyyuqfdxucjksghsmhry`, us-east-2, ACTIVE_HEALTHY, PostgreSQL 17.6.1.104. Source reviewed: integration/build35-v1-convergence @ 8595317b. Production deployment authority remains rebuild/backend-authority-v2; this repair branch must be merged there before deployment. PRs #499, #455, and #457 were not merged and their unmerged offer-code functionality was not deployed.
+Production: KScan App Production, `wyyuqfdxucjksghsmhry`, us-east-2, ACTIVE_HEALTHY, PostgreSQL 17.6.1.104. Source reviewed and post-audit reconciled through integration/build35-v1-convergence @ b9cdbd06 (#499 merged). Production deployment authority remains rebuild/backend-authority-v2; this repair branch must be merged there before deployment. #455 remains deliberately closed/unmerged; #457 and #499 are merged. The post-#499 offer-code authority is now included in this backend promotion source but its migration, HMAC secret and Edge Function remain unapplied/undeployed in Production.
+
+### Post-#499 reconciliation addendum
+
+After this readiness pass was first written, PR #499 merged into the Build 35 integration authority. The backend promotion branch was therefore advanced before merge to include the exact merged VTO retry/failure contract plus server-authoritative `kplus-offer-redeem` source. The governed Edge inventory is now 29 functions. Production still has 147 migration ledger rows: `20261004184118_kplus_offer_code_redemption_authority.sql` is proven absent and is explicitly classified as `KNOWN_FUTURE_UNAPPLIED` for a separately approved production-controlled-deploy invocation. Its four offer tables and `redeem_kplus_offer_code` RPC are currently absent. The offer function also remains fail-closed until `KPLUS_OFFER_CODE_HMAC_SECRET_B64` is deliberately configured. This addendum does not claim RevenueCat configuration, store configuration, device purchase testing, or offer-code activation is complete.
 
 ## Production migrations actually applied
 
@@ -47,7 +51,7 @@ ROOT_CAUSE: merged Build 35 runtime changes had not been promoted into the canon
 
 IMPACT: applying schema alone cannot enable paid lifecycle/receipt flows or newer backend behavior.
 
-REPAIR: selectively port merged integration runtime and shared dependencies into the canonical backend descendant; register three functions (28 governed total), add already-applied canonical Closet migration source, preserve canonical scan-identify unchanged. Include privacy export/deletion resource dependencies so provider-control data is not omitted.
+REPAIR: selectively port merged integration runtime and shared dependencies into the canonical backend descendant; register four Build 35 functions, including post-#499 kplus-offer-redeem (29 governed total), add already-applied canonical Closet migration source, preserve canonical scan-identify unchanged. Include privacy export/deletion resource dependencies so provider-control data is not omitted.
 
 FILES_CHANGED: supabase/functions/_shared/**; supabase/functions/{kplus-activate,kplus-reconcile-revenuecat,kplus-revenuecat-webhook,kplus-revenuecat-pull-reconcile,purchase-import-extract,vto-generate,stylechat-generate,style-outfit-generate}/**; supabase/config.toml; scripts/edge-function-manifest-lib.js; config/{backend-authority,edge-function-manifest}.json; five Build 35 migration files including existing Closet support; readiness tests and evidence.
 
