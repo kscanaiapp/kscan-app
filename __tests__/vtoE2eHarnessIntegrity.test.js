@@ -1116,16 +1116,16 @@ test('VTO-CERT-012: the 429-can-only-be-a-duplicate argument still holds in the 
   );
 });
 
-test('VTO-CERT-012: `stage` is deliberately not asserted from the HTTP body — the governed failure response exposes only code/retryable, so the control proves the duplicate branch structurally instead', () => {
+test('VTO-CERT-012: `stage` is not exposed in the governed failure response', () => {
   const handler = fs.readFileSync(
     path.join(__dirname, '..', 'supabase', 'functions', 'vto-generate', 'vtoHandler.ts'),
     'utf8',
   );
   const failBody = handler.slice(handler.indexOf('function fail('), handler.indexOf('function normalizeOrigin('));
-  // The response body is { requestId, status, error: { code, retryable } } —
-  // `stage` reaches the log only. If that ever changes, this control may be
-  // strengthened to assert the stage directly.
-  assert.match(failBody, /error:\s*\{\s*code,\s*retryable:/);
+  // The bounded response may add Retry-After guidance, but `stage` remains a
+  // server-log-only internal reason.
+  assert.match(failBody, /const error:[^=]+\= \{ code, retryable:/);
+  assert.match(failBody, /error,\s*\n\s*\},/);
   assert.equal(/return json\(\s*\{[^}]*stage/.test(failBody), false,
     'stage is not part of the governed response body');
 });
