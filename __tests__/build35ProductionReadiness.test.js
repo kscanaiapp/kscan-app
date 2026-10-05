@@ -12,6 +12,7 @@ test('Build 35 production ledger snapshot has no unexplained migration drift', a
   const versions = snapshot.migrations.map(row => row.version);
   const authority = loadLedgerReconciliation(snapshot.projectRef);
   const report = compareMigrations(listLocalMigrationVersions(), versions, '', authority);
+  console.error('BUILD35_LEDGER_DIAGNOSTIC', JSON.stringify({ blockers: report.blockers, unexplainedLocal: report.unexplainedLocal, unexplainedRemote: report.unexplainedRemote, knownPending: authority.knownPending?.map((row) => row.localVersion) ?? [] }));
   assert.equal(report.ok, true, JSON.stringify(report.blockers));
   assert.deepEqual(report.unexplainedLocal, []);
   assert.deepEqual(report.unexplainedRemote, []);
