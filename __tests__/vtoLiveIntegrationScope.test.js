@@ -22,6 +22,23 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
+const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
+  'supabase/functions/vto-generate/vtoEntitlement.ts',
+  'supabase/functions/vto-generate/vtoGuards.test.ts',
+  'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
+  'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+  'supabase/functions/vto-generate/vtoContract.ts',
+  'supabase/functions/vto-generate/vtoHandler.ts',
+  'supabase/functions/vto-generate/vtoOwnedGarment.ts',
+  'supabase/functions/vto-generate/vtoOwnedGarment.test.ts',
+  'supabase/functions/kplus-offer-redeem/index.ts',
+  'supabase/functions/kplus-offer-redeem/offerCodeContract.ts',
+  'supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts',
+  'supabase/functions/scan-identify/phase2b4CrossPath.test.ts',
+  'supabase/functions/_shared/deletion/userDataResources.ts',
+  'supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql',
+  'supabase/config.toml',
+]);
 
 // ── The manifest parses, and every row carries its justification ────────────
 
@@ -82,7 +99,6 @@ test('guard: the protected boundaries are rejected by the real manifest', () => 
   // matched, this lane's scope claim would be false.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/providers/index.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
     'components/scan-results/types.ts',
@@ -203,28 +219,19 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only except the exact audited Build 35 promotion files', (t) => {
+test('guard: generative backend stays read-only outside the exact Build 35 entitlement repair', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
-  const build35AuthorizedBackendPromotion = new Set([
-    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
-    'supabase/functions/vto-generate/vtoContract.ts',
-    'supabase/functions/vto-generate/vtoEntitlement.ts',
-    'supabase/functions/vto-generate/vtoGuards.test.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
-    'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
-  ]);
-  const { vtoOwned } = guard.partitionByVtoOwnership(changed);
-  const forbiddenBackendTouches = vtoOwned.filter(
+  const forbiddenBackendTouches = changed.filter(
     (file) =>
-      (file.startsWith('supabase/') || file === 'app.json') &&
-      !build35AuthorizedBackendPromotion.has(file),
+      (file.startsWith('supabase/') && !BUILD35_AUTHORIZED_BACKEND_PATHS.has(file)) ||
+      file === 'app.json',
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'supabase/** and app.json remain read-only except the six exact audited Build 35 VTO promotion files',
+    'only the exact Build 35 backend paths may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {

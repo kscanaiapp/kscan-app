@@ -18,6 +18,7 @@
  *  future wearable surfaces initiating a request. */
 export const VTO_ORIGINS = [
   'commerce_product',
+  'closet_item',
   'scan_result',
   'dressing_room',
   'elise',

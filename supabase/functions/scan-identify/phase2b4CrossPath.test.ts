@@ -489,7 +489,10 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
   // module's full footprint (service role, REST, RPC and auth-admin) even
   // though vto-generate itself only ever calls the two VTO-scoped RPCs.
   'vto-generate': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    // Build 35 B35-R010: canonical owned-Closet VTO resolves the authenticated
+    // actor's private garment media server-side and issues a short-lived signed
+    // read URL. Storage authority is therefore intentional and source-accounted.
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: true,
     privilegedBackend: true, actorBoundary: true,
   },
 };
@@ -648,6 +651,16 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/shared-room-image-url/index.ts':
     'Resolves an authorized room/share relationship before issuing a narrowly '
     + 'scoped private Storage signed URL.',
+  'supabase/functions/vto-generate/vtoOwnedGarment.ts':
+    'Build 35 B35-R010 owned-Closet VTO resolver. The actor is supplied only '
+    + 'from the already-authenticated VTO handler and the Closet UUID is treated '
+    + 'as an identifier, not proof of ownership. The resolver performs an '
+    + 'actor-filtered canonical SELECT and ownership recheck, accepts only ready '
+    + 'media in the fixed style-library-images bucket at the canonical derived '
+    + 'primary path, and creates only a short-lived signed read URL. It performs '
+    + 'no Storage write/delete, trusts no caller URL/path/category/owner, and '
+    + 'returns a stable media identity so rotating signatures cannot defeat '
+    + 'idempotency.',
   'supabase/functions/staging-health/index.ts':
     'Staging-only health probes read connectivity and small table-presence checks; '
     + 'the public response exposes no data or credentials.',
