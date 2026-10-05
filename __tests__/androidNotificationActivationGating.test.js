@@ -379,8 +379,8 @@ test('CERTIFICATION: only the governed certification profiles turn push on', () 
     .sort();
   assert.deepEqual(
     on,
-    ['production-certification', 'staging-certification'],
-    'only staging- and production-certification may activate push',
+    ['build35-testing', 'production-certification', 'staging-certification'],
+    'only the two store-certification profiles and the governed Build 35 internal test profile may activate push',
   );
   assert.equal(
     (profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1,

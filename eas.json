@@ -236,6 +236,14 @@
         "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "true"
       }
     },
+    "build35-testing": {
+      "extends": "production-certification",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "environment": "production"
+    },
     "production-certification": {
       "extends": "production",
       "distribution": "store",

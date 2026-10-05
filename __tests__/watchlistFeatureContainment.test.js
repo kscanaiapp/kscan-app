@@ -739,8 +739,8 @@ test('PROFILES: ordinary production ships Watchlist dark; certification profiles
     .sort();
   assert.deepEqual(
     on,
-    ['production-certification', 'staging-certification'],
-    'only the governed certification profiles may turn the feature on',
+    ['build35-testing', 'production-certification', 'staging-certification'],
+    'only the governed certification profiles and the Build 35 internal test profile may turn the feature on',
   );
 });
 

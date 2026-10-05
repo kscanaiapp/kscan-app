@@ -173,8 +173,8 @@ test('Voice Scan is enabled only in the governed certification profiles', () => 
     .sort();
   assert.deepEqual(
     enabled,
-    ['production-certification', 'staging-certification'],
-    'only the two governed certification profiles may carry Voice Scan',
+    ['build35-testing', 'production-certification', 'staging-certification'],
+    'only the governed certification profiles and the Build 35 internal test profile may carry Voice Scan',
   );
 });
 
