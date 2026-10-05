@@ -264,7 +264,7 @@ test('certification: Voice client/native capability move together only in govern
     if (name === CERTIFICATION_PROFILE) {
       assert.equal(stagingNativeOn, true);
       assert.equal(productionNativeOn, false);
-    } else if (name === 'production-certification') {
+    } else if (name === 'production-certification' || name === 'build35-testing') {
       assert.equal(productionNativeOn, true);
       assert.equal(stagingNativeOn, false);
     } else {
