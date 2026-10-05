@@ -76,7 +76,11 @@ export const VTO_FAILURE_CODES = [
   'provider_moderation',
   'provider_timeout',
   'provider_unavailable',
+  /** Legacy ambiguous code retained for older deployments; copy is neutral. */
   'rate_limited',
+  'quota_exhausted',
+  'request_in_flight',
+  'provider_busy',
   'generation_failed',
   'invalid_output',
   'authorization_failed',
@@ -94,6 +98,8 @@ export interface VtoFailure {
   message: string;
   /** Whether offering "Try again" is honest for this failure. */
   retryable: boolean;
+  /** Bounded server guidance only; it never schedules an automatic retry. */
+  retryAfterSeconds?: number;
 }
 
 // ─── Inputs ───────────────────────────────────────────────────────────────────
