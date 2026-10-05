@@ -4,10 +4,10 @@
   "canonicalBranch": "rebuild/backend-authority-v2",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
   "note": "Canonical backend deployment authority (BACKEND-AUTHORITY-RECOVERY-05A, 2026-09-08). Reconstituted after Repair 05 exhaustively proved the former canonical branch (rebuild/staging-v2-backend) unrecoverable -- see docs/staging-rebuild/repair05-canonical-authority-reconfirmation-2026-09-08.md and docs/staging-rebuild/backend-authority-v2-provenance-2026-09-08.md. Its initial backend source tree (supabase/functions/**, migrations, manifest) is byte-identical to the release/kscan-pre-freeze-v1 checkout it branched from, itself unchanged from the RP-108-certified governed backend snapshot -- no backend function behavior was altered to create this authority. release/kscan-pre-freeze-v1 remains integration-convergence-non-authoritative and its own deploy tooling continues to refuse deployment; this branch is now the sole checkout that may deploy.",
-  "governedFunctionCount": 28,
+  "governedFunctionCount": 29,
   "build35SourceProvenance": {
-    "integrationCommit": "8595317b",
-    "scope": "Merged K+ RevenueCat lifecycle, receipt extraction, Elise/Signature Style, VTO canonical-authority fail-closed handling, and privacy cleanup dependencies. Canonical scan-identify source remains unchanged.",
+    "integrationCommit": "b9cdbd06",
+    "scope": "Merged Build 35 authority through #499: K+ RevenueCat lifecycle, receipt extraction, Elise/Signature Style, canonical VTO authorization plus retry/failure semantics, server-authoritative offer-code ingestion, and privacy cleanup dependencies. Canonical scan-identify runtime source remains the backend-authority branch.",
     "productionReadinessReport": "docs/audits/build35-production-readiness-2026-10-04.md"
   },
   "notGoverned": {
