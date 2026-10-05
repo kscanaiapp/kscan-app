@@ -48,7 +48,19 @@ const COPY: Readonly<Record<VtoFailureCode, CopyEntry>> = {
     retryable: true,
   },
   rate_limited: {
+    message: 'Try-on is unavailable right now. Try again shortly.',
+    retryable: true,
+  },
+  quota_exhausted: {
     message: "You've reached the try-on limit for now. Try again later.",
+    retryable: true,
+  },
+  request_in_flight: {
+    message: 'This try-on is already running. Give it a moment.',
+    retryable: false,
+  },
+  provider_busy: {
+    message: 'Photo try-on is temporarily busy. Try again shortly.',
     retryable: true,
   },
   generation_failed: {
@@ -89,12 +101,31 @@ export function isVtoFailureCode(value: unknown): value is VtoFailureCode {
   return typeof value === 'string' && CODE_SET.has(value);
 }
 
+export const VTO_CLIENT_RETRY_AFTER_MIN_SECONDS = 1;
+export const VTO_CLIENT_RETRY_AFTER_MAX_SECONDS = 3600;
+
+export function normalizeVtoRetryAfterSeconds(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return undefined;
+  if (value < VTO_CLIENT_RETRY_AFTER_MIN_SECONDS || value > VTO_CLIENT_RETRY_AFTER_MAX_SECONDS) {
+    return undefined;
+  }
+  return value;
+}
+
 /** Normalizes anything into a K Scan failure. Unrecognised input becomes
  *  'unknown' -- a provider string is never passed through as a message. */
-export function toVtoFailure(code: unknown): VtoFailure {
+export function toVtoFailure(
+  code: unknown,
+  guidance?: { retryAfterSeconds?: unknown },
+): VtoFailure {
   const resolved: VtoFailureCode = isVtoFailureCode(code) ? code : 'unknown';
   const entry = COPY[resolved];
-  return { code: resolved, message: entry.message, retryable: entry.retryable };
+  const failure: VtoFailure = { code: resolved, message: entry.message, retryable: entry.retryable };
+  const retryAfterSeconds = entry.retryable
+    ? normalizeVtoRetryAfterSeconds(guidance?.retryAfterSeconds)
+    : undefined;
+  if (retryAfterSeconds !== undefined) failure.retryAfterSeconds = retryAfterSeconds;
+  return failure;
 }
 
 /**
