@@ -213,8 +213,8 @@ test('AI Stylist discards a stale generation before setResult and telemetry', ()
   const before = src.slice(Math.max(0, setResultIdx - 600), setResultIdx);
   assert.match(
     before,
-    /if \(!isActorScopeCurrent\(scope\)\) return;/,
-    'setResult must be preceded by an actor-scope check',
+    /if \([^\n]*!isActorScopeCurrent\(scope\)[^\n]*\) return;/,
+    'setResult must be preceded by an actor-scope check, optionally combined with stricter lifecycle guards',
   );
   // Telemetry sits after setResult inside the same guarded block.
   const recordIdx = src.indexOf('ai_suggestion_viewed');
