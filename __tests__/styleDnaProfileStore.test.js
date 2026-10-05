@@ -24,9 +24,9 @@ function loadTsModule(rel, requireMap = {}) {
   return module.exports;
 }
 
-const types = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
-const store = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileStore.ts', {
-  './styleDnaProfileTypes.ts': types,
+const types = loadTsModule('supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts');
+const store = loadTsModule('supabase/functions/_shared/signatureStyle/signatureStyleProfileStore.ts', {
+  './signatureStyleProfileTypes.ts': types,
 });
 
 function validProfile(overrides = {}) {
@@ -55,7 +55,7 @@ function response(overrides = {}) {
 
 test('the store requests the zero-argument trusted recomputation RPC', async () => {
   const calls = [];
-  const result = await store.getOrRecomputeStyleDnaProfile({
+  const result = await store.getOrRecomputeSignatureStyleProfile({
     supabase: {
       rpc: (fn, args) => {
         calls.push({ fn, args });
@@ -71,7 +71,7 @@ test('the store requests the zero-argument trusted recomputation RPC', async () 
 });
 
 test('a reused profile is returned without a client-authored evidence decision', async () => {
-  const result = await store.getOrRecomputeStyleDnaProfile({
+  const result = await store.getOrRecomputeSignatureStyleProfile({
     supabase: { rpc: () => Promise.resolve({ data: [response({ recomputed: false })], error: null }) },
   });
   assert.equal(result.ok, true);
@@ -79,7 +79,7 @@ test('a reused profile is returned without a client-authored evidence decision',
 });
 
 test('a malformed server response remains unavailable to Elise', async () => {
-  const result = await store.getOrRecomputeStyleDnaProfile({
+  const result = await store.getOrRecomputeSignatureStyleProfile({
     supabase: { rpc: () => Promise.resolve({ data: [response({ profile_data: { evidenceCount: 9999 } })], error: null }) },
   });
   assert.equal(result.ok, false);
@@ -88,7 +88,7 @@ test('a malformed server response remains unavailable to Elise', async () => {
 });
 
 test('a recomputation error falls back safely', async () => {
-  const result = await store.getOrRecomputeStyleDnaProfile({
+  const result = await store.getOrRecomputeSignatureStyleProfile({
     supabase: { rpc: () => Promise.resolve({ data: null, error: { message: 'denied' } }) },
   });
   assert.equal(result.ok, false);

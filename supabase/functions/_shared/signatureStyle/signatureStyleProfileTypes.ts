@@ -1,4 +1,4 @@
-// Build 34 / Track B / Phase B4 — Style DNA profile types.
+// Build 34 / Track B / Phase B4 — Signature Style profile types.
 //
 // PURE TYPES/CONSTANTS ONLY. No Deno/network imports, so every consumer
 // (the derivation module, the store, and any future test) can import this
@@ -6,15 +6,15 @@
 
 /** Schema/derivation contract version for `profile_data`. Bump only for a
  *  breaking shape change old readers cannot safely interpret. */
-export const STYLE_DNA_PROFILE_VERSION = 1;
+export const SIGNATURE_STYLE_PROFILE_VERSION = 1;
 
 /** Top-N cap applied to every frequency dimension below. Keeps the aggregate
  *  a compact summary rather than a compressed second Closet, and keeps the
  *  serialized size far below the 64 KiB database bound (Micro-addendum H). */
-export const STYLE_DNA_TOP_N = 10;
+export const SIGNATURE_STYLE_TOP_N = 10;
 
 /** One frequency entry: a bounded label plus how many evidence items support it. */
-export interface StyleDnaFrequencyEntry {
+export interface SignatureStyleFrequencyEntry {
   value: string;
   count: number;
 }
@@ -26,20 +26,20 @@ export interface StyleDnaFrequencyEntry {
  * note, a brand list beyond the top N, or anything that could reconstruct the
  * underlying Closet row by row (Micro-addendum G).
  */
-export interface StyleDnaProfileDataV1 {
+export interface SignatureStyleProfileDataV1 {
   /** Non-tombstoned Closet rows this profile was derived from. */
   evidenceCount: number;
-  colorFrequency: StyleDnaFrequencyEntry[];
-  categoryFrequency: StyleDnaFrequencyEntry[];
-  garmentTypeFrequency: StyleDnaFrequencyEntry[];
-  brandFrequency: StyleDnaFrequencyEntry[];
-  materialFrequency: StyleDnaFrequencyEntry[];
+  colorFrequency: SignatureStyleFrequencyEntry[];
+  categoryFrequency: SignatureStyleFrequencyEntry[];
+  garmentTypeFrequency: SignatureStyleFrequencyEntry[];
+  brandFrequency: SignatureStyleFrequencyEntry[];
+  materialFrequency: SignatureStyleFrequencyEntry[];
 }
 
 /** One row of the shape the derivation module needs from `user_closet_items`.
- *  Intentionally narrower than the full table: only facts columns Style DNA
- *  actually aggregates over, never media/storage columns. */
-export interface StyleDnaClosetFactsRow {
+ *  Intentionally narrower than the full table: only facts columns Signature
+ *  Style actually aggregates over, never media/storage columns. */
+export interface SignatureStyleClosetFactsRow {
   updatedAt: string;
   category: string | null;
   clothingType: string | null;
@@ -50,23 +50,27 @@ export interface StyleDnaClosetFactsRow {
 }
 
 /** The full persisted record, mirroring `user_style_profiles` column-for-column. */
-export interface StyleDnaProfileRecord {
+export interface SignatureStyleProfileRecord {
   userId: string;
   profileVersion: number;
   evidenceRevision: string;
   derivedAt: string;
-  profileData: StyleDnaProfileDataV1;
+  profileData: SignatureStyleProfileDataV1;
 }
 
 // ── Stored-shape validation (audit repair, Track B B4/B5) ────────────────────
 //
 // WHY THIS EXISTS: `user_style_profiles.profile_data` is a `jsonb` column whose
 // only database-level constraints are "is an object" and "<= 64 KiB". Its
-// WRITER is public.upsert_style_dna_profile(), a SECURITY DEFINER RPC granted
-// to `authenticated` that takes `p_profile_data` as a parameter -- so the exact
-// shape below is an application-layer contract, not something the database
-// enforces. Anything reading a stored profile back (the store, and through it
-// the Elise prompt builder) must therefore VALIDATE rather than assume.
+// WRITER is now public.recompute_signature_style(), a zero-argument SECURITY
+// DEFINER RPC that derives the payload itself from the caller's own live
+// Closet evidence (the earlier public.upsert_style_dna_profile(), which took
+// a client-supplied p_profile_data parameter, has had authenticated access
+// revoked -- see 20260830131956_signature_style_server_authority.sql). Even
+// so, the exact shape below is an application-layer contract, not something
+// the database itself enforces. Anything reading a stored profile back (the
+// store, and through it the Elise prompt builder) must therefore VALIDATE
+// rather than assume.
 //
 // Before this guard, a stored row whose `profile_data` was missing a frequency
 // array (or carried a non-string label) made the prompt builder throw a
@@ -78,7 +82,7 @@ export interface StyleDnaProfileRecord {
 
 /** One well-formed frequency entry: a non-empty string label and a finite,
  *  non-negative count. Anything else is not usable evidence. */
-export function isStyleDnaFrequencyEntry(value: unknown): value is StyleDnaFrequencyEntry {
+export function isSignatureStyleFrequencyEntry(value: unknown): value is SignatureStyleFrequencyEntry {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const entry = value as Record<string, unknown>;
   return (
@@ -90,8 +94,8 @@ export function isStyleDnaFrequencyEntry(value: unknown): value is StyleDnaFrequ
   );
 }
 
-function isFrequencyList(value: unknown): value is StyleDnaFrequencyEntry[] {
-  return Array.isArray(value) && value.every(isStyleDnaFrequencyEntry);
+function isFrequencyList(value: unknown): value is SignatureStyleFrequencyEntry[] {
+  return Array.isArray(value) && value.every(isSignatureStyleFrequencyEntry);
 }
 
 /**
@@ -102,7 +106,7 @@ function isFrequencyList(value: unknown): value is StyleDnaFrequencyEntry[] {
  * either matches the shape this build derives and can safely interpret, or it
  * is not a profile as far as every reader is concerned.
  */
-export function isStyleDnaProfileDataV1(value: unknown): value is StyleDnaProfileDataV1 {
+export function isSignatureStyleProfileDataV1(value: unknown): value is SignatureStyleProfileDataV1 {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const data = value as Record<string, unknown>;
   if (

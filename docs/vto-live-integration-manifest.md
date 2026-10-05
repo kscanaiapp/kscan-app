@@ -43,6 +43,12 @@ added to a list without a justification.
 | `hooks/useVtoLive*` | React bindings for the router and the Live session. | Amendment §4 |
 | `components/vto/**` | The existing Try It On entry and sheet gain a second MODE; the three new components are the Live surface, its selector, and its failure boundary. | P3-C §10, §11, §19, §20; amendment §4 |
 | `constants/featureFlags.ts` | The separate default-OFF Live gate, the native module name, and the dev-harness lock. Narrowly scoped app configuration directly required by the integration. | P3-C §6; amendment §4 (default-OFF feature value) |
+| `supabase/functions/vto-generate/vtoEntitlement.ts` | Build 35 backend promotion replaces the VTO-local/fallback entitlement interpretation with direct delegation to the canonical `kplus_has_active_entitlement` RPC, so VTO cannot become a second K+ authority. The promoted file is byte-identical to the merged Build 35 integration authority. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; production-readiness repair `B35-PROD-002` |
+| `supabase/functions/vto-generate/providers/aiLabToolsProvider.ts` | Build 35 post-#499 convergence carries the merged provider response contract: bounded Retry-After parsing and provider-busy/throttle guidance without automatic retry or client provider choice. Exact file is byte-identical to current Build 35 integration. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; #499 merged VTO decision-loop authority |
+| `supabase/functions/vto-generate/vtoContract.ts` | Build 35 post-#499 convergence carries the merged failure taxonomy (`quota_exhausted`, `request_in_flight`, `provider_busy`) and bounded retry guidance used by the current client decision loop. Exact file is byte-identical to current Build 35 integration. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; #499 merged VTO decision-loop authority |
+| `supabase/functions/vto-generate/vtoHandler.ts` | Build 35 post-#499 convergence emits the current server-authoritative VTO failure distinctions and bounded Retry-After response while retaining server-side K+, quota, provider and identity authority. Exact file is byte-identical to current Build 35 integration. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; #499 merged VTO decision-loop authority |
+| `supabase/functions/vto-generate/vtoGuards.test.ts` | Regression proof for the canonical K+ delegation above, including confirmed-active/denied/unknown behavior, malformed-response fail-closed behavior, actor binding, and transient-authority recovery. Exact test file is byte-identical to merged Build 35 integration. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; production-readiness repair `B35-PROD-002` |
+| `supabase/functions/vto-generate/vtoPaidBoundary.test.ts` | Paid-boundary regression proof that VTO delegates K+ authorization to the canonical RPC and treats authority failure as unknown rather than inventing a fallback entitlement decision. Exact test file is byte-identical to merged Build 35 integration. | Build 35 integration `b9cdbd0699ffb8e4a22afd994c662752c6fa4fd7`; production-readiness repair `B35-PROD-002` |
 | `docs/vto-live-integration-manifest.md` | This file. | Amendment §7, §30 |
 | `docs/vto-integration-defect-ledger.md` | The required defect ledger. | Amendment §26 |
 | `docs/vto-hostile-audit-ledger.md` | The full-program hostile audit's own defect ledger (P0-P3 repairs, P4-P10 findings, A-T state matrix, human/device holds). Declared here rather than granted by widening a pattern: the guard refused it, which is the guard working. | Hostile audit brief §41; amendment §26 |
@@ -76,7 +82,7 @@ added to a list without a justification.
 
 ### Explicitly NOT authorized, and not touched
 
-`supabase/functions/vto-generate/**` (read only), the Commerce
+`supabase/functions/vto-generate/**` (read only except the six exact Build 35 promotion/convergence files declared above), the Commerce
 implementation, the scan/identification pipeline, checkout, closet, packing,
 Elise, analytics infrastructure except the two exact audit repair files above, unrelated hooks/services/components,
 deployment workflows, release credentials, and staging/production backend

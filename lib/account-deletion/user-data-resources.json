@@ -367,6 +367,27 @@
       "notes": "K+ entitlement authority (Phase 1) lifecycle activation events (future Welcome to K+). ON DELETE CASCADE FK to auth.users; nothing retained after purge."
     },
     {
+      "table": "kplus_provider_reconciliation_controls",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 35 RevenueCat pull-reconciliation per-actor control state. ON DELETE CASCADE to auth.users; operational state cannot outlive the actor."
+    },
+    {
+      "table": "kplus_offer_redemption_attempts",
+      "column": "actor_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 35 offer-code attempt rows contain the Auth actor UUID plus HMAC-only code material. ON DELETE CASCADE to auth.users."
+    },
+    {
+      "table": "kplus_offer_redemptions",
+      "column": "actor_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 35 successful offer-code redemption rows contain the Auth actor UUID plus HMAC-only code material. ON DELETE CASCADE to auth.users."
+    },
+    {
       "table": "kplus_revenuecat_mirror_queue",
       "column": "user_id",
       "action": "auth_delete_cascade",

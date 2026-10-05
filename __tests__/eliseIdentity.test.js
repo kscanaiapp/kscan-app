@@ -43,7 +43,7 @@ const scanResultActionRow = fs.readFileSync(path.join(ROOT, 'components', 'scan-
 
 const edgeIndex = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'stylechat-generate', 'index.ts'), 'utf8');
 const edgeActions = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'stylechat-generate', 'actions.ts'), 'utf8');
-const edgeStyleDnaContext = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'stylechat-generate', 'styleDnaContext.ts'), 'utf8');
+const edgeSignatureStyleContext = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'stylechat-generate', 'signatureStyleContext.ts'), 'utf8');
 const edgeStyleOutfit = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'style-outfit-generate', 'index.ts'), 'utf8');
 
 const featureFlags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
@@ -170,7 +170,7 @@ test('user-facing Style DNA strings are absent from audited surfaces', () => {
 test('Signature Style strings are present where appropriate', () => {
   assert.match(styleChatStyleDnaCard, /Signature Style/);
   assert.match(eliseConstants, /Signature Style/);
-  assert.match(edgeStyleDnaContext, /Signature Style/);
+  assert.match(edgeSignatureStyleContext, /Signature Style/);
 });
 
 test('internal Style DNA identifiers are preserved in code', () => {
@@ -216,8 +216,8 @@ test('system prompt distinguishes v1 and v2 attachment behavior', () => {
 });
 
 test('Signature Style context block uses Signature Style terminology', () => {
-  assert.match(edgeStyleDnaContext, /\[Optional Signature Style Context\]/);
-  assert.match(edgeStyleDnaContext, /\[\/Optional Signature Style Context\]/);
+  assert.match(edgeSignatureStyleContext, /\[Optional Signature Style Context\]/);
+  assert.match(edgeSignatureStyleContext, /\[\/Optional Signature Style Context\]/);
 });
 
 // ── Internal identifier stability ────────────────────────────────────────────

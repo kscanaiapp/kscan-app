@@ -92,6 +92,9 @@ const HTTP_STATUS_BY_FAILURE: Readonly<Record<VtoFailureCode, number>> = {
   provider_timeout: 504,
   provider_unavailable: 503,
   rate_limited: 429,
+  quota_exhausted: 429,
+  request_in_flight: 429,
+  provider_busy: 503,
   generation_failed: 502,
   invalid_output: 502,
   authorization_failed: 401,
@@ -108,7 +111,9 @@ const RETRYABLE: ReadonlySet<VtoFailureCode> = new Set<VtoFailureCode>([
   'provider_timeout',
   'provider_unavailable',
   'rate_limited',
+  'quota_exhausted',
   'generation_failed',
+  'provider_busy',
   'invalid_output',
   'network_failure',
   'invalid_person_input',
@@ -134,6 +139,7 @@ interface FailureContext {
   stage: string;
   providerDetail?: string;
   latencyMs?: number;
+  retryAfterSeconds?: number;
 }
 
 /**
@@ -151,12 +157,17 @@ function fail(code: VtoFailureCode, context: FailureContext): Response {
     failureCode: code,
     providerDetail: context.providerDetail,
     latencyMs: context.latencyMs,
+    retryAfterSeconds: context.retryAfterSeconds,
   });
+  const error: Record<string, unknown> = { code, retryable: RETRYABLE.has(code) };
+  if (typeof context.retryAfterSeconds === 'number') {
+    error.retryAfterSeconds = context.retryAfterSeconds;
+  }
   return json(
     {
       requestId: context.requestId,
       status: 'failed',
-      error: { code, retryable: RETRYABLE.has(code) },
+      error,
     },
     HTTP_STATUS_BY_FAILURE[code],
   );
@@ -396,7 +407,7 @@ export async function handleVtoRequest(
     });
   }
   if (reservation.outcome === 'quota_exceeded') {
-    return fail('rate_limited', {
+    return fail('quota_exhausted', {
       requestId, uid, origin, stage: 'reservation_quota',
     });
   }
@@ -409,7 +420,7 @@ export async function handleVtoRequest(
       origin,
       priorStatus: reservation.priorStatus ?? 'unknown',
     });
-    return fail('rate_limited', {
+    return fail('request_in_flight', {
       requestId, uid, origin, stage: 'reservation_duplicate',
     });
   }
@@ -476,6 +487,7 @@ export async function handleVtoRequest(
       origin,
       provider: selection.provider.id,
       stage: 'provider_outcome',
+      retryAfterSeconds: outcome.retryAfterSeconds,
       // Adapter-authored, non-sensitive, server-log only. It is deliberately
       // NOT part of the response body.
       providerDetail: outcome.detail,

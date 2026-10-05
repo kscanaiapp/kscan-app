@@ -136,7 +136,10 @@ const GOVERNED_FUNCTIONS = [
   'resend-restoration-email',
   'kickscrew-sneaker-description',
   'kplus-activate',
+  'kplus-offer-redeem',
   'kplus-reconcile-revenuecat',
+  'kplus-revenuecat-pull-reconcile',
+  'kplus-revenuecat-webhook',
   'nike-shoe-details',
   'product-search-deals',
   'search-vinted-secondhand',
@@ -146,6 +149,7 @@ const GOVERNED_FUNCTIONS = [
   'deletion-status',
   'vto-generate',
   'reconcile-orphan-media',
+  'purchase-import-extract',
 ];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');

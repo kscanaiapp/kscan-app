@@ -192,13 +192,11 @@ test('MODE B: a generative backend mutation is REJECTED', () => {
   assert.deepEqual(
     unauthorizedIn([
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
       'supabase/functions/commerce-watch-refresh/index.ts',
     ]).sort(),
     [
       'supabase/functions/commerce-watch-refresh/index.ts',
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
     ],
     'GENERATIVE BACKEND MUTATION must remain NO',
   );

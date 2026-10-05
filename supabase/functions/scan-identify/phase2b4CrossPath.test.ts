@@ -328,8 +328,34 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 K+ offer-code redemption. JWT-authenticated and actor-bound.
+  'kplus-offer-redeem': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'kplus-reconcile-revenuecat': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  // Build 35 K+ Phase E: authenticated per-actor inbound state repair. It
+  // imports the shared account guard, so its deployed closure carries that
+  // module's full REST/RPC/auth-admin footprint. The function itself uses the
+  // service role only for the private lease/cache/provider-transition RPCs;
+  // actor identity is the verified JWT subject and no table is directly read.
+  'kplus-revenuecat-pull-reconcile': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  // Build 35 K+ Phase C: the inbound RevenueCat lifecycle webhook. It is reachable
+  // without a Supabase JWT (verify_jwt = false), so it is built like deletion-status:
+  // it does NOT import _shared/deletion/common.ts and therefore carries no
+  // auth.admin.* code. Its only privileged operation is a service-role call to the
+  // two shared provider transition wrappers. It performs no direct table read or
+  // write and no storage access. The caller boundary is provider authentication
+  // (an Authorization secret, plus an HMAC signature when configured), enforced
+  // before the body is parsed.
+  'kplus-revenuecat-webhook': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
   'nike-shoe-details': {
@@ -369,6 +395,10 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
   'product-search-deals': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
+  },
+  'purchase-import-extract': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
   },
   // B33-STO-002 orphan-owner media reconciliation. It holds service role because
   // its whole job is to see across every user's media: the objects it targets are
@@ -571,6 +601,17 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/kplus-reconcile-revenuecat/index.ts':
     'Internal-secret-protected reconciliation worker invokes the bounded K+ '
     + 'RevenueCat RPC batch.',
+  'supabase/functions/kplus-revenuecat-webhook/index.ts':
+    'verify_jwt = false (RevenueCat cannot send a Supabase JWT); the function '
+    + 'authenticates every request itself -- a constant-time compare against a '
+    + 'server-only Authorization secret, plus an HMAC signature when a signing '
+    + 'secret is configured -- before the body is parsed, and refuses everything '
+    + 'when the secret is unset. Service role is used for exactly one thing: '
+    + 'calling the shared provider transition wrappers, which are service-role-'
+    + 'only and own ordering, idempotency, cross-user ownership and environment '
+    + 'checks. It reads and writes no table directly, never calls auth.admin, '
+    + 'does not import the shared deletion module, and takes the actor only from '
+    + 'the provider-authenticated app_user_id (a K Scan UUID).',
   'supabase/functions/privacy-correction-request/index.ts':
     'Authenticated correction intake writes the verified caller id, never a '
     + 'body-supplied actor.',

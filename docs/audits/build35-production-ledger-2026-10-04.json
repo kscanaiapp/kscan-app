@@ -1,0 +1,595 @@
+{
+  "projectRef": "wyyuqfdxucjksghsmhry",
+  "observedOn": "2026-10-04",
+  "readOnlySnapshot": true,
+  "migrations": [
+    {
+      "version": "202605122359",
+      "name": "profiles_base"
+    },
+    {
+      "version": "202605130000",
+      "name": "profiles_privacy_status"
+    },
+    {
+      "version": "202605130001",
+      "name": "privacy_settings"
+    },
+    {
+      "version": "202605130002",
+      "name": "privacy_settings_schema_parity"
+    },
+    {
+      "version": "202605130003",
+      "name": "deletion_requests"
+    },
+    {
+      "version": "202605130004",
+      "name": "privacy_requests_extensible"
+    },
+    {
+      "version": "202605160001",
+      "name": "deletion_requests_client_insert"
+    },
+    {
+      "version": "202605200001",
+      "name": "persistent_style_objects"
+    },
+    {
+      "version": "202605200002",
+      "name": "style_library_images_storage"
+    },
+    {
+      "version": "202605230001",
+      "name": "app_config_feature_freeze"
+    },
+    {
+      "version": "202605240001",
+      "name": "room_shares_public_preview"
+    },
+    {
+      "version": "202605240002",
+      "name": "fix_public_room_preview_malformed_uuid"
+    },
+    {
+      "version": "202605240003",
+      "name": "public_room_preview_image_storage_metadata"
+    },
+    {
+      "version": "202605240004",
+      "name": "public_room_preview_storage_paths"
+    },
+    {
+      "version": "202606030001",
+      "name": "add_room_note_to_dressing_rooms"
+    },
+    {
+      "version": "202606050001",
+      "name": "dressing_room_item_reactions"
+    },
+    {
+      "version": "202606050002",
+      "name": "public_room_preview_item_ids"
+    },
+    {
+      "version": "202606060001",
+      "name": "replace_fire_with_thumbs_down_reaction"
+    },
+    {
+      "version": "202606070001",
+      "name": "style_chat"
+    },
+    {
+      "version": "202606070002",
+      "name": "style_chat_usage_rpc"
+    },
+    {
+      "version": "202606070003",
+      "name": "style_memory_hardening"
+    },
+    {
+      "version": "202606070004",
+      "name": "fix_upsert_style_memory_event_on_conflict"
+    },
+    {
+      "version": "202606070005",
+      "name": "stylechat_daily_usage"
+    },
+    {
+      "version": "202606070006",
+      "name": "fix_stylechat_daily_usage_rpc_ambiguity"
+    },
+    {
+      "version": "202606070007",
+      "name": "align_public_room_cover_priority"
+    },
+    {
+      "version": "20260607222310",
+      "name": "inspiration_uploads"
+    },
+    {
+      "version": "202606090001",
+      "name": "style_chat_burst_usage"
+    },
+    {
+      "version": "202606110001",
+      "name": "dressing_room_messages"
+    },
+    {
+      "version": "20260611223807",
+      "name": "fix_room_messages_authenticated_grants"
+    },
+    {
+      "version": "20260617000001",
+      "name": "create_legal_acceptances"
+    },
+    {
+      "version": "20260617215307",
+      "name": "create_saved_scans"
+    },
+    {
+      "version": "202606180001",
+      "name": "fix_staging_grants_saved_scans_soft_delete"
+    },
+    {
+      "version": "202606180002",
+      "name": "fix_saved_scans_soft_delete_select_policy"
+    },
+    {
+      "version": "202606180003",
+      "name": "fix_style_chat_messages_session_rls"
+    },
+    {
+      "version": "202606240001",
+      "name": "dressing_room_participants_shared_messaging"
+    },
+    {
+      "version": "202606240002",
+      "name": "dressing_room_item_reactions_participant_rls"
+    },
+    {
+      "version": "202606290001",
+      "name": "product_catalog"
+    },
+    {
+      "version": "20260704175544",
+      "name": "free_tier_utility_tables"
+    },
+    {
+      "version": "20260705000001",
+      "name": "fix_inspiration_closet_delete_and_room_link"
+    },
+    {
+      "version": "20260707000001",
+      "name": "scan_identify_daily_usage"
+    },
+    {
+      "version": "20260708090847",
+      "name": "content_reports"
+    },
+    {
+      "version": "20260708140542",
+      "name": "increase_room_share_redemptions_to_10_for_testing"
+    },
+    {
+      "version": "20260709130346",
+      "name": "android_backend_runtime_fixes"
+    },
+    {
+      "version": "20260710000001",
+      "name": "room_share_redemption_contract_remediation"
+    },
+    {
+      "version": "20260711000001",
+      "name": "ai_stylist_looks_extension"
+    },
+    {
+      "version": "20260711000002",
+      "name": "outfit_decision_rooms"
+    },
+    {
+      "version": "20260711000003",
+      "name": "style_outfit_usage"
+    },
+    {
+      "version": "20260711195508",
+      "name": "restore_service_role_app_table_grants"
+    },
+    {
+      "version": "20260712000001",
+      "name": "saved_scan_media_backing"
+    },
+    {
+      "version": "20260712010000",
+      "name": "audit_hardening_ai_stylist_stylechat"
+    },
+    {
+      "version": "20260712020000",
+      "name": "harden_app_role_privileges"
+    },
+    {
+      "version": "20260713000001",
+      "name": "user_stylist_preferences"
+    },
+    {
+      "version": "20260714000001",
+      "name": "user_stylist_preferences_rls_grants"
+    },
+    {
+      "version": "20260714000002",
+      "name": "app_config_read_grants"
+    },
+    {
+      "version": "20260714000003",
+      "name": "add_user_stylist_preferences_avatar_allowlist"
+    },
+    {
+      "version": "20260715000001",
+      "name": "expand_stylist_portrait_avatar_allowlist"
+    },
+    {
+      "version": "20260716000001",
+      "name": "shared_room_memberships"
+    },
+    {
+      "version": "20260717201524",
+      "name": "20260716035943_add_purchase_options_to_saved_scans"
+    },
+    {
+      "version": "20260718151651",
+      "name": "include_inspiration_uploads_in_shared_room_preview"
+    },
+    {
+      "version": "20260720115423",
+      "name": "scan_commerce_events"
+    },
+    {
+      "version": "20260721201218",
+      "name": "dr3_collaborative_interactions"
+    },
+    {
+      "version": "20260721201347",
+      "name": "dr4_collab_idempotency_room_scope"
+    },
+    {
+      "version": "20260722004639",
+      "name": "stylechat_request_quota_events"
+    },
+    {
+      "version": "20260722022830",
+      "name": "lock_down_stylechat_quota_refunds"
+    },
+    {
+      "version": "20260722024920",
+      "name": "fix_stylechat_quota_rpc_ambiguity"
+    },
+    {
+      "version": "20260722030304",
+      "name": "create_llm_routing_events"
+    },
+    {
+      "version": "20260722031812",
+      "name": "limit_llm_routing_event_privileges"
+    },
+    {
+      "version": "20260722191013",
+      "name": "account_deletion_lifecycle"
+    },
+    {
+      "version": "20260723021514",
+      "name": "account_deletion_security_hardening"
+    },
+    {
+      "version": "20260723021635",
+      "name": "account_deletion_device_sessions_and_revoke"
+    },
+    {
+      "version": "20260723021735",
+      "name": "account_deletion_claim_retry_peek_v2"
+    },
+    {
+      "version": "20260723083904",
+      "name": "profiles_backfill_and_active_account_hardening"
+    },
+    {
+      "version": "20260723131202",
+      "name": "account_deletion_crash_recovery"
+    },
+    {
+      "version": "20260723131221",
+      "name": "account_deletion_rls_active_account"
+    },
+    {
+      "version": "20260723131423",
+      "name": "deletion_ledger_pii_sanitizer"
+    },
+    {
+      "version": "20260723132813",
+      "name": "harden_deletion_trigger_function_grants"
+    },
+    {
+      "version": "20260724205334",
+      "name": "elise_generation_quota_idempotency"
+    },
+    {
+      "version": "20260724205508",
+      "name": "elise_generation_resilience_e2"
+    },
+    {
+      "version": "20260724205606",
+      "name": "fix_elise_quota_after_generation_reservation"
+    },
+    {
+      "version": "20260724221229",
+      "name": "shared_room_recipient_read_policies"
+    },
+    {
+      "version": "20260724221634",
+      "name": "shared_room_memberships_select_grant"
+    },
+    {
+      "version": "20260803020000",
+      "name": "provider_request_security"
+    },
+    {
+      "version": "20260803020100",
+      "name": "provider_request_security_revoke_anon"
+    },
+    {
+      "version": "20260803020200",
+      "name": "provider_request_security_fix_trigger_search_path"
+    },
+    {
+      "version": "20260803160206",
+      "name": "provider_request_ttl_tuning"
+    },
+    {
+      "version": "20260803220000",
+      "name": "image_ingestion_quarantine_storage"
+    },
+    {
+      "version": "20260803220100",
+      "name": "image_ingestion_clean_storage"
+    },
+    {
+      "version": "20260803220200",
+      "name": "image_scan_verdicts"
+    },
+    {
+      "version": "20260804090000",
+      "name": "edge_function_errors"
+    },
+    {
+      "version": "20260805170417",
+      "name": "legal_acceptances_add_ai_processing"
+    },
+    {
+      "version": "20260808201806",
+      "name": "shared_room_item_contributions"
+    },
+    {
+      "version": "20260808202108",
+      "name": "dressing_room_user_blocking"
+    },
+    {
+      "version": "20260808202222",
+      "name": "privacy_request_rate_limits"
+    },
+    {
+      "version": "20260809102805",
+      "name": "contribution_block_enforcement"
+    },
+    {
+      "version": "20260809152053",
+      "name": "add_ai_output_reporting"
+    },
+    {
+      "version": "20260814120000",
+      "name": "wardrobe_wear_event_items"
+    },
+    {
+      "version": "20260814230933",
+      "name": "harden_wardrobe_wear_owner_links"
+    },
+    {
+      "version": "20260815233431",
+      "name": "dressing_room_items_blocking"
+    },
+    {
+      "version": "20260816020518",
+      "name": "apple_auth_credentials"
+    },
+    {
+      "version": "20260816020548",
+      "name": "apple_auth_credentials_access_hardening"
+    },
+    {
+      "version": "20260816120000",
+      "name": "user_stylist_preferences_gender_context"
+    },
+    {
+      "version": "20260818141056",
+      "name": "user_stylist_preferences_display_name_customized"
+    },
+    {
+      "version": "20260829120000",
+      "name": "kplus_entitlements"
+    },
+    {
+      "version": "20260829203657",
+      "name": "user_closet_items"
+    },
+    {
+      "version": "20260829204635",
+      "name": "user_closet_items_optimize_rls_initplan"
+    },
+    {
+      "version": "20260829220316",
+      "name": "user_closet_items_media"
+    },
+    {
+      "version": "20260830060000",
+      "name": "user_style_profiles"
+    },
+    {
+      "version": "20260830070000",
+      "name": "upsert_style_dna_profile_rpc"
+    },
+    {
+      "version": "20260830131956",
+      "name": "signature_style_server_authority"
+    },
+    {
+      "version": "20260830140000",
+      "name": "fix_recompute_signature_style_column_ambiguity"
+    },
+    {
+      "version": "20260830150000",
+      "name": "user_commerce_watches"
+    },
+    {
+      "version": "20260830151500",
+      "name": "user_commerce_watch_events_and_rpcs"
+    },
+    {
+      "version": "20260830161500",
+      "name": "watch_push_enabled"
+    },
+    {
+      "version": "20260830162500",
+      "name": "claim_watchable_commerce_watches"
+    },
+    {
+      "version": "20260830174616",
+      "name": "vto_feature_control"
+    },
+    {
+      "version": "20260830190000",
+      "name": "watchlist_push_token_actor_isolation"
+    },
+    {
+      "version": "20260830190500",
+      "name": "watchlist_create_honours_changed_intent"
+    },
+    {
+      "version": "20260830212508",
+      "name": "user_device_push_tokens"
+    },
+    {
+      "version": "20260831000100",
+      "name": "watchlist_worker_enablement"
+    },
+    {
+      "version": "20260831120000",
+      "name": "watchlist_device_ownership_claim"
+    },
+    {
+      "version": "20260831120500",
+      "name": "claim_user_commerce_watches_for_refresh"
+    },
+    {
+      "version": "20260831130000",
+      "name": "vto_generation_reservations"
+    },
+    {
+      "version": "20260831140000",
+      "name": "deleted_owner_retained_media"
+    },
+    {
+      "version": "20260831160000",
+      "name": "vto_paid_quota_attempt_counting"
+    },
+    {
+      "version": "20260902120000",
+      "name": "watchlist_device_route_and_account_state"
+    },
+    {
+      "version": "20260902150000",
+      "name": "vto_non_billable_attempt_release"
+    },
+    {
+      "version": "20260905171030",
+      "name": "legal_acceptances_ai_processing_consent"
+    },
+    {
+      "version": "20260908230000",
+      "name": "deletion_status_receipt"
+    },
+    {
+      "version": "20260909115726",
+      "name": "watchlist_push_receipts"
+    },
+    {
+      "version": "20260909170000",
+      "name": "watchlist_f03_push_token_actor_isolation_reconciliation"
+    },
+    {
+      "version": "20260915030553",
+      "name": "kplus_entitlement_authority"
+    },
+    {
+      "version": "20260915124849",
+      "name": "kplus_reconcile_queue_excludes_inactive_rows"
+    },
+    {
+      "version": "20260915181554",
+      "name": "kplus_revenuecat_mirror_retirement"
+    },
+    {
+      "version": "20260915181910",
+      "name": "kplus_promotional_mirror_sources_search_path"
+    },
+    {
+      "version": "20260915214857",
+      "name": "signature_style_free_entitlement"
+    },
+    {
+      "version": "20260916031250",
+      "name": "build33_reaction_counts_honour_dressing_room_block"
+    },
+    {
+      "version": "20260916125554",
+      "name": "build33_production_rpc_privilege_convergence"
+    },
+    {
+      "version": "20260916130553",
+      "name": "build33_orphan_owner_media_reconciliation_rpc"
+    },
+    {
+      "version": "20260916141413",
+      "name": "build33_production_commerce_telemetry_convergence"
+    },
+    {
+      "version": "20260916160903",
+      "name": "build33_production_trigger_search_path_convergence"
+    },
+    {
+      "version": "20260916235651",
+      "name": "dressing_room_items_dedupe_key_idempotency"
+    },
+    {
+      "version": "20260917163000",
+      "name": "b34_fk_delete_path_indexes"
+    },
+    {
+      "version": "20261001204903",
+      "name": "canonical_closet_owned_look_support"
+    },
+    {
+      "version": "20261002010000",
+      "name": "kplus_paid_lifetime_entitlement_foundation"
+    },
+    {
+      "version": "20261003195716",
+      "name": "kplus_provider_pull_reconciliation"
+    },
+    {
+      "version": "20261004221500",
+      "name": "closet_purchase_import_origin"
+    },
+    {
+      "version": "20261004231628",
+      "name": "fix_kplus_reconciliation_uuid_selection"
+    }
+  ]
+}

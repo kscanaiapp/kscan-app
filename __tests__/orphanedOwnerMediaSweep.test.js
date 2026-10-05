@@ -252,7 +252,16 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // into the worker would drag the whole newer worker source into a production
   // deploy. Keeping it separate holds its blast radius on the deletion path at
   // exactly zero.
-  assert.equal(dirs.length, 25, 'no unexplained Edge Function has appeared');
+  // Now 26: Build 35 K+ Phase C added kplus-revenuecat-webhook, the inbound
+  // RevenueCat lifecycle webhook. Unrelated to this sweep and to the deletion
+  // path: it touches only the K+ provider transition functions.
+  // Now 27: Build 35 K+ Phase E added kplus-revenuecat-pull-reconcile, the
+  // separately governed authenticated per-actor provider repair primitive.
+  // It is likewise unrelated to this deletion sweep.
+  // Now 28: Build 35 Receipt Intelligence added purchase-import-extract.
+  // Now 29: the VTO post-Kimi lane adds kplus-offer-redeem, the authenticated
+  // HMAC-only offer-code ingestion boundary. Neither belongs to this sweep.
+  assert.equal(dirs.length, 29, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant

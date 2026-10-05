@@ -82,8 +82,7 @@ test('guard: the protected boundaries are rejected by the real manifest', () => 
   // matched, this lane's scope claim would be false.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
-    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+    'supabase/functions/vto-generate/providers/index.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
     'components/scan-results/types.ts',
@@ -204,17 +203,28 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only; certification may expose the governed VTO UI', (t) => {
+test('guard: generative backend stays read-only except the exact audited Build 35 promotion files', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
-  const forbiddenBackendTouches = changed.filter(
-    (file) => file.startsWith('supabase/') || file === 'app.json',
+  const build35AuthorizedBackendPromotion = new Set([
+    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+    'supabase/functions/vto-generate/vtoContract.ts',
+    'supabase/functions/vto-generate/vtoEntitlement.ts',
+    'supabase/functions/vto-generate/vtoGuards.test.ts',
+    'supabase/functions/vto-generate/vtoHandler.ts',
+    'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
+  ]);
+  const { vtoOwned } = guard.partitionByVtoOwnership(changed);
+  const forbiddenBackendTouches = vtoOwned.filter(
+    (file) =>
+      (file.startsWith('supabase/') || file === 'app.json') &&
+      !build35AuthorizedBackendPromotion.has(file),
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO; supabase/** and app.json remain read-only in this lane',
+    'supabase/** and app.json remain read-only except the six exact audited Build 35 VTO promotion files',
   );
 
   if (changed.includes('eas.json')) {

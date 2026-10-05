@@ -1,6 +1,6 @@
 {
   "manifestVersion": "dependency-reachability-exceptions-v1",
-  "generatedFromAudit": "npm audit --omit=dev --json, 2026-08-29, post shell-quote remediation",
+  "generatedFromAudit": "npm audit --omit=dev --json, 2026-10-04, Build 35 authority baseline",
   "note": "B34-DEF-014. Every entry here is a documented, evidence-based exception for a build/dev-tool-only advisory that npm's severity label alone would otherwise flag as release-blocking. Removing a package from this file re-enables a hard failure for it. Adding a package here requires the same evidence standard: confirmed dependency path (npm explain) AND a grep of app/components/services/hooks/contexts/lib/supabase/functions confirming no direct import from shipped source.",
   "resolvedByOverride": {
     "shell-quote": {
@@ -15,17 +15,18 @@
   },
   "exceptions": [
     {
-      "packages": ["@expo/cli", "@expo/metro", "@expo/metro-config", "expo"],
+      "packages": ["@expo/cli", "@expo/code-signing-certificates", "@expo/metro", "@expo/metro-config", "expo", "node-forge"],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
-      "reachability": "Expo CLI / Metro bundler toolchain. Runs only during `expo start`, `expo prebuild`, and bundling; never ships inside the compiled Hermes bytecode delivered to a device.",
-      "evidence": "npm explain path terminates at node_modules/expo/node_modules/@expo/cli and node_modules/@expo/metro*; zero direct imports from app/components/services/hooks/contexts/lib/supabase/functions.",
-      "fixAvailable": "Only via expo@57 (isSemVerMajor) per npm audit fixAvailable — out of scope for this SDK 54 maintenance pass."
+      "reachability": "Expo CLI code-signing / Metro bundler toolchain. Runs only during Expo CLI development, prebuild, code-signing, and bundling operations; never ships inside the compiled Hermes bytecode delivered to a device.",
+      "evidence": "npm explain resolves @expo/code-signing-certificates@0.0.6 and node-forge@1.4.0 only through expo@54.0.37 -> @expo/cli@54.0.27 (node-forge is also a dependency of the certificate helper); zero direct imports or source mentions from app/components/services/hooks/contexts/lib/supabase/functions. npm audit reports GHSA-86w9-cpqp-85rv for node-forge <=1.4.0; the 2026-10-02 registry latest is still 1.4.0, so no non-breaking patched node-forge release exists.",
+      "fixAvailable": "npm audit offers only an Expo semver-major change; node-forge latest remains affected. Track for the scheduled Expo SDK alignment rather than bypassing the locked SDK 54 authority."
     },
     {
       "packages": ["metro", "metro-config", "metro-transform-worker"],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
+      "aggregateParents": ["@react-native/community-cli-plugin", "react-native"],
       "reachability": "React Native's own bundler, pulled in via @react-native/community-cli-plugin. Build/dev-server only.",
       "evidence": "nodes: node_modules/@react-native/community-cli-plugin/node_modules/metro* and top-level node_modules/metro*; no direct app import.",
       "fixAvailable": false
@@ -45,6 +46,15 @@
       "reachability": "Glob-matching helper transitively required by minimatch/test-exclude/chromium-edge-launcher/@react-native/codegen — all build-time or test-tooling consumers.",
       "evidence": "nodes: @react-native/codegen, chromium-edge-launcher, minimatch, react-native, test-exclude — all under node_modules, no direct app import.",
       "fixAvailable": true
+    },
+    {
+      "packages": ["braces"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "aggregateParents": ["@jest/environment", "@jest/fake-timers", "@jest/transform", "@react-native/community-cli-plugin", "babel-jest", "jest-environment-node", "jest-haste-map", "jest-message-util", "metro-file-map", "micromatch", "react-native"],
+      "reachability": "CVE-2026-93687 is in braces pattern expansion. In this locked tree every path to braces is through micromatch beneath Jest or Metro/React Native CLI build/test tooling; braces is not part of the shipped Hermes application runtime. npm audit propagates the leaf advisory severity up through those aggregate parent packages, including the runtime react-native package, even though the vulnerable path under react-native is its bundled CLI/Jest toolchain.",
+      "evidence": "Lockfile paths include react-native -> @react-native/community-cli-plugin -> metro-file-map -> micromatch -> braces; react-native -> babel-jest -> @jest/transform -> micromatch/jest-haste-map -> braces; and react-native -> jest-environment-node -> @jest/environment/@jest/fake-timers -> jest-message-util -> micromatch -> braces. No shipped source directly imports braces or the Jest/Metro aggregate packages. GHSA-vfj7-8cjw-p6xm affects braces <=3.0.3 and, as of 2026-10-04, has no patched release. The gate accepts an aggregate parent only when its npm-audit via graph resolves exclusively to this approved leaf and that parent is explicitly listed here; a direct high/critical advisory on react-native or any aggregate parent still fails closed.",
+      "fixAvailable": "No patched braces release exists as of 2026-10-04. Track upstream; remove this exception once a patched braces version is available in the governed Expo/React Native dependency graph."
     },
     {
       "packages": ["image-size"],

@@ -374,7 +374,7 @@ test('10. rollback can never silently fall back to the current git source', asyn
   const lib = fs.readFileSync(LIB, 'utf8');
   assert.match(lib, /never a substitute/i);
   assert.match(
-    lib.replace(/\n \* /g, ' '),
+    lib.replace(/\r?\n \* /g, ' '),
     /no-op dressed as a recovery/i,
     'the reason the git tree is not a fallback is written down',
   );
@@ -388,7 +388,7 @@ test('the capture writes bytes, digests and metadata, in an isolated directory',
   assert.match(src, /'functions', 'download', functionName/, 'it downloads the live bundle');
   assert.match(src, /mkdtempSync/, 'it downloads into a scratch directory');
   assert.match(
-    src.replace(/\n \* /g, ' '),
+    src.replace(/\r?\n \* /g, ' '),
     /pointing it at the repo would overwrite the governed source/,
     'the reason for the scratch directory is recorded',
   );
