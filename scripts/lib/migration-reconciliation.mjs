@@ -49,6 +49,10 @@ export const VALID_RECONCILIATION_CLASSIFICATIONS = new Set([
   'EQUIVALENT_RENUMBER',
   'CONSOLIDATED_IN_REMOTE',
   'SUPERSEDED_BY_LATER_MIGRATION',
+  // Build 35 production-readiness capture: the governed local migration and
+  // production ledger carry the same version. This is reconciliation evidence
+  // only; it never licenses replay or execution.
+  'EXACT_VERSION_APPLIED',
 ]);
 
 /**
