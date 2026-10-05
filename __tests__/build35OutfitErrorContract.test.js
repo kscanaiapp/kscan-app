@@ -40,9 +40,20 @@ for (const [status, body, expected] of [
     assert.ok(!JSON.stringify(result).includes('diagnostic'));
     if (body.status === 'burst_limit') assert.equal(result.retryAfterSeconds, 5);
     if (body.status === 'quota_exceeded' && status === 429) assert.deepEqual(result.usage, body.usage);
+    if (expected === 'quota_exceeded') assert.equal(result.message, h.client.AI_QUOTA_MESSAGE);
+    if (expected === 'burst_limit') assert.equal(result.message, h.client.AI_BURST_MESSAGE);
     assert.equal(h.client.isInUnavailableCooldown(), expected === 'unavailable');
   });
 }
+
+test('invalid JSON in HTTP 429 remains a bounded temporary limit without outage cooldown', async () => {
+  const h = harness();
+  h.setResponse({ data: null, error: { context: new Response('not json', { status: 429 }) } });
+  assert.deepEqual(await h.client.generateOutfits({ mode: 'style_event' }), {
+    status: 'burst_limit', message: h.client.AI_BURST_MESSAGE, retryAfterSeconds: 60,
+  });
+  assert.equal(h.client.isInUnavailableCooldown(), false);
+});
 
 test('successful no-result and network outage remain separate', async () => {
   const h = harness();
