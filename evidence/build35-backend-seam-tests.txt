@@ -1,0 +1,358 @@
+Check supabase/functions/purchase-import-extract/handler.test.ts
+Check supabase/functions/commerce-watch-refresh/changeEngine.test.ts
+Check supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts
+Check supabase/functions/stylechat-generate/eliseGenerationResilience.test.ts
+Check supabase/functions/stylechat-generate/eliseConciergeWardrobeTruth.test.ts
+Check supabase/functions/stylechat-generate/contextMessages.test.ts
+Check supabase/functions/vto-generate/vtoHandler.test.ts
+Check supabase/functions/vto-generate/vtoPaidBoundary.test.ts
+running 15 tests from ./supabase/functions/purchase-import-extract/handler.test.ts
+success: one reservation, one provider call, settled as billable, sanitized body ...
+------- output -------
+{"event":"purchase_import_extract_completed","ts":"2026-10-05T11:03:39.845Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+success: one reservation, one provider call, settled as billable, sanitized body ... ok (52ms)
+unauthenticated and anonymous callers never reach reservation or the provider ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.885Z","stage":"authenticate","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.886Z","stage":"anonymous_actor","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.886Z","uid":"11111111...","stage":"account_guard","errorClass":"unauthorized"}
+----- output end -----
+unauthenticated and anonymous callers never reach reservation or the provider ... ok (5ms)
+kill switch off: feature_disabled, no reservation, no provider call ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.888Z","uid":"11111111...","stage":"kill_switch","errorClass":"feature_disabled"}
+----- output end -----
+kill switch off: feature_disabled, no reservation, no provider call ... ok (0ms)
+input bounds: oversized refused (413), malformed refused (400), nothing truncated or sent ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.895Z","uid":"11111111...","stage":"image_size","errorClass":"file_too_large"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.896Z","uid":"11111111...","stage":"contract_version","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.896Z","uid":"11111111...","stage":"input_tier","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.896Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.897Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.897Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+----- output end -----
+input bounds: oversized refused (413), malformed refused (400), nothing truncated or sent ... ok (9ms)
+RPI-31: a denied reservation is rate_limited with Retry-After and makes no provider call ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.899Z","uid":"11111111...","stage":"reserve_denied","errorClass":"rate_limited"}
+----- output end -----
+RPI-31: a denied reservation is rate_limited with Retry-After and makes no provider call ... ok (1ms)
+RPI-31: an unavailable reservation authority fails closed ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.900Z","uid":"11111111...","stage":"reserve_unavailable","errorClass":"provider_unavailable"}
+----- output end -----
+RPI-31: an unavailable reservation authority fails closed ... ok (0ms)
+provider outage: one approved fallback on transient failure, then released (not billed) ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.902Z","uid":"11111111...","stage":"provider","attempts":2,"kind":"http_unavailable","errorClass":"provider_unavailable"}
+----- output end -----
+provider outage: one approved fallback on transient failure, then released (not billed) ... ok (2ms)
+a permanent provider failure is not retried ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.903Z","uid":"11111111...","stage":"provider","attempts":1,"kind":"http_client_error","errorClass":"provider_unavailable"}
+----- output end -----
+a permanent provider failure is not retried ... ok (0ms)
+RPI-27: low document confidence returns unreadable and NO items, even when the model listed some ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.904Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"unreadable_document"}
+----- output end -----
+RPI-27: low document confidence returns unreadable and NO items, even when the model listed some ... ok (0ms)
+RPI-32: too many lines, or a token-limit cut-off, is refused rather than truncated ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.905Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"too_many_items"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.905Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"too_many_items"}
+----- output end -----
+RPI-32: too many lines, or a token-limit cut-off, is refused rather than truncated ... ok (1ms)
+non-POST and garbage bodies are refused after the body is drained ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.907Z","uid":"11111111...","stage":"contract_version","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-10-05T11:03:39.907Z","stage":"method","errorClass":"invalid_file"}
+----- output end -----
+non-POST and garbage bodies are refused after the body is drained ... ok (1ms)
+sanitize: card fragments, contact data and order numbers never leave the function ... ok (0ms)
+sanitize: unknown enums, bad numbers and invalid GTINs collapse to safe values ... ok (0ms)
+sanitize: a malformed envelope is a schema failure, never a partial result ... ok (0ms)
+prompt: documents are untrusted; merchant is not brand; no card data; no invented values ... ok (0ms)
+running 11 tests from ./supabase/functions/commerce-watch-refresh/changeEngine.test.ts
+no LLM / no external call — pure function over its inputs only ... ok (49ms)
+price decrease: same currency, no target — records price_decreased, refreshStatus available ... ok (1ms)
+same price: no event, refreshStatus unchanged ... ok (0ms)
+buy_under crossing: previous > target, new <= target — exactly one target_price_reached event ... ok (0ms)
+target already reached before: further drop records price_decreased, not another target event ... ok (0ms)
+strongest event wins: a crossing refresh reports target_price_reached, never also price_decreased ... ok (0ms)
+currency mismatch: no price update, no event, no failure increment (§35) ... ok (0ms)
+single failed resolve stays "error", never "unavailable" (§40) ... ok (0ms)
+crossing the failure threshold degrades to unavailable exactly once, with one event ... ok (0ms)
+recovery from unavailable emits listing_available_again ... ok (0ms)
+KicksCrew product-family-minimum price is compared like any other price — engine never claims "your size" ... ok (0ms)
+running 4 tests from ./supabase/functions/kplus-offer-redeem/offerCodeContract.test.ts
+offer codes are canonicalized only on the server ... ok (31ms)
+the digest is deterministic and does not reveal the code ... ok (7ms)
+missing, malformed, and short secrets fail closed ... ok (4ms)
+unknown server results degrade to ERROR ... ok (0ms)
+running 7 tests from ./supabase/functions/stylechat-generate/eliseGenerationResilience.test.ts
+E-2 operation identity prefers sourceMessageId and isolates actors/sessions ... ok (30ms)
+E-2 legacy requests without sourceMessageId bind to requestId not raw text alone ... ok (0ms)
+E-2 source message ownership validation fails closed for foreign messages ... ok (0ms)
+E-2 provider retry allows one transient retry and never retries auth/invalid ... ok (1ms)
+E-2 output validation drops SQL/URL actions and falls back on empty text ... ok (1ms)
+E-2 structured grounding excludes raw URLs/storage and keeps trust rules ... ok (2ms)
+E-2 flags default OFF and malformed values fail safe ... ok (0ms)
+running 24 tests from ./supabase/functions/stylechat-generate/eliseConciergeWardrobeTruth.test.ts
+WC-001: a failed wardrobe read throws instead of reporting no rows ... ok (39ms)
+WC-001: the thrown error carries the source only, never the database message ... ok (0ms)
+WC-001: a genuinely empty Closet still returns no rows, and stays provable ... ok (1ms)
+WC-001: the empty-census shape is what licenses a confident absence claim ... ok (0ms)
+WC-001: no census means the prose guard removes the absence sentence ... ok (9ms)
+WC-001: every wardrobe source in the advice block routes through the guard ... ok (34ms)
+WC-002: a Closet with more categories than the bound is marked truncated ... ok (3ms)
+WC-002: a truncated census licenses no absence claim at all ... ok (1ms)
+WC-002: a garment the truncation dropped is no longer spoken as absent ... ok (1ms)
+WC-002: role absence is still provable, because roles are never truncated ... ok (0ms)
+WC-003: the ownership prose guard is gated on EVIDENCE, never on the flag ... ok (1ms)
+WC-003: the absence guard remains unconditional too ... ok (1ms)
+WC-004: the K+ entitlement comes from the server RPC, never a constant ... ok (2ms)
+WC-004: both authoritative Closet sources are K+ gated ... ok (2ms)
+WC-004: the census is built only under an affirmative entitlement ... ok (2ms)
+WC-005: every display fact is the candidate own value, byte for byte ... ok (0ms)
+WC-005: a candidate with no title yields no title, not a plausible one ... ok (0ms)
+WC-006: no item title or brand reaches the provider prompt block ... ok (1ms)
+WC-006: the candidate line carries exactly the agreed field set ... ok (0ms)
+WC-006: hostile Closet text is data, never prompt structure ... ok (0ms)
+WC-009: only the five declared stores can reach the wardrobe pipeline ... ok (7ms)
+WC-009: no source in the pipeline can emit a discovered candidate ... ok (2ms)
+WC-010: every Closet read excludes soft-deleted rows ... ok (3ms)
+WC-010: the census read in particular excludes them ... ok (1ms)
+running 10 tests from ./supabase/functions/stylechat-generate/contextMessages.test.ts
+five genuine messages plus one greeting produce five context messages ... ok (29ms)
+six genuine messages plus one greeting produce all six genuine messages ... ok (0ms)
+more than six genuine messages plus a greeting produce the newest six genuine messages ... ok (0ms)
+greeting marker in any ui_blocks position is detected ... ok (0ms)
+greeting among the newest fetched rows does not displace a genuine message ... ok (0ms)
+two unexpected greeting rows within the bounded lookback are excluded ... ok (0ms)
+source rows remain unchanged ... ok (0ms)
+chronological order matches the prior provider contract ... ok (0ms)
+transcript without greetings behaves exactly as before ... ok (0ms)
+stylechat query selects markers and buffers before filtering ... ok (1ms)
+running 31 tests from ./supabase/functions/vto-generate/vtoHandler.test.ts
+P0: an authenticated, entitled, eligible request succeeds ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.294Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.295Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+P0: an authenticated, entitled, eligible request succeeds ... ok (53ms)
+P0: an unauthenticated request never reaches a provider ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.335Z","requestId":"vtoreq_1_abc","origin":"commerce_product","stage":"authenticate","failureCode":"authorization_failed"}
+----- post-test output end -----
+P0: an unauthenticated request never reaches a provider ... ok (1ms)
+P0: identity comes from the session, never from the body ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.337Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.337Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+P0: identity comes from the session, never from the body ... ok (2ms)
+P0: a deactivated account is refused before any provider work ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.338Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"account_guard","failureCode":"authorization_failed"}
+----- post-test output end -----
+P0: a deactivated account is refused before any provider work ... ok (0ms)
+P0: the kill switch stops generation outright ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.339Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"feature_control","failureCode":"feature_disabled"}
+----- post-test output end -----
+P0: the kill switch stops generation outright ... ok (0ms)
+P0: feature control is checked before entitlement ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.340Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"feature_control","failureCode":"feature_disabled"}
+----- post-test output end -----
+P0: feature control is checked before entitlement ... ok (0ms)
+P1: K+ fails closed when the user has no active grant ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.341Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"entitlement","failureCode":"entitlement_required"}
+----- post-test output end -----
+P1: K+ fails closed when the user has no active grant ... ok (0ms)
+P1: an unreadable entitlement denies WITHOUT claiming K+ is missing ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.342Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"entitlement_read","failureCode":"authorization_failed"}
+----- post-test output end -----
+P1: an unreadable entitlement denies WITHOUT claiming K+ is missing ... ok (0ms)
+P1: an unsupported category is refused by the server ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.343Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"eligibility","failureCode":"unsupported_category"}
+----- post-test output end -----
+P1: an unsupported category is refused by the server ... ok (1ms)
+P1: the server does not defer to the client on eligibility ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.344Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"eligibility","failureCode":"unsupported_category"}
+----- post-test output end -----
+P1: the server does not defer to the client on eligibility ... ok (0ms)
+P1: a non-https garment image is refused ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.344Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"garment_url_safety","failureCode":"invalid_garment_input","providerDetail":"scheme_not_https"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.344Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"garment_url_safety","failureCode":"invalid_garment_input","providerDetail":"scheme_not_https"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.344Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"garment_url_safety","failureCode":"invalid_garment_input","providerDetail":"scheme_not_https"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.345Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"garment_url_safety","failureCode":"invalid_garment_input","providerDetail":"scheme_not_https"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.345Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"garment_url_safety","failureCode":"invalid_garment_input","providerDetail":"not_a_url"}
+----- post-test output end -----
+P1: a non-https garment image is refused ... ok (0ms)
+P1: a missing product reference is refused ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.345Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"eligibility","failureCode":"invalid_garment_input"}
+----- post-test output end -----
+P1: a missing product reference is refused ... ok (0ms)
+P1: an arbitrary remote person reference is not a person input ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.345Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"person_input","failureCode":"invalid_person_input"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.346Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"person_input","failureCode":"invalid_person_input"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.346Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"person_input","failureCode":"invalid_person_input"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.347Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"person_input","failureCode":"invalid_person_input"}
+----- post-test output end -----
+P1: an arbitrary remote person reference is not a person input ... ok (1ms)
+P1: an oversized person payload is rejected ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.355Z","requestId":"unlabelled","stage":"body_size","failureCode":"invalid_person_input"}
+----- post-test output end -----
+P1: an oversized person payload is rejected ... ok (6ms)
+P1: a provider timeout is reported as provider_timeout ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.356Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.393Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"generate","failureCode":"provider_timeout","latencyMs":37}
+----- post-test output end -----
+P1: a provider timeout is reported as provider_timeout ... ok (38ms)
+P1: every mock failure scenario maps into the K Scan taxonomy ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.394Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.395Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_rejected_input","providerDetail":"mock_scenario","latencyMs":1}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.395Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.397Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_unavailable","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.398Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.398Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_moderation","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.399Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.399Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"rate_limited","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.400Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.400Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"result_validation","failureCode":"invalid_output","providerDetail":"result_too_small","latencyMs":0}
+----- post-test output end -----
+P1: every mock failure scenario maps into the K Scan taxonomy ... ok (6ms)
+P1: a corrupt provider output is not passed off as a result ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.401Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.401Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"result_validation","failureCode":"invalid_output","providerDetail":"result_too_small","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.402Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.403Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"result_validation","failureCode":"invalid_output","providerDetail":"result_too_small","latencyMs":0}
+----- post-test output end -----
+P1: a corrupt provider output is not passed off as a result ... ok (2ms)
+P1: an unknown provider id fails visibly instead of falling back to the mock ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.404Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"some-real-vendor","stage":"provider_resolve","failureCode":"provider_unavailable"}
+----- post-test output end -----
+P1: an unknown provider id fails visibly instead of falling back to the mock ... ok (0ms)
+security: the client cannot override the provider or its endpoint ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.404Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.405Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+security: the client cannot override the provider or its endpoint ... ok (0ms)
+security: a dev scenario in the body is ignored unless the deployment opted in ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.405Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.405Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.406Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.406Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+security: a dev scenario in the body is ignored unless the deployment opted in ... ok (1ms)
+security: a provider detail never reaches the response body ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.406Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.406Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"generation_failed","providerDetail":"UPSTREAM SAID: account sk-live-1234 quota exceeded","latencyMs":0}
+----- post-test output end -----
+security: a provider detail never reaches the response body ... ok (0ms)
+security: a malformed body cannot bypass the authority chain ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.407Z","requestId":"unlabelled","origin":"commerce_product","stage":"authenticate","failureCode":"authorization_failed"}
+----- post-test output end -----
+security: a malformed body cannot bypass the authority chain ... ok (0ms)
+security: a non-POST request is refused and its body is still drained ... ok (0ms)
+security: every early-return path has already consumed the request body ...
+------- post-test output -------
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.408Z","requestId":"vtoreq_1_abc","origin":"commerce_product","stage":"authenticate","failureCode":"authorization_failed"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.408Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"account_guard","failureCode":"authorization_failed"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.408Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"feature_control","failureCode":"feature_disabled"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.409Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","stage":"entitlement","failureCode":"entitlement_required"}
+----- post-test output end -----
+security: every early-return path has already consumed the request body ... ok (0ms)
+the success envelope carries no fit, size, or body claim ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.409Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.409Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+the success envelope carries no fit, size, or body claim ... ok (0ms)
+the request id is echoed but is never trusted as an identifier ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.410Z","requestId":"unlabelled","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.410Z","requestId":"unlabelled","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+the request id is echoed but is never trusted as an identifier ... ok (0ms)
+VTO-QUOTA-003: a non-billable provider failure RELEASES the attempt ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.410Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.411Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_unavailable","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.411Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.411Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"rate_limited","providerDetail":"mock_scenario","latencyMs":0}
+----- post-test output end -----
+VTO-QUOTA-003: a non-billable provider failure RELEASES the attempt ... ok (0ms)
+VTO-QUOTA-003: a billable provider failure still COUNTS against the cap ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.411Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.412Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_rejected_input","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.412Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.412Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"provider_outcome","failureCode":"provider_moderation","providerDetail":"mock_scenario","latencyMs":0}
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.412Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.412Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"result_validation","failureCode":"invalid_output","providerDetail":"result_too_small","latencyMs":0}
+----- post-test output end -----
+VTO-QUOTA-003: a billable provider failure still COUNTS against the cap ... ok (1ms)
+VTO-QUOTA-003: a timeout after submit is NOT refunded ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.414Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.445Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","stage":"generate","failureCode":"provider_timeout","latencyMs":31}
+----- post-test output end -----
+VTO-QUOTA-003: a timeout after submit is NOT refunded ... ok (32ms)
+VTO-QUOTA-003: a success is never released ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.445Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_succeeded","ts":"2026-10-05T11:03:55.446Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"mock","slot":"top","category":"outerwear","latencyMs":0,"inputBucket":"le150k","outputBucket":"le512","outputBytes":2918}
+----- post-test output end -----
+VTO-QUOTA-003: a success is never released ... ok (1ms)
+VTO-QUOTA-003: an adapter that says nothing is treated as billable ...
+------- post-test output -------
+{"event":"vto_generate_start","ts":"2026-10-05T11:03:55.448Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"silent","slot":"top","category":"outerwear","inputBucket":"le150k"}
+{"event":"vto_generate_failed","ts":"2026-10-05T11:03:55.448Z","requestId":"vtoreq_1_abc","uid":"11111111...","origin":"commerce_product","provider":"silent","stage":"provider_outcome","failureCode":"generation_failed","latencyMs":0}
+----- post-test output end -----
+VTO-QUOTA-003: an adapter that says nothing is treated as billable ... ok (1ms)
+running 22 tests from ./supabase/functions/vto-generate/vtoPaidBoundary.test.ts
+resolveVtoEntitlement DELEGATES to the canonical RPC ... ok (38ms)
+a canonical false is denied, not unknown ... ok (0ms)
+an unreadable authority is unknown (not denied, and never active) ... ok (0ms)
+a thrown canonical authority failure is unknown, never denied-as-upgrade ... ok (0ms)
+loopback, private, link-local and metadata hosts are rejected ... ok (2ms)
+non-https, embedded credentials and odd ports are rejected ... ok (0ms)
+ordinary public retailer URLs still pass — retailer-neutral ... ok (0ms)
+isNonPublicHost does not over-block real public hosts ... ok (0ms)
+a redirect that escapes to a prohibited host is rejected, not followed ... ok (0ms)
+a redirect chain that never settles is bounded ... ok (0ms)
+oversized media and disallowed content types are rejected ... ok (0ms)
+the idempotency key never contains person-image bytes ... ok (0ms)
+the same intent produces the same key; a different photo does not ... ok (2ms)
+an explicit user Retry is a NEW intent, not a suppressed replay ... ok (0ms)
+a reservation maps every RPC outcome, and FAILS CLOSED when unreadable ... ok (1ms)
+entitlement is re-checked AFTER config/eligibility and BEFORE the provider ... ok (0ms)
+the reservation is taken BEFORE the provider call ... ok (0ms)
+every reservation outcome except reserved returns without spending ... ok (0ms)
+the reservation is settled on success AND on every failure path ... ok (0ms)
+the garment URL is validated before it can reach the provider ... ok (0ms)
+the rejected URL itself is never logged or returned ... ok (0ms)
+SEC-KPLUS-007 stays closed: an unknown provider fails, it does not mock ... ok (0ms)
+
+ok | 124 passed | 0 failed (16s)

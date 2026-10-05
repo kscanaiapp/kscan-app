@@ -1,0 +1,804 @@
+{
+  "sourceSha": "2616b08a0a7b892a47961358e41d00b8de14aec2",
+  "phase": "Baseline before repairs; not final repaired VTO parity",
+  "productionMutation": false,
+  "comparisons": [
+    {
+      "name": "purchase-import-extract",
+      "version": 1,
+      "verifyJwt": true,
+      "files": [
+        {
+          "path": "supabase/functions/purchase-import-extract/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "873b1f70d008d811a8cbca091000aa74d753d8763294ca008392edc3694b28b6",
+          "sourceSha256": "873b1f70d008d811a8cbca091000aa74d753d8763294ca008392edc3694b28b6",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/purchase-import-extract/handler.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "698b201b8553ab69e9caca4d89774e7bea3c78875d1b1766ef69421ff328abc3",
+          "sourceSha256": "698b201b8553ab69e9caca4d89774e7bea3c78875d1b1766ef69421ff328abc3",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "sourceSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/llmModelRouting.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+          "sourceSha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/security/quota.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "cd5588a18bdb7811ef03a16cd5e61a8be3ede54400f380572321eb484e02b488",
+          "sourceSha256": "cd5588a18bdb7811ef03a16cd5e61a8be3ede54400f380572321eb484e02b488",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/purchase-import-extract/extraction.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "02981b159276968a226ba752efbcf419b4e93c79d2a675dbb8230dcaa01d7366",
+          "sourceSha256": "02981b159276968a226ba752efbcf419b4e93c79d2a675dbb8230dcaa01d7366",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/promptEnvelope.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "50aece85b364eca0d143c347692e0e78682e1908d88597ea9e66da7667bcf97d",
+          "sourceSha256": "50aece85b364eca0d143c347692e0e78682e1908d88597ea9e66da7667bcf97d",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "fd248250a86721525e09090430d8bd2c0538174e21ba1515bad1d7492b69d994",
+          "sourceSha256": "fd248250a86721525e09090430d8bd2c0538174e21ba1515bad1d7492b69d994",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/trustTypes.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "b95fcd6f0919c6882ad0bdee2884816f73cb7b092b77aa2d4a73da87c7f9f201",
+          "sourceSha256": "b95fcd6f0919c6882ad0bdee2884816f73cb7b092b77aa2d4a73da87c7f9f201",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/inputLimits.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "fa69955f9cdea9bd7c75578ebd010a7ceb1b0bf54ea5ea8ccc1a20acf14d0263",
+          "sourceSha256": "fa69955f9cdea9bd7c75578ebd010a7ceb1b0bf54ea5ea8ccc1a20acf14d0263",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/purchase-import-extract/sensitive.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "b1e81b7dea745fe268d66452dee0765f78e26d60b7474e31940299e719a9fca4",
+          "sourceSha256": "b1e81b7dea745fe268d66452dee0765f78e26d60b7474e31940299e719a9fca4",
+          "semanticMatching": true
+        }
+      ]
+    },
+    {
+      "name": "kplus-offer-redeem",
+      "version": 1,
+      "verifyJwt": true,
+      "files": [
+        {
+          "path": "supabase/functions/kplus-offer-redeem/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "e783a1f6c2bb1f37a8af76dc1158e556e1f985674edbdc89423d6b5d37057ddf",
+          "sourceSha256": "e783a1f6c2bb1f37a8af76dc1158e556e1f985674edbdc89423d6b5d37057ddf",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "sourceSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/kplus-offer-redeem/offerCodeContract.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "9626345aa484756d719a8684a90161b2325c63d6ce2dc90d86444e1f60960f12",
+          "sourceSha256": "9626345aa484756d719a8684a90161b2325c63d6ce2dc90d86444e1f60960f12",
+          "semanticMatching": true
+        }
+      ]
+    },
+    {
+      "name": "vto-generate",
+      "version": 6,
+      "verifyJwt": true,
+      "files": [
+        {
+          "path": "supabase/functions/vto-generate/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "83c35a1c2debcaec182dd94f47f59e54cdd42f13a7c5592f319f8f8b6dd05e48",
+          "sourceSha256": "83c35a1c2debcaec182dd94f47f59e54cdd42f13a7c5592f319f8f8b6dd05e48",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoHandler.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "54c4076fc0280818f82687cc0e20eb2076bc58b3746156c9e7ae026b407eaa18",
+          "sourceSha256": "54c4076fc0280818f82687cc0e20eb2076bc58b3746156c9e7ae026b407eaa18",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "sourceSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoContract.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "639389d2fb5e2e7d866055456bdb38198a01089bdee1442cf142ceb87abc32c0",
+          "sourceSha256": "639389d2fb5e2e7d866055456bdb38198a01089bdee1442cf142ceb87abc32c0",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoEligibility.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "1ac7c261dd43bf53f364d31527209016e9792c2bdec8ed1b64b085e4a73519d3",
+          "sourceSha256": "1ac7c261dd43bf53f364d31527209016e9792c2bdec8ed1b64b085e4a73519d3",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/scanHelpers.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+          "sourceSha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoFeatureControl.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "1d079ea050ebe13943729d0c1dfe9cae3d66d4142ed50526675fd682e0f9f177",
+          "sourceSha256": "1d079ea050ebe13943729d0c1dfe9cae3d66d4142ed50526675fd682e0f9f177",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoEntitlement.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "18abd5663bd5a938bf53a3cd2076fff8acd84486c872499a7a5f7c240028ff73",
+          "sourceSha256": "18abd5663bd5a938bf53a3cd2076fff8acd84486c872499a7a5f7c240028ff73",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/net/safeRemoteMedia.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "f9ff4812fac7aa886651c2001527d48676c697da37ca3cab1948bfbb414b29e5",
+          "sourceSha256": "f9ff4812fac7aa886651c2001527d48676c697da37ca3cab1948bfbb414b29e5",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoReservation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
+          "sourceSha256": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoResultValidation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
+          "sourceSha256": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+          "sourceSha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/providers/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "38f551fd3eb86c79e454a3d205d6f2db43b82dff1a4e0bc537db8bb4cc68089a",
+          "sourceSha256": "38f551fd3eb86c79e454a3d205d6f2db43b82dff1a4e0bc537db8bb4cc68089a",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/providers/mockProvider.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "68add27c116924c56be4a475bd53acdad8ee4272ee159869928275f4a30ccf67",
+          "sourceSha256": "68add27c116924c56be4a475bd53acdad8ee4272ee159869928275f4a30ccf67",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/providers/mockResultAsset.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
+          "sourceSha256": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "22ef40f1d4296ab350a32903b605430273390d59483d3dd32c11419d306fee67",
+          "sourceSha256": "22ef40f1d4296ab350a32903b605430273390d59483d3dd32c11419d306fee67",
+          "semanticMatching": true
+        }
+      ]
+    },
+    {
+      "name": "stylechat-generate",
+      "version": 106,
+      "verifyJwt": true,
+      "files": [
+        {
+          "path": "supabase/functions/stylechat-generate/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "c052d3f7b336c6ddbd1b4713c05932c0b95a99847ed1fc3117e15f8398dfeebb",
+          "sourceSha256": "c052d3f7b336c6ddbd1b4713c05932c0b95a99847ed1fc3117e15f8398dfeebb",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "sourceSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/signatureStyleContext.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "9db9fdee495c8d9b94257006d7a83a55928100f938e1cafbeb94cb4466c89dfe",
+          "sourceSha256": "9db9fdee495c8d9b94257006d7a83a55928100f938e1cafbeb94cb4466c89dfe",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/promptHardening.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "a14643b1205f9dc21e448fb0f8239f73adf8babb2078b9f9b658675b81543e38",
+          "sourceSha256": "a14643b1205f9dc21e448fb0f8239f73adf8babb2078b9f9b658675b81543e38",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "0c9d8918d3bb2a76899edd44e901f16cbd9b79dccc16a0a4d387ab25c3165fd5",
+          "sourceSha256": "0c9d8918d3bb2a76899edd44e901f16cbd9b79dccc16a0a4d387ab25c3165fd5",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileStore.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "3ccd137140cd86e543f1fb1ebd9b9c05adc0adea2113147e0785dcae259818a8",
+          "sourceSha256": "3ccd137140cd86e543f1fb1ebd9b9c05adc0adea2113147e0785dcae259818a8",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/genderStylingContext.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "ad350ff8d32a01ba8285d49363c15ae9632de36bc2237e8c21b2217c555d31db",
+          "sourceSha256": "ad350ff8d32a01ba8285d49363c15ae9632de36bc2237e8c21b2217c555d31db",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/stylistIdentity.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "bccf38f6ce611a05bd14483c24fc4a42a2b97251ed1e04b2a07f34b3ef5c9265",
+          "sourceSha256": "bccf38f6ce611a05bd14483c24fc4a42a2b97251ed1e04b2a07f34b3ef5c9265",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/activeContext.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "85c5efd90db6290ccbc61c7bb88788341e924f7fa5faa6686f207382b659c7ab",
+          "sourceSha256": "85c5efd90db6290ccbc61c7bb88788341e924f7fa5faa6686f207382b659c7ab",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "eaf7aaf17947599a1865c1330df62a9967c8a3305efee9fe68777a5a5eda97e9",
+          "sourceSha256": "eaf7aaf17947599a1865c1330df62a9967c8a3305efee9fe68777a5a5eda97e9",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/modelRouting.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "71685aa222aa7a1c06313b696107d7f44a1b5dc912baca08be90b1262cf024ca",
+          "sourceSha256": "71685aa222aa7a1c06313b696107d7f44a1b5dc912baca08be90b1262cf024ca",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/llmModelRouting.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+          "sourceSha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/generationSafety.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14",
+          "sourceSha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseGenerationTypes.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "703d01923044f683f725188c8ab8c7bb0ae517fc4b4afc8ad1e8c93b25c8e914",
+          "sourceSha256": "703d01923044f683f725188c8ab8c7bb0ae517fc4b4afc8ad1e8c93b25c8e914",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseProviderRetry.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "ecca73c3f270e3932aa54ff3765715bbb0d26a2290643801ec65b23b50fcd61e",
+          "sourceSha256": "ecca73c3f270e3932aa54ff3765715bbb0d26a2290643801ec65b23b50fcd61e",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseOutputValidation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "e985325cc8968b83c6dc4e6140e91556f730b69ffb5d5b3d33aa135fa635d79f",
+          "sourceSha256": "e985325cc8968b83c6dc4e6140e91556f730b69ffb5d5b3d33aa135fa635d79f",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseStructuredGrounding.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "baf629bf52cd97f13cee7ba2bd925ce301d24880f1fa664b36aa84114d49e6e7",
+          "sourceSha256": "baf629bf52cd97f13cee7ba2bd925ce301d24880f1fa664b36aa84114d49e6e7",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "cd04746148c53f1944159b93d60f6d2645bb8c5e70a2e1b839c38799d16e35ec",
+          "sourceSha256": "cd04746148c53f1944159b93d60f6d2645bb8c5e70a2e1b839c38799d16e35ec",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "3fec9aad781ad002ca5740c8a0c32bb1437c1558f4af30188480a6105537f27c",
+          "sourceSha256": "3fec9aad781ad002ca5740c8a0c32bb1437c1558f4af30188480a6105537f27c",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "e506ae5c83c4a27d4fa480ac26cfde7cffc9abbb4262e01a35a6ea4de6e7196c",
+          "sourceSha256": "e506ae5c83c4a27d4fa480ac26cfde7cffc9abbb4262e01a35a6ea4de6e7196c",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/telemetry.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "f39c074b2e409ec16810aebc27c447639852898c65e64cf2fe44367d7f3c0d52",
+          "sourceSha256": "f39c074b2e409ec16810aebc27c447639852898c65e64cf2fe44367d7f3c0d52",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/visualContext.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "88d6c12a280eb4aa7bc7f973cb20fc7001940c4838313a8b88b7f21615fc3681",
+          "sourceSha256": "88d6c12a280eb4aa7bc7f973cb20fc7001940c4838313a8b88b7f21615fc3681",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachments.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "ff023894ca9a09cc60191c7cdab1a068f637ed9604b110a0d2688de8258ec739",
+          "sourceSha256": "ff023894ca9a09cc60191c7cdab1a068f637ed9604b110a0d2688de8258ec739",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachmentContext.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "7cc4a0f56378c41b57a8fb7fd66858d2d1657e69aeff72113b813abe7676a071",
+          "sourceSha256": "7cc4a0f56378c41b57a8fb7fd66858d2d1657e69aeff72113b813abe7676a071",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachmentProvenance.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "2d0227146bd6029fe93a22aa1035a1fc092bbc79ab71bfd5fbc73cc26d586eb3",
+          "sourceSha256": "2d0227146bd6029fe93a22aa1035a1fc092bbc79ab71bfd5fbc73cc26d586eb3",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/actions.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "11a709f544b84421cf659144e3dfd8976f720727625785c3bd2d64f909e1925b",
+          "sourceSha256": "11a709f544b84421cf659144e3dfd8976f720727625785c3bd2d64f909e1925b",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/contextMessages.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "d3aea3a3280b6dbf6254c984ba8d765af9f367e96bb3285e5dbfc8c1e111018f",
+          "sourceSha256": "d3aea3a3280b6dbf6254c984ba8d765af9f367e96bb3285e5dbfc8c1e111018f",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/multimodal.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822",
+          "sourceSha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "8d9e2c2b76150c010b4fe44b4c54b7c09660cb16b0e7299090a9b3467a1bf420",
+          "sourceSha256": "8d9e2c2b76150c010b4fe44b4c54b7c09660cb16b0e7299090a9b3467a1bf420",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "7d922172507e797f70990b7a08961dc33bea67be3775f0d1dc4248591e3163d5",
+          "sourceSha256": "7d922172507e797f70990b7a08961dc33bea67be3775f0d1dc4248591e3163d5",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdviceIntents.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "78e13d63dffa24240e55fa6cfe07db4f622a6acfb9fc4c8757928c1a28567275",
+          "sourceSha256": "78e13d63dffa24240e55fa6cfe07db4f622a6acfb9fc4c8757928c1a28567275",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseFocusResolution.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "1b65bc6c39b0f3487e0346219e583264be78fc5a55b3556d7ea25cbc3dee1a2d",
+          "sourceSha256": "1b65bc6c39b0f3487e0346219e583264be78fc5a55b3556d7ea25cbc3dee1a2d",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseFashionFeatures.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "fcb9c61223c692602f102441adbefb1c96037e7fb1b6db95560c4fc05e404a20",
+          "sourceSha256": "fcb9c61223c692602f102441adbefb1c96037e7fb1b6db95560c4fc05e404a20",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseClosetFocusText.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "ac4b0cb2d55664779249f6e444cce8d2d079d1d7215241d3a73cdcd4100dba62",
+          "sourceSha256": "ac4b0cb2d55664779249f6e444cce8d2d079d1d7215241d3a73cdcd4100dba62",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "bda01521872b0dda4827ac9082522341127da77ef8d79a15112ebc1f8a9f8dc2",
+          "sourceSha256": "bda01521872b0dda4827ac9082522341127da77ef8d79a15112ebc1f8a9f8dc2",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "cd7827f135bf125db55253562ceda9f57061886cf265d686bcd74b4e548e6e0e",
+          "sourceSha256": "cd7827f135bf125db55253562ceda9f57061886cf265d686bcd74b4e548e6e0e",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "a51be03013bcd2c2f04102ab457e32da69f6ba7ce291ff9658c115f5c0e17022",
+          "sourceSha256": "a51be03013bcd2c2f04102ab457e32da69f6ba7ce291ff9658c115f5c0e17022",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "568249511c4a291ace97d3592ef0002dc67756af393b8b1840f5e522b775e59d",
+          "sourceSha256": "568249511c4a291ace97d3592ef0002dc67756af393b8b1840f5e522b775e59d",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseClosetCensus.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "c402c8570f162f961c354160dddc082af36a966b5a8dfb5dda2e4694475401b8",
+          "sourceSha256": "c402c8570f162f961c354160dddc082af36a966b5a8dfb5dda2e4694475401b8",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "03fd5e9ea2d63dc9ea6faecada80a7e81f89901dd5f0daaa0ea6b4f6b81fd018",
+          "sourceSha256": "03fd5e9ea2d63dc9ea6faecada80a7e81f89901dd5f0daaa0ea6b4f6b81fd018",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "aa5ae3afae6bbaf226ae2ffaf52981d424fa5da59b80950009ea45d3f8fe000a",
+          "sourceSha256": "aa5ae3afae6bbaf226ae2ffaf52981d424fa5da59b80950009ea45d3f8fe000a",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingContract.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "2ebf35656450cbbd78d93239316e99117262c4949014175209ac7bc8fd63e661",
+          "sourceSha256": "2ebf35656450cbbd78d93239316e99117262c4949014175209ac7bc8fd63e661",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingHandler.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "376d6985081b1705c806e3e87a1b9d6ac1f9d18c1959b6bc4d26102544228ecb",
+          "sourceSha256": "376d6985081b1705c806e3e87a1b9d6ac1f9d18c1959b6bc4d26102544228ecb",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingRetrieval.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "dfe52474a9ee6998129c9744d2fc05bc95b5617693ac61d6769e7601a1f221af",
+          "sourceSha256": "dfe52474a9ee6998129c9744d2fc05bc95b5617693ac61d6769e7601a1f221af",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingCandidates.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "2b4cbe9c65f2132e903af861e9f1d1404264c327a9ade4bf13dc5def09c188f5",
+          "sourceSha256": "2b4cbe9c65f2132e903af861e9f1d1404264c327a9ade4bf13dc5def09c188f5",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingGaps.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "0d79348c0fc77c9af973df2a22cce13efec0a188f98cc14b129f8cabe1d9872e",
+          "sourceSha256": "0d79348c0fc77c9af973df2a22cce13efec0a188f98cc14b129f8cabe1d9872e",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingPrompt.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4d8f2ba32b09ea979e262ff88ffdd4ae7a56af1396981f52e9ddc943cee238ca",
+          "sourceSha256": "4d8f2ba32b09ea979e262ff88ffdd4ae7a56af1396981f52e9ddc943cee238ca",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingValidation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "d9bd95dff7394aa6eba2404cc44af0070e88fe24bc1d4f3b170b9a1b22f164b3",
+          "sourceSha256": "d9bd95dff7394aa6eba2404cc44af0070e88fe24bc1d4f3b170b9a1b22f164b3",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingProseSafety.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4e5d5ad635ecfe0136a02a835d6ae5439ea3712d08a6e9840ff48f3b36990f94",
+          "sourceSha256": "4e5d5ad635ecfe0136a02a835d6ae5439ea3712d08a6e9840ff48f3b36990f94",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingGeneralMode.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4b935fa534e42322dc0b581940f3d90df6eda29d6b28cb423e8fdd3e48f2051d",
+          "sourceSha256": "4b935fa534e42322dc0b581940f3d90df6eda29d6b28cb423e8fdd3e48f2051d",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingProvider.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "6416f0f9a2321c0e5d27692e4a0ebf88b5e7a68c6135b962538c6743854f9942",
+          "sourceSha256": "6416f0f9a2321c0e5d27692e4a0ebf88b5e7a68c6135b962538c6743854f9942",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingWeather.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "bebf482601d3fb857b6e843240e3f1d9afec7c0c4becb94ac74ed10ca6493438",
+          "sourceSha256": "bebf482601d3fb857b6e843240e3f1d9afec7c0c4becb94ac74ed10ca6493438",
+          "semanticMatching": true
+        }
+      ]
+    },
+    {
+      "name": "style-outfit-generate",
+      "version": 23,
+      "verifyJwt": true,
+      "files": [
+        {
+          "path": "supabase/functions/style-outfit-generate/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "94763266e43c398487632feb59eae075d6b3eb83d253bcda835adb8fb7580ad4",
+          "sourceSha256": "94763266e43c398487632feb59eae075d6b3eb83d253bcda835adb8fb7580ad4",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/style-outfit-generate/reasoningContract.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "cddc01d2eb0b0b76f0fce221d8722d3a7bf6fc03442bf13e4612e747d16a70b2",
+          "sourceSha256": "cddc01d2eb0b0b76f0fce221d8722d3a7bf6fc03442bf13e4612e747d16a70b2",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/style-outfit-generate/validation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "4ad2ecfdc87c61473b9cc70ad3ce1328d3b1cd96f787a78364ff8d5a63734fe7",
+          "sourceSha256": "4ad2ecfdc87c61473b9cc70ad3ce1328d3b1cd96f787a78364ff8d5a63734fe7",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/style-outfit-generate/modelRouting.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "194b6e9f540ed019a8150cf9c754ff1260912b6751800cde64211d91220866ab",
+          "sourceSha256": "194b6e9f540ed019a8150cf9c754ff1260912b6751800cde64211d91220866ab",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "412cf1f7a2a198aca3c9331909cc667c6912bb86602205d443a7510c091b763a",
+          "sourceSha256": "412cf1f7a2a198aca3c9331909cc667c6912bb86602205d443a7510c091b763a",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "00ae9bd5540793abe8361da0fc58b1c4c2421b4ac6e9a1a50885ebba0a51ea29",
+          "sourceSha256": "00ae9bd5540793abe8361da0fc58b1c4c2421b4ac6e9a1a50885ebba0a51ea29",
+          "semanticMatching": true
+        }
+      ]
+    },
+    {
+      "name": "process-account-deletions",
+      "version": 32,
+      "verifyJwt": false,
+      "files": [
+        {
+          "path": "supabase/functions/process-account-deletions/index.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "95be6971020864d6ca814a83126fed52640fc07ef03662e094c1bedc7b09115c",
+          "sourceSha256": "95be6971020864d6ca814a83126fed52640fc07ef03662e094c1bedc7b09115c",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "sourceSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/workerMode.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "8f3b8e14a0fd90206fddf7b9153a51d7dd403aae59e9b1d1708c02f01bfa57c8",
+          "sourceSha256": "8f3b8e14a0fd90206fddf7b9153a51d7dd403aae59e9b1d1708c02f01bfa57c8",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/userDataResources.ts",
+          "exists": true,
+          "matching": false,
+          "liveSha256": "855ed1c14c05179adab1494530216f8a71724d235dd382933aafd69a357d5b50",
+          "sourceSha256": "27ca16a7fb819a90b56d2ba25508ae65ff32252b1e4601c9bbdf6a7b71bce0d2",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "1817307993176158d9f375b3b53c8ae663ebacd77ade449f26dd0096bbc3f914",
+          "sourceSha256": "1817307993176158d9f375b3b53c8ae663ebacd77ade449f26dd0096bbc3f914",
+          "semanticMatching": true
+        },
+        {
+          "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
+          "exists": true,
+          "matching": true,
+          "liveSha256": "98787341c2f496ee9ba7b34002674d0f41986c952d89c012b7086d776ed10343",
+          "sourceSha256": "98787341c2f496ee9ba7b34002674d0f41986c952d89c012b7086d776ed10343",
+          "semanticMatching": true
+        }
+      ]
+    }
+  ],
+  "finalSourceDelta": [
+    "vtoContract.ts and vtoHandler.ts modified; vtoOwnedGarment.ts added; no backend deployment performed"
+  ]
+}

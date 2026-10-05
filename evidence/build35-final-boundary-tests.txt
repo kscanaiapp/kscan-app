@@ -1,0 +1,26 @@
+✔ Closet picker rejects a late A load after B loads, including A -> B -> A (283.0263ms)
+✔ Closet picker keeps newest refresh and discards departed actor errors/finally (58.0594ms)
+✔ canonical Closet query failure is an error, not an empty wardrobe (119.752ms)
+✔ Elise conversation list rejects departed actor history and reloads for B (62.794ms)
+✔ receipt staging waits for entry cleanup and preserves a current actor document (160.842ms)
+✔ late receipt staging cannot put A image into B workflow (102.5597ms)
+✔ navigation away invalidates receipt staging and releases its late file (72.8446ms)
+✔ receipt crop completion cannot send A document after actor epoch changes before React renders (74.503ms)
+✔ receipt cancellation during auth preflight makes no invoke (196.9412ms)
+✔ person photo picker completion after actor change cannot attach private imagery (27.8113ms)
+✔ person photo picker completion after unmount cannot attach private imagery (30.7893ms)
+✔ current actor person picker still attaches the sanitized photo (23.6726ms)
+✔ owned route resolves actor-scoped Closet then mounts the existing consent/gate/provider pipeline (357.9862ms)
+✔ owned route shows missing-media failure with retry and never mounts a generation surface (86.4952ms)
+✔ late owned adapter after account switch cannot mount A garment for B (75.0405ms)
+✔ owned route preserves unsupported_category availability denial without a blank screen (74.2413ms)
+✔ owned route preserves feature_disabled availability denial without a blank screen (84.5912ms)
+✔ both active canonical Closet card columns wire the owned try-on route (3.7848ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2217.6002

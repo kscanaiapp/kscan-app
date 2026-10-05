@@ -1,0 +1,16 @@
+✔ canonical client_id mapping produces source-only identity without commerce duplication (127.4595ms)
+✔ owned client adapter fails safely: missing row (26.1094ms)
+✔ owned client adapter fails safely: missing media (21.9129ms)
+✔ owned client adapter fails safely: foreign actor (23.874ms)
+✔ owned client adapter fails safely: soft deleted (22.1004ms)
+✔ owned client adapter fails safely: unsupported (16.7138ms)
+✔ late canonical row after A→B→A does not launch an owned try-on (20.7255ms)
+✔ owned transport sends only typed item source and checks response actor/item correlation (43.046ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 790.5701

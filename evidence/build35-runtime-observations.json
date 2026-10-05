@@ -1,0 +1,42 @@
+{
+  "observedDate": "2026-10-05",
+  "baselineSha": "2616b08a0a7b892a47961358e41d00b8de14aec2",
+  "productionInspection": {
+    "mode": "read-only Management API source inventory and SQL metadata/configuration",
+    "status": "ACTIVE_HEALTHY",
+    "activeEdgeFunctions": 28,
+    "functionVersions": { "scan-identify": 167, "stylechat": 106, "style-outfit-generate": 23, "vto-generate": 6, "process-account-deletions": 32, "purchase-import-extract": 1, "kplus-offer-redeem": 1 },
+    "configuration": {
+      "account_deletion_worker_enabled": false,
+      "account_deletion_worker_dry_run": true,
+      "watchlist_worker_enabled": true,
+      "vto_generation": { "enabled": true, "supportedCategories": ["top", "outerwear", "blazer", "dress"] }
+    },
+    "ownershipEvidence": [
+      "user_closet_items policies bind auth.uid() to user_id and use canonical K+ where required",
+      "stylechat_sessions ownership predicates bind auth.uid() to user_id",
+      "user_style_profiles read policy binds auth.uid() to user_id",
+      "canonical K+ summary is executable by authenticated, not anon",
+      "redeem_kplus_offer_code is not directly executable by authenticated or anon",
+      "canonical owned Look create/update RPCs are authenticated-only",
+      "canonical Closet and promo actor foreign-key lifecycle constraints were inspected"
+    ],
+    "limitations": "No customer rows, real generation, offer redemption, provider credential validation, production mutations or destructive deletion were performed. Function presence does not prove environment switches or provider credentials."
+  },
+  "browser": {
+    "surface": "local Expo web on port 8095",
+    "verified": ["welcome entry rendered", "Get Started reached step 2", "sign-in sheet rendered", "signed-out owned Closet VTO route redirected to welcome", "browser errors command reported no errors"],
+    "screenshots": ["build35-browser-entry.png", "build35-browser-protected-route.png", "build35-browser-sign-in.png"],
+    "limitations": "No authenticated browser fixture or attached Android device. Camera permissions, native photo picker, background/foreground, real restart and signed-in server-to-device owned VTO remain unverified. Initial bundle timeout and stale route manifest resolved after bundle completion and Metro cache restart; not recorded as application defects."
+  },
+  "testsprite": {
+    "cliVersion": "0.5.0",
+    "authPreflight": "valid",
+    "run": "NOT_RUN",
+    "reason": "User states no credits and explicitly says this is not a blocker. Only a historical backend staging project was found; no changed deployment or TestSprite tunnel was exercised.",
+    "blocking": false
+  },
+  "revenueCat": "OUT_OF_SCOPE",
+  "backendDeploymentPerformed": false,
+  "paidProviderCalls": 0
+}

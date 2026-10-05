@@ -1,0 +1,26 @@
+✔ real HTTP 429 (quota_exceeded) maps to quota_exceeded (499.1015ms)
+✔ real HTTP 429 (burst_limit) maps to burst_limit (107.245ms)
+✔ real HTTP 401 (unclassified) maps to session_expired (91.3604ms)
+✔ real HTTP 403 (unclassified) maps to session_expired (85.0174ms)
+✔ real HTTP 400 (unclassified) maps to error (133.5859ms)
+✔ real HTTP 422 (unclassified) maps to error (65.8387ms)
+✔ real HTTP 503 (quota_exceeded) maps to unavailable (57.8245ms)
+✔ real HTTP 429 (unclassified) maps to burst_limit (81.2996ms)
+✔ successful no-result and network outage remain separate (53.2434ms)
+✔ actor change during auth preflight makes no outfit invocation (64.2362ms)
+✔ outfit outage cooldown does not transfer to the next actor (84.8745ms)
+✔ Build35: actor change during an empty resume lookup must not create for the new actor (221.004ms)
+✔ ELISE-002: an account switch during session creation cancels the navigation (42.8165ms)
+✔ ELISE-002: an account switch during the resume lookup cancels the navigation (43.4433ms)
+✔ ELISE-002: an A -> B -> A cycle is still cancelled, because the epoch moved (21.0749ms)
+✔ ELISE-002: a cancelled launch releases the guard so the next tap is not swallowed (22.545ms)
+✔ ELISE-002: an ordinary same-actor launch is unchanged (25.2302ms)
+✔ ELISE-002: a caller's own isCurrent still applies on top of the actor check (27.5415ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2307.5522

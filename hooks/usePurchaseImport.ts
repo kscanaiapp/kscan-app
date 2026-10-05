@@ -21,7 +21,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthSession } from '../contexts/AuthSessionContext';
-import { createActorRequest } from '../services/actorContext';
+import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
+import { currentActorScopeKey } from '../services/actorScope';
 import { loadCloset } from '../services/closetLibrary';
 import { RECEIPT_INTELLIGENCE_V1 } from '../constants/featureFlags';
 import type { PurchaseImportInputTier } from '../services/purchaseImport/purchaseImportContract';
@@ -96,6 +97,7 @@ export function usePurchaseImport() {
   const { isAuthenticated, user } = useAuthSession();
   const isAnonymous = Boolean((user as { is_anonymous?: boolean } | null)?.is_anonymous);
   const actorId = isAuthenticated && !isAnonymous ? user?.id ?? null : null;
+  const actorScopeKey = currentActorScopeKey();
 
   const [state, setState] = useState<PurchaseImportState>(INITIAL);
   const stateRef = useRef(state);
@@ -103,6 +105,10 @@ export function usePurchaseImport() {
 
   const sessionRef = useRef<string>(newSessionId());
   const actorRef = useRef<string | null>(actorId);
+  const workflowScopeRef = useRef(actorScopeKey);
+  const mountedRef = useRef(true);
+  const stagingRef = useRef<string | null>(null);
+  const entryCleanupRef = useRef<Promise<void>>(Promise.resolve());
   const abortRef = useRef<AbortController | null>(null);
   const extractingRef = useRef(false);
   const committingRef = useRef(false);
@@ -115,31 +121,41 @@ export function usePurchaseImport() {
     abortRef.current?.abort();
     abortRef.current = null;
     await discardPurchaseImportArtifacts(staged);
-    await sweepPurchaseImportArtifacts();
   }, []);
 
   // Entry sweep: removes anything an abandoned earlier session left behind.
   // Exit: abort and sweep whatever this session still holds.
   useEffect(() => {
-    void sweepPurchaseImportArtifacts();
+    mountedRef.current = true;
+    entryCleanupRef.current = sweepPurchaseImportArtifacts();
     return () => {
+      mountedRef.current = false;
+      sessionRef.current = newSessionId();
       abortRef.current?.abort();
       void discardPurchaseImportArtifacts(stateRef.current.staged);
-      void sweepPurchaseImportArtifacts();
     };
   }, []);
 
   // Actor switch: discard stale state (Journey H).
   useEffect(() => {
-    if (actorRef.current === actorId) return;
+    if (actorRef.current === actorId && workflowScopeRef.current === actorScopeKey) return;
     const hadSession = stateRef.current.step !== 'choose' || stateRef.current.staged !== null;
     actorRef.current = actorId;
+    workflowScopeRef.current = actorScopeKey;
     sessionRef.current = newSessionId();
+    extractingRef.current = false;
+    committingRef.current = false;
+    stagingRef.current = null;
     void teardown(stateRef.current.staged);
     originalCandidatesRef.current = [];
     draftsRef.current = [];
     setState({ ...INITIAL, step: hadSession ? 'error' : 'choose', errorClass: hadSession ? 'session_changed' : null });
-  }, [actorId, teardown]);
+  }, [actorId, actorScopeKey, teardown]);
+
+  // Check the canonical epoch directly: authentication can advance before
+  // React has rendered the new actor or run the clearing effect above.
+  const canUseWorkflow = useCallback(() => mountedRef.current
+    && actorScopeKey === currentActorScopeKey(), [actorScopeKey]);
 
   const fail = useCallback((errorClass: PurchaseImportErrorClass) => {
     emitPurchaseImportEvent('purchase_import_failed', {
@@ -151,40 +167,60 @@ export function usePurchaseImport() {
 
   /** Start a session: pick the input tier. */
   const setInputTier = useCallback((inputTier: PurchaseImportInputTier) => {
+    if (!canUseWorkflow()) return;
     setState((prev) => (prev.step === 'choose' ? { ...prev, inputTier } : prev));
-  }, []);
+  }, [canUseWorkflow]);
 
   /** The customer picked an image. It is staged into the feature's temp namespace. */
   const acceptPickedImage = useCallback(
     async (image: PickedImage) => {
+      if (!canUseWorkflow() || stagingRef.current !== null) return;
       if (!enabled) return fail('feature_disabled');
       if (!actorId) return fail('unauthorized');
-      const staged = await stagePickedImage(image);
-      if (!staged) return fail('invalid_file');
-      sessionRef.current = newSessionId();
-      emitPurchaseImportEvent('purchase_import_started', { inputTier: stateRef.current.inputTier });
-      setState((prev) => ({ ...prev, step: 'crop', staged, errorClass: null }));
+      const session = newSessionId();
+      sessionRef.current = session;
+      stagingRef.current = session;
+      const request = createActorRequest();
+      try {
+        // A delayed entry sweep must finish before this session creates files.
+        await entryCleanupRef.current;
+        if (!canUseWorkflow() || !isActorRequestCurrent(request) || sessionRef.current !== session) return;
+        const staged = await stagePickedImage(image);
+        if (!canUseWorkflow() || !isActorRequestCurrent(request) || sessionRef.current !== session) {
+          await discardPurchaseImportArtifacts(staged);
+          return;
+        }
+        if (!staged) return fail('invalid_file');
+        emitPurchaseImportEvent('purchase_import_started', { inputTier: stateRef.current.inputTier });
+        setState((prev) => ({ ...prev, step: 'crop', staged, errorClass: null }));
+      } finally {
+        if (stagingRef.current === session) stagingRef.current = null;
+      }
     },
-    [actorId, enabled, fail],
+    [actorId, enabled, fail, canUseWorkflow],
   );
 
   /** Crop confirmed: minimize, extract, normalize. */
   const extract = useCallback(
     async (crop: NormalizedCrop) => {
+      if (!canUseWorkflow()) return;
       if (extractingRef.current) return; // Journey D: duplicate submission
       const { staged, inputTier } = stateRef.current;
       if (!staged) return;
       if (!actorId) return fail('unauthorized');
       extractingRef.current = true;
       const session = sessionRef.current;
+      const request = createActorRequest();
       const controller = new AbortController();
+      const isCurrent = () => canUseWorkflow() && isActorRequestCurrent(request)
+        && sessionRef.current === session && !controller.signal.aborted;
       abortRef.current = controller;
       setState((prev) => ({ ...prev, step: 'extracting', errorClass: null }));
       try {
         const prepared = await prepareCroppedImage(staged, crop);
         // The staged source is no longer needed once the crop exists.
         await discardPurchaseImportArtifacts(staged);
-        if (sessionRef.current !== session || controller.signal.aborted) return;
+        if (!isCurrent()) return;
         if (prepared.ok === false) return fail(prepared.errorClass);
 
         const result = await extractPurchaseCandidates({
@@ -192,8 +228,9 @@ export function usePurchaseImport() {
           inputTier,
           requestId: session,
           signal: controller.signal,
+          isCurrent,
         });
-        if (sessionRef.current !== session || controller.signal.aborted) return;
+        if (!isCurrent()) return;
         if (result.ok === false) return fail(result.errorClass);
 
         // Deterministic duplicate hints against what this actor already owns.
@@ -204,7 +241,7 @@ export function usePurchaseImport() {
         } catch {
           /* hints are optional; review proceeds without them */
         }
-        if (sessionRef.current !== session) return;
+        if (!isCurrent()) return;
 
         originalCandidatesRef.current = candidates;
         emitPurchaseImportEvent('purchase_import_extraction_completed', {
@@ -223,15 +260,18 @@ export function usePurchaseImport() {
           candidates,
           photos: new Map(),
         }));
+      } catch {
+        if (isCurrent()) fail('provider_unavailable');
       } finally {
-        extractingRef.current = false;
+        if (sessionRef.current === session) extractingRef.current = false;
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [actorId, fail],
+    [actorId, fail, canUseWorkflow],
   );
 
   const editCandidate = useCallback((lineIndex: number, field: EditableCandidateField, value: unknown) => {
+    if (!canUseWorkflow()) return;
     setState((prev) =>
       prev.step !== 'review'
         ? prev
@@ -240,9 +280,10 @@ export function usePurchaseImport() {
             candidates: prev.candidates.map((c) => (c.lineIndex === lineIndex ? applyCandidateEdit(c, field, value) : c)),
           },
     );
-  }, []);
+  }, [canUseWorkflow]);
 
   const toggleCandidate = useCallback((lineIndex: number) => {
+    if (!canUseWorkflow()) return;
     setState((prev) =>
       prev.step !== 'review'
         ? prev
@@ -251,17 +292,19 @@ export function usePurchaseImport() {
             candidates: prev.candidates.map((c) => (c.lineIndex === lineIndex ? setCandidateSelected(c, !c.selected) : c)),
           },
     );
-  }, []);
+  }, [canUseWorkflow]);
 
   const setUnits = useCallback((lineIndex: number, units: number) => {
+    if (!canUseWorkflow()) return;
     setState((prev) =>
       prev.step !== 'review'
         ? prev
         : { ...prev, candidates: prev.candidates.map((c) => (c.lineIndex === lineIndex ? setCandidateUnits(c, units) : c)) },
     );
-  }, []);
+  }, [canUseWorkflow]);
 
   const setPhoto = useCallback((lineIndex: number, uri: string | null) => {
+    if (!canUseWorkflow()) return;
     setState((prev) => {
       if (prev.step !== 'review') return prev;
       const photos = new Map(prev.photos);
@@ -269,10 +312,11 @@ export function usePurchaseImport() {
       else photos.delete(lineIndex);
       return { ...prev, photos };
     });
-  }, []);
+  }, [canUseWorkflow]);
 
   /** "Add N items to my Closet" — the explicit ownership action. */
   const confirm = useCallback(async () => {
+    if (!canUseWorkflow()) return;
     if (committingRef.current) return; // double tap
     const current = stateRef.current;
     if (current.step !== 'review' || !current.review) return;
@@ -315,13 +359,13 @@ export function usePurchaseImport() {
         ownerId: actorId,
         photos: current.photos,
       });
-      if (sessionRef.current !== session) return;
+      if (!canUseWorkflow() || !isActorRequestCurrent(actorRequest) || sessionRef.current !== session) return;
       finishCommit(result);
     } finally {
-      committingRef.current = false;
+      if (sessionRef.current === session) committingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actorId, fail]);
+  }, [actorId, fail, canUseWorkflow]);
 
   const finishCommit = (result: CommitResult) => {
     if (result.actorChanged) {
@@ -345,6 +389,7 @@ export function usePurchaseImport() {
 
   /** Retry only the units that did not land. Cannot duplicate the ones that did. */
   const retryFailed = useCallback(async () => {
+    if (!canUseWorkflow()) return;
     if (committingRef.current) return;
     const current = stateRef.current;
     const previous = current.commit;
@@ -376,7 +421,7 @@ export function usePurchaseImport() {
         ownerId: actorId,
         photos: stateRef.current.photos,
       });
-      if (sessionRef.current !== session) return;
+      if (!canUseWorkflow() || !isActorRequestCurrent(actorRequest) || sessionRef.current !== session) return;
       // Merge: earlier successes stand, retried units take their new outcome.
       // A failed unit the customer deselected before retrying is dropped: they
       // chose not to add it, so it is neither added nor failed any more.
@@ -391,30 +436,37 @@ export function usePurchaseImport() {
         actorChanged: retry.actorChanged,
       });
     } finally {
-      committingRef.current = false;
+      if (sessionRef.current === session) committingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actorId]);
+  }, [actorId, canUseWorkflow]);
 
   /** Cancel at any step before confirmation. Nothing is written (Journey G). */
   const cancel = useCallback(async () => {
+    if (!canUseWorkflow()) return;
     const { staged, step } = stateRef.current;
     if (step === 'committing') return; // an in-flight write finishes and reports
     sessionRef.current = newSessionId();
+    const session = sessionRef.current;
+    stagingRef.current = null;
+    extractingRef.current = false;
     await teardown(staged);
+    if (!canUseWorkflow() || sessionRef.current !== session) return;
     originalCandidatesRef.current = [];
     draftsRef.current = [];
     if (step !== 'done' && step !== 'choose') {
       emitPurchaseImportEvent('purchase_import_failed', { completionState: 'cancelled' });
     }
     setState(INITIAL);
-  }, [teardown]);
+  }, [teardown, canUseWorkflow]);
+
+  const visibleState = workflowScopeRef.current === actorScopeKey ? state : INITIAL;
 
   return {
     enabled,
     signedIn: actorId !== null,
-    state,
-    selectedUnits: selectedUnitCount(state.candidates),
+    state: visibleState,
+    selectedUnits: selectedUnitCount(visibleState.candidates),
     setInputTier,
     acceptPickedImage,
     extract,

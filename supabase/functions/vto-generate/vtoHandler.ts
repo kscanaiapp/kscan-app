@@ -72,6 +72,7 @@ import {
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { dimensionBucket, logVtoEvent, payloadBucket } from './vtoTelemetry.ts';
 import { isMockVtoScenario, resolveVtoProvider } from './providers/index.ts';
+import { resolveOwnedVtoGarment, type OwnedVtoGarment } from './vtoOwnedGarment.ts';
 
 /** Wall-clock ceiling on one generation attempt. Bounded well inside the
  *  platform's own request budget so a hung provider surfaces as a clean
@@ -191,6 +192,7 @@ function normalizeRequestId(value: unknown): string {
 }
 
 export interface VtoHandlerDeps {
+  resolveOwnedVtoGarment: typeof resolveOwnedVtoGarment;
   requireUser: typeof requireUser;
   assertAccountActive: typeof assertAccountActive;
   readVtoFeatureConfig: typeof readVtoFeatureConfig;
@@ -204,6 +206,7 @@ export interface VtoHandlerDeps {
 }
 
 export const defaultVtoHandlerDeps: VtoHandlerDeps = {
+  resolveOwnedVtoGarment,
   requireUser,
   assertAccountActive,
   readVtoFeatureConfig,
@@ -293,9 +296,20 @@ export async function handleVtoRequest(
   }
 
   // -- 6. Eligibility, re-derived here ---------------------------------------
-  const garment = (body.garment && typeof body.garment === 'object' && !Array.isArray(body.garment)
+  let garment = (body.garment && typeof body.garment === 'object' && !Array.isArray(body.garment)
     ? body.garment
     : {}) as Record<string, unknown>;
+  let ownedGarment: OwnedVtoGarment | null = null;
+  if (garment.source !== undefined || origin === 'closet_item') {
+    const source = garment.source as { type?: unknown; closetItemId?: unknown } | null;
+    if (!source || source.type !== 'closet_item' || origin !== 'closet_item') {
+      return fail('invalid_garment_input', { requestId, uid, origin, stage: 'garment_source' });
+    }
+    const resolved = await deps.resolveOwnedVtoGarment(authUser.id, source.closetItemId);
+    if (resolved.ok === false) return fail(resolved.code, { requestId, uid, origin, stage: 'owned_garment' });
+    ownedGarment = resolved.garment;
+    garment = { ...ownedGarment };
+  }
   // SEC-KPLUS-002 — the garment image URL is CALLER-SUPPLIED. Eligibility only
   // checked `protocol === 'https:'`, which admits loopback, RFC1918, link-local
   // and the cloud metadata endpoint. Validate network topology before this URL
@@ -395,7 +409,7 @@ export async function handleVtoRequest(
   const idempotencyKey = await buildVtoIdempotencyKey({
     userId: authUser.id,
     productRef: String(garment.productRef ?? ''),
-    garmentImageUrl: eligibility.garmentImageUrl,
+    garmentImageUrl: ownedGarment?.mediaIdentity ?? eligibility.garmentImageUrl,
     personDataUri,
     requestGeneration: typeof body.requestGeneration === 'string' ? body.requestGeneration : null,
   });
@@ -529,6 +543,7 @@ export async function handleVtoRequest(
   return json({
     requestId,
     status: 'success',
+    ...(ownedGarment ? { garmentSource: ownedGarment.source } : {}),
     provider: selection.provider.id,
     result: {
       dataUri: validation.media.dataUri,

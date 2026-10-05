@@ -54,6 +54,11 @@ const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
 
 function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
   return loadTsModule('services/styleOutfits.ts', {
+    './actorScope': {
+      currentActorScopeKey: () => 'fixture#1',
+      captureActorScope: () => ({ actorId: 'fixture', epoch: 1 }),
+      isActorScopeCurrent: () => true,
+    },
     './supabaseClient': { supabase: { functions: { invoke } } },
     // The Phase 5 auth hotfix made generateOutfits preflight for a usable user
     // JWT before invoking. The real resolver reaches the app runtime, so it is

@@ -73,6 +73,8 @@ import { ClosetItemEditModal } from '../components/closet/ClosetItemEditModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
+import { canOfferOwnedClosetVto } from '../services/vto/vtoOwnedGarment';
+import { VTO_UI_ENABLED } from '../constants/featureFlags';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 // Card widths are derived per-render from the live window width (see
@@ -841,6 +843,7 @@ export default function LibraryScreen() {
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
                       onEdit={() => setEditingClosetItemId(a.id)}
+                      onTryOn={VTO_UI_ENABLED && canOfferOwnedClosetVto(a) ? () => router.push({ pathname: '/closet/try-on', params: { closetItemId: a.id } }) : undefined}
                       {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
                     />
@@ -855,6 +858,7 @@ export default function LibraryScreen() {
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
                         onEdit={() => setEditingClosetItemId(b.id)}
+                        onTryOn={VTO_UI_ENABLED && canOfferOwnedClosetVto(b) ? () => router.push({ pathname: '/closet/try-on', params: { closetItemId: b.id } }) : undefined}
                         {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
                       />

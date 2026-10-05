@@ -15,6 +15,7 @@
 
 import { supabase } from './supabaseClient';
 import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
+import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from './actorScope';
 import {
   AI_STYLIST_BACKEND_ENABLED,
   AI_STYLIST_UI_ENABLED,
@@ -87,7 +88,7 @@ export type StyleOutfitResult =
   | { status: 'success'; requestId: string; outfits: OutfitSuggestion[] }
   | { status: 'no_result'; message: string }
   | { status: 'unavailable'; message: string }
-  | { status: 'quota_exceeded'; message: string }
+  | { status: 'quota_exceeded'; message: string; usage?: { generationsUsed: number; generationsLimit: number } }
   | { status: 'burst_limit'; message: string; retryAfterSeconds: number }
   | { status: 'session_expired'; message: string }
   | { status: 'error'; message: string };
@@ -96,17 +97,32 @@ export type StyleOutfitResult =
 
 let inFlight = false;
 let unavailableUntil = 0;
+let guardScopeKey = currentActorScopeKey();
+let guardGeneration = 0;
+
+function reconcileActorGuards(): void {
+  const key = currentActorScopeKey();
+  if (key !== guardScopeKey) {
+    guardScopeKey = key;
+    guardGeneration++;
+    inFlight = false;
+    unavailableUntil = 0;
+  }
+}
 
 export function isGenerationInFlight(): boolean {
+  reconcileActorGuards();
   return inFlight;
 }
 
 export function isInUnavailableCooldown(now: number = Date.now()): boolean {
+  reconcileActorGuards();
   return now < unavailableUntil;
 }
 
 /** Test seam: reset module guards. */
 export function __resetStyleOutfitGuards(): void {
+  guardGeneration++;
   inFlight = false;
   unavailableUntil = 0;
 }
@@ -183,12 +199,24 @@ function sanitizeRef(ref?: OwnedItemRef | null) {
   return { sourceType: ref.sourceType, sourceId: ref.sourceId };
 }
 
+function quotaResult(payload: Record<string, unknown>): StyleOutfitResult {
+  const usage = payload.usage as { generationsUsed?: unknown; generationsLimit?: unknown } | undefined;
+  const used = usage?.generationsUsed;
+  const limit = usage?.generationsLimit;
+  return { status: 'quota_exceeded', message: AI_QUOTA_MESSAGE,
+    ...(typeof used === 'number' && Number.isFinite(used) && used >= 0
+      && typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+      ? { usage: { generationsUsed: Math.floor(used), generationsLimit: Math.floor(limit) } } : {}),
+  };
+}
+
 /**
  * Requests outfit suggestions. Never throws for expected service conditions —
  * every failure mode maps to a typed result so screens can render calm
  * fallbacks and keep the manual builder reachable.
  */
 export async function generateOutfits(request: StyleOutfitRequest): Promise<StyleOutfitResult> {
+  reconcileActorGuards();
   if (!AI_STYLIST_UI_ENABLED || !AI_STYLIST_BACKEND_ENABLED) {
     return { status: 'unavailable', message: AI_UNAVAILABLE_MESSAGE };
   }
@@ -200,9 +228,11 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
   }
 
   inFlight = true;
+  const scope = captureActorScope();
+  const generation = guardGeneration;
   try {
     const auth = await resolveAuthenticatedFunctionSession();
-    if (!auth.ok) {
+    if (!auth.ok || !isActorScopeCurrent(scope)) {
       return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
     }
 
@@ -221,9 +251,45 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
       contractVersion: FASHION_REASONING_CONTRACT_VERSION,
     };
 
-    const { data, error } = await supabase.functions.invoke(STYLE_OUTFIT_FUNCTION_NAME, { body });
+    const { data, error } = await supabase.functions.invoke(STYLE_OUTFIT_FUNCTION_NAME, {
+      body,
+      headers: { Authorization: `Bearer ${auth.accessToken}` },
+    });
+    if (!isActorScopeCurrent(scope)) return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
 
     if (error) {
+      const context = (error as { context?: Response }).context;
+      const httpStatus = context?.status;
+      if (httpStatus === 403) {
+        try {
+          const payload = await context.json();
+          if (!isActorScopeCurrent(scope)) return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
+          if (payload?.error === 'Anchor item is not available for styling') {
+            return { status: 'error', message: 'Unable to style this selection. Check your items and try again.' };
+          }
+        } catch { /* Unknown forbidden response remains an account/session denial. */ }
+      }
+      if (httpStatus === 401 || httpStatus === 403) {
+        return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
+      }
+      if (httpStatus === 400 || httpStatus === 422) {
+        return { status: 'error', message: 'Unable to style this selection. Check your items and try again.' };
+      }
+      if (httpStatus === 429) {
+        let limit: Record<string, unknown> = {};
+        try {
+          const payload = await context.json();
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) limit = payload;
+        } catch { /* A malformed 429 still represents a temporary limit. */ }
+        if (!isActorScopeCurrent(scope)) return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
+        if (limit.status === 'quota_exceeded') return quotaResult(limit);
+        const seconds = limit.retryAfterSeconds;
+        return {
+          status: 'burst_limit', message: AI_BURST_MESSAGE,
+          retryAfterSeconds: typeof seconds === 'number' && Number.isFinite(seconds) && seconds > 0
+            ? Math.ceil(seconds) : 60,
+        };
+      }
       // Function not found / 404 / 503 / network failure / timeout → cooldown.
       markUnavailable();
       if (__DEV__) console.warn('[styleOutfits] invoke_failed');
@@ -242,7 +308,7 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
         markUnavailable();
         return { status: 'unavailable', message: AI_UNAVAILABLE_MESSAGE };
       case 'quota_exceeded':
-        return { status: 'quota_exceeded', message: AI_QUOTA_MESSAGE };
+        return quotaResult(payload);
       case 'burst_limit': {
         const retryAfterSeconds =
           typeof payload.retryAfterSeconds === 'number' && payload.retryAfterSeconds > 0
@@ -260,10 +326,11 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
         return { status: 'unavailable', message: AI_UNAVAILABLE_MESSAGE };
     }
   } catch {
+    if (!isActorScopeCurrent(scope)) return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
     markUnavailable();
     if (__DEV__) console.warn('[styleOutfits] unexpected_failure');
     return { status: 'unavailable', message: AI_UNAVAILABLE_MESSAGE };
   } finally {
-    inFlight = false;
+    if (generation === guardGeneration && isActorScopeCurrent(scope)) inFlight = false;
   }
 }

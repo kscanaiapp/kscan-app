@@ -91,7 +91,7 @@ test('a successful response becomes a typed result', async () => {
     invoke: () =>
       Promise.resolve({
         data: {
-          requestId: 'echo',
+          requestId: args().requestId,
           status: 'success',
           provider: 'mock',
           result: {
@@ -109,6 +109,31 @@ test('a successful response becomes a typed result', async () => {
   assert.equal(outcome.ok, true);
   assert.equal(outcome.provider, 'mock');
   assert.equal(outcome.mediaType, 'image/png');
+});
+
+test('a result for a different or missing request identity is refused', async () => {
+  const client = loadClient();
+  for (const requestId of [undefined, 'another-request']) {
+    const outcome = await client.requestVtoGeneration(args(), {
+      invoke: async () => ({ data: { requestId, result: { dataUri: 'data:image/png;base64,AAAA', mediaType: 'image/png' } }, error: null }),
+    });
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.code, 'invalid_output');
+  }
+});
+
+test('a late successful invoke cannot undo cancellation and uses the preflight token', async () => {
+  const client = loadClient();
+  const controller = new AbortController();
+  const outcome = await client.requestVtoGeneration(args({ signal: controller.signal }), {
+    invoke: async (_name, options) => {
+      assert.equal(options.headers.Authorization, 'Bearer token');
+      controller.abort();
+      return { data: { requestId: args().requestId, result: { dataUri: 'data:image/png;base64,AAAA', mediaType: 'image/png' } }, error: null };
+    },
+  });
+  assert.equal(outcome.ok, false);
+  assert.equal(outcome.code, 'cancelled');
 });
 
 test('the enum code survives a non-2xx; the body does not', async () => {

@@ -35,7 +35,7 @@ export type ExtractResult =
 
 type InvokeFn = (
   name: string,
-  options: { body: unknown; signal?: AbortSignal },
+  options: { body: unknown; signal?: AbortSignal; headers?: Record<string, string> },
 ) => Promise<{ data: unknown; error: unknown }>;
 
 export type ExtractDeps = {
@@ -75,7 +75,7 @@ function todayIso(): string {
  * firing, abandons the request, and its late result is never applied.
  */
 export async function extractPurchaseCandidates(
-  input: { imageBase64: string; inputTier: PurchaseImportInputTier; requestId: string; signal?: AbortSignal },
+  input: { imageBase64: string; inputTier: PurchaseImportInputTier; requestId: string; signal?: AbortSignal; isCurrent?: () => boolean },
   deps: ExtractDeps = {},
 ): Promise<ExtractResult> {
   // BLOCK-RPI-33: with the flag off there is no extraction path at all, even
@@ -89,9 +89,11 @@ export async function extractPurchaseCandidates(
   if (input.imageBase64.length > PURCHASE_IMPORT_MAX_IMAGE_BASE64_BYTES) {
     return { ok: false, errorClass: 'file_too_large' };
   }
-  if (input.signal?.aborted) return { ok: false, errorClass: 'provider_unavailable' };
+  const cancelled = () => input.signal?.aborted || input.isCurrent?.() === false;
+  if (cancelled()) return { ok: false, errorClass: 'provider_unavailable' };
 
   const session = await (deps.resolveSession ?? resolveAuthenticatedFunctionSession)();
+  if (cancelled()) return { ok: false, errorClass: 'provider_unavailable' };
   if (session.ok === false) return { ok: false, errorClass: 'unauthorized' };
 
   const invoke: InvokeFn =
@@ -110,7 +112,10 @@ export async function extractPurchaseCandidates(
         imageBase64: input.imageBase64,
       },
       signal: controller.signal,
+      headers: { Authorization: `Bearer ${session.accessToken}` },
     });
+
+    if (controller.signal.aborted || cancelled()) return { ok: false, errorClass: 'provider_unavailable' };
 
     if (error) {
       if (controller.signal.aborted) return { ok: false, errorClass: 'provider_unavailable' };

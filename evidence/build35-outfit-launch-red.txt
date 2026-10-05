@@ -1,0 +1,216 @@
+✖ real HTTP 429 (quota_exceeded) maps to quota_exceeded (176.1578ms)
+✖ real HTTP 429 (burst_limit) maps to burst_limit (47.5508ms)
+✖ real HTTP 401 (unclassified) maps to session_expired (37.9262ms)
+✖ real HTTP 403 (unclassified) maps to session_expired (38.0951ms)
+✖ real HTTP 400 (unclassified) maps to error (33.888ms)
+✖ real HTTP 422 (unclassified) maps to error (35.7105ms)
+✔ real HTTP 503 (quota_exceeded) maps to unavailable (25.2139ms)
+✖ real HTTP 429 (unclassified) maps to burst_limit (33.6733ms)
+✔ successful no-result and network outage remain separate (19.4708ms)
+✖ actor change during auth preflight makes no outfit invocation (20.6549ms)
+✖ outfit outage cooldown does not transfer to the next actor (16.5429ms)
+✖ Build35: actor change during an empty resume lookup must not create for the new actor (76.4562ms)
+✔ ELISE-002: an account switch during session creation cancels the navigation (16.6626ms)
+✔ ELISE-002: an account switch during the resume lookup cancels the navigation (9.1937ms)
+✔ ELISE-002: an A -> B -> A cycle is still cancelled, because the epoch moved (9.754ms)
+✔ ELISE-002: a cancelled launch releases the guard so the next tap is not swallowed (7.7651ms)
+✔ ELISE-002: an ordinary same-actor launch is unchanged (6.6233ms)
+✔ ELISE-002: a caller's own isCurrent still applies on top of the actor check (6.6818ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 8
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 910.2898
+
+✖ failing tests:
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 429 (quota_exceeded) maps to quota_exceeded (176.1578ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'quota_exceeded'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'quota_exceeded',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 429 (burst_limit) maps to burst_limit (47.5508ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'burst_limit'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'burst_limit',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 401 (unclassified) maps to session_expired (37.9262ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'session_expired'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'session_expired',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 403 (unclassified) maps to session_expired (38.0951ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'session_expired'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'session_expired',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 400 (unclassified) maps to error (33.888ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'error'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'error',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 422 (unclassified) maps to error (35.7105ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'error'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'error',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:34:3
+✖ real HTTP 429 (unclassified) maps to burst_limit (33.6733ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'burst_limit'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:38:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'burst_limit',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:52:1
+✖ actor change during auth preflight makes no outfit invocation (20.6549ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'no_result'
+  - 'session_expired'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:58:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'no_result',
+    expected: 'session_expired',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\build35OutfitErrorContract.test.js:62:1
+✖ outfit outage cooldown does not transfer to the next actor (16.5429ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'unavailable'
+  - 'no_result'
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\build35OutfitErrorContract.test.js:68:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'unavailable',
+    expected: 'no_result',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at __tests__\eliseSessionLaunchActorBoundary.test.js:76:1
+✖ Build35: actor change during an empty resume lookup must not create for the new actor (76.4562ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (C:\b35health\__tests__\eliseSessionLaunchActorBoundary.test.js:87:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

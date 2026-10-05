@@ -55,6 +55,8 @@ import { recordAiStylistEvent } from '../../services/styleMemoryEvents';
 import { inferGarmentRole } from '../../types/fashionReasoning';
 import { ownedItemKey, type OwnedClosetItem } from '../../types/ownedClosetItem';
 import type { SavedScanModel } from '../../services/savedScansCloud';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from '../../services/actorScope';
 
 const OCCASIONS = [
   { value: 'casual', label: 'Casual' },
@@ -176,6 +178,10 @@ function SelectedItemRow({
 }
 
 function CreateLookContent() {
+  const screenScope = useRef(captureActorScope()).current;
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const isCurrent = useCallback(() => mountedRef.current && isActorScopeCurrent(screenScope), [screenScope]);
   const { lookId } = useLocalSearchParams<{ lookId?: string }>();
   const editingLookId = typeof lookId === 'string' && lookId ? lookId : null;
 
@@ -204,7 +210,7 @@ function CreateLookContent() {
     (async () => {
       try {
         const detail = await getLookDetail(editingLookId);
-        if (cancelled) return;
+        if (cancelled || !isCurrent()) return;
         setTitle(detail.look.title ?? '');
         setOccasion(detail.look.occasion ?? null);
         setDressCode(detail.look.dressCode ?? null);
@@ -230,15 +236,15 @@ function CreateLookContent() {
         }
         setSelectedKeys(keys);
       } catch {
-        if (!cancelled) setSaveError('Unable to load this Look for editing.');
+        if (!cancelled && isCurrent()) setSaveError('Unable to load this Look for editing.');
       } finally {
-        if (!cancelled) setEditPrefillDone(true);
+        if (!cancelled && isCurrent()) setEditPrefillDone(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [editingLookId, editPrefillDone, loading, itemByKey]);
+  }, [editingLookId, editPrefillDone, loading, itemByKey, isCurrent]);
 
   const selectedItems = selectedKeys
     .map((key) => itemByKey.get(key))
@@ -268,6 +274,7 @@ function CreateLookContent() {
   const canSave = !saving && title.trim().length > 0 && selectedItems.length >= LOOK_MIN_ITEMS;
 
   const handleSave = useCallback(async () => {
+    if (!isCurrent()) return;
     if (savingRef.current) return; // in-flight guard against rapid taps
     if (selectedItems.length < LOOK_MIN_ITEMS || !title.trim()) return;
     savingRef.current = true;
@@ -284,6 +291,7 @@ function CreateLookContent() {
             (scan) => scan.id === item.localId,
           );
           resolved = await ensureRemoteBackedOwnedItem(item, { localScan });
+          if (!isCurrent()) return;
         }
         if (!resolved.sourceId) throw new OwnedItemSyncError();
         resolvedItems.push({
@@ -314,6 +322,7 @@ function CreateLookContent() {
             items: resolvedItems,
           });
 
+      if (!isCurrent()) return;
       if (wasAiLookEdit && saved.source === 'ai') {
         void recordAiStylistEvent({
           eventType: 'ai_look_edited',
@@ -324,13 +333,13 @@ function CreateLookContent() {
 
       router.replace(`/looks/${saved.id}`);
     } catch (err: any) {
+      if (!isCurrent()) return;
       // Draft state (selection, title, context) is intentionally preserved.
       setSaveError(err?.message || 'Unable to save this Look. Please try again.');
     } finally {
-      savingRef.current = false;
-      setSaving(false);
+      if (isCurrent()) { savingRef.current = false; setSaving(false); }
     }
-  }, [selectedItems, title, occasion, dressCode, setting, note, editingLookId, localScans]);
+  }, [selectedItems, title, occasion, dressCode, setting, note, editingLookId, localScans, isCurrent]);
 
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
@@ -448,6 +457,7 @@ function CreateLookContent() {
 }
 
 export default function CreateLookScreen() {
+  useAuthSession();
   const { isFeatureEnabled, isLoading } = useFeatureFreeze();
   if (isLoading) {
     return <FeatureFreezeFallback cta="closet" loading />;
@@ -455,7 +465,7 @@ export default function CreateLookScreen() {
   if (!AI_STYLIST_UI_ENABLED || !isFeatureEnabled('aiStylist') || !isFeatureEnabled('outfitRemixLooks')) {
     return <FeatureFreezeFallback cta="closet" />;
   }
-  return <CreateLookContent />;
+  return <CreateLookContent key={currentActorScopeKey()} />;
 }
 
 const styles = StyleSheet.create({
