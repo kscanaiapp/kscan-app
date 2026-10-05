@@ -454,12 +454,13 @@ test('deploy guard: refuses to run when the marker declares this checkout non-au
   assert.ok(!/Deployment complete/.test(blocked.output));
 });
 
-test('deploy guard: this checkout itself is correctly marked non-authoritative (B34-DEF-001)', () => {
+test('deploy guard: this checkout itself is the declared backend authority and remains dry-run by default', () => {
   const authority = JSON.parse(
     fs.readFileSync(path.join(REPO_ROOT, 'config', 'backend-authority.json'), 'utf8'),
   );
-  assert.notEqual(authority.role, 'backend-deployment-authority');
-  const blocked = runNode(REPO_ROOT, DEPLOYER);
-  assert.equal(blocked.status, 1);
-  assert.match(blocked.output, /ABORTED/);
+  assert.equal(authority.role, 'backend-deployment-authority');
+  const dryRun = runNode(REPO_ROOT, DEPLOYER);
+  assert.equal(dryRun.status, 0, dryRun.output);
+  assert.match(dryRun.output, /DRY RUN — nothing was deployed/);
+  assert.ok(!/Deployment complete/.test(dryRun.output));
 });
