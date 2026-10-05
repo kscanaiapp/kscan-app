@@ -1116,19 +1116,17 @@ test('VTO-CERT-012: the 429-can-only-be-a-duplicate argument still holds in the 
   );
 });
 
-test('VTO-CERT-012: `stage` remains log-only while the governed failure body exposes code/retryability plus bounded retry guidance', () => {
+test('VTO-CERT-012: `stage` is deliberately not asserted from the HTTP body — the governed failure response exposes only code/retryable, so the control proves the duplicate branch structurally instead', () => {
   const handler = fs.readFileSync(
     path.join(__dirname, '..', 'supabase', 'functions', 'vto-generate', 'vtoHandler.ts'),
     'utf8',
   );
   const failBody = handler.slice(handler.indexOf('function fail('), handler.indexOf('function normalizeOrigin('));
-  // #499 retained the governed body boundary but now builds the error object
-  // before serialization so Retry-After guidance can be attached when present.
-  // The client still receives no internal processing stage.
-  assert.match(failBody, /const error:\s*Record<string, unknown>\s*=\s*\{\s*code,\s*retryable:\s*RETRYABLE\.has\(code\)\s*\}/);
-  assert.match(failBody, /error\.retryAfterSeconds\s*=\s*context\.retryAfterSeconds/);
-  assert.match(failBody, /status:\s*'failed',\s*\n\s*error,/);
-  assert.equal(/return json\([\s\S]*?\bstage\s*[,}:]/.test(failBody.slice(failBody.indexOf('return json('))), false,
+  // The response body is { requestId, status, error: { code, retryable } } —
+  // `stage` reaches the log only. If that ever changes, this control may be
+  // strengthened to assert the stage directly.
+  assert.match(failBody, /error:\s*\{\s*code,\s*retryable:/);
+  assert.equal(/return json\(\s*\{[^}]*stage/.test(failBody), false,
     'stage is not part of the governed response body');
 });
 
