@@ -904,6 +904,51 @@
             ],
             "classification": "EQUIVALENT_RENUMBER",
             "evidence": "The file's own header states its scope is to converge live production (wyyuqfdxucjksghsmhry) onto the RPC privilege contract. Production ledger row 20260916125554 carries the same logical name (3462 chars), and the target posture is verified live: PUBLIC EXECUTE = 0 and exactly 3 anon-executable routines (get_item_reaction_counts, get_public_room_preview, get_public_room_decision_preview). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20261001204903",
+            "logicalName": "canonical_closet_owned_look_support",
+            "remoteVersions": [
+              "20261001204903"
+            ],
+            "classification": "EXACT_VERSION_APPLIED",
+            "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
+          },
+          {
+            "localVersion": "20261002010000",
+            "logicalName": "kplus_paid_lifetime_entitlement_foundation",
+            "remoteVersions": [
+              "20261002010000"
+            ],
+            "classification": "EXACT_VERSION_APPLIED",
+            "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
+          },
+          {
+            "localVersion": "20261003195716",
+            "logicalName": "kplus_provider_pull_reconciliation",
+            "remoteVersions": [
+              "20261003195716"
+            ],
+            "classification": "EXACT_VERSION_APPLIED",
+            "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
+          },
+          {
+            "localVersion": "20261004221500",
+            "logicalName": "closet_purchase_import_origin",
+            "remoteVersions": [
+              "20261004221500"
+            ],
+            "classification": "EXACT_VERSION_APPLIED",
+            "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
+          },
+          {
+            "localVersion": "20261004231628",
+            "logicalName": "fix_kplus_reconciliation_uuid_selection",
+            "remoteVersions": [
+              "20261004231628"
+            ],
+            "classification": "EXACT_VERSION_APPLIED",
+            "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
           }
         ],
         "knownPending": [
@@ -1374,6 +1419,12 @@
             "logicalName": "b34_fk_delete_path_indexes",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260917163000_b34_fk_delete_path_indexes.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20261004184118",
+            "logicalName": "kplus_offer_code_redemption_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Build 35 post-#499 source includes the offer-code authority, but the production-readiness ledger snapshot does not contain version 20261004184118. It remains non-executable unless separately approved through the controlled migration gate."
           }
         ],
         "remoteOnly": [
