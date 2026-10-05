@@ -123,6 +123,7 @@ const verdict = evaluateFullSuiteResult({
 
 console.error(`Known full-suite failure baseline: ${baseline.failures.length} identities.`);
 console.error(`Observed failures: ${verdict.observedFailures.length}; known: ${verdict.observedFailures.length - verdict.unexpectedFailures.length}; unexpected: ${verdict.unexpectedFailures.length}.`);
+console.error(`Observed failure identities:\n${verdict.observedFailures.map((name, index) => `${index + 1}. ${name}`).join('\n') || 'NONE'}`);
 
 if (!verdict.ok) {
   if (verdict.reason === 'unexpected_failures') {
