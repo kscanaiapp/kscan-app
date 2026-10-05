@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-05T01:42:00.000Z",
-    "generatedFromGitSha": "2033fce8cda4de494d7e7cc632e02609103e8225"
+    "generatedAtUtc": "2026-10-05T12:38:41.000Z",
+    "generatedFromGitSha": "5c0829e58a16767aca4e1b672dc4931ec987807d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1708,10 +1708,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 16,
-        "treeFileCount": 21,
-        "bundleHash": "0be704f9a066abf6c0dff5fe2d4ff9244c3ae61bd245ed97911f6bf8d2890f57",
-        "treeHash": "98dd348de3501b686b6d02fd12256783ccab417ff40afcd845c33e50478182c8",
+        "bundleFileCount": 17,
+        "treeFileCount": 23,
+        "bundleHash": "05e28f4c704058de0e9d2c9e16085c9d76ff66cb49bde7b0a53b1a4e7f237592",
+        "treeHash": "a1f284678dcc8b4c40b7749632432c7954eabbcd0afce624992ebcd14916b0bf",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1765,7 +1765,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "639389d2fb5e2e7d866055456bdb38198a01089bdee1442cf142ceb87abc32c0",
+            "sha256": "a6b13eb843b24bc910a7524b062e68761911a34bd4736b8796adf3c5684fa4ed",
             "bundle": true
           },
           {
@@ -1795,7 +1795,17 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "54c4076fc0280818f82687cc0e20eb2076bc58b3746156c9e7ae026b407eaa18",
+            "sha256": "df8c90969dbd04a81551ba58865bb5518d424ff67c0b9033d66d4aabec795dba",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoOwnedGarment.test.ts",
+            "sha256": "8c3fe78386de66eafae4d9d92792af8546232caeeef81543a5c5bb5cb843427b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoOwnedGarment.ts",
+            "sha256": "11fe1b90d06ff25bdac1b75024dc39dcf7044d5952c04ab0e2b9f2fb585d37b2",
             "bundle": true
           },
           {
