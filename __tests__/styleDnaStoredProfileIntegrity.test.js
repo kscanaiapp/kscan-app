@@ -24,22 +24,11 @@ function loadTsModule(rel, requireMap = {}) {
   return module.exports;
 }
 
-const types = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
-// RP-06B restored promptHardening.ts's real (pure, Node-loadable) dependency
-// on the shared prompt-injection neutralization corpus -- the accepted
-// production control RP-06A.2 found missing from canonical. Wired in here for
-// the same reason promptHardening.ts itself is: it is the real module, not a
-// stub.
-const trustTypes = loadTsModule('supabase/functions/_shared/aiSecurity/trustTypes.ts');
-const escapeUntrustedText = loadTsModule('supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts', {
-  './trustTypes.ts': trustTypes,
-});
-const promptHardening = loadTsModule('supabase/functions/stylechat-generate/promptHardening.ts', {
-  '../_shared/aiSecurity/escapeUntrustedText.ts': escapeUntrustedText,
-});
-const styleDnaContext = loadTsModule('supabase/functions/stylechat-generate/styleDnaContext.ts', {
+const types = loadTsModule('supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts');
+const promptHardening = loadTsModule('supabase/functions/stylechat-generate/promptHardening.ts');
+const signatureStyleContext = loadTsModule('supabase/functions/stylechat-generate/signatureStyleContext.ts', {
   './promptHardening.ts': promptHardening,
-  '../_shared/styleDna/styleDnaProfileTypes.ts': types,
+  '../_shared/signatureStyle/signatureStyleProfileTypes.ts': types,
 });
 
 function validProfile(overrides = {}) {
@@ -59,21 +48,21 @@ test('malformed stored profiles are rejected and cannot throw from the prompt bu
     { evidenceCount: 9999 }, validProfile({ colorFrequency: 'black' }),
     validProfile({ materialFrequency: [null] }), validProfile({ evidenceCount: -1 }), [], null,
   ]) {
-    assert.equal(types.isStyleDnaProfileDataV1(malformed), false);
-    assert.doesNotThrow(() => styleDnaContext.buildServerStyleDnaProfileBlock(malformed));
-    assert.equal(styleDnaContext.buildServerStyleDnaProfileBlock(malformed), null);
+    assert.equal(types.isSignatureStyleProfileDataV1(malformed), false);
+    assert.doesNotThrow(() => signatureStyleContext.buildServerSignatureStyleProfileBlock(malformed));
+    assert.equal(signatureStyleContext.buildServerSignatureStyleProfileBlock(malformed), null);
   }
 });
 
 test('a well-formed derived profile remains advisory prompt context', () => {
-  assert.equal(types.isStyleDnaProfileDataV1(validProfile()), true);
-  const block = styleDnaContext.buildServerStyleDnaProfileBlock(validProfile());
+  assert.equal(types.isSignatureStyleProfileDataV1(validProfile()), true);
+  const block = signatureStyleContext.buildServerSignatureStyleProfileBlock(validProfile());
   assert.match(block, /Signature Style/);
   assert.match(block, /Frequent colors: "black"/);
 });
 
 test('the call site builds a safe block before it can reach prompt assembly', () => {
   const source = fs.readFileSync(path.join(ROOT, 'supabase/functions/stylechat-generate/index.ts'), 'utf8');
-  assert.match(source, /buildServerStyleDnaProfileBlock/);
+  assert.match(source, /buildServerSignatureStyleProfileBlock/);
   assert.doesNotMatch(source, /\.profileData\.evidenceCount\s*>\s*0/);
 });
