@@ -136,7 +136,6 @@ const GOVERNED_FUNCTIONS = [
   'resend-restoration-email',
   'kickscrew-sneaker-description',
   'kplus-activate',
-  'kplus-offer-redeem',
   'kplus-reconcile-revenuecat',
   'kplus-revenuecat-pull-reconcile',
   'kplus-revenuecat-webhook',
