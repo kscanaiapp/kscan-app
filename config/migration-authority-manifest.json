@@ -1374,12 +1374,6 @@
             "logicalName": "b34_fk_delete_path_indexes",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260917163000_b34_fk_delete_path_indexes.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
-          },
-          {
-            "localVersion": "20261004184118",
-            "logicalName": "kplus_offer_code_redemption_authority",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Build 35 post-#499 production reconciliation (2026-10-04): live read-only probe confirmed ledger version 20261004184118 absent; public.kplus_offer_definitions, public.kplus_offer_codes, public.kplus_offer_redemption_attempts, public.kplus_offer_redemptions, and public.redeem_kplus_offer_code are all absent. This is deliberate current Build 35 work and is non-executable unless this exact version is separately supplied as APPROVED_MIGRATION_VERSION through the required-reviewer production-controlled-deploy workflow."
           }
         ],
         "remoteOnly": [
