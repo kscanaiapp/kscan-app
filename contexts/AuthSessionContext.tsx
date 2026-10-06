@@ -39,8 +39,8 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
-import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
-import { resetKPlusCommerce } from '../services/kplus/kplusCommerceService';
+import { refreshKPlusEntitlement, resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
+import { loadKPlusOfferings, resetKPlusCommerce } from '../services/kplus/kplusCommerceService';
 import {
   claimDeviceForCurrentActor,
   revokeWatchAlertsForThisDevice,
@@ -455,6 +455,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       logError('Unable to retry auth session recovery', error);
     }
   }, []);
+
+  // Run outside onAuthStateChange: SDK/network work must not hold Supabase's auth lock.
+  useEffect(() => {
+    if (loading || !isSessionUsable(session)) return;
+    void loadKPlusOfferings();
+    void refreshKPlusEntitlement();
+  }, [loading, session?.user.id]);
 
   const value = useMemo<AuthSessionContextValue>(() => {
     const baseState = getSessionAuthState(session, undefined, { loading });

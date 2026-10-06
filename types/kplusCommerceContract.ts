@@ -57,7 +57,7 @@ export const KPLUS_UNAVAILABLE_REASONS = [
 ] as const;
 export type KPlusUnavailableReason = (typeof KPLUS_UNAVAILABLE_REASONS)[number];
 
-export type KPlusProductKind = 'MONTHLY' | 'LIFETIME';
+export type KPlusProductKind = 'MONTHLY' | 'ANNUAL' | 'LIFETIME';
 
 // ── Normalized store product ─────────────────────────────────────────────────
 
@@ -106,12 +106,14 @@ export type KPlusProductAvailability =
 export interface KPlusProductCatalog {
   offeringIdentifier: string | null;
   monthly: KPlusProductAvailability;
+  annual: KPlusProductAvailability;
   lifetime: KPlusProductAvailability;
 }
 
 export const EMPTY_KPLUS_CATALOG_NO_OFFERING: KPlusProductCatalog = Object.freeze({
   offeringIdentifier: null,
   monthly: Object.freeze({ status: 'unavailable', reason: 'MISSING_FROM_OFFERING' }) as KPlusProductAvailability,
+  annual: Object.freeze({ status: 'unavailable', reason: 'MISSING_FROM_OFFERING' }) as KPlusProductAvailability,
   lifetime: Object.freeze({ status: 'unavailable', reason: 'MISSING_FROM_OFFERING' }) as KPlusProductAvailability,
 });
 
@@ -123,6 +125,7 @@ export const EMPTY_KPLUS_CATALOG_NO_OFFERING: KPlusProductCatalog = Object.freez
  */
 export interface KPlusProductMappingConfig {
   monthlyPackageIdentifier?: string;
+  annualPackageIdentifier?: string;
   lifetimePackageIdentifier?: string;
 }
 
@@ -145,6 +148,10 @@ export interface RawStoreProduct {
   currencyCode?: string | null;
   subscriptionPeriod?: string | null;
   introPrice?: RawIntroPrice | null;
+  defaultOption?: {
+    freePhase?: { billingPeriod: { iso8601: string; unit: string; value: number }; billingCycleCount: number; price: { amountMicros: number; formatted: string } } | null;
+    fullPricePhase?: { billingPeriod: { iso8601: string }; price: { amountMicros: number; formatted: string; currencyCode: string } } | null;
+  } | null;
 }
 
 export interface RawPackage {
@@ -166,6 +173,7 @@ export interface RawOfferings {
 
 const PACKAGE_TYPE_FOR_KIND: Record<KPlusProductKind, string> = {
   MONTHLY: 'MONTHLY',
+  ANNUAL: 'ANNUAL',
   LIFETIME: 'LIFETIME',
 };
 
@@ -210,8 +218,8 @@ function toStoreProduct(kind: KPlusProductKind, pkg: RawPackage): KPlusProductAv
       priceAmount: p.price,
       currencyCode: nonEmptyString(p.currencyCode) ? p.currencyCode : null,
       // A lifetime purchase has no billing period, whatever the store says.
-      subscriptionPeriod: kind === 'MONTHLY' && nonEmptyString(p.subscriptionPeriod) ? p.subscriptionPeriod : null,
-      introOffer: kind === 'MONTHLY' ? introOffer : null,
+      subscriptionPeriod: kind !== 'LIFETIME' && nonEmptyString(p.subscriptionPeriod) ? p.subscriptionPeriod : null,
+      introOffer: kind !== 'LIFETIME' ? introOffer : null,
     },
   };
 }
@@ -232,8 +240,8 @@ function resolveKind(
 /**
  * Normalizes the ACTIVE (current) RevenueCat offering into the K+ catalog.
  *
- * - Monthly and Lifetime are resolved INDEPENDENTLY. A missing Monthly never
- *   becomes Lifetime and vice versa.
+ * - Monthly, Annual and dormant Lifetime resolve independently. A missing
+ *   product never becomes a different billing cadence.
  * - Two candidates for one kind, or one package claimed by both kinds, is a
  *   configuration error, not a pick.
  * - Every value is copied from the store metadata; nothing is defaulted.
@@ -246,6 +254,7 @@ export function normalizeKPlusOfferings(
   if (!offering || !Array.isArray(offering.availablePackages)) return EMPTY_KPLUS_CATALOG_NO_OFFERING;
 
   let monthly = resolveKind('MONTHLY', offering.availablePackages, mapping.monthlyPackageIdentifier);
+  let annual = resolveKind('ANNUAL', offering.availablePackages, mapping.annualPackageIdentifier);
   let lifetime = resolveKind('LIFETIME', offering.availablePackages, mapping.lifetimePackageIdentifier);
 
   if (
@@ -256,7 +265,17 @@ export function normalizeKPlusOfferings(
     monthly = { status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' };
     lifetime = { status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' };
   }
-  return { offeringIdentifier: offering.identifier ?? null, monthly, lifetime };
+  if (annual.status === 'available') {
+    const annualId = annual.product.packageIdentifier;
+    const overlapsMonthly = monthly.status === 'available' && monthly.product.packageIdentifier === annualId;
+    const overlapsLifetime = lifetime.status === 'available' && lifetime.product.packageIdentifier === annualId;
+    if (overlapsMonthly || overlapsLifetime) {
+      annual = { status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' };
+      if (overlapsMonthly) monthly = { status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' };
+      if (overlapsLifetime) lifetime = { status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' };
+    }
+  }
+  return { offeringIdentifier: offering.identifier ?? null, monthly, annual, lifetime };
 }
 
 // ── Public SDK key policy ────────────────────────────────────────────────────
@@ -354,6 +373,7 @@ export interface KPlusCommerceSnapshot {
   pendingKind: KPlusProductKind | null;
   /** Store-reported Monthly intro eligibility for the current actor's catalog. */
   monthlyIntroEligibility: KPlusIntroEligibility;
+  annualIntroEligibility?: KPlusIntroEligibility;
 }
 
 export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.freeze({
@@ -362,6 +382,7 @@ export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.fre
   catalog: null,
   pendingKind: null,
   monthlyIntroEligibility: 'UNKNOWN' as KPlusIntroEligibility,
+  annualIntroEligibility: 'UNKNOWN' as KPlusIntroEligibility,
 });
 
 // ── Native commerce port ─────────────────────────────────────────────────────

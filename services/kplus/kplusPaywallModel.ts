@@ -70,13 +70,15 @@ export const KPLUS_PAYWALL_COPY = Object.freeze({
   eyebrow: 'K SCAN AI',
   headline: 'A more intelligent fashion companion.',
   subhead: 'K+ is the premium intelligence layer for everything you see, scan and wear.',
-  monthlyName: 'Monthly',
+  monthlyName: 'K+ Monthly',
   monthlySubline: 'Recurring · cancel anytime',
+  annualName: 'K+ Annual',
+  annualSubline: 'Billed yearly upfront · cancel anytime',
   lifetimeName: 'Lifetime',
   lifetimeSubline: 'One-time purchase · no recurring charge',
   lifetimePriceUnit: 'one-time',
   trialBadge: 'Free trial',
-  trialCta: 'Activate Free Trial',
+  trialCta: 'ACTIVATE FREE TRIAL',
   trialReminder: 'We’ll remind you before your trial ends.',
   purchasingCta: 'Working with the store…',
   restore: 'Restore Purchases',
@@ -237,24 +239,31 @@ export interface KPlusMonthlyTerms {
   period: KPlusBillingPeriod;
   trialDuration: string | null;
   introUncertain: boolean;
+  paidIntro?: { localizedPrice: string; period: KPlusBillingPeriod; duration: string } | null;
 }
 
 export function resolveKPlusMonthlyTerms(
-  commerce: Pick<KPlusCommerceSnapshot, 'catalog' | 'monthlyIntroEligibility'>,
+  commerce: Pick<KPlusCommerceSnapshot, 'catalog' | 'monthlyIntroEligibility' | 'annualIntroEligibility'>,
+  kind: 'MONTHLY' | 'ANNUAL' = 'MONTHLY',
 ): KPlusMonthlyTerms | null {
-  const entry = commerce.catalog?.monthly;
+  const entry = kind === 'MONTHLY' ? commerce.catalog?.monthly : commerce.catalog?.annual;
   if (!entry || entry.status !== 'available') return null;
   const product = entry.product;
-  if (product.kind !== 'MONTHLY' || !product.localizedPrice?.trim()) return null;
+  if (product.kind !== kind || !product.localizedPrice?.trim()) return null;
   const period = parseKPlusBillingPeriod(product.subscriptionPeriod);
   if (!period) return null;
 
-  const eligibility: KPlusIntroEligibility = commerce.monthlyIntroEligibility ?? 'UNKNOWN';
+  const eligibility: KPlusIntroEligibility = (kind === 'MONTHLY' ? commerce.monthlyIntroEligibility : commerce.annualIntroEligibility) ?? 'UNKNOWN';
   const intro = product.introOffer;
   const duration = intro && intro.isFreeIntro && eligibility === 'ELIGIBLE' ? describeKPlusTrialDuration(intro) : null;
   const introUncertain = Boolean(intro) && duration === null
     && eligibility !== 'INELIGIBLE' && eligibility !== 'NO_INTRO_OFFER';
-  return { product, period, trialDuration: duration, introUncertain };
+  const paidPeriod = intro && !intro.isFreeIntro && eligibility === 'ELIGIBLE'
+    ? parseKPlusBillingPeriod(intro.period) : null;
+  const paidDuration = paidPeriod ? describeKPlusTrialDuration(intro) : null;
+  const paidIntro = paidPeriod && paidDuration && intro?.localizedPrice?.trim()
+    ? { localizedPrice: intro.localizedPrice, period: paidPeriod, duration: paidDuration } : null;
+  return { product, period, trialDuration: duration, introUncertain, paidIntro };
 }
 
 export function resolveKPlusLifetimeProduct(commerce: Pick<KPlusCommerceSnapshot, 'catalog'>): KPlusStoreProduct | null {
@@ -280,6 +289,10 @@ export function kplusMonthlyDisclosure(terms: KPlusMonthlyTerms, authoritativeCh
     }
     return `Free for ${terms.trialDuration}, then ${price} every ${every} unless cancelled.`;
   }
+  if (terms.paidIntro) {
+    return `${terms.paidIntro.localizedPrice} every ${everyPeriodPhrase(terms.paidIntro.period)} for ${terms.paidIntro.duration}, `
+      + `then ${price} every ${every} unless cancelled.`;
+  }
   if (terms.introUncertain) {
     return `${price} every ${every} unless cancelled. If you qualify for an introductory offer, the store applies it at checkout.`;
   }
@@ -293,7 +306,7 @@ export function kplusLifetimeDisclosure(product: KPlusStoreProduct): string {
 export function kplusMonthlyCtaLabel(terms: KPlusMonthlyTerms): string {
   return terms.trialDuration
     ? KPLUS_PAYWALL_COPY.trialCta
-    : `Continue · ${terms.product.localizedPrice}${perPeriodSuffix(terms.period)}`;
+    : `Continue · ${terms.paidIntro?.localizedPrice ?? terms.product.localizedPrice}${perPeriodSuffix(terms.paidIntro?.period ?? terms.period)}`;
 }
 
 export function kplusLifetimeCtaLabel(product: KPlusStoreProduct): string {
@@ -401,6 +414,8 @@ export const KPLUS_PAYWALL_SCREENS = [
   'LOADING_PRODUCTS',
   'MONTHLY_SELECTED_TRIAL_ELIGIBLE',
   'MONTHLY_SELECTED_NO_TRIAL',
+  'ANNUAL_SELECTED_TRIAL_ELIGIBLE',
+  'ANNUAL_SELECTED_NO_TRIAL',
   'LIFETIME_SELECTED',
   'PRODUCTS_UNAVAILABLE',
   'PURCHASING',
@@ -495,71 +510,30 @@ function buildPaywall(
   const { commerce, ui } = inputs;
   const presentation = inputs.presentation ?? KPLUS_PAYWALL_PRESENTATION;
   const monthly = resolveKPlusMonthlyTerms(commerce);
-  const lifetime = resolveKPlusLifetimeProduct(commerce);
-  if (!monthly && !lifetime) return null;
-
-  let selectedKind: KPlusProductKind;
-  if (mode === 'purchasing' && commerce.pendingKind && (commerce.pendingKind === 'MONTHLY' ? monthly : lifetime)) {
-    selectedKind = commerce.pendingKind;
-  } else if (ui.selectedPlan === 'LIFETIME' && lifetime) {
-    selectedKind = 'LIFETIME';
-  } else if (ui.selectedPlan === 'MONTHLY' && monthly) {
-    selectedKind = 'MONTHLY';
-  } else {
-    // Monthly is the default whenever it can be offered truthfully.
-    selectedKind = monthly ? 'MONTHLY' : 'LIFETIME';
-  }
-
+  const annual = resolveKPlusMonthlyTerms(commerce, 'ANNUAL');
+  if (!monthly && !annual) return null;
+  const selectedKind = (mode === 'purchasing' && commerce.pendingKind === 'ANNUAL' && annual)
+    || (ui.selectedPlan === 'ANNUAL' && annual) ? 'ANNUAL' : monthly ? 'MONTHLY' : 'ANNUAL';
   const locked = mode !== 'interactive';
   const plans: KPlusPlanCardView[] = [];
-  if (monthly) {
-    const selected = selectedKind === 'MONTHLY';
-    const badge = monthly.trialDuration ? KPLUS_PAYWALL_COPY.trialBadge : null;
-    const priceUnit = `per ${everyPeriodPhrase(monthly.period)}`;
-    plans.push({
-      kind: 'MONTHLY',
-      name: KPLUS_PAYWALL_COPY.monthlyName,
-      badge,
-      subline: KPLUS_PAYWALL_COPY.monthlySubline,
-      price: monthly.product.localizedPrice,
-      priceUnit,
-      selected,
-      disabled: locked,
-      accessibilityLabel: [
-        KPLUS_PAYWALL_COPY.monthlyName,
-        badge,
-        `${monthly.product.localizedPrice} ${priceUnit}`,
-        KPLUS_PAYWALL_COPY.monthlySubline.replace(' · ', ', '),
-      ].filter(Boolean).join('. '),
+  for (const terms of [monthly, annual]) {
+    if (!terms) continue;
+    const kind = terms.product.kind;
+    const name = kind === 'MONTHLY' ? KPLUS_PAYWALL_COPY.monthlyName : KPLUS_PAYWALL_COPY.annualName;
+    const subline = kind === 'MONTHLY' ? KPLUS_PAYWALL_COPY.monthlySubline
+      : terms.period.unit === 'year' && terms.period.count === 1 ? KPLUS_PAYWALL_COPY.annualSubline
+      : `Billed every ${everyPeriodPhrase(terms.period)} upfront · cancel anytime`;
+    const badge = terms.trialDuration ? `${terms.trialDuration} free` : null;
+    const priceUnit = `per ${everyPeriodPhrase(terms.period)}`;
+    plans.push({ kind, name, badge, subline, price: terms.product.localizedPrice, priceUnit,
+      selected: selectedKind === kind, disabled: locked,
+      accessibilityLabel: [name, badge, `${terms.product.localizedPrice} ${priceUnit}`, subline].filter(Boolean).join('. '),
     });
   }
-  if (lifetime) {
-    const selected = selectedKind === 'LIFETIME';
-    plans.push({
-      kind: 'LIFETIME',
-      name: KPLUS_PAYWALL_COPY.lifetimeName,
-      badge: null,
-      subline: KPLUS_PAYWALL_COPY.lifetimeSubline,
-      price: lifetime.localizedPrice,
-      priceUnit: KPLUS_PAYWALL_COPY.lifetimePriceUnit,
-      selected,
-      disabled: locked,
-      accessibilityLabel: [
-        KPLUS_PAYWALL_COPY.lifetimeName,
-        `${lifetime.localizedPrice} ${KPLUS_PAYWALL_COPY.lifetimePriceUnit}`,
-        KPLUS_PAYWALL_COPY.lifetimeSubline.replace(' · ', ', '),
-      ].join('. '),
-    });
-  }
-
-  const onMonthly = selectedKind === 'MONTHLY' && monthly !== null;
-  const trial = onMonthly && Boolean(monthly?.trialDuration);
-  const disclosure = onMonthly
-    ? kplusMonthlyDisclosure(monthly as KPlusMonthlyTerms, inputs.authoritativeChargeDate ?? null)
-    : kplusLifetimeDisclosure(lifetime as KPlusStoreProduct);
-  const idleLabel = onMonthly
-    ? kplusMonthlyCtaLabel(monthly as KPlusMonthlyTerms)
-    : kplusLifetimeCtaLabel(lifetime as KPlusStoreProduct);
+  const selected = (selectedKind === 'MONTHLY' ? monthly : annual) as KPlusMonthlyTerms;
+  const trial = Boolean(selected.trialDuration);
+  const disclosure = kplusMonthlyDisclosure(selected);
+  const idleLabel = kplusMonthlyCtaLabel(selected);
   const purchasing = mode === 'purchasing';
   const label = purchasing ? KPLUS_PAYWALL_COPY.purchasingCta : idleLabel;
 
@@ -687,7 +661,7 @@ export function deriveKPlusPaywallScreen(inputs: KPlusPaywallInputs): KPlusPaywa
   if (ui.notice?.kind === 'cancelled') screen = 'PURCHASE_CANCELLED';
   else if (ui.notice) screen = 'PURCHASE_ERROR';
   else if (entry === 'COMPLIMENTARY_EXPIRED') screen = 'COMPLIMENTARY_EXPIRED';
-  else if (built.view.selectedKind === 'LIFETIME') screen = 'LIFETIME_SELECTED';
+  else if (built.view.selectedKind === 'ANNUAL') screen = built.trial ? 'ANNUAL_SELECTED_TRIAL_ELIGIBLE' : 'ANNUAL_SELECTED_NO_TRIAL';
   else screen = built.trial ? 'MONTHLY_SELECTED_TRIAL_ELIGIBLE' : 'MONTHLY_SELECTED_NO_TRIAL';
 
   return screenView(screen, entry, {

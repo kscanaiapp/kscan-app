@@ -32,7 +32,7 @@ import {
 import {
   KPLUS_COMMERCE_RECHECK_DELAYS_MS,
   loadKPlusOfferings,
-  purchaseKPlusLifetime,
+  purchaseKPlusAnnual,
   purchaseKPlusMonthly,
   restoreKPlusPurchases,
 } from '../../services/kplus/kplusCommerceService';
@@ -242,7 +242,7 @@ export function KPlusMembershipStep({
     const kind = paywall.selectedKind;
     dispatch({ type: 'PURCHASE_STARTED', kind });
     try {
-      const outcome = kind === 'MONTHLY' ? await purchaseKPlusMonthly() : await purchaseKPlusLifetime();
+      const outcome = kind === 'MONTHLY' ? await purchaseKPlusMonthly() : await purchaseKPlusAnnual();
       dispatch({ type: 'PURCHASE_FINISHED', outcome });
     } finally {
       operationLockRef.current = false;

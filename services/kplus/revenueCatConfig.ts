@@ -16,8 +16,8 @@
  *   - This is independent of EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, which
  *     governs only legacy complimentary acquisition.
  *
- * Live values are an owner / EAS-environment matter and are not set by this
- * repository.
+ * Public launch values are supplied through EAS build-profile environment
+ * configuration. No server credentials belong in this client configuration.
  */
 import type { KPlusRevenueCatPublicKeys } from '../../types/kplusCommerceContract';
 

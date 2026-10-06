@@ -86,6 +86,7 @@ export interface KPlusCommerceService {
   loadOfferings(): Promise<KPlusCommerceSnapshot>;
   purchase(kind: KPlusProductKind): Promise<KPlusPurchaseOutcome>;
   purchaseMonthly(): Promise<KPlusPurchaseOutcome>;
+  purchaseAnnual(): Promise<KPlusPurchaseOutcome>;
   purchaseLifetime(): Promise<KPlusPurchaseOutcome>;
   /** Explicit user action only. */
   restorePurchases(): Promise<KPlusRestoreOutcome>;
@@ -234,14 +235,14 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     return { state: 'ok', gen, actorId };
   }
 
-  /** The store's answer for the Monthly intro offer. Anything short of a clean
+  /** The store's answer for this subscription's intro offer. Anything short of a clean
    *  answer is 'UNKNOWN', which never produces trial copy. */
-  async function readMonthlyIntroEligibility(catalog: KPlusProductCatalog): Promise<KPlusIntroEligibility> {
-    const monthly = catalog.monthly;
-    if (monthly.status !== 'available' || !monthly.product.introOffer) return 'NO_INTRO_OFFER';
+  async function readIntroEligibility(catalog: KPlusProductCatalog, kind: 'monthly' | 'annual'): Promise<KPlusIntroEligibility> {
+    const entry = catalog[kind];
+    if (!entry || entry.status !== 'available' || !entry.product.introOffer) return 'NO_INTRO_OFFER';
     if (typeof port.checkIntroEligibility !== 'function') return 'UNKNOWN';
     try {
-      const answer = await port.checkIntroEligibility(monthly.product.storeProductIdentifier);
+      const answer = await port.checkIntroEligibility(entry.product.storeProductIdentifier);
       return answer === 'ELIGIBLE' || answer === 'INELIGIBLE' || answer === 'NO_INTRO_OFFER' ? answer : 'UNKNOWN';
     } catch {
       return 'UNKNOWN';
@@ -249,7 +250,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   }
 
   async function fetchCatalog(prepared: { gen: number; actorId: string }): Promise<
-    | { state: 'ok'; catalog: KPlusProductCatalog; eligibility: KPlusIntroEligibility }
+    | { state: 'ok'; catalog: KPlusProductCatalog; eligibility: KPlusIntroEligibility; annualEligibility: KPlusIntroEligibility }
     | { state: 'discarded' }
     | { state: 'unavailable'; reason: KPlusUnavailableReason }
   > {
@@ -263,10 +264,12 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     }
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     const catalog = normalizeKPlusOfferings(raw, deps.mapping);
-    const eligibility = await readMonthlyIntroEligibility(catalog);
+    const eligibility = await readIntroEligibility(catalog, 'monthly');
+    if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
+    const annualEligibility = await readIntroEligibility(catalog, 'annual');
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     catalogActorId = prepared.actorId;
-    return { state: 'ok', catalog, eligibility };
+    return { state: 'ok', catalog, eligibility, annualEligibility };
   }
 
   async function loadOfferings(): Promise<KPlusCommerceSnapshot> {
@@ -289,10 +292,11 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
         unavailableReason: null,
         catalog: result.catalog,
         pendingKind: null,
+        annualIntroEligibility: result.annualEligibility,
         monthlyIntroEligibility: result.eligibility,
       });
     } else {
-      setSnapshot({ catalog: result.catalog, monthlyIntroEligibility: result.eligibility });
+      setSnapshot({ catalog: result.catalog, annualIntroEligibility: result.annualEligibility, monthlyIntroEligibility: result.eligibility });
     }
     return snapshot;
   }
@@ -360,11 +364,12 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
           unavailableReason: null,
           catalog,
           pendingKind: null,
+          annualIntroEligibility: fetched.annualEligibility,
           monthlyIntroEligibility: fetched.eligibility,
         });
       }
 
-      const entry = kind === 'MONTHLY' ? catalog.monthly : catalog.lifetime;
+      const entry = kind === 'MONTHLY' ? catalog.monthly : kind === 'ANNUAL' ? catalog.annual : catalog.lifetime;
       if (entry.status !== 'available') {
         return { outcome: 'PRODUCT_UNAVAILABLE', kind, availability: entry };
       }
@@ -475,6 +480,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     loadOfferings,
     purchase,
     purchaseMonthly: () => purchase('MONTHLY'),
+    purchaseAnnual: () => purchase('ANNUAL'),
     purchaseLifetime: () => purchase('LIFETIME'),
     restorePurchases,
     reset,
@@ -510,6 +516,7 @@ export const getKPlusCommerceSnapshot = kplusCommerce.getSnapshot;
 export const subscribeToKPlusCommerce = kplusCommerce.subscribe;
 export const loadKPlusOfferings = kplusCommerce.loadOfferings;
 export const purchaseKPlusMonthly = kplusCommerce.purchaseMonthly;
+export const purchaseKPlusAnnual = kplusCommerce.purchaseAnnual;
 export const purchaseKPlusLifetime = kplusCommerce.purchaseLifetime;
 export const restoreKPlusPurchases = kplusCommerce.restorePurchases;
 /** Wired into resetActorScopedRuntimeState (contexts/AuthSessionContext.tsx). */

@@ -90,15 +90,15 @@ function monthlyProduct(o = {}) {
     ...o,
   };
 }
-function lifetimeProduct(o = {}) {
+function annualProduct(o = {}) {
   return {
-    kind: 'LIFETIME',
+    kind: 'ANNUAL',
     packageIdentifier: 'pkg_l',
     storeProductIdentifier: 'store.l',
     localizedPrice: '¥18,800',
     priceAmount: 18800,
     currencyCode: 'JPY',
-    subscriptionPeriod: null,
+    subscriptionPeriod: 'P1Y',
     introOffer: null,
     ...o,
   };
@@ -108,11 +108,11 @@ const MISSING = Object.freeze({ status: 'unavailable', reason: 'MISSING_FROM_OFF
 const AMBIGUOUS = Object.freeze({ status: 'configuration_error', reason: 'AMBIGUOUS_MAPPING' });
 
 function commerce(o = {}) {
-  const { monthly = available(monthlyProduct()), lifetime = available(lifetimeProduct()), ...rest } = o;
+  const { monthly = available(monthlyProduct()), annual = available(annualProduct()), ...rest } = o;
   return {
     status: 'READY',
     unavailableReason: null,
-    catalog: { offeringIdentifier: 'off', monthly, lifetime },
+    catalog: { offeringIdentifier: 'off', monthly, annual },
     pendingKind: null,
     monthlyIntroEligibility: 'ELIGIBLE',
     ...rest,
@@ -142,7 +142,7 @@ function derive(o = {}, m = model) {
 const PAYWALL_SCREENS = new Set([
   'MONTHLY_SELECTED_TRIAL_ELIGIBLE',
   'MONTHLY_SELECTED_NO_TRIAL',
-  'LIFETIME_SELECTED',
+  'ANNUAL_SELECTED_NO_TRIAL',
   'PURCHASE_CANCELLED',
   'PURCHASE_ERROR',
   'COMPLIMENTARY_EXPIRED',
@@ -173,7 +173,7 @@ function mount(o = {}) {
     entitlement: { ...(o.entitlement ?? FREE) },
     commerce: o.commerce ?? commerce(),
     live: o.live ?? { signals: {}, settled: true },
-    calls: { load: 0, monthly: 0, lifetime: 0, restore: 0, refresh: 0, continue: 0, skip: 0, close: 0 },
+    calls: { load: 0, monthly: 0, annual: 0, restore: 0, refresh: 0, continue: 0, skip: 0, close: 0 },
     loadImpl: o.loadImpl ?? (async () => env.commerce),
     purchaseImpl: o.purchaseImpl ?? (async () => ({ outcome: 'ENTITLEMENT_RESOLVING' })),
     restoreImpl: o.restoreImpl ?? (async () => ({ outcome: 'NOTHING_RESTORED' })),
@@ -206,7 +206,7 @@ function mount(o = {}) {
     KPLUS_COMMERCE_RECHECK_DELAYS_MS: [2000, 5000, 10000, 20000],
     loadKPlusOfferings: async () => { env.calls.load += 1; return env.loadImpl(); },
     purchaseKPlusMonthly: async () => { env.calls.monthly += 1; return env.purchaseImpl('MONTHLY'); },
-    purchaseKPlusLifetime: async () => { env.calls.lifetime += 1; return env.purchaseImpl('LIFETIME'); },
+    purchaseKPlusAnnual: async () => { env.calls.annual += 1; return env.purchaseImpl('ANNUAL'); },
     restoreKPlusPurchases: async () => { env.calls.restore += 1; return env.restoreImpl(); },
   };
   const step = runModule(STEP, {
@@ -331,12 +331,12 @@ test('A LOADING_PRODUCTS: no price, no trial, no purchase CTA; Free stays availa
   assert.ok(ui.announcements.includes('Loading membership options…'), 'loading is announced');
 });
 
-test('B MONTHLY_SELECTED_TRIAL_ELIGIBLE: badge, store-derived trial terms, Activate Free Trial', () => {
+test('B MONTHLY_SELECTED_TRIAL_ELIGIBLE: badge, store-derived trial terms, ACTIVATE FREE TRIAL', () => {
   const view = derive();
   assert.equal(view.screen, 'MONTHLY_SELECTED_TRIAL_ELIGIBLE');
   const pw = view.paywall;
-  assert.equal(pw.cta.label, 'Activate Free Trial');
-  assert.equal(pw.plans[0].badge, 'Free trial');
+  assert.equal(pw.cta.label, 'ACTIVATE FREE TRIAL');
+  assert.equal(pw.plans[0].badge, '1 week free');
   assert.equal(pw.disclosure, 'Free for 1 week, then €7,49 every month unless cancelled.');
   assert.equal(pw.cta.enabled, true);
 });
@@ -371,23 +371,23 @@ test('C2: an intro offer the store has not ruled on claims neither a trial nor a
   assert.doesNotMatch(paidIntro.paywall.disclosure, /today|free/i);
 });
 
-test('D LIFETIME_SELECTED: one-time semantics in card, disclosure and CTA', async () => {
-  const view = derive({ ui: { selectedPlan: 'LIFETIME' } });
-  assert.equal(view.screen, 'LIFETIME_SELECTED');
+test('D ANNUAL_SELECTED: yearly subscription semantics in card, disclosure and CTA', async () => {
+  const view = derive({ ui: { selectedPlan: 'ANNUAL' } });
+  assert.equal(view.screen, 'ANNUAL_SELECTED_NO_TRIAL');
   const pw = view.paywall;
-  assert.equal(pw.disclosure, 'One-time purchase of ¥18,800. No recurring charge.');
-  assert.equal(pw.cta.label, 'Get K+ Lifetime · ¥18,800');
-  const card = pw.plans.find((p) => p.kind === 'LIFETIME');
-  assert.equal(card.subline, 'One-time purchase · no recurring charge');
-  assert.equal(card.priceUnit, 'one-time');
+  assert.equal(pw.disclosure, 'You’ll be charged ¥18,800 today, then ¥18,800 every year unless cancelled.');
+  assert.equal(pw.cta.label, 'Continue · ¥18,800/year');
+  const card = pw.plans.find((p) => p.kind === 'ANNUAL');
+  assert.equal(card.subline, 'Billed yearly upfront · cancel anytime');
+  assert.equal(card.priceUnit, 'per year');
   assert.equal(card.selected, true);
 
   const ui = mount();
-  await ui.press('kplus-plan-lifetime');
-  assert.equal(screenOf(ui), 'lifetime-selected');
-  assert.equal(ui.node('kplus-paywall-disclosure').children[0].value, 'One-time purchase of ¥18,800. No recurring charge.');
+  await ui.press('kplus-plan-annual');
+  assert.equal(screenOf(ui), 'annual-selected-no-trial');
+  assert.equal(ui.node('kplus-paywall-disclosure').children[0].value, 'You’ll be charged ¥18,800 today, then ¥18,800 every year unless cancelled.');
   await ui.press('kplus-paywall-cta');
-  assert.equal(ui.env.calls.lifetime, 1, 'the Lifetime CTA takes the Phase B lifetime path');
+  assert.equal(ui.env.calls.annual, 1, 'the Annual CTA takes the Phase B annual path');
   assert.equal(ui.env.calls.monthly, 0);
 });
 
@@ -439,7 +439,7 @@ test('F PURCHASING: plans locked, one calm progress CTA, nothing navigates away'
   ui.render();
   assert.equal(screenOf(ui), 'purchasing');
   assert.equal(ui.node('kplus-paywall-cta').props.disabled, true);
-  ui.node('kplus-plan-lifetime').props.onPress();
+  ui.node('kplus-plan-annual').props.onPress();
   ui.node('kplus-paywall-free-path').props.onPress();
   await settle();
   ui.render();
@@ -467,7 +467,7 @@ test('G PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING: finishing copy only -- never F
   const text = ui.text();
   assert.match(text, /Finishing your K\+ setup…/);
   assert.match(text, /Please don’t close the app\./);
-  assert.doesNotMatch(text, /Continue with K Scan AI Free|failed|went wrong|Activate Free Trial|Get K\+ Lifetime/);
+  assert.doesNotMatch(text, /Continue with K Scan AI Free|failed|went wrong|ACTIVATE FREE TRIAL|Get K\+ Annual/);
   assert.ok(!ui.has('kplus-paywall-cta'), 'no second purchase action');
   assert.ok(ui.announcements.includes('Finishing your K+ setup…'), 'resolving is announced');
 });
@@ -502,7 +502,7 @@ test('G2: resolving is bounded -- after the re-check window it offers Check agai
 });
 
 test('H ACTIVE_KPLUS: no acquisition paywall, short confirmation, Continue -> Home', async () => {
-  for (const displaySource of ['subscription', 'lifetime', 'trial', 'unknown']) {
+  for (const displaySource of ['subscription', 'annual', 'trial', 'unknown']) {
     const view = derive({ entitlement: { state: 'active', displaySource } });
     assert.equal(view.screen, 'ACTIVE_KPLUS', displaySource);
     assert.equal(view.paywall, null);
@@ -565,17 +565,17 @@ test('K NOTHING_TO_RESTORE: neutral panel, back to options, Free', async () => {
 test('L PURCHASE_CANCELLED: neutral, not an error, same plan, no unproven no-charge claim', async () => {
   const ui = mount({
     purchaseImpl: async () => {
-      ui.env.commerce = commerce({ status: 'USER_CANCELLED', pendingKind: 'LIFETIME' });
+      ui.env.commerce = commerce({ status: 'USER_CANCELLED', pendingKind: 'ANNUAL' });
       return { outcome: 'USER_CANCELLED' };
     },
   });
-  await ui.press('kplus-plan-lifetime');
+  await ui.press('kplus-plan-annual');
   await ui.press('kplus-paywall-cta');
   assert.equal(screenOf(ui), 'purchase-cancelled');
   assert.ok(ui.has('kplus-paywall-banner-neutral'), 'cancellation is styled neutral, not as an error');
   assert.match(ui.text(), /Purchase cancelled\./);
   assert.doesNotMatch(ui.text(), /No charge was made|no charge/i, 'the Phase B outcome does not prove no charge');
-  assert.ok(ui.node('kplus-plan-lifetime').props.accessibilityState.selected, 'returns to the same selected plan');
+  assert.ok(ui.node('kplus-plan-annual').props.accessibilityState.selected, 'returns to the same selected plan');
   assert.equal(model.kplusCancellationProvesNoCharge({ outcome: 'USER_CANCELLED' }), false);
 
   // The proven branch exists for a future outcome that carries proof -- and only it may say so.
@@ -618,7 +618,7 @@ test('N ENTITLEMENT_UNAVAILABLE: never Free, no purchase offered, Try again / Co
   assert.equal(screenOf(ui), 'entitlement-unavailable');
   assert.match(ui.text(), /We can’t confirm your membership right now/);
   assert.equal(ui.env.calls.load, 0, 'no store products are loaded because the server could not answer');
-  assert.doesNotMatch(ui.text(), /Continue with K Scan AI Free|Activate Free Trial|Lifetime/);
+  assert.doesNotMatch(ui.text(), /Continue with K Scan AI Free|ACTIVATE FREE TRIAL|Annual/);
   await ui.press('kplus-entitlement-retry');
   assert.equal(ui.env.calls.refresh, 1);
   await ui.press('kplus-entitlement-continue-later');
@@ -657,32 +657,32 @@ test('P COMPLIMENTARY_EXPIRED: acknowledgement banner, then the standard paid op
 test('Q: Monthly is preselected once valid store products resolve', async () => {
   const view = derive();
   assert.equal(view.paywall.selectedKind, 'MONTHLY');
-  assert.deepEqual(view.paywall.plans.map((p) => [p.kind, p.selected]), [['MONTHLY', true], ['LIFETIME', false]]);
+  assert.deepEqual(view.paywall.plans.map((p) => [p.kind, p.selected]), [['MONTHLY', true], ['ANNUAL', false]]);
   const ui = mount();
   assert.ok(ui.node('kplus-plan-monthly').props.accessibilityState.selected);
-  assert.ok(!ui.node('kplus-plan-lifetime').props.accessibilityState.selected);
+  assert.ok(!ui.node('kplus-plan-annual').props.accessibilityState.selected);
 });
 
-test('R: a missing / malformed Monthly product fails safely to Lifetime only', () => {
+test('R: a missing / malformed Monthly product fails safely to Annual only', () => {
   for (const monthly of [MISSING, AMBIGUOUS, available(monthlyProduct({ subscriptionPeriod: null })), available(monthlyProduct({ subscriptionPeriod: 'weird' }))]) {
     const view = derive({ commerce: commerce({ monthly }) });
-    assert.equal(view.screen, 'LIFETIME_SELECTED');
-    assert.deepEqual(view.paywall.plans.map((p) => p.kind), ['LIFETIME'], 'no placeholder Monthly card');
+    assert.equal(view.screen, 'ANNUAL_SELECTED_NO_TRIAL');
+    assert.deepEqual(view.paywall.plans.map((p) => p.kind), ['ANNUAL'], 'no placeholder Monthly card');
     assert.doesNotMatch(allViewText(view), /month|trial/i);
   }
-  const both = derive({ commerce: commerce({ monthly: MISSING, lifetime: MISSING }) });
+  const both = derive({ commerce: commerce({ monthly: MISSING, annual: MISSING }) });
   assert.equal(both.screen, 'PRODUCTS_UNAVAILABLE');
 });
 
-test('S: a missing / malformed Lifetime product fails safely to Monthly only', () => {
-  for (const lifetime of [MISSING, AMBIGUOUS, available(lifetimeProduct({ localizedPrice: '  ' }))]) {
-    const view = derive({ commerce: commerce({ lifetime }), ui: { selectedPlan: 'LIFETIME' } });
-    assert.equal(view.paywall.selectedKind, 'MONTHLY', 'a remembered Lifetime choice never selects a missing product');
+test('S: a missing / malformed Annual product fails safely to Monthly only', () => {
+  for (const annual of [MISSING, AMBIGUOUS, available(annualProduct({ localizedPrice: '  ' }))]) {
+    const view = derive({ commerce: commerce({ annual }), ui: { selectedPlan: 'ANNUAL' } });
+    assert.equal(view.paywall.selectedKind, 'MONTHLY', 'a remembered Annual choice never selects a missing product');
     assert.deepEqual(view.paywall.plans.map((p) => p.kind), ['MONTHLY']);
   }
 });
 
-const PRICE_LITERAL = /[$€£¥₹₩]\s?\d|\d\s?(USD|EUR|GBP|JPY)\b|\bP\d+[DWMY]\b|\bcom\.kscan|\bkplus[_.](monthly|lifetime|annual)/i;
+const PRICE_LITERAL = /[$€£¥₹₩]\s?\d|\d\s?(USD|EUR|GBP|JPY)\b|\bP\d+[DWMY]\b|\bcom\.kscan|\bkplus[_.](monthly|annual|annual)/i;
 const DISCOUNT_LITERAL = /\b\d{1,3}\s?%\s*(off|saving|savings)|\bsave\s+\d|\bdiscount/i;
 
 function checkNoHardcodedTerms(sources) {
@@ -698,7 +698,7 @@ const PAYWALL_SOURCES = () => ({ [MODEL]: read(MODEL), [STEP]: read(STEP), [PART
 test('T: no hardcoded price, currency, period, trial, product id, discount or placeholder in paywall code', () => {
   checkNoHardcodedTerms(PAYWALL_SOURCES());
   // Rendered: every price on screen is the store's string, verbatim.
-  const view = derive({ commerce: commerce({ monthly: available(monthlyProduct({ localizedPrice: 'R$ 29,90' })), lifetime: available(lifetimeProduct({ localizedPrice: '₹4,999' })) }) });
+  const view = derive({ commerce: commerce({ monthly: available(monthlyProduct({ localizedPrice: 'R$ 29,90' })), annual: available(annualProduct({ localizedPrice: '₹4,999' })) }) });
   assert.equal(view.paywall.plans[0].price, 'R$ 29,90');
   assert.equal(view.paywall.plans[1].price, '₹4,999');
   assert.doesNotMatch(allViewText(view), /\{\{|undefined|null|NaN/);
@@ -708,33 +708,28 @@ function checkTrialOnlyWhenAuthoritative(m) {
   for (const eligibility of ['UNKNOWN', 'INELIGIBLE', 'NO_INTRO_OFFER', undefined, 'garbage']) {
     const view = derive({ commerce: commerce({ monthlyIntroEligibility: eligibility }) }, m);
     assert.notEqual(view.screen, 'MONTHLY_SELECTED_TRIAL_ELIGIBLE', `eligibility ${eligibility}`);
-    assert.doesNotMatch(allViewText(view), /Activate Free Trial|Free trial|Free for/, `eligibility ${eligibility}`);
+    assert.doesNotMatch(allViewText(view), /ACTIVATE FREE TRIAL|Free trial|Free for/, `eligibility ${eligibility}`);
   }
   const noIntro = derive({ commerce: commerce({ monthly: available(monthlyProduct({ introOffer: null })) }) }, m);
-  assert.doesNotMatch(allViewText(noIntro), /Activate Free Trial|Free trial/);
+  assert.doesNotMatch(allViewText(noIntro), /ACTIVATE FREE TRIAL|Free trial/);
 }
 
 test('U: the trial CTA never appears without an authoritative, eligible free trial', () => {
   checkTrialOnlyWhenAuthoritative(model);
   const odd = derive({ commerce: commerce({ monthly: available(monthlyProduct({ introOffer: { ...FREE_WEEK, periodUnit: 'FORTNIGHT', period: '??', cycles: 1 } })) }) });
-  assert.doesNotMatch(allViewText(odd), /Activate Free Trial/, 'an unreadable trial length is not a trial');
+  assert.doesNotMatch(allViewText(odd), /ACTIVATE FREE TRIAL/, 'an unreadable trial length is not a trial');
   assert.equal(model.describeKPlusTrialDuration({ ...FREE_WEEK, periodUnit: 'DAY', periodNumberOfUnits: 3, cycles: 1 }), '3 days');
   assert.equal(model.describeKPlusTrialDuration({ ...FREE_WEEK, periodUnit: 'MONTH', periodNumberOfUnits: 1, cycles: 1 }), '1 month');
 });
 
 function checkLifetimeNeverRecurring(m) {
-  const view = derive({ ui: { selectedPlan: 'LIFETIME' } }, m);
-  const card = view.paywall.plans.find((p) => p.kind === 'LIFETIME');
-  const lifetimeText = [view.paywall.disclosure, view.paywall.cta.label, card.subline, card.priceUnit, card.badge ?? '', card.accessibilityLabel].join(' | ');
-  assert.doesNotMatch(lifetimeText, /\btrial\b|renew|cancel anytime|unless cancelled|every |per month|\/month|recurring ·/i);
-  assert.match(view.paywall.disclosure, /No recurring charge\./);
-  assert.equal(view.paywall.showTrialReminder, false);
+  const product = { ...annualProduct(), kind: 'LIFETIME', subscriptionPeriod: null };
+  assert.equal(m.kplusLifetimeDisclosure(product), 'One-time purchase of ¥18,800. No recurring charge.');
+  assert.doesNotMatch(m.KPLUS_PAYWALL_COPY.lifetimeSubline, /recurring ·|cancel anytime/i);
 }
-
-test('V: Lifetime never displays trial, renewal or cancel-anytime terms', () => {
+test('V: dormant Lifetime retains one-time semantics and is excluded from launch', () => {
   checkLifetimeNeverRecurring(model);
-  const odd = derive({ commerce: commerce({ lifetime: available(lifetimeProduct({ subscriptionPeriod: 'P1M', introOffer: FREE_WEEK })) }), ui: { selectedPlan: 'LIFETIME' } });
-  assert.doesNotMatch(allViewText(odd).split('Monthly')[0], /trial/i);
+  assert.deepEqual(derive().paywall.plans.map(p => p.kind), ['MONTHLY', 'ANNUAL']);
 });
 
 function checkProviderNeverActivates(m) {
@@ -805,11 +800,11 @@ test('AA: an actor switch resets paywall / commerce-derived state', async () => 
 
   const ui = mount({
     purchaseImpl: async () => {
-      ui.env.commerce = commerce({ status: 'USER_CANCELLED', pendingKind: 'LIFETIME' });
+      ui.env.commerce = commerce({ status: 'USER_CANCELLED', pendingKind: 'ANNUAL' });
       return { outcome: 'USER_CANCELLED' };
     },
   });
-  await ui.press('kplus-plan-lifetime');
+  await ui.press('kplus-plan-annual');
   await ui.press('kplus-paywall-cta');
   assert.equal(screenOf(ui), 'purchase-cancelled');
 
@@ -825,7 +820,7 @@ test('AA: an actor switch resets paywall / commerce-derived state', async () => 
   assert.doesNotMatch(ui.text(), /Purchase cancelled/);
 
   // A completion that arrives for a previous actor changes nothing.
-  const s0 = { ...model.INITIAL_KPLUS_PAYWALL_UI, selectedPlan: 'LIFETIME' };
+  const s0 = { ...model.INITIAL_KPLUS_PAYWALL_UI, selectedPlan: 'ANNUAL' };
   assert.equal(model.reduceKPlusPaywallUi(s0, { type: 'PURCHASE_FINISHED', outcome: { outcome: 'DISCARDED_ACTOR_CHANGED' } }), s0);
   assert.equal(model.reduceKPlusPaywallUi(s0, { type: 'RESTORE_FINISHED', outcome: { outcome: 'DISCARDED_ACTOR_CHANGED' } }), s0);
   assert.deepEqual(plain(model.reduceKPlusPaywallUi(s0, { type: 'RESET' })), plain(model.INITIAL_KPLUS_PAYWALL_UI));
@@ -841,7 +836,7 @@ async function checkDoubleTapSinglePurchase(o = {}) {
   await settle();
   gate.resolve();
   await settle();
-  assert.equal(ui.env.calls.monthly + ui.env.calls.lifetime, 1, 'one purchase call for a burst of taps');
+  assert.equal(ui.env.calls.monthly + ui.env.calls.annual, 1, 'one purchase call for a burst of taps');
   // Restore cannot start while a purchase holds the store either.
   const gate2 = deferred();
   const ui2 = mount({ ...o, purchaseImpl: async () => { await gate2.promise; return { outcome: 'USER_CANCELLED' }; } });
@@ -862,7 +857,7 @@ function checkFreePathAccessible(m) {
     [{ commerce: IDLE }, 'LOADING_PRODUCTS'],
     [{}, 'MONTHLY_SELECTED_TRIAL_ELIGIBLE'],
     [{ commerce: commerce({ monthlyIntroEligibility: 'INELIGIBLE' }) }, 'MONTHLY_SELECTED_NO_TRIAL'],
-    [{ ui: { selectedPlan: 'LIFETIME' } }, 'LIFETIME_SELECTED'],
+    [{ ui: { selectedPlan: 'ANNUAL' } }, 'ANNUAL_SELECTED_NO_TRIAL'],
     [{ commerce: { ...IDLE, status: 'UNAVAILABLE' } }, 'PRODUCTS_UNAVAILABLE'],
     [{ ui: { nothingRestored: true } }, 'NOTHING_TO_RESTORE'],
     [{ ui: { notice: { kind: 'cancelled', noChargeProven: false } } }, 'PURCHASE_CANCELLED'],
@@ -925,8 +920,8 @@ test('AE: the trial-reminder promise is absent while reminder delivery is not op
   // The seam works when (and only when) the capability is declared operational.
   const on = derive({ presentation: { trialReminderDeliveryOperational: true, promoRedemptionAvailable: false } });
   assert.equal(on.paywall.showTrialReminder, true);
-  const onLifetime = derive({ presentation: { trialReminderDeliveryOperational: true, promoRedemptionAvailable: false }, ui: { selectedPlan: 'LIFETIME' } });
-  assert.equal(onLifetime.paywall.showTrialReminder, false);
+  const onAnnual = derive({ presentation: { trialReminderDeliveryOperational: true, promoRedemptionAvailable: false }, ui: { selectedPlan: 'ANNUAL' } });
+  assert.equal(onAnnual.paywall.showTrialReminder, false);
 });
 
 test('AF: the Early Access flag does not disable paid commerce', async () => {
@@ -947,7 +942,7 @@ const BANNED_COPY = /yours for good|Pay once|Unlock K\+ for Life|for life\b|fore
 
 function checkCopyCorrections(sources) {
   for (const [rel, src] of Object.entries(sources)) {
-    assert.doesNotMatch(stripComments(src), BANNED_COPY, `${rel} ships unconditional lifetime / capability copy`);
+    assert.doesNotMatch(stripComments(src), BANNED_COPY, `${rel} ships unconditional annual / capability copy`);
   }
 }
 
@@ -955,7 +950,7 @@ test('copy corrections: no permanence promise, Lifetime CTA and subline as appro
   checkCopyCorrections(PAYWALL_SOURCES());
   assert.equal(model.KPLUS_PAYWALL_COPY.lifetimeSubline, 'One-time purchase · no recurring charge');
   assert.equal(model.KPLUS_PAYWALL_COPY.activeBody, 'Your K+ membership is active.');
-  assert.match(model.kplusLifetimeCtaLabel(lifetimeProduct()), /^Get K\+ Lifetime · /);
+  assert.match(model.kplusLifetimeCtaLabel({ ...annualProduct(), kind: 'LIFETIME' }), /^Get K\+ Lifetime · /);
   assert.match(model.KPLUS_PAYWALL_COPY.eyebrow, /K SCAN AI/, 'product name is K Scan AI, never bare K Scan');
 });
 
@@ -1024,11 +1019,11 @@ test('accessibility: radio semantics, non-colour selection, >= 44pt targets, log
   const ui = mount();
   const group = ui.node('kplus-paywall-plans');
   assert.equal(group.props.accessibilityRole, 'radiogroup');
-  for (const kind of ['monthly', 'lifetime']) {
+  for (const kind of ['monthly', 'annual']) {
     const card = ui.node(`kplus-plan-${kind}`);
     assert.equal(card.props.accessibilityRole, 'radio');
     assert.equal(typeof card.props.accessibilityState.selected, 'boolean');
-    assert.match(card.props.accessibilityLabel, kind === 'monthly' ? /Monthly\. Free trial\. €7,49 per month/ : /Lifetime\. ¥18,800 one-time/);
+    assert.match(card.props.accessibilityLabel, kind === 'monthly' ? /Monthly.*1 week free.*€7,49 per month/ : /Annual.*¥18,800 per year/);
     const style = Object.assign({}, ...[].concat(card.props.style));
     assert.ok(style.minHeight >= 44);
     assert.equal(style.height, undefined, 'plan cards grow with text rather than clip');
@@ -1036,9 +1031,9 @@ test('accessibility: radio semantics, non-colour selection, >= 44pt targets, log
   // Selection is shape + border weight, not colour alone.
   const selected = ui.node('kplus-plan-monthly');
   assert.match(textContent(selected), /✓/);
-  assert.doesNotMatch(textContent(ui.node('kplus-plan-lifetime')), /✓/);
+  assert.doesNotMatch(textContent(ui.node('kplus-plan-annual')), /✓/);
   const sel = Object.assign({}, ...[].concat(selected.props.style));
-  const idle = Object.assign({}, ...[].concat(ui.node('kplus-plan-lifetime').props.style));
+  const idle = Object.assign({}, ...[].concat(ui.node('kplus-plan-annual').props.style));
   assert.ok(sel.borderWidth > idle.borderWidth);
 
   const cta = ui.node('kplus-paywall-cta');
@@ -1122,11 +1117,11 @@ test('NEGATIVE: a restore return granting K+ is caught', async () => {
 });
 
 test('NEGATIVE: a placeholder or hard-coded price reaching production UI is caught', async () => {
-  const placeholder = mutateOpt(MODEL, 'price: monthly.product.localizedPrice,', "price: '{{MONTHLY_PRICE}}',")(read(MODEL));
+  const placeholder = mutateOpt(MODEL, 'price: terms.product.localizedPrice,', "price: '{{MONTHLY_PRICE}}',")(read(MODEL));
   await expectRed(() => checkNoHardcodedTerms({ [MODEL]: placeholder }), 'placeholder token');
-  const fallback = mutateOpt(MODEL, 'price: lifetime.localizedPrice,', "price: lifetime.localizedPrice || '$149.99',")(read(MODEL));
+  const fallback = mutateOpt(MODEL, 'price: terms.product.localizedPrice,', "price: terms.product.localizedPrice || '$149.99',")(read(MODEL));
   await expectRed(() => checkNoHardcodedTerms({ [MODEL]: fallback }), 'fallback price');
-  const discount = mutateOpt(MODEL, "lifetimeName: 'Lifetime',", "lifetimeName: 'Lifetime · Save 40% off',")(read(MODEL));
+  const discount = mutateOpt(MODEL, "annualName: 'K+ Annual',", "annualName: 'K+ Annual · Save 40% off',")(read(MODEL));
   await expectRed(() => checkNoHardcodedTerms({ [MODEL]: discount }), 'invented discount');
 });
 
@@ -1168,7 +1163,7 @@ test('NEGATIVE: a reminder promise without operational reminders is caught', asy
 });
 
 test('NEGATIVE: "yours for good" / unconditional permanence copy reappearing is caught', async () => {
-  const back = mutateOpt(MODEL, "lifetimeSubline: 'One-time purchase · no recurring charge',", "lifetimeSubline: 'Pay once · yours for good',")(read(MODEL));
+  const back = mutateOpt(MODEL, "annualSubline: 'Billed yearly upfront · cancel anytime',", "annualSubline: 'Pay once · yours for good',")(read(MODEL));
   await expectRed(() => checkCopyCorrections({ [MODEL]: back }), 'yours for good');
   const cta = mutateOpt(MODEL, 'return `Get K+ Lifetime · ${product.localizedPrice}`;', 'return `Unlock K+ for Life · ${product.localizedPrice}`;')(read(MODEL));
   await expectRed(() => checkCopyCorrections({ [MODEL]: cta }), 'Unlock K+ for Life');
@@ -1201,10 +1196,10 @@ function commercialSurface(ui) {
   return {
     screen: screenOf(ui),
     monthly: control('kplus-plan-monthly'),
-    lifetime: control('kplus-plan-lifetime'),
+    annual: control('kplus-plan-annual'),
     monthlyBadge: text('kplus-plan-monthly-badge'),
     monthlyPrice: text('kplus-plan-monthly-price'),
-    lifetimePrice: text('kplus-plan-lifetime-price'),
+    annualPrice: text('kplus-plan-annual-price'),
     disclosure: text('kplus-paywall-disclosure'),
     cta: control('kplus-paywall-cta'),
     restore: control('kplus-paywall-restore'),
@@ -1223,7 +1218,7 @@ async function checkVtoBenefitIsNotCommercial(o = {}) {
 
     // MONTHLY_DEFAULT_UNCHANGED
     assert.equal(shown.monthly.state.selected, true, 'Monthly is still the default plan');
-    assert.equal(shown.lifetime.state.selected, false);
+    assert.equal(shown.annual.state.selected, false);
     // FREE_PATH_UNCHANGED
     assert.ok(shown.freePath, 'the Free path is still on the paywall');
     assert.equal(shown.freePath.label, 'Continue with K Scan AI Free');
@@ -1233,7 +1228,7 @@ async function checkVtoBenefitIsNotCommercial(o = {}) {
     assert.equal(shown.restore.label, 'Restore Purchases');
     assert.equal(shown.restore.state.disabled, false);
     // TRIAL_METADATA_AUTHORITY_UNCHANGED: a trial is named only when the STORE says so.
-    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null);
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? '1 week free' : null);
     assert.equal(/free for|free trial/i.test(`${shown.disclosure} ${shown.cta.label}`), eligibility === 'ELIGIBLE');
 
     assert.deepEqual(shown, commercialSurface(without), 'the benefit row changes nothing commercial');
@@ -1250,7 +1245,7 @@ test('VTO activation J1: Step 6 shows the Try It On benefit and Free stays clear
   assert.doesNotMatch(textContent(benefit), /\bfit\b|\bsize|exact|photoreal|perfect|measure/i);
   await ui.press('kplus-paywall-free-path');
   assert.equal(ui.env.calls.continue, 1, 'Free continues to Home through the existing handoff');
-  assert.equal(ui.env.calls.monthly + ui.env.calls.lifetime + ui.env.calls.restore, 0);
+  assert.equal(ui.env.calls.monthly + ui.env.calls.annual + ui.env.calls.restore, 0);
 });
 
 test('VTO activation: MONTHLY_DEFAULT / FREE_PATH / RESTORE / TRIAL authority are unchanged by the benefit', () =>
@@ -1305,7 +1300,7 @@ test('VTO activation: showing the benefit is recorded once, and only when it was
   assert.equal(screenOf(member), 'active');
   assert.equal(member.env.calls.vtoPitched, undefined);
   // And a store operation is never started by it.
-  assert.equal(shown.env.calls.monthly + shown.env.calls.lifetime + shown.env.calls.restore, 0);
+  assert.equal(shown.env.calls.monthly + shown.env.calls.annual + shown.env.calls.restore, 0);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1347,9 +1342,9 @@ async function checkSheetReusesThePaywall(o = {}) {
 
     // Verbatim store values, never a string of the wrapper's own.
     assert.equal(shown.monthlyPrice, '€7,49');
-    assert.equal(shown.lifetimePrice, '¥18,800');
+    assert.equal(shown.annualPrice, '¥18,800');
     assert.equal(shown.monthly.state.selected, true, 'Monthly default');
-    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null, 'trial only on store eligibility');
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? '1 week free' : null, 'trial only on store eligibility');
     assert.equal(shown.restore.label, 'Restore Purchases');
     assert.equal(shown.freePath.label, 'Continue with K Scan AI Free');
   }
@@ -1362,13 +1357,13 @@ async function checkSheetReusesThePaywall(o = {}) {
     mutateSheet: o.mutateSheet,
     commerce: commerce({
       monthly: available(monthlyProduct({ localizedPrice: 'kr 89,00', subscriptionPeriod: 'P3M', introOffer: null })),
-      lifetime: available(lifetimeProduct({ localizedPrice: 'R$ 499,90' })),
+      annual: available(annualProduct({ localizedPrice: 'R$ 499,90' })),
       monthlyIntroEligibility: 'NO_INTRO_OFFER',
     }),
   });
   const surface = commercialSurface(repriced);
   assert.equal(surface.monthlyPrice, 'kr 89,00');
-  assert.equal(surface.lifetimePrice, 'R$ 499,90');
+  assert.equal(surface.annualPrice, 'R$ 499,90');
   assert.equal(surface.monthlyBadge, null);
   assert.match(surface.disclosure, /kr 89,00 every 3 months/);
   assert.doesNotMatch(textContent(repriced.tree), /€7,49|free trial|free for/i);
@@ -1385,7 +1380,7 @@ async function checkSheetReusesThePaywall(o = {}) {
   }
   assert.match(source, /<KPlusMembershipStep\b/, 'it renders the one membership orchestrator');
   const acquisition = stripComments(read(ACQUISITION));
-  assert.doesNotMatch(acquisition, /[$€£¥]\s?\d|trial|price|month|lifetime/i, `${ACQUISITION} decides a surface, never a term`);
+  assert.doesNotMatch(acquisition, /[$€£¥]\s?\d|trial|price|month|annual/i, `${ACQUISITION} decides a surface, never a term`);
 }
 
 test('FC-01 T6: the membership sheet reuses the Step 6 model and store metadata -- no pricing of its own', () =>
@@ -1417,7 +1412,7 @@ test('FC-01: the sheet buys, restores and declines through the existing step, an
   const ui = mount({ voiceScan: true, host: 'sheet' });
   await ui.press('kplus-paywall-cta');
   assert.equal(ui.env.calls.monthly, 1, 'the existing Monthly purchase call, once');
-  assert.equal(ui.env.calls.lifetime, 0);
+  assert.equal(ui.env.calls.annual, 0);
 
   const restoring = mount({ voiceScan: true, host: 'sheet' });
   await restoring.press('kplus-paywall-restore');
@@ -1426,7 +1421,7 @@ test('FC-01: the sheet buys, restores and declines through the existing step, an
   const declining = mount({ voiceScan: true, host: 'sheet' });
   await declining.press('kplus-paywall-free-path');
   assert.equal(declining.env.calls.close, 1, 'the Free path closes the sheet');
-  assert.equal(declining.env.calls.monthly + declining.env.calls.lifetime + declining.env.calls.restore, 0);
+  assert.equal(declining.env.calls.monthly + declining.env.calls.annual + declining.env.calls.restore, 0);
 
   const closing = mount({ voiceScan: true, host: 'sheet' });
   await closing.press('kplus-paywall-sheet-close');
@@ -1508,7 +1503,7 @@ async function checkDimmerDoesNotRemoveStep6(o = {}) {
     assert.equal(shown.freePath.state.disabled, false);
     assert.equal(shown.restore.label, 'Restore Purchases', 'RESTORE_UNCHANGED');
     assert.equal(shown.restore.state.disabled, false);
-    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? 'Free trial' : null, 'TRIAL_METADATA_UNCHANGED');
+    assert.equal(shown.monthlyBadge, eligibility === 'ELIGIBLE' ? '1 week free' : null, 'TRIAL_METADATA_UNCHANGED');
 
     // With another capability advertised, only the Try It On line goes.
     const dimmedWithVoice = mount({ ...store, voiceScan: true, vto: true, live: VTO_DIMMED, mutateStep: o.mutateStep });
@@ -1606,4 +1601,24 @@ test('FC-02: served and promoted are separate answers from one read, and promoti
   assert.deepEqual(ids({ virtual_try_on: null }), ['voice_scan', 'virtual_try_on']);
   assert.deepEqual(ids({}), ['voice_scan', 'virtual_try_on']);
   assert.deepEqual(ids(undefined), ['voice_scan', 'virtual_try_on']);
+});
+
+test('Build35: Annual eligible trial uses its own store duration and live renewal price', () => {
+  const view = derive({ commerce: commerce({ annual: available(annualProduct({ introOffer: { ...FREE_WEEK, period: 'P1M', periodUnit: 'MONTH' }, localizedPrice: 'CA$12.34' })), annualIntroEligibility: 'ELIGIBLE' }), ui: { selectedPlan: 'ANNUAL' } });
+  assert.equal(view.paywall.cta.label, 'ACTIVATE FREE TRIAL');
+  assert.match(view.paywall.disclosure, /1 month.*CA\$12\.34 every year unless cancelled/);
+  assert.deepEqual(view.paywall.plans.map(p => p.kind), ['MONTHLY', 'ANNUAL']);
+});
+test('Build35: Annual ineligible never inherits Monthly eligibility', () => {
+  const view = derive({ commerce: commerce({ annual: available(annualProduct({ introOffer: FREE_WEEK })), annualIntroEligibility: 'INELIGIBLE' }), ui: { selectedPlan: 'ANNUAL' } });
+  assert.doesNotMatch(view.paywall.cta.label, /FREE TRIAL/);
+  assert.match(view.paywall.disclosure, /¥18,800 every year/);
+});
+
+test('Build35: eligible paid introduction discloses actual upfront terms rather than full-price charge today', () => {
+  const intro = { ...FREE_WEEK, localizedPrice: '€1,23', priceAmount: 1.23, isFreeIntro: false, period: 'P1M', periodUnit: 'MONTH', cycles: 2 };
+  const view = derive({ commerce: commerce({ monthly: available(monthlyProduct({ introOffer: intro })) }) });
+  assert.equal(view.paywall.cta.label, 'Continue · €1,23/month');
+  assert.match(view.paywall.disclosure, /€1,23 every month for 2 months, then €7,49 every month/);
+  assert.doesNotMatch(view.paywall.disclosure, /today|free/i);
 });

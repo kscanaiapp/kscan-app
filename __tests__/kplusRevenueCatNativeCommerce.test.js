@@ -786,6 +786,7 @@ function loadAdapter({ os = 'ios', nativeModule = {}, sdkOverrides = {} } = {}) 
     configure: (c) => { calls.configure.push(c); appUserId = c.appUserID; },
     logIn: async (id) => { calls.logIn.push(id); appUserId = id; return { customerInfo: { secret: 'RAW' }, created: false }; },
     logOut: async () => { calls.logOut += 1; if (appUserId && appUserId.startsWith('$RCAnonymousID')) throw new Error('anonymous'); appUserId = '$RCAnonymousID:x'; return {}; },
+    isAnonymous: async () => Boolean(appUserId?.startsWith('$RCAnonymousID')),
     getAppUserID: async () => appUserId,
     getOfferings: async () => ({ current: { identifier: 'o', availablePackages: [{ identifier: 'p1', packageType: 'MONTHLY', product: { identifier: 's', price: 1, priceString: '1' } }] } }),
     purchasePackage: async (p) => { calls.purchase.push(p.identifier); return { customerInfo: { receipt: 'RAW_RECEIPT' }, transaction: { token: 'RAW_TOKEN' }, productIdentifier: 's' }; },
@@ -889,8 +890,8 @@ test('adapter: logOut of an already-anonymous customer is not a failure', async 
   const a = loadAdapter({ nativeModule: { RNPurchases: {} } });
   a.port.configure('appl_PUBLIC', ACTOR_A);
   await a.port.logOut();
-  await a.port.logOut(); // the SDK refuses this one; the adapter absorbs it
-  assert.equal(a.calls.logOut, 2);
+  await a.port.logOut(); // already anonymous: do not invoke native logout again
+  assert.equal(a.calls.logOut, 1);
 });
 
 test('adapter: the provider listener passes only the SDK\'s own current customer id, never the payload', async () => {
@@ -971,7 +972,7 @@ test('Z: the commerce layer never writes the canonical store -- it can only ask 
 
 test('wiring: resetActorScopedRuntimeState resets K+ commerce, after the entitlement cache', () => {
   const src = read(path.join(ROOT, 'contexts', 'AuthSessionContext.tsx'));
-  assert.match(src, /import \{ resetKPlusCommerce \} from '\.\.\/services\/kplus\/kplusCommerceService'/);
+  assert.match(src, /import \{ loadKPlusOfferings, resetKPlusCommerce \} from '\.\.\/services\/kplus\/kplusCommerceService'/);
   const start = src.indexOf('function resetActorScopedRuntimeState');
   const end = src.indexOf('\n}', start);
   const body = src.slice(start, end);
@@ -1126,11 +1127,11 @@ test('NEGATIVE: a hard-coded price is caught by the scenario and by the static g
 });
 
 test('NEGATIVE: a missing Lifetime silently becoming Monthly (and the reverse) is caught', async () => {
-  const lifetimeFallsBack = mutate(CONTRACT, 'return { offeringIdentifier: offering.identifier ?? null, monthly, lifetime };',
-    "return { offeringIdentifier: offering.identifier ?? null, monthly, lifetime: lifetime.status === 'unavailable' ? monthly : lifetime };");
+  const lifetimeFallsBack = mutate(CONTRACT, 'return { offeringIdentifier: offering.identifier ?? null, monthly, annual, lifetime };',
+    "return { offeringIdentifier: offering.identifier ?? null, monthly, annual, lifetime: lifetime.status === 'unavailable' ? monthly : lifetime };");
   await expectRed(() => scn.J_missingLifetimeNotMonthly(lifetimeFallsBack), 'Lifetime -> Monthly');
-  const monthlyFallsBack = mutate(CONTRACT, 'return { offeringIdentifier: offering.identifier ?? null, monthly, lifetime };',
-    "return { offeringIdentifier: offering.identifier ?? null, monthly: monthly.status === 'unavailable' ? lifetime : monthly, lifetime };");
+  const monthlyFallsBack = mutate(CONTRACT, 'return { offeringIdentifier: offering.identifier ?? null, monthly, annual, lifetime };',
+    "return { offeringIdentifier: offering.identifier ?? null, annual, monthly: monthly.status === 'unavailable' ? lifetime : monthly, lifetime };");
   await expectRed(() => scn.I_missingMonthlyNotLifetime(monthlyFallsBack), 'Monthly -> Lifetime');
 });
 
@@ -1242,4 +1243,57 @@ test('NEGATIVE PD: treating an intro offer\'s presence as eligibility is caught'
   await expectRed(() => scn.PD_eligibilityFromStoreOnly(sources), 'intro presence -> eligible');
   const catchAll = mutate(SERVICE, "    } catch {\n      return 'UNKNOWN';\n    }\n  }\n\n  async function fetchCatalog", "    } catch {\n      return 'ELIGIBLE';\n    }\n  }\n\n  async function fetchCatalog");
   await expectRed(() => scn.PD_eligibilityFromStoreOnly(catchAll), 'failed read -> eligible');
+});
+
+const ANNUAL = pkg('$rc_annual', 'ANNUAL', product('kscan.kplus.annual', {
+  price: 9.99, priceString: 'US$9.99', currencyCode: 'USD', subscriptionPeriod: 'P1Y',
+  introPrice: { price: 0, priceString: '$0.00', cycles: 1, period: 'P1M', periodUnit: 'MONTH', periodNumberOfUnits: 1 },
+}));
+test('Build35: current offering discovers Annual, retains dormant Lifetime and purchases the live Annual package', async () => {
+  const r = rigWithMocks({ offerings: { ...offeringOf(MONTHLY, ANNUAL, LIFETIME), all: { wrong: offeringOf(LIFETIME).current } } });
+  await r.svc.loadOfferings();
+  assert.equal(r.svc.getSnapshot().catalog.annual.product.localizedPrice, 'US$9.99');
+  await r.svc.purchaseAnnual();
+  assert.deepEqual(r.port.calls.purchase, ['$rc_annual']);
+  assert.equal(r.state.canonicalActive, false, 'purchase success cannot grant canonical access');
+  assert.ok(r.state.refreshCount > 0);
+});
+test('Build35: missing Annual fails closed instead of purchasing Lifetime', async () => {
+  const r = rigWithMocks();
+  await r.svc.loadOfferings();
+  await r.svc.purchaseAnnual();
+  assert.deepEqual(r.port.calls.purchase, []);
+});
+test('Build35: Android selected Play option supplies trial eligibility without iOS UNKNOWN checks', async () => {
+  const phase = { price: { amountMicros: 0, formatted: '$0.00' }, billingCycleCount: 1, billingPeriod: { iso8601: 'P1M', unit: 'MONTH', value: 1 } };
+  const raw = { ...ANNUAL, product: { ...ANNUAL.product, defaultOption: { freePhase: phase, fullPricePhase: { ...phase, price: { amountMicros: 9990000, formatted: 'US$9.99' }, billingPeriod: { iso8601: 'P1Y', unit: 'YEAR', value: 1 } } } } };
+  const r = loadAdapter({ os: 'android', sdkOverrides: { getOfferings: async () => offeringOf(raw), checkTrialOrIntroductoryPriceEligibility: async () => { throw Error('iOS-only API called'); } } });
+  const offers = await r.port.getOfferings();
+  assert.equal(await r.port.checkIntroEligibility('kscan.kplus.annual'), 'ELIGIBLE');
+  assert.equal(offers.current.availablePackages[0].product.introPrice.period, 'P1M');
+  assert.equal(offers.current.availablePackages[0].product.priceString, 'US$9.99');
+});
+test('Build35: Android without an eligible free phase does not promise a trial', async () => {
+  const r = loadAdapter({ os: 'android' });
+  await r.port.getOfferings();
+  assert.equal(await r.port.checkIntroEligibility('s'), 'NO_INTRO_OFFER');
+});
+test('Build35: an in-flight actor A offering cannot overwrite actor B native package cache', async () => {
+  const gate = deferred();
+  const r = loadAdapter({ sdkOverrides: { getOfferings: () => gate.promise } });
+  const old = r.port.getOfferings();
+  await r.port.logIn(ACTOR_B);
+  gate.resolve(offeringOf(MONTHLY));
+  await assert.rejects(old, /STALE_COMMERCE_IDENTITY/);
+  assert.equal((await r.port.purchasePackage('pkg_m')).status, 'store_error');
+});
+test('Build35: commercial EAS profiles use platform public keys and disable complimentary acquisition', () => {
+  const config = JSON.parse(read(path.join(ROOT, 'eas.json')));
+  for (const name of ['production', 'staging', 'preview', 'development']) {
+    const env = config.build[name].env;
+    assert.match(env.EXPO_PUBLIC_REVENUECAT_IOS_PUBLIC_SDK_KEY, /^appl_/);
+    assert.match(env.EXPO_PUBLIC_REVENUECAT_ANDROID_PUBLIC_SDK_KEY, /^goog_/);
+    assert.equal(env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
+  }
+  assert.equal(config.build['production-certification'].env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
 });

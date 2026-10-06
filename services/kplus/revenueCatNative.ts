@@ -58,6 +58,7 @@ function isCancelled(error: unknown): boolean {
 }
 
 let sdkConfigured = false;
+let identityEpoch = 0;
 let nativePackages = new Map<string, NativePackage>();
 
 function platformOf(): KPlusCommercePlatform {
@@ -90,16 +91,15 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
   },
 
   async logIn(appUserId) {
+    identityEpoch += 1;
+    nativePackages.clear();
     await Purchases.logIn(appUserId);
   },
 
   async logOut() {
-    try {
-      await Purchases.logOut();
-    } catch {
-      // RevenueCat refuses to log out an anonymous customer. That is already the
-      // state this wants; it is not a failure.
-    }
+    identityEpoch += 1;
+    nativePackages.clear();
+    if (!(await Purchases.isAnonymous())) await Purchases.logOut();
   },
 
   async getAppUserId() {
@@ -112,10 +112,32 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
   },
 
   async getOfferings(): Promise<RawOfferings> {
+    const epoch = identityEpoch;
     const offerings = await Purchases.getOfferings();
+    if (epoch !== identityEpoch) throw new Error('STALE_COMMERCE_IDENTITY');
     const next = new Map<string, NativePackage>();
     for (const pkg of offerings.current?.availablePackages ?? []) next.set(pkg.identifier, pkg);
     nativePackages = next;
+    if (platformOf() === 'android') {
+      // defaultOption is the eligible Play offer purchasePackage will select.
+      const current = offerings.current;
+      return { current: current ? { identifier: current.identifier, availablePackages: current.availablePackages.map(pkg => {
+        const option = pkg.product.defaultOption;
+        const full = option?.fullPricePhase;
+        const free = option?.freePhase;
+        const intro = free ?? option?.introPhase;
+        return { ...pkg, product: { ...pkg.product,
+          price: full ? full.price.amountMicros / 1_000_000 : pkg.product.price,
+          priceString: full?.price.formatted ?? pkg.product.priceString,
+          subscriptionPeriod: full?.billingPeriod.iso8601 ?? pkg.product.subscriptionPeriod,
+          introPrice: intro ? {
+            price: intro.price.amountMicros / 1_000_000, priceString: intro.price.formatted, cycles: intro.billingCycleCount,
+            period: intro.billingPeriod.iso8601, periodUnit: intro.billingPeriod.unit,
+            periodNumberOfUnits: intro.billingPeriod.value,
+          } : null,
+        } };
+      }) } : null } as unknown as RawOfferings;
+    }
     return offerings as unknown as RawOfferings & { current: { availablePackages: RawPackage[] } | null };
   },
 
@@ -126,6 +148,7 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
       await Purchases.purchasePackage(pkg);
       return { status: 'ok' };
     } catch (error) {
+      if (errorCodeOf(error) === PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR) return { status: 'ok' };
       if (isCancelled(error)) return { status: 'cancelled', code: errorCodeOf(error) };
       if (errorCodeOf(error) === PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR) {
         return { status: 'pending', code: errorCodeOf(error) };
@@ -144,6 +167,11 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
   },
 
   async checkIntroEligibility(storeProductIdentifier): Promise<KPlusIntroEligibility> {
+    if (platformOf() === 'android') {
+      const product = [...nativePackages.values()].find(pkg => pkg.product.identifier === storeProductIdentifier)?.product;
+      const free = product?.defaultOption?.freePhase;
+      return (free && free.price.amountMicros === 0) || product?.defaultOption?.introPhase ? 'ELIGIBLE' : 'NO_INTRO_OFFER';
+    }
     // RevenueCat answers UNKNOWN whenever it cannot decide (always on Android),
     // and anything unexpected here is UNKNOWN too. Only the store's explicit
     // ELIGIBLE may ever turn into trial copy.
