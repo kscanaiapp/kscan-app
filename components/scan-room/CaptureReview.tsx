@@ -67,6 +67,8 @@ export function CaptureReview({
     ? 'Uploaded inspiration image'
     : 'Captured scan image';
   const reviewImages = images.length > 0 ? images : [{ id: 'primary', uri: imageUri }];
+  const showMultiImageControls =
+    reviewImages.length > 1 || Boolean(onAddImage) || Boolean(onRemoveImage);
 
   return (
     <ScrollView
@@ -116,49 +118,53 @@ export function CaptureReview({
         )}
       </View>
 
-      <View style={styles.selectionSummary}>
-        <Text style={styles.selectionTitle}>
-          {reviewImages.length === 1 ? '1 image selected' : `${reviewImages.length} images selected`}
-        </Text>
-        <Text style={styles.selectionBody}>Review up to five images before analysis.</Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.thumbnailRow}
-        style={styles.thumbnailScroller}
-      >
-        {reviewImages.map((image, index) => (
-          <View key={image.id} style={styles.thumbnailCard}>
-            <Image source={{ uri: image.uri }} style={styles.thumbnail} resizeMode="cover" />
-            <Text style={styles.thumbnailLabel}>Image {index + 1}</Text>
-            {onRemoveImage ? (
-              <Pressable
-                onPress={() => onRemoveImage(image.id)}
-                style={styles.removeButton}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove image ${index + 1}`}
-                testID={`scan-room-remove-image-${index}`}
-              >
-                <Text style={styles.removeButtonText}>Remove</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ))}
-        {onAddImage && reviewImages.length < 5 ? (
-          <Pressable
-            onPress={onAddImage}
-            style={styles.addCard}
-            accessibilityRole="button"
-            accessibilityLabel="Add another image"
-            testID="scan-room-add-image"
-          >
-            <Text style={styles.addMark}>+</Text>
-            <Text style={styles.addText}>Add image</Text>
-          </Pressable>
-        ) : null}
-      </ScrollView>
+      {showMultiImageControls ? (
+        <>
+        <View style={styles.selectionSummary}>
+          <Text style={styles.selectionTitle}>
+            {reviewImages.length === 1 ? '1 image selected' : `${reviewImages.length} images selected`}
+          </Text>
+          <Text style={styles.selectionBody}>Review up to five images before analysis.</Text>
+        </View>
+  
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.thumbnailRow}
+          style={styles.thumbnailScroller}
+        >
+          {reviewImages.map((image, index) => (
+            <View key={image.id} style={styles.thumbnailCard}>
+              <Image source={{ uri: image.uri }} style={styles.thumbnail} resizeMode="cover" />
+              <Text style={styles.thumbnailLabel}>Image {index + 1}</Text>
+              {onRemoveImage ? (
+                <Pressable
+                  onPress={() => onRemoveImage(image.id)}
+                  style={styles.removeButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove image ${index + 1}`}
+                  testID={`scan-room-remove-image-${index}`}
+                >
+                  <Text style={styles.removeButtonText}>Remove</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+          {onAddImage && reviewImages.length < 5 ? (
+            <Pressable
+              onPress={onAddImage}
+              style={styles.addCard}
+              accessibilityRole="button"
+              accessibilityLabel="Add another image"
+              testID="scan-room-add-image"
+            >
+              <Text style={styles.addMark}>+</Text>
+              <Text style={styles.addText}>Add image</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+        </>
+      ) : null}
 
       {/* Metadata placeholder card */}
       <View style={styles.metaCard}>
