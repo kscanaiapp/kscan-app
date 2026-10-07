@@ -140,9 +140,19 @@ export function useKScan() {
   // Declared last, same reason as commerceStatus — see the note there.
   const [multiItemCommerce, setMultiItemCommerce] = useState([]);
   const [multiItemCommerceStatus, setMultiItemCommerceStatus] = useState('idle');
-  // Restored Build 35 multi-image selection state. Kept after all historical
-  // state slots so positional hook harnesses for older Scanner state remain stable.
-  const [selectedImages, setSelectedImages] = useState([]);
+  // Preserve the historical ten-slot hook contract: multi-image selection is
+  // carried inside the existing photo state instead of adding another useState.
+  const selectedImages = Array.isArray(photo?.batchImages) && photo.batchImages.length > 0
+    ? photo.batchImages
+    : photo?.uri
+      ? [{
+          id: photo.id ?? 'primary',
+          uri: photo.uri,
+          source: photo.source ?? 'camera',
+          originalIndex: 0,
+          ...(photo.qaFixtureName ? { qaFixtureName: photo.qaFixtureName } : {}),
+        }]
+      : [];
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -290,8 +300,13 @@ export function useKScan() {
           initialMultiItemAnalysisRef.current = null;
           retryRequestModeRef.current = 'multi_item_detection';
           setSelectedCandidateId(null);
-          setSelectedImages([image]);
-          setPhoto({ ...result, ...image, source: 'camera', scanSessionId: session.scanSessionId });
+          setPhoto({
+            ...result,
+            ...image,
+            source: 'camera',
+            scanSessionId: session.scanSessionId,
+            batchImages: [image],
+          });
           setError(null);
           setStatus('preview');
         }
@@ -368,11 +383,11 @@ export function useKScan() {
           initialMultiItemAnalysisRef.current = null;
           retryRequestModeRef.current = 'multi_item_detection';
           setSelectedCandidateId(null);
-          setSelectedImages(images);
           setPhoto({
             ...primary,
             source: primary.source,
             scanSessionId: primarySession.scanSessionId,
+            batchImages: images,
           });
           setError(null);
           setAnalysis(null);
@@ -387,7 +402,7 @@ export function useKScan() {
         if (isOperationValid(operationId)) {
           if (err?.message === 'TOO_MANY_IMAGES') {
             Alert.alert('Maximum 5 Images', 'Remove an image before adding another.');
-            setStatus(selectedImages.length > 0 ? 'preview' : 'idle');
+            setStatus(photo?.uri ? 'preview' : 'idle');
           } else {
             setError('Uploaded image could not be loaded.');
             setStatus('error');
@@ -397,7 +412,7 @@ export function useKScan() {
         clearInFlight(operationId);
       }
     },
-    [status, selectedImages, startInFlight, clearInFlight, isOperationValid]
+    [status, photo, startInFlight, clearInFlight, isOperationValid]
   );
 
   const selectGalleryPhoto = useCallback(
@@ -422,7 +437,6 @@ export function useKScan() {
 
     if (images.length === 0) {
       multiItemSessionRef.current = null;
-      setSelectedImages([]);
       setPhoto(null);
       setStatus('idle');
       return;
@@ -435,14 +449,14 @@ export function useKScan() {
       multiImageSessionsRef.current.set(primary.id, primarySession);
     }
     multiItemSessionRef.current = primarySession;
-    setSelectedImages(images);
     setPhoto({
       ...primary,
       source: primary.source,
       scanSessionId: primarySession.scanSessionId,
+      batchImages: images,
     });
     setStatus('preview');
-  }, [selectedImages]);
+  }, [photo, selectedImages]);
 
   const uploadPhoto = useCallback(
     (uri) => {
@@ -477,8 +491,12 @@ export function useKScan() {
       initialMultiItemAnalysisRef.current = null;
       retryRequestModeRef.current = 'multi_item_detection';
       setSelectedCandidateId(null);
-      setSelectedImages([image]);
-      setPhoto({ ...image, source: 'upload', scanSessionId: session.scanSessionId });
+      setPhoto({
+        ...image,
+        source: 'upload',
+        scanSessionId: session.scanSessionId,
+        batchImages: [image],
+      });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -986,7 +1004,7 @@ export function useKScan() {
         clearInFlight(operationId);
       }
     },
-    [status, photo, selectedImages, startInFlight, clearInFlight, isOperationValid]
+    [status, photo, startInFlight, clearInFlight, isOperationValid]
   );
 
   const selectConfirmationCandidate = useCallback((candidateId) => {
@@ -1178,7 +1196,6 @@ export function useKScan() {
     }
 
     setPhoto(null);
-    setSelectedImages([]);
     multiImageSessionsRef.current.clear();
     multiImageCandidateLookupRef.current.clear();
     setAnalysis(null);
@@ -1228,8 +1245,13 @@ export function useKScan() {
       initialMultiItemAnalysisRef.current = null;
       retryRequestModeRef.current = 'multi_item_detection';
       setSelectedCandidateId(null);
-      setSelectedImages([image]);
-      setPhoto({ ...image, qaFixtureName: fixtureName, source: 'fixture', scanSessionId: session.scanSessionId });
+      setPhoto({
+        ...image,
+        qaFixtureName: fixtureName,
+        source: 'fixture',
+        scanSessionId: session.scanSessionId,
+        batchImages: [image],
+      });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -1259,7 +1281,6 @@ export function useKScan() {
 
     setAnalysis(null);
     setPhoto(null);
-    setSelectedImages([]);
     multiImageSessionsRef.current.clear();
     multiImageCandidateLookupRef.current.clear();
     setError(null);
