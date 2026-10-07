@@ -12,10 +12,10 @@ Two capabilities have real Staging runtime evidence: Packing generation plus ref
 | BASE_ANCESTRY_VERIFIED | YES; merged Speech PR #514 is included |
 | END_SHA | Git commit containing this report; see PR head |
 | BRANCH | `feature/build35-premium-value-v2` |
-| PR | Against `integration/build35-v1-convergence`; link recorded in final handoff |
+| PR | [Draft #517](https://github.com/kscanaiapp/kscan-app/pull/517), against `integration/build35-v1-convergence` |
 | FILES_CHANGED | Authoritative PR diff; implementation groups listed below |
 | VTO ownership check | PR #513 OPEN; latest inspected head `54910919412328e6d79ae4359c66a9dfe5feff08` |
-| Shared overlap | Mechanical catalog-import/approved-gate test inventories and generated Edge manifest only; no shared membership layout, KPlusGate, StyleChat presentation, or VTO source overwritten |
+| Shared overlap | Mechanical catalog-import/approved-gate/backend-path test inventories and generated Edge manifest only; no shared membership layout, KPlusGate, StyleChat presentation, or VTO source overwritten |
 | Mid-lane convergence | Integration fetched immediately before PR preparation; tip remains the exact starting SHA |
 
 The user-supplied addendum supersedes the base prompt's request to turn Today off. Its actual integration baseline must be preserved. Production is read-only. RevenueCat, canonical entitlement reader/store, grant authority, Speech lifecycle, VTO lifecycle, Signature Style and Scanner pipeline implementations are unchanged. New protected-source tests compare normalized source hashes against that precise integration authority, without widening a regression baseline.
@@ -164,7 +164,7 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 
 | Check / field | Result |
 | --- | --- |
-| TARGETED_TESTS | PASS final focused groups; 18 latest capability/return mutation tests pass; catalog/VTO 95 pass; surface/config/Cloud groups 223 pass |
+| TARGETED_TESTS | PASS final focused groups; 56 premium-value tests pass; catalog/VTO 95 pass; surface/config/Cloud groups 223 pass |
 | NEGATIVE_CONTROLS | PASS; all below reject a mutant or exact profile drift |
 | FULL_REGRESSION_OBSERVED / KNOWN / UNEXPECTED (Windows) | 31 / 13 / 18 on lane and exact untouched base; configured baseline remains 19 identities, unchanged |
 | WINDOWS_LOCAL_FAILURES | 31; exact identities in `build35-premium-windows-comparison.json` |
@@ -179,7 +179,9 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 | TestSprite | UNVERIFIED_BECAUSE_UNDEPLOYED: CLI/auth and linked backend project verified; no MCP tunnel available, and new source is not on a reachable deployed target |
 | LINUX_CI_FULL_SUITE_RESULT / LINUX_CI_UNEXPECTED_FAILURES | Pending new PR head; Linux is authoritative |
 
-The Windows-only observed failures include pre-existing path-separator/mutation-harness and PostHog module-loading failures. They are measured against a second untouched worktree at the exact base, not relabeled as passing or added to a baseline. The latest 18 focused tests also cover tests added after the full run. No old deployed build was used as TestSprite evidence for this source change.
+The Windows-only observed failures include pre-existing path-separator/mutation-harness and PostHog module-loading failures. They are measured against a second untouched worktree at the exact base, not relabeled as passing or added to a baseline. The latest focused tests also cover tests added after the full run. No old deployed build was used as TestSprite evidence for this source change.
+
+Initial PR CI found the existing VTO guard's broader backend allowlist did not enumerate this lane's three Watch worker files. Its VTO-owned source guard passed. The test inventory now includes only the worker entry point, fresh entitlement guard and guard test, justified by the owner's Premium Value brief and P1-WATCH-LAPSE. An additional control rejects Watch provider, push and database paths. This is an exact authorized-path inventory update, not a failure-baseline widening or VTO implementation change.
 
 | Negative control | Assertion exercised |
 | --- | --- |
