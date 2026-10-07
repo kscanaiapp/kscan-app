@@ -19,6 +19,7 @@
  *   ALLOW_DESTRUCTIVE_MIGRATION=YES (required for DROP TABLE / destructive ALTER)
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,7 +38,97 @@ import {
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
-import { loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
+import { loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY } from './staging-deploy-preflight.mjs';
+import { compareMigrations } from './staging-deploy-preflight.mjs';
+
+/**
+ * The single decision "may THIS invocation execute THIS version?", answered by the
+ * same gate the preflight uses so the two can never disagree.
+ *
+ * Many known pending migrations may exist (an October-style campaign), but one
+ * invocation executes at most the one version it was explicitly approved for.
+ * Everything else the authority declares stays pending and untouched. It refuses:
+ *   - a version declared as a remote-only ledger row (OBSOLETE_REMOTE_ONLY etc.)
+ *   - a version already in the ledger (no replay)
+ *   - HOLD / EXCLUDE / undeclared versions, an unmet applyAfter order
+ *   - any unexplained local or remote drift anywhere in the ledger
+ *
+ * @returns {{ok: boolean, blockers: string[], migration: object|null, report: object|null}}
+ */
+export function selectMigrationForApply({ version, local, remote, reconciliation }) {
+  const remoteOnlyRow = (reconciliation?.remoteOnly ?? []).find((r) => r?.remoteVersion === version);
+  if (remoteOnlyRow) {
+    return {
+      ok: false,
+      blockers: [
+        `MIGRATION_VERSION=${version} is a declared ${remoteOnlyRow.classification} ledger row — it never executes through this path`,
+      ],
+      migration: null,
+      report: null,
+    };
+  }
+
+  const report = compareMigrations(local, remote, version, reconciliation);
+  const blockers = [...report.blockers];
+  if (report.ok && report.approvedAlreadyApplied) {
+    blockers.push(`Version ${version} is already recorded on staging — refusing re-apply`);
+  } else if (report.ok && (report.approvedSelectedForExecution !== 1 || report.approvedPending?.version !== version)) {
+    blockers.push(`Expected exactly one approved pending migration ${version}; the gate selected ${report.selectedMigration}`);
+  }
+  return {
+    ok: blockers.length === 0,
+    blockers,
+    migration: blockers.length === 0 ? report.approvedPending : null,
+    report,
+  };
+}
+
+/** LF-normalised content hash, so a CRLF checkout and an LF checkout agree. */
+export function normalizedSha256(sql) {
+  return crypto.createHash('sha256').update(String(sql).replace(/\r\n/g, '\n')).digest('hex');
+}
+
+/**
+ * Applies the scanner policy for ONE version.
+ *
+ * The scanner's patterns are never weakened. A BLOCK finding may be cleared only
+ * by a scannerOverrides entry on THIS version's knownPending declaration that
+ * names that finding id AND the LF-normalised sha256 of the exact SQL about to
+ * run. Editing the file voids the override; another version cannot inherit it.
+ * Every override that is used is returned, so it is logged rather than silent.
+ */
+export function applyScannerPolicy({ findings, declaration, sql }) {
+  const overrides = Array.isArray(declaration?.scannerOverrides) ? declaration.scannerOverrides : [];
+  const digest = normalizedSha256(sql);
+  const used = [];
+  const remaining = [];
+  for (const finding of findings) {
+    if (finding.severity !== 'BLOCK') continue;
+    const override = overrides.find(
+      (o) => o?.findingId === finding.id && o?.sha256 === digest
+        && typeof o.reason === 'string' && o.reason.trim() !== '',
+    );
+    if (override) used.push({ findingId: finding.id, sha256: digest, reason: override.reason });
+    else remaining.push(finding);
+  }
+  return { blocked: remaining, overridden: used };
+}
+
+/**
+ * The whole scanner decision for ONE migration, from its version and exact SQL.
+ *
+ * The override is looked up by THIS version's own declaration and nothing else,
+ * so a pattern that is approved for one migration is never inherited by another
+ * migration that happens to use it. allowDestructive is the pre-existing
+ * per-invocation switch; it only downgrades DESTRUCTIVE_* findings and never
+ * clears a BLOCK-class pattern such as TRUNCATE.
+ */
+export function evaluateScannerForMigration({ version, sql, reconciliation, allowDestructive = false }) {
+  const findings = scanSqlForProhibited(sql, { allowDestructive });
+  const declaration = (reconciliation?.knownPending ?? []).find((k) => k.localVersion === version);
+  const { blocked, overridden } = applyScannerPolicy({ findings, declaration, sql });
+  return { findings, blocked, overridden };
+}
 
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
@@ -53,6 +144,12 @@ function resolveMigrationFile(version, explicitPath) {
     if (!parsed) fail(`Migration filename does not match required pattern: ${path.basename(abs)}`);
     if (parsed.version !== version) {
       fail(`Filename version ${parsed.version} does not equal MIGRATION_VERSION ${version}`);
+    }
+    // An override path may only restate the governed file. Without this, a file
+    // outside supabase/migrations could run under an approved version string.
+    const governed = listLocalMigrationVersions().find((m) => m.version === version);
+    if (!governed || path.resolve(governed.path) !== abs) {
+      fail(`MIGRATION_FILE is not the governed supabase/migrations file for version ${version}`);
     }
     return { ...parsed, path: abs };
   }
@@ -110,8 +207,10 @@ function main() {
   const hash = sha256File(migration.path);
   const sql = fs.readFileSync(migration.path, 'utf8');
   const allowDestructive = String(process.env.ALLOW_DESTRUCTIVE_MIGRATION || '').toUpperCase() === 'YES';
-  const findings = scanSqlForProhibited(sql, { allowDestructive });
-  const blocked = findings.filter((f) => f.severity === 'BLOCK');
+  const reconciliation = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const { findings, blocked, overridden } = evaluateScannerForMigration({
+    version, sql, reconciliation, allowDestructive,
+  });
   if (blocked.length) {
     fail(`Migration blocked by prohibited SQL patterns: ${blocked.map((f) => f.id).join(', ')}`);
   }
@@ -129,12 +228,12 @@ function main() {
     fail(`Version ${version} is already recorded on staging — refusing re-apply`);
   }
 
+  // Many known pending migrations may exist; exactly this one approved version
+  // may run. The decision comes from the same gate the preflight uses.
   const local = listLocalMigrationVersions();
-  const pending = pendingVersions(local, remote);
-  if (pending.length !== 1 || pending[0].version !== version) {
-    fail(
-      `Expected exactly one approved pending migration ${version}; pending=[${pending.map((p) => p.version).join(', ')}]`,
-    );
+  const selection = selectMigrationForApply({ version, local, remote, reconciliation });
+  if (!selection.ok) {
+    fail(`Refusing to apply ${version}: ${selection.blockers.join('; ')}`);
   }
 
   console.log(JSON.stringify({
@@ -145,6 +244,10 @@ function main() {
     path: migration.path,
     sha256: hash,
     findings,
+    scannerOverridesUsed: overridden,
+    otherKnownPendingUntouched: selection.report.knownPending
+      .map((m) => m.version)
+      .filter((v) => v !== version),
   }, null, 2));
 
   try {
@@ -167,11 +270,25 @@ function main() {
   const afterRemote = listRemoteVersions();
   const afterLocalMigrations = listLocalMigrationVersions();
   const afterLocal = afterLocalMigrations.map((m) => m.version);
-  const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const { reconciled, remoteOnly: remoteOnlyDeclarations } = loadLedgerReconciliation(STAGING_PROJECT_REF);
   const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
   const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
-  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v) && !reconciledRemote.has(v));
+  // Declared OBSOLETE_REMOTE_ONLY rows (validated by the preflight that gates this
+  // job) are accounted for, not drift -- the same rule the preflight applies.
+  const excludedRemote = new Set(
+    remoteOnlyDeclarations
+      .filter((r) => r?.classification === OBSOLETE_REMOTE_ONLY && !afterLocal.includes(r.remoteVersion))
+      .map((r) => r.remoteVersion),
+  );
+  const remoteOnly = afterRemote.filter(
+    (v) => !afterLocal.includes(v) && !reconciledRemote.has(v) && !excludedRemote.has(v),
+  );
   const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
+
+  // Known pending is not drift: re-run the same gate over the post-apply ledger so
+  // the artifact separates "declared and deliberately unapplied" from unexplained.
+  const post = compareMigrations(afterLocalMigrations, afterRemote, version, reconciliation);
+  const knownPendingRemaining = post.knownPending.map((m) => m.version);
 
   const artifact = {
     timestamp: new Date().toISOString(),
@@ -185,7 +302,14 @@ function main() {
     remoteCount: afterRemote.length,
     remoteOnly,
     localOnly,
-    outcome: remoteOnly.length === 0 && localOnly.length === 0 ? 'ALIGNED' : 'ALIGNED_WITH_PENDING',
+    knownPendingRemaining,
+    unexplainedLocal: post.unexplainedLocal.map((m) => m.version),
+    scannerOverridesUsed: overridden,
+    outcome: !post.ok
+      ? 'DRIFT'
+      : knownPendingRemaining.length === 0 && localOnly.length === 0
+        ? 'ALIGNED'
+        : 'ALIGNED_WITH_KNOWN_PENDING',
   };
 
   const dir = ensureArtifactsDir('staging-migrations');
@@ -194,7 +318,7 @@ function main() {
 
   console.log(JSON.stringify({ ok: true, artifact: artifactPath, ...artifact }, null, 2));
 
-  if (remoteOnly.length > 0) process.exit(1);
+  if (remoteOnly.length > 0 || !post.ok) process.exit(1);
 }
 
 // Only run when invoked as a script; importing must not apply anything.

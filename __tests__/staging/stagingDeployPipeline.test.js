@@ -278,6 +278,32 @@ test('controlled deploy workflow locks Deno and dependencies for both checks', (
   assert.match(deploy, /node scripts\/deploy-staging-function\.mjs \| tee deploy-result\.json/);
 });
 
+test('controlled deploy: migration-only mode is fail-closed and skips Edge deployment jobs', () => {
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /migration_only:/);
+  assert.match(workflow, /default: false/);
+  assert.match(workflow, /migration_only requires one approved migration version and approve_migration=YES/);
+  assert.match(workflow, /export DEPLOY_FUNCTIONS=""/);
+
+  const source = workflow.split('  source-validation:')[1]?.split('  deploy-one-function:')[0];
+  const deploy = workflow.split('  deploy-one-function:')[1]?.split('  health-check:')[0];
+  const health = workflow.split('  health-check:')[1]?.split('  synthetic-tests:')[0];
+  const synthetic = workflow.split('  synthetic-tests:')[1]?.split('  rollback-on-failure:')[0];
+  assert.ok(source && deploy && health && synthetic);
+  for (const job of [source, deploy, health, synthetic]) {
+    assert.match(job, /needs\.preflight\.outputs\.migration_only != 'true'/);
+  }
+
+  const publish = workflow.split('  publish-deployment-artifact:')[1];
+  assert.ok(publish);
+  assert.match(publish, /approved-single-migration/);
+  assert.match(publish, /needs\.preflight\.outputs\.migration_only/);
+  assert.match(publish, /Migration-only execution failed/);
+});
+
 test('deploy script: failed health check invokes rollback before exit', () => {
   const src = fs.readFileSync(path.join(ROOT, 'scripts', 'deploy-staging-function.mjs'), 'utf8');
   assert.match(src, /Post-deploy health check failed — invoking rollback/);

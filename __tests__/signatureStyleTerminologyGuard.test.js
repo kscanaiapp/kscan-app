@@ -254,9 +254,17 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
   // change this number (e.g. a new compatibility item, or a migration that
   // finally ages out of relevance) -- if it does, update this pin
   // deliberately alongside the allowlist, never silently.
+  //
+  // 105 -> 107 (Build 35 migration parity): the ported migration authority
+  // manifest's Production section quotes the historical, still-pending
+  // migration 20260830070000 by its real name (upsert_<legacy>_profile_rpc and
+  // the object it creates) in its logicalName and evidence. Both occurrences
+  // are inside config/migration-authority-manifest.json, which is already an
+  // ENTIRE_FILE IMMUTABLE_HISTORICAL_MIGRATION allowlist entry; no new file and
+  // no active source gained the term.
   assert.equal(
     totalOccurrences,
-    105,
+    107,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });
