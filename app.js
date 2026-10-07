@@ -407,6 +407,48 @@ export default function App() {
   const returnToSessionId = params?.returnToSessionId ? String(params.returnToSessionId) : null;
   const visualContextIntentId = params?.visualContextIntentId ? String(params.visualContextIntentId) : null;
   const isReturningToElise = Boolean(returnToSessionId);
+  const eligibleBatchSession = trueMultiPhotoSession && !isReturningToElise;
+
+  // A source/candidate identity change is a genuinely new batch. Reset only on
+  // that boundary (or when leaving the batch path), never because commerce or
+  // other enrichment replaced the analysis object.
+  useEffect(() => {
+    if (!eligibleBatchSession || !batchSessionKey) {
+      if (batchSessionKeyRef.current !== null) {
+        batchGenerationRef.current += 1;
+        batchSessionKeyRef.current = null;
+        batchGroupIdRef.current = null;
+        batchSavingItemIdsRef.current.clear();
+        setBatchSelectedCandidateIds([]);
+        setBatchItems([]);
+        setBatchItemStates({});
+        setBatchQueueActive(false);
+        setBatchQueueNotice(null);
+        setBatchRemainingCandidateIds([]);
+        setBatchSelectedItemId(null);
+        setSavedBatchScanIds({});
+        setAddAllBatchToRoom(false);
+      }
+      return;
+    }
+    if (batchSessionKeyRef.current === batchSessionKey) return;
+
+    batchGenerationRef.current += 1;
+    batchSessionKeyRef.current = batchSessionKey;
+    batchGroupIdRef.current =
+      `multi-${Date.now().toString(36)}-${batchGenerationRef.current}`;
+    batchSavingItemIdsRef.current.clear();
+    setBatchSelectedCandidateIds([]);
+    setBatchItems([]);
+    setBatchItemStates({});
+    setBatchQueueActive(false);
+    setBatchQueueNotice(null);
+    setBatchRemainingCandidateIds([]);
+    setBatchSelectedItemId(null);
+    setSavedBatchScanIds({});
+    setAddAllBatchToRoom(false);
+  }, [eligibleBatchSession, batchSessionKey]);
+
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
 
