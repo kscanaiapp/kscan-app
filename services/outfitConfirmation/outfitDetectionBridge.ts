@@ -14,6 +14,7 @@ export type OutfitConfirmationCandidate = {
   sourceImageId?: string;
   sourceImageIndex?: number;
   sourceImageUri?: string;
+  sourceImageSource?: 'camera' | 'upload' | 'fixture';
   /** Original backend candidate id when the displayed id is batch-qualified. */
   serverCandidateId?: string;
 };
