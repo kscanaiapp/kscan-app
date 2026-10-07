@@ -219,7 +219,6 @@ const CERT_MATRIX_ENABLED = Object.freeze([
   // as every other key: no other profile, production included, may declare it.
   'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
   'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
-  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
 ]);
@@ -229,6 +228,13 @@ const CERT_MATRIX_ENABLED = Object.freeze([
 // than deleted so that re-excluding a feature is a one-line, reviewed change
 // and the assertion machinery for it never has to be rebuilt.
 const CERT_MATRIX_EXCLUDED = Object.freeze([]);
+
+// Build 35 retired the client-side complimentary K+ grant path. This key may
+// remain explicitly present so artifacts fail closed, but it must never resolve
+// true in any governed profile. Paid K+ authority is now server-side.
+const CERT_MATRIX_DISABLED = Object.freeze([
+  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
+]);
 
 // NOT an EXPO_PUBLIC product flag: a native build selector read by
 // android/app/build.gradle to choose the certification manifest that grants
@@ -249,7 +255,7 @@ test('staging-certification defines an env, but only the approved matrix overrid
   assert.ok(cert.env && typeof cert.env === 'object', 'staging-certification must define its matrix overrides');
   assert.deepEqual(
     Object.keys(cert.env).sort(),
-    [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS].sort(),
+    [...CERT_MATRIX_ENABLED, ...CERT_MATRIX_DISABLED, ...CERT_NATIVE_SELECTORS].sort(),
     'staging-certification env must contain exactly the approved enabled-flag overrides and native selectors, nothing else',
   );
   for (const key of BACKEND_IDENTITY_KEYS) {
@@ -279,14 +285,32 @@ test('the effective (extends-resolved) staging-certification matrix equals the a
       `${key} must NOT be enabled in the effective staging-certification matrix (not closed server-side)`,
     );
   }
+  for (const key of CERT_MATRIX_DISABLED) {
+    assert.equal(
+      resolved.env[key],
+      'false',
+      `${key} must stay explicitly disabled; Build 35 K+ authority is RevenueCat/store lifecycle -> canonical Supabase`,
+    );
+  }
   // The exclusion list is empty by design right now, which would make the
   // loop above silently vacuous. State the intended matrix size explicitly so
   // a flag disappearing from CERT_MATRIX_ENABLED cannot pass unnoticed.
   assert.equal(
     CERT_MATRIX_ENABLED.length,
-    7,
-    'the Build 34 certification matrix is seven client flags; changing it is an owner ruling',
+    6,
+    'the active certification matrix is six client flags; legacy complimentary K+ is explicitly disabled in Build 35',
   );
+});
+
+test('legacy complimentary K+ stays fail-closed in every governed profile', () => {
+  for (const name of Object.keys(eas.build)) {
+    const resolved = resolveEasBuildProfile(eas, name);
+    assert.notEqual(
+      resolved.env?.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED,
+      'true',
+      `profile "${name}" must never re-enable legacy complimentary K+`,
+    );
+  }
 });
 
 test('the ordinary staging profile is not broadened by the certification matrix', () => {
