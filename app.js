@@ -328,17 +328,79 @@ export default function App() {
     retry,
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
+    analyzeSelectedCandidates,
     selectStaticFixture,
     selectGalleryPhoto,
     addGalleryPhotos,
     removeSelectedImage,
   } = useKScan();
 
+  // Restored multi-photo result orchestration lives at the screen layer so the
+  // governed ten-slot useKScan hook contract remains unchanged.
+  const [batchSelectedCandidateIds, setBatchSelectedCandidateIds] = useState([]);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchItemStates, setBatchItemStates] = useState({});
+  const [batchQueueActive, setBatchQueueActive] = useState(false);
+  const [batchQueueNotice, setBatchQueueNotice] = useState(null);
+  const [batchRemainingCandidateIds, setBatchRemainingCandidateIds] = useState([]);
+  const [batchSelectedItemId, setBatchSelectedItemId] = useState(null);
+  const [savedBatchScanIds, setSavedBatchScanIds] = useState({});
+  const [addAllBatchToRoom, setAddAllBatchToRoom] = useState(false);
+  const batchSessionKeyRef = useRef(null);
+  const batchGroupIdRef = useRef(null);
+  const batchGenerationRef = useRef(0);
+  const batchSavingItemIdsRef = useRef(new Set());
+
+  const trueMultiPhotoSession =
+    MULTI_IMAGE_SCANNER_ENABLED &&
+    selectedImages.length > 1 &&
+    status === 'result' &&
+    Array.isArray(analysis?.confirmationCandidates) &&
+    analysis.confirmationCandidates.length > 0;
+
+  const batchSessionKey = trueMultiPhotoSession
+    ? [
+        ...selectedImages.map((image) => image.id),
+        ...analysis.confirmationCandidates.map((candidate) => candidate.id),
+      ].join('|')
+    : null;
+
+  const batchCandidateDescriptors = trueMultiPhotoSession
+    ? analysis.confirmationCandidates.map((candidate) => {
+        const identification = candidate.source?.identification ?? {};
+        const attributes = candidate.source?.attributes ?? {};
+        return {
+          id: candidate.id,
+          label: candidate.label || candidate.category || 'Fashion item',
+          category: candidate.category || attributes.category || null,
+          subtype: candidate.subtype || identification.subtype || null,
+          primaryColor:
+            identification.primary_color ||
+            (Array.isArray(attributes.colorPalette) ? attributes.colorPalette[0] : null) ||
+            null,
+          sourceImageIndex: Number.isInteger(candidate.sourceImageIndex)
+            ? candidate.sourceImageIndex
+            : 0,
+          sourceImageId: candidate.sourceImageId || 'primary',
+        };
+      })
+    : [];
+
+  const activeBatchItem =
+    batchItems.find((item) => item.id === batchSelectedItemId) ?? batchItems[0] ?? null;
+  const batchResultVisible = trueMultiPhotoSession && Boolean(activeBatchItem);
+
   const activeResultCandidate = Array.isArray(analysis?.confirmationCandidates)
     ? analysis.confirmationCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? null
     : null;
-  const activeResultImageUri = activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
-  const activeResultSource = activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
+  const displayAnalysis = batchResultVisible ? activeBatchItem.analysis : analysis;
+  const activeResultImageUri = batchResultVisible
+    ? activeBatchItem.sourceImageUri
+    : activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
+  const activeResultSource = batchResultVisible
+    ? activeBatchItem.source
+    : activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
+  const activeBatchSavedId = activeBatchItem ? savedBatchScanIds[activeBatchItem.id] ?? null : null;
 
   const router = useRouter();
   const params = useLocalSearchParams();
