@@ -549,18 +549,13 @@ export default function App() {
     attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
   }, [status, savedScanId, analysis]);
 
-  // Build 32: save a multi-item detection result once, independent of the
-  // single-item save above (that one explicitly skips while
-  // confirmationCandidates exist — see its own effect). Fires as soon as the
-  // candidates are known; commerce for them attaches afterward, below.
+  // Build 32: save one aggregate multi-item result only after the result exists.
+  // Multi-photo batches fail closed here until per-item source media is restored.
   useEffect(() => {
     if (
       status !== 'result' ||
       !photo?.uri ||
       !analysis?.confirmationCandidates?.length ||
-      // A true multi-photo batch cannot be truthfully represented by the
-      // current aggregate Saved Scan record because it stores one media URI.
-      // Fail closed until per-item source media is restored.
       selectedImages.length > 1 ||
       hasSavedMultiItemRef.current
     ) return;
