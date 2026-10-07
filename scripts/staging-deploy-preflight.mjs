@@ -292,6 +292,12 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     result.blockers.push(blocker);
   }
 
+  // The audit-visible answer to "which migration may this invocation run?".
+  // A deploy-only run (no approved version) reports NONE and executes nothing,
+  // however many known pending migrations the authority declares.
+  result.selectedMigration = approval.selected ? approval.selected.version : 'NONE';
+  result.knownPendingCount = knownPending.length;
+
   if (approval.selected) {
     result.approvedPending = approval.selected;
     result.approvedSelectedForExecution = 1;
@@ -413,6 +419,7 @@ function main() {
       console.log(`  remote migrations: ${migrationReport.remoteCount}`);
       console.log(`  remote-only: ${migrationReport.remoteOnly.length ? migrationReport.remoteOnly.join(', ') : 'none'}`);
       console.log(`  local-only (pending): ${migrationReport.localOnly.length ? migrationReport.localOnly.map((m) => m.version).join(', ') : 'none'}`);
+      console.log(`  known pending: ${migrationReport.knownPendingCount ?? 0}; selected migration: ${migrationReport.selectedMigration ?? 'NONE'}`);
       console.log(`  reconciled local: ${migrationReport.reconciledLocal?.length ?? 0}`);
       console.log(`  reconciled remote: ${migrationReport.reconciledRemote?.length ?? 0}`);
       console.log(`  excluded obsolete remote-only: ${migrationReport.excludedRemoteOnly?.length ? migrationReport.excludedRemoteOnly.join(', ') : 'none'}`);

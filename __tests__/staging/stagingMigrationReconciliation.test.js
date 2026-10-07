@@ -525,10 +525,19 @@ test('production carries only explicit governed reconciliation authority', async
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
+  // Owner ruling (Build 35 migration parity): Staging declares exactly the five
+  // October migrations as legitimately pending, in campaign order, and nothing
+  // else -- no HOLD, no EXCLUDE, no extra version. Declaring them is documentation
+  // of reality, not permission to apply (see the multi-pending campaign tests).
   assert.deepEqual(
-    staging.knownPending,
-    [],
-    'staging declares no knownPending, so its one-pending-migration rule is unchanged',
+    staging.knownPending.map((k) => [k.localVersion, k.disposition]),
+    [
+      ['20261002010000', 'KNOWN_FUTURE_UNAPPLIED'],
+      ['20261003195716', 'KNOWN_FUTURE_UNAPPLIED'],
+      ['20261004184118', 'KNOWN_FUTURE_UNAPPLIED'],
+      ['20261004221500', 'KNOWN_FUTURE_UNAPPLIED'],
+      ['20261004231628', 'KNOWN_FUTURE_UNAPPLIED'],
+    ],
   );
 });
 

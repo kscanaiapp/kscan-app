@@ -323,6 +323,19 @@ export function validateKnownPending(knownPending, localSet, remoteSet, aliasedL
         `known-pending entry ${label}: localVersion is not present in supabase/migrations — stale authority`,
       );
     }
+    // applyAfter fixes the order of a campaign: a declared prerequisite must be a
+    // real, different local migration, or the ordering rule cannot be trusted.
+    if (
+      item.applyAfter !== undefined &&
+      (!Array.isArray(item.applyAfter) ||
+        item.applyAfter.some(
+          (v) => typeof v !== 'string' || v === item.localVersion || !localSet.has(v),
+        ))
+    ) {
+      problems.push(
+        `known-pending entry ${label}: applyAfter must list other versions present in supabase/migrations`,
+      );
+    }
     if (aliasedLocal.has(item.localVersion)) {
       problems.push(
         `known-pending entry ${label}: also declared reconciled, which asserts its effect is already present — contradictory authority`,
@@ -524,6 +537,14 @@ export function resolveApprovedMigration({
   // 6/7/8/9. approved, and not HOLD / EXCLUDE / anything else non-executable
   if (declaration && !APPROVABLE_DISPOSITIONS.has(declaration.disposition)) {
     push(`is declared ${declaration.disposition} — ${declaration.disposition} migrations never execute through this path`);
+    return { selected: null, alreadyApplied: null, blockers };
+  }
+
+  // Campaign order. A declaration may name versions that must already be in the
+  // ledger; approving a later step first is refused rather than reordered.
+  const unmetPrerequisites = (declaration?.applyAfter ?? []).filter((v) => !remoteSet.has(v));
+  if (unmetPrerequisites.length > 0) {
+    push(`must be applied after ${unmetPrerequisites.join(', ')} — the declared campaign order is not satisfied`);
     return { selected: null, alreadyApplied: null, blockers };
   }
 
