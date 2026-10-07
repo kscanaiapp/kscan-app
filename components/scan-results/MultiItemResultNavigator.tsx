@@ -39,6 +39,8 @@ type Props = {
   onSaveAll?: () => void;
   saveAllDisabled?: boolean;
   onAddAllToDressingRoom?: () => void;
+  onResumeQueue?: () => void;
+  resumeCount?: number;
   // Review/processing surface
   candidates?: ReadonlyArray<CandidateReviewDescriptor>;
   selectedCandidateIds?: ReadonlyArray<string>;
@@ -85,6 +87,8 @@ export function MultiItemResultNavigator({
   onSaveAll,
   saveAllDisabled = false,
   onAddAllToDressingRoom,
+  onResumeQueue,
+  resumeCount = 0,
   candidates = [],
   selectedCandidateIds = [],
   itemStates = {},
@@ -203,6 +207,20 @@ export function MultiItemResultNavigator({
         <Text style={styles.notice} accessibilityLiveRegion="polite">
           {queueNotice}
         </Text>
+      ) : null}
+
+      {onResumeQueue && resumeCount > 0 ? (
+        <TouchableOpacity
+          onPress={onResumeQueue}
+          style={styles.bulkSecondary}
+          accessibilityRole="button"
+          accessibilityLabel={`Resume matches for ${resumeCount} remaining ${resumeCount === 1 ? 'item' : 'items'}`}
+          testID="multi-item-resume"
+        >
+          <Text style={styles.bulkSecondaryText}>
+            {`RESUME MATCHES FOR ${resumeCount} ${resumeCount === 1 ? 'ITEM' : 'ITEMS'}`}
+          </Text>
+        </TouchableOpacity>
       ) : null}
 
       <ScrollView
