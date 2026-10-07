@@ -726,7 +726,7 @@ export function useKScan() {
             preparedEntries.push({ image, session, evidence, evidenceSource });
           }
 
-          const platform = Platform.OS === 'android' ? 'android' : 'ios';
+          const platform = Platform?.OS === 'android' ? 'android' : 'ios';
           const settled = await Promise.allSettled(
             preparedEntries.map(async (entry) => {
               const outcome = await runScannerIdentification({
@@ -905,7 +905,7 @@ export function useKScan() {
         const outcome = await runScannerIdentification({
           mode: 'detect_items',
           evidence,
-          platform: Platform.OS === 'android' ? 'android' : 'ios',
+          platform: Platform?.OS === 'android' ? 'android' : 'ios',
           requestId: createEvidenceId(),
           sessionFlag: scannerV2SessionRef.current,
           legacyCorrelation: {
@@ -1089,7 +1089,7 @@ export function useKScan() {
       const outcome = await runScannerIdentification({
         mode: 'identify_selected_item',
         evidence,
-        platform: Platform.OS === 'android' ? 'android' : 'ios',
+        platform: Platform?.OS === 'android' ? 'android' : 'ios',
         requestId: createEvidenceId(),
         sessionFlag: scannerV2SessionRef.current,
         selectedCandidate: {
