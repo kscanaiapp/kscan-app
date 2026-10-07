@@ -548,6 +548,178 @@ export default function App() {
   }, []);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
 
+  const toggleBatchCandidate = useCallback((candidateId) => {
+    if (!eligibleBatchSession || batchQueueActive) return;
+    if (!batchCandidateDescriptors.some((candidate) => candidate.id === candidateId)) return;
+    if (batchItemStates[candidateId] === 'ready') return;
+    setBatchSelectedCandidateIds((current) => (
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : [...current, candidateId]
+    ));
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchCandidateDescriptors,
+    batchItemStates,
+  ]);
+
+  const runBatchQueue = useCallback(async (candidateIdsOverride = null) => {
+    if (!eligibleBatchSession || batchQueueActive) return;
+    const sourceIds = Array.isArray(candidateIdsOverride) && candidateIdsOverride.length > 0
+      ? candidateIdsOverride
+      : batchSelectedCandidateIds;
+    const ids = [];
+    const seen = new Set();
+    for (const candidateId of sourceIds) {
+      if (
+        typeof candidateId !== 'string' ||
+        !candidateId ||
+        seen.has(candidateId) ||
+        batchItemStates[candidateId] === 'ready'
+      ) continue;
+      seen.add(candidateId);
+      ids.push(candidateId);
+    }
+    if (ids.length === 0) return;
+
+    const generation = batchGenerationRef.current;
+    setBatchQueueActive(true);
+    setBatchQueueNotice(null);
+    setBatchRemainingCandidateIds([]);
+    setBatchItemStates((current) => {
+      const next = { ...current };
+      for (const id of ids) {
+        if (next[id] !== 'ready') next[id] = 'queued';
+      }
+      return next;
+    });
+
+    const outcome = await analyzeSelectedCandidates(ids, (event) => {
+      if (generation !== batchGenerationRef.current) return;
+      if (!event?.candidateId || !event.state) return;
+      setBatchItemStates((current) => ({
+        ...current,
+        [event.candidateId]: event.state,
+      }));
+      if (event.state === 'ready' && event.item) {
+        setBatchItems((current) => (
+          current.some((item) => item.id === event.item.id)
+            ? current.map((item) => item.id === event.item.id ? event.item : item)
+            : [...current, event.item]
+        ));
+        setBatchSelectedItemId((current) => current || event.item.id);
+      } else if (event.state === 'failed' && event.message) {
+        setBatchQueueNotice(event.message);
+      }
+    });
+
+    if (generation !== batchGenerationRef.current) return;
+    setBatchQueueActive(false);
+
+    if (outcome?.halted === 'quota') {
+      setBatchQueueNotice(
+        outcome.message || 'Daily scan limit reached. You can resume the remaining items later.',
+      );
+      setBatchRemainingCandidateIds(
+        Array.isArray(outcome.remainingCandidateIds) ? outcome.remainingCandidateIds : [],
+      );
+      return;
+    }
+
+    if (outcome?.halted && outcome.halted !== 'superseded') {
+      setBatchQueueNotice(outcome.message || 'The remaining items could not be analyzed.');
+    }
+    setBatchRemainingCandidateIds([]);
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchSelectedCandidateIds,
+    batchItemStates,
+    analyzeSelectedCandidates,
+  ]);
+
+  const resumeBatchQueue = useCallback(() => {
+    if (batchRemainingCandidateIds.length === 0 || batchQueueActive) return;
+    void runBatchQueue(batchRemainingCandidateIds);
+  }, [batchRemainingCandidateIds, batchQueueActive, runBatchQueue]);
+
+  const persistBatchItem = useCallback(async (item) => {
+    if (!item?.id || !item?.sourceImageUri || !item?.analysis) return null;
+    if (savedBatchScanIds[item.id]) return savedBatchScanIds[item.id];
+    if (batchSavingItemIdsRef.current.has(item.id)) return null;
+
+    batchSavingItemIdsRef.current.add(item.id);
+    const generation = batchGenerationRef.current;
+    const actorRequest = createActorRequest();
+    const groupId = batchGroupIdRef.current
+      ?? `multi-${Date.now().toString(36)}-${generation}`;
+    batchGroupIdRef.current = groupId;
+    try {
+      const saved = await saveScan({
+        photoUri: item.sourceImageUri,
+        analysis: {
+          ...item.analysis,
+          multiScan: {
+            schemaVersion: 1,
+            groupId,
+            itemId: item.id,
+            sourceImageId: item.sourceImageId,
+            sourceImageIndex: item.sourceImageIndex,
+            imageCount: Math.max(1, Math.min(selectedImages.length || 1, 5)),
+            itemCount: Math.max(
+              1,
+              Math.min(batchSelectedCandidateIds.length || batchItems.length || 1, 5),
+            ),
+          },
+        },
+        source: item.source || 'scan',
+        actorRequest,
+      });
+
+      if (
+        saved &&
+        generation === batchGenerationRef.current &&
+        isActorRequestCurrent(actorRequest)
+      ) {
+        setSavedBatchScanIds((current) => ({ ...current, [item.id]: saved.id }));
+        setSavedToast(true);
+        return saved.id;
+      }
+      return null;
+    } finally {
+      batchSavingItemIdsRef.current.delete(item.id);
+    }
+  }, [
+    savedBatchScanIds,
+    selectedImages.length,
+    batchSelectedCandidateIds.length,
+    batchItems.length,
+  ]);
+
+  const saveAllBatchItems = useCallback(async () => {
+    if (batchItems.length === 0) return;
+    await Promise.all(batchItems.map((item) => persistBatchItem(item)));
+  }, [batchItems, persistBatchItem]);
+
+  // Preserve the established Scanner behavior for the one-selected-item case:
+  // once that one item is completely analyzed, persist it automatically.
+  useEffect(() => {
+    if (
+      !eligibleBatchSession ||
+      batchQueueActive ||
+      batchSelectedCandidateIds.length !== 1 ||
+      batchItems.length !== 1
+    ) return;
+    void persistBatchItem(batchItems[0]);
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchSelectedCandidateIds.length,
+    batchItems,
+    persistBatchItem,
+  ]);
+
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
   // running. The AnalysisCard is held back until perceiving becomes false.
   const [perceiving, setPerceiving] = useState(false);
