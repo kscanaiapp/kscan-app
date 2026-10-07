@@ -549,8 +549,8 @@ export default function App() {
     attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
   }, [status, savedScanId, analysis]);
 
-  // Build 32: save one aggregate multi-item result only after the result exists.
-  // Multi-photo batches fail closed here until per-item source media is restored.
+  // Build 32: save a multi-item detection result once.
+  // Multi-photo batches fail closed until per-item source media is restored.
   useEffect(() => {
     if (
       status !== 'result' ||
