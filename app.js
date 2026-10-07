@@ -59,6 +59,7 @@ import {
 import {
   CLOSET_SEPARATION_V1,
   TEXTSCAN_UI_ENABLED,
+  MULTI_IMAGE_SCANNER_ENABLED,
   SCAN_RESULTS_V2_UI_ENABLED,
   SCAN_ROOM_V2_UI_ENABLED,
 } from './constants/featureFlags';
@@ -309,6 +310,7 @@ export default function App() {
   const {
     status,
     photo,
+    selectedImages,
     analysis,
     commerceStatus,
     retryCommerce,
@@ -328,6 +330,8 @@ export default function App() {
     analyzeSelectedCandidate,
     selectStaticFixture,
     selectGalleryPhoto,
+    addGalleryPhotos,
+    removeSelectedImage,
   } = useKScan();
 
   const router = useRouter();
@@ -1080,8 +1084,11 @@ export default function App() {
           return (
             <CaptureReview
               imageUri={photo.uri}
+              images={selectedImages}
               source={photo.source || 'camera'}
               onRetake={photo.source === 'upload' ? selectGalleryPhoto : retake}
+              onAddImage={MULTI_IMAGE_SCANNER_ENABLED ? addGalleryPhotos : undefined}
+              onRemoveImage={MULTI_IMAGE_SCANNER_ENABLED ? removeSelectedImage : undefined}
               onAnalyze={runAnalysis}
               onHome={handleHome}
               isAnalyzing={isAnalyzing}
