@@ -1,8 +1,450 @@
 {
   "environment": "staging",
   "productionWrites": 0,
-  "writes": [],
-  "runtimeAttempts": [],
+  "writes": [
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:19:45.636Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:19:46.408Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_signup",
+      "keyOrResource": "dedicated Build35 synthetic actor",
+      "preWriteState": "absent",
+      "intendedChange": "public signup with client-safe key",
+      "reason": "isolated real auth fixture",
+      "timestamp": "2026-10-07T13:19:47.200Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_complimentary_grant",
+      "keyOrResource": "build35-premium-3875faa2-ade9-41c2-a9a1-5c6e68432e45",
+      "preWriteState": "canonical FREE",
+      "intendedChange": "temporary K+ expires in four hours",
+      "reason": "premium runtime proof",
+      "timestamp": "2026-10-07T13:19:48.304Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_grant_revoke",
+      "keyOrResource": "4a3daee8-dc43-4cc7-a905-55ce664726de",
+      "preWriteState": "temporary K+ active",
+      "intendedChange": "revoke through trusted RPC",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:20:23.686Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_admin_delete",
+      "keyOrResource": "d836941a-9960-4520-88c4-3f93b9fe92a2",
+      "preWriteState": "dedicated synthetic fixtures",
+      "intendedChange": "delete actor and cascaded fixtures",
+      "reason": "owner-authorized fixture cleanup",
+      "timestamp": "2026-10-07T13:20:31.785Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:20:32.768Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:20:33.372Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:22:42.802Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:22:43.558Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_signup",
+      "keyOrResource": "dedicated Build35 synthetic actor",
+      "preWriteState": "absent",
+      "intendedChange": "public signup with client-safe key",
+      "reason": "isolated real auth fixture",
+      "timestamp": "2026-10-07T13:22:44.266Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_complimentary_grant",
+      "keyOrResource": "build35-premium-480f833d-b282-4f02-9d8a-c48e28f69481",
+      "preWriteState": "canonical FREE",
+      "intendedChange": "temporary K+ expires in four hours",
+      "reason": "premium runtime proof",
+      "timestamp": "2026-10-07T13:22:45.042Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "daaa45e3-a701-4624-996e-77a1578c8bfc",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:09.442Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "7c780449-f239-4bcf-a986-4152a3aed98e",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:09.757Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "85bf4add-4024-4c35-a960-0dc44962ef4c",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:10.265Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "d27d620d-8e2b-4bd6-be3b-1c71cfc03355",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:10.576Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "a814d93f-ce00-4fb8-89a7-1a4885fcd7e9",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:10.933Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "a09a96c8-8f15-4c03-9fdc-789476fe8571",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:11.249Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "closet_synthetic_facts",
+      "keyOrResource": "abfb8aef-c9d0-4257-bdbf-34f64a739be7",
+      "preWriteState": "absent",
+      "intendedChange": "insert bounded synthetic owned facts via existing facts client",
+      "reason": "Packing ownership fixture",
+      "timestamp": "2026-10-07T13:23:11.388Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "style_chat_synthetic_session",
+      "keyOrResource": "d4d55366-debb-4fdc-bbe6-91f75e5e47d4",
+      "preWriteState": "absent",
+      "intendedChange": "create dedicated synthetic session",
+      "reason": "existing Packing request contract",
+      "timestamp": "2026-10-07T13:23:11.763Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "packing_runtime_quota",
+      "keyOrResource": "6cbcaf68-e929-4c0b-869b-ce77bca5b725",
+      "preWriteState": "synthetic quota only",
+      "intendedChange": "existing burst/daily quota may increment",
+      "reason": "generate",
+      "timestamp": "2026-10-07T13:23:36.917Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "packing_runtime_quota",
+      "keyOrResource": "6cbcaf68-e929-4c0b-869b-ce77bca5b725",
+      "preWriteState": "synthetic quota only",
+      "intendedChange": "existing burst/daily quota may increment",
+      "reason": "refine_pack_light",
+      "timestamp": "2026-10-07T13:23:51.306Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_grant_revoke",
+      "keyOrResource": "75d02cb6-27ba-4c90-9cac-cc245763535d",
+      "preWriteState": "temporary K+ active",
+      "intendedChange": "revoke through trusted RPC",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:24:52.855Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_admin_delete",
+      "keyOrResource": "6cbcaf68-e929-4c0b-869b-ce77bca5b725",
+      "preWriteState": "dedicated synthetic fixtures",
+      "intendedChange": "delete actor and cascaded fixtures",
+      "reason": "owner-authorized fixture cleanup",
+      "timestamp": "2026-10-07T13:24:54.000Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:24:54.353Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:24:55.025Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:25:49.141Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "absent",
+      "intendedChange": "store dedicated login",
+      "reason": "governed auth access",
+      "timestamp": "2026-10-07T13:25:52.223Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_signup",
+      "keyOrResource": "dedicated Build35 synthetic actor",
+      "preWriteState": "absent",
+      "intendedChange": "public signup with client-safe key",
+      "reason": "isolated real auth fixture",
+      "timestamp": "2026-10-07T13:25:53.622Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_complimentary_grant",
+      "keyOrResource": "build35-premium-e847906c-4800-47f6-bebb-226bb58a22dc",
+      "preWriteState": "canonical FREE",
+      "intendedChange": "temporary K+ expires in four hours",
+      "reason": "premium runtime proof",
+      "timestamp": "2026-10-07T13:25:55.667Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "watch_synthetic_create",
+      "keyOrResource": "dedicated actor / public Kicks Crew listing CW2288-111",
+      "preWriteState": "absent",
+      "intendedChange": "create just_watching, push disabled",
+      "reason": "real tracking proof",
+      "timestamp": "2026-10-07T13:26:05.401Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "watch_refresh_state_and_event",
+      "keyOrResource": "dc52beb1-37a8-4db4-9778-5d51fcbdf773",
+      "preWriteState": "new synthetic Watch",
+      "intendedChange": "one bounded real provider refresh; push disabled",
+      "reason": "tracking price observation",
+      "timestamp": "2026-10-07T13:26:07.345Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "canonical_grant_revoke",
+      "keyOrResource": "79cd9ba8-501e-4d0c-ba30-36f17c5321fc",
+      "preWriteState": "temporary K+ active",
+      "intendedChange": "revoke through trusted RPC",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:27:43.849Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "RESTORE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "auth_admin_delete",
+      "keyOrResource": "88821fde-0f46-486d-bc82-f4fb4f3ba0fd",
+      "preWriteState": "dedicated synthetic fixtures",
+      "intendedChange": "delete actor and cascaded fixtures",
+      "reason": "owner-authorized fixture cleanup",
+      "timestamp": "2026-10-07T13:27:45.079Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_EMAIL",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:27:45.419Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    },
+    {
+      "type": "github_environment_secret_delete",
+      "keyOrResource": "staging/STAGING_BUILD35_PREMIUM_PASSWORD",
+      "preWriteState": "dedicated login stored",
+      "intendedChange": "delete synthetic login secret",
+      "reason": "fixture cleanup",
+      "timestamp": "2026-10-07T13:27:47.680Z",
+      "ownerScope": "Build35 premium-value dedicated synthetic actor",
+      "postLaneDisposition": "DELETE_SYNTHETIC_FIXTURE",
+      "outcome": "APPLIED"
+    }
+  ],
+  "runtimeAttempts": [
+    {
+      "number": 1,
+      "timestamp": "2026-10-07T13:23:36.919Z",
+      "feature": "packing",
+      "operation": "generate",
+      "dispatched": "YES",
+      "outcome": "success",
+      "failureClass": null
+    },
+    {
+      "number": 2,
+      "timestamp": "2026-10-07T13:23:51.306Z",
+      "feature": "packing",
+      "operation": "refine_pack_light",
+      "dispatched": "YES",
+      "outcome": "success",
+      "failureClass": null
+    },
+    {
+      "number": 1,
+      "timestamp": "2026-10-07T13:26:07.348Z",
+      "feature": "watchlist",
+      "operation": "manual_single_watch_refresh",
+      "dispatched": "YES",
+      "outcome": "completed",
+      "failureClass": null
+    }
+  ],
   "packingProviderLimit": 3,
-  "watchlistForcedRefreshLimit": 2
+  "watchlistForcedRefreshLimit": 2,
+  "finalDisposition": {
+    "stagingMutations": 24,
+    "githubEnvironmentSecretOperations": 12,
+    "temporaryGrantsRevoked": 3,
+    "dedicatedAuthActorsDeleted": 3,
+    "persistedWithOwnerApproval": 0,
+    "pendingOperations": 0,
+    "readOnlyCleanupVerification": {
+      "remainingAuth": 0,
+      "remainingCloset": 0,
+      "remainingWatches": 0,
+      "remainingStyleChatSessions": 0,
+      "remainingStyleChatDailyUsage": 0,
+      "dedicatedGithubSecretNamesRemaining": 0
+    },
+    "notes": "Three revoke RPCs restore canonical FREE; auth deletion cascades synthetic rows. Revocation audit history is retained by the canonical authority. No direct entitlement-table write."
+  }
 }

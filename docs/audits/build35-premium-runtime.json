@@ -1,0 +1,155 @@
+{
+  "environment": "staging",
+  "startedAt": "2026-10-07T13:19:28.511Z",
+  "assertions": [
+    {
+      "name": "governed_actor_canonical_active",
+      "pass": true,
+      "at": "2026-10-07T13:22:46.464Z"
+    },
+    {
+      "name": "packing_fixture_canonical_active",
+      "pass": true,
+      "at": "2026-10-07T13:23:09.409Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:09.753Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:10.261Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:10.574Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:10.931Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:11.246Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:11.386Z"
+    },
+    {
+      "name": "synthetic_owned_fact_inserted",
+      "pass": true,
+      "at": "2026-10-07T13:23:11.760Z"
+    },
+    {
+      "name": "packing_generate",
+      "pass": true,
+      "status": "success",
+      "errorCode": null,
+      "at": "2026-10-07T13:23:51.303Z"
+    },
+    {
+      "name": "packing_generate_owned_only",
+      "pass": true,
+      "itemCount": 7,
+      "outfitCount": 4,
+      "at": "2026-10-07T13:23:51.305Z"
+    },
+    {
+      "name": "packing_refine_pack_light",
+      "pass": true,
+      "status": "success",
+      "errorCode": null,
+      "at": "2026-10-07T13:24:08.526Z"
+    },
+    {
+      "name": "packing_refine_pack_light_owned_only",
+      "pass": true,
+      "itemCount": 7,
+      "outfitCount": 4,
+      "at": "2026-10-07T13:24:08.530Z"
+    },
+    {
+      "name": "canonical_free_after_revoke",
+      "pass": true,
+      "at": "2026-10-07T13:24:53.998Z"
+    },
+    {
+      "name": "governed_actor_canonical_active",
+      "pass": true,
+      "at": "2026-10-07T13:25:56.850Z"
+    },
+    {
+      "name": "watch_create",
+      "pass": true,
+      "reason": null,
+      "at": "2026-10-07T13:26:06.919Z"
+    },
+    {
+      "name": "watch_owner_read",
+      "pass": true,
+      "at": "2026-10-07T13:26:07.340Z"
+    },
+    {
+      "name": "watch_refresh_transport",
+      "pass": true,
+      "reason": null,
+      "at": "2026-10-07T13:26:10.189Z"
+    },
+    {
+      "name": "watch_price_observation",
+      "pass": true,
+      "lastStatus": "available",
+      "lastCheckedPresent": true,
+      "at": "2026-10-07T13:26:10.541Z"
+    },
+    {
+      "name": "canonical_free_after_revoke",
+      "pass": true,
+      "at": "2026-10-07T13:27:45.077Z"
+    }
+  ],
+  "actorId": "88821fde-0f46-486d-bc82-f4fb4f3ba0fd",
+  "grantId": "79cd9ba8-501e-4d0c-ba30-36f17c5321fc",
+  "cleanedAt": "2026-10-07T13:27:50.174Z",
+  "watchId": "dc52beb1-37a8-4db4-9778-5d51fcbdf773",
+  "evidenceGroups": {
+    "packing-generate-and-refine": {
+      "assertions": [
+        "packing_generate",
+        "packing_generate_owned_only",
+        "packing_refine_pack_light",
+        "packing_refine_pack_light_owned_only"
+      ],
+      "transport": "real existing Packing client/parser and deployed Staging function",
+      "nativeAppCertified": false
+    },
+    "watch-create-read-and-price-observation": {
+      "assertions": [
+        "watch_create",
+        "watch_owner_read",
+        "watch_refresh_transport",
+        "watch_price_observation"
+      ],
+      "transport": "real existing Watchlist client and deployed Staging functions",
+      "workerBehaviorProven": false,
+      "iosPushProven": false,
+      "androidPushProven": false,
+      "nativeAppCertified": false
+    }
+  },
+  "cleanupVerification": {
+    "remainingAuth": 0,
+    "remainingCloset": 0,
+    "remainingWatches": 0,
+    "remainingStyleChatSessions": 0,
+    "remainingStyleChatDailyUsage": 0,
+    "dedicatedGithubSecretNamesRemaining": 0
+  }
+}
