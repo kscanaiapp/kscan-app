@@ -1038,6 +1038,7 @@ export function useKScan() {
     const processingStart = Date.now();
 
     try {
+      const serverCandidateId = binding?.serverCandidateId ?? candidate.serverCandidateId ?? candidate.id;
       if (__DEV__) {
         console.log('[KSCAN_MULTI_ITEM] correlation', {
           event: 'selected_item_request_started',
@@ -1052,7 +1053,6 @@ export function useKScan() {
       const evidenceSource = binding?.evidenceSource
         ?? session.evidenceSource
         ?? (photo?.source === 'upload' ? 'gallery' : 'camera');
-      const serverCandidateId = binding?.serverCandidateId ?? candidate.serverCandidateId ?? candidate.id;
       // The SAME prepared derivative and the SAME evidence id detection used.
       // Nothing is recompressed, re-oriented or re-prepared, and no new
       // evidence id is minted for an unchanged image.
@@ -1086,7 +1086,7 @@ export function useKScan() {
         sessionFlag: scannerV2SessionRef.current,
         selectedCandidate: {
           evidenceId: evidence.evidenceId,
-          candidateId: candidate.id,
+          candidateId: serverCandidateId,
           // Category comes FROM detection and is carried through unchanged.
           category: v2Candidate?.category ?? candidate.category,
           ...(v2Candidate?.subtype ?? candidate.subtype
@@ -1171,6 +1171,9 @@ export function useKScan() {
     }
 
     setPhoto(null);
+    setSelectedImages([]);
+    multiImageSessionsRef.current.clear();
+    multiImageCandidateLookupRef.current.clear();
     setAnalysis(null);
     setError(null);
     setNonFashionMessage(null);
@@ -1209,12 +1212,17 @@ export function useKScan() {
 
       if (__DEV__) console.log('[K-SCAN QA] Fixture selected: ' + fixtureName);
       setStatus('capturing');
+      const [image] = normalizeImageSelections([{ uri, qaFixtureName: fixtureName }], 'fixture');
       const session = createScanSession(uri);
+      multiImageSessionsRef.current.clear();
+      multiImageSessionsRef.current.set(image.id, session);
+      multiImageCandidateLookupRef.current.clear();
       multiItemSessionRef.current = session;
       initialMultiItemAnalysisRef.current = null;
       retryRequestModeRef.current = 'multi_item_detection';
       setSelectedCandidateId(null);
-      setPhoto({ uri, qaFixtureName: fixtureName, source: 'fixture', scanSessionId: session.scanSessionId });
+      setSelectedImages([image]);
+      setPhoto({ ...image, qaFixtureName: fixtureName, source: 'fixture', scanSessionId: session.scanSessionId });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -1244,6 +1252,9 @@ export function useKScan() {
 
     setAnalysis(null);
     setPhoto(null);
+    setSelectedImages([]);
+    multiImageSessionsRef.current.clear();
+    multiImageCandidateLookupRef.current.clear();
     setError(null);
     setNonFashionMessage(null);
     setSelectedCandidateId(null);
