@@ -64,6 +64,12 @@ export function isClosetCloudSyncEligible(
  * same items. A pass already running is joined, not duplicated.
  */
 let inFlightPass: Promise<ClosetSyncPassResult> | null = null;
+let inFlightActor: ReturnType<typeof createActorRequest> | null = null;
+
+/** Current-process activity only; never inferred from a durable pending mark. */
+export function isClosetSyncRunning(): boolean {
+  return inFlightPass !== null && inFlightActor !== null && isActorRequestCurrent(inFlightActor);
+}
 
 export interface ClosetSyncPassResult {
   ran: boolean;
@@ -172,14 +178,16 @@ export async function runClosetSyncPass(options: { reason?: string } = {}): Prom
     await inFlightPass.catch(() => null);
     return emptyResult('already_running');
   }
+  inFlightActor = createActorRequest();
   const pass = executePass(options).catch(
-    (): ClosetSyncPassResult => ({ ran: true, processed: 0, synced: 0, blocked: 0, failed: 0, deleted: 0 }),
+    (): ClosetSyncPassResult => ({ ran: true, processed: 0, synced: 0, blocked: 0, failed: 1, deleted: 0 }),
   );
   inFlightPass = pass;
   try {
     return await pass;
   } finally {
     inFlightPass = null;
+    inFlightActor = null;
   }
 }
 

@@ -44,6 +44,8 @@ const SCANNED_ROOTS = ['app', 'components'];
  *   - privacy, security, account, deletion, accessibility
  */
 const EXPECTED_GATE_SITES = [
+  // Cloud enhancement only; the local Library/Closet stays outside this gate.
+  'components/closet/CloudClosetCard.tsx -> closet_intelligence',
   'app/packing/index.tsx -> packing',
   'app/watchlist/[watchId].tsx -> watchlist',
   'components/account-home/PermissionsStepV1.tsx -> onboarding',

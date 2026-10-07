@@ -20,6 +20,9 @@
 // intake, a classification, or a cleanup.
 
 export const CLOSET_CANDIDATE_EVENTS = [
+  'cloud_closet_card_rendered',
+  'cloud_closet_sync_requested',
+  'cloud_closet_sync_completed',
   'closet_candidate_created',
   'closet_candidate_media_prepared',
   'closet_candidate_duplicate_detected',
