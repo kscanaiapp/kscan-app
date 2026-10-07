@@ -443,8 +443,9 @@
       "remainingWatches": 0,
       "remainingStyleChatSessions": 0,
       "remainingStyleChatDailyUsage": 0,
-      "dedicatedGithubSecretNamesRemaining": 0
+      "dedicatedGithubSecretNamesRemaining": 0,
+      "remainingCanonicalGrants": 0
     },
-    "notes": "Three revoke RPCs restore canonical FREE; auth deletion cascades synthetic rows. Revocation audit history is retained by the canonical authority. No direct entitlement-table write."
+    "notes": "Three revoke RPCs restore canonical FREE before auth deletion cascades dedicated grant state and synthetic rows. Read-only verification confirms zero dedicated canonical grant rows. No direct entitlement-table write."
   }
 }

@@ -153,8 +153,8 @@ The user authorized a dedicated actor, not repurposing shared synthetic-active. 
 | --- | --- |
 | STAGING_WRITES_TOTAL | 24 enumerated Staging mutations; plus 12 GitHub environment-secret set/delete operations = 36 ledger entries |
 | STAGING_WRITES_RESTORED | All 3 temporary grants revoked through canonical RPC; resolved FREE verified for the two runtime actors; all 3 actors deleted |
-| STAGING_WRITES_PERSISTED | 0 retained fixture/config/deployment changes; canonical revocation audit history is governed authority, not an active fixture |
-| STAGING_SYNTHETIC_STATE_CLEANED | YES: read-only verification shows 0 auth/closet/watch/session/daily-usage rows for all 3 actors; 0 temporary login secret names remain |
+| STAGING_WRITES_PERSISTED | 0 retained fixture/config/deployment changes; revoke restores access before auth deletion cascades dedicated canonical grant state |
+| STAGING_SYNTHETIC_STATE_CLEANED | YES: read-only verification shows 0 auth/closet/watch/session/daily-usage/canonical-grant rows for all 3 actors; 0 temporary login secret names remain |
 | STAGING_WRITE_LEDGER / RUNTIME_BUDGET_LEDGER | `docs/audits/build35-premium-value-ledger.json` |
 | Ledger pending outcomes | 0 |
 | Shared security actor | Unchanged; canonical FREE |
@@ -179,7 +179,7 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 | Migration provenance / native config parity | PASS |
 | SECURITY | PASS security unit checks and validation runner; its expected localhost ZAP rejection is an intentional negative control |
 | TestSprite | UNVERIFIED_BECAUSE_UNDEPLOYED: CLI/auth and linked backend project verified; no MCP tunnel available, and new source is not on a reachable deployed target |
-| LINUX_CI_FULL_SUITE_RESULT / LINUX_CI_UNEXPECTED_FAILURES | Pending new PR head; Linux is authoritative |
+| LINUX_CI_FULL_SUITE_RESULT / LINUX_CI_UNEXPECTED_FAILURES | PASS / 0 on source commit `f62be2d16360c4fa72e5446d26ea75202d08b49d`: 557 files executed; 13 observed, 13 configured-known, 0 unexpected; baseline unchanged |
 
 The Windows-only observed failures include pre-existing path-separator/mutation-harness and PostHog module-loading failures. They are measured against a second untouched worktree at the exact base, not relabeled as passing or added to a baseline. The latest focused tests also cover tests added after the full run. No old deployed build was used as TestSprite evidence for this source change.
 
@@ -203,9 +203,11 @@ The first inventory repair briefly added a new static test, which violated the e
 
 ## CI and remaining verification
 
-PROJECT_CHECKS=PENDING; SECURITY_CODE=PENDING; PROMOTION_GATE=PENDING; DEPENDENCY_GATE=PENDING; STAGING_SECURITY=PENDING; VTO_E2E=PENDING; ZAP_BASELINE=PENDING; ZAP_API=PENDING; PR_CHECKS=PENDING. Final PR checks and Linux artifacts are recorded in the handoff after the run; no healthy running job is labeled failed. No automatic merge is authorized.
+PROJECT_CHECKS=PASS; SECURITY_CODE=PASS; PROMOTION_GATE=PASS; DEPENDENCY_GATE=PASS; STAGING_SECURITY=PASS; VTO_E2E=PASS_CONTRACT_AND_SCOPE; ZAP_BASELINE=PASS; ZAP_API=PASS; PR_CHECKS=ALL_APPLICABLE_GREEN on source commit `f62be2d16360c4fa72e5446d26ea75202d08b49d`. Paid live VTO certification, dry-run and cleanup jobs are inapplicable/skipped; no paid VTO execution was inferred. The final documentation-only commit is checked again in the handoff. No automatic merge is authorized.
 
-OPEN_BLOCKERS: actual second isolated app client and Cloud outbound/media/restore proof; native iOS/Android visual, keyboard and purchase-return checks; platform push certification; real worker fixture behavior; deployed TestSprite execution; new-head Linux CI until completed. Provider budgets are not exhausted. No shared-surface owner decision is currently pending.
+CI evidence: [Project checks + security](https://github.com/kscanaiapp/kscan-app/actions/runs/37637872490), [promotion](https://github.com/kscanaiapp/kscan-app/actions/runs/37637871943), [dependency](https://github.com/kscanaiapp/kscan-app/actions/runs/37637872209), [Staging security](https://github.com/kscanaiapp/kscan-app/actions/runs/37637872004), [VTO contract/scope](https://github.com/kscanaiapp/kscan-app/actions/runs/37637871791), [ZAP Baseline](https://github.com/kscanaiapp/kscan-app/actions/runs/37637871952), [ZAP API](https://github.com/kscanaiapp/kscan-app/actions/runs/37637872089).
+
+OPEN_BLOCKERS: actual second isolated app client and Cloud outbound/media/restore proof; native iOS/Android visual, keyboard and purchase-return checks; platform push certification; real worker fixture behavior; deployed TestSprite execution. Provider budgets are not exhausted. No shared-surface owner decision is currently pending.
 
 VERDICT=PARTIAL. Cross-device setup is blocked and its capability is hidden. Packing and tracking runtime evidence are real and bounded; all source mutation tests pass, dedicated state is cleaned, and Production writes remain zero. The PR is a concrete source review artifact, not authorization to advertise Cloud, push, scheduled behavior, or Production availability.
 

@@ -150,6 +150,7 @@
     "remainingWatches": 0,
     "remainingStyleChatSessions": 0,
     "remainingStyleChatDailyUsage": 0,
-    "dedicatedGithubSecretNamesRemaining": 0
+    "dedicatedGithubSecretNamesRemaining": 0,
+    "remainingCanonicalGrants": 0
   }
 }
