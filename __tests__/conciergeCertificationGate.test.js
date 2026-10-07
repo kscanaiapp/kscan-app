@@ -87,9 +87,9 @@ test('Part A: staging-certification effectively declares BOTH Concierge parents'
     'true',
     'certification must declare the Concierge presentation child',
   );
-  // Recorded because it is a direct neighbour of the certification claim, not
-  // because Concierge reads it: K+ entitlement is resolved server-side.
-  assert.equal(env[KPLUS_EARLY_ACCESS_KEY], 'true');
+  // Build 35 retired the client-side complimentary grant path. Concierge still
+  // gets K+ entitlement from the server, while this legacy client gate stays off.
+  assert.equal(env[KPLUS_EARLY_ACCESS_KEY], 'false');
 });
 
 test('Part A: the certification profile genuinely extends staging', () => {
