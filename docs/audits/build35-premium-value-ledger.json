@@ -1,0 +1,8 @@
+{
+  "environment": "staging",
+  "productionWrites": 0,
+  "writes": [],
+  "runtimeAttempts": [],
+  "packingProviderLimit": 3,
+  "watchlistForcedRefreshLimit": 2
+}

@@ -1,0 +1,17 @@
+{
+  "baseAuthority": "911ac0856d4eb02d6a60645c8412026bdad60df8",
+  "todayFlagOrder": [
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_V1",
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1",
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1"
+  ],
+  "todayByProfile": {
+    "preview": ["true", "true", "true"],
+    "development": ["true", "true", "true"],
+    "staging": ["true", "true", "true"],
+    "staging-certification": ["true", "true", "true"],
+    "production": ["false", "true", "true"],
+    "production-certification": ["true", "true", "true"],
+    "build35-testing": ["true", "true", "true"]
+  }
+}
