@@ -1029,6 +1029,210 @@ export function useKScan() {
     }
   }, []);
 
+  /**
+   * Restored multi-image selected-item queue.
+   *
+   * This deliberately adds NO React state to useKScan (the ten-slot contract is
+   * governed by the duplicate-guard harness). The screen owns presentation
+   * state; this hook owns evidence continuity, provider calls, cancellation and
+   * the one-active-operation boundary.
+   */
+  const analyzeSelectedCandidates = useCallback(async (candidateIds, onProgress) => {
+    if (scanInFlightRef.current) {
+      return { items: [], halted: 'busy', message: 'A scan is already in progress.' };
+    }
+
+    const initialAnalysis = initialMultiItemAnalysisRef.current;
+    const candidates = Array.isArray(initialAnalysis?.confirmationCandidates)
+      ? initialAnalysis.confirmationCandidates
+      : [];
+    const orderedIds = [];
+    const seen = new Set();
+    for (const rawId of Array.isArray(candidateIds) ? candidateIds : []) {
+      const id = typeof rawId === 'string' ? rawId.trim() : '';
+      if (!id || seen.has(id) || !candidates.some((candidate) => candidate.id === id)) continue;
+      seen.add(id);
+      orderedIds.push(id);
+    }
+    if (orderedIds.length === 0) {
+      return { items: [], halted: null, message: null };
+    }
+
+    const operationId = startInFlight();
+    if (operationId === null) {
+      return { items: [], halted: 'busy', message: 'A scan is already in progress.' };
+    }
+
+    const items = [];
+    const emit = (event) => {
+      if (typeof onProgress === 'function' && isOperationValid(operationId)) {
+        onProgress(event);
+      }
+    };
+
+    try {
+      for (let index = 0; index < orderedIds.length; index += 1) {
+        if (!isOperationValid(operationId)) {
+          return { items, halted: 'superseded', message: null };
+        }
+
+        const candidateId = orderedIds[index];
+        const candidate = candidates.find((entry) => entry.id === candidateId);
+        const binding = candidate ? multiImageCandidateLookupRef.current.get(candidate.id) : null;
+        const session = binding?.session ?? multiItemSessionRef.current;
+        const sourceImageUri = binding?.image?.uri ?? candidate?.sourceImageUri ?? photo?.uri;
+        const sourceImageSource =
+          binding?.image?.source ?? candidate?.sourceImageSource ?? photo?.source ?? 'camera';
+
+        emit({ candidateId, state: 'analyzing', index, total: orderedIds.length });
+
+        if (!candidate || !session?.preparedImageUri || !session.imageDigestPrefix) {
+          emit({
+            candidateId,
+            state: 'failed',
+            index,
+            total: orderedIds.length,
+            message: 'The original image is no longer available.',
+          });
+          continue;
+        }
+        if (!sourceImageUri || sourceImageUri !== session.sourceImageUri) {
+          emit({
+            candidateId,
+            state: 'failed',
+            index,
+            total: orderedIds.length,
+            message: 'The original image is no longer available.',
+          });
+          continue;
+        }
+
+        let data = null;
+        let detailStatus = 'complete';
+        try {
+          const serverCandidateId =
+            binding?.serverCandidateId ?? candidate.serverCandidateId ?? candidate.id;
+          const evidenceSource = binding?.evidenceSource
+            ?? session.evidenceSource
+            ?? (sourceImageSource === 'upload' ? 'gallery' : 'camera');
+          const evidence = prepareScannerEvidence({
+            preparedImage: session.preparedImageUri,
+            source: evidenceSource,
+            evidenceId: session.evidenceId,
+          });
+          if (!evidence) throw new Error('PREPARED_EVIDENCE_UNAVAILABLE');
+
+          const v2Candidate = Array.isArray(session.v2Candidates)
+            ? session.v2Candidates.find(
+              (entry) => (entry.candidateId === candidate.id || entry.candidateId === serverCandidateId)
+                && entry.evidenceId === evidence.evidenceId,
+            )
+            : undefined;
+
+          const outcome = await runScannerIdentification({
+            mode: 'identify_selected_item',
+            evidence,
+            platform: Platform?.OS === 'android' ? 'android' : 'ios',
+            requestId: createEvidenceId(),
+            sessionFlag: scannerV2SessionRef.current,
+            selectedCandidate: {
+              evidenceId: evidence.evidenceId,
+              candidateId: serverCandidateId,
+              category: v2Candidate?.category ?? candidate.category,
+              ...(v2Candidate?.subtype ?? candidate.subtype
+                ? { subtype: v2Candidate?.subtype ?? candidate.subtype }
+                : {}),
+              ...(v2Candidate?.bounds ?? candidate.bounds
+                ? { bounds: v2Candidate?.bounds ?? candidate.bounds }
+                : {}),
+              ...(v2Candidate?.detectionDigest
+                ? { detectionDigest: v2Candidate.detectionDigest }
+                : {}),
+            },
+            legacyCorrelation: {
+              scanSessionId: session.scanSessionId,
+              imageDigestPrefix: session.imageDigestPrefix,
+            },
+            localPrivacyFiltered: session.localPrivacyFiltered,
+            signal: activeAbortControllerRef.current?.signal,
+          });
+
+          const identifyResponse = outcome.response;
+          if (identifyResponse?.status === 'rate_limited') {
+            emit({ candidateId, state: 'queued', index, total: orderedIds.length });
+            return {
+              items,
+              halted: 'quota',
+              message: identifyResponse.userMessage || 'Daily scan limit reached. Try again tomorrow.',
+              remainingCandidateIds: orderedIds.slice(index),
+            };
+          }
+
+          if (outcome.v2ValidationFailure || outcome.rejection) {
+            throw new Error('SCANNER_V2_CONTRACT_FAILURE');
+          }
+
+          data = mapScanIdentifyToAnalysis(identifyResponse, {
+            identificationV2: outcome.identificationV2,
+            source: evidenceSource,
+          });
+          if (data.type === 'non-fashion') {
+            throw new Error('SELECTED_GARMENT_NOT_IDENTIFIED');
+          }
+        } catch (err) {
+          if (!isOperationValid(operationId)) {
+            return { items, halted: 'superseded', message: null };
+          }
+          // Preserve the genuine detection result as a partial item when the
+          // selected-item detail call fails. One provider failure must not
+          // discard successful sibling detections.
+          const source = candidate?.source;
+          if (source?.attributes || source?.identification) {
+            detailStatus = 'partial';
+            data = mapScanIdentifyToAnalysis({
+              status: 'completed',
+              attributes: source.attributes ?? {},
+              identification: source.identification,
+              recommendedProducts: [],
+              userMessage: candidate.label,
+            }, {
+              source: sourceImageSource === 'upload' ? 'gallery' : 'camera',
+            });
+          } else {
+            emit({
+              candidateId,
+              state: 'failed',
+              index,
+              total: orderedIds.length,
+              message: 'This item could not be analyzed.',
+            });
+            continue;
+          }
+        }
+
+        const item = {
+          id: candidate.id,
+          sourceImageId: candidate.sourceImageId ?? binding?.image?.id ?? 'primary',
+          sourceImageIndex:
+            Number.isInteger(candidate.sourceImageIndex)
+              ? candidate.sourceImageIndex
+              : binding?.image?.originalIndex ?? 0,
+          sourceImageUri,
+          source: sourceImageSource,
+          label: candidate.label || candidate.category || 'Fashion item',
+          analysis: data,
+          detailStatus,
+        };
+        items.push(item);
+        emit({ candidateId, state: 'ready', item, index, total: orderedIds.length });
+      }
+
+      return { items, halted: null, message: null };
+    } finally {
+      clearInFlight(operationId);
+    }
+  }, [photo, startInFlight, clearInFlight, isOperationValid]);
+
   const analyzeSelectedCandidate = useCallback(async (candidateIdOverride) => {
     if (scanInFlightRef.current) return;
 
@@ -1535,6 +1739,7 @@ export function useKScan() {
     retry,
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
+    analyzeSelectedCandidates,
     retryCommerce,
     retryMultiItemCommerce,
     selectStaticFixture,
