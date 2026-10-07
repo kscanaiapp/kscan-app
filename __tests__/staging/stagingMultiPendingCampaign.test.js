@@ -275,7 +275,7 @@ test('J: the Production project ref is refused by the target guard', async () =>
 
 test('J: the apply script exits before touching any CLI when aimed at Production', () => {
   const env = {
-    PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
+    SystemRoot: process.env.SystemRoot,
     SUPABASE_ACCESS_TOKEN: 'not-a-real-token',
     SUPABASE_STAGING_PROJECT_REF: PRODUCTION_REF,
     SUPABASE_STAGING_URL: `https://${PRODUCTION_REF}.supabase.co`,
@@ -368,6 +368,25 @@ test('scanner: the scanner patterns themselves are untouched', () => {
 });
 
 test('MIGRATION_FILE may only restate the governed migration file', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'), 'utf8');
-  assert.match(source, /MIGRATION_FILE is not the governed supabase\/migrations file/);
+  // A same-named copy OUTSIDE supabase/migrations must not run under an approved
+  // version. The child gets no PATH, so even a broken guard cannot reach the CLI.
+  const governed = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations')).find((f) => f.startsWith(`${OCTOBER[0]}_`));
+  const temp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'kscan-migration-file-'));
+  try {
+    const outside = path.join(temp, governed);
+    fs.copyFileSync(path.join(ROOT, 'supabase', 'migrations', governed), outside);
+    const env = {
+      SystemRoot: process.env.SystemRoot,
+      SUPABASE_ACCESS_TOKEN: 'not-a-real-token',
+      SUPABASE_STAGING_PROJECT_REF: STAGING_REF,
+      SUPABASE_STAGING_URL: `https://${STAGING_REF}.supabase.co`,
+      SUPABASE_STAGING_ANON_KEY: 'not-a-real-key',
+      MIGRATION_VERSION: OCTOBER[0], APPROVE_STAGING_MIGRATION: 'YES', MIGRATION_FILE: outside,
+    };
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'apply-staging-migration.mjs')], { env, cwd: ROOT, encoding: 'utf8', timeout: 60000 });
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}${result.stderr}`, /MIGRATION_FILE is not the governed supabase\/migrations file/);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
 });

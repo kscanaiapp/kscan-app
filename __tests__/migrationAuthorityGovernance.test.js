@@ -124,7 +124,7 @@ test('the real repo manifest and migration tree pass with zero violations', () =
   assert.deepEqual(violations, [], violations.join('\n'));
 });
 
-test('the real manifest accounts for exactly 26 entries, 22 kscan-app-owned + 3 kscan-glasses-webapp + 1 kscan-website', () => {
+test('the real manifest accounts for exactly 28 entries, 24 kscan-app-owned + 3 kscan-glasses-webapp + 1 kscan-website', () => {
   // Base count was 22 (18/3/1). Build 34 migration-governance repair (MIG-01,
   // 2026-09-02) added 3 kscan-app entries while resolving duplicate version
   // prefixes: legal_acceptances_add_ai_processing (20260805170417),
@@ -137,17 +137,20 @@ test('the real manifest accounts for exactly 26 entries, 22 kscan-app-owned + 3 
   // applied to BOTH environments and existed in no repository at all, recovered
   // from the two ledgers and restored to source under its applied staging
   // version, with the production alias (20260905171030) recorded on the entry.
-  // This count is the pin that makes any further growth of the registry a
-  // deliberate, reviewed act rather than a silent one.
+  // Build 34 staging reconciliation added the 27th and 28th entries:
+  // reaction_counts_bind_anonymous_share_token and
+  // dressing_room_items_dedupe_key_idempotency. Both are ledger-backed,
+  // source-owned staging contracts; the obsolete source-identity migration
+  // remains remote-only and is explicitly excluded from this registry.
   const manifest = JSON.parse(
     fs.readFileSync(path.join(REPO_ROOT, 'config', 'migration-authority-manifest.json'), 'utf8'),
   );
-  assert.equal(manifest.entries.length, 26);
+  assert.equal(manifest.entries.length, 28);
   const byOwner = manifest.entries.reduce((acc, e) => {
     acc[e.logicalOwner] = (acc[e.logicalOwner] || 0) + 1;
     return acc;
   }, {});
-  assert.equal(byOwner['kscan-app'], 22);
+  assert.equal(byOwner['kscan-app'], 24);
   assert.equal(byOwner['kscan-glasses-webapp'], 3);
   assert.equal(byOwner['kscan-website'], 1);
 });
