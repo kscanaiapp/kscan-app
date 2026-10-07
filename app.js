@@ -334,6 +334,12 @@ export default function App() {
     removeSelectedImage,
   } = useKScan();
 
+  const activeResultCandidate = Array.isArray(analysis?.confirmationCandidates)
+    ? analysis.confirmationCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? null
+    : null;
+  const activeResultImageUri = activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
+  const activeResultSource = activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
+
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnToSessionId = params?.returnToSessionId ? String(params.returnToSessionId) : null;
@@ -552,6 +558,10 @@ export default function App() {
       status !== 'result' ||
       !photo?.uri ||
       !analysis?.confirmationCandidates?.length ||
+      // A true multi-photo batch cannot be truthfully represented by the
+      // current aggregate Saved Scan record because it stores one media URI.
+      // Fail closed until per-item source media is restored.
+      selectedImages.length > 1 ||
       hasSavedMultiItemRef.current
     ) return;
     hasSavedMultiItemRef.current = true;
@@ -572,7 +582,7 @@ export default function App() {
         setSavedMultiItemScanId(saved.id);
       }
     });
-  }, [status, photo, analysis]);
+  }, [status, photo, analysis, selectedImages.length]);
 
   // Build 32: attach multi-item commerce once hydration completes. Same
   // shape as the single-item attach effect above — correct whether commerce
@@ -1187,7 +1197,7 @@ export default function App() {
   const addScanToRoomModal = dressingRoomsEnabled ? (
     <AddScanToDressingRoomModal
       visible={scanRoomModalVisible}
-      localImageUri={photo?.uri ?? null}
+      localImageUri={activeResultImageUri}
       scan={{
         sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
         sourceId: photo?.qaFixtureName ?? null,
@@ -1241,7 +1251,7 @@ export default function App() {
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activeResultImageUri}
             // The report target for this scan's AI prose: its persisted Recent
             // Scan id (saveScan resolves it a moment after the result appears),
             // else the persisted multi-item scan id (the confirmation step skips
@@ -1270,11 +1280,11 @@ export default function App() {
             onSelectCandidate={selectConfirmationCandidate}
             onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
             onAskStyleChat={styleChatEnabled ? () => {
-              const source = photo?.source === 'upload' ? 'upload' : 'camera';
+              const source = activeResultSource === 'upload' ? 'upload' : 'camera';
               const meta = analysis?.metadata ?? {};
               setStyleChatHandoffContext({
                 source,
-                imageUri: photo?.uri ?? null,
+                imageUri: activeResultImageUri,
                 category: meta.category || null,
                 color: meta.color || null,
                 silhouette: meta.silhouette || null,
@@ -1307,7 +1317,7 @@ export default function App() {
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activeResultImageUri}
             // Same report target as ScanResultV2 above.
             scanSourceId={savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"
