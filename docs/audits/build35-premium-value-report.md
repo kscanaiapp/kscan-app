@@ -2,7 +2,7 @@
 
 BUILD35_PREMIUM_VALUE_ACTIVATION=PARTIAL
 
-Two capabilities have real Staging runtime evidence: Packing generation plus refinement, and Watchlist create/read/price observation. Cloud outbound/media sync, an actual isolated-client restore, scheduled worker behavior, and both platform push flows remain unproven. Their availability claims remain hidden. This is source and service-transport proof, not native device certification or a purchase transaction certification.
+Two capabilities earned real Staging runtime evidence: Packing generation plus refinement, and Watchlist create/read/price observation. The Packing evidence binds the exact implementation now shipping. The Watchlist evidence was earned against the Staging backend deployed before this PR's provider-side K+ recheck existed, so it is historical and does not authorize the claim against the current source until the current backend is deployed and re-exercised (see Capability build authority). Cloud outbound/media sync, an actual isolated-client restore, scheduled worker behavior, and both platform push flows remain unproven. Their availability claims remain hidden. This is source and service-transport proof, not native device certification or a purchase transaction certification.
 
 ## Identity and authority
 
@@ -38,15 +38,35 @@ Flag order: Today / generated greeting / weather. These are effective inherited 
 
 ## Capability truth
 
-CAPABILITY_TRUTH_MECHANISM=typed immutable dated evidence consumed by the existing single activation catalog and discovery surfaces. Environment is resolved from the actual configured Supabase hostname. Build authority, explicit runtime status, nonempty evidence reference, proof type, proof date and expiration must match. Missing, unknown, source-only, future, expired or mismatched evidence fails closed. An open memoized membership list also removes a claim at expiration. This projection cannot grant an entitlement.
+CAPABILITY_TRUTH_MECHANISM=typed immutable dated evidence consumed by the existing single activation catalog and discovery surfaces. Environment is resolved from the actual configured Supabase hostname. The record's implementation fingerprint must equal the content identity of the governed source that is shipping, and explicit runtime status, nonempty evidence reference, proof type, proof date and expiration must match. Missing, malformed, unknown, source-only, future, expired, mismatched or differently-implemented evidence fails closed. An open memoized membership list also removes a claim at expiration. This projection cannot grant an entitlement.
 
 | Capability | Proof record | Runtime / expiry UTC | Presentation |
 | --- | --- | --- | --- |
-| PACKING_PROOF_RECORD | PROVEN_RUNTIME / Staging / `build35-premium-value-v2` / generation_and_refinement | 2026-10-07 13:24:08.530 / 2026-10-14 13:24:08.530 | Eligible only with build flag and valid scoped proof |
-| WATCHLIST_PROOF_RECORD | PROVEN_RUNTIME / Staging / same build / tracking | 2026-10-07 13:26:10.541 / 2026-10-14 13:26:10.541 | Tracking only; worker and each push platform require separate proof |
-| CLOUD_CLOSET_PROOF_RECORD | PROVEN_SOURCE_ONLY / Staging / same build / outbound_sync | Source review dated 2026-10-07; expires 2026-10-14 | Hidden until real outbound proof; restore copy additionally requires isolated-client restore proof |
+| PACKING_PROOF_RECORD | PROVEN_RUNTIME / Staging / identity `7131b140…` / generation_and_refinement | 2026-10-07 13:24:08.530 / 2026-10-14 13:24:08.530 | Eligible only with build flag and valid scoped proof; identity matches the shipping source |
+| WATCHLIST_PROOF_RECORD | PROVEN_RUNTIME / Staging / identity `3ad59c01…` (pre-recheck backend) / tracking | 2026-10-07 13:26:10.541 / 2026-10-14 13:26:10.541 | Does not authorize against the current source (identity is now `c1fd61b2…`); hidden until renewed. Worker and each push platform require separate proof |
+| WATCHLIST_PROVIDER_BOUNDARY_RECORD | none / provider_entitlement_boundary | not proven | Pending deploy of the current backend and one governed exercise; never implied by the tracking record |
+| CLOUD_CLOSET_PROOF_RECORD | PROVEN_SOURCE_ONLY / Staging / identity `fed5873f…` / outbound_sync | Source review dated 2026-10-07; expires 2026-10-14 | Hidden until real outbound proof; restore copy additionally requires isolated-client restore proof |
 
 Production has no new premium-value runtime record. Existing Voice Scan and live VTO presentation authorities are preserved; neither was newly certified in this lane. Wardrobe Concierge retains its existing unconfirmed state. Evidence: `services/kplus/kplusCapabilityProof.ts`, `docs/audits/build35-premium-runtime.json` and the ledger.
+
+### Capability build authority
+
+CAPABILITY_BUILD_AUTHORITY_METHOD=governed source fingerprint per proof type. A static label (`build35-premium-value-v2`) was the previous binding; it was removed because it stayed equal while the code under a proof changed. No immutable build or commit identity reaches the client at runtime (no build-SHA export exists in `app.config`, `eas.json` or `constants`), and a commit SHA could not be recorded inside the commit that contains the record, so a content hash was the smallest sound mechanism.
+
+- The identity is sha256 over the CRLF-normalised content of each governed file, defined in `scripts/premium-capability-fingerprint-lib.js`. Edge Function entrypoints contribute their full local import closure (a function is one deploy unit); tests, hooks, screens and components are excluded because the proof harness drove the real clients and deployed functions directly and `nativeAppCertified` is false.
+- The device cannot read its own source, so current identities are generated into `services/kplus/kplusCapabilityFingerprints.generated.ts` (`npm run generate:premium-fingerprints`). `__tests__/premiumCapabilityFingerprint.test.js` fails while that file and the real source disagree, so governed source cannot change with the old identity left in place, and a changed identity withdraws the old proof at runtime until a record naming the new identity exists.
+- Proof types with no governed domain (worker behavior, iOS push, Android push) have no identity and can never authorize.
+- Each record carries a `fingerprintBasisCommit`; the test recomputes the identity from that commit in git and requires it to equal the record. In a shallow clone that commit is absent and those three checks skip; they are not the merge gate.
+
+| Proof type | Identity when the run executed (`a57527d1`, equal to the integration base `911ac085`) | Identity of this head | Result |
+| --- | --- | --- | --- |
+| packing_generation_and_refinement | `7131b140…` | `7131b140…` | PACKING_SOURCE_IDENTITY_MATCH=YES. No commit changed the Packing client, types or `stylechat-generate` after the run; the later hook and screen edits are outside the governed set |
+| watch_tracking | `3ad59c01…` | `c1fd61b2…` | Changed. `commerce-watch-refresh/index.ts` and the new `watchEntitlementGuard.ts` were committed at 10:16 EDT, after the 09:24-09:26 EDT run |
+| closet_outbound_sync | `fed5873f…` | `fed5873f…` | Source-only record; cannot authorize |
+
+Residual assumption, stated rather than hidden: the run read its sources from the working tree, and the identities above assume the governed files there equalled the committed `a57527d1` content. The harness did not record a tree hash at run time.
+
+Consequence for presentation: until the current backend is deployed to Staging and the Watchlist run is repeated, no proof record authorizes the Watchlist claim for this source, so it is not advertised. The earlier tracking result is preserved, not erased; it is simply bound to the implementation that earned it. Any later change to the shared `stylechat-generate` function (for example by the VTO lane) changes the Packing identity and requires a Packing re-proof; that is intended, because the function is one deploy unit.
 
 Effective compiled flags (Packing / Watchlist / sync / restore / legacy migration): ordinary Staging and Production are unset and default OFF; Staging certification, Production certification and build35-testing are true / true / true / true / true. Only the three Staging certification Cloud overrides were added. An enabled compiled flag does not confer capability proof, and the actual Supabase environment must match the record.
 
@@ -80,10 +100,11 @@ Root cause: Free product actions opened acquisition before capturing the selecte
 | BUILD_FLAGS | Existing Watchlist flag unchanged; certification on; ordinary Production remains off |
 | STAGING_WORKER_FLAG / STAGING_WORKER_STATE | Existing scheduled worker enabled; no config write |
 | STAGING_SCHEDULE | Existing scheduled workflow reviewed read-only |
-| STAGING_RUNTIME_PROOF / WATCHLIST_STAGING_RUNTIME | PASS tracking: real canonical create, own-row read, one real Kicks Crew adapter refresh, available finite price and last-checked timestamp |
+| STAGING_RUNTIME_PROOF / WATCHLIST_STAGING_RUNTIME | PASS tracking against the pre-recheck backend (identity `3ad59c01…`): real canonical create, own-row read, one real Kicks Crew adapter refresh, available finite price and last-checked timestamp. WATCHLIST_TRACKING_EXISTING_RUNTIME=PROVEN, bound to that implementation |
+| WATCHLIST_PR_HEAD_BACKEND_RUNTIME | PENDING_DEPLOY. The fresh provider-side K+ recheck (`runEntitledWatchObservation`), lapse-before-provider protection and the new worker source are source-tested only; none is runtime-certified |
 | FORCED_REFRESHES / WATCHLIST_FORCED_REFRESHES_USED | 1 manual single-Watch refresh / limit 2; 0 forced worker dispatches |
 | IOS_PUSH / ANDROID_PUSH | UNPROVEN; prompts and push availability copy withheld |
-| DISCOVERY / WATCHLIST_DISCOVERABLE | YES tracking in appropriately flagged, proven Staging builds |
+| DISCOVERY / WATCHLIST_DISCOVERABLE | NO for this source: the tracking record's identity no longer matches, so it is withheld until the current backend is deployed and the run repeated. Claim bound for when it returns: "Track eligible products and check price changes." No continuous-monitoring, push, lapse-race or scheduled-worker claim |
 | FREE_TO_KPLUS_RETURN / WATCHLIST_POST_PURCHASE_RETURN_STATE | PASS source component execution: canonical listing URL, buy-under intent and target 123.45 survive acquisition |
 | KPLUS_CATALOG_STATE | Tracking only; no autonomous monitoring or alert claim |
 | WATCHLIST_ENTITLEMENT_LAPSE | PASS source tests: rows retained, refresh stops, fresh provider check fails closed |
@@ -93,7 +114,7 @@ Root cause: Free product actions opened acquisition before capturing the selecte
 | PRODUCTION_WORKER_STATE_READ_ONLY | Existing enabled flag observed; unchanged |
 | PRODUCTION_SCHEDULE_STATE_READ_ONLY / PRODUCTION_WATCHLIST_SCHEDULER_OBSERVATION | Run 37578944725 pending with no jobs at observation; prior 37510627994 cancelled with no jobs |
 | PRODUCTION_WATCHLIST_SCHEDULER_CAUSE | UNPROVEN |
-| WATCHLIST_RUNTIME_PROVEN | 1 for tracking only |
+| WATCHLIST_RUNTIME_PROVEN | 1 for tracking only, bound to the pre-recheck backend identity; 0 for the current source |
 
 An eligible worker claim requires buy-under, push enabled, and canonical K+. This lane found no governed fixture-adapter seam that could establish real worker behavior while safely suppressing customer push. It did not alter Production, force a shared worker, fabricate a provider observation, or infer behavior from claimed=0. Protected-environment approval is only a hypothesis for the Production observation.
 
@@ -127,7 +148,7 @@ The cross-device attempt did not substitute a mocked Node engine for a second ap
 
 | Field | Result |
 | --- | --- |
-| CAPABILITIES_ADVERTISED | Preserved Voice/VTO rules; Packing and tracking only where their Staging proof and build flags match; Cloud and Concierge hidden |
+| CAPABILITIES_ADVERTISED | Preserved Voice/VTO rules; Packing only where its Staging proof identity and build flag match; Watchlist withheld until its tracking proof is renewed against the current backend; Cloud and Concierge hidden |
 | PACKING_COPY | Smarter trip planning from your Closet. |
 | WATCHLIST_COPY | Track eligible products and check price changes. |
 | CLOUD_CLOSET_COPY | Hidden; bounded backup copy prepared, cross-device copy withheld |
@@ -179,7 +200,8 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 | Migration provenance / native config parity | PASS |
 | SECURITY | PASS security unit checks and validation runner; its expected localhost ZAP rejection is an intentional negative control |
 | TestSprite | UNVERIFIED_BECAUSE_UNDEPLOYED: CLI/auth and linked backend project verified; no MCP tunnel available, and new source is not on a reachable deployed target |
-| LINUX_CI_FULL_SUITE_RESULT / LINUX_CI_UNEXPECTED_FAILURES | PASS / 0 on source commit `f62be2d16360c4fa72e5446d26ea75202d08b49d`: 557 files executed; 13 observed, 13 configured-known, 0 unexpected; baseline unchanged |
+| LINUX_CI_FULL_SUITE_RESULT / LINUX_CI_UNEXPECTED_FAILURES | PASS / 0 on source commit `f62be2d16360c4fa72e5446d26ea75202d08b49d`: 557 files executed; 13 observed, 13 configured-known, 0 unexpected; baseline unchanged. This result covers that earlier commit only. The truth-binding change adds a test file and edits proof consumers; its own Linux result is recorded separately and this line is not evidence for it |
+| WINDOWS_TRUTH_BINDING_RUN | 558 files; 31 observed, 13 known, 18 unexpected; all 18 unexpected identities are in the base list, 0 new |
 
 The Windows-only observed failures include pre-existing path-separator/mutation-harness and PostHog module-loading failures. They are measured against a second untouched worktree at the exact base, not relabeled as passing or added to a baseline. The latest focused tests also cover tests added after the full run. No old deployed build was used as TestSprite evidence for this source change.
 
@@ -199,6 +221,10 @@ The first inventory repair briefly added a new static test, which violated the e
 | NC-PV-08 | Removing the actual Watch modal platform-proof guard shows an unproven alert prompt and fails the test |
 | NC-PV-09 | Replacing canonical Watch creation SQL authority with client state fails the guard |
 | NC-PV-10 | Altering RevenueCat or legacy Early Access source fails the protected release guard |
+| NC-PV-FP-01 | Removing the implementation-fingerprint equality lets a stale proof authorize, and the mutated-source guard fails |
+| NC-PV-FP-02 | Removing the identity shape check lets two equal malformed values authorize, and the malformed-identity guard fails |
+| NC-PV-FP-03 | The membership expiry hook must use the shared authority predicate, not a private copy of the old label comparison |
+| FP-B | Mutating any single governed file of any proof type changes its identity and withdraws the old proof (every governed file is exercised) |
 | Extra lapse / expiry controls | Removing fresh Packing/provider K+ checks or open-membership expiration invalidation fails executed tests |
 
 ## CI and remaining verification
