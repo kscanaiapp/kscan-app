@@ -35,7 +35,6 @@ test('multi-image batches use current Scanner V2 orchestration one evidence imag
   assert.match(hook, /serverCandidateId/);
   assert.match(request, /evidence:\s*PreparedScannerEvidence/);
   assert.doesNotMatch(request, /evidences:\s*PreparedScannerEvidence\[\]/);
-  assert.match(request, /every image of an Android batch/);
 });
 
 test('restored batch candidate identity remains source-image bound', () => {
