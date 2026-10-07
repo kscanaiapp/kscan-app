@@ -1,7 +1,7 @@
 import type {
-  DetectedGarment,
+  DetectedGarmentCandidate,
   ScanIdentifyResponse,
-  ScanSelectedCandidate,
+  SelectedGarmentTarget,
 } from '../types/scanIdentification';
 
 export const MAX_SCAN_IMAGES = 5;
@@ -35,8 +35,8 @@ export type MultiScanCandidate = {
   /** Privacy posture of the prepared image, reused verbatim by selected_item. */
   preparedPrivacyFiltered?: boolean;
 
-  garment: DetectedGarment | null;
-  selectedCandidate: ScanSelectedCandidate | null;
+  garment: DetectedGarmentCandidate | null;
+  selectedCandidate: SelectedGarmentTarget | null;
   detectionResponse: ScanIdentifyResponse;
 };
 
@@ -104,7 +104,7 @@ export function removeImageSelection(
     .map((image, index) => ({ ...image, originalIndex: index }));
 }
 
-function candidateFingerprint(imageId: string, garment: DetectedGarment): string {
+function candidateFingerprint(imageId: string, garment: DetectedGarmentCandidate): string {
   const bounds = garment.bounds
     ? [garment.bounds.x, garment.bounds.y, garment.bounds.width, garment.bounds.height]
       .map((value) => value.toFixed(3))
