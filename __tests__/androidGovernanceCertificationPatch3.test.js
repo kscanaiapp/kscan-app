@@ -193,11 +193,12 @@ test('AND-010: generative-AI output reporting stays in-app and server-backed', (
  * ------------------------------------------------------------------ */
 
 /** Client flags the certification artifact must carry. */
+const KPLUS_EARLY_ACCESS_KEY = 'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED';
+
 const CERTIFICATION_REQUIRED_FLAGS = [
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
   'KSCAN_VOICE_CERTIFICATION',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
-  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
   'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
   'EXPO_PUBLIC_VTO_UI_ENABLED',
@@ -218,6 +219,11 @@ test('certification: the full Build 34 feature matrix resolves on', () => {
   for (const flag of CERTIFICATION_REQUIRED_FLAGS) {
     assert.equal(env[flag], 'true', `${flag} must resolve true for ${CERTIFICATION_PROFILE}`);
   }
+  assert.equal(
+    env[KPLUS_EARLY_ACCESS_KEY],
+    'false',
+    'Build 35 certification must keep the retired complimentary K+ client grant disabled',
+  );
 });
 
 test('certification: the backend resolves to staging, never production', () => {
@@ -246,6 +252,11 @@ test('certification: production does not inherit certification-only flags', () =
       `${flag} leaked into the production profile -- certification-only surfaces must not ship to production unreviewed`,
     );
   }
+  assert.equal(
+    env[KPLUS_EARLY_ACCESS_KEY],
+    'false',
+    'production must keep the retired complimentary K+ client grant explicitly disabled',
+  );
   assert.match(env.EXPO_PUBLIC_SUPABASE_URL, new RegExp(PRODUCTION_PROJECT_REF));
 });
 
