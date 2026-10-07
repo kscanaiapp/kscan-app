@@ -510,6 +510,29 @@ test('scanner: the scanner patterns themselves are untouched', () => {
   }
 });
 
+test('runner atomicity: no October migration commits internally or uses a non-transactional statement', () => {
+  // The runner executes the whole file as ONE transaction (measured with SET LOCAL
+  // against Staging). That conclusion only holds while a file contains no internal
+  // COMMIT/ROLLBACK/SAVEPOINT and no statement that cannot run inside a transaction.
+  const control = /^\s*(?:begin(?:\s+(?:work|transaction))?|start\s+transaction)\s*;|^\s*(?:commit|rollback)\b|^\s*(?:savepoint|release\s+savepoint)\b/im;
+  const nonTransactional = /\b(?:create\s+(?:unique\s+)?index\s+concurrently|drop\s+index\s+concurrently|reindex\s+.*concurrently|vacuum|alter\s+system|create\s+database|drop\s+database|alter\s+type\s+\S+\s+add\s+value)\b/i;
+  for (const version of OCTOBER) {
+    const sql = sqlOf(version);
+    assert.doesNotMatch(sql, control, `${version} must not contain transaction control`);
+    assert.doesNotMatch(sql, nonTransactional, `${version} must not contain a non-transactional statement`);
+  }
+  // Negative control: the detector does flag what it claims to.
+  for (const bad of ['begin;\nselect 1;', 'select 1;\ncommit;', 'rollback;', 'savepoint a;', 'create index concurrently i on t(a);', 'vacuum t;']) {
+    assert.ok(control.test(bad) || nonTransactional.test(bad), bad);
+  }
+  // And plpgsql BEGIN ... END blocks are not mistaken for transaction control.
+  assert.doesNotMatch('create function f() returns int as $$\nbegin\n  return 1;\nend;\n$$ language plpgsql;', control);
+  // The SQL still runs through the single-file runner and the ledger is a separate, explicit step.
+  const source = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'), 'utf8');
+  assert.match(source, /'db', 'query', '--linked', '-f', migration\.path/);
+  assert.match(source, /'migration', 'repair', version, '--status', 'applied', '--linked'/);
+});
+
 test('MIGRATION_FILE may only restate the governed migration file', () => {
   // A same-named copy OUTSIDE supabase/migrations must not run under an approved
   // version. The child gets no PATH, so even a broken guard cannot reach the CLI.
