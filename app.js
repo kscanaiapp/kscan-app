@@ -1199,7 +1199,7 @@ export default function App() {
       visible={scanRoomModalVisible}
       localImageUri={activeResultImageUri}
       scan={{
-        sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+        sourceType: activeResultSource === 'upload' ? 'upload_inspiration' : 'live_scan',
         sourceId: photo?.qaFixtureName ?? null,
         result: analysis?.result ?? null,
         metadata: analysis?.metadata ?? null,
