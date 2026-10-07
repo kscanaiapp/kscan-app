@@ -53,7 +53,23 @@ The scanner is unchanged. Run strictly over the five migrations it blocks three 
 | 20261004221500 | `DESTRUCTIVE_ALTER` | `DROP CONSTRAINT IF EXISTS user_closet_items_origin_enum` then `ADD CONSTRAINT` to add `purchase_import`. No column or data is dropped. |
 | 20261004184118, 20261004231628 | none | |
 
-All four findings appear in Production-applied SQL (the same files are in the live Production ledger). The governed workflow does not set `ALLOW_DESTRUCTIVE_MIGRATION`, so these cannot run until an exception exists.
+The governed workflow does not set `ALLOW_DESTRUCTIVE_MIGRATION`, so these cannot run until an exception exists.
+
+Evidence for the decision (all read-only, 2026-10-07):
+
+- **Production precedent.** The SQL held in Production's `supabase_migrations.schema_migrations` equals these repo files for all five versions when compared with whitespace and semicolons ignored (md5 over the stripped text). Four were applied with a prepended `set local lock_timeout = '5s'; set local statement_timeout = '60s';` (56 characters); `20261004184118` was applied bare. The identical `TRUNCATE` literals and `DROP`/`ADD CONSTRAINT` pairs are therefore already live in Production.
+- **Staging prerequisite and row risk.** `kplus_entitlement_grants`, `kplus_entitlement_transitions`, `kplus_entitlement_activations` and `user_closet_items` exist on Staging and hold **0 rows** each, and the columns the new `CHECK`s reference exist. `ADD CONSTRAINT` validates every existing row; I evaluated each new `CHECK` expression against Staging and 0 rows fail any of them (there are no rows). Nothing can be lost or rejected.
+- **What each constraint does.** Four are widened (a strict superset of the old accepted values). `store_shape_check` and `revocation_check` are rewritten to add the `store_lifetime` source; they are the only non-trivial rewrites and they validate against an empty table.
+- **Atomicity is not verified.** The apply script runs the file through `supabase db query --linked -f`. Whether that wraps the file in one transaction was not observed here; the post-apply verification and the stop-on-failure rule are what protect a partial failure.
+
+Proposed overrides, each bound to the exact SQL (LF-normalised sha256) and to one finding id. They are **not committed**:
+
+| Version | Finding | sha256 of the SQL |
+| --- | --- | --- |
+| 20261002010000 | `TRUNCATE` | `0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528` |
+| 20261002010000 | `DESTRUCTIVE_ALTER` | `0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528` |
+| 20261003195716 | `TRUNCATE` | `89b2bd32bb210d93c409f08bfa68f7241a0d2fa871d095fca129ebe5a7c3a9e3` |
+| 20261004221500 | `DESTRUCTIVE_ALTER` | `d0387a0ca6d5fc809268ff5c53ae2d4cf453bf33b84ead4ca2e5115751417f26` |
 
 The mechanism is version- and content-scoped and ships empty: a `scannerOverrides` entry on a version's Staging declaration (`findingId`, `sha256` of the LF-normalised SQL, `reason`) clears exactly that finding for exactly that file. Editing the SQL voids it; another version cannot inherit it; every use is written to the pre-apply and result artifacts. The scanner patterns are not weakened. **No override is committed. Each one needs explicit owner approval.** `scanner: the strict findings ... no override is committed yet` pins this.
 
