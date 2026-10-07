@@ -840,6 +840,14 @@ export async function saveMultiItemScan({ photoUri, analysis, candidates, source
         category: String(candidate.category ?? ''),
         subtype: String(candidate.subtype ?? ''),
         ...(typeof candidate.confidenceScore === 'number' ? { confidenceScore: candidate.confidenceScore } : {}),
+        // Build 35 multi-image restoration: preserve source-image provenance
+        // even though this aggregate record still persists only its primary media.
+        ...(typeof candidate.sourceImageId === 'string' && candidate.sourceImageId
+          ? { sourceImageId: candidate.sourceImageId }
+          : {}),
+        ...(Number.isInteger(candidate.sourceImageIndex)
+          ? { sourceImageIndex: candidate.sourceImageIndex }
+          : {}),
       })),
       multiItemCommerce: [],
       source: source || 'scan',
