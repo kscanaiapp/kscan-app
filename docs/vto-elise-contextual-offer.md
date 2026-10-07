@@ -320,13 +320,53 @@ so it cannot touch whoever is signed in when the purge runs.
 | | |
 | --- | --- |
 | Source implementation | See the PR's test and CI evidence |
-| Device certification | **Not performed** |
-| Real provider certification | **Not performed** — no real generation was run |
+| Staging runtime (backend contract + one real-provider request) | Run through the probe below; **the result is recorded on the PR**, not in this file |
+| Device certification | **Not performed** — required before Production activation, not before source merge |
 | Output quality certification | **Not performed** |
 
 A green suite is not proof of real-provider quality. Device certification still
 has to prove: Elise upload → offer → K+ if needed → person selection → consent →
 real generation → result → return to Elise.
+
+### Staging runtime probe
+
+The backend half of this lane is certified on Staging by three
+`workflow_dispatch` modes of the existing VTO harness
+(`.github/workflows/vto-e2e.yml`, `scripts/vto-e2e/`). They reuse its governed
+pattern — the `staging` environment, a real signup, a fresh password grant
+whose token is masked at once and never leaves process memory, one SQL venue —
+and add only what this source needs: its own actor namespace, its own cleanup
+ledger, and K+ granted and revoked **only** through the canonical authority
+(`grant_kplus_complimentary` / `revoke_kplus_grant`). No entitlement table is
+written, RevenueCat is not contacted, and a Production URL or project ref is
+refused.
+
+| Mode | Spend | What it establishes |
+| --- | --- | --- |
+| `staging-user-garment-dryrun` | **0**, by construction | K+ required and revocable; a valid garment is accepted; a mismatched hash, unknown hash version, wrong media type, malformed Base64, non-JPEG, under-minimum or over-ceiling garment is refused; origin changes nothing; a non-canonical category label is canonicalized; and the request body is accepted at **exactly** the ~5 MB ceiling and refused one character over it. |
+| `staging-user-garment-certification` | **exactly 1** request | An authenticated K+ actor sends a synthetic garment inline with a synthetic person image to the deployed `vto-generate`, which reaches the real provider and returns a result; the reservation is read back from the database as settled. |
+| `staging-user-garment-log-audit` | 0, read-only | What the Edge runtime logged during a run's window: counts of any image payload, data URI, credential or garment fingerprint, and the server's own record of how many dispatches happened. |
+
+**Why the dry run cannot spend.** `vto-generate` decides in a fixed order and a
+refusal names the step that refused. A valid garment under an unsupported
+category is refused as `unsupported_category`, which can only happen *after*
+the garment was accepted and *before* a reservation; a valid garment with no
+person is refused as `invalid_person_input` carrying the request's own id. The
+dry run sends only those two shapes and refuses, in code, to send anything
+else. The size ceilings are therefore proved at the contract boundary without a
+provider call.
+
+**The one paid request.** One, with a hard cap in code and no retry on a
+timeout, a 5xx or a failed assertion; the workflow job additionally refuses to
+be re-run. If it is refused before the provider the budget is reported unused.
+It reads the Staging feature control and will not send unless that already
+names the real provider — it never changes it. Inputs are synthetic only: a
+procedurally drawn garment committed at `scripts/vto-e2e/fixtures/` and a
+generated person image. No customer photo, Closet data or Production data.
+
+**What this does not certify.** Output quality (the inputs are synthetic), the
+device journey, or anything about the customer's own images. Those remain with
+device certification.
 
 ## 15. Transcripts (simulated model replies)
 

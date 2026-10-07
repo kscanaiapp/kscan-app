@@ -169,13 +169,23 @@ export function checkWorkflowPipefailSafety(yamlText) {
 }
 
 /**
- * Fails unless every job that mutates live staging state (staging-dryrun,
- * staging-full-certification, cleanup) declares
+ * Fails unless every job that touches live staging (LIVE_STAGING_JOBS: the
+ * dry runs, the two single-request paid certifications, cleanup and the
+ * read-only log audit) declares
  * `concurrency: { group: vto-e2e-certification, cancel-in-progress: false }`
  * — repair spec §25: two live staging VTO certification runs must never be
  * permitted to interleave.
  */
-export function checkConcurrencyContract(yamlText, requiredJobs = ['staging-dryrun', 'staging-full-certification', 'cleanup']) {
+export const LIVE_STAGING_JOBS = Object.freeze([
+  'staging-dryrun',
+  'staging-full-certification',
+  'cleanup',
+  'staging-user-garment-dryrun',
+  'staging-user-garment-certification',
+  'staging-user-garment-log-audit',
+]);
+
+export function checkConcurrencyContract(yamlText, requiredJobs = LIVE_STAGING_JOBS) {
   const lines = yamlText.split('\n');
   const jobs = findJobs(lines);
   const violations = [];

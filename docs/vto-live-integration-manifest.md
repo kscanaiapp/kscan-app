@@ -91,6 +91,15 @@ added to a list without a justification.
 | `supabase/functions/vto-generate/providers/mockProvider.test.ts` | Regression coverage for the mock change above. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §10 (2026-10-07) |
 | `supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts` | Regression coverage for the adapter's inline-garment route (`aiLabToolsProvider.ts`, already authorized above): the data URI is decoded straight into the existing `top_garment` multipart part, nothing is fetched for it, it is never a string field, and an undecodable one is refused before any network call and is non-billable. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §10 (2026-10-07) |
 | `docs/vto-elise-contextual-offer.md` | Build 35 Elise contextual VTO record: the authority map, the synced-block and device-local-binding schemas, the selection policy, the bounded prose guard and its stated limits, the consent wording change, the test and negative-control map, and what is deferred to device/provider certification. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §21, §35, §43, §49 (2026-10-07) |
+| `scripts/vto-e2e/lib/userGarment.mjs` | Staging runtime probe for the `user_supplied_garment` source: builds the request the app sends for a garment photo given to Elise (inline JPEG + recomputable fingerprint), loads the committed synthetic garment and refuses it unless it is byte-for-byte the file its record describes, and builds JPEG-shaped filler to exact sizes so the request-size ceilings can be probed to the character. Mirrors the contract bounds, pinned to `vtoContract.ts` by test. No network, no SQL. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/lib/userGarmentActor.mjs` | The probe's synthetic K+ actor: real signup and fresh password grant through the harness's existing governed helpers, its own email namespace, and its own step-by-step cleanup ledger. K+ is granted and revoked ONLY by calling the canonical authority (`grant_kplus_complimentary` / `revoke_kplus_grant`), as a time-boxed `promotional` grant under its own campaign id — the same shape the Premium Value lane's governed Staging actor uses; the module issues no INSERT, UPDATE or DELETE against any entitlement table (pinned by test) and does not contact RevenueCat. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/lib/userGarmentProbe.mjs` | The two probe modes. The dry run is zero-spend by construction: it refuses to send any request that could reach the provider, and proves K+, the garment bounds and recomputed hash, category canonicalization, origin-as-metadata and the exact request-size ceilings from the refusal each step returns. The certification sends EXACTLY ONE request that can reach the paid provider, with a hard in-code cap and no retry of any kind, and reads the feature control without ever changing it. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/lib/logAudit.mjs` | Read-only post-run audit of the Edge runtime logs for a run's window: reports COUNTS of anything that must never be logged (image payloads, data URIs, credentials, the garment fingerprint) and fails if the window does not contain the run, so "nothing found" cannot be vacuous. Separate from the paid run so it can be repeated at no cost. Never returns or prints a log line. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/lib/report-schema.mjs` | Adds the three `staging-user-garment-*` modes to the artifact schema and names the only two modes that may report provider spend at all (`PAID_MODES`), with a per-run cap of one. Existing modes and fields are unchanged. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/validate-report.mjs` | The zero-spend invariant now reads the paid-mode list from the schema instead of one hard-coded mode name, and a new single-dispatch cap rejects any artifact reporting more than one provider submit or paid request, in any mode. Strictly tighter for the existing modes: nothing previously rejected is now accepted. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/lib/workflow-guard.mjs` | The single-flight concurrency contract now covers the three new live-staging jobs by default (`LIVE_STAGING_JOBS`), so a user-garment run can never interleave with another certification run. No check was relaxed. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/fixtures/user-garment.jpg` | The committed synthetic garment the probe sends inline: a procedurally drawn long-sleeve top on a plain background with generated grain, sized like a real normalized upload. Not a photograph; no person, no brand, no customer data, no EXIF/XMP. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
+| `scripts/vto-e2e/fixtures/user-garment.fixture.json` | Record for the fixture above: generator, dimensions, byte length, SHA-256 of the bytes and the `sha256-normalized-v1` content fingerprint. The loader refuses the image unless it matches this record. | Owner runtime ruling `BUILD35_ELISE_VTO_RUNTIME_RULING` §2 HARNESS EXTENSION=APPROVED (2026-10-07) |
 
 ### Explicitly NOT authorized, and not touched
 
@@ -113,6 +122,21 @@ screen it wires into — are not VTO-owned paths, so this boundary reports them
 `NOT JUDGED` rather than approved; they answer to the Elise suites and to
 `__tests__/vtoEliseContextualOffer.test.js`. `eas.json` was again read and not
 modified, and Live VTO was not touched.
+
+**Build 35 Elise contextual VTO, staging runtime probe (2026-10-07).** The
+owner's runtime ruling approved a narrow extension of the existing staging
+synthetic-auth/live-probe apparatus for the `user_supplied_garment` source. It
+adds the exact `scripts/vto-e2e/**` rows above and three `workflow_dispatch`
+jobs to the already-authorized `.github/workflows/vto-e2e.yml`
+(`staging-user-garment-dryrun`, `staging-user-garment-certification`,
+`staging-user-garment-log-audit`); `scripts/vto-e2e/run.mjs` gains the three
+matching modes and a cleanup-by-tag path for the probe's own actor. Nothing in
+`supabase/**` changes for it, no deployment workflow is modified (the Staging
+deploy of the PR-head functions goes through the existing
+`staging-controlled-deploy.yml`, unchanged), no entitlement table is written,
+and the harness refuses any Production URL or project ref. Its controls are
+`__tests__/vtoE2eUserGarmentProbe.test.js`, which contract mode now runs on
+every push.
 
 ---
 
