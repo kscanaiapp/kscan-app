@@ -59,6 +59,118 @@ function loadSpeechStore() {
   );
 }
 
+test('cancelling pending audio-mode setup prevents native player creation', async () => {
+  let releaseMode;
+  let created = 0;
+  const playback = load('services/avatars/stylistAudioPlayback.ts', {
+    'expo-audio': {
+      setAudioModeAsync: () => new Promise((resolve) => { releaseMode = resolve; }),
+      createAudioPlayer: () => {
+        created += 1;
+        return { addListener: () => ({ remove() {} }), play() {}, pause() {}, remove() {} };
+      },
+    },
+  });
+  const controller = new AbortController();
+  const pending = playback.playStylistAudio('file://speech.mp3', {
+    signal: controller.signal,
+    onPlaybackStarted() {}, onPlaybackProgress() {}, onPlaybackFinished() {}, onPlaybackError() {},
+  }, 5);
+  controller.abort();
+  releaseMode();
+  const handle = await pending;
+  handle.stop();
+  assert.equal(created, 0);
+});
+
+test('the cancellation signal stays bound after native playback starts', async () => {
+  let listener;
+  let removed = 0;
+  let errors = 0;
+  const playback = load('services/avatars/stylistAudioPlayback.ts', {
+    'expo-audio': {
+      setAudioModeAsync: async () => {},
+      createAudioPlayer: () => ({
+        addListener: (_name, callback) => { listener = callback; return { remove() {} }; },
+        play() {}, pause() {}, remove() { removed += 1; },
+      }),
+    },
+  });
+  const controller = new AbortController();
+  const handle = await playback.playStylistAudio('file://speech.mp3', {
+    signal: controller.signal,
+    onPlaybackStarted() {}, onPlaybackProgress() {}, onPlaybackFinished() {},
+    onPlaybackError() { errors += 1; },
+  }, 500, 500);
+  listener({ playing: true, playbackState: 'readyToPlay', currentTime: 0, didJustFinish: false });
+  controller.abort();
+  assert.equal(removed, 1);
+  handle.stop();
+  assert.equal(removed, 1);
+  assert.equal(errors, 0, 'user cancellation is not a decoding/playback failure');
+});
+
+test('a stale delayed player handle cannot replace the next actor player', async () => {
+  const store = loadSpeechStore();
+  let releaseOld;
+  let oldStops = 0;
+  let newStops = 0;
+  const speech = load('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/speechAppState': { ensureSpeechAppStateListener() {}, registerSpeechInterruptionHandler() {} },
+    './avatars/stylistSpeechClient': { requestStylistSpeech: async (request) => ({
+      ...speechResponse(), messageId: request.messageId, stylistId: request.stylistId,
+    }) },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async ({ messageId }) => `file://${messageId}.mp3`,
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': { playStylistAudio: (uri) => uri.includes('old')
+      ? new Promise((resolve) => { releaseOld = () => resolve({ stop() { oldStops += 1; } }); })
+      : Promise.resolve({ stop() { newStops += 1; } }),
+    },
+  });
+  const common = { sessionId: 's', stylistId: 'stylist_portrait_05', avatarId: 'stylist_portrait_05', source: 'message' };
+  const old = speech.speakAvatarMessage({ ...common, actorId: 'old-actor', messageId: 'old-message' });
+  while (!releaseOld) await new Promise((resolve) => setTimeout(resolve, 0));
+  await speech.stopAvatarSpeechPlayback();
+  await speech.speakAvatarMessage({ ...common, actorId: 'new-actor', messageId: 'new-message' });
+  releaseOld();
+  await old;
+  assert.equal(oldStops, 1);
+  assert.equal(store.getAvatarSpeechState().actorId, 'new-actor');
+  await speech.stopAvatarSpeechPlayback();
+  assert.equal(newStops, 1, 'new player remains owned and is stopped on logout');
+});
+
+test('account switch discards a late generation response before materialization or playback', async () => {
+  const store = loadSpeechStore();
+  let respond;
+  let files = 0;
+  let plays = 0;
+  const speech = load('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/speechAppState': { ensureSpeechAppStateListener() {}, registerSpeechInterruptionHandler() {} },
+    './avatars/stylistSpeechClient': { requestStylistSpeech: () => new Promise((resolve) => { respond = resolve; }) },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => { files += 1; return 'file://old.mp3'; },
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': { playStylistAudio: async () => { plays += 1; return { stop() {} }; } },
+  });
+  const pending = speech.speakAvatarMessage({
+    actorId: 'old-actor', sessionId: 's', messageId: 'message-1',
+    stylistId: 'stylist_portrait_05', avatarId: 'stylist_portrait_05', source: 'message',
+  });
+  while (!respond) await new Promise((resolve) => setTimeout(resolve, 0));
+  await speech.stopAvatarSpeechPlayback();
+  respond(speechResponse());
+  await pending;
+  assert.equal(files, 0);
+  assert.equal(plays, 0);
+  assert.equal(store.getAvatarSpeechState().phase, 'idle');
+});
+
 test('authenticated client invokes stylist-speech with references only', async () => {
   let invocation;
   const client = load('services/avatars/stylistSpeechClient.ts', {
@@ -93,6 +205,9 @@ test('authenticated client invokes stylist-speech with references only', async (
 
 test('client rejects mismatched identities, malformed timing, and function errors', async () => {
   for (const returned of [
+    speechResponse({ audioBase64: 'invalid base64' }),
+    speechResponse({ audioBase64: '' }),
+    speechResponse({ mimeType: 'audio/wav' }),
     speechResponse({ messageId: 'another-message' }),
     speechResponse({ alignment: {
       characters: ['H', 'i'],
@@ -172,6 +287,27 @@ test('startup orphan cleanup is bounded to fifty speech files', async () => {
   await files.cleanupOrphanedStylistSpeechFiles();
   assert.equal(deleted.length, 50);
   assert.ok(deleted.every((uri) => uri.includes('/speech-')));
+});
+
+test('overlapping materializations of the same message have separate operation files', async () => {
+  const files = load('services/avatars/stylistSpeechFiles.ts', {
+    'expo-crypto': {
+      CryptoDigestAlgorithm: { SHA256: 'SHA256' },
+      digestStringAsync: async (_algorithm, input) => require('node:crypto').createHash('sha256').update(input).digest('hex'),
+    },
+    'expo-file-system/legacy': {
+      cacheDirectory: 'file://cache/', EncodingType: { Base64: 'base64' },
+      makeDirectoryAsync: async () => {}, deleteAsync: async () => {},
+      writeAsStringAsync: async () => {}, moveAsync: async () => {},
+      getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 5 }),
+    },
+  });
+  const input = { actorId: 'a', sessionId: 's', messageId: 'm', stylistId: 'elise_default', voiceProfile: 'feminine', audioBase64: 'YQ==' };
+  const [first, retry] = await Promise.all([
+    files.createTemporaryStylistSpeechFile({ ...input, operationId: 1 }),
+    files.createTemporaryStylistSpeechFile({ ...input, operationId: 2 }),
+  ]);
+  assert.notEqual(first, retry, 'a stale completion must not delete the newer attempt file');
 });
 
 test('timing-driven mouth state closes for idle and meaningful pauses', () => {

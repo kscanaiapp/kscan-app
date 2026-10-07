@@ -28,6 +28,7 @@ export async function createTemporaryStylistSpeechFile(input: {
   stylistId: string;
   voiceProfile: Exclude<StylistVoiceProfile, 'silent'>;
   audioBase64: string;
+  operationId?: number;
 }): Promise<string> {
   const directory = await ensureSpeechDirectory();
   const cacheKey = await Crypto.digestStringAsync(
@@ -39,6 +40,7 @@ export async function createTemporaryStylistSpeechFile(input: {
       input.stylistId,
       input.voiceProfile,
       SPEECH_FILE_CONTRACT_VERSION,
+      input.operationId ?? '',
     ].join('\u001f'),
   );
   const finalUri = `${directory}${TEMP_FILE_PREFIX}${cacheKey}.mp3`;

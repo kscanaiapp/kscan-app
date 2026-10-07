@@ -57,7 +57,7 @@ Deno.test('classifies a 422 model-scoped rejection as model unavailable', () => 
 });
 
 Deno.test('classifies a 429 provider rejection as quota exceeded', () => {
-  const result = classifyProviderFailure(429, detailBody('too_many_requests'));
+  const result = classifyProviderFailure(429, detailBody('quota_exceeded'));
   assert.equal(result.category, 'provider_quota_exceeded');
   assert.equal(result.code, 'PROVIDER_QUOTA_EXCEEDED');
   assert.equal(result.clientStatus, 429);
@@ -104,4 +104,15 @@ Deno.test('the public error carries only a fixed sanitized message', () => {
   assert.equal(error.code, 'PROVIDER_AUTH_FAILED');
   assert.doesNotMatch(error.message, /invalid_api_key/);
   assert.doesNotMatch(error.message, /secret provider detail message/);
+});
+
+Deno.test('distinguishes retryable provider throttling from account-wide quota', () => {
+  for (const token of ['too_many_requests', 'rate_limit_exceeded', 'concurrent_limit_exceeded']) {
+    const result = classifyProviderFailure(429, detailBody(token));
+    assert.equal(result.code, 'PROVIDER_RATE_LIMIT');
+    assert.equal(result.category, 'provider_rate_limited');
+    assert.equal(result.clientStatus, 429);
+  }
+  const quota = classifyProviderFailure(429, detailBody('quota_exceeded'));
+  assert.equal(quota.code, 'PROVIDER_QUOTA_EXCEEDED');
 });

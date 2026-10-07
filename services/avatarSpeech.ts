@@ -187,7 +187,6 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       signal: controller.signal,
     });
     if (!isCurrent(requestGeneration)) return;
-    pendingController = null;
 
     const uri = await createTemporaryStylistSpeechFile({
       actorId: payload.actorId,
@@ -196,6 +195,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       stylistId: payload.stylistId,
       voiceProfile: speech.voiceProfile,
       audioBase64: speech.audioBase64,
+      operationId: requestGeneration,
     });
     if (!isCurrent(requestGeneration)) {
       await deleteTemporaryStylistSpeechFile(uri);
@@ -204,7 +204,8 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
     activeFileUri = uri;
     markAvatarSpeechReady(requestGeneration, speech.alignment);
 
-    activePlayer = await playStylistAudio(uri, {
+    const player = await playStylistAudio(uri, {
+      signal: controller.signal,
       onPlaybackStarted: () => {
         if (!isCurrent(requestGeneration)) return;
         // Confirmed native playback — not merely a play() call — is what retires
@@ -224,11 +225,12 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
         void failCurrent(requestGeneration);
       },
     });
-    if (!isCurrent(requestGeneration)) {
-      activePlayer.stop();
-      activePlayer = null;
+    if (!isCurrent(requestGeneration) || controller.signal.aborted) {
+      player.stop();
       await deleteTemporaryStylistSpeechFile(uri);
+      return;
     }
+    activePlayer = player;
   } catch {
     if (isCurrent(requestGeneration)) await failCurrent(requestGeneration);
   }

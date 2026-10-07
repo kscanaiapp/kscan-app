@@ -10,6 +10,7 @@ export interface StylistAudioPlaybackHandle {
 }
 
 export interface StylistAudioPlaybackCallbacks {
+  signal?: AbortSignal;
   onPlaybackStarted: () => void;
   onPlaybackProgress: (seconds: number) => void;
   onPlaybackFinished: () => void;
@@ -44,6 +45,7 @@ export async function playStylistAudio(
     shouldRouteThroughEarpiece: false,
     allowsBackgroundRecording: false,
   });
+  if (callbacks.signal?.aborted) return { stop: () => {} };
 
   let player: AudioPlayer | null = null;
   let subscription: { remove: () => void } | null = null;
@@ -81,6 +83,7 @@ export async function playStylistAudio(
       startTimeout = null;
     }
     clearStallTimeout();
+    callbacks.signal?.removeEventListener('abort', dispose);
     subscription?.remove();
     subscription = null;
     try {
@@ -97,6 +100,7 @@ export async function playStylistAudio(
   };
 
   try {
+    callbacks.signal?.addEventListener('abort', dispose, { once: true });
     player = createAudioPlayer({ uri }, {
       updateInterval: 80,
       keepAudioSessionActive: false,

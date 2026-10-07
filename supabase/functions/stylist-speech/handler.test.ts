@@ -253,6 +253,9 @@ Deno.test('rejects malformed references and all client-supplied speech material'
     { ...DEFAULT_BODY, text: 'Say this instead' },
     { ...DEFAULT_BODY, voiceId: 'client-controlled' },
     { ...DEFAULT_BODY, voiceProfile: 'masculine' },
+    { ...DEFAULT_BODY, provider: 'client-provider' },
+    { ...DEFAULT_BODY, modelId: 'client-model' },
+    { ...DEFAULT_BODY, outputFormat: 'pcm_44100' },
   ]) {
     const response = await handlerFor()(speechRequest(body));
     assert.equal(response.status, 400);
