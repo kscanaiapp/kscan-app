@@ -21,7 +21,7 @@ import type {
   KPlusLiveSignals,
 } from '../services/kplus/kplusActivationCatalog';
 import { readKPlusLiveCapabilityState } from '../services/kplus/kplusLiveCapabilitySignals';
-import { capabilityProofContext } from '../services/kplus/kplusCapabilityProof';
+import { capabilityProofContext, isProofRecordCurrent } from '../services/kplus/kplusCapabilityProof';
 
 export interface KPlusLiveCapabilitySignalsResult {
   /** SERVED: decides whether a capability is real for a member. */
@@ -68,8 +68,7 @@ export function useKPlusLiveCapabilitySignals(active: boolean = true): KPlusLive
   useEffect(() => {
     if (!active) return undefined;
     const context = capabilityProofContext();
-    const expirations = context.records.filter(record => record.environment === context.environment
-      && record.buildAuthority === context.buildAuthority && record.status === 'PROVEN_RUNTIME')
+    const expirations = context.records.filter(record => isProofRecordCurrent(record, context))
       .map(record => Date.parse(record.expiresAt)).filter(at => at > Date.now());
     if (expirations.length === 0) return undefined;
     const timeout = setTimeout(() => {

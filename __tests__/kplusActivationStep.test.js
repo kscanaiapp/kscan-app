@@ -77,9 +77,9 @@ const code = screen
   // Negative lookbehind so `https://...` survives the line-comment strip.
   .replace(/(?<!:)\/\/.*$/gm, '');
 
-const PACKING_RUNTIME_FIXTURE = { environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{ capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME', environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] };
+const PACKING_RUNTIME_FIXTURE = require('./helpers/premiumCapabilityProof').matchingFixture('packing_generation_and_refinement', 'packing_intelligence').context;
 const catalog = loadModule(path.join(ROOT, 'services', 'kplus', 'kplusActivationCatalog.ts'), {
-  './kplusCapabilityProof': require('./helpers/componentRenderer').runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
+  './kplusCapabilityProof': require('./helpers/premiumCapabilityProof').loadCapabilityProof(),
   '../../constants/featureFlags': {
     VOICESCAN_ENABLED: false,
     VTO_UI_ENABLED: false,

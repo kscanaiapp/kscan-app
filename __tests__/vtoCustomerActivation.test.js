@@ -1694,7 +1694,7 @@ test('copy: awareness names the feature factually and claims nothing about fit o
 
   // The K+ benefit line is the same sentence, from the catalog.
   const catalog = runModule(CATALOG, {
-    './kplusCapabilityProof': runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
+    './kplusCapabilityProof': require('./helpers/premiumCapabilityProof').loadCapabilityProof(),
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: true, VTO_UI_ENABLED: true, ELISE_CONCIERGE_V1: false, PACKING_INTELLIGENCE_V1: false,
     },

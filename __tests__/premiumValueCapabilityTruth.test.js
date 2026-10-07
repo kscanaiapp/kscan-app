@@ -4,13 +4,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { ROOT, runModule, createRenderer } = require('./helpers/componentRenderer');
-const proof = runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false });
+const { FIXTURE_FINGERPRINT, loadCapabilityProof } = require('./helpers/premiumCapabilityProof');
+const proof = loadCapabilityProof();
 const FLAGS = { voiceScan: false, vto: false, concierge: false, packing: true, watchlist: true, cloudSync: true, cloudRestore: true, cloudMigration: true };
 const records = [
   ['packing_intelligence', 'packing_generation_and_refinement'], ['smart_watchlist', 'watch_tracking'],
   ['cloud_closet', 'closet_outbound_sync'], ['cloud_closet', 'closet_cross_device_restore'],
-].map(([capability, proofType]) => ({ capability, proofType, environment: 'staging', buildAuthority: 'fixture', status: 'PROVEN_RUNTIME', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'governed-fixture' }));
-const context = { environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records };
+].map(([capability, proofType]) => ({ capability, proofType, environment: 'staging', implementationFingerprint: FIXTURE_FINGERPRINT, status: 'PROVEN_RUNTIME', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'governed-fixture' }));
+const context = { environment: 'staging', implementationFingerprints: Object.fromEntries(records.map(r => [r.proofType, FIXTURE_FINGERPRINT])), nowMs: Date.parse('2026-10-07'), records };
 const server = Object.fromEntries(['packing_intelligence', 'smart_watchlist', 'cloud_closet'].map(id => [id, { status: 'confirmed', basis: 'fixture' }]));
 function catalog(mutate) { return runModule('services/kplus/kplusActivationCatalog.ts', { '../../constants/featureFlags': {}, './kplusCapabilityProof': proof }, { jsx: false, mutate }); }
 function ids(subject, flags = FLAGS, ctx = context) { return subject.resolveActivationCapabilities(flags, server, {}, ctx).map(c => c.id); }
@@ -29,8 +30,8 @@ test('P0 claims require runtime proof as well as build flags and server posture'
 for (const status of ['UNPROVEN', 'PROVEN_SOURCE_ONLY']) test(`proof level ${status} cannot advertise`, () => {
   assert.deepEqual(ids(catalog(), FLAGS, { ...context, records: records.map(r => ({ ...r, status })) }), []);
 });
-test('missing, expired, future, wrong environment, wrong build and missing evidence fail closed', () => {
-  for (const patch of [{ environment: 'production' }, { buildAuthority: 'wrong' }, { evidenceRef: '' }, { expiresAt: '2026-10-06' }, { provenAt: '2026-10-08' }]) {
+test('missing, expired, future, wrong environment, wrong implementation and missing evidence fail closed', () => {
+  for (const patch of [{ environment: 'production' }, { implementationFingerprint: 'b'.repeat(64) }, { implementationFingerprint: undefined }, { evidenceRef: '' }, { expiresAt: '2026-10-06' }, { provenAt: '2026-10-08' }]) {
     assert.deepEqual(ids(catalog(), FLAGS, { ...context, records: records.map(r => ({ ...r, ...patch })) }), []);
   }
   assert.deepEqual(ids(catalog(), FLAGS, { ...context, environment: undefined }), []);
@@ -168,7 +169,7 @@ test('an open memoized membership list removes expiring evidence without a VTO n
         ...renderer.runtimeModules,
         '../constants/featureFlags': { VTO_UI_ENABLED: false },
         '../services/kplus/kplusLiveCapabilitySignals': { readKPlusLiveCapabilityState: () => { throw Error('no VTO read needed'); } },
-        '../services/kplus/kplusCapabilityProof': { capabilityProofContext: getContext },
+        '../services/kplus/kplusCapabilityProof': { capabilityProofContext: getContext, isProofRecordCurrent: proof.isProofRecordCurrent },
       }, { jsx: false, mutate });
       let displayed;
       function Membership() {

@@ -71,7 +71,7 @@ function loadCatalog(mutate) {
   return loadTs(
     'services/kplus/kplusActivationCatalog.ts',
     {
-      './kplusCapabilityProof': require('./helpers/componentRenderer').runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
+      './kplusCapabilityProof': require('./helpers/premiumCapabilityProof').loadCapabilityProof(),
   '../../constants/featureFlags': {
         VOICESCAN_ENABLED: false,
         VTO_UI_ENABLED: false,
@@ -124,7 +124,7 @@ function expectedAdvertised(flagsById, statusById, signalsById) {
   );
 }
 
-const PACKING_RUNTIME_FIXTURE = { environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{ capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME', environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] };
+const PACKING_RUNTIME_FIXTURE = require('./helpers/premiumCapabilityProof').matchingFixture('packing_generation_and_refinement', 'packing_intelligence').context;
 const catalog = loadCatalog();
 
 /** The audited-posture check, as a function so a negative control can run it on mutated source. */
@@ -150,10 +150,7 @@ test('RULE: advertised iff compiled in AND (confirmed, or live with an explicit 
         IDS.map((id) => [id, { status: status[id], basis: 'test fixture' }]),
       );
       for (const signals of signalSets) {
-        const resolved = catalog.resolveActivationCapabilities(flagArg, enablement, signals, {
-    environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{
-      capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME',
-      environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] });
+        const resolved = catalog.resolveActivationCapabilities(flagArg, enablement, signals, PACKING_RUNTIME_FIXTURE);
         const actual = resolved.map((capability) => capability.id);
         const expected = expectedAdvertised(flags, status, signals);
         if (actual.length !== expected.length || actual.some((id, index) => id !== expected[index])) {
