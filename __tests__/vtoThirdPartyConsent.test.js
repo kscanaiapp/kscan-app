@@ -933,19 +933,20 @@ function copyStrings(copy) {
 test('copy: the disclosure says exactly what the lead-approved neutral wording says', () => {
   const consent = consentModule();
   const copy = JSON.parse(JSON.stringify(consent.VTO_CONSENT_COPY));
-  assert.equal(copy.title, 'Send your photo to an AI service?');
+  assert.equal(copy.title, 'Send your photo and the garment image to an AI service?');
   assert.equal(
     copy.intro,
-    'To create your try-on, K Scan AI sends the photo you chose, together with the garment image, to an external AI service: AILabTools, through RapidAPI.',
+    'To create your try-on, K Scan AI sends the photo of yourself that you selected and the garment image that you selected to an external virtual try-on AI service: AILabTools, through RapidAPI.',
   );
   assert.deepEqual(copy.points, [
     'Purpose: to generate an AI visualization of this item on your photo.',
     'Your photo may show your face or body. K Scan AI removes its metadata first, but does not blur or mask it.',
+    'The garment image is sent as it is. It can include people or background content, and K Scan AI does not remove them.',
     'K Scan AI does not add your photo or the result to your Closet. How long the service keeps them is set by its own privacy policy.',
   ]);
   assert.equal(copy.policyLinkLabel, 'Read the K Scan AI Privacy Policy');
   assert.equal(copy.continueLabel, 'Continue');
-  assert.equal(copy.continueA11yLabel, 'Continue and send my photo');
+  assert.equal(copy.continueA11yLabel, 'Continue and send my photo and the garment image');
   assert.equal(copy.cancelLabel, 'Cancel');
   assert.equal(copy.persistFailure, 'We could not save your choice, so nothing was sent. Please try again.');
   assert.equal(consent.VTO_PRIVACY_POLICY_URL, 'https://kscan.app/legal/privacy');
@@ -955,8 +956,11 @@ test('copy: it says the photo is SENT, to whom, and why -- from the provider map
   const consent = consentModule();
   const copy = JSON.parse(JSON.stringify(consent.VTO_CONSENT_COPY));
   const disclosures = JSON.parse(JSON.stringify(consent.VTO_PROVIDER_DISCLOSURES));
-  assert.match(copy.intro, /sends the photo you chose/);
-  assert.match(copy.intro, /external AI service/);
+  assert.match(copy.intro, /sends the photo of yourself that you selected and the garment image that you selected/);
+  assert.match(copy.intro, /external virtual try-on AI service/);
+  // The garment image is disclosed as it really is: unprocessed, and possibly
+  // showing people or a background.
+  assert.ok(copy.points.some((point) => /garment image is sent as it is/.test(point) && /people or background content/.test(point)));
   assert.match(copy.points[0], /^Purpose: /);
   for (const [id, { vendor, gateway }] of Object.entries(disclosures)) {
     assert.ok(copy.intro.includes(`${vendor}, through ${gateway}`), `the intro names ${id}'s vendor and gateway`);
@@ -1015,10 +1019,13 @@ const PINNED_CONSENT_DIGESTS = Object.freeze({
   // v1 is introduced by this change and has never shipped, so its digest was still
   // being defined when the Privacy Policy URL joined the pinned parts.
   'vto-third-party-v1': '373b48449062ee00477fb94eb6bd7cc7b0fe81589c99945fc01ee71415589489',
-  // v2: "product image" -> "garment image". A garment can now be a photo the
-  // customer gave Elise, which is not a product image. The noun is the only
-  // change; no retention or processing claim was added.
-  'vto-third-party-v2': 'b3d78f9ed6a26d3438b1e63c249d2520c161023dcbe0f828a5830d5d2f13cbf8',
+  // v2 names both images sent (the selected photo of the customer and the
+  // selected garment image), names the recipient as a virtual try-on AI service,
+  // and states that the garment image is sent as it is and can include people or
+  // background content. v2 was FINALIZED BEFORE IT SHIPPED: this entry was
+  // written once, for an unreleased version, in the change that introduced v2.
+  // It is not a precedent for editing a shipped entry -- v1 above is untouched.
+  'vto-third-party-v2': '57b1d219b4a7201d8d1d23d257908b148014d39521bd09d469ffe98da5e6622c',
 });
 
 function consentDigest({ version, copy, disclosures, privacyPolicyUrl }) {

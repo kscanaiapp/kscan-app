@@ -339,16 +339,15 @@ export async function handleVtoRequest(
     // consumed. It is only ever the bytes its own fingerprint names -- the hash
     // is recomputed, not believed.
     //
-    // ORIGIN IS NOT AUTHORITY, here or anywhere in this function. `origin` is a
-    // label the client picks, so it cannot prove where an image came from and
-    // it grants nothing: every authority step above ran identically for this
-    // request. The comparison below is a CONTRACT-SHAPE rule only -- the one
-    // client surface that produces this source labels itself 'elise', so any
-    // other pairing is a request no shipped client sends -- and it can only
-    // ever refuse.
-    if (origin !== 'elise') {
-      return fail('invalid_garment_input', { requestId, uid, origin, stage: 'garment_source' });
-    }
+    // ORIGIN IS NOT CONSULTED. `origin` is a label the client picks, so it
+    // cannot prove where an image came from. It is recorded as bounded metadata
+    // and nothing else: it neither grants nor refuses this source. What
+    // authorizes the request is everything above -- the verified JWT, the
+    // account guard, the kill switch and canonical K+ -- and everything below:
+    // eligibility, the person input, the K+ recheck and the quota reservation.
+    // What validates the GARMENT is its own payload bounds and recomputed hash.
+    // That it came from Elise is enforced where it can be: by the app-owned
+    // offer and its device-local binding, on the device.
     const resolved = await deps.resolveUserSuppliedVtoGarment(garment);
     if (resolved.ok === false) {
       return fail(resolved.code, {

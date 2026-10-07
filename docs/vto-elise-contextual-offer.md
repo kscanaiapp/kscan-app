@@ -162,12 +162,13 @@ Reuses the existing `vto-generate` endpoint. New source: `user_supplied_garment`
 - **Neutral by name.** It means "the authenticated client is supplying bounded
   garment media for this explicit request." Not owned, not purchased, not saved,
   not a verified retailer product, not "from Elise".
-- **Origin is not authority.** §9 of the brief said "origin must be elise" and
-  §25 said origin must not grant authorization. Both are honoured: the request
-  is refused unless `origin === 'elise'`, as a *contract-shape* rule (the one
-  client that produces this source labels itself so), and that comparison can
-  only refuse. Identity, account guard, kill switch, K+ (twice), quota
-  reservation and provider choice run identically for every origin.
+- **Origin is not consulted.** `origin` is a label the client picks. It is
+  recorded as bounded metadata and neither grants nor refuses this source. The
+  request is authorized by the verified JWT, the account guard, VTO feature
+  control, canonical K+ (twice), eligibility, the quota reservation and the
+  consent the client enforces before transmission; the garment is validated by
+  its payload bounds and recomputed hash. That a garment came from Elise is
+  enforced on the device, by the app-owned offer and its local binding.
 - **Authority order unchanged:** drain body → authenticate → account guard →
   feature control → K+ → source contract + garment validation → eligibility →
   person input → provider resolution → K+ recheck → reservation → generation →
@@ -200,18 +201,30 @@ Reuses the existing `vto-generate` endpoint. New source: `user_supplied_garment`
 ## 7. Consent
 
 Mechanism unchanged: the sheet asks before transmission and the store refuses
-the real transport without proof. One wording change:
+the real transport without proof. The wording is now `vto-third-party-v2`:
 
-> …sends the photo you chose, together with the **garment** image…
+> **Send your photo and the garment image to an AI service?**
+>
+> To create your try-on, K Scan AI sends the photo of yourself that you selected
+> and the garment image that you selected to an external virtual try-on AI
+> service: AILabTools, through RapidAPI.
+>
+> - Purpose: to generate an AI visualization of this item on your photo.
+> - Your photo may show your face or body. K Scan AI removes its metadata first,
+>   but does not blur or mask it.
+> - The garment image is sent as it is. It can include people or background
+>   content, and K Scan AI does not remove them.
+> - K Scan AI does not add your photo or the result to your Closet. How long the
+>   service keeps them is set by its own privacy policy.
 
-(was "product image", which is not accurate for an uploaded photo).
-`VTO_CONSENT_VERSION` is now `vto-third-party-v2`, so everyone who accepted v1 is
-asked again. The v1 digest was not edited; v2 was appended. No retention or
-processing claim was added. `VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED=YES` stands.
-
-**For counsel:** an uploaded garment photo may itself show a person (a model, a
-mannequin, the customer). K Scan sends it as-is and performs no garment
-isolation; the copy does not claim otherwise, but it also does not call this out.
+What changed from v1: both images are named, the recipient is named as a virtual
+try-on AI service, and the garment image is disclosed as unprocessed and
+possibly showing people or a background (K Scan performs no garment isolation).
+Everyone who accepted v1 is asked again. The v1 digest was not edited. v2 was
+finalized before it shipped, so its digest was written once for an unreleased
+version. No retention claim was added.
+`VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED=YES` stands: this wording has not been
+reviewed by counsel.
 
 ## 8. The prose guard, and its limits
 
@@ -276,13 +289,18 @@ description or message text.
 - **Dismissing an offer, and re-surfacing it on an explicit user request**
   (brief §31). The UI has no dismiss, so there is nothing to suppress; the
   persisted action is simply the action.
-- **Per-message binding cleanup.** StyleChat has no message deletion. Bindings
-  are removed when a conversation is deleted; otherwise they expire with their
+- **Per-message binding cleanup.** StyleChat has no message deletion and this
+  lane does not add one. Bindings are removed when a conversation is deleted and
+  when the account is deleted (below); otherwise they expire with their
   candidate.
-- **Cleanup on account deletion.** A deleted account's binding record (ids and
-  hashes, no media) is not removed by the terminal purge. It is inert and
-  bounded, but it is residue. Not added here to avoid changing the purge
-  inventory in this lane.
+
+### Account deletion
+
+The explicit account-deletion lifecycle
+(`services/deletion/ownerTerminalPurge.ts`) now erases the deleted account's
+binding record through `purgeEliseVtoOfferBindingsForActor(ownerId)`. Like every
+step there it takes the owner explicitly and never resolves the current actor,
+so it cannot touch whoever is signed in when the purge runs.
 
 ## 13. Known limits
 

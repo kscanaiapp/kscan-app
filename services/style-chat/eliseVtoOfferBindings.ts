@@ -311,6 +311,31 @@ export async function resolveEliseVtoOfferBinding(
 }
 
 /**
+ * ACCOUNT DELETION. Erases one account's whole binding record from this device.
+ *
+ * The owner is SUPPLIED, never inferred: terminal cleanup runs after the
+ * departed account's session is gone, and often while a different account is
+ * signed in, so this deliberately has no "current actor" default and never
+ * reads one. It removes exactly one key -- that owner's -- and nothing else.
+ *
+ * Fails closed on a blank owner. Idempotent: an already-absent record is a
+ * success. Reports `ok: false` when storage refused, so the deletion marker
+ * stays and the purge is retried.
+ */
+export async function purgeEliseVtoOfferBindingsForActor(ownerId: string): Promise<{ ok: boolean }> {
+  const owner = typeof ownerId === 'string' ? ownerId.trim() : '';
+  if (!owner) return { ok: false };
+  try {
+    // Through the same per-owner queue as every write, so an offer being
+    // recorded at this instant cannot land after the erase.
+    await enqueue(owner, () => AsyncStorage.removeItem(eliseVtoOfferBindingsKey(owner)));
+    return { ok: true };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
  * Best-effort cleanup when a conversation is deleted. Removes that
  * conversation's bindings for the current account and nothing else: the Closet
  * candidates themselves belong to the attachment lifecycle, not to this store.

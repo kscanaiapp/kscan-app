@@ -47,12 +47,18 @@ export const VTO_CONSENT_VERSION = 'vto-third-party-v2';
 /*
  * VERSION HISTORY
  *   v1  "...the photo you chose, together with the product image..."
- *   v2  "...the photo you chose, together with the garment image..."
- *       A garment can now come from a photo the customer gave Elise, which is
- *       not a product image. The noun is the only change: the same two images
- *       are sent to the same service for the same purpose, and no claim about
- *       retention or processing was added or removed. Everyone who accepted v1
- *       is asked again. VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED remains YES.
+ *   v2  Names BOTH images that leave the device -- the photo of the customer
+ *       that they selected and the garment image that they selected -- and the
+ *       recipient as a virtual try-on AI service. A garment can now come from a
+ *       photo the customer gave Elise, so it is not always a product image, and
+ *       it is sent as it is: it can include people or background content, which
+ *       K Scan AI does not remove. The copy says so.
+ *       No claim about retention was added or removed, and nothing here claims
+ *       garment-only processing. Everyone who accepted v1 is asked again.
+ *       v2 was finalized before it ever shipped, which is why its wording
+ *       changed once under one version. From the first release that carries it,
+ *       any further change bumps the version.
+ *       VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED remains YES.
  */
 
 /** The Privacy Policy the consent step links to. */
@@ -77,7 +83,7 @@ export const VTO_PROVIDER_DISCLOSURES: Readonly<Record<string, VtoProviderDisclo
 });
 
 const INTRO_LEAD =
-  'To create your try-on, K Scan AI sends the photo you chose, together with the garment image, to an external AI service: ';
+  'To create your try-on, K Scan AI sends the photo of yourself that you selected and the garment image that you selected to an external virtual try-on AI service: ';
 
 /** The intro sentence, with every disclosed provider named. */
 export function buildVtoConsentIntro(
@@ -102,16 +108,17 @@ export interface VtoConsentCopy {
 }
 
 export const VTO_CONSENT_COPY: VtoConsentCopy = Object.freeze({
-  title: 'Send your photo to an AI service?',
+  title: 'Send your photo and the garment image to an AI service?',
   intro: buildVtoConsentIntro(),
   points: Object.freeze([
     'Purpose: to generate an AI visualization of this item on your photo.',
     'Your photo may show your face or body. K Scan AI removes its metadata first, but does not blur or mask it.',
+    'The garment image is sent as it is. It can include people or background content, and K Scan AI does not remove them.',
     'K Scan AI does not add your photo or the result to your Closet. How long the service keeps them is set by its own privacy policy.',
   ]),
   policyLinkLabel: 'Read the K Scan AI Privacy Policy',
   continueLabel: 'Continue',
-  continueA11yLabel: 'Continue and send my photo',
+  continueA11yLabel: 'Continue and send my photo and the garment image',
   cancelLabel: 'Cancel',
   persistFailure: 'We could not save your choice, so nothing was sent. Please try again.',
 });

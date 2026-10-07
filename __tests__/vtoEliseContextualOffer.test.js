@@ -2432,7 +2432,9 @@ test('P1-22: Live VTO is untouched -- no EAS profile enables it, and the offer h
 test('the consent wording covers both images, and the sheet still asks before anything is sent', () => {
   const consent = read('services/vto/vtoConsent.ts');
   assert.match(consent, /export const VTO_CONSENT_VERSION = 'vto-third-party-v2';/);
-  assert.match(consent, /sends the photo you chose, together with the garment image, to an external AI service: /);
+  assert.match(consent, /sends the photo of yourself that you selected and the garment image that you selected to an external virtual try-on AI service: /);
+  assert.match(consent, /The garment image is sent as it is\. It can include people or background content, and K Scan AI does not remove them\./);
+  assert.match(consent, /title: 'Send your photo and the garment image to an AI service\?'/);
   assert.doesNotMatch(stripComments(consent), /product image/);
   assert.match(consent, /VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED=YES/);
   // No new retention or processing claim.
@@ -2441,3 +2443,128 @@ test('the consent wording covers both images, and the sheet still asks before an
   assert.match(sheet, /const requestGenerate = useCallback\(\(\) => \{\s*if \(hasVtoConsent\(\)\) \{\s*vto\.generate\(\);/);
   assert.match(stripComments(read('hooks/useVirtualTryOn.ts')), /consentGranted: hasVtoConsent\(\)/);
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 11. Account deletion erases the deleted account's bindings, and only those
+// ═════════════════════════════════════════════════════════════════════════════
+
+const PURGE = 'services/deletion/ownerTerminalPurge.ts';
+
+/** Both accounts hold an offer on this device; then A's account is deleted. */
+async function checkAccountDeletionErasesOnlyTheOwner(o = {}) {
+  const world = createWorld(o);
+  const aCandidate = world.addCandidate({ category: 'dress' });
+  const aBlock = await world.prepare([world.draft(aCandidate)]);
+  world.signIn(ACTOR_B);
+  const bCandidate = world.addCandidate({ category: 'blazer' });
+  const bBlock = await world.prepare([world.draft(bCandidate)]);
+  assert.ok(aBlock && bBlock, 'precondition: each account has an offer');
+  const aKey = world.bindings.eliseVtoOfferBindingsKey(ACTOR_A);
+  const bKey = world.bindings.eliseVtoOfferBindingsKey(ACTOR_B);
+  assert.ok(world.env.storage.has(aKey) && world.env.storage.has(bKey));
+
+  // Terminal cleanup for A runs while B is the signed-in account.
+  assert.deepEqual(await world.bindings.purgeEliseVtoOfferBindingsForActor(ACTOR_A), { ok: true });
+  assert.equal(world.env.storage.has(aKey), false, "the deleted account's record is physically gone");
+  assert.equal(world.env.storage.has(bKey), true, "the signed-in account's record is untouched");
+  assert.ok(await world.bindings.resolveEliseVtoOfferBinding(bBlock.localBindingId), 'B still resolves B');
+
+  // A's old message, if it ever appears again, resolves to nothing.
+  world.signIn(ACTOR_A);
+  assert.equal(await world.bindings.resolveEliseVtoOfferBinding(aBlock.localBindingId), null);
+  assert.deepEqual(await world.source.resolveEliseVtoOfferLaunch(aBlock.localBindingId), {
+    ok: false, reason: 'binding_missing',
+  });
+
+  // Idempotent, and it works with nobody signed in at all.
+  world.signIn(null);
+  assert.deepEqual(await world.bindings.purgeEliseVtoOfferBindingsForActor(ACTOR_A), { ok: true });
+  assert.equal(world.env.storage.has(bKey), true);
+}
+
+test('account deletion: the deleted account\'s bindings are erased by explicit owner, whoever is signed in', () =>
+  checkAccountDeletionErasesOnlyTheOwner());
+
+test('NC: purging the CURRENT actor instead of the supplied owner is caught', async () => {
+  await expectRed(
+    () => checkAccountDeletionErasesOnlyTheOwner({
+      mutate: {
+        [BINDINGS]: mutateOpt(
+          BINDINGS,
+          "  const owner = typeof ownerId === 'string' ? ownerId.trim() : '';\n  if (!owner) return { ok: false };",
+          "  const owner = currentActorId() ?? '';\n  if (!owner) return { ok: false };",
+        ),
+      },
+    }),
+    'purge resolves the current actor',
+  );
+});
+
+test('account deletion: a blank owner fails closed, and a storage failure is reported, not swallowed', async () => {
+  const { world } = await offeredWorld();
+  const key = world.bindings.eliseVtoOfferBindingsKey(ACTOR_A);
+  for (const owner of ['', '   ', null, undefined, 42]) {
+    assert.deepEqual(await world.bindings.purgeEliseVtoOfferBindingsForActor(owner), { ok: false });
+  }
+  assert.equal(world.env.storage.has(key), true, 'nothing was erased for a blank owner');
+
+  // Storage refuses: the step reports failure so the deletion marker is kept
+  // and the purge is retried later.
+  const failing = createWorld();
+  failing.env.storage.delete = () => { throw new Error('disk'); };
+  assert.deepEqual(await failing.bindings.purgeEliseVtoOfferBindingsForActor(ACTOR_A), { ok: false });
+});
+
+test('account deletion: the terminal purge runs the binding step with the marker owner', async () => {
+  const calls = [];
+  const names = [
+    'purgeScans', 'purgeCloset', 'purgeClosetCandidates', 'purgeClosetSync', 'purgeClosetRestoreMedia',
+    'purgeSavedLooks', 'purgeDressingRoomSessions', 'purgeDressingRoomCompositions',
+    'purgeDressingRoomInteractions', 'purgeSavedLookReturnContext', 'purgeStylistVoicePreference',
+    'clearSignatureStylePreferences', 'clearSignatureStyleFeedback', 'clearSignatureStyleReasons',
+    'clearPackingPlanCache', 'clearFreeTierStores', 'purgeEliseVtoOfferBindings', 'clearOnboarding',
+  ];
+  const deps = (failing) => Object.fromEntries(names.map((name) => [name, async (arg) => {
+    calls.push({ name, arg });
+    return { ok: name !== failing };
+  }]));
+  // Every default primitive is a refusal: the orchestrator must use the deps.
+  const refuse = new Proxy({}, { get: () => () => { throw new Error('a real primitive ran'); } });
+  const specifiers = [...read(PURGE).matchAll(/from '([^']+)';/g)].map((match) => match[1]);
+  assert.ok(specifiers.includes('../style-chat/eliseVtoOfferBindings'));
+  const purge = runModule(
+    PURGE,
+    Object.fromEntries(specifiers.map((specifier) => [specifier, refuse])),
+    { jsx: false },
+  );
+
+  const result = await purge.purgeOwnerScopedLocalData(ACTOR_A, deps(null));
+  assert.equal(result.complete, true);
+  const step = result.steps.find((entry) => entry.step === 'elise_vto_offer_bindings');
+  assert.deepEqual(step, { step: 'elise_vto_offer_bindings', ok: true });
+  assert.deepEqual(calls.find((call) => call.name === 'purgeEliseVtoOfferBindings'), {
+    name: 'purgeEliseVtoOfferBindings', arg: ACTOR_A,
+  });
+
+  // A failed binding purge keeps the whole run incomplete, so it is retried.
+  calls.length = 0;
+  const failed = await purge.purgeOwnerScopedLocalData(ACTOR_A, deps('purgeEliseVtoOfferBindings'));
+  assert.equal(failed.complete, false);
+  assert.equal(calls.length, names.length, 'the other subsystems are still cleaned');
+
+  // The orchestrator imports the OWNER-TAKING primitive, and still resolves no
+  // ambient actor of its own.
+  const source = stripComments(read(PURGE));
+  assert.match(source, /import \{ purgeEliseVtoOfferBindingsForActor \} from '\.\.\/style-chat\/eliseVtoOfferBindings';/);
+  assert.match(
+    source,
+    /runStep\('elise_vto_offer_bindings', \(\) =>\s*\(deps\.purgeEliseVtoOfferBindings \?\? purgeEliseVtoOfferBindingsForActor\)\(owner\),/,
+  );
+  assert.doesNotMatch(source, /AsyncStorage|getActorContext|captureActorScope|currentActorId/);
+  // And the primitive itself never consults the current actor.
+  const primitive = stripComments(read(BINDINGS)).match(
+    /export async function purgeEliseVtoOfferBindingsForActor[\s\S]*?\n}\n/,
+  )[0];
+  assert.doesNotMatch(primitive, /currentActorId|getActorContext/);
+});
+

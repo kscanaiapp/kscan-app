@@ -344,15 +344,59 @@ Deno.test('P0: a user-supplied garment generates through the existing pipeline, 
   assertEquals(spy.reservationKeys.length, 1);
 });
 
-Deno.test('P0: origin is a contract-shape rule for this source, and it can only refuse', async () => {
-  for (const origin of ['commerce_product', 'closet_item', 'scan_result', 'dressing_room', 'dev_harness', 'nonsense', undefined]) {
+const EVERY_ORIGIN = [
+  'elise', 'commerce_product', 'closet_item', 'scan_result', 'dressing_room', 'dev_harness', 'nonsense', undefined,
+];
+
+Deno.test('P0: origin is bounded metadata -- it does not refuse a user-supplied garment', async () => {
+  for (const origin of EVERY_ORIGIN) {
     const { deps, spy } = harness();
-    const response = await handleVtoRequest(post(await suppliedBody({ origin })), deps);
-    assertEquals(response.status, 422, `origin ${origin}`);
-    assertEquals(await failureCode(response), 'invalid_garment_input');
-    assertEquals(spy.resolverCalls, 0, 'the payload is not even examined');
-    assertEquals(spy.reservationKeys.length, 0);
-    assertEquals(spy.providerInputs.length, 0);
+    const body = await suppliedBody({ origin });
+    const response = await handleVtoRequest(post(body), deps);
+    assertEquals(response.status, 200, `origin ${origin}`);
+    const json = await response.json();
+    assertEquals(json.garmentSource, body.garment.source, `origin ${origin}`);
+    // Validated exactly the same way, whatever label the client chose.
+    assertEquals(spy.resolverCalls, 1, `origin ${origin}`);
+    assertEquals(spy.providerInputs.length, 1, `origin ${origin}`);
+    assertEquals(spy.providerInputs[0].garmentDataUri, body.garment.dataUri, `origin ${origin}`);
+    assertEquals(spy.providerInputs[0].garmentImageUrl, '', `origin ${origin}`);
+  }
+});
+
+Deno.test('P0: origin grants nothing -- no label gets past K+, the kill switch, the hash or the bound', async () => {
+  for (const origin of EVERY_ORIGIN) {
+    const noKPlus = harness({ resolveVtoEntitlement: () => Promise.resolve({ state: 'denied' as const }) });
+    const denied = await handleVtoRequest(post(await suppliedBody({ origin })), noKPlus.deps);
+    assertEquals(denied.status, 403, `origin ${origin}`);
+    assertEquals(await failureCode(denied), 'entitlement_required', `origin ${origin}`);
+    assertEquals(noKPlus.spy.providerInputs.length, 0, `origin ${origin}`);
+
+    const disabled = harness({
+      readVtoFeatureConfig: () => Promise.resolve({ ...ENABLED_CONFIG, enabled: false }),
+    });
+    const off = await handleVtoRequest(post(await suppliedBody({ origin })), disabled.deps);
+    assertEquals(await failureCode(off), 'feature_disabled', `origin ${origin}`);
+    assertEquals(disabled.spy.providerInputs.length, 0, `origin ${origin}`);
+
+    const mismatch = harness();
+    const body = await suppliedBody({ origin });
+    body.garment = { ...body.garment, source: (await suppliedGarment({}, { seed: 21 })).source };
+    const refused = await handleVtoRequest(post(body), mismatch.deps);
+    assertEquals(refused.status, 422, `origin ${origin}`);
+    assertEquals(await failureCode(refused), 'invalid_garment_input', `origin ${origin}`);
+    assertEquals(mismatch.spy.reservationKeys.length, 0, `origin ${origin}`);
+    assertEquals(mismatch.spy.providerInputs.length, 0, `origin ${origin}`);
+
+    const unsupported = harness();
+    const shoes = await suppliedBody({ origin });
+    shoes.garment = { ...shoes.garment, category: 'sneakers' };
+    assertEquals(
+      await failureCode(await handleVtoRequest(post(shoes), unsupported.deps)),
+      'unsupported_category',
+      `origin ${origin}`,
+    );
+    assertEquals(unsupported.spy.providerInputs.length, 0, `origin ${origin}`);
   }
 });
 

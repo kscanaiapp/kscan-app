@@ -192,6 +192,7 @@ function createPurgeSpies(overrides = {}) {
       clearSignatureStyleReasons: spy('clearSignatureStyleReasons'),
       clearPackingPlanCache: spy('clearPackingPlanCache'),
       clearFreeTierStores: spy('clearFreeTierStores'),
+      purgeEliseVtoOfferBindings: spy('purgeEliseVtoOfferBindings'),
       clearOnboarding: spy('clearOnboarding'),
     },
   };
@@ -227,6 +228,11 @@ function loadPurge() {
     // has no ambient-actor default to resolve. That is asserted against the
     // real module in __tests__/freeTierTerminalPurgeConvergence.test.js.
     '../free-tier/freeTierStorage',
+    // Build 35 Elise contextual Try It On. One device-local binding record per
+    // account; the orchestrator imports the OWNER-TAKING primitive by name, for
+    // the same reason as the free-tier entry above. Asserted against the real
+    // module in __tests__/vtoEliseContextualOffer.test.js.
+    '../style-chat/eliseVtoOfferBindings',
     '../onboardingCompletion',
   ]);
   return evaluate(PURGE_REL, (spec) => {
@@ -973,10 +979,11 @@ test('PURGE: every step receives the marker owner, never the current actor', asy
 
   assert.equal(result.complete, true);
   assert.equal(result.ownerId, OWNER_A);
-  // 17 since CPR-FT-001 added the free-tier namespace. An EXACT count, not a
-  // floor: a subsystem that silently stops being purged is the defect this
-  // assertion exists to catch.
-  assert.equal(calls.length, 17, 'every owner-scoped subsystem is covered');
+  // 17 since CPR-FT-001 added the free-tier namespace; 18 since Build 35 added
+  // the Elise contextual Try It On bindings. An EXACT count, not a floor: a
+  // subsystem that silently stops being purged is the defect this assertion
+  // exists to catch.
+  assert.equal(calls.length, 18, 'every owner-scoped subsystem is covered');
 
   const signatureStyleSteps = ['clearSignatureStylePreferences', 'clearSignatureStyleFeedback', 'clearSignatureStyleReasons'];
   for (const call of calls) {
