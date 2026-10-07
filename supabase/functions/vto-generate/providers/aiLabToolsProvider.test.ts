@@ -704,3 +704,72 @@ Deno.test('VTO-QUOTA-003: a failure AFTER a successful submit stays billable', a
     assertEquals(outcome.billable, undefined, 'absent means billable');
   }
 });
+
+// ── Inline (user-supplied) garment ────────────────────────────────────────────
+//
+// A garment the orchestrator already validated arrives as a data URI. It must
+// reach the SAME multipart field as a fetched garment, decoded directly: there
+// is no URL for it, so nothing may be fetched and nothing becomes fetchable.
+
+const INLINE_GARMENT_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]);
+const INLINE_GARMENT_DATA_URI = `data:image/jpeg;base64,${btoa(String.fromCharCode(...INLINE_GARMENT_BYTES))}`;
+const INLINE_INPUT: VtoProviderInput = {
+  personDataUri: 'data:image/jpeg;base64,QUFBQQ==',
+  garmentImageUrl: '',
+  garmentDataUri: INLINE_GARMENT_DATA_URI,
+  slot: 'full_body',
+  canonicalCategory: 'dress',
+};
+
+Deno.test('an inline garment is decoded straight into top_garment and nothing is fetched for it', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(INLINE_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, true);
+
+  // Submit, poll, result download -- and no garment fetch of any kind.
+  for (const call of calls) {
+    assert(
+      call.url.includes('/portrait/editing/try-on-clothes-pro')
+        || call.url.includes('/api/rapidapi/query-async-task-result')
+        || call.url === RESULT_URL,
+      `unexpected fetch: ${call.url}`,
+    );
+  }
+  assertEquals(callsTo(calls, GARMENT_URL).length, 0);
+
+  const form = callsTo(calls, '/portrait/editing/try-on-clothes-pro')[0].init.body as FormData;
+  const garment = form.get('top_garment');
+  assert(garment instanceof Blob);
+  assertEquals(garment.type, 'image/jpeg');
+  assertEquals(new Uint8Array(await garment.arrayBuffer()), INLINE_GARMENT_BYTES);
+  // The bytes travel as a file part; the data URI is never a string field.
+  for (const [, value] of form.entries()) {
+    if (typeof value === 'string') assert(!value.startsWith('data:'));
+  }
+});
+
+Deno.test('an inline garment takes precedence over any URL on the same input', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(
+    { ...INLINE_INPUT, garmentImageUrl: GARMENT_URL },
+    { signal: signal() },
+  );
+  assertEquals(outcome.ok, true);
+  assertEquals(callsTo(calls, GARMENT_URL).length, 0);
+});
+
+Deno.test('an undecodable inline garment never reaches the network and is non-billable', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  for (const garmentDataUri of ['', 'not-a-data-uri', 'data:image/jpeg;base64,***', 'https://cdn.example.com/x.jpg']) {
+    const outcome = await provider.generate({ ...INLINE_INPUT, garmentDataUri }, { signal: signal() });
+    assertEquals(outcome.ok, false);
+    if (outcome.ok === false) {
+      assertEquals(outcome.failure, 'invalid_garment_input');
+      assertEquals(outcome.billable, false);
+    }
+  }
+  assertEquals(calls.length, 0);
+});

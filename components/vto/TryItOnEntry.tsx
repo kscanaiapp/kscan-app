@@ -21,9 +21,15 @@
  * optional first-use cue is an inline block above the same control that calls
  * the same handler. Neither can start a request or open a photo chooser -- the
  * sheet still asks for the photo, and for consent, exactly as before.
+ *
+ * SHARED LAUNCHER. The sheet, its collapsed state and the minimized pill are
+ * not this component's any more: they belong to VtoLaunchHost, which Elise's
+ * contextual offer mounts too. This file keeps what is specific to a product
+ * card -- whether to offer the control, what it says, and the K+ seam -- and
+ * hands an already-eligible garment to the one shared surface.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
@@ -31,24 +37,16 @@ import { selectionTick } from '../../services/haptics';
 import { KScanIcon } from '../icons/kscan';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { useVtoAvailability } from '../../hooks/useVtoAvailability';
-import { useVtoActorKPlusState, useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
+import { useVtoActorKPlusState } from '../../hooks/useVtoAwareness';
 import { useVtoLiveCapability } from '../../hooks/useVtoLiveCapability';
-import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
-import {
-  emitVtoAwarenessImpression,
-  emitVtoAwarenessTap,
-  markVtoCompleted,
-  markVtoInitiated,
-} from '../../services/vto/vtoAwareness';
+import { emitVtoAwarenessImpression, emitVtoAwarenessTap } from '../../services/vto/vtoAwareness';
 import {
   resolveVtoProductCta,
   VTO_DISCOVERY_COPY,
   type VtoAwarenessSurface,
 } from '../../services/vto/vtoDiscovery';
-import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
-import { VirtualTryOnSheet } from './VirtualTryOnSheet';
 import { VtoFirstUseCue } from './VtoFirstUseCue';
-import { VtoMinimizedPill } from './VtoMinimizedPill';
+import { useVtoLaunchHost, VtoLaunchHost } from './VtoLaunchHost';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
 export interface TryItOnEntryProps {
@@ -86,12 +84,10 @@ export function TryItOnEntry({
   firstUseEducation = false,
   testID,
 }: TryItOnEntryProps) {
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const [minimized, setMinimized] = useState(false);
   const controlRef = useRef<View>(null);
-  // Read-only: observing the running generation must not claim authority over
-  // it. See hooks/useVtoSessionStatus.ts.
-  const session = useVtoSessionStatus();
+  // The shared launch lifecycle: sheet, collapse, pill. Per-card state, so only
+  // the card that opened a try-on shows its sheet and its pill.
+  const launch = useVtoLaunchHost({ origin, onWatch });
   const { available, upgradeOpportunity, loading, liveRemoteEnabled, liveSupportedCategories } =
     useVtoAvailability({
       category: garment.category,
@@ -118,46 +114,17 @@ export function TryItOnEntry({
     liveSupportedCategories,
   });
 
+  const openLaunch = launch.open;
   const openSheet = useCallback(() => {
     selectionTick();
     emitVtoAwarenessTap({ surface, kplus });
-    // Opening the try-on surface is what retires the Home introduction.
-    markVtoInitiated();
-    setMinimized(false);
-    setSheetVisible(true);
-  }, [kplus, surface]);
-
-  const closeSheet = useCallback(() => {
-    setMinimized(false);
-    setSheetVisible(false);
-  }, []);
-
-  const restoreSheet = useCallback(() => {
-    selectionTick();
-    emitVtoEvent('vto_restored', { origin });
-    setMinimized(false);
-  }, [origin]);
-
-  const watchFromTryOn = useCallback(() => {
-    if (!onWatch) return;
-    // Native watch UI must not stack over the VTO Modal. Keep the result alive
-    // and expose a truthful return affordance while Commerce owns the action.
-    setMinimized(true);
-    onWatch();
-  }, [onWatch]);
+    openLaunch();
+  }, [kplus, openLaunch, surface]);
 
   // Counted once per surface per session, however many eligible items render.
   useEffect(() => {
     if (cta !== 'none') emitVtoAwarenessImpression({ surface, kplus });
   }, [cta, kplus, surface]);
-
-  // A result on screen is the "completed" half of the awareness history.
-  useEffect(() => {
-    if (sheetVisible && session.status === 'success') markVtoCompleted();
-  }, [session.status, sheetVisible]);
-
-  // While this card's own sheet is up, no first-use cue appears anywhere.
-  useVtoAwarenessBlocker(sheetVisible && !minimized);
 
   if (!available && !upgradeOpportunity) return null;
   if (cta === 'none') return null;
@@ -244,45 +211,22 @@ export function TryItOnEntry({
         </View>
       </Pressable>
       {/*
-          Mounted only while open, deliberately. The sheet binds the
-          module-scoped VTO store and tears the operation down on unmount, so
-          an always-mounted copy per product card would mean any card
-          re-rendering could wipe an in-flight try-on started from another.
-          One card, one sheet, one operation.
+          The one shared VTO surface. It mounts the sheet only while this card's
+          try-on is open and keeps it mounted while collapsed -- see
+          VtoLaunchHost for why both of those are load-bearing.
       */}
-      {sheetVisible ? (
-        <VirtualTryOnSheet
-          visible={!minimized}
-          onClose={closeSheet}
-          onMinimize={() => setMinimized(true)}
-          garment={garment}
-          garmentTitle={garmentTitle}
-          origin={origin}
-          onShop={onShop}
-          onWatch={onWatch ? watchFromTryOn : undefined}
-          sizeGuideUrl={sizeGuideUrl}
-          devScenario={devScenario}
-          capability={capability}
-        />
-      ) : null}
-      {/*
-          MINIMIZED, NOT UNMOUNTED. The sheet above stays mounted while
-          collapsed and is merely made invisible, because useVirtualTryOn calls
-          leaveVtoSurface on unmount -- rendering it conditionally on
-          `!minimized` would cancel the very generation the pill is reporting
-          on. Only the owning card shows a pill: `sheetVisible` is per-card
-          state, so other product cards render nothing.
-      */}
-      {sheetVisible && minimized ? (
-        <VtoMinimizedPill
-          ready={session.status === 'success'}
-          returnOnly={session.status !== 'preparing'
-            && session.status !== 'generating'
-            && session.status !== 'validating_result'}
-          onPress={restoreSheet}
-          testID={testID ? `${testID}-pill` : undefined}
-        />
-      ) : null}
+      <VtoLaunchHost
+        launch={launch}
+        garment={garment}
+        garmentTitle={garmentTitle}
+        origin={origin}
+        onShop={onShop}
+        onWatch={onWatch}
+        sizeGuideUrl={sizeGuideUrl}
+        devScenario={devScenario}
+        capability={capability}
+        testID={testID}
+      />
     </>
   );
 }

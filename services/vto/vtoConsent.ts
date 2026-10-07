@@ -42,7 +42,18 @@ export const VTO_CONSENT_FEATURE: ThirdPartyAiFeature = 'virtual_try_on';
  * The version of the wording, the provider disclosures and everything else the
  * customer agrees to. Bump it on ANY change to them.
  */
-export const VTO_CONSENT_VERSION = 'vto-third-party-v1';
+export const VTO_CONSENT_VERSION = 'vto-third-party-v2';
+
+/*
+ * VERSION HISTORY
+ *   v1  "...the photo you chose, together with the product image..."
+ *   v2  "...the photo you chose, together with the garment image..."
+ *       A garment can now come from a photo the customer gave Elise, which is
+ *       not a product image. The noun is the only change: the same two images
+ *       are sent to the same service for the same purpose, and no claim about
+ *       retention or processing was added or removed. Everyone who accepted v1
+ *       is asked again. VTO_CONSENT_COPY_LEGAL_REVIEW_REQUIRED remains YES.
+ */
 
 /** The Privacy Policy the consent step links to. */
 export const VTO_PRIVACY_POLICY_URL = 'https://kscan.app/legal/privacy';
@@ -66,7 +77,7 @@ export const VTO_PROVIDER_DISCLOSURES: Readonly<Record<string, VtoProviderDisclo
 });
 
 const INTRO_LEAD =
-  'To create your try-on, K Scan AI sends the photo you chose, together with the product image, to an external AI service: ';
+  'To create your try-on, K Scan AI sends the photo you chose, together with the garment image, to an external AI service: ';
 
 /** The intro sentence, with every disclosed provider named. */
 export function buildVtoConsentIntro(

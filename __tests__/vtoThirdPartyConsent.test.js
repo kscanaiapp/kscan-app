@@ -48,7 +48,7 @@ const FILES = {
 };
 
 const FEATURE = 'virtual_try_on';
-const VERSION = 'vto-third-party-v1';
+const VERSION = 'vto-third-party-v2';
 const keyFor = (actorId, feature = FEATURE) => `kscan.thirdPartyAiConsent.v1:${feature}:${actorId}`;
 
 // ── Harness ──────────────────────────────────────────────────────────────────
@@ -477,14 +477,14 @@ test('vtoConsent: the wrappers bind the VTO feature and the current version', as
     recordThirdPartyAiConsent: async (feature, version) => { calls.push(['record', feature, version]); return true; },
   });
   assert.equal(consent.VTO_CONSENT_FEATURE, 'virtual_try_on');
-  assert.equal(consent.VTO_CONSENT_VERSION, 'vto-third-party-v1');
+  assert.equal(consent.VTO_CONSENT_VERSION, 'vto-third-party-v2');
   assert.equal(consent.hasVtoConsent(), true);
   assert.equal(await consent.loadVtoConsent(), true);
   assert.equal(await consent.grantVtoConsent(), true);
   assert.deepEqual(calls, [
-    ['has', 'virtual_try_on', 'vto-third-party-v1'],
-    ['load', 'virtual_try_on', 'vto-third-party-v1'],
-    ['record', 'virtual_try_on', 'vto-third-party-v1'],
+    ['has', 'virtual_try_on', 'vto-third-party-v2'],
+    ['load', 'virtual_try_on', 'vto-third-party-v2'],
+    ['record', 'virtual_try_on', 'vto-third-party-v2'],
   ]);
 });
 
@@ -936,7 +936,7 @@ test('copy: the disclosure says exactly what the lead-approved neutral wording s
   assert.equal(copy.title, 'Send your photo to an AI service?');
   assert.equal(
     copy.intro,
-    'To create your try-on, K Scan AI sends the photo you chose, together with the product image, to an external AI service: AILabTools, through RapidAPI.',
+    'To create your try-on, K Scan AI sends the photo you chose, together with the garment image, to an external AI service: AILabTools, through RapidAPI.',
   );
   assert.deepEqual(copy.points, [
     'Purpose: to generate an AI visualization of this item on your photo.',
@@ -1015,6 +1015,10 @@ const PINNED_CONSENT_DIGESTS = Object.freeze({
   // v1 is introduced by this change and has never shipped, so its digest was still
   // being defined when the Privacy Policy URL joined the pinned parts.
   'vto-third-party-v1': '373b48449062ee00477fb94eb6bd7cc7b0fe81589c99945fc01ee71415589489',
+  // v2: "product image" -> "garment image". A garment can now be a photo the
+  // customer gave Elise, which is not a product image. The noun is the only
+  // change; no retention or processing claim was added.
+  'vto-third-party-v2': 'b3d78f9ed6a26d3438b1e63c249d2520c161023dcbe0f828a5830d5d2f13cbf8',
 });
 
 function consentDigest({ version, copy, disclosures, privacyPolicyUrl }) {

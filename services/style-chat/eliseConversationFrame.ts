@@ -1292,3 +1292,129 @@ export function parseEliseConversationNotice(raw: unknown): EliseConversationNot
     ...(tokens.length ? { tokens } : {}),
   };
 }
+
+// ── Reply guard: Try It On invitations ───────────────────────────────────────
+
+/**
+ * A NEGATIVE safety guard for model prose. It can only remove text.
+ *
+ * WHY. The application owns the try-on invitation. If the model writes
+ * "Would you like to try that on?" by itself, the customer reads an offer with
+ * no button behind it — or with a button for a different reason than the one
+ * the sentence implies. So a sentence in which the model invites a try-on is
+ * removed before the reply is stored or shown.
+ *
+ * WHAT IT IS NOT. It is not how an offer is created: nothing is ever inferred
+ * from a match, and a reply with no match gets no offer either. And it is not
+ * semantic proof. It recognises a fixed set of common phrasings, tolerant of
+ * capitalisation, punctuation, contractions and singular/plural pronouns. A
+ * paraphrase outside that set passes through. The system instruction is the
+ * first line of defence; this is the second, and it is bounded on purpose.
+ *
+ * WHAT IT LEAVES ALONE. Ordinary styling advice that happens to use the words:
+ * "try it on with a belt before you decide" is advice about getting dressed,
+ * not an invitation to a feature. A sentence is removed only when it INVITES
+ * (a question, or an invitation lead-in), talks about seeing the piece on the
+ * customer's own body, or names the feature.
+ */
+
+const OBJECT = String.raw`(?:it|that|this|them|they|these|those|one|the\s+[a-z'-]+(?:\s+[a-z'-]+)?)`;
+const LEAD_IN = String.raw`(?:would\s+you\s+(?:like|want|care|love)\s+to|do\s+you\s+(?:want|wish|care)\s+to|(?:you\s+)?want\s+to|wanna|care\s+to|shall\s+we|should\s+we|how\s+about\s+we|why\s+(?:not|don'?t\s+(?:you|we))|let'?s|let\s+us|you\s+can(?:\s+now)?|you\s+could|feel\s+free\s+to|go\s+ahead\s+and|ready\s+to|tap\s+(?:below\s+)?to|i\s+can\s+(?:show|let))`;
+
+const INVITATION_PATTERNS: readonly RegExp[] = [
+  // "would you like to try that on", "want to try it on", "let's try these on"
+  new RegExp(String.raw`\b${LEAD_IN}\b[^.!?]*?\b(?:virtually\s+)?try(?:ing)?\s+${OBJECT}\s+on\b`),
+  // "... try on that dress / try on the look"
+  new RegExp(String.raw`\b${LEAD_IN}\b[^.!?]*?\b(?:virtually\s+)?try(?:ing)?\s+on\s+${OBJECT}\b`),
+  // "see how it looks on you", "see it on you", "see what it'd look like on you"
+  new RegExp(String.raw`\bsee(?:ing)?\s+(?:how|what)\s+${OBJECT}(?:\s+would|\s+will|\s+might|'?d|'?ll)?\s+looks?(?:\s+like)?\s+on\s+you\b`),
+  new RegExp(String.raw`\bsee(?:ing)?\s+${OBJECT}\s+on\s+(?:you|yourself|your\s+(?:own\s+)?(?:body|photo|picture))\b`),
+  new RegExp(String.raw`\bshow\s+(?:you\s+)?(?:how|what)\s+${OBJECT}\s+(?:would\s+|will\s+|might\s+)?looks?(?:\s+like)?\s+on\s+you\b`),
+  // the feature by name
+  /\bvirtual(?:ly)?\s+try[\s-]*(?:it[\s-]*|that[\s-]*|this[\s-]*|them[\s-]*)?on\b/,
+  /\btry[\s-]*(?:it|that|this|them|these|those)[\s-]*on\s+virtually\b/,
+  /\btry[\s-]*on\s+(?:feature|tool|option|button|mode)\b/,
+  /\b(?:use|using|open|tap|with)\s+(?:the\s+|our\s+|k\s?scan(?:\s+ai)?'?s?\s+)?try\s+it\s+on\b/,
+];
+
+/** A question that asks about trying something on, with or without a lead-in. */
+const TRY_ON_QUESTION = new RegExp(
+  String.raw`\btry(?:ing)?\s+(?:${OBJECT}\s+on|on\s+${OBJECT})\b[^.!?]*\?\s*$`,
+);
+
+function normalizeForMatch(sentence: string): string {
+  return sentence
+    .toLowerCase()
+    .replace(/[‘’‛′]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[‐-―]/g, '-')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Every pattern below needs one of these fragments. Checking for them first
+ * means an ordinary reply -- which is nearly all of them -- never reaches the
+ * larger expressions at all.
+ */
+const INVITATION_PREFILTER = /\btry|\bon (?:you|yourself|your)\b/;
+
+/** True when one sentence invites a try-on. Exported for the guard's own tests. */
+export function isEliseVtoInvitationSentence(sentence: string): boolean {
+  if (typeof sentence !== 'string') return false;
+  const normalized = normalizeForMatch(sentence);
+  if (!normalized || !INVITATION_PREFILTER.test(normalized)) return false;
+  if (INVITATION_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
+  return TRY_ON_QUESTION.test(normalized);
+}
+
+/** Sentence-ish pieces, each keeping its own terminator and trailing space. */
+function splitSentences(line: string): string[] {
+  return line.match(/[^.!?]+(?:[.!?]+["')\]]*\s*|$)/g) ?? [line];
+}
+
+export type EliseVtoProseGuardResult = {
+  text: string;
+  /** How many invitation sentences were removed. Zero means untouched. */
+  removed: number;
+};
+
+/**
+ * Removes try-on invitation sentences from model prose, line by line, leaving
+ * every other sentence and the reply's line structure exactly as it was.
+ *
+ * May return an empty string when the reply consisted only of an invitation.
+ * The caller treats that as an empty reply through its EXISTING empty-reply
+ * handling; this function never writes replacement words on Elise's behalf.
+ */
+export function guardEliseVtoInvitationProse(text: unknown): EliseVtoProseGuardResult {
+  if (typeof text !== 'string' || !text) return { text: '', removed: 0 };
+  let removed = 0;
+  const lines = text.replace(/\r\n/g, '\n').split('\n').map((line) => {
+    if (!line.trim()) return line;
+    let removedHere = 0;
+    const kept = splitSentences(line).filter((sentence) => {
+      if (!isEliseVtoInvitationSentence(sentence)) return true;
+      removedHere += 1;
+      return false;
+    });
+    if (removedHere === 0) return line;
+    removed += removedHere;
+    // An invitation wrapped in emphasis ("**Would you like...?**") splits into
+    // the sentence and a trailing marker. A leftover with no letter or digit in
+    // it is that marker, not content, and goes with the sentence it decorated.
+    return kept
+      .filter((sentence) => /[A-Za-z0-9]/.test(sentence))
+      .join('')
+      .replace(/\s+$/, '');
+  });
+  if (removed === 0) return { text, removed: 0 };
+  const cleaned = lines
+    .join('\n')
+    // A line emptied by the guard must not leave a hole in the reply.
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
+  return { text: cleaned, removed };
+}

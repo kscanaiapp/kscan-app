@@ -458,6 +458,13 @@ function loadBubble(world, graph, { mutate } = {}) {
       '../../constants/featureFlags': { ELISE_CONCIERGE_V1: true },
       './StyleChatUiBlock': { StyleChatUiBlockView: () => null },
       './StyleChatActionCards': { StyleChatActionCards: () => null },
+      // Elise contextual Try It On: the bubble routes its app-owned block to
+      // this component. Not under test here, so it renders nothing.
+      './EliseVtoOffer': { EliseVtoOffer: () => null },
+      '../../services/style-chat/eliseVtoOffer': runModule(
+        'services/style-chat/eliseVtoOffer.ts',
+        {},
+      ),
       './EliseConversationNotice': { EliseConversationNotice: () => null },
       '../../services/style-chat/eliseConversationFrame': runModule(
         'services/style-chat/eliseConversationFrame.ts',

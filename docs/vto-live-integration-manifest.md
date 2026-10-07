@@ -84,6 +84,13 @@ added to a list without a justification.
 | `supabase/functions/scan-identify/phase2b4CrossPath.test.ts` | Build 35 post-Kimi offer-code integration must register `kplus-offer-redeem` in the repository-wide privileged-backend inventory. This is an exact governance-test mutation only; no scan-identification runtime source is authorized. | Owner-authorized Build 35 VTO post-Kimi integration audit §4-§10, §16 (2026-10-04) |
 | `docs/vto-customer-activation-discovery.md` | Build 35 VTO customer activation record: the eligibility source, K+ seam, consent routing, Home/cue lifecycles, awareness-state scope, telemetry attribution and the #455/#457 convergence notes the activation brief requires. Declared as an exact path rather than by widening `docs/vto-*`. | Owner-authorized Build 35 VTO Customer Activation & Discovery V2 brief §30 (2026-10-04) |
 | `hooks/useVtoAwareness.ts` | Build 35 VTO customer activation: the React bindings that gather the discovery model's inputs (build flag, remote row, canonical K+ summary, running try-on session, K+ commerce state) for the Home introduction and the first-use cue. It decides nothing itself and imports nothing that can choose a photo, reach a camera, or call the try-on client; it is enrolled in the VTO-NC-010 import allowlist. Declared as an exact path rather than by widening to `hooks/useVto*`: the guard refused it, which is the guard working. | Owner-authorized Build 35 VTO Customer Activation & Discovery V2 brief §11 (shared discovery model), §13 (customer surfaces) (2026-10-04) |
+| `supabase/functions/vto-generate/vtoUserSuppliedGarment.ts` | Build 35 Elise contextual VTO: the `user_supplied_garment` source. A garment a customer gave Elise exists only on their device, so the server can neither resolve it by id nor fetch it; this module validates a bounded inline JPEG (MIME allowlist, data-URI shape, encoded and decoded ceilings, malformed/empty rejection, canonical encoding) and RECOMPUTES its content hash against the supplied fingerprint. It reads and writes no row and no Storage object, consumes no caller URL/id/user id, and is not an ownership claim. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §9, §25, §26, §27 (2026-10-07) |
+| `supabase/functions/vto-generate/vtoUserSuppliedGarment.test.ts` | Backend regression coverage for the source above and for its place in the orchestrator: authority order unchanged, origin as a contract-shape rule only, hash mismatch / malformed / oversized refused before any reservation or provider, existing category authority and allowlist applied, content-identity reservation key, the larger body ceiling reserved to this source, and no payload or hash in any log line. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §38 (P0-17, P0-18, P0-19, P0-20) (2026-10-07) |
+| `supabase/functions/vto-generate/vtoEligibility.ts` | Build 35 Elise contextual VTO: one additive input (`inlineGarmentMedia`) that waives the https-URL rule when the orchestrator already holds a validated inline garment. Category canonicalization (`normalizeCategory`) and the supported-category allowlist are untouched and apply identically. No second taxonomy and no second eligibility system. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §3C, §16, §27 (2026-10-07) |
+| `supabase/functions/vto-generate/providers/mockProvider.ts` | Build 35 Elise contextual VTO: the mock accepts an inline garment in place of a URL, so it cannot quietly accept a request shape the real adapter must decode. No new scenario, provider or deployment permission. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §10 (2026-10-07) |
+| `supabase/functions/vto-generate/providers/mockProvider.test.ts` | Regression coverage for the mock change above. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §10 (2026-10-07) |
+| `supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts` | Regression coverage for the adapter's inline-garment route (`aiLabToolsProvider.ts`, already authorized above): the data URI is decoded straight into the existing `top_garment` multipart part, nothing is fetched for it, it is never a string field, and an undecodable one is refused before any network call and is non-billable. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §10 (2026-10-07) |
+| `docs/vto-elise-contextual-offer.md` | Build 35 Elise contextual VTO record: the authority map, the synced-block and device-local-binding schemas, the selection policy, the bounded prose guard and its stated limits, the consent wording change, the test and negative-control map, and what is deferred to device/provider certification. | Owner-authorized Build 35 Elise Contextual Virtual Try-On brief §21, §35, §43, §49 (2026-10-07) |
 
 ### Explicitly NOT authorized, and not touched
 
@@ -94,6 +101,18 @@ Elise, analytics infrastructure except the two exact audit repair files above, u
 deployment workflows, release credentials, and staging/production backend
 configuration. `eas.json` was **read and not modified** — the Live flag is
 default-OFF by absence, which needs no profile entry.
+
+**Build 35 Elise contextual VTO (2026-10-07).** That lane adds the exact
+`vto-generate` rows above and otherwise stays inside the patterns this table
+already authorizes (`services/vto/**`, `components/vto/**`, `types/vto.ts`,
+`hooks/useVirtualTryOn*`, `hooks/useVtoAvailability*`, `__tests__/vto*`). Its
+Elise-side files — `services/style-chat/eliseVtoOffer*.ts`,
+`services/style-chat/eliseVtoUploadSource.ts`,
+`components/style-chat/EliseVtoOffer.tsx` and the conversation hook, bubble and
+screen it wires into — are not VTO-owned paths, so this boundary reports them
+`NOT JUDGED` rather than approved; they answer to the Elise suites and to
+`__tests__/vtoEliseContextualOffer.test.js`. `eas.json` was again read and not
+modified, and Live VTO was not touched.
 
 ---
 
