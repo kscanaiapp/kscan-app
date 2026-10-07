@@ -127,10 +127,14 @@ jobs:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
-          DEPLOY_FUNCTIONS: ${{ inputs.migration_only && '' || inputs.function_name }}
+          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          MIGRATION_ONLY: ${{ inputs.migration_only }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
+          if [ "$MIGRATION_ONLY" = "true" ]; then
+            export DEPLOY_FUNCTIONS=""
+          fi
           node scripts/staging-deploy-preflight.mjs --json --allow-dirty | tee preflight.json
 
       - name: Upload preflight artifact
