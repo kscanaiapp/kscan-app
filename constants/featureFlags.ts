@@ -543,6 +543,16 @@ export const SHARED_ROOM_CONTRIBUTIONS_V1 =
 export const SCAN_IDENTIFY_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_IDENTIFY_BACKEND_ENABLED === 'true';
 
+// ── Multi-image Scanner rollout ──────────────────────────────────────────────
+/**
+ * Restored Build 24/32 multi-image gallery authority. Fail-closed by default:
+ * only an explicit build-time "true" enables 1–5 image selection. The Scanner
+ * still sends one evidence image per identification request; this flag only
+ * enables the client-side batch orchestrator.
+ */
+export const MULTI_IMAGE_SCANNER_ENABLED =
+  process.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED === 'true';
+
 // ── Scanner fashion-identification-v2 rollout (Phase 2B.2) ───────────────────
 /**
  * Routes Scanner image identification through the canonical
