@@ -785,6 +785,7 @@ export function useKScan() {
                 sourceImageId: entry.image.id,
                 sourceImageIndex: entry.image.originalIndex,
                 sourceImageUri: entry.image.uri,
+                sourceImageSource: entry.image.source,
               };
               mergedCandidates.push(enriched);
               lookup.set(displayId, {
