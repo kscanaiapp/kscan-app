@@ -1,11 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Alert, Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
+import { MULTI_IMAGE_SCANNER_ENABLED, SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import {
+  MAX_SCAN_IMAGES,
+  normalizeImageSelections,
+  removeImageSelection,
+} from '../services/multiImageScan';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import { fetchDeferredCommerce, mergeEnrichedOffers } from '../services/commerceHydration';
 import { fetchMultiItemCommerce } from '../services/multiItemCommerce';
@@ -132,6 +137,9 @@ export function useKScan() {
   // Declared last, same reason as commerceStatus — see the note there.
   const [multiItemCommerce, setMultiItemCommerce] = useState([]);
   const [multiItemCommerceStatus, setMultiItemCommerceStatus] = useState('idle');
+  // Restored Build 35 multi-image selection state. Kept after all historical
+  // state slots so positional hook harnesses for older Scanner state remain stable.
+  const [selectedImages, setSelectedImages] = useState([]);
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -144,6 +152,11 @@ export function useKScan() {
   const activeAbortControllerRef = useRef(null);
   const secondhandRequestRef = useRef(0);
   const multiItemSessionRef = useRef(null);
+  // Multi-image batches retain one evidence/session per source image. Scanner
+  // V2 still receives exactly ONE evidence image per request.
+  const multiImageSessionsRef = useRef(new Map());
+  // Display candidate id -> authoritative source image/session/server candidate.
+  const multiImageCandidateLookupRef = useRef(new Map());
   const initialMultiItemAnalysisRef = useRef(null);
   const retryRequestModeRef = useRef('multi_item_detection');
   const prevIsAnalyzingRef = useRef(false);
@@ -265,12 +278,17 @@ export function useKScan() {
           throw new Error('Camera returned an invalid photo.');
         }
         if (isOperationValid(operationId)) {
+          const [image] = normalizeImageSelections([{ uri: result.uri }], 'camera');
           const session = createScanSession(result.uri);
+          multiImageSessionsRef.current.clear();
+          multiImageSessionsRef.current.set(image.id, session);
+          multiImageCandidateLookupRef.current.clear();
           multiItemSessionRef.current = session;
           initialMultiItemAnalysisRef.current = null;
           retryRequestModeRef.current = 'multi_item_detection';
           setSelectedCandidateId(null);
-          setPhoto({ ...result, source: 'camera', scanSessionId: session.scanSessionId });
+          setSelectedImages([image]);
+          setPhoto({ ...result, ...image, source: 'camera', scanSessionId: session.scanSessionId });
           setError(null);
           setStatus('preview');
         }
@@ -290,12 +308,12 @@ export function useKScan() {
     [status, startInFlight, clearInFlight, isOperationValid]
   );
 
-  const selectGalleryPhoto = useCallback(
-    async () => {
+  const pickGalleryPhotos = useCallback(
+    async (append = false) => {
       if (scanInFlightRef.current) {
         logAnalyzeDiag({
           event: 'scan_duplicate_blocked',
-          source: 'selectGalleryPhoto',
+          source: append ? 'addGalleryPhotos' : 'selectGalleryPhoto',
           reason: 'scan_in_flight',
           status,
         });
@@ -307,26 +325,52 @@ export function useKScan() {
       if (operationId === null) return;
 
       try {
+        const existing = append && MULTI_IMAGE_SCANNER_ENABLED ? selectedImages : [];
+        const remaining = Math.max(1, MAX_SCAN_IMAGES - existing.length);
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           quality: 1,
           allowsEditing: false,
-          allowsMultipleSelection: false,
+          allowsMultipleSelection: MULTI_IMAGE_SCANNER_ENABLED,
+          selectionLimit: MULTI_IMAGE_SCANNER_ENABLED ? remaining : 1,
+          orderedSelection: MULTI_IMAGE_SCANNER_ENABLED,
         });
 
         if (isOperationValid(operationId)) {
           if (result?.canceled) return;
-          const asset = result?.assets?.[0];
-          if (!asset?.uri || (asset.type && asset.type !== 'image')) {
-            throw new Error('INVALID_IMAGE_SELECTION');
+          const assets = Array.isArray(result?.assets)
+            ? result.assets.filter((asset) => asset?.uri && (!asset.type || asset.type === 'image'))
+            : [];
+          if (assets.length === 0) throw new Error('INVALID_IMAGE_SELECTION');
+
+          const images = normalizeImageSelections(
+            MULTI_IMAGE_SCANNER_ENABLED ? assets : assets.slice(0, 1),
+            'upload',
+            existing,
+          );
+
+          if (!append) multiImageSessionsRef.current.clear();
+          for (const image of images) {
+            if (!multiImageSessionsRef.current.has(image.id)) {
+              multiImageSessionsRef.current.set(image.id, createScanSession(image.uri));
+            }
           }
-          const uri = asset.uri;
-          const session = createScanSession(uri);
-          multiItemSessionRef.current = session;
+          multiImageCandidateLookupRef.current.clear();
+
+          const primary = images[0];
+          const primarySession = multiImageSessionsRef.current.get(primary.id)
+            ?? createScanSession(primary.uri);
+          multiImageSessionsRef.current.set(primary.id, primarySession);
+          multiItemSessionRef.current = primarySession;
           initialMultiItemAnalysisRef.current = null;
           retryRequestModeRef.current = 'multi_item_detection';
           setSelectedCandidateId(null);
-          setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
+          setSelectedImages(images);
+          setPhoto({
+            ...primary,
+            source: primary.source,
+            scanSessionId: primarySession.scanSessionId,
+          });
           setError(null);
           setAnalysis(null);
           setNonFashionMessage(null);
@@ -338,15 +382,64 @@ export function useKScan() {
           console.error('Gallery selection failed:', err);
         }
         if (isOperationValid(operationId)) {
-          setError('Uploaded image could not be loaded.');
-          setStatus('error');
+          if (err?.message === 'TOO_MANY_IMAGES') {
+            Alert.alert('Maximum 5 Images', 'Remove an image before adding another.');
+            setStatus(selectedImages.length > 0 ? 'preview' : 'idle');
+          } else {
+            setError('Uploaded image could not be loaded.');
+            setStatus('error');
+          }
         }
       } finally {
         clearInFlight(operationId);
       }
     },
-    [status, startInFlight, clearInFlight, isOperationValid]
+    [status, selectedImages, startInFlight, clearInFlight, isOperationValid]
   );
+
+  const selectGalleryPhoto = useCallback(
+    () => pickGalleryPhotos(false),
+    [pickGalleryPhotos],
+  );
+
+  const addGalleryPhotos = useCallback(
+    () => pickGalleryPhotos(true),
+    [pickGalleryPhotos],
+  );
+
+  const removeSelectedImage = useCallback((imageId) => {
+    if (scanInFlightRef.current) return;
+    const images = removeImageSelection(selectedImages, imageId);
+    multiImageSessionsRef.current.delete(imageId);
+    multiImageCandidateLookupRef.current.clear();
+    initialMultiItemAnalysisRef.current = null;
+    setSelectedCandidateId(null);
+    setAnalysis(null);
+    setNonFashionMessage(null);
+
+    if (images.length === 0) {
+      multiItemSessionRef.current = null;
+      setSelectedImages([]);
+      setPhoto(null);
+      setStatus('idle');
+      return;
+    }
+
+    const primary = images[0];
+    let primarySession = multiImageSessionsRef.current.get(primary.id);
+    if (!primarySession || primarySession.sourceImageUri !== primary.uri) {
+      primarySession = createScanSession(primary.uri);
+      multiImageSessionsRef.current.set(primary.id, primarySession);
+    }
+    multiItemSessionRef.current = primarySession;
+    setSelectedImages(images);
+    setPhoto({
+      ...primary,
+      source: primary.source,
+      scanSessionId: primarySession.scanSessionId,
+    });
+    setStatus('preview');
+  }, [selectedImages]);
 
   const uploadPhoto = useCallback(
     (uri) => {
@@ -372,12 +465,17 @@ export function useKScan() {
         return;
       }
 
+      const [image] = normalizeImageSelections([{ uri }], 'upload');
       const session = createScanSession(uri);
+      multiImageSessionsRef.current.clear();
+      multiImageSessionsRef.current.set(image.id, session);
+      multiImageCandidateLookupRef.current.clear();
       multiItemSessionRef.current = session;
       initialMultiItemAnalysisRef.current = null;
       retryRequestModeRef.current = 'multi_item_detection';
       setSelectedCandidateId(null);
-      setPhoto({ uri, source: 'upload', scanSessionId: session.scanSessionId });
+      setSelectedImages([image]);
+      setPhoto({ ...image, source: 'upload', scanSessionId: session.scanSessionId });
       setError(null);
       setAnalysis(null);
       setNonFashionMessage(null);
@@ -423,6 +521,13 @@ export function useKScan() {
         setStatus('error');
         return;
       }
+
+      const imagesForAttempt = selectedImages.length > 0
+        ? selectedImages
+        : normalizeImageSelections(
+          [{ uri: photo.uri }],
+          photo.source === 'camera' ? 'camera' : 'upload',
+        );
 
       const operationId = startInFlight();
       if (operationId === null) return;
@@ -555,6 +660,168 @@ export function useKScan() {
       const executeScanAttempt = async () => {
         processingStart = Date.now();
 
+        // Restored multi-image path. Every source image is independently prepared
+        // and correlated, then sent through the CURRENT Scanner V2/legacy
+        // boundary. No request ever contains more than one evidence image.
+        if (imagesForAttempt.length > 1) {
+          if (!SCAN_IDENTIFY_BACKEND_ENABLED) {
+            throw userSafeError(
+              'scan backend disabled',
+              'We couldn’t complete the scan. Please check your connection and try again.',
+            );
+          }
+          usedScanIdentify = true;
+          const attemptSignal = activeAbortControllerRef.current?.signal;
+          const preparedEntries = [];
+
+          // Privacy preparation is deliberately sequential because the current
+          // sanitizer exposes a last-operation status read. Detection can fan out
+          // afterward without risking cross-image privacy attestation.
+          for (const image of imagesForAttempt) {
+            if (!isOperationValid(operationId)) return;
+            let session = multiImageSessionsRef.current.get(image.id);
+            if (!session || session.sourceImageUri !== image.uri) {
+              session = createScanSession(image.uri);
+              multiImageSessionsRef.current.set(image.id, session);
+            }
+            if (!session.sourceUriHash) {
+              session.sourceUriHash = await digestPrefix(image.uri);
+            }
+
+            const compressed = session.preparedImageUri ?? await compressForUpload(image.uri);
+            const sanitizedImage = session.preparedImageUri
+              ?? await sanitizeImageBeforeUpload(compressed);
+            if (!sanitizedImage || typeof sanitizedImage !== 'string') {
+              throw userSafeError(
+                'prepared image unavailable',
+                'One of the selected images could not be prepared. Please review the batch and try again.',
+              );
+            }
+            if (!session.preparedImageUri) {
+              session.preparedImageUri = sanitizedImage;
+              session.imageDigestPrefix = await digestPrefix(rawImageBase64(sanitizedImage));
+            }
+            const sanitizerStatus = getPrivacySanitizerStatus();
+            session.localPrivacyFiltered =
+              sanitizerStatus.faceBlurApplied === true &&
+              sanitizerStatus.plateMaskApplied === true;
+
+            const evidenceSource = image.source === 'upload' ? 'gallery' : 'camera';
+            const evidence = prepareScannerEvidence({
+              preparedImage: session.preparedImageUri,
+              source: evidenceSource,
+              evidenceId: session.evidenceId,
+            });
+            if (!evidence) {
+              throw userSafeError(
+                'prepared evidence unavailable',
+                'One of the selected images could not be prepared. Please review the batch and try again.',
+              );
+            }
+            session.evidenceId = evidence.evidenceId;
+            session.evidenceSource = evidenceSource;
+            preparedEntries.push({ image, session, evidence, evidenceSource });
+          }
+
+          const platform = Platform.OS === 'android' ? 'android' : 'ios';
+          const settled = await Promise.allSettled(
+            preparedEntries.map(async (entry) => {
+              const outcome = await runScannerIdentification({
+                mode: 'detect_items',
+                evidence: entry.evidence,
+                platform,
+                requestId: createEvidenceId(),
+                sessionFlag: scannerV2SessionRef.current,
+                legacyCorrelation: {
+                  scanSessionId: entry.session.scanSessionId,
+                  imageDigestPrefix: entry.session.imageDigestPrefix,
+                },
+                localPrivacyFiltered: entry.session.localPrivacyFiltered,
+                signal: attemptSignal,
+              });
+              if (outcome.v2ValidationFailure || outcome.rejection) {
+                throw userSafeError(
+                  'scanner v2 contract failure',
+                  'We couldn’t complete one of the selected scans. Please try again.',
+                );
+              }
+              entry.session.v2Candidates = outcome.candidates;
+              const data = mapScanIdentifyToAnalysis(outcome.response, {
+                identificationV2: outcome.identificationV2,
+                source: entry.evidenceSource,
+              });
+              return { ...entry, outcome, data };
+            }),
+          );
+
+          if (!isOperationValid(operationId)) return;
+
+          let baseAnalysis = null;
+          let nonFashionCount = 0;
+          const mergedCandidates = [];
+          const lookup = new Map();
+
+          for (const result of settled) {
+            if (result.status !== 'fulfilled') continue;
+            const entry = result.value;
+            if (entry.data.type === 'non-fashion') {
+              nonFashionCount += 1;
+              continue;
+            }
+            if (!baseAnalysis) baseAnalysis = entry.data;
+            const candidates = Array.isArray(entry.data.confirmationCandidates)
+              ? entry.data.confirmationCandidates
+              : [];
+            for (const candidate of candidates) {
+              if (mergedCandidates.length >= 5) break;
+              const displayId = `${entry.image.id}:${candidate.id}`;
+              const enriched = {
+                ...candidate,
+                id: displayId,
+                serverCandidateId: candidate.id,
+                sourceImageId: entry.image.id,
+                sourceImageIndex: entry.image.originalIndex,
+                sourceImageUri: entry.image.uri,
+              };
+              mergedCandidates.push(enriched);
+              lookup.set(displayId, {
+                image: entry.image,
+                session: entry.session,
+                evidenceSource: entry.evidenceSource,
+                serverCandidateId: candidate.id,
+              });
+            }
+            if (mergedCandidates.length >= 5) break;
+          }
+
+          if (!baseAnalysis || mergedCandidates.length === 0) {
+            if (nonFashionCount === settled.filter((entry) => entry.status === 'fulfilled').length) {
+              await finishAnalysis({
+                type: 'non-fashion',
+                message: 'No fashion items were detected in the selected images.',
+              }, processingStart);
+              return;
+            }
+            throw userSafeError(
+              'no valid garments detected',
+              'We could not find a clear fashion item in those images. Remove unclear images or try again.',
+            );
+          }
+
+          const mergedAnalysis = {
+            ...baseAnalysis,
+            confirmationCandidates: mergedCandidates,
+          };
+          multiImageCandidateLookupRef.current = lookup;
+          initialMultiItemAnalysisRef.current = mergedAnalysis;
+          const firstBinding = lookup.get(mergedCandidates[0].id);
+          if (firstBinding?.session) multiItemSessionRef.current = firstBinding.session;
+          setSelectedCandidateId(mergedCandidates[0].id);
+          retryRequestModeRef.current = 'multi_item_detection';
+          await finishAnalysis(mergedAnalysis, processingStart);
+          return;
+        }
+
         // Session management: reuse the prepared image across retries for the
         // same source URI (avoids re-compressing and re-sanitizing).
         let session = multiItemSessionRef.current;
@@ -633,7 +900,7 @@ export function useKScan() {
         const outcome = await runScannerIdentification({
           mode: 'detect_items',
           evidence,
-          platform: 'ios',
+          platform: Platform.OS === 'android' ? 'android' : 'ios',
           requestId: createEvidenceId(),
           sessionFlag: scannerV2SessionRef.current,
           legacyCorrelation: {
@@ -712,7 +979,7 @@ export function useKScan() {
         clearInFlight(operationId);
       }
     },
-    [status, photo, startInFlight, clearInFlight, isOperationValid]
+    [status, photo, selectedImages, startInFlight, clearInFlight, isOperationValid]
   );
 
   const selectConfirmationCandidate = useCallback((candidateId) => {
@@ -723,7 +990,8 @@ export function useKScan() {
     }
     setSelectedCandidateId(candidateId);
 
-    const session = multiItemSessionRef.current;
+    const binding = multiImageCandidateLookupRef.current.get(candidateId);
+    const session = binding?.session ?? multiItemSessionRef.current;
     if (__DEV__ && session) {
       console.log('[KSCAN_MULTI_ITEM] correlation', {
         event: 'candidate_selected',
@@ -744,14 +1012,16 @@ export function useKScan() {
     const candidate = initialAnalysis?.confirmationCandidates?.find(
       (item) => item.id === candidateId,
     );
-    const session = multiItemSessionRef.current;
+    const binding = candidate ? multiImageCandidateLookupRef.current.get(candidate.id) : null;
+    const session = binding?.session ?? multiItemSessionRef.current;
+    const sourceImageUri = binding?.image?.uri ?? photo?.uri;
 
     if (!candidate || !session?.preparedImageUri || !session.imageDigestPrefix) {
       setError('The original outfit image is no longer available. Please start a new scan.');
       setStatus('error');
       return;
     }
-    if (!photo?.uri || photo.uri !== session.sourceImageUri) {
+    if (!sourceImageUri || sourceImageUri !== session.sourceImageUri) {
       setError('The original outfit image is no longer available. Please start a new scan.');
       setStatus('error');
       return;
@@ -772,15 +1042,17 @@ export function useKScan() {
         console.log('[KSCAN_MULTI_ITEM] correlation', {
           event: 'selected_item_request_started',
           scanSessionId: session.scanSessionId,
-          candidateId: candidate.id,
+          candidateId: serverCandidateId,
           sourceUriHash: session.sourceUriHash ?? 'none',
           imageDigestPrefix: session.imageDigestPrefix,
           requestMode: 'selected_item',
         });
       }
 
-      const evidenceSource = session.evidenceSource
-        ?? (photo.source === 'upload' ? 'gallery' : 'camera');
+      const evidenceSource = binding?.evidenceSource
+        ?? session.evidenceSource
+        ?? (photo?.source === 'upload' ? 'gallery' : 'camera');
+      const serverCandidateId = binding?.serverCandidateId ?? candidate.serverCandidateId ?? candidate.id;
       // The SAME prepared derivative and the SAME evidence id detection used.
       // Nothing is recompressed, re-oriented or re-prepared, and no new
       // evidence id is minted for an unchanged image.
@@ -801,7 +1073,7 @@ export function useKScan() {
       // from another evidence id, never substituted with the session id.
       const v2Candidate = Array.isArray(session.v2Candidates)
         ? session.v2Candidates.find(
-          (entry) => entry.candidateId === candidate.id
+          (entry) => entry.candidateId === serverCandidateId
             && entry.evidenceId === evidence.evidenceId,
         )
         : undefined;
@@ -809,7 +1081,7 @@ export function useKScan() {
       const outcome = await runScannerIdentification({
         mode: 'identify_selected_item',
         evidence,
-        platform: 'ios',
+        platform: Platform.OS === 'android' ? 'android' : 'ios',
         requestId: createEvidenceId(),
         sessionFlag: scannerV2SessionRef.current,
         selectedCandidate: {
@@ -858,6 +1130,9 @@ export function useKScan() {
       }
       if (!isOperationValid(operationId)) return;
 
+      if (Array.isArray(initialAnalysis?.confirmationCandidates)) {
+        data.confirmationCandidates = initialAnalysis.confirmationCandidates;
+      }
       successPulse();
       setAnalysis(data);
       setNonFashionMessage(null);
@@ -1205,6 +1480,7 @@ export function useKScan() {
   return {
     status,
     photo,
+    selectedImages,
     analysis,
     commerceStatus,
     multiItemCommerce,
@@ -1225,5 +1501,7 @@ export function useKScan() {
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,
+    addGalleryPhotos,
+    removeSelectedImage,
   };
 }
