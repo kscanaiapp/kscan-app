@@ -1,5 +1,6 @@
 import {
   classifyProviderFailure,
+  PROVIDER_ERROR_INSPECTION_LIMIT_BYTES,
   providerFailureError,
 } from './providerFailure.ts';
 import {
@@ -33,6 +34,43 @@ export interface ElevenLabsSpeechResult {
   audioBase64: string;
   alignment: SpeechAlignment | null;
   alignmentDiagnostics: AlignmentDiagnostics;
+}
+
+async function readBoundedBody(response: Response, limit: number, signal: AbortSignal): Promise<{
+  text: string;
+  byteLength: number;
+  oversized: boolean;
+}> {
+  if (!response.body) return { text: '', byteLength: 0, oversized: false };
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteLength = 0;
+  let rejectAbort!: (error: Error) => void;
+  const aborted = new Promise<never>((_resolve, reject) => { rejectAbort = reject; });
+  const onAbort = () => rejectAbort(new DOMException('Aborted', 'AbortError'));
+  signal.addEventListener('abort', onAbort, { once: true });
+  const decode = () => {
+    const bytes = new Uint8Array(Math.min(byteLength, limit));
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return new TextDecoder().decode(bytes);
+  };
+  try {
+    signal.throwIfAborted();
+    while (true) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) return { text: decode(), byteLength, oversized: false };
+      const remaining = limit - byteLength;
+      byteLength += value.byteLength;
+      chunks.push(value.slice(0, Math.max(0, remaining)));
+      if (byteLength > limit) return { text: decode(), byteLength, oversized: true };
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    // Cancellation must not wait for a provider stream that has stopped responding.
+    void reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
 }
 
 function validateBase64(value: unknown): value is string {
@@ -189,22 +227,23 @@ export async function requestElevenLabsSpeech(input: {
     }
 
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => '');
-      const classification = classifyProviderFailure(response.status, errorBody);
+      const errorBody = await readBoundedBody(response, PROVIDER_ERROR_INSPECTION_LIMIT_BYTES, controller.signal);
+      const classification = classifyProviderFailure(response.status, errorBody.text);
       await emit({
         failureKind: 'provider_rejection',
         providerStatus: classification.providerStatus,
         category: classification.category,
         responseIsJson: classification.isJson,
         providerErrorStatus: classification.providerErrorStatus,
-        responseByteLength: classification.totalByteLength,
+        responseByteLength: errorBody.byteLength,
       });
       throw providerFailureError(classification);
     }
 
-    const raw = await response.text();
-    const rawByteLength = new TextEncoder().encode(raw).byteLength;
-    if (rawByteLength > MAX_PROVIDER_RESPONSE_BYTES) {
+    const body = await readBoundedBody(response, MAX_PROVIDER_RESPONSE_BYTES, controller.signal);
+    const raw = body.text;
+    const rawByteLength = body.byteLength;
+    if (body.oversized) {
       await emit({
         failureKind: 'invalid_response',
         providerStatus: response.status,
@@ -215,7 +254,9 @@ export async function requestElevenLabsSpeech(input: {
 
     let parsed: Record<string, unknown>;
     try {
-      parsed = JSON.parse(raw) as Record<string, unknown>;
+      const value: unknown = JSON.parse(raw);
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid response shape');
+      parsed = value as Record<string, unknown>;
     } catch {
       await emit({
         failureKind: 'invalid_response',
@@ -258,6 +299,14 @@ export async function requestElevenLabsSpeech(input: {
       alignmentEntryCount: alignment ? alignment.characters.length : 0,
     });
     return { audioBase64: parsed.audio_base64, alignment, alignmentDiagnostics };
+  } catch (error) {
+    if (error instanceof StylistSpeechError) throw error;
+    if (controller.signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+      await emit({ failureKind: 'timeout' });
+      throw new StylistSpeechError(504, 'PROVIDER_TIMEOUT', 'Speech generation timed out.');
+    }
+    await emit({ failureKind: 'provider_network' });
+    throw new StylistSpeechError(502, 'PROVIDER_UNAVAILABLE', 'Speech generation is unavailable.');
   } finally {
     clearTimeout(timeout);
   }

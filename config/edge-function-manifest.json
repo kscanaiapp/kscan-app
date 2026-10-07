@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-05T13:11:29.000Z",
-    "generatedFromGitSha": "84e62bc97212e39a3de43f3e25ff81236bf00ef1"
+    "generatedAtUtc": "2026-10-07T11:23:44.666Z",
+    "generatedFromGitSha": "f5146318a6f2dcb0457f7c789301d16caf52a267"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -960,8 +960,8 @@
         ],
         "bundleFileCount": 11,
         "treeFileCount": 22,
-        "bundleHash": "5c3710d9fa54c69cece41c126362220d575115d66042c017d04b563e967fb020",
-        "treeHash": "62c713ba122022760542f4ceeb9ea63daf98344df10c95837fb6d70581c891af",
+        "bundleHash": "cef4685479092f4b655cc08bf1a3901fcef7454219b76ef36ff967ab2cadd964",
+        "treeHash": "b96d512173146969a92c9994e85d708dc5a52bdbe26da974ad12506e122787d1",
         "files": [
           {
             "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
@@ -970,17 +970,17 @@
           },
           {
             "path": "supabase/functions/stylist-speech/elevenLabsClient.test.ts",
-            "sha256": "5da175facc63260bf81fae4655513408da59feaab7c1bcc60a6fc489d2173cbd",
+            "sha256": "4c7c847199609166e81463af7adc2b2b8cd6db891d1aff835f42c2096aed94cd",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/elevenLabsClient.ts",
-            "sha256": "540e172ab91399d64bab428ac7781fa4ddb9de352e58ca2425139eb6c8006075",
+            "sha256": "da6586d9a53007c8cf6d366212223688caa2a07a3977165fae74889b734e10e9",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/handler.test.ts",
-            "sha256": "86d1be1aab2a12107b13a4290ae6786db1641789aa02b7914826432a096b709b",
+            "sha256": "3f6f44886dff47db7469b39eba15b3306aeeab6a67497516d656211808217128",
             "bundle": false
           },
           {
@@ -1000,17 +1000,17 @@
           },
           {
             "path": "supabase/functions/stylist-speech/providerDiagnostics.ts",
-            "sha256": "ada7639647fd81c1b01671260df16b15708d72cdfca3782841a2800eb0f632c1",
+            "sha256": "26524601b7ed8f17694da79b4c1dd85943fb85d129a78a3f5fa13b9105e0ce6e",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/providerFailure.test.ts",
-            "sha256": "aa5efc4cda162190ee26eccf3bdca483a971e0684cfe909de4f154432c679499",
+            "sha256": "e705e859e428a59d5b4f7ff6b1abb32ea51bc37e44e201dd7bbc5df213fb4a3e",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/providerFailure.ts",
-            "sha256": "56ef90457ca73a778706f9cbdf7f013a0fa15c039e01735e41879178d64dda09",
+            "sha256": "486112b2615480eedbe6783b6c96ef3136776f52f651e8bee0dbb804e790106e",
             "bundle": true
           },
           {
@@ -1030,7 +1030,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/secretConfig.ts",
-            "sha256": "dc2bc6fc3c9edb67fb4eac20777e63c4b8a9077cf2dd80019d7d10dad530e7b9",
+            "sha256": "2bf74902a518b31ce35b11051b5160623c3b412f8a78a1d84c22240dc4b675c6",
             "bundle": true
           },
           {
@@ -1050,7 +1050,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/speechText.test.ts",
-            "sha256": "c63e99278dacdf890b1743796d43bd4bce0c05cd6c27b106e3e81cf4202f7454",
+            "sha256": "78edd996f29197b7dcd8b7e8616fab9f1752ab4c7a068e2f2dd27d073539b155",
             "bundle": false
           },
           {
