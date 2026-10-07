@@ -660,6 +660,34 @@ export function useKScan() {
       let usedScanIdentify = false;
       let attemptTimeoutId = null;
 
+      const runDetectionForEvidence = async ({
+        evidence,
+        session,
+        localPrivacyFiltered,
+        signal,
+      }) => {
+        const outcome = await runScannerIdentification({
+          mode: 'detect_items',
+          evidence,
+          platform: Platform?.OS === 'android' ? 'android' : 'ios',
+          requestId: createEvidenceId(),
+          sessionFlag: scannerV2SessionRef.current,
+          legacyCorrelation: {
+            scanSessionId: session.scanSessionId,
+            imageDigestPrefix: session.imageDigestPrefix,
+          },
+          localPrivacyFiltered,
+          signal,
+        });
+        if (outcome.v2ValidationFailure || outcome.rejection) {
+          throw userSafeError(
+            'scanner v2 contract failure',
+            'We couldn’t complete the scan. Please try again.',
+          );
+        }
+        return outcome;
+      };
+
       const executeScanAttempt = async () => {
         processingStart = Date.now();
 
@@ -726,28 +754,14 @@ export function useKScan() {
             preparedEntries.push({ image, session, evidence, evidenceSource });
           }
 
-          const platform = Platform?.OS === 'android' ? 'android' : 'ios';
           const settled = await Promise.allSettled(
             preparedEntries.map(async (entry) => {
-              const outcome = await runScannerIdentification({
-                mode: 'detect_items',
+              const outcome = await runDetectionForEvidence({
                 evidence: entry.evidence,
-                platform,
-                requestId: createEvidenceId(),
-                sessionFlag: scannerV2SessionRef.current,
-                legacyCorrelation: {
-                  scanSessionId: entry.session.scanSessionId,
-                  imageDigestPrefix: entry.session.imageDigestPrefix,
-                },
+                session: entry.session,
                 localPrivacyFiltered: entry.session.localPrivacyFiltered,
                 signal: attemptSignal,
               });
-              if (outcome.v2ValidationFailure || outcome.rejection) {
-                throw userSafeError(
-                  'scanner v2 contract failure',
-                  'We couldn’t complete one of the selected scans. Please try again.',
-                );
-              }
               entry.session.v2Candidates = outcome.candidates;
               const data = mapScanIdentifyToAnalysis(outcome.response, {
                 identificationV2: outcome.identificationV2,
@@ -902,27 +916,12 @@ export function useKScan() {
         }
         session.evidenceId = evidence.evidenceId;
 
-        const outcome = await runScannerIdentification({
-          mode: 'detect_items',
+        const outcome = await runDetectionForEvidence({
           evidence,
-          platform: Platform?.OS === 'android' ? 'android' : 'ios',
-          requestId: createEvidenceId(),
-          sessionFlag: scannerV2SessionRef.current,
-          legacyCorrelation: {
-            scanSessionId: session.scanSessionId,
-            imageDigestPrefix: session.imageDigestPrefix,
-          },
+          session,
           localPrivacyFiltered: session.localPrivacyFiltered,
           signal: activeAbortControllerRef.current?.signal,
         });
-        // A malformed V2 payload is a real backend failure, never a reason to
-        // silently retry on the legacy contract.
-        if (outcome.v2ValidationFailure || outcome.rejection) {
-          throw userSafeError(
-            'scanner v2 contract failure',
-            'We couldn’t complete the scan. Please try again.',
-          );
-        }
         const identifyResponse = outcome.response;
         session.v2Candidates = outcome.candidates;
         session.evidenceSource = evidenceSource;
@@ -1081,7 +1080,7 @@ export function useKScan() {
       // from another evidence id, never substituted with the session id.
       const v2Candidate = Array.isArray(session.v2Candidates)
         ? session.v2Candidates.find(
-          (entry) => entry.candidateId === serverCandidateId
+          (entry) => (entry.candidateId === candidate.id || entry.candidateId === serverCandidateId)
             && entry.evidenceId === evidence.evidenceId,
         )
         : undefined;
