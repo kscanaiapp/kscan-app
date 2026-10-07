@@ -144,6 +144,8 @@ interface ScanResultV2Props {
     onSaveAll?: () => void;
     saveAllDisabled?: boolean;
     onAddAllToDressingRoom?: () => void;
+    onResumeQueue?: () => void;
+    resumeCount?: number;
     itemStates?: Readonly<Record<string, ScanItemQueueState>>;
     queueNotice?: string | null;
   };
