@@ -39,6 +39,8 @@ const STORE_OPERATION_IN_FLIGHT = new Set<string>(['PURCHASING', 'RESTORING']);
 export interface KPlusMembershipSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** Native dismissal completion for a feature modal returning from membership. */
+  onDismiss?: () => void;
   /**
    * Offer-redemption port, handed straight through to the membership step's
    * "Redeem an offer" surface. Optional: without it the surface answers
@@ -47,7 +49,7 @@ export interface KPlusMembershipSheetProps {
   redeemOfferCode?: KPlusOfferRedemptionPort;
 }
 
-export function KPlusMembershipSheet({ visible, onClose, redeemOfferCode }: KPlusMembershipSheetProps) {
+export function KPlusMembershipSheet({ visible, onClose, onDismiss, redeemOfferCode }: KPlusMembershipSheetProps) {
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const { user } = useAuthSession();
@@ -66,6 +68,7 @@ export function KPlusMembershipSheet({ visible, onClose, redeemOfferCode }: KPlu
       visible={visible}
       animationType={reducedMotion ? 'none' : 'slide'}
       onRequestClose={close}
+      onDismiss={onDismiss}
       testID="kplus-paywall-sheet"
     >
       {visible ? (

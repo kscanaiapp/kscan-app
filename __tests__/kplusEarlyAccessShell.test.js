@@ -363,7 +363,8 @@ test('Watchlist entry points route active members straight to the feature, never
   }
   // Product surfaces capture safe Watch intent before acquisition. The actual
   // membership boundary is the shared picker and still skips active members.
-  assert.match(read('components/ProductShelf.tsx'), /if \(!gate\.isActive\) \{ gate\.openUpgrade\(\); return; \}/);
+  assert.match(read('components/ProductShelf.tsx'), /if \(!gate\.isActive\) \{[\s\S]*?setUpgradePhase\('dismissing'\)/);
+  assert.match(read('components/ProductShelf.tsx'), /onDismiss=\{presentMembership\}/);
 });
 
 test('Packing shows the unlock CTA only when NOT active, and hides it once active', () => {

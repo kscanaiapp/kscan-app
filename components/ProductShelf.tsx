@@ -909,6 +909,18 @@ function WatchThisModalContent({
   const [targetText, setTargetText] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [upgradePhase, setUpgradePhase] = useState<'picking' | 'dismissing' | 'membership'>('picking');
+  const upgradeScope = useRef<ReturnType<typeof captureActorScope> | null>(null);
+  const presentMembership = () => {
+    if (upgradePhase !== 'dismissing' || !upgradeScope.current || !isActorScopeCurrent(upgradeScope.current)) return;
+    setUpgradePhase('membership');
+    gate.openUpgrade();
+  };
+  React.useEffect(() => {
+    // iOS waits for native dismissal. Android has no Modal onDismiss callback.
+    if (upgradePhase === 'dismissing' && Platform.OS !== 'ios') presentMembership();
+    if (upgradePhase === 'membership' && !gate.acquisitionVisible) setUpgradePhase('picking');
+  }, [upgradePhase, gate.acquisitionVisible]);
 
   const handleClose = () => {
     setIntent('just_watching');
@@ -926,9 +938,13 @@ function WatchThisModalContent({
     // begin with no matching completion into the K+ funnel.
     if (!resolveWatchlistAvailable()) return;
     if (gate.resolving) return;
-    // The intent picker stays mounted behind the shared membership sheet.
+    // The intent picker stays mounted while yielding its native presentation.
     // Its canonical listing, chosen intent and target text survive acquisition.
-    if (!gate.isActive) { gate.openUpgrade(); return; }
+    if (!gate.isActive) {
+      upgradeScope.current = captureActorScope();
+      setUpgradePhase('dismissing');
+      return;
+    }
     const scope = captureActorScope();
     const targetPriceAmount =
       intent === 'buy_under' ? Number(targetText.replace(/[^0-9.]/g, '')) : undefined;
@@ -1015,7 +1031,8 @@ function WatchThisModalContent({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+    <Modal visible={visible && upgradePhase === 'picking' && !gate.acquisitionVisible} transparent animationType="fade"
+      onRequestClose={handleClose} onDismiss={presentMembership}>
       {/* iOS: the decimal pad has no return key and nothing else dismisses it,
           so without this the keyboard covers the target price and the WATCH /
           CANCEL buttons of this bottom-anchored sheet. Android keeps its

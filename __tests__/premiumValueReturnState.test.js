@@ -3,20 +3,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { ROOT, runModule, createRenderer, createReactNativeStub, deepStub, byTestId, settle, textContent } = require('./helpers/componentRenderer');
+const { ROOT, runModule, createRenderer, createReactNativeStub, deepStub, byTestId, findAll, settle, textContent } = require('./helpers/componentRenderer');
 function modulesFor(rel, renderer, overrides) {
   const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');
   const imports = [...source.matchAll(/from\s+['"]([^'"]+)['"]/g)].map(m => m[1]);
   const modules = Object.fromEntries(imports.map(spec => [spec, deepStub()]));
   return { ...modules, ...renderer.runtimeModules, 'react-native': createReactNativeStub(), ...overrides };
 }
-function harness() {
+function harness(platformOS = 'ios') {
   const renderer = createRenderer();
   let entitlement = { state: 'eligible', isActive: false };
-  const sheet = ({ visible, onClose }) => visible ? renderer.jsx('MembershipSheet', { testID: 'membership', onClose }) : null;
+  const sheet = ({ visible, onClose, onDismiss }) => visible ? renderer.jsx('MembershipSheet', { testID: 'membership', onClose, onDismiss }) : null;
   const acquisition = runModule('services/kplus/kplusAcquisitionSurface.ts', {}, { jsx: false });
   const { KPlusGate } = runModule('components/kplus/KPlusGate.tsx', {
     ...renderer.runtimeModules,
+    'react-native': createReactNativeStub({ platformOS }),
     '../../hooks/useKPlusEntitlement': { useKPlusEntitlement: () => entitlement },
     './KPlusEarlyAccessSheet': { KPlusEarlyAccessSheet: () => { throw new Error('legacy acquisition must not open'); } },
     './KPlusMembershipSheet': { KPlusMembershipSheet: sheet },
@@ -74,8 +75,8 @@ test('P1-01: Free → membership → resolving → K+ → generate preserves tri
     destination: 'Synthetic City', startDate: '2026-10-20', endDate: '2026-10-23', tripType: 'leisure', activities: ['dinner'], note: 'Synthetic trip note',
   });
 });
-test('P1-09: Free → Watch intent → membership → K+ → create preserves canonical listing and target', async () => {
-  const h = harness();
+for (const platformOS of ['ios', 'android']) test(`P1-09 ${platformOS}: intent survives native dismissal → membership → K+ return`, async () => {
+  const h = harness(platformOS);
   const { renderer, KPlusGate } = h;
   const requests = [];
   const commerce = runModule('services/commerceDestination.ts', {}, { jsx: false });
@@ -84,6 +85,7 @@ test('P1-09: Free → Watch intent → membership → K+ → create preserves ca
     'react-native': createReactNativeStub(),
   }, { jsx: false });
   const shelf = runModule('components/ProductShelf.tsx', modulesFor('components/ProductShelf.tsx', renderer, {
+    'react-native': createReactNativeStub({ platformOS }),
     './kplus/KPlusGate': { KPlusGate },
     '../services/watchlist/watchlistAvailability': { resolveWatchlistAvailable: () => true },
     '../services/watchlist/watchlistClient': { createWatch: async request => { requests.push(request); return { ok: false, reason: 'test_no_close' }; } },
@@ -103,12 +105,25 @@ test('P1-09: Free → Watch intent → membership → K+ → create preserves ca
   node('watch-target-price-input').props.onChangeText('123.45');
   node('watch-save-button').props.onPress();
   await settle();
+  const picker = findAll(render(), node => node.type === 'Modal')[0];
+  assert.ok(picker);
+  assert.equal(picker.props.visible, false, 'picker yields native presentation before acquisition');
+  if (platformOS === 'ios') {
+    assert.equal(node('membership'), undefined, 'iOS must wait for actual native dismissal');
+    picker.props.onDismiss();
+  }
   assert.ok(node('membership'));
   assert.equal(requests.length, 0);
   h.setEntitlement({ state: 'loading', isActive: false });
   assert.equal(node('watch-target-price-input').props.value, '123.45');
   h.setEntitlement({ state: 'active', isActive: true });
-  node('membership').props.onClose();
+  const membership = node('membership');
+  membership.props.onClose();
+  if (platformOS === 'ios') {
+    assert.equal(findAll(render(), node => node.type === 'Modal')[0].props.visible, false, 'wait for membership native dismissal before returning');
+    membership.props.onDismiss();
+  }
+  assert.equal(findAll(render(), node => node.type === 'Modal')[0].props.visible, true);
   await node('watch-save-button').props.onPress();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].listing.productUrl, product.productUrl);

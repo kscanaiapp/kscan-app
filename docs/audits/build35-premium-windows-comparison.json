@@ -101,16 +101,21 @@
     ]
   },
   "laneTests": {
-    "total": 10330,
-    "pass": 10200,
+    "total": 10335,
+    "pass": 10205,
     "fail": 31,
     "skipped": 99
   },
   "subsequentTargetedTests": {
-    "file": "premium-final-negative.log",
-    "tests": 18,
-    "passed": 18,
+    "file": "premium-final-repair-tests.log",
+    "tests": 112,
+    "passed": 112,
     "failed": 0
   },
-  "linuxAuthority": "PR CI required; Windows baseline comparison is not Linux proof"
+  "linuxAuthority": "PR CI required; Windows baseline comparison is not Linux proof",
+  "finalSharedPresentationTests": {
+    "tests": 150,
+    "passed": 150,
+    "failed": 0
+  }
 }

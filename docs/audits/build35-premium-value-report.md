@@ -14,8 +14,8 @@ Two capabilities have real Staging runtime evidence: Packing generation plus ref
 | BRANCH | `feature/build35-premium-value-v2` |
 | PR | [Draft #517](https://github.com/kscanaiapp/kscan-app/pull/517), against `integration/build35-v1-convergence` |
 | FILES_CHANGED | Authoritative PR diff; implementation groups listed below |
-| VTO ownership check | PR #513 OPEN; latest inspected head `54910919412328e6d79ae4359c66a9dfe5feff08` |
-| Shared overlap | Mechanical catalog-import/approved-gate/backend-path test inventories and generated Edge manifest only; no shared membership layout, KPlusGate, StyleChat presentation, or VTO source overwritten |
+| VTO ownership check | PR #513 OPEN; latest inspected head `386ad70e1b171cf228510979586f8e4b386495c0`; no shared Gate/membership/catalog/Watch presentation edits |
+| Shared overlap | Mechanical catalog-import/approved-gate/backend-path test inventories and generated Edge manifest. KPlusGate exposes presentation visibility, and KPlusMembershipSheet forwards native onDismiss to sequence Watch acquisition; their layouts and entitlement semantics are unchanged. VTO PR has no edits to those shared files. No StyleChat or VTO source overwritten |
 | Mid-lane convergence | Integration fetched immediately before PR preparation; tip remains the exact starting SHA |
 
 The user-supplied addendum supersedes the base prompt's request to turn Today off. Its actual integration baseline must be preserved. Production is read-only. RevenueCat, canonical entitlement reader/store, grant authority, Speech lifecycle, VTO lifecycle, Signature Style and Scanner pipeline implementations are unchanged. New protected-source tests compare normalized source hashes against that precise integration authority, without widening a regression baseline.
@@ -48,6 +48,8 @@ CAPABILITY_TRUTH_MECHANISM=typed immutable dated evidence consumed by the existi
 
 Production has no new premium-value runtime record. Existing Voice Scan and live VTO presentation authorities are preserved; neither was newly certified in this lane. Wardrobe Concierge retains its existing unconfirmed state. Evidence: `services/kplus/kplusCapabilityProof.ts`, `docs/audits/build35-premium-runtime.json` and the ledger.
 
+Effective compiled flags (Packing / Watchlist / sync / restore / legacy migration): ordinary Staging and Production are unset and default OFF; Staging certification, Production certification and build35-testing are true / true / true / true / true. Only the three Staging certification Cloud overrides were added. An enabled compiled flag does not confer capability proof, and the actual Supabase environment must match the record.
+
 ## Packing
 
 Root cause: the previous screen returned an upgrade block before mounting the trip form for Free users. It could not retain a trip setup through acquisition. The form now stays mounted behind the existing membership sheet and is keyed by actor scope; resolving state cannot start work. The common request path re-reads the canonical entitlement snapshot, protecting stale callbacks after lapse. Server precheck and post-retrieval K+ checks remain intact.
@@ -70,7 +72,7 @@ The refinement request used the real existing client and deployed function with 
 
 ## Smart Watchlist
 
-Root cause: Free product actions opened acquisition before capturing the selected listing and intent. They now open the existing intent picker, which retains listing, intent and target while the shared membership sheet opens. Row reads survive lapse, automatic premium refresh stops, and reactivation refreshes once. A fresh canonical server check immediately before provider observation closes the claim-to-dispatch lapse race; this backend change is source-tested and has not been deployed by this lane.
+Root cause: Free product actions opened acquisition before capturing the selected listing and intent. They now open the existing intent picker, which retains listing, intent and target while the shared membership sheet opens. On iOS the picker yields its native Modal and waits for onDismiss before opening membership; returning also waits for membership native dismissal. Android uses its existing presentation behavior without depending on an unsupported dismissal callback. The picker component remains mounted throughout. Both platform sequences are executed in source tests; physical UI remains unverified. Row reads survive lapse, automatic premium refresh stops, and reactivation refreshes once. A fresh canonical server check immediately before provider observation closes the claim-to-dispatch lapse race; this backend change is source-tested and has not been deployed by this lane.
 
 | Field | Result |
 | --- | --- |
@@ -102,7 +104,7 @@ Root cause: there was no customer status projection over the existing sync/resto
 | Field | Result |
 | --- | --- |
 | SOURCE_STATUS / CLOUD_CLOSET_SOURCE | PASS |
-| SYNC_FLAG / RESTORE_FLAG / MIGRATION_FLAG | All three explicitly on only in Staging certification; ordinary Production remains off; other existing profile states preserved |
+| SYNC_FLAG / RESTORE_FLAG / MIGRATION_FLAG | New explicit overrides only in Staging certification. Existing Production certification and build35-testing already compile all three on and remain unchanged; ordinary Staging/Production are unset, default off. Proof gating independently withholds all Cloud claims |
 | CUSTOMER_VISIBILITY / CLOUD_CLOSET_CUSTOMER_VISIBILITY | HIDDEN_PENDING_RUNTIME_PROOF; the card exists but is not advertised as available |
 | KPLUS_GATE / CLOUD_CLOSET_KPLUS_GATE | PASS source: shared membership gate plus existing engine/server canonical guards |
 | LOCAL_CLOSET_FREE / LOCAL_CLOSET_REMAINS_FREE | YES; local content remains outside the paid card |
@@ -164,12 +166,12 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 
 | Check / field | Result |
 | --- | --- |
-| TARGETED_TESTS | PASS final focused groups; 56 premium-value tests pass; catalog/VTO 95 pass; surface/config/Cloud groups 223 pass |
+| TARGETED_TESTS | PASS final focused groups; 57 premium-value cases, shared gate/VTO/enforcement group 150 pass, final claim/scope/premium group 112 pass; earlier catalog/VTO 95 pass; surface/config/Cloud groups 223 pass |
 | NEGATIVE_CONTROLS | PASS; all below reject a mutant or exact profile drift |
 | FULL_REGRESSION_OBSERVED / KNOWN / UNEXPECTED (Windows) | 31 / 13 / 18 on lane and exact untouched base; configured baseline remains 19 identities, unchanged |
 | WINDOWS_LOCAL_FAILURES | 31; exact identities in `build35-premium-windows-comparison.json` |
 | WINDOWS_LOCAL_NEW_FAILURE_IDENTITIES | 0 |
-| Full Windows inventory | 557 test files found and executed; 1 fixture directory excluded with explicit reason; 10,330 tests, 10,200 pass, 31 fail, 99 skip |
+| Full Windows inventory | 557 test files found and executed; 1 fixture directory excluded with explicit reason; 10,335 tests, 10,205 pass, 31 fail, 99 skip |
 | BACKEND_TESTS | PASS governed Deno runner: 1,252 passed, 0 failed; new provider-boundary tests included |
 | TYPECHECK | PASS `npx tsc --noEmit` |
 | EDGE_PARITY / EDGE_MANIFEST | PASS source bundle parity and manifest currency; only generated commerce-watch-refresh bundle changed semantically |
@@ -182,6 +184,8 @@ Signup trigger side effects and auth-delete cascades are recorded under their pa
 The Windows-only observed failures include pre-existing path-separator/mutation-harness and PostHog module-loading failures. They are measured against a second untouched worktree at the exact base, not relabeled as passing or added to a baseline. The latest focused tests also cover tests added after the full run. No old deployed build was used as TestSprite evidence for this source change.
 
 Initial PR CI found the existing VTO guard's broader backend allowlist did not enumerate this lane's three Watch worker files. Its VTO-owned source guard passed. The test inventory now includes only the worker entry point, fresh entitlement guard and guard test, justified by the owner's Premium Value brief and P1-WATCH-LAPSE. An additional control rejects Watch provider, push and database paths. This is an exact authorized-path inventory update, not a failure-baseline widening or VTO implementation change.
+
+The first inventory repair briefly added a new static test, which violated the existing MODE A test-count invariant in Linux CI. Its assertions were folded into the existing per-path rejection test; the invariant and all enforced scope tests pass without changing the required count. Subsequent native modal sequencing required mechanical updates to assertions that expected immediate sheet opening. Their resolving-state, canonical K+ and intent-preservation contracts remain tested.
 
 | Negative control | Assertion exercised |
 | --- | --- |

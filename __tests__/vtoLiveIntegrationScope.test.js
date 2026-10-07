@@ -46,14 +46,6 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.test.ts',
 ]);
 
-test('Build35 Watch lapse inventory cannot authorize provider, push or database changes', () => {
-  for (const file of [
-    'supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts',
-    'supabase/functions/commerce-watch-refresh/pushDelivery.ts',
-    'supabase/migrations/unapproved_watch_change.sql',
-  ]) assert.equal(BUILD35_AUTHORIZED_BACKEND_PATHS.has(file), false, file);
-});
-
 // ── The manifest parses, and every row carries its justification ────────────
 
 test('manifest: the authorized-path table parses with no missing justification', () => {
@@ -170,6 +162,12 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
     patterns,
   );
   assert.equal(unauthorized.length, 3);
+  // The exact Watch lapse repair must not admit unrelated backend mutations.
+  for (const file of [
+    'supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts',
+    'supabase/functions/commerce-watch-refresh/pushDelivery.ts',
+    'supabase/migrations/unapproved_watch_change.sql',
+  ]) assert.equal(BUILD35_AUTHORIZED_BACKEND_PATHS.has(file), false, file);
 });
 
 // ── The live diff, on a lane that has DECLARED itself a VTO lane ───────────

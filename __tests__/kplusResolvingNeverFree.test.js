@@ -210,7 +210,7 @@ test('KPlusGate computes `resolving` once and passes it to every consumer', () =
   assert.match(src, /resolving: boolean;/, 'KPlusGateRenderArgs must expose `resolving`');
   assert.match(
     src,
-    /children\(\{ state, isActive, resolving: isKPlusEntitlementUnresolved\(state\), openUpgrade \}\)/,
+    /children\(\{ state, isActive, resolving: isKPlusEntitlementUnresolved\(state\), openUpgrade,[\s\S]*?acquisitionVisible:/,
     'the gate must derive `resolving` from the shared predicate, once',
   );
 });

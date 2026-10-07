@@ -1248,6 +1248,7 @@ function renderEntry(o = {}) {
       GATE,
       {
         ...renderer.runtimeModules,
+        'react-native': createReactNativeStub(),
         '../../hooks/useKPlusEntitlement': { useKPlusEntitlement: world.useKPlusEntitlement },
         './KPlusEarlyAccessSheet': { KPlusEarlyAccessSheet: 'KPlusEarlyAccessSheet' },
         './KPlusMembershipSheet': { KPlusMembershipSheet: 'KPlusMembershipSheet' },
@@ -1892,7 +1893,7 @@ test('FC-01: Early Access is not globally retired -- unrelated K+ gates still op
   // The gate mounts exactly one surface per source, and the legacy component
   // and its file are still there, untouched in purpose.
   const gate = stripComments(read(GATE));
-  assert.match(gate, /\{surface === 'membership' \? \(\s*<KPlusMembershipSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} \/>\s*\) : \(\s*<KPlusEarlyAccessSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} source=\{source\} \/>\s*\)\}/);
+  assert.match(gate, /\{surface === 'membership' \? \(\s*<KPlusMembershipSheet visible=\{sheetVisible\} onClose=\{closeSheet\} onDismiss=\{\(\) => setSheetPresented\(false\)\} \/>\s*\) : \(\s*<KPlusEarlyAccessSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} source=\{source\} \/>\s*\)\}/);
   assert.ok(fs.existsSync(path.join(ROOT, 'components/kplus/KPlusEarlyAccessSheet.tsx')));
   // No other gate consumer was edited to pass anything new.
   for (const rel of [

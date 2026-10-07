@@ -379,7 +379,7 @@ test('SMART_WATCHLIST=KPLUS: RESOLVING is never rendered as a free-tier lock (PR
   }
   const picker = read('components', 'ProductShelf.tsx');
   assert.match(picker, /if \(gate\.resolving\) return;/);
-  assert.match(picker, /if \(!gate\.isActive\) \{ gate\.openUpgrade\(\); return; \}/);
+  assert.match(picker, /if \(!gate\.isActive\) \{[\s\S]*?setUpgradePhase\('dismissing'\);\s*return;\s*\}/);
 });
 
 test('SMART_WATCHLIST=KPLUS: availability and entitlement stay separate authorities', () => {
