@@ -7,9 +7,14 @@ name: K Scan Staging Controlled Deploy
 on:
   workflow_dispatch:
     inputs:
+      migration_only:
+        description: Apply exactly one approved Staging migration without deploying an Edge Function
+        required: false
+        default: false
+        type: boolean
       function_name:
-        description: Exactly one Edge Function to deploy
-        required: true
+        description: Edge Function to deploy when migration_only is false
+        required: false
         default: staging-health
         type: string
       verify_jwt:
@@ -56,6 +61,7 @@ jobs:
       function_name: ${{ steps.scope.outputs.function_name }}
       verify_jwt: ${{ steps.scope.outputs.verify_jwt }}
       migration_version: ${{ steps.scope.outputs.migration_version }}
+      migration_only: ${{ steps.scope.outputs.migration_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,13 +103,23 @@ jobs:
         run: |
           set -euo pipefail
           FN="${{ inputs.function_name }}"
-          if [ -z "$FN" ] || [ "$FN" = "all" ]; then
+          MIGRATION_ONLY="${{ inputs.migration_only }}"
+          VER="${{ inputs.approved_migration_version }}"
+          APPROVE="${{ inputs.approve_migration }}"
+          if [ "$MIGRATION_ONLY" = "true" ]; then
+            if [ -z "$VER" ] || [ "$APPROVE" != "YES" ]; then
+              echo "migration_only requires one approved migration version and approve_migration=YES"
+              exit 1
+            fi
+            FN=""
+          elif [ -z "$FN" ] || [ "$FN" = "all" ]; then
             echo "Invalid function_name"
             exit 1
           fi
           echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
           echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
-          echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
+          echo "migration_version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "migration_only=${MIGRATION_ONLY}" >> "$GITHUB_OUTPUT"
 
       - name: Run staging preflight
         env:
@@ -111,7 +127,7 @@ jobs:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
-          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          DEPLOY_FUNCTIONS: ${{ inputs.migration_only && '' || inputs.function_name }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
@@ -202,6 +218,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
     steps:
       - name: Checkout
@@ -252,6 +269,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.source-validation.result == 'success'
     environment: staging
     outputs:
@@ -329,6 +347,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.deploy-one-function.result == 'success'
     environment: staging
     steps:
@@ -375,6 +394,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.health-check.result == 'success'
     environment: staging
     steps:
@@ -397,11 +417,13 @@ jobs:
     timeout-minutes: 20
     needs:
       - preflight
+      - approved-single-migration
       - deploy-one-function
       - health-check
       - synthetic-tests
     if: |
       always() &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.deploy-one-function.result == 'success' &&
       (needs.health-check.result == 'failure' || needs.synthetic-tests.result == 'failure')
     environment: staging
@@ -487,6 +509,8 @@ jobs:
             echo
             echo "| Field | Value |"
             echo "| --- | --- |"
+            echo "| Mode | ${{ needs.preflight.outputs.migration_only == 'true' && 'migration-only' || 'function-deploy' }} |"
+            echo "| Migration | ${{ needs.preflight.outputs.migration_version }} |"
             echo "| Function | ${{ needs.preflight.outputs.function_name }} |"
             echo "| Deploy | ${{ needs.deploy-one-function.result }} |"
             echo "| Health | ${{ needs.health-check.result }} |"
@@ -494,6 +518,13 @@ jobs:
             echo "| Rollback | ${{ needs.rollback-on-failure.result }} |"
             echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.preflight.outputs.migration_only }}" = "true" ]; then
+            if [ "${{ needs.approved-single-migration.result }}" != "success" ]; then
+              echo "Migration-only execution failed"
+              exit 1
+            fi
+            exit 0
+          fi
           if [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
             echo "Deploy failed"
             exit 1
