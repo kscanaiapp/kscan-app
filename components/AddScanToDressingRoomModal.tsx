@@ -35,6 +35,14 @@ type Props = {
   storagePath?: string | null;
   imageUrl?: string | null;
   scan?: Partial<ScanImageSnapshotSource> | null;
+  /** Additional analyzed Scanner items for the same explicit room action. */
+  additionalScans?: ReadonlyArray<{
+    localImageUri?: string | null;
+    storageBucket?: string | null;
+    storagePath?: string | null;
+    imageUrl?: string | null;
+    scan?: Partial<ScanImageSnapshotSource> | null;
+  }>;
   onClose: () => void;
   variant?: 'scan' | 'vto_try_on';
   /** Fired only after the durable Dressing Room write is confirmed. */
@@ -76,6 +84,7 @@ export function AddScanToDressingRoomModal({
   storagePath,
   imageUrl,
   scan,
+  additionalScans = [],
   onClose,
   variant = 'scan',
   onSaved,
@@ -132,18 +141,45 @@ export function AddScanToDressingRoomModal({
     }
   }, [visible, reload]);
 
-  const buildScan = (): ScanImageSnapshotSource => ({
+  const buildScans = (): ScanImageSnapshotSource[] => [
+    { localImageUri, storageBucket, storagePath, imageUrl, scan },
+    ...additionalScans,
+  ].map((item) => ({
     userId: user?.id,
-    localImageUri,
-    storageBucket,
-    storagePath,
-    imageUrl,
-    sourceType: scan?.sourceType ?? 'live_scan',
-    sourceId: scan?.sourceId ?? null,
-    createdAt: scan?.createdAt ?? new Date().toISOString(),
-    result: scan?.result ?? null,
-    metadata: scan?.metadata ?? null,
-  });
+    localImageUri: item.localImageUri,
+    storageBucket: item.storageBucket,
+    storagePath: item.storagePath,
+    imageUrl: item.imageUrl,
+    sourceType: item.scan?.sourceType ?? 'live_scan',
+    sourceId: item.scan?.sourceId ?? null,
+    createdAt: item.scan?.createdAt ?? new Date().toISOString(),
+    result: item.scan?.result ?? null,
+    metadata: item.scan?.metadata ?? null,
+  }));
+
+  const saveAllToRoom = async (
+    roomId: string,
+    scope: ActorScope,
+  ): Promise<{ saved: number; total: number; actorChanged: boolean }> => {
+    const scans = buildScans();
+    let saved = 0;
+    for (const item of scans) {
+      if (!isActorScopeCurrent(scope)) {
+        return { saved, total: scans.length, actorChanged: true };
+      }
+      try {
+        await addScanImageToDressingRoom({
+          dressingRoomId: roomId,
+          userId: user?.id,
+          scan: item,
+        });
+        saved += 1;
+      } catch {
+        // Preserve successful siblings; the caller reports the truthful count.
+      }
+    }
+    return { saved, total: scans.length, actorChanged: !isActorScopeCurrent(scope) };
+  };
 
   const handleSave = async (roomId: string, roomTitle: string) => {
     if (savingRef.current) return;
@@ -152,15 +188,14 @@ export function AddScanToDressingRoomModal({
     setSaving(true);
     setMessage(null);
     try {
-      await addScanImageToDressingRoom({
-        dressingRoomId: roomId,
-        userId: user?.id,
-        scan: buildScan(),
-      });
+      const result = await saveAllToRoom(roomId, scope);
       // A write that finished for a previous actor is theirs, not this session's.
-      if (!isActorScopeCurrent(scope)) return;
+      if (result.actorChanged || !isActorScopeCurrent(scope)) return;
+      if (result.saved === 0) throw new Error('No items could be added.');
       setSavedRoomId(roomId);
-      setMessage(`Added to ${roomTitle}.`);
+      setMessage(result.saved === result.total
+        ? `Added ${result.saved === 1 ? 'item' : `${result.saved} items`} to ${roomTitle}.`
+        : `Added ${result.saved} of ${result.total} items to ${roomTitle}.`);
       onSaved?.(roomTitle);
     } catch (err: any) {
       if (!isActorScopeCurrent(scope)) return;
@@ -190,15 +225,15 @@ export function AddScanToDressingRoomModal({
           description: null,
         }));
       createdRoomRef.current = { title, room, scope };
-      await addScanImageToDressingRoom({
-        dressingRoomId: room.id,
-        userId: user?.id,
-        scan: buildScan(),
-      });
+      const result = await saveAllToRoom(room.id, scope);
+      if (result.actorChanged || !isActorScopeCurrent(scope)) return;
+      if (result.saved === 0) throw new Error('No items could be added.');
       await reload();
       if (!isActorScopeCurrent(scope)) return;
       setSavedRoomId(room.id);
-      setMessage(`Added to ${room.title}.`);
+      setMessage(result.saved === result.total
+        ? `Added ${result.saved === 1 ? 'item' : `${result.saved} items`} to ${room.title}.`
+        : `Added ${result.saved} of ${result.total} items to ${room.title}.`);
       onSaved?.(room.title);
     } catch (err: any) {
       if (!isActorScopeCurrent(scope)) return;
@@ -231,7 +266,14 @@ export function AddScanToDressingRoomModal({
   // pipeline (storage > remote URL > local URI), not bare localImageUri
   // truthiness — a cloud-synced scan with no local file left on this device
   // can still be added when it has a durable storage reference or URL.
-  const missingImage = !hasUsableDressingRoomImageSource({ localUri: localImageUri, storageBucket, storagePath, imageUrl });
+  const missingImage =
+    !hasUsableDressingRoomImageSource({ localUri: localImageUri, storageBucket, storagePath, imageUrl }) ||
+    additionalScans.some((item) => !hasUsableDressingRoomImageSource({
+      localUri: item.localImageUri,
+      storageBucket: item.storageBucket,
+      storagePath: item.storagePath,
+      imageUrl: item.imageUrl,
+    }));
   const successState = !!savedRoomId;
 
   return (
