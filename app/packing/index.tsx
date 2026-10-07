@@ -27,6 +27,7 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
 import type { PackingTripDraft } from '../../types/packing';
 import { PACKING_REFINEMENT_CHIPS, packingChipIsActive, type RefinementChip } from '../../services/refinementChips';
+import { currentActorScopeKey } from '../../services/actorScope';
 
 /**
  * The visible stages correspond to real server-side work, IN THE ORDER THE
@@ -85,6 +86,10 @@ export default function PackingScreen() {
   const [editingTrip, setEditingTrip] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
   const [refinement, setRefinement] = useState('');
+  const actorKey = currentActorScopeKey();
+  React.useEffect(() => {
+    setRefinement(''); setEditingTrip(false); setStageIndex(0);
+  }, [actorKey]);
 
   // The plan carries identity; the DEVICE carries the picture. Matching on the
   // local Closet id means no Closet image ever has to leave the phone for a
@@ -190,36 +195,25 @@ export default function PackingScreen() {
           // on every cold entry to this route before the first status read
           // returned, and met it PERMANENTLY whenever the entitlement read
           // failed. Neither is a statement about their entitlement.
-          if (resolving && !packing.plan) {
-            return (
-              <View testID="packing-kplus-resolving">
-                <ActivityIndicator color={LUXURY.colors.plum} />
-              </View>
-            );
-          }
-
-          if (!isActive && !packing.plan) {
-            return (
-              <View testID="packing-kplus-gate">
-                <Text style={styles.gateHeadline}>K Scan AI already knows your wardrobe.</Text>
-                <Text style={styles.body}>
-                  Packing Intelligence turns your Closet into a trip plan — real pieces you own,
-                  built into looks for where you are going.
-                </Text>
-                <PrimaryButton
-                  title="UNLOCK WITH K+"
-                  onPress={openUpgrade}
-                  style={styles.cta}
-                  testID="packing-unlock"
-                />
-              </View>
-            );
-          }
-
           return (
             <View>
+              {resolving && !packing.plan ? (
+                <View testID="packing-kplus-resolving"><ActivityIndicator color={LUXURY.colors.plum} /></View>
+              ) : null}
+              {!resolving && !isActive && !packing.plan ? (
+                <View testID="packing-kplus-gate">
+                  <Text style={styles.gateHeadline}>Plan a trip from your Closet.</Text>
+                  <Text style={styles.body}>Set up your trip here. K+ unlocks Packing Intelligence using the clothes you own.</Text>
+                </View>
+              ) : null}
               {showForm ? (
-                <PackingTripForm initial={packing.trip} busy={busy} onSubmit={handleSubmit} />
+                <PackingTripForm key={actorKey} initial={packing.trip} busy={busy || resolving}
+                  submitTitle={isActive ? 'PACK FOR THIS TRIP' : 'CONTINUE WITH K+'}
+                  onSubmit={(draft) => {
+                    if (resolving) return;
+                    if (!isActive) { openUpgrade(); return; }
+                    handleSubmit(draft);
+                  }} />
               ) : null}
 
               {busy ? (

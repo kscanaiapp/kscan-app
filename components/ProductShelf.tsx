@@ -33,10 +33,13 @@ import {
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
 import { KPlusGate } from './kplus/KPlusGate';
+import type { KPlusGateRenderArgs } from './kplus/KPlusGate';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { createWatch } from '../services/watchlist/watchlistClient';
 import { resolveWatchlistAvailable } from '../services/watchlist/watchlistAvailability';
 import { requestWatchAlerts } from '../services/watchlist/pushRegistration';
+import { hasRuntimeCapabilityProof } from '../services/kplus/kplusCapabilityProof';
+import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from '../services/actorScope';
 import type { WatchIntent } from '../types/watchlist';
 import {
   formatCommercePrice,
@@ -615,7 +618,7 @@ export function ProductShelf({
                         // cannot tell which item they are about to watch. The
                         // label must name the product the control acts on.
                         accessibilityLabel={`Watch ${getProductTitle(p)}`}
-                        accessibilityHint={isActive || resolving ? 'Get notified about price changes on this item' : 'Available with K+. Opens K+ Early Access.'}
+                        accessibilityHint="Track this product and price changes with K+"
                         style={styles.addToRoomButton}
                         disabled={resolving}
                         // RESOLVING != FREE: while the answer is unknown the
@@ -623,8 +626,7 @@ export function ProductShelf({
                         onPress={() => {
                           if (resolving) return;
                           selectionTick();
-                          if (isActive) setWatchModalProduct(p);
-                          else openUpgrade();
+                          setWatchModalProduct(p);
                         }}
                         activeOpacity={0.82}
                       >
@@ -882,13 +884,26 @@ export function AddToRoomModal({
  * still refuses to arm it without a confident currency read.
  */
 export function WatchThisModal({
+  product, visible, onClose,
+}: { product: Product | null; visible: boolean; onClose: () => void }) {
+  if (!visible || !product || !resolveWatchlistAvailable()) return null;
+  return (
+    <KPlusGate source="watchlist">
+      {(gate) => <WatchThisModalContent key={currentActorScopeKey()} product={product} visible={visible} onClose={onClose} gate={gate} />}
+    </KPlusGate>
+  );
+}
+
+function WatchThisModalContent({
   product,
   visible,
   onClose,
+  gate,
 }: {
   product: Product | null;
   visible: boolean;
   onClose: () => void;
+  gate: KPlusGateRenderArgs;
 }) {
   const [intent, setIntent] = useState<WatchIntent>('just_watching');
   const [targetText, setTargetText] = useState('');
@@ -910,6 +925,11 @@ export function WatchThisModal({
     // refused attempt is not a feature start, and recording one would put a
     // begin with no matching completion into the K+ funnel.
     if (!resolveWatchlistAvailable()) return;
+    if (gate.resolving) return;
+    // The intent picker stays mounted behind the shared membership sheet.
+    // Its canonical listing, chosen intent and target text survive acquisition.
+    if (!gate.isActive) { gate.openUpgrade(); return; }
+    const scope = captureActorScope();
     const targetPriceAmount =
       intent === 'buy_under' ? Number(targetText.replace(/[^0-9.]/g, '')) : undefined;
     if (intent === 'buy_under' && (!targetPriceAmount || !Number.isFinite(targetPriceAmount) || targetPriceAmount <= 0)) {
@@ -937,18 +957,21 @@ export function WatchThisModal({
       watchIntent: intent,
       targetPriceAmount,
     });
+    if (!isActorScopeCurrent(scope)) return;
     setSaving(false);
     if (result.ok) {
       emitKPlusEvent('kplus_feature_completed', { source: 'watchlist', feature: 'watchlist' });
       setMessage("You're watching this listing.");
       const createdWatchId = result.data.id;
-      setTimeout(handleClose, 900);
+      setTimeout(() => { if (isActorScopeCurrent(scope)) handleClose(); }, 900);
       // §51-52: notification permission is requested contextually, ONLY
       // here (a target price was just set) -- never at onboarding, K+
       // activation, or Watchlist open. A "not now" leaves the Watch valid
       // with push disabled; this never blocks or reverses the Watch itself.
-      if (intent === 'buy_under') {
+      if (intent === 'buy_under' && hasRuntimeCapabilityProof('smart_watchlist',
+        Platform.OS === 'ios' ? 'watch_push_ios' : 'watch_push_android')) {
         setTimeout(() => {
+          if (!isActorScopeCurrent(scope)) return;
           Alert.alert(
             'Alert me?',
             `Want K Scan AI to alert you when this listing reaches your target price?`,
@@ -962,8 +985,10 @@ export function WatchThisModal({
                 // network); firing this and ignoring the result left the user
                 // believing an alert was armed when push_enabled stayed false.
                 onPress: () => {
+                  if (!isActorScopeCurrent(scope)) return;
                   void (async () => {
                     const alerts = await requestWatchAlerts(createdWatchId);
+                    if (!isActorScopeCurrent(scope)) return;
                     if (alerts.ok) return;
                     const denied = 'reason' in alerts && alerts.reason === 'permission_denied';
                     Alert.alert(
@@ -1051,12 +1076,12 @@ export function WatchThisModal({
                 testID="watch-save-button"
                 style={[styles.modalPrimaryButton, saving && styles.modalButtonDisabled]}
                 onPress={handleSave}
-                disabled={saving}
+                disabled={saving || gate.resolving}
                 accessibilityRole="button"
                 accessibilityLabel="Start watching"
-                accessibilityState={{ disabled: saving, busy: saving }}
+                accessibilityState={{ disabled: saving || gate.resolving, busy: saving }}
               >
-                {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>WATCH</Text>}
+                {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>{gate.isActive ? 'WATCH' : 'CONTINUE WITH K+'}</Text>}
               </TouchableOpacity>
             </View>
 

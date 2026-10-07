@@ -77,7 +77,9 @@ const code = screen
   // Negative lookbehind so `https://...` survives the line-comment strip.
   .replace(/(?<!:)\/\/.*$/gm, '');
 
+const PACKING_RUNTIME_FIXTURE = { environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{ capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME', environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] };
 const catalog = loadModule(path.join(ROOT, 'services', 'kplus', 'kplusActivationCatalog.ts'), {
+  './kplusCapabilityProof': require('./helpers/componentRenderer').runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
   '../../constants/featureFlags': {
     VOICESCAN_ENABLED: false,
     VTO_UI_ENABLED: false,
@@ -95,6 +97,8 @@ test('CAPABILITY_LIST: the approved K+ catalog is exactly the four capabilities'
     'virtual_try_on',
     'wardrobe_concierge',
     'packing_intelligence',
+    'smart_watchlist',
+    'cloud_closet',
   ]);
 
   const titles = plain(catalog.KPLUS_ACTIVATION_CAPABILITIES.map((c) => c.title));
@@ -105,6 +109,8 @@ test('CAPABILITY_LIST: the approved K+ catalog is exactly the four capabilities'
     'Try it on with AI',
     'Wardrobe Concierge',
     'Packing Intelligence',
+    'Smart Watchlist',
+    'Cloud Closet',
   ]);
 });
 
@@ -118,12 +124,10 @@ test('CAPABILITY_LIST: every capability ships one concrete, non-empty line of co
   }
 });
 
-test('SMART_WATCHLIST: is not part of the signup activation offer', () => {
-  const ids = catalog.KPLUS_ACTIVATION_CAPABILITIES.map((c) => c.id).join(' ');
-  assert.doesNotMatch(ids, /watch/i);
-  // Nor may the screen name it directly.
-  assert.doesNotMatch(code, /Watchlist/i);
-});
+test('SMART_WATCHLIST: bounded tracking joins the approved catalog; eligibility remains proof-gated', () => {
+    assert.ok(catalog.KPLUS_ACTIVATION_CAPABILITIES.some(c => c.id === 'smart_watchlist'));
+    assert.doesNotMatch(code, /Watchlist/i, 'screen uses the single catalog');
+  });
 
 test('SIGNATURE_STYLE: is presented as core/Free and never as a K+ capability', () => {
   const kplusIds = catalog.KPLUS_ACTIVATION_CAPABILITIES.map((c) => c.id);
@@ -164,7 +168,7 @@ test('CAPABILITY_LIST: a build only advertises capabilities it actually compiled
       concierge: false,
       packing: false,
     },
-    ALL_SERVER_CONFIRMED,
+    ALL_SERVER_CONFIRMED, {}, PACKING_RUNTIME_FIXTURE,
   );
   assert.deepEqual(plain(voiceOnly.map((c) => c.id)), ['voice_scan']);
 
@@ -175,7 +179,7 @@ test('CAPABILITY_LIST: a build only advertises capabilities it actually compiled
       concierge: true,
       packing: true,
     },
-    ALL_SERVER_CONFIRMED,
+    ALL_SERVER_CONFIRMED, {}, PACKING_RUNTIME_FIXTURE,
   );
   assert.equal(all.length, 4);
   assert.ok(all.every((c) => c.available === true));
@@ -185,7 +189,7 @@ test('CAPABILITY_LIST: the catalog cannot be mutated by a consumer', () => {
   assert.throws(() => {
     catalog.KPLUS_ACTIVATION_CAPABILITIES.push({ id: 'x' });
   });
-  assert.equal(catalog.KPLUS_ACTIVATION_CAPABILITIES.length, 4);
+  assert.equal(catalog.KPLUS_ACTIVATION_CAPABILITIES.length, 6);
 });
 
 // ── COMMERCIAL TERMS ────────────────────────────────────────────────────────
@@ -269,7 +273,7 @@ test('HEADLINE and OFFER framing match the approved activation copy', () => {
     catalog.activationOfferSubhead(
       catalog.resolveActivationCapabilities(
         { voiceScan: true, vto: true, concierge: true, packing: true },
-        ALL_SERVER_CONFIRMED,
+        ALL_SERVER_CONFIRMED, {}, PACKING_RUNTIME_FIXTURE,
       ),
     ),
     'Unlock more ways to scan, style, try on, and plan with K Scan AI.',

@@ -5,7 +5,7 @@ import { KPlusGate } from '../kplus/KPlusGate';
 import { SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { CLOSET_CLOUD_SYNC_V1, CLOSET_CROSS_DEVICE_RESTORE_V1, CLOSET_LEGACY_MIGRATION_V1 } from '../../constants/featureFlags';
-import { captureActorScope, isActorScopeCurrent } from '../../services/actorScope';
+import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from '../../services/actorScope';
 import { hasRuntimeCapabilityProof } from '../../services/kplus/kplusCapabilityProof';
 import { listClosetSyncEntries } from '../../services/closet/closetSyncStore';
 import { isClosetSyncRunning, runClosetSyncPass } from '../../services/closet/closetSyncEngine';
@@ -25,7 +25,7 @@ export function CloudClosetCard({ items, onRefresh }: {
   return (
     <KPlusGate source="closet_intelligence">
       {({ state, isActive, resolving, openUpgrade }) => (
-        <CloudClosetStatusCard items={items} onRefresh={onRefresh} entitlement={state}
+        <CloudClosetStatusCard key={currentActorScopeKey()} items={items} onRefresh={onRefresh} entitlement={state}
           active={isActive} resolving={resolving} openUpgrade={openUpgrade} />
       )}
     </KPlusGate>

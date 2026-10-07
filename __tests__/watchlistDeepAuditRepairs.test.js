@@ -618,5 +618,5 @@ test('WL-10: every destructive or state-changing Watch control is labelled', () 
   // The empty state must be a real explanation, not a bare icon.
   const home = read('app/watchlist/index.tsx');
   assert.match(home, /title="Nothing on your Watchlist yet"/);
-  assert.match(home, /subtitle="When you find something/);
+  assert.match(home, /subtitle="Track eligible products and price changes with K\+/);
 });

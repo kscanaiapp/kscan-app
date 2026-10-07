@@ -54,6 +54,7 @@ function loadTs(relative, requireMap, mutate = (source) => source) {
   const mod = { exports: {} };
   const sandbox = {
     console,
+    process: { env: {} },
     exports: mod.exports,
     module: mod,
     require: (specifier) => {
@@ -70,7 +71,8 @@ function loadCatalog(mutate) {
   return loadTs(
     'services/kplus/kplusActivationCatalog.ts',
     {
-      '../../constants/featureFlags': {
+      './kplusCapabilityProof': require('./helpers/componentRenderer').runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
+  '../../constants/featureFlags': {
         VOICESCAN_ENABLED: false,
         VTO_UI_ENABLED: false,
         ELISE_CONCIERGE_V1: false,
@@ -122,6 +124,7 @@ function expectedAdvertised(flagsById, statusById, signalsById) {
   );
 }
 
+const PACKING_RUNTIME_FIXTURE = { environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{ capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME', environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] };
 const catalog = loadCatalog();
 
 /** The audited-posture check, as a function so a negative control can run it on mutated source. */
@@ -147,7 +150,10 @@ test('RULE: advertised iff compiled in AND (confirmed, or live with an explicit 
         IDS.map((id) => [id, { status: status[id], basis: 'test fixture' }]),
       );
       for (const signals of signalSets) {
-        const resolved = catalog.resolveActivationCapabilities(flagArg, enablement, signals);
+        const resolved = catalog.resolveActivationCapabilities(flagArg, enablement, signals, {
+    environment: 'staging', buildAuthority: 'fixture', nowMs: Date.parse('2026-10-07'), records: [{
+      capability: 'packing_intelligence', proofType: 'packing_generation_and_refinement', status: 'PROVEN_RUNTIME',
+      environment: 'staging', buildAuthority: 'fixture', provenAt: '2026-10-06', expiresAt: '2026-10-08', evidenceRef: 'fixture' }] });
         const actual = resolved.map((capability) => capability.id);
         const expected = expectedAdvertised(flags, status, signals);
         if (actual.length !== expected.length || actual.some((id, index) => id !== expected[index])) {
@@ -195,7 +201,7 @@ test('RULE: a live capability follows its signal and fails closed while the sign
 
 test('RECORD: covers exactly the four approved capabilities, each with a status and a dated basis', () => {
   const record = catalog.KPLUS_CAPABILITY_SERVER_ENABLEMENT;
-  assert.deepEqual(Object.keys(record).sort(), [...IDS].sort());
+  assert.deepEqual(Object.keys(record).sort(), [...IDS, 'smart_watchlist', 'cloud_closet'].sort());
   for (const id of IDS) {
     assert.ok(['confirmed', 'unconfirmed', 'live'].includes(record[id].status), `${id} status`);
     assert.ok(record[id].basis.length > 20, `${id} must say what its status rests on`);
@@ -326,7 +332,7 @@ test('SUBHEAD: the audited posture never mentions styling or planning', () => {
 test('SUBHEAD: is byte-for-byte the approved sentence when all four are advertised', () => {
   const allConfirmed = Object.fromEntries(IDS.map((id) => [id, { status: 'confirmed', basis: 'test fixture' }]));
   assert.equal(
-    catalog.activationOfferSubhead(catalog.resolveActivationCapabilities(ALL_FLAGS_ON, allConfirmed)),
+    catalog.activationOfferSubhead(catalog.resolveActivationCapabilities(ALL_FLAGS_ON, allConfirmed, {}, PACKING_RUNTIME_FIXTURE)),
     'Unlock more ways to scan, style, try on, and plan with K Scan AI.',
   );
 });
@@ -371,7 +377,7 @@ test('HOOK: reads the signal only when something depends on it, and ignores a la
   assert.match(hook, /readKPlusLiveCapabilityState\(\)/);
   assert.match(hook, /if \(alive\) setResult\(\{ signals, promotion, settled: true \}\);/);
   assert.match(hook, /alive = false;/);
-  assert.match(hook, /return needed \? result : NOTHING_TO_ASK;/);
+  assert.match(hook, /return needed \? result : \{ \.\.\.NOTHING_TO_ASK, signals: result\.signals \};/);
   assert.match(hook, /settled: true,\s*\}\);/, 'the nothing-to-ask result is already settled');
 });
 

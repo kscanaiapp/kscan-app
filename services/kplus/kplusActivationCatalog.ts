@@ -1,43 +1,20 @@
-/**
- * The K+ activation catalog: what the activation screen is allowed to claim.
- *
- * Three separate questions, deliberately kept apart:
- *
- *   1. WHICH CAPABILITIES ARE K+ AT ALL.  `KPLUS_ACTIVATION_CAPABILITIES` is
- *      the closed, approved list. It is exactly four entries. Signature Style,
- *      Scanner, Shopping, Closet, Elise, and Dressing Rooms are CORE/FREE and
- *      may never appear here -- __tests__/kplusCoreFreeBoundary.test.js pins
- *      the same boundary from the gate side. Smart Watchlist is a K+ surface
- *      elsewhere but is deliberately NOT part of the signup activation offer.
- *
- *   2. WHICH OF THEM THIS BUILD ACTUALLY SHIPS.  Each capability is behind its
- *      own build flag, each defaulting off. A build compiled without VTO does
- *      not get to promise VTO on the signup screen just because VTO is on the
- *      approved list. `resolveActivationCapabilities` filters the catalog by
- *      what is really compiled in.
- *
- *   3. WHICH OF THEM THE SERVER ACTUALLY SERVES.  A build flag says the code is
- *      in the binary; it says nothing about whether the server side that code
- *      calls is switched on. Packing Intelligence and Wardrobe Concierge are
- *      compiled into the Build 34 certification binary, but the server side
- *      they need was not enabled at the last audit, so a member who activated
- *      K+ for them would get a failing feature. The screen may only advertise a
- *      capability the user can actually USE, so
- *      `KPLUS_CAPABILITY_SERVER_ENABLEMENT` is a closed, dated record of what
- *      the server is known to serve (or, for a capability whose server switch
- *      the client can read, which live signal decides) and
- *      `resolveActivationCapabilities` requires BOTH answers.
- *
- * This is presentation only. Nothing here grants, extends, or checks an
- * entitlement -- the server owns that (services/kplus/kplusClient.ts).
- */
+/** The single K+ presentation catalog. Core Scanner, Shopping, local Closet,
+ * Signature Style, Elise and Dressing Rooms remain Free. Build flags describe
+ * compiled entry points; server records describe known service posture.
+ * Packing, Watchlist and Cloud Closet additionally require dated runtime proof
+ * scoped to this environment and build. This never grants an entitlement. */
 
 import {
   ELISE_CONCIERGE_V1,
   PACKING_INTELLIGENCE_V1,
   VOICESCAN_ENABLED,
   VTO_UI_ENABLED,
+  SMART_WATCHLIST_V1,
+  CLOSET_CLOUD_SYNC_V1,
+  CLOSET_CROSS_DEVICE_RESTORE_V1,
+  CLOSET_LEGACY_MIGRATION_V1,
 } from '../../constants/featureFlags';
+import { capabilityProofContext, hasRuntimeCapabilityProof, type CapabilityProofContext } from './kplusCapabilityProof';
 
 /** Bounded capability ids for the activation screen (presentation keys, not
  *  entitlement keys -- the single entitlement is 'k_plus'). */
@@ -45,7 +22,9 @@ export type KPlusActivationCapabilityId =
   | 'voice_scan'
   | 'virtual_try_on'
   | 'wardrobe_concierge'
-  | 'packing_intelligence';
+  | 'packing_intelligence'
+  | 'smart_watchlist'
+  | 'cloud_closet';
 
 export interface KPlusActivationCapability {
   id: KPlusActivationCapabilityId;
@@ -59,20 +38,8 @@ export interface KPlusActivationCapability {
   available: boolean;
 }
 
-/**
- * The approved four. Copy is bounded by what Build 34 actually does:
- *   - Voice Scan speaks a search instead of typing one. It is not an
- *     assistant and does not act on the user's behalf.
- *   - Virtual Try-On visualizes a selected garment. It makes no claim about
- *     fit, sizing accuracy, or photorealism. Its title and line are the
- *     customer-facing name the rest of the app introduces it by
- *     (VTO_DISCOVERY_COPY in services/vto/vtoDiscovery.ts), and "eligible" is
- *     load-bearing: only some garments can be tried on.
- *   - Wardrobe Concierge conditions Elise's recommendations on owned items.
- *     It does not shop, buy, or act autonomously.
- *   - Packing Intelligence plans a trip from the user's Closet. It is not a
- *     generic checklist and does not book anything.
- */
+/** Approved capabilities. Copy describes the shipped behavior; resolution
+ * removes unproven or unavailable capabilities before any benefit is rendered. */
 export const KPLUS_ACTIVATION_CAPABILITIES: ReadonlyArray<
   Omit<KPlusActivationCapability, 'available'>
 > = Object.freeze([
@@ -100,36 +67,15 @@ export const KPLUS_ACTIVATION_CAPABILITIES: ReadonlyArray<
     description: 'Smarter trip planning from your Closet.',
     glyph: '▣',
   }),
+  Object.freeze({ id: 'smart_watchlist' as const, title: 'Smart Watchlist',
+    description: 'Track eligible products and check price changes.', glyph: '◎' }),
+  Object.freeze({ id: 'cloud_closet' as const, title: 'Cloud Closet',
+    description: 'Back up your Closet with K+.', glyph: '☁' }),
 ]);
 
-/**
- * Whether the SERVER is known to serve a capability's server side.
- *
- *   'confirmed'   -- the server side this capability needs is switched on. (It
- *                    says nothing about on-device behaviour, which is checked on
- *                    a device.)
- *   'unconfirmed' -- not known to work: dark, unset, or simply unproven. The
- *                    screen must not advertise it.
- *   'live'        -- the server side has a switch the client CAN read, so the
- *                    answer is decided at runtime from an injected signal
- *                    (`KPlusLiveSignals`), not from this file. Unknown -- not
- *                    read yet, unreadable, or off -- is not advertised.
- *
- * A hand-maintained record rather than a probe for the capabilities that have
- * nothing the client could read: Packing Intelligence and Wardrobe Concierge
- * are gated by server-side switches that no client-readable row mirrors, and
- * the entitlement summary carries no capability field. For THOSE entries a
- * snapshot goes stale in one direction only -- it can under-advertise (a
- * capability the owner enables later stays hidden until a client release flips
- * its entry), never over-advertise. A 'confirmed' entry is only as current as
- * its date, which is why anything with a readable switch is 'live' instead.
- * Each entry carries the evidence it rests on and when it was observed so the
- * next owner can re-check it.
- *
- * Flip an entry to 'confirmed' only after the capability has been enabled on
- * the server AND proven to work for a K+ member. The server switches are not
- * named here on purpose: this file ships in the app bundle.
- */
+/** Server posture is necessary but insufficient for premium-value claims.
+ * The typed proof projection independently expires Packing, Watchlist and
+ * Closet claims. Live VTO and the existing Voice/Concierge rules are preserved. */
 export type KPlusServerEnablement = 'confirmed' | 'unconfirmed' | 'live';
 
 /** Answers for the 'live' capabilities. `undefined`/`null` means not known yet. */
@@ -167,20 +113,26 @@ export const KPLUS_CAPABILITY_SERVER_ENABLEMENT: Readonly<
       '2026-09-24 read-only audit, so it does nothing for an activated member.',
   }),
   packing_intelligence: Object.freeze({
-    status: 'unconfirmed' as const,
+    status: 'confirmed' as const,
     basis:
-      'The server-side switch Packing Intelligence needs was not enabled at the ' +
-      '2026-09-24 read-only audit, so a Packing request fails for an activated member.',
+      'Staging generation and refinement succeeded on 2026-10-07. Advertising also requires ' +
+      'the dated environment-scoped runtime proof; Production has no proof.',
   }),
+  smart_watchlist: Object.freeze({ status: 'confirmed' as const,
+    basis: 'Staging create, owner read and real price observation succeeded on 2026-10-07. ' +
+      'Only tracking is proven; worker behavior and platform push are separate.' }),
+  cloud_closet: Object.freeze({ status: 'unconfirmed' as const,
+    basis: 'At 2026-10-07, outbound media sync and isolated-client restore remain unproven.' }),
 });
 
 /**
  * Which capabilities the screen may advertise: those this build compiled in
  * (build flags) AND that the server is known to serve
  * (KPLUS_CAPABILITY_SERVER_ENABLEMENT, with 'live' entries decided by
- * `liveSignals`). All three inputs are injectable so tests can exercise every
+ * `liveSignals`) AND governed proof for premium-value capabilities. All inputs
+ * are injectable so tests can exercise every
  * combination without re-importing the module under a mutated environment; the
- * catalog itself stays free of imports beyond the build flags.
+ * catalog remains the single presentation projection.
  */
 export function resolveActivationCapabilities(
   flags: {
@@ -188,17 +140,26 @@ export function resolveActivationCapabilities(
     vto?: boolean;
     concierge?: boolean;
     packing?: boolean;
+    watchlist?: boolean;
+    cloudSync?: boolean;
+    cloudRestore?: boolean;
+    cloudMigration?: boolean;
   } = {},
   serverEnablement: Readonly<
     Record<KPlusActivationCapabilityId, KPlusServerEnablementRecord>
   > = KPLUS_CAPABILITY_SERVER_ENABLEMENT,
   liveSignals: KPlusLiveSignals = {},
+  proofContext: CapabilityProofContext = capabilityProofContext(),
 ): KPlusActivationCapability[] {
   const {
     voiceScan = VOICESCAN_ENABLED,
     vto = VTO_UI_ENABLED,
     concierge = ELISE_CONCIERGE_V1,
     packing = PACKING_INTELLIGENCE_V1,
+    watchlist = SMART_WATCHLIST_V1,
+    cloudSync = CLOSET_CLOUD_SYNC_V1,
+    cloudRestore = CLOSET_CROSS_DEVICE_RESTORE_V1,
+    cloudMigration = CLOSET_LEGACY_MIGRATION_V1,
   } = flags;
 
   const compiledIn: Record<KPlusActivationCapabilityId, boolean> = {
@@ -206,9 +167,14 @@ export function resolveActivationCapabilities(
     virtual_try_on: vto,
     wardrobe_concierge: concierge,
     packing_intelligence: packing,
+    smart_watchlist: watchlist,
+    cloud_closet: cloudSync && cloudRestore && cloudMigration,
   };
 
   const servedByServer = (id: KPlusActivationCapabilityId): boolean => {
+    if (id === 'packing_intelligence' && !hasRuntimeCapabilityProof(id, 'packing_generation_and_refinement', proofContext)) return false;
+    if (id === 'smart_watchlist' && !hasRuntimeCapabilityProof(id, 'watch_tracking', proofContext)) return false;
+    if (id === 'cloud_closet' && !hasRuntimeCapabilityProof(id, 'closet_outbound_sync', proofContext)) return false;
     const status = serverEnablement[id]?.status;
     if (status === 'confirmed') return true;
     // A 'live' capability is advertised only on an explicit yes. Not read yet,
@@ -219,7 +185,10 @@ export function resolveActivationCapabilities(
 
   return KPLUS_ACTIVATION_CAPABILITIES
     .filter((capability) => compiledIn[capability.id] && servedByServer(capability.id))
-    .map((capability) => ({ ...capability, available: true }));
+    .map((capability) => ({ ...capability, available: true,
+      ...(capability.id === 'cloud_closet' && hasRuntimeCapabilityProof('cloud_closet', 'closet_cross_device_restore', proofContext)
+        ? { description: 'Back up and restore your Closet across devices.' } : {}),
+    }));
 }
 
 /**
@@ -258,6 +227,8 @@ const ACTIVATION_WAYS: ReadonlyArray<{ id: KPlusActivationCapabilityId; verb: st
     Object.freeze({ id: 'wardrobe_concierge' as const, verb: 'style' }),
     Object.freeze({ id: 'virtual_try_on' as const, verb: 'try on' }),
     Object.freeze({ id: 'packing_intelligence' as const, verb: 'plan' }),
+    Object.freeze({ id: 'smart_watchlist' as const, verb: 'track' }),
+    Object.freeze({ id: 'cloud_closet' as const, verb: 'back up' }),
   ]);
 
 /** "scan", "scan and try on", "scan, style, and try on", "scan, style, try on, and plan". */

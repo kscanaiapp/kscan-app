@@ -185,7 +185,8 @@ test('DEF-WL-07: the Watch action is K+ gated on the shipped surface too', () =>
   const source = stripComments(read(PANEL));
   const block = source.slice(source.indexOf('canWatch ?'));
   assert.match(block, /KPlusGate/, 'Watch is a K+ capability on every surface');
-  assert.match(block, /openUpgrade\(\)/, 'a non-K+ actor is offered the upgrade, not the action');
+  assert.match(block, /setWatchCandidate/, 'the canonical candidate is retained in the existing intent picker');
+  assert.match(stripComments(read('components/ProductShelf.tsx')), /if \(!gate\.isActive\) \{ gate\.openUpgrade\(\); return; \}/, 'the picker requires K+ before creation');
 });
 
 test('DEF-WL-07: the panel reuses ProductShelf\'s modal rather than a second creation path', () => {

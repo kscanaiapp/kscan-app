@@ -1693,6 +1693,7 @@ test('copy: awareness names the feature factually and claims nothing about fit o
 
   // The K+ benefit line is the same sentence, from the catalog.
   const catalog = runModule(CATALOG, {
+    './kplusCapabilityProof': runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: true, VTO_UI_ENABLED: true, ELISE_CONCIERGE_V1: false, PACKING_INTELLIGENCE_V1: false,
     },
@@ -1875,13 +1876,15 @@ test('NC-FC-01: routing VTO back to KPlusEarlyAccessSheet is caught', async () =
   );
 });
 
-test('FC-01: Early Access is not globally retired -- every other K+ gate still opens it', () => {
+test('FC-01: Early Access is not globally retired -- unrelated K+ gates still open it', () => {
   const acquisition = runModule(ACQUISITION, {}, { jsx: false });
-  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto']);
+  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto', 'packing', 'watchlist', 'closet_intelligence']);
   assert.equal(acquisition.resolveKPlusAcquisitionSurface('vto'), 'membership');
   const sources = runModule('types/kplusSource.ts', {}, { jsx: false }).KPLUS_SOURCES;
   for (const source of sources) {
-    if (source === 'vto') continue;
+    if (['vto', 'packing', 'watchlist', 'closet_intelligence'].includes(source)) {
+      assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'membership'); continue;
+    }
     assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'early_access', `${source} is unchanged`);
   }
   assert.equal(acquisition.resolveKPlusAcquisitionSurface('not-a-source'), 'early_access', 'an unknown source is not upgraded by accident');

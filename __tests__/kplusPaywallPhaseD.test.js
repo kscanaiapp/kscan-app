@@ -182,6 +182,7 @@ function mount(o = {}) {
   const theme = runModule(THEME, {}, { jsx: false });
   const m = o.model ?? model;
   const catalog = runModule(CATALOG, {
+    './kplusCapabilityProof': runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: o.voiceScan ?? true,
       VTO_UI_ENABLED: o.vto ?? false,
@@ -1589,6 +1590,7 @@ test('FC-02: served and promoted are separate answers from one read, and promoti
   // The catalog: availability ignores promotion; the filter only removes on an
   // explicit false.
   const catalog = runModule(CATALOG, {
+    './kplusCapabilityProof': runModule('services/kplus/kplusCapabilityProof.ts', {}, { jsx: false }),
     '../../constants/featureFlags': {
       VOICESCAN_ENABLED: true, VTO_UI_ENABLED: true, ELISE_CONCIERGE_V1: false, PACKING_INTELLIGENCE_V1: false,
     },

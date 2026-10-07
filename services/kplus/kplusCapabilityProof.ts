@@ -20,9 +20,25 @@ export interface CapabilityProofRecord {
 }
 
 export const PREMIUM_VALUE_BUILD_AUTHORITY = 'build35-premium-value-v2';
-// No runtime proof has been certified yet. Evidence is added only after execution,
-// independently for each environment and proof type. Empty means no claim.
-export const PREMIUM_VALUE_PROOFS: readonly CapabilityProofRecord[] = Object.freeze([]);
+// Staging evidence expires in seven days. Production, worker behavior, push,
+// and Closet restore remain unproven; none inherits these two runtime records.
+export const PREMIUM_VALUE_PROOFS: readonly CapabilityProofRecord[] = Object.freeze([
+  Object.freeze({ capability: 'packing_intelligence', environment: 'staging',
+    buildAuthority: PREMIUM_VALUE_BUILD_AUTHORITY, status: 'PROVEN_RUNTIME',
+    provenAt: '2026-10-07T13:24:08.530Z', expiresAt: '2026-10-14T13:24:08.530Z',
+    evidenceRef: 'docs/audits/build35-premium-runtime.json#packing-generate-and-refine',
+    proofType: 'packing_generation_and_refinement' }),
+  Object.freeze({ capability: 'smart_watchlist', environment: 'staging',
+    buildAuthority: PREMIUM_VALUE_BUILD_AUTHORITY, status: 'PROVEN_RUNTIME',
+    provenAt: '2026-10-07T13:26:10.541Z', expiresAt: '2026-10-14T13:26:10.541Z',
+    evidenceRef: 'docs/audits/build35-premium-runtime.json#watch-create-read-and-price-observation',
+    proofType: 'watch_tracking' }),
+  Object.freeze({ capability: 'cloud_closet', environment: 'staging',
+    buildAuthority: PREMIUM_VALUE_BUILD_AUTHORITY, status: 'PROVEN_SOURCE_ONLY',
+    provenAt: '2026-10-07T13:46:00.000Z', expiresAt: '2026-10-14T13:46:00.000Z',
+    evidenceRef: 'docs/audits/build35-premium-value-report.md#cloud-closet',
+    proofType: 'closet_outbound_sync' }),
+]);
 
 export interface CapabilityProofContext {
   environment?: 'staging' | 'production';

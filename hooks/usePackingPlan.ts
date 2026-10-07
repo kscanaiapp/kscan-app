@@ -17,6 +17,7 @@ import * as ExpoCrypto from 'expo-crypto';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useKPlusEntitlement } from './useKPlusEntitlement';
+import { getKPlusEntitlementSnapshot } from '../services/kplus/kplusEntitlementStore';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { PACKING_INTELLIGENCE_V1 } from '../constants/featureFlags';
 import { requestPackingPlan } from '../services/packing/packingClient';
@@ -119,7 +120,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       sessionId: string,
       markChanges = false,
     ) => {
-      if (!actorId) return;
+      if (!available || !actorId || getKPlusEntitlementSnapshot().state !== 'active') return;
       const requestGeneration = ++requestGenerationRef.current;
       const priorPlan: PackingPlan | null = markChanges ? getPackingSnapshotFor(actorId).plan : null;
       // Capture the actor generation before the request. An A -> B -> A cycle
@@ -182,7 +183,7 @@ export function usePackingPlan(): UsePackingPlanResult {
         retryable: result.retryable,
       });
     },
-    [actorId],
+    [actorId, available],
   );
 
   // UX-4. Offline restore. Runs once per actor and only fills an EMPTY screen:

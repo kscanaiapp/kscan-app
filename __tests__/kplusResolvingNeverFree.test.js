@@ -165,11 +165,12 @@ test('Pack For A Trip withholds the K+ upsell until the answer is known', () => 
 
   // Ordering is the whole fix: the unresolved branch must be reached BEFORE
   // the branch that renders "UNLOCK WITH K+", or the upsell still wins.
-  const unresolvedIndex = code.indexOf('if (resolving && !packing.plan)');
+  const unresolvedIndex = code.indexOf('resolving && !packing.plan ?');
   const upsellIndex = code.indexOf('packing-kplus-gate');
   assert.ok(unresolvedIndex >= 0, 'the Packing gate must have an unresolved branch');
   assert.ok(upsellIndex > unresolvedIndex,
     'the unresolved branch must precede the UNLOCK WITH K+ branch');
+  assert.match(code, /!resolving && !isActive && !packing\.plan/, 'resolving never receives Free framing');
 });
 
 test('NEGATIVE CONTROL: a surface that checks only isActive would be caught', () => {

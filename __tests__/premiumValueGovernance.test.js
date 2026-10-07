@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '..');
 const baseline = require('../config/build35-premium-value-baseline.json');
 const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
@@ -35,5 +36,25 @@ test('ordinary Production keeps scoped premium rollout flags off', () => {
   const env = effective(eas, 'production');
   for (const flag of ['PACKING_INTELLIGENCE', 'SMART_WATCHLIST', 'CLOSET_CLOUD_SYNC', 'CLOSET_CROSS_DEVICE_RESTORE', 'CLOSET_LEGACY_MIGRATION']) {
     assert.notEqual(env[`EXPO_PUBLIC_${flag}_V1`], 'true', flag);
+  }
+});
+function assertProtected(read) {
+  for (const [file, digest] of Object.entries(baseline.protectedSourceDigests)) {
+    const actual = crypto.createHash('sha256').update(read(file).replace(/\r\n/g, '\n')).digest('hex');
+    assert.equal(actual, digest, file);
+  }
+}
+const readProtected = file => fs.readFileSync(path.join(root, file), 'utf8');
+test('Today, Speech, VTO lifecycle, RevenueCat and K+ entitlement semantics preserve integration authority', () => assertProtected(readProtected));
+test('NC-PV-10: changing RevenueCat or the legacy acquisition implementation fails the release guard', () => {
+  for (const target of ['services/kplus/revenueCatNative.ts', 'components/kplus/KPlusEarlyAccessSheet.tsx']) {
+    assert.throws(() => assertProtected(file => readProtected(file) + (file === target ? '\n// unauthorized change\n' : '')), assert.AssertionError);
+  }
+});
+test('legacy Early Access cannot be re-enabled by a profile override', () => {
+  for (const profile of Object.keys(baseline.todayByProfile)) {
+    const mutant = structuredClone(eas); mutant.build[profile].env ??= {};
+    mutant.build[profile].env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED = 'true';
+    assert.throws(() => assert.equal(effective(mutant, profile).EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false'), assert.AssertionError);
   }
 });
