@@ -39,6 +39,9 @@ const MIN_ANALYSIS_MS = 600;
 // function uses ~20 s; compression + sanitizer + network overhead needs a bit
 // more room. A late result after this window is treated as a timeout.
 const ATTEMPT_TIMEOUT_MS = 32_000;
+// Restored 1–5 image batches perform several independently bounded scan
+// requests, so they retain the previously certified larger whole-batch ceiling.
+const MULTI_IMAGE_ATTEMPT_TIMEOUT_MS = 52_000;
 
 function createScanSessionId() {
   return `scan_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -795,7 +798,8 @@ export function useKScan() {
           }
 
           if (!baseAnalysis || mergedCandidates.length === 0) {
-            if (nonFashionCount === settled.filter((entry) => entry.status === 'fulfilled').length) {
+            const allFulfilled = settled.length > 0 && settled.every((entry) => entry.status === 'fulfilled');
+            if (allFulfilled && nonFashionCount === settled.length) {
               await finishAnalysis({
                 type: 'non-fashion',
                 message: 'No fashion items were detected in the selected images.',
@@ -936,6 +940,9 @@ export function useKScan() {
       };
 
       const attemptTimeoutPromise = new Promise((_, reject) => {
+        const attemptTimeoutMs = imagesForAttempt.length > 1
+          ? MULTI_IMAGE_ATTEMPT_TIMEOUT_MS
+          : ATTEMPT_TIMEOUT_MS;
         attemptTimeoutId = setTimeout(() => {
           logAnalyzeDiag({
             event: 'scan_timeout',
@@ -947,7 +954,7 @@ export function useKScan() {
             'scan attempt timed out',
             'Analysis is taking longer than expected. Please try again.',
           ));
-        }, ATTEMPT_TIMEOUT_MS);
+        }, attemptTimeoutMs);
       });
 
       try {
