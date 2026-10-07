@@ -689,7 +689,19 @@
             "logicalName": "kplus_paid_lifetime_entitlement_foundation",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
+            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
+            "scannerOverrides": [
+              {
+                "findingId": "TRUNCATE",
+                "sha256": "0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528",
+                "reason": "Lexical match only: the word occurs as the string literal 'TRUNCATE' inside a has_table_privilege verification list asserting that clients lack that privilege. The migration executes no TRUNCATE statement. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
+              },
+              {
+                "findingId": "DESTRUCTIVE_ALTER",
+                "sha256": "0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528",
+                "reason": "Governed DROP CONSTRAINT IF EXISTS / ADD CONSTRAINT replacements that widen or restate CHECK constraints on kplus_entitlement_grants, kplus_entitlement_transitions and kplus_entitlement_activations. No column, row or table is dropped, and the affected Staging tables were read-only verified at 0 rows. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
+              }
+            ]
           },
           {
             "localVersion": "20261003195716",
@@ -698,7 +710,14 @@
             "applyAfter": [
               "20261002010000"
             ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
+            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
+            "scannerOverrides": [
+              {
+                "findingId": "TRUNCATE",
+                "sha256": "89b2bd32bb210d93c409f08bfa68f7241a0d2fa871d095fca129ebe5a7c3a9e3",
+                "reason": "Lexical match only: the word occurs as the string literal 'TRUNCATE' inside a has_table_privilege verification list asserting that clients lack that privilege. The migration executes no TRUNCATE statement. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
+              }
+            ]
           },
           {
             "localVersion": "20261004184118",
@@ -716,7 +735,14 @@
             "applyAfter": [
               "20261004184118"
             ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
+            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
+            "scannerOverrides": [
+              {
+                "findingId": "DESTRUCTIVE_ALTER",
+                "sha256": "d0387a0ca6d5fc809268ff5c53ae2d4cf453bf33b84ead4ca2e5115751417f26",
+                "reason": "Governed DROP CONSTRAINT IF EXISTS / ADD CONSTRAINT replacement of user_closet_items_origin_enum that adds purchase_import to the accepted origins. No column, row or table is dropped, and user_closet_items was read-only verified at 0 rows on Staging. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
+              }
+            ]
           },
           {
             "localVersion": "20261004231628",

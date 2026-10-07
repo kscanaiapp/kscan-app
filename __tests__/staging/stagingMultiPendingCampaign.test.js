@@ -317,24 +317,167 @@ test('applyAfter must name another real local migration, or the declaration is a
 
 // ---- Scanner policy: no global weakening, only version+hash scoped overrides ----
 
-test('scanner: the strict findings for the October set are pinned, and no override is committed yet', async () => {
+// ---- Scanner overrides: the owner-approved, hash-bound exceptions ---------------
+
+const STRICT_FINDINGS = {
+  '20261002010000': ['DESTRUCTIVE_ALTER', 'TRUNCATE'],
+  '20261003195716': ['TRUNCATE'],
+  '20261004184118': [],
+  '20261004221500': ['DESTRUCTIVE_ALTER'],
+  '20261004231628': [],
+};
+// Exactly what the owner approved (2026-10-07). Nothing else may carry an override.
+const APPROVED_OVERRIDES = {
+  '20261002010000': ['DESTRUCTIVE_ALTER', 'TRUNCATE'],
+  '20261003195716': ['TRUNCATE'],
+  '20261004221500': ['DESTRUCTIVE_ALTER'],
+};
+const sqlOf = (version) => {
+  const dir = path.join(ROOT, 'supabase', 'migrations');
+  return fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.startsWith(`${version}_`))), 'utf8');
+};
+const ids = (findings) => findings.map((f) => f.id).sort();
+
+test('scanner: the strict findings for the October set are pinned', async () => {
+  const { scanSqlForProhibited } = await loadHelpers();
+  for (const version of OCTOBER) {
+    assert.deepEqual(ids(scanSqlForProhibited(sqlOf(version), { allowDestructive: false })), STRICT_FINDINGS[version], version);
+  }
+});
+
+test('scanner: the committed overrides are exactly the owner-approved set, each bound to its real SQL', async () => {
+  const { normalizedSha256 } = await loadApply();
+  const { reconciliation } = await world();
+  const carrying = reconciliation.knownPending.filter((k) => k.scannerOverrides !== undefined);
+  assert.deepEqual(carrying.map((k) => k.localVersion).sort(), Object.keys(APPROVED_OVERRIDES));
+  for (const declaration of carrying) {
+    const { localVersion } = declaration;
+    assert.deepEqual(declaration.scannerOverrides.map((o) => o.findingId).sort(), APPROVED_OVERRIDES[localVersion], localVersion);
+    for (const override of declaration.scannerOverrides) {
+      assert.match(override.sha256, /^[0-9a-f]{64}$/, `${localVersion}/${override.findingId} must be hash-bound`);
+      assert.equal(override.sha256, normalizedSha256(sqlOf(localVersion)), `${localVersion}/${override.findingId} hash must equal the real SQL`);
+      assert.match(override.reason, /Owner-approved 2026-10-07/);
+      assert.ok(['TRUNCATE', 'DESTRUCTIVE_ALTER'].includes(override.findingId));
+    }
+  }
+  // The pre-existing per-invocation switch is not how any of this is cleared.
+  for (const version of ['20261004184118', '20261004231628']) {
+    assert.equal(reconciliation.knownPending.find((k) => k.localVersion === version).scannerOverrides, undefined, version);
+  }
+});
+
+// A. exact version + exact finding + exact source hash -> allowed
+test('scanner A: the approved version, finding and source hash are allowed, and the use is logged', async () => {
+  const { evaluateScannerForMigration, normalizedSha256 } = await loadApply();
+  const { reconciliation } = await world();
+  for (const version of Object.keys(APPROVED_OVERRIDES)) {
+    const result = evaluateScannerForMigration({ version, sql: sqlOf(version), reconciliation, allowDestructive: false });
+    assert.deepEqual(result.blocked, [], version);
+    assert.deepEqual(ids(result.overridden.map((o) => ({ id: o.findingId }))), APPROVED_OVERRIDES[version], version);
+    assert.ok(result.overridden.every((o) => o.sha256 === normalizedSha256(sqlOf(version)) && o.reason.length > 40));
+  }
+});
+
+// B. same version, changed source hash -> FAIL
+test('scanner B: the same version with a changed source hash is blocked', async () => {
+  const { evaluateScannerForMigration } = await loadApply();
+  const { reconciliation } = await world();
+  for (const version of Object.keys(APPROVED_OVERRIDES)) {
+    const original = sqlOf(version);
+    for (const edited of [`${original}\n-- edited\n`, original.replace(/[a-z]/, (c) => c.toUpperCase()), original.slice(0, -1)]) {
+      assert.notEqual(edited, original);
+      const result = evaluateScannerForMigration({ version, sql: edited, reconciliation, allowDestructive: false });
+      assert.deepEqual(ids(result.blocked), STRICT_FINDINGS[version], `${version} must stay blocked when its SQL changes`);
+      assert.deepEqual(result.overridden, []);
+    }
+  }
+});
+
+// C. same version with an additional destructive finding -> FAIL
+test('scanner C: an additional destructive finding is blocked even for an approved version', async () => {
+  const { evaluateScannerForMigration, applyScannerPolicy } = await loadApply();
+  const { reconciliation } = await world();
+  const version = '20261004221500';
+  // (i) new destructive SQL changes the hash, so nothing is cleared.
+  for (const extra of ['\ndrop table public.user_closet_items;\n', '\ntruncate public.user_closet_items;\n', '\ndrop schema public cascade;\n']) {
+    const result = evaluateScannerForMigration({ version, sql: sqlOf(version) + extra, reconciliation, allowDestructive: false });
+    assert.ok(result.blocked.length >= 2, `${JSON.stringify(extra)} -> ${ids(result.blocked)}`);
+    assert.deepEqual(result.overridden, []);
+  }
+  // (ii) the SQL is byte-identical but the scanner reports a finding the override does not name.
+  const declaration = reconciliation.knownPending.find((k) => k.localVersion === version);
+  const withExtra = applyScannerPolicy({
+    findings: [{ id: 'DESTRUCTIVE_ALTER', severity: 'BLOCK' }, { id: 'DROP_TABLE', severity: 'BLOCK' }, { id: 'DROP_SCHEMA', severity: 'BLOCK' }],
+    declaration, sql: sqlOf(version),
+  });
+  assert.deepEqual(ids(withExtra.blocked), ['DROP_SCHEMA', 'DROP_TABLE']);
+  assert.deepEqual(withExtra.overridden.map((o) => o.findingId), ['DESTRUCTIVE_ALTER']);
+  // (iii) an override for one finding never clears a different finding in the same file.
+  const onlyTruncate = structuredClone(reconciliation);
+  onlyTruncate.knownPending.find((k) => k.localVersion === '20261002010000').scannerOverrides =
+    onlyTruncate.knownPending.find((k) => k.localVersion === '20261002010000').scannerOverrides.filter((o) => o.findingId === 'TRUNCATE');
+  const partial = evaluateScannerForMigration({ version: '20261002010000', sql: sqlOf('20261002010000'), reconciliation: onlyTruncate, allowDestructive: false });
+  assert.deepEqual(ids(partial.blocked), ['DESTRUCTIVE_ALTER']);
+});
+
+// D. a different migration using the same pattern -> FAIL
+test('scanner D: a different migration with the same pattern is not covered', async () => {
+  const { evaluateScannerForMigration } = await loadApply();
+  const { reconciliation } = await world();
+  // (i) a never-approved version carrying another version's pattern.
+  assert.deepEqual(ids(evaluateScannerForMigration({ version: '20261004231628', sql: sqlOf('20261004221500'), reconciliation }).blocked), ['DESTRUCTIVE_ALTER']);
+  // (ii) an approved version cannot launder another file with the same finding.
+  assert.deepEqual(ids(evaluateScannerForMigration({ version: '20261002010000', sql: sqlOf('20261003195716'), reconciliation }).blocked), ['TRUNCATE']);
+  assert.deepEqual(ids(evaluateScannerForMigration({ version: '20261003195716', sql: sqlOf('20261002010000'), reconciliation }).blocked), ['DESTRUCTIVE_ALTER', 'TRUNCATE']);
+  // (iii) identical bytes under another version: the version binding itself must hold.
+  assert.deepEqual(ids(evaluateScannerForMigration({ version: '20269999999999', sql: sqlOf('20261004221500'), reconciliation }).blocked), ['DESTRUCTIVE_ALTER']);
+  // (iv) renaming the declared version voids the override for the real version.
+  const renamed = structuredClone(reconciliation);
+  renamed.knownPending.find((k) => k.localVersion === '20261004221500').localVersion = '20269999999998';
+  assert.deepEqual(ids(evaluateScannerForMigration({ version: '20261004221500', sql: sqlOf('20261004221500'), reconciliation: renamed }).blocked), ['DESTRUCTIVE_ALTER']);
+});
+
+// E / F. versions with no finding need no override
+for (const [label, version] of [['E', '20261004184118'], ['F', '20261004231628']]) {
+  test(`scanner ${label}: ${version} needs no override`, async () => {
+    const { evaluateScannerForMigration } = await loadApply();
+    const { reconciliation } = await world();
+    const result = evaluateScannerForMigration({ version, sql: sqlOf(version), reconciliation, allowDestructive: false });
+    assert.deepEqual(result.findings, []);
+    assert.deepEqual(result.blocked, []);
+    assert.deepEqual(result.overridden, []);
+    assert.equal(reconciliation.knownPending.find((k) => k.localVersion === version).scannerOverrides, undefined);
+  });
+}
+
+// G. a global destructive bypass remains impossible
+test('scanner G: no global switch clears a blocked pattern', async () => {
+  const { evaluateScannerForMigration, applyScannerPolicy } = await loadApply();
   const { scanSqlForProhibited } = await loadHelpers();
   const { reconciliation } = await world();
-  const expected = {
-    '20261002010000': ['DESTRUCTIVE_ALTER', 'TRUNCATE'],
-    '20261003195716': ['TRUNCATE'],
-    '20261004184118': [],
-    '20261004221500': ['DESTRUCTIVE_ALTER'],
-    '20261004231628': [],
-  };
-  const dir = path.join(ROOT, 'supabase', 'migrations');
-  for (const version of OCTOBER) {
-    const file = fs.readdirSync(dir).find((f) => f.startsWith(`${version}_`));
-    const findings = scanSqlForProhibited(fs.readFileSync(path.join(dir, file), 'utf8'), { allowDestructive: false });
-    assert.deepEqual(findings.map((f) => f.id).sort(), expected[version], version);
+  const stripped = structuredClone(reconciliation);
+  for (const declaration of stripped.knownPending) delete declaration.scannerOverrides;
+  // The pre-existing per-invocation flag downgrades DESTRUCTIVE_* only; it cannot clear TRUNCATE.
+  for (const version of ['20261002010000', '20261003195716']) {
+    const result = evaluateScannerForMigration({ version, sql: sqlOf(version), reconciliation: stripped, allowDestructive: true });
+    assert.ok(ids(result.blocked).includes('TRUNCATE'), `${version}: allowDestructive must not clear TRUNCATE`);
   }
-  // A scanner exception needs explicit owner approval; none is committed by this change.
-  assert.deepEqual(reconciliation.knownPending.filter((k) => k.scannerOverrides !== undefined), []);
+  for (const pattern of ['DROP DATABASE x', 'DROP SCHEMA x', 'TRUNCATE t', 'db reset', 'migration repair', 'db push']) {
+    assert.ok(scanSqlForProhibited(pattern, { allowDestructive: true }).some((f) => f.severity === 'BLOCK'), pattern);
+  }
+  // Overrides are never wildcard: no hash, a malformed hash or an empty reason clears nothing.
+  const sql = sqlOf('20261003195716');
+  const finding = [{ id: 'TRUNCATE', severity: 'BLOCK' }];
+  for (const override of [{ findingId: 'TRUNCATE', reason: 'x'.repeat(50) }, { findingId: 'TRUNCATE', sha256: '*', reason: 'x'.repeat(50) },
+    { findingId: 'TRUNCATE', sha256: '', reason: 'x'.repeat(50) }, { findingId: 'TRUNCATE', sha256: 'A'.repeat(64), reason: 'x'.repeat(50) }, { sha256: 'a'.repeat(64), reason: 'x' }]) {
+    assert.equal(applyScannerPolicy({ findings: finding, declaration: { scannerOverrides: [override] }, sql }).blocked.length, 1, JSON.stringify(override).slice(0, 60));
+  }
+  // The governed workflow never sets the per-invocation flag, and the apply script reads no other bypass.
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'), 'utf8');
+  assert.doesNotMatch(workflow, /ALLOW_DESTRUCTIVE|ALLOW_[A-Z_]*MIGRATION|SKIP_[A-Z_]*SCAN/);
+  const source = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'), 'utf8');
+  const envNames = [...new Set([...source.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(envNames, ['ALLOW_DESTRUCTIVE_MIGRATION', 'APPROVE_STAGING_MIGRATION', 'MIGRATION_FILE', 'MIGRATION_VERSION']);
 });
 
 test('scanner: an override is scoped to a finding id and the exact SQL, and is logged when used', async () => {

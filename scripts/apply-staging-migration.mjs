@@ -114,6 +114,22 @@ export function applyScannerPolicy({ findings, declaration, sql }) {
   return { blocked: remaining, overridden: used };
 }
 
+/**
+ * The whole scanner decision for ONE migration, from its version and exact SQL.
+ *
+ * The override is looked up by THIS version's own declaration and nothing else,
+ * so a pattern that is approved for one migration is never inherited by another
+ * migration that happens to use it. allowDestructive is the pre-existing
+ * per-invocation switch; it only downgrades DESTRUCTIVE_* findings and never
+ * clears a BLOCK-class pattern such as TRUNCATE.
+ */
+export function evaluateScannerForMigration({ version, sql, reconciliation, allowDestructive = false }) {
+  const findings = scanSqlForProhibited(sql, { allowDestructive });
+  const declaration = (reconciliation?.knownPending ?? []).find((k) => k.localVersion === version);
+  const { blocked, overridden } = applyScannerPolicy({ findings, declaration, sql });
+  return { findings, blocked, overridden };
+}
+
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
     fail('Set APPROVE_STAGING_MIGRATION=YES to apply a staging migration');
@@ -191,10 +207,10 @@ function main() {
   const hash = sha256File(migration.path);
   const sql = fs.readFileSync(migration.path, 'utf8');
   const allowDestructive = String(process.env.ALLOW_DESTRUCTIVE_MIGRATION || '').toUpperCase() === 'YES';
-  const findings = scanSqlForProhibited(sql, { allowDestructive });
   const reconciliation = loadLedgerReconciliation(STAGING_PROJECT_REF);
-  const declaration = (reconciliation.knownPending ?? []).find((k) => k.localVersion === version);
-  const { blocked, overridden } = applyScannerPolicy({ findings, declaration, sql });
+  const { findings, blocked, overridden } = evaluateScannerForMigration({
+    version, sql, reconciliation, allowDestructive,
+  });
   if (blocked.length) {
     fail(`Migration blocked by prohibited SQL patterns: ${blocked.map((f) => f.id).join(', ')}`);
   }
