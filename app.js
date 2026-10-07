@@ -59,6 +59,7 @@ import {
 import {
   CLOSET_SEPARATION_V1,
   TEXTSCAN_UI_ENABLED,
+  MULTI_IMAGE_SCANNER_ENABLED,
   SCAN_RESULTS_V2_UI_ENABLED,
   SCAN_ROOM_V2_UI_ENABLED,
 } from './constants/featureFlags';
@@ -309,6 +310,7 @@ export default function App() {
   const {
     status,
     photo,
+    selectedImages,
     analysis,
     commerceStatus,
     retryCommerce,
@@ -328,7 +330,15 @@ export default function App() {
     analyzeSelectedCandidate,
     selectStaticFixture,
     selectGalleryPhoto,
+    addGalleryPhotos,
+    removeSelectedImage,
   } = useKScan();
+
+  const activeResultCandidate = Array.isArray(analysis?.confirmationCandidates)
+    ? analysis.confirmationCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? null
+    : null;
+  const activeResultImageUri = activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
+  const activeResultSource = activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
 
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -539,15 +549,14 @@ export default function App() {
     attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
   }, [status, savedScanId, analysis]);
 
-  // Build 32: save a multi-item detection result once, independent of the
-  // single-item save above (that one explicitly skips while
-  // confirmationCandidates exist — see its own effect). Fires as soon as the
-  // candidates are known; commerce for them attaches afterward, below.
+  // Build 32: save a multi-item detection result once.
+  // Multi-photo batches fail closed until per-item source media is restored.
   useEffect(() => {
     if (
       status !== 'result' ||
       !photo?.uri ||
       !analysis?.confirmationCandidates?.length ||
+      selectedImages.length > 1 ||
       hasSavedMultiItemRef.current
     ) return;
     hasSavedMultiItemRef.current = true;
@@ -568,7 +577,7 @@ export default function App() {
         setSavedMultiItemScanId(saved.id);
       }
     });
-  }, [status, photo, analysis]);
+  }, [status, photo, analysis, selectedImages.length]);
 
   // Build 32: attach multi-item commerce once hydration completes. Same
   // shape as the single-item attach effect above — correct whether commerce
@@ -1080,8 +1089,11 @@ export default function App() {
           return (
             <CaptureReview
               imageUri={photo.uri}
+              images={selectedImages}
               source={photo.source || 'camera'}
               onRetake={photo.source === 'upload' ? selectGalleryPhoto : retake}
+              onAddImage={MULTI_IMAGE_SCANNER_ENABLED ? addGalleryPhotos : undefined}
+              onRemoveImage={MULTI_IMAGE_SCANNER_ENABLED ? removeSelectedImage : undefined}
               onAnalyze={runAnalysis}
               onHome={handleHome}
               isAnalyzing={isAnalyzing}
@@ -1180,9 +1192,9 @@ export default function App() {
   const addScanToRoomModal = dressingRoomsEnabled ? (
     <AddScanToDressingRoomModal
       visible={scanRoomModalVisible}
-      localImageUri={photo?.uri ?? null}
+      localImageUri={activeResultImageUri}
       scan={{
-        sourceType: photo?.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+        sourceType: activeResultSource === 'upload' ? 'upload_inspiration' : 'live_scan',
         sourceId: photo?.qaFixtureName ?? null,
         result: analysis?.result ?? null,
         metadata: analysis?.metadata ?? null,
@@ -1234,7 +1246,7 @@ export default function App() {
         SCAN_RESULTS_V2_UI_ENABLED ? (
           <ScanResultV2
             analysis={analysis}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activeResultImageUri}
             // The report target for this scan's AI prose: its persisted Recent
             // Scan id (saveScan resolves it a moment after the result appears),
             // else the persisted multi-item scan id (the confirmation step skips
@@ -1263,11 +1275,11 @@ export default function App() {
             onSelectCandidate={selectConfirmationCandidate}
             onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
             onAskStyleChat={styleChatEnabled ? () => {
-              const source = photo?.source === 'upload' ? 'upload' : 'camera';
+              const source = activeResultSource === 'upload' ? 'upload' : 'camera';
               const meta = analysis?.metadata ?? {};
               setStyleChatHandoffContext({
                 source,
-                imageUri: photo?.uri ?? null,
+                imageUri: activeResultImageUri,
                 category: meta.category || null,
                 color: meta.color || null,
                 silhouette: meta.silhouette || null,
@@ -1300,7 +1312,7 @@ export default function App() {
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
-            scanImageUri={photo?.uri ?? null}
+            scanImageUri={activeResultImageUri}
             // Same report target as ScanResultV2 above.
             scanSourceId={savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"

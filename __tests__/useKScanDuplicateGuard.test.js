@@ -113,6 +113,35 @@ function loadUseKScanWithMocks({
     requestAnimationFrame: (callback) => callback(),
     Date,
     SCAN_IDENTIFY_BACKEND_ENABLED: scanIdentifyBackendEnabled,
+    // Multi-image restoration defaults OFF in this legacy duplicate-guard
+    // harness so every pre-existing single-image assertion keeps its original
+    // contract. Focused multi-image tests exercise the enabled path separately.
+    MULTI_IMAGE_SCANNER_ENABLED: false,
+    MAX_SCAN_IMAGES: 5,
+    normalizeImageSelections: (assets, source, existing = []) => {
+      if (!Array.isArray(assets)) throw new Error('INVALID_IMAGE_SELECTION');
+      const out = [...existing];
+      const seen = new Set(out.map((image) => image.uri));
+      for (const asset of assets) {
+        if (!asset?.uri || typeof asset.uri !== 'string') throw new Error('MALFORMED_IMAGE');
+        if (seen.has(asset.uri)) continue;
+        if (out.length >= 5) throw new Error('TOO_MANY_IMAGES');
+        out.push({
+          id: `test-image-${out.length + 1}`,
+          uri: asset.uri,
+          source,
+          originalIndex: out.length,
+          ...(asset.qaFixtureName ? { qaFixtureName: asset.qaFixtureName } : {}),
+        });
+        seen.add(asset.uri);
+      }
+      if (!out.length) throw new Error('EMPTY_IMAGE_SELECTION');
+      return out;
+    },
+    removeImageSelection: (images, imageId) => images
+      .filter((image) => image.id !== imageId)
+      .map((image, index) => ({ ...image, originalIndex: index })),
+    Platform: { OS: 'ios' },
     AccessibilityInfo: {
       announceForAccessibility: (message) => {
         accessibilityAnnouncements.push(message);
