@@ -10,6 +10,12 @@ export type OutfitConfirmationCandidate = {
   confidenceScore?: number;
   isPrimary: boolean;
   source: DetectedGarmentCandidate;
+  /** Client-side multi-image enrichment; absent on ordinary single-image scans. */
+  sourceImageId?: string;
+  sourceImageIndex?: number;
+  sourceImageUri?: string;
+  /** Original backend candidate id when the displayed id is batch-qualified. */
+  serverCandidateId?: string;
 };
 
 function fallbackId(candidate: DetectedGarmentCandidate, index: number): string {
