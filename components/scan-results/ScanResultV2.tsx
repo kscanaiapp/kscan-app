@@ -455,7 +455,7 @@ export function ScanResultV2({
                           activeOpacity={0.84}
                           accessibilityRole="button"
                           accessibilityState={{ selected }}
-                          accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}`}
+                          accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}${typeof candidate.sourceImageIndex === 'number' ? ` from image ${candidate.sourceImageIndex + 1}` : ''}`}
                         >
                           <Text
                             style={[
@@ -473,6 +473,9 @@ export function ScanResultV2({
                             ]}
                             numberOfLines={1}
                           >
+                            {typeof candidate.sourceImageIndex === 'number'
+                              ? `Image ${candidate.sourceImageIndex + 1} · `
+                              : ''}
                             {candidate.category} - {candidate.subtype}
                           </Text>
                         </TouchableOpacity>
