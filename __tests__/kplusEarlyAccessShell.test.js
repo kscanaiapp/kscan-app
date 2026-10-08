@@ -357,25 +357,25 @@ test('Voice Scan pill disables its own press and never opens the sheet for an ac
 
 test('Watchlist entry points route active members straight to the feature, never to openUpgrade', () => {
   const BRANCHES_ON_ACTIVE = /isActive \? [\s\S]{0,80}?: openUpgrade|if \(isActive\)[\s\S]{0,120}?else openUpgrade\(\)/;
-  for (const relPath of [
-    'components/home/HomeLuxuryTechV1.tsx',
-    'components/ProductShelf.tsx',
-    'components/scan-results/PurchaseOptionsPanel.tsx',
-  ]) {
+  for (const relPath of ['components/home/HomeLuxuryTechV1.tsx']) {
     const src = read(relPath);
     assert.match(src, BRANCHES_ON_ACTIVE, `${relPath} does not branch on isActive before calling openUpgrade`);
   }
+  // Product surfaces capture safe Watch intent before acquisition. The actual
+  // membership boundary is the shared picker and still skips active members.
+  assert.match(read('components/ProductShelf.tsx'), /if \(!gate\.isActive\) \{[\s\S]*?setUpgradePhase\('dismissing'\)/);
+  assert.match(read('components/ProductShelf.tsx'), /onDismiss=\{presentMembership\}/);
 });
 
 test('Packing shows the unlock CTA only when NOT active, and hides it once active', () => {
   const src = read('app/packing/index.tsx');
-  assert.match(src, /if \(!isActive && !packing\.plan\)/);
-  assert.match(src, /UNLOCK WITH K\+/);
+  assert.match(src, /!resolving && !isActive && !packing\.plan/);
+  assert.match(src, /CONTINUE WITH K\+/);
   // BUILD34-KPLUS-RESOLVING-001: "not active" is only a free actor once the
   // answer is known, so the unresolved branch must come first.
   assert.ok(
-    src.indexOf('if (resolving && !packing.plan)') >= 0
-      && src.indexOf('if (resolving && !packing.plan)') < src.indexOf('if (!isActive && !packing.plan)'),
+    src.indexOf('resolving && !packing.plan ?') >= 0
+      && src.indexOf('resolving && !packing.plan ?') < src.indexOf('!resolving && !isActive && !packing.plan'),
     'the unresolved branch must precede the unlock CTA',
   );
 });

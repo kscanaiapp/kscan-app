@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { useKPlusEntitlement } from './useKPlusEntitlement';
 import {
   captureActorScope,
   currentActorScopeKey,
@@ -31,6 +32,7 @@ import type { CommerceWatch } from '../types/watchlist';
 
 export function useWatchlist() {
   const { isAuthenticated, user } = useAuthSession();
+  const { isActive } = useKPlusEntitlement();
   // Recomputed on every render; `user?.id` is only the render trigger, the key
   // itself carries the epoch so a same-id re-authentication still changes it.
   const actorScopeKey = currentActorScopeKey();
@@ -91,6 +93,11 @@ export function useWatchlist() {
   // Tracked per actor scope, not as a plain boolean: a new actor is entitled to
   // its own single refresh, and the previous actor's flag must not suppress it.
   useEffect(() => {
+    if (!isActive) {
+      hasRequestedRefresh.current = null;
+      setRefreshing(false);
+      return;
+    }
     if (!isAuthenticated || hasRequestedRefresh.current === actorScopeKey) return;
     hasRequestedRefresh.current = actorScopeKey;
     const scope = captureActorScope();
@@ -102,7 +109,7 @@ export function useWatchlist() {
       if (!isActorScopeCurrent(scope)) return;
       setRefreshing(false);
     })();
-  }, [isAuthenticated, actorScopeKey, reload]);
+  }, [isAuthenticated, isActive, actorScopeKey, reload]);
 
   // Never hand back another actor's rows, even if a render lands between the
   // actor transition and the clearing effect above.

@@ -252,7 +252,7 @@ test('entry: home offers Packing without adding a navigation tab', () => {
   assert.match(home, /home-luxury-feature-packing/);
   assert.match(home, /router\.push\('\/packing'\)/);
   assert.match(home, /\{packingEnabled && \(/);
-  assert.match(home, /const packingEnabled = PACKING_INTELLIGENCE_V1;/);
+  assert.match(home, /const packingEnabled = PACKING_INTELLIGENCE_V1 && hasRuntimeCapabilityProof\('packing_intelligence', 'packing_generation_and_refinement'\);/);
 });
 
 /**

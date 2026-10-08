@@ -398,7 +398,7 @@ test('CASE A: Watchlist OFF + K+ inactive also renders no Watch action', () => {
   assert.equal(watchGates(tree).length, 0);
 });
 
-test('CASE C: Watchlist ON + K+ inactive preserves the existing upgrade behaviour', () => {
+test('CASE C: Free Watch discovery opens intent selection before acquisition', () => {
   const tree = renderProductShelf({ watchlistAvailable: true });
   const gates = watchGates(tree);
   assert.equal(gates.length, 1, 'the feature exists, so the gate is mounted');
@@ -407,7 +407,7 @@ test('CASE C: Watchlist ON + K+ inactive preserves the existing upgrade behaviou
   const button = collect(rendered, (n) => n.props && n.props.testID === 'watch-listing-button');
   assert.equal(button.length, 1, 'a non-K+ actor still sees the affordance');
   button[0].props.onPress();
-  assert.equal(upgraded, true, 'and is offered the upgrade rather than the action');
+  assert.equal(upgraded, false, 'acquisition belongs to the intent picker; discovery performs no premium work');
 });
 
 test('CASE D: Watchlist ON + K+ ACTIVE opens the creation flow', () => {
@@ -522,7 +522,7 @@ test('MODAL: a forced-visible modal cannot write, and emits no feature-start', (
 
   // Reach the save handler the way the rendered modal would.
   const pressables = collect(tree, (n) => n.props && typeof n.props.onPress === 'function');
-  assert.ok(pressables.length > 0, 'the modal must render its own controls');
+  assert.equal(tree, null, 'a forced-visible modal is structurally absent while the feature is dark');
   for (const node of pressables) node.props.onPress();
 
   assert.equal(created.length, 0, 'no Watch may be created while the feature is dark');
@@ -711,7 +711,7 @@ test('DETAIL ROUTE: the gate is structural — no hooks in the exported componen
 test('HOME ENTRY: availability is composed before entitlement, never entitlement alone', () => {
   const source = read('components/home/HomeLuxuryTechV1.tsx');
   const executable = source.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\/.*$/gm, '');
-  assert.match(executable, /const watchlistEnabled = SMART_WATCHLIST_V1;/);
+  assert.match(executable, /const watchlistEnabled = SMART_WATCHLIST_V1 && hasRuntimeCapabilityProof\('smart_watchlist', 'watch_tracking'\);/);
   assert.match(
     executable,
     /\{watchlistEnabled && \(\s*\n\s*<KPlusGate source="watchlist">/,

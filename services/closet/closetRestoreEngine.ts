@@ -390,6 +390,11 @@ function emptyRestoreResult(skippedReason: ClosetRestorePassResult['skippedReaso
 
 /** Single-flight, like closetSyncEngine.ts's outbound pass. */
 let inFlightRestorePass: Promise<ClosetRestorePassResult> | null = null;
+let inFlightActor: ReturnType<typeof createActorRequest> | null = null;
+
+export function isClosetRestoreRunning(): boolean {
+  return inFlightRestorePass !== null && inFlightActor !== null && isActorRequestCurrent(inFlightActor);
+}
 
 /** In-memory only (Addendum C). Resets on account change (different actorId)
  *  and on app restart, by construction — never persisted. */
@@ -402,6 +407,7 @@ export async function runClosetRestorePass(
     await inFlightRestorePass.catch(() => null);
     return emptyRestoreResult('already_running');
   }
+  inFlightActor = createActorRequest();
   const pass = executeRestorePass(options).catch(
     (): ClosetRestorePassResult => ({
       ran: true,
@@ -411,7 +417,7 @@ export async function runClosetRestorePass(
       updated: 0,
       deleted: 0,
       conflicts: 0,
-      failed: 0,
+      failed: 1,
     }),
   );
   inFlightRestorePass = pass;
@@ -419,6 +425,7 @@ export async function runClosetRestorePass(
     return await pass;
   } finally {
     inFlightRestorePass = null;
+    inFlightActor = null;
   }
 }
 

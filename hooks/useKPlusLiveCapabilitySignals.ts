@@ -21,6 +21,7 @@ import type {
   KPlusLiveSignals,
 } from '../services/kplus/kplusActivationCatalog';
 import { readKPlusLiveCapabilityState } from '../services/kplus/kplusLiveCapabilitySignals';
+import { capabilityProofContext, isProofRecordCurrent } from '../services/kplus/kplusCapabilityProof';
 
 export interface KPlusLiveCapabilitySignalsResult {
   /** SERVED: decides whether a capability is real for a member. */
@@ -61,5 +62,20 @@ export function useKPlusLiveCapabilitySignals(active: boolean = true): KPlusLive
     };
   }, [needed]);
 
-  return needed ? result : NOTHING_TO_ASK;
+  // An open membership screen must remove an expiring proof claim even when
+  // no remote VTO read changes. Rotate only the existing presentation signal
+  // identity; the catalog remains the sole capability-truth authority.
+  useEffect(() => {
+    if (!active) return undefined;
+    const context = capabilityProofContext();
+    const expirations = context.records.filter(record => isProofRecordCurrent(record, context))
+      .map(record => Date.parse(record.expiresAt)).filter(at => at > Date.now());
+    if (expirations.length === 0) return undefined;
+    const timeout = setTimeout(() => {
+      setResult(current => ({ ...current, signals: { ...current.signals } }));
+    }, Math.min(Math.min(...expirations) - Date.now() + 1, 2_147_483_647));
+    return () => clearTimeout(timeout);
+  }, [active, result.signals]);
+
+  return needed ? result : { ...NOTHING_TO_ASK, signals: result.signals };
 }

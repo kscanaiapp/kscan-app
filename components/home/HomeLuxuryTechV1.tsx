@@ -43,6 +43,8 @@ import { KPlusGate } from '../kplus/KPlusGate';
 import { KPlusMarkerBadge } from '../kplus/KPlusMarkerBadge';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
+import { hasRuntimeCapabilityProof } from '../../services/kplus/kplusCapabilityProof';
+import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 
 
 interface FeatureChipProps {
@@ -118,8 +120,11 @@ export default function HomeLuxuryTechV1() {
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
-  const packingEnabled = PACKING_INTELLIGENCE_V1;
-  const watchlistEnabled = SMART_WATCHLIST_V1;
+  const packingEnabled = PACKING_INTELLIGENCE_V1 && hasRuntimeCapabilityProof('packing_intelligence', 'packing_generation_and_refinement');
+  const watchlistEnabled = SMART_WATCHLIST_V1 && hasRuntimeCapabilityProof('smart_watchlist', 'watch_tracking');
+  React.useEffect(() => {
+    if (packingEnabled) emitKPlusEvent('kplus_feature_exposed', { source: 'packing', feature: 'packing' });
+  }, [packingEnabled]);
 
   // Display-only K+ marker state for the Packing home entry. Reads the shared
   // entitlement snapshot directly (no KPlusGate mount, no sheet, no extra
@@ -486,7 +491,7 @@ export default function HomeLuxuryTechV1() {
                     else openUpgrade();
                   }}
                   accessibilityLabel="Open Smart Watchlist"
-                  accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ Early Access.'}
+                  accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ membership options.'}
                   style={styles.watchlistActionButton}
                 />
                 {!resolving && (

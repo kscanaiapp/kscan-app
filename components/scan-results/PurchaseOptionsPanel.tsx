@@ -172,7 +172,7 @@ export function PurchaseOptionsPanel({
                           testID={`purchase-option-watch-${option.id}`}
                           accessibilityRole="button"
                           accessibilityLabel={`Watch ${option.title ?? option.retailer}`}
-                          accessibilityHint={isActive || resolving ? 'Get notified about price changes on this listing' : 'Available with K+. Opens K+ Early Access.'}
+                          accessibilityHint="Track this product and price changes with K+"
                           style={styles.watchButton}
                           activeOpacity={0.78}
                           disabled={resolving}
@@ -180,8 +180,7 @@ export function PurchaseOptionsPanel({
                           // be answered with the upgrade sheet.
                           onPress={() => {
                             if (resolving) return;
-                            if (isActive) setWatchCandidate(option.watchCandidate ?? null);
-                            else openUpgrade();
+                            setWatchCandidate(option.watchCandidate ?? null);
                           }}
                         >
                           <Text style={styles.watchButtonText}>

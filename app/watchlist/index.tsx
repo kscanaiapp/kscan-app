@@ -154,7 +154,7 @@ function WatchlistHomeContent() {
         <View style={styles.centerFill}>
           <EmptyStateCard
             title="Nothing on your Watchlist yet"
-            subtitle="When you find something you're not ready to buy, tap Watch on it and we'll keep an eye on the price."
+            subtitle="Track eligible products and price changes with K+. Tap Watch on a product in shopping results, then check its price here."
             icon={<KScanIcon name="watchlist" size={28} variant="standard" />}
             testID="watchlist-empty-state"
           />

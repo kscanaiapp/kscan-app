@@ -368,9 +368,18 @@ test('SMART_WATCHLIST=KPLUS: RESOLVING is never rendered as a free-tier lock (PR
     const gate = source.slice(gateAt, gateAt + 1400);
     assert.match(gate, /\{\(\{[^}]*resolving[^}]*\}\) =>/, 'the Watchlist gate must consume `resolving`');
     assert.match(gate, /if \(resolving\) return;/, 'an unresolved actor must not be routed anywhere');
-    assert.match(gate, /if \(isActive\)/);
-    assert.match(gate, /else openUpgrade\(\);/, 'only a resolved free actor sees the acquisition boundary');
+    if (segments.includes('HomeLuxuryTechV1.tsx')) {
+      assert.match(gate, /if \(isActive\)/);
+      assert.match(gate, /else openUpgrade\(\);/, 'only a resolved free actor sees the acquisition boundary');
+    } else {
+      // Shopping entries retain intent first; acquisition is inside the picker.
+      assert.doesNotMatch(gate, /else openUpgrade\(\);/);
+      assert.match(source, /setWatch(?:ModalProduct|Candidate)\(/);
+    }
   }
+  const picker = read('components', 'ProductShelf.tsx');
+  assert.match(picker, /if \(gate\.resolving\) return;/);
+  assert.match(picker, /if \(!gate\.isActive\) \{[\s\S]*?setUpgradePhase\('dismissing'\);\s*return;\s*\}/);
 });
 
 test('SMART_WATCHLIST=KPLUS: availability and entitlement stay separate authorities', () => {
