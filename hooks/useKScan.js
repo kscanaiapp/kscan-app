@@ -805,12 +805,24 @@ export function useKScan() {
           let nonFashionCount = 0;
           const mergedCandidates = [];
           const lookup = new Map();
+          // Photos that did not contribute are reported, never silently dropped:
+          // a user who picked five photos must be able to tell why fewer
+          // appear. 1-based, matching the "Image N" labels on the result.
+          const failedPhotos = [];
+          const nonFashionPhotos = [];
+          let omittedCandidates = 0;
 
-          for (const result of settled) {
-            if (result.status !== 'fulfilled') continue;
+          for (let position = 0; position < settled.length; position += 1) {
+            const result = settled[position];
+            const photoNumber = preparedEntries[position].image.originalIndex + 1;
+            if (result.status !== 'fulfilled') {
+              failedPhotos.push(photoNumber);
+              continue;
+            }
             const entry = result.value;
             if (entry.data.type === 'non-fashion') {
               nonFashionCount += 1;
+              nonFashionPhotos.push(photoNumber);
               continue;
             }
             if (!baseAnalysis) baseAnalysis = entry.data;
@@ -818,7 +830,10 @@ export function useKScan() {
               ? entry.data.confirmationCandidates
               : [];
             for (const candidate of candidates) {
-              if (mergedCandidates.length >= 5) break;
+              if (mergedCandidates.length >= 5) {
+                omittedCandidates += 1;
+                continue;
+              }
               const displayId = `${entry.image.id}:${candidate.id}`;
               const enriched = {
                 ...candidate,
@@ -837,7 +852,6 @@ export function useKScan() {
                 serverCandidateId: candidate.id,
               });
             }
-            if (mergedCandidates.length >= 5) break;
           }
 
           if (!baseAnalysis || mergedCandidates.length === 0) {
@@ -849,15 +863,36 @@ export function useKScan() {
               }, processingStart);
               return;
             }
+            // When nothing usable came back and at least one photo FAILED, report
+            // the real cause (no connection, timeout, daily limit) instead of
+            // telling the user their photos were unclear.
+            const firstFailure = settled.find((entry) => entry.status === 'rejected');
+            if (firstFailure && typeof firstFailure.reason?.userMessage === 'string') {
+              throw firstFailure.reason;
+            }
             throw userSafeError(
               'no valid garments detected',
               'We could not find a clear fashion item in those images. Remove unclear images or try again.',
             );
           }
 
+          const photoList = (numbers) => (
+            numbers.length === 1 ? `Photo ${numbers[0]}` : `Photos ${numbers.join(', ')}`
+          );
+          const detectionNotes = [];
+          if (failedPhotos.length > 0) {
+            detectionNotes.push(`${photoList(failedPhotos)} could not be analyzed.`);
+          }
+          if (nonFashionPhotos.length > 0) {
+            detectionNotes.push(`${photoList(nonFashionPhotos)} had no fashion items.`);
+          }
+          if (omittedCandidates > 0) {
+            detectionNotes.push(`Showing the first 5 items found; ${omittedCandidates} more not shown.`);
+          }
           const mergedAnalysis = {
             ...baseAnalysis,
             confirmationCandidates: mergedCandidates,
+            ...(detectionNotes.length > 0 ? { detectionNotice: detectionNotes.join(' ') } : {}),
           };
           multiImageCandidateLookupRef.current = lookup;
           initialMultiItemAnalysisRef.current = mergedAnalysis;
@@ -1175,7 +1210,11 @@ export function useKScan() {
           if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) {
             return { items, halted: 'superseded', message: null };
           }
-          if (identifyResponse?.status === 'rate_limited') {
+          // The production transport reports a spent daily quota as a `failed`
+          // response flagged `rateLimited`; a raw 'rate_limited' status is also
+          // honoured. Either way the queue pauses here and the remaining items
+          // wait for an explicit resume instead of being spent against the limit.
+          if (identifyResponse?.status === 'rate_limited' || identifyResponse?.rateLimited === true) {
             emit({ candidateId, state: 'queued', index, total: orderedIds.length });
             return {
               items,

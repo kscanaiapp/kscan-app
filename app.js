@@ -1626,6 +1626,7 @@ export default function App() {
               itemStates: batchItemStates,
               onToggleCandidate: toggleBatchCandidate,
               onConfirmSelection: () => { void runBatchQueue(batchRemainingCandidateIds.length ? batchRemainingCandidateIds : null); },
+              detectionNotice: analysis?.detectionNotice ?? null,
               queueNotice: batchQueueNotice,
             } : undefined}
             multiItem={batchResultVisible ? {

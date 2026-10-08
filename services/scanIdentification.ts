@@ -50,6 +50,9 @@ const IMAGE_QUALITY_MESSAGE =
 const IMAGE_TOO_LARGE_MESSAGE =
   'Image too large. Please retake the photo closer or in better light.';
 const SIGN_IN_REQUIRED_MESSAGE = 'Please sign in to scan and identify fashion items.';
+// Same wording as the backend's rate_limited response; kept as a client constant
+// so the copy never depends on an arbitrary backend string.
+const RATE_LIMITED_MESSAGE = 'Daily scan limit reached. Try again tomorrow.';
 const NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
 
@@ -453,6 +456,14 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
     const detectedGarments = normalizeDetectedGarments(src.detectedGarments);
     if (detectedGarments) out.detectedGarments = detectedGarments;
     return withTransitionalV2(out, src);
+  }
+
+  // The backend's daily-limit answer is HTTP 200 with status 'rate_limited'. It
+  // stays a `failed` response for every existing consumer, but it is flagged and
+  // given its own copy: retrying cannot help, and a Scanner queue must pause and
+  // resume rather than spend its remaining items against a spent quota.
+  if (rawStatus === 'rate_limited') {
+    return withTransitionalV2({ ...failed(RATE_LIMITED_MESSAGE), rateLimited: true }, src);
   }
 
   // Anything else (including explicit 'failed') maps to a safe failure. Only an
