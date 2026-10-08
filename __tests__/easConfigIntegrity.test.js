@@ -209,6 +209,9 @@ const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profile
 const CERT_MATRIX_ENABLED = Object.freeze([
   'EXPO_PUBLIC_VTO_UI_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
+  'EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1',
+  'EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1',
+  'EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1',
   // Wardrobe Concierge is TWO layers, not one. This is the advice-metadata
   // TRANSPORT parent: without it the provider discards the server's
   // adviceMetadata, so the presentation child below has nothing to draw and
@@ -296,9 +299,8 @@ test('the effective (extends-resolved) staging-certification matrix equals the a
   // loop above silently vacuous. State the intended matrix size explicitly so
   // a flag disappearing from CERT_MATRIX_ENABLED cannot pass unnoticed.
   assert.equal(
-    CERT_MATRIX_ENABLED.length,
-    6,
-    'the active certification matrix is six client flags; legacy complimentary K+ is explicitly disabled in Build 35',
+    CERT_MATRIX_ENABLED.length, 9,
+    'the active certification matrix adds the three approved Cloud flags; legacy complimentary K+ remains disabled',
   );
 });
 

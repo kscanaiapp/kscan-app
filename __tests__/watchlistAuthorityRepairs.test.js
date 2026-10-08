@@ -195,7 +195,7 @@ test('SMART_WATCHLIST_V1 is opt-in by environment, like the other V1 flags', () 
 });
 
 test('the Home entry gates on availability, not on K+ entitlement alone', () => {
-  assert.match(HOME, /const watchlistEnabled = SMART_WATCHLIST_V1;/);
+  assert.match(HOME, /const watchlistEnabled = SMART_WATCHLIST_V1 && hasRuntimeCapabilityProof\('smart_watchlist', 'watch_tracking'\);/);
   assert.match(HOME, /\{watchlistEnabled && \(/);
   // The availability gate must WRAP the entitlement gate, not sit inside it:
   // an unavailable feature shows no entry at all, rather than an upgrade prompt

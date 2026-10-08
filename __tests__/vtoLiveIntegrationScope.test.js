@@ -38,6 +38,12 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/_shared/deletion/userDataResources.ts',
   'supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql',
   'supabase/config.toml',
+  // Build35 Premium Value owner brief + P1-WATCH-LAPSE: re-read canonical
+  // K+ at the existing worker's provider boundary. This exact inventory does
+  // not authorize provider adapters, push delivery, migrations or deployment.
+  'supabase/functions/commerce-watch-refresh/index.ts',
+  'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts',
+  'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.test.ts',
 ]);
 
 // ── The manifest parses, and every row carries its justification ────────────
@@ -156,6 +162,12 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
     patterns,
   );
   assert.equal(unauthorized.length, 3);
+  // The exact Watch lapse repair must not admit unrelated backend mutations.
+  for (const file of [
+    'supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts',
+    'supabase/functions/commerce-watch-refresh/pushDelivery.ts',
+    'supabase/migrations/unapproved_watch_change.sql',
+  ]) assert.equal(BUILD35_AUTHORIZED_BACKEND_PATHS.has(file), false, file);
 });
 
 // ── The live diff, on a lane that has DECLARED itself a VTO lane ───────────

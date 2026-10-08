@@ -48,10 +48,12 @@ export function PackingTripForm({
   initial,
   busy,
   onSubmit,
+  submitTitle = 'PACK FOR THIS TRIP',
 }: {
   initial?: PackingTripDraft | null;
   busy?: boolean;
   onSubmit: (draft: PackingTripDraft) => void;
+  submitTitle?: string;
 }) {
   const [destination, setDestination] = useState(initial?.destination ?? '');
   const [startDate, setStartDate] = useState(
@@ -185,7 +187,7 @@ export function PackingTripForm({
       ) : null}
 
       <PrimaryButton
-        title="PACK FOR THIS TRIP"
+        title={submitTitle}
         onPress={submit}
         loading={busy}
         disabled={busy}

@@ -333,14 +333,18 @@ test('POLISH-005: no K+ surface tells a user to "upgrade" to complimentary K+', 
 
 // ── POLISH-006: Watch entry points say when a tap opens K+ ───────────────────
 
-test('POLISH-006: every Watchlist entry point tells a free actor the tap opens K+', () => {
+test('POLISH-006: Watchlist entries explain K+ and the intent-first acquisition step', () => {
   for (const rel of [
     'components/ProductShelf.tsx',
     'components/scan-results/PurchaseOptionsPanel.tsx',
     'components/home/HomeLuxuryTechV1.tsx',
   ]) {
     const src = read(rel);
-    assert.match(src, /isActive \|\| resolving\s*\?\s*(?:"[^"]+"|'[^']+')\s*:\s*'Available with K\+\. Opens K\+ Early Access\.'/, rel);
+    if (rel.includes('HomeLuxuryTechV1')) {
+      assert.match(src, /'Available with K\+\. Opens K\+ membership options\.'/);
+    } else {
+      assert.match(src, /["']Track this product and price changes with K\+["']/);
+    }
   }
   for (const rel of ['components/ProductShelf.tsx', 'components/scan-results/PurchaseOptionsPanel.tsx']) {
     assert.match(read(rel), /Watch\s*\n\s*\{!isActive && !resolving \? ' · K\+' : null\}/, `${rel} marks the locked Watch visibly`);

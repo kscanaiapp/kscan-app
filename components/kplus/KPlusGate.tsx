@@ -10,6 +10,7 @@
 //                   complimentary-acquisition surface.
 // Exactly one of the two is ever mounted for a given gate.
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from './KPlusEarlyAccessSheet';
 import { KPlusMembershipSheet } from './KPlusMembershipSheet';
@@ -43,6 +44,8 @@ export interface KPlusGateRenderArgs {
   /** Opens this gate's K+ surface: the membership paywall or the shared
    *  status / legacy complimentary-acquisition sheet, by source. */
   openUpgrade: () => void;
+  /** Presentation state only, so native feature modals can yield to this sheet. */
+  acquisitionVisible: boolean;
 }
 
 export interface KPlusGateProps {
@@ -56,6 +59,7 @@ export interface KPlusGateProps {
 export function KPlusGate({ children, source }: KPlusGateProps) {
   const { state, isActive } = useKPlusEntitlement();
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [sheetPresented, setSheetPresented] = useState(false);
   const surface = resolveKPlusAcquisitionSurface(source);
 
   // Fires once per mount (i.e. once per real presentation of this gate),
@@ -68,13 +72,19 @@ export function KPlusGate({ children, source }: KPlusGateProps) {
   const openUpgrade = () => {
     emitKPlusEvent('kplus_feature_gate_opened', { source, feature: source, entitlement_state: state });
     setSheetVisible(true);
+    setSheetPresented(true);
+  };
+  const closeSheet = () => {
+    setSheetVisible(false);
+    if (Platform.OS !== 'ios') setSheetPresented(false);
   };
 
   return (
     <>
-      {children({ state, isActive, resolving: isKPlusEntitlementUnresolved(state), openUpgrade })}
+      {children({ state, isActive, resolving: isKPlusEntitlementUnresolved(state), openUpgrade,
+        acquisitionVisible: surface === 'membership' ? sheetVisible || sheetPresented : sheetVisible })}
       {surface === 'membership' ? (
-        <KPlusMembershipSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} />
+        <KPlusMembershipSheet visible={sheetVisible} onClose={closeSheet} onDismiss={() => setSheetPresented(false)} />
       ) : (
         <KPlusEarlyAccessSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} source={source} />
       )}

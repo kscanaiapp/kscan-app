@@ -44,9 +44,9 @@ function runInSandbox(output, filename, requireMap) {
   return mod.exports;
 }
 
-function loadTsModule(relativePath, requireMap = {}) {
+function loadTsModule(relativePath, requireMap = {}, mutate = source => source) {
   const filename = path.join(ROOT, relativePath);
-  const source = fs.readFileSync(filename, 'utf8');
+  const source = mutate(fs.readFileSync(filename, 'utf8'));
   return runInSandbox(transpile(source), filename, requireMap);
 }
 
@@ -235,7 +235,7 @@ function buildHarness(options = {}) {
     './closetSyncStore': syncStore,
     './closetRestoreContract': restoreContract,
     './closetRestoreMedia': media.module,
-  });
+  }, options.mutateEngine);
 
   return {
     supabase, state, closetLib, media, telemetry, syncStore, engine,
@@ -541,6 +541,65 @@ test('NEGATIVE CONTROL: signing out mid-pass discards the stale completion — n
 });
 
 // ── Media validation ─────────────────────────────────────────────────────────
+
+test('P0-CLOUD-LAPSE-NONDESTRUCTIVE: restored facts/media survive lapse; new work waits for reactivation', async () => {
+  const h = buildHarness({});
+  h.state.rows.push(remoteRow());
+  await h.engine.runClosetRestorePass();
+  const before = JSON.stringify(h.closetLib.all());
+  const queries = h.state.selectCallCount;
+  const downloads = h.media.calls.length;
+  h.setKPlus('expired');
+  const skipped = await h.engine.runClosetRestorePass({ bypassCooldown: true });
+  assert.equal(skipped.skippedReason, 'not_kplus');
+  assert.equal(JSON.stringify(h.closetLib.all()), before);
+  assert.equal(h.state.selectCallCount, queries);
+  assert.equal(h.media.calls.length, downloads);
+  h.setKPlus('active');
+  await h.engine.runClosetRestorePass({ bypassCooldown: true });
+  assert.ok(h.state.selectCallCount > queries);
+  assert.equal(JSON.stringify(h.closetLib.all()), before);
+});
+
+test('NC-PV-04: removing the canonical restore gate fails the inactive contract', async () => {
+  async function contract(mutateEngine) {
+    const h = buildHarness({ kPlusState: 'expired', mutateEngine });
+    const result = await h.engine.runClosetRestorePass();
+    assert.equal(result.ran, false);
+    assert.equal(result.skippedReason, 'not_kplus');
+  }
+  await contract();
+  await assert.rejects(contract(source => {
+    const gate = "if (getKPlusEntitlementSnapshot().state !== 'active') return emptyRestoreResult('not_kplus');";
+    assert.ok(source.includes(gate)); return source.replace(gate, '');
+  }), assert.AssertionError);
+});
+
+test('NC-PV-05: bypassing the actor epoch permits a stale restore and fails isolation', async () => {
+  async function contract(mutateEngine) {
+    const h = buildHarness({ mutateEngine });
+    h.state.rows.push(remoteRow());
+    const originalFrom = h.supabase.from;
+    h.supabase.from = table => {
+      const query = originalFrom(table);
+      const then = query.then;
+      query.then = (resolve, reject) => then(data => {
+        // Capture A data, then cross the authentication boundary before the
+        // awaited page is interpreted. No backend RLS fault is simulated.
+        h.switchAccount('user-B'); resolve(data);
+      }, reject);
+      return query;
+    };
+    await h.engine.runClosetRestorePass();
+    assert.equal(h.closetLib.all().length, 0);
+  }
+  await contract();
+  await assert.rejects(contract(source => {
+    const count = source.match(/isActorRequestCurrent\(actorRequest\)/g)?.length;
+    assert.ok(count > 1);
+    return source.replaceAll('isActorRequestCurrent(actorRequest)', 'true');
+  }), assert.AssertionError);
+});
 
 test('MEDIA SECURITY: a forged storage path is never downloaded, and facts still land', async () => {
   const h = buildHarness({});

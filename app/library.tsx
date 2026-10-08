@@ -21,6 +21,7 @@ import { AddScanToDressingRoomModal } from '../components/AddScanToDressingRoomM
 import { AddInspirationToDressingRoomModal } from '../components/AddInspirationToDressingRoomModal';
 import { InspirationUploadModal } from '../components/InspirationUploadModal';
 import { useLibrary } from '../hooks/useLibrary';
+import { CloudClosetCard } from '../components/closet/CloudClosetCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
@@ -748,6 +749,7 @@ export default function LibraryScreen() {
               }
               actionAccessibilityLabel="Add an item to your Closet"
             />
+            <CloudClosetCard items={closet.items} onRefresh={closet.refresh} />
             {/*
               Mirror Selfie intake (Build 2.5 Step 3).
 

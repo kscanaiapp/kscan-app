@@ -44,10 +44,13 @@ const SCANNED_ROOTS = ['app', 'components'];
  *   - privacy, security, account, deletion, accessibility
  */
 const EXPECTED_GATE_SITES = [
+  // Cloud enhancement only; the local Library/Closet stays outside this gate.
+  'components/closet/CloudClosetCard.tsx -> closet_intelligence',
   'app/packing/index.tsx -> packing',
   'app/watchlist/[watchId].tsx -> watchlist',
   'components/account-home/PermissionsStepV1.tsx -> onboarding',
   'components/ProductShelf.tsx -> watchlist',
+  'components/ProductShelf.tsx -> watchlist', // intent picker acquisition gate
   'components/home/HomeLuxuryTechV1.tsx -> watchlist',
   'components/home/HomeVoiceScanPill.tsx -> voice_scan',
   'components/scan-results/PurchaseOptionsPanel.tsx -> watchlist',

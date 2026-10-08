@@ -1,0 +1,105 @@
+{
+  "baseAuthority": "911ac0856d4eb02d6a60645c8412026bdad60df8",
+  "todayFlagOrder": [
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_V1",
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1",
+    "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1"
+  ],
+  "todayByProfile": {
+    "preview": [
+      "true",
+      "true",
+      "true"
+    ],
+    "development": [
+      "true",
+      "true",
+      "true"
+    ],
+    "staging": [
+      "true",
+      "true",
+      "true"
+    ],
+    "staging-certification": [
+      "true",
+      "true",
+      "true"
+    ],
+    "production": [
+      "false",
+      "true",
+      "true"
+    ],
+    "production-certification": [
+      "true",
+      "true",
+      "true"
+    ],
+    "build35-testing": [
+      "true",
+      "true",
+      "true"
+    ],
+    "build35-release": [
+      "false",
+      "false",
+      "false"
+    ]
+  },
+  "protectedSourceDigests": {
+    "components/home/TodayWithEliseBoundary.tsx": "c0ab0317fc55c305f6b03ef47cad64769c708b83da2147a3c71f2854f9d54422",
+    "components/home/TodayWithEliseCard.tsx": "35d186bbe66f2ec18898c9329487ef0f1211f6df957afda6687283a52fd983a6",
+    "components/home/TodayWithEliseSection.tsx": "432766629e6e0df7512419aa7a6723221d501db73f7ccd03a64f76dee3366aad",
+    "components/kplus/KPlusEarlyAccessSheet.tsx": "b1abbdf25bf76ff8e363bb49fb493267eda816bdd177e30eed6d591a575aaa8f",
+    "hooks/useTodayWithElise.ts": "65d6846a35e9080097d944921e7058b00cbb743477d83a1cc9e45077f60f8600",
+    "services/kplus/kplusClient.ts": "1e64d38a84baf65698c1521c814057ea05a4b7574681817f6b702c47f57cfb3d",
+    "services/kplus/kplusCommerceService.ts": "ab6e014ce4932d65bfc2bd32720a150de3204ab110f08ba7601206f9287ebe67",
+    "services/kplus/kplusEntitlementReader.ts": "3af5f75b0ed4d1e420939169362b751fdc3df43a2b209fbcb15f07486dc83ff2",
+    "services/kplus/kplusEntitlementStore.ts": "607d6f15285e4d4eda56ab0c9967bcc94b0f23bd8bf87ae68cd34b4ee5b7ae71",
+    "services/kplus/revenueCatConfig.ts": "d066df0a9e2755382be70e611778b33a079191bcd79cf18620e1623c745ef465",
+    "services/kplus/revenueCatNative.ts": "f079b19d30715150063f4ba9450e64db84c8b22495d2d37f36d955f3d9bf61bb",
+    "services/todayWithElise/actionRouting.ts": "ba142cfbae7f3eb8e7f43330bdcccb56bc5623f42f0ea72cb55ea05dd46a8337",
+    "services/todayWithElise/actorInvalidation.ts": "868e71622dfbab3599ec4841b850add0ecb3621b9b66d618169d74d47992ff12",
+    "services/todayWithElise/analytics.ts": "44a3f2bab0885f5b5db2c77e38454372f213f93def631bb90557bb91a70f7efb",
+    "services/todayWithElise/build4ConfidenceAdapter.ts": "c418659c626d5ad612bdfde3f1f609159c24a3ddfee86ac5ac52a037973796bd",
+    "services/todayWithElise/copyTemplates.ts": "7fdaaea031595258d1ee2123a1a5f88eab005f6e758bc8c996bde28a13662c55",
+    "services/todayWithElise/eligibility.ts": "535aa71525f4877925cdf72f1dcd7a9d9f8b3ee6e0fd6ac449b35c139e9357d1",
+    "services/todayWithElise/generatedGreeting.ts": "455c233c54a6c1f92bf3332480cdb3cd93e7aad4df02702ba56596aececf6994",
+    "services/todayWithElise/handoff.ts": "5b93e1787fb0812b2cc315eae72071858b0642341df07a1a7710577340fd9aa8",
+    "services/todayWithElise/orchestrator.ts": "13fe7355f23d12470907ef6fdc4b70191996b1b0132c03005557533fb034a25e",
+    "services/todayWithElise/presentation.ts": "145edd681860808c42af2cfdd2acab98078fc186f4d6ba02f65444c68be01c97",
+    "services/todayWithElise/priorityEngine.ts": "4708b07059268189f6b9de4c033b95f6289218a679b8356dcbefc5c1118d4273",
+    "services/todayWithElise/reporting.ts": "7f85822ab26717a25f66df3e8d59a9cdc4e1da74605a66d1c62a7c5ca5e9480a",
+    "services/todayWithElise/weatherPolicy.ts": "274e496296750c1373611b39cf7776a37fc5a5c95e3522278913390885ed8e23",
+    "services/weather/todayWeatherStore.ts": "3972ccd482fec91812317142f961999e0c5e0e79e7d3a27abfa3579a28c3947a",
+    "supabase/functions/stylist-speech/elevenLabsClient.ts": "da6586d9a53007c8cf6d366212223688caa2a07a3977165fae74889b734e10e9",
+    "supabase/functions/stylist-speech/handler.ts": "e03f27d57a156b6cc63d5235c65be8e44d83d772476c7feca6bfe0b83f4d26bb",
+    "supabase/functions/stylist-speech/index.ts": "1a898df758c704fce8fcc361f1cc9c6a859d621203bf512f830aa15a1d0be237",
+    "supabase/functions/stylist-speech/providerDiagnostics.ts": "26524601b7ed8f17694da79b4c1dd85943fb85d129a78a3f5fa13b9105e0ce6e",
+    "supabase/functions/stylist-speech/providerFailure.ts": "486112b2615480eedbe6783b6c96ef3136776f52f651e8bee0dbb804e790106e",
+    "supabase/functions/stylist-speech/rateLimit.ts": "92b1b3874e6f2ec62919d8f941e8633bc69060d49cb27217137753c7c4780b4f",
+    "supabase/functions/stylist-speech/secretConfig.ts": "2bf74902a518b31ce35b11051b5160623c3b412f8a78a1d84c22240dc4b675c6",
+    "supabase/functions/stylist-speech/speechCues.ts": "933d4cb908176c746f5cb8b7f9f0a4e5d67a2b10aa075b73e8cac3cf2cd429d2",
+    "supabase/functions/stylist-speech/speechText.ts": "a0845fe320492c38e962c692388ba1ae6b0422c049bfef6181c7762d699d1e08",
+    "supabase/functions/stylist-speech/types.ts": "60628e49799cb522eff90b354771b3eef75345d05c3a7d208c447366d7fac41a",
+    "supabase/functions/stylist-speech/voiceProfiles.ts": "20e996831d13c3df011b0c245bcf8514ec3d88130353f93dad1c7e6c91730eeb",
+    "supabase/functions/vto-generate/index.ts": "83c35a1c2debcaec182dd94f47f59e54cdd42f13a7c5592f319f8f8b6dd05e48",
+    "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts": "22ef40f1d4296ab350a32903b605430273390d59483d3dd32c11419d306fee67",
+    "supabase/functions/vto-generate/providers/index.ts": "38f551fd3eb86c79e454a3d205d6f2db43b82dff1a4e0bc537db8bb4cc68089a",
+    "supabase/functions/vto-generate/providers/mockProvider.ts": "68add27c116924c56be4a475bd53acdad8ee4272ee159869928275f4a30ccf67",
+    "supabase/functions/vto-generate/providers/mockResultAsset.ts": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
+    "supabase/functions/vto-generate/vtoContract.ts": "a6b13eb843b24bc910a7524b062e68761911a34bd4736b8796adf3c5684fa4ed",
+    "supabase/functions/vto-generate/vtoEligibility.ts": "1ac7c261dd43bf53f364d31527209016e9792c2bdec8ed1b64b085e4a73519d3",
+    "supabase/functions/vto-generate/vtoEntitlement.ts": "18abd5663bd5a938bf53a3cd2076fff8acd84486c872499a7a5f7c240028ff73",
+    "supabase/functions/vto-generate/vtoFeatureControl.ts": "1d079ea050ebe13943729d0c1dfe9cae3d66d4142ed50526675fd682e0f9f177",
+    "supabase/functions/vto-generate/vtoHandler.ts": "df8c90969dbd04a81551ba58865bb5518d424ff67c0b9033d66d4aabec795dba",
+    "supabase/functions/vto-generate/vtoOwnedGarment.ts": "11fe1b90d06ff25bdac1b75024dc39dcf7044d5952c04ab0e2b9f2fb585d37b2",
+    "supabase/functions/vto-generate/vtoReservation.ts": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
+    "supabase/functions/vto-generate/vtoResultValidation.ts": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
+    "supabase/functions/vto-generate/vtoTelemetry.ts": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+    "types/kplusCommerceContract.ts": "537b5975ed6885db45b4db556e97dd78a8128e36bfeb4546f4f569cc851f5f62",
+    "types/kplusEntitlementContract.ts": "d07871fd28dd4310774597bb163d6894ffa994fe993a5184933e9a2832ae1bfc",
+    "types/todayWithElise.ts": "553ae08753519d4a54b6080a493bebe7a4cfe51d5320f2c9e2c2fb9bdbc5ec2a"
+  }
+}

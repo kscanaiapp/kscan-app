@@ -16,8 +16,8 @@
  * that still opened that sheet offered a Free actor something different from
  * what onboarding had just offered them. Each gate moves to the membership
  * surface deliberately, by acquiring an entry below -- not by a global switch,
- * which would change four other features' acquisition path in a change that was
- * about one. Virtual Try-On is the first.
+ * which would change unrelated features' acquisition path. Virtual Try-On and
+ * the Build35 premium-value surfaces share the paid membership authority.
  *
  * This decides WHICH SURFACE OPENS and nothing else. It carries no price, no
  * product, no trial and no entitlement rule: the membership surface reads all
@@ -30,7 +30,9 @@ import type { KPlusSource } from '../../types/kplusSource';
 export type KPlusAcquisitionSurface = 'membership' | 'early_access';
 
 /** Sources whose gate opens the paid membership surface. */
-export const KPLUS_MEMBERSHIP_ACQUISITION_SOURCES: readonly KPlusSource[] = Object.freeze(['vto']);
+export const KPLUS_MEMBERSHIP_ACQUISITION_SOURCES: readonly KPlusSource[] = Object.freeze([
+  'vto', 'packing', 'watchlist', 'closet_intelligence',
+]);
 
 export function resolveKPlusAcquisitionSurface(source: KPlusSource): KPlusAcquisitionSurface {
   return KPLUS_MEMBERSHIP_ACQUISITION_SOURCES.includes(source) ? 'membership' : 'early_access';
