@@ -109,7 +109,7 @@ function compileQueue(store, { actor, analyzeSelectedCandidates, mutate = null }
 
 // ── Scenario fixtures (same shapes as the hook matrix) ──────────────────────
 
-const URI = ['a', 'b', 'c', 'd'].map((name) => `file:///cache/${name}.jpg`);
+const URI = ['a', 'b', 'c', 'd', 'e'].map((name) => `file:///cache/${name}.jpg`);
 const garment = (candidateId, category, subtype, extra = {}) => ({ candidateId, category, subtype, label: subtype, color: 'black', ...extra });
 const asset = (uri, index) => ({ uri, assetId: `asset-${index}`, type: 'image' });
 const PHOTOS = {
@@ -502,6 +502,59 @@ test('16: Save All after an account switch writes nothing for the new account', 
   assert.deepEqual(await library.loadLibrary('actor-a'), []);
   m.unmount();
 });
+
+// ── 1 / 2 / 5 selected photos, end to end ───────────────────────────────────
+
+for (const [label, photoCount, garmentsPerPhoto] of [
+  ['1 photo with 2 garments', 1, 2],
+  ['2 photos', 2, 1],
+  ['5 photos', 5, 1],
+]) {
+  test(`1/2/5 end to end: ${label} -> detect, select all, process, Save All, reopen, Add All with every item on its own photo`, async () => {
+    const photos = {};
+    for (let index = 0; index < photoCount; index += 1) {
+      photos[URI[index]] = {
+        garments: Array.from({ length: garmentsPerPhoto }, (_, g) => garment(`g${g + 1}`, g === 0 ? 'coat' : 'shoes', `style-${index}-${g}`)),
+      };
+    }
+    const { m, store, queue } = await openSession({ photos, count: photoCount });
+    const ids = m.hook.analysis.confirmationCandidates.map((candidate) => candidate.id);
+    const total = photoCount * garmentsPerPhoto;
+    assert.equal(ids.length, total);
+    store.state.batchSelectedCandidateIds = ids;
+
+    await queue().runBatchQueue();
+    assert.deepEqual(readyIds(store), ids, 'every selected item finished, in selection order');
+    assert.equal(m.edge.selected.length, total, 'one selected-item call per item, none replayed');
+    for (const item of store.state.batchItems) {
+      assert.match(item.analysis.result, new RegExp(`^SEL\\|${item.sourceImageUri.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\|`));
+    }
+    assert.equal(new Set(store.state.batchItems.map((item) => item.sourceImageUri)).size, photoCount);
+
+    const { library, memfs } = loadLibrary(m.actor);
+    await compilePersist(store, { m, library, selectedImages: m.hook.selectedImages }).saveAllBatchItems();
+    const reopened = await library.loadLibrary('actor-a');
+    assert.equal(reopened.length, total, 'one Recent Scan per item, never one aggregate');
+    for (const item of store.state.batchItems) {
+      const record = reopened.find((entry) => entry.id === store.state.savedBatchScanIds[item.id]);
+      assert.ok(record, `${item.id} reopened`);
+      assert.equal(record.result, item.analysis.result);
+      assert.ok(memfs.files.get(record.imageUri).includes(item.sourceImageUri), 'the saved media is this item\'s own photo');
+      assert.equal(record.metadata.multiScan.itemId, item.id);
+      assert.equal(record.metadata.multiScan.sourceImageIndex, item.sourceImageIndex);
+      assert.equal(record.metadata.multiScan.imageCount, photoCount);
+      assert.equal(record.metadata.multiScan.itemCount, total);
+    }
+
+    const active = store.state.batchItems[0];
+    const { additionalScans } = evaluate(ADD_ALL_SRC, {
+      addAllBatchToRoom: true, batchResultVisible: true, batchItems: store.state.batchItems, activeBatchItem: active,
+    }, ['additionalScans']);
+    assert.deepEqual(additionalScans.map((entry) => entry.scan.sourceId), ids.slice(1));
+    assert.deepEqual(additionalScans.map((entry) => entry.localImageUri), store.state.batchItems.slice(1).map((item) => item.sourceImageUri));
+    m.unmount();
+  });
+}
 
 // ── DEFECT B35-SCAN-012: a partially analysed single item is not auto-saved ──
 
