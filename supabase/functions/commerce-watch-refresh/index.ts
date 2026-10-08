@@ -42,6 +42,7 @@ import { deriveWatchCapability, watchProviderForUrl } from '../scan-identify/wat
 import { evaluateWatchRefresh, type WatchState } from './changeEngine.ts';
 import { resolveObservedCurrency } from './watchCurrency.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
+import { runEntitledWatchObservation } from './watchEntitlementGuard.ts';
 import { sendWatchPush } from './pushDelivery.ts';
 import {
   drainEligiblePushReceipts,
@@ -283,11 +284,20 @@ async function runRefreshCycle(row: WatchRow): Promise<{
   refreshMetadata: { provider: string; latencyMs: number; errorCode?: string };
 }> {
   const observedAt = new Date().toISOString();
-  const outcome = await refreshWatchObservation({
-    source: row.source,
-    canonicalUrl: row.canonical_url,
-    currency: row.currency,
-  });
+  const outcome = await runEntitledWatchObservation(row.user_id, async (userId) => {
+    const entitlement = await rpc('kplus_has_active_entitlement', {
+      p_user_id: userId, p_entitlement_key: 'k_plus',
+    });
+    return entitlement.ok && (await entitlement.json()) === true;
+  }, () => refreshWatchObservation({
+    source: row.source, canonicalUrl: row.canonical_url, currency: row.currency,
+  }));
+  if (!outcome) {
+    logEvent('watchlist_refresh_entitlement_skip', {});
+    return { watchId: row.id, refreshStatus: 'skipped_not_kplus', observedAt,
+      currentPrice: row.current_price_amount, currency: row.currency, event: null,
+      refreshMetadata: { provider: 'skipped', latencyMs: 0, errorCode: 'KPLUS_REQUIRED' } };
+  }
   const result = evaluateWatchRefresh(toWatchState(row), outcome.observation, {
     unavailableAfterFailures: UNAVAILABLE_AFTER_CONSECUTIVE_FAILURES,
     observedAt,
