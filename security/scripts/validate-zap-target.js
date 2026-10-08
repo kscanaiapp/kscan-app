@@ -11,6 +11,8 @@
  */
 
 const { isIP } = require('node:net');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const PRODUCTION_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
 const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
@@ -235,6 +237,21 @@ function runSelfTest() {
     failed += 1;
   } else {
     console.log('PASS derive /auth/v1/health for Supabase root');
+  }
+
+  // The baseline scanner must use the URL validated by the same-host health
+  // preflight, not the Supabase project root (HTTP 404). This regression
+  // control keeps the passive scanner operational without relaxing findings.
+  const baselineWorkflow = fs.readFileSync(path.resolve(__dirname, '../../.github/workflows/zap-baseline-staging.yml'), 'utf8');
+  const correctScanTarget =
+    baselineWorkflow.includes('ZAP_SCAN_URL: \u0024{{ steps.validate_target.outputs.health_url }}') &&
+    baselineWorkflow.includes('-t "\u0024{ZAP_SCAN_URL}"') &&
+    !baselineWorkflow.includes('-t "\u0024{ZAP_STAGING_URL}"');
+  if (correctScanTarget) {
+    console.log('PASS ZAP baseline scans the validated staging health endpoint');
+  } else {
+    console.error('FAIL ZAP baseline must scan the validated staging health endpoint');
+    failed += 1;
   }
 
   process.exit(failed > 0 ? 1 : 0);
