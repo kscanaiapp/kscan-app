@@ -122,7 +122,16 @@ export function createMockVtoProvider(options: MockProviderOptions = {}): VtoPro
           ok: false, failure: 'provider_rejected_input', detail: 'person_not_image_data_uri', billable: false,
         };
       }
-      if (!input.garmentImageUrl.startsWith('https://')) {
+      if (typeof input.garmentDataUri === 'string') {
+        // An inline garment replaces the URL entirely, as it does for a real
+        // adapter: the mock must not quietly accept a request shape the real
+        // one would have to decode.
+        if (!input.garmentDataUri.startsWith('data:image/')) {
+          return {
+            ok: false, failure: 'invalid_garment_input', detail: 'garment_not_image_data_uri', billable: false,
+          };
+        }
+      } else if (!input.garmentImageUrl.startsWith('https://')) {
         return { ok: false, failure: 'invalid_garment_input', detail: 'garment_not_https', billable: false };
       }
 
