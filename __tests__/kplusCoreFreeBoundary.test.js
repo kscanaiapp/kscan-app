@@ -51,6 +51,11 @@ const EXPECTED_GATE_SITES = [
   'components/home/HomeLuxuryTechV1.tsx -> watchlist',
   'components/home/HomeVoiceScanPill.tsx -> voice_scan',
   'components/scan-results/PurchaseOptionsPanel.tsx -> watchlist',
+  // Elise's contextual Try It On offer. Virtual Try-On is a K+ FEATURE, and
+  // this is the same shared gate and the same bounded source as the product
+  // control below. Base Elise conversation is not gated by it: the gate wraps
+  // only the app-owned offer block, never the reply.
+  'components/style-chat/EliseVtoOffer.tsx -> vto',
   'components/text-scan/TextScanFeatureRow.tsx -> voice_scan',
   'components/text-scan/VoiceScanButton.tsx -> voice_scan',
   'components/vto/TryItOnEntry.tsx -> vto',

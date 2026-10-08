@@ -25,7 +25,25 @@ export const MIN_REPORT_BYTES = 1; // > 0 bytes
 export const MAX_REPORT_BYTES = 10 * 1024 * 1024; // < 10 MB
 
 const VALID_VERDICTS = new Set(['PASS', 'FAIL']);
-const VALID_MODES = new Set(['contract', 'staging-dryrun', 'staging-full-certification', 'cleanup']);
+const VALID_MODES = new Set([
+  'contract',
+  'staging-dryrun',
+  'staging-full-certification',
+  'cleanup',
+  'staging-user-garment-dryrun',
+  'staging-user-garment-certification',
+  'staging-user-garment-log-audit',
+]);
+
+/**
+ * The ONLY modes whose artifact may report provider spend at all. Each is one
+ * authorized real-provider request; every other mode is zero-spend by
+ * definition and a non-zero count from it is a violation, not a result.
+ */
+export const PAID_MODES = Object.freeze(['staging-full-certification', 'staging-user-garment-certification']);
+
+/** No mode, paid or not, may ever report more than one. */
+export const MAX_PROVIDER_SUBMITS_PER_RUN = 1;
 
 /**
  * Validates a report's raw byte size (repair spec §6). Size alone is never

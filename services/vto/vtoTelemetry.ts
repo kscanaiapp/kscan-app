@@ -53,6 +53,16 @@ export const VTO_EVENTS = [
   // toggle is not an entry impression, and logging it as one would put a
   // false number in front of whoever reads this later.
   'vto_mode_selected',
+  // ELISE CONTEXTUAL OFFER. The funnel for the app-owned offer Elise's reply
+  // can carry. Named for the seam rather than the surface, and emitted through
+  // this sink so they inherit its closed property allowlist: an offer event can
+  // carry an origin, a bounded K+ bucket and a bounded reason, and nothing that
+  // identifies the garment, the binding, the message or the customer.
+  'elise_vto_offer_rendered',
+  'elise_vto_offer_tapped',
+  'elise_vto_offer_unavailable',
+  'elise_vto_offer_kplus_gate',
+  'elise_vto_offer_launched',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];
@@ -75,6 +85,8 @@ export const VTO_EVENT_PROPERTIES = [
   /** 'live' | 'ai_photo'. The mode name only -- never a capability reason,
    *  a device identifier, or anything about why Live was or was not offered. */
   'mode',
+  /** Why an Elise offer could not launch. One of a closed set, see below. */
+  'reasonCode',
 ] as const;
 
 export type VtoEventProperty = (typeof VTO_EVENT_PROPERTIES)[number];
@@ -102,6 +114,16 @@ const SAFE_STRING = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const VTO_BOUNDED_PROPERTY_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   surface: Object.freeze(['kplus_step6', 'home', 'coachmark', 'product', 'scan_result', 'commerce']),
   actor_kplus_state: Object.freeze(['free', 'active', 'complimentary', 'resolving']),
+  // Mirrors EliseVtoUnavailableReason plus the two decisions the offer makes
+  // itself. A reason outside this set is dropped like any unknown value.
+  reasonCode: Object.freeze([
+    'binding_missing',
+    'candidate_missing',
+    'fingerprint_changed',
+    'media_missing',
+    'account_changed',
+    'not_available',
+  ]),
 });
 
 function scrub(value: unknown): string | number | boolean | null | undefined {

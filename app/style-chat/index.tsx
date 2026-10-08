@@ -20,6 +20,7 @@ import {
   launchStyleChatSession,
 } from '../../services/style-chat/sessionLaunchGuard';
 import type { StyleChatSession } from '../../services/style-chat/types';
+import { removeEliseVtoOfferBindingsForSession } from '../../services/style-chat/eliseVtoOfferBindings';
 
 export default function StyleChatIndexScreen() {
   const isDeleteDialogOpenRef = useRef(false);
@@ -98,6 +99,9 @@ export default function StyleChatIndexScreen() {
             clearDialog();
             try {
               await deleteSession(session.id);
+              // Its Try It On offers are gone with it; drop their device-local
+              // bindings too. Best-effort, and never the Closet candidates.
+              void removeEliseVtoOfferBindingsForSession(session.id);
             } catch {
               Alert.alert(
                 'Could not delete conversation',

@@ -71,6 +71,7 @@ test('VTO hands Shop and Watch to callbacks and owns no persistence authority', 
   const decision = read('services/vto/vtoDecisionLoop.ts');
   const sheet = read('components/vto/VirtualTryOnSheet.tsx');
   const entry = read('components/vto/TryItOnEntry.tsx');
+  const host = read('components/vto/VtoLaunchHost.tsx');
   for (const forbidden of [
     'createWatch', 'watchlistClient', 'addScanImageToDressingRoom',
     'markOwned', 'recordPurchase', 'supabase',
@@ -78,10 +79,11 @@ test('VTO hands Shop and Watch to callbacks and owns no persistence authority', 
     assert.equal(decision.includes(forbidden), false, forbidden);
     assert.equal(sheet.includes(forbidden), false, forbidden);
     assert.equal(entry.includes(forbidden), false, forbidden);
+    assert.equal(host.includes(forbidden), false, forbidden);
   }
   assert.match(sheet, /vtoResultBelongsToProduct\(vto, garment\)/);
   assert.match(sheet, /\) : vto\.status === 'success' \? null : vto\.person \? \(/);
-  assert.match(entry, /setMinimized\(true\);\s*onWatch\(\);/);
+  assert.match(host, /setMinimized\(true\);\s*onWatch\(\);/);
   assert.match(sheet, /onShop\(\)/);
   assert.match(sheet, /onWatch\(\)/);
 });

@@ -25,7 +25,9 @@
 'use strict';
 
 import fs from 'node:fs';
-import { validateReportArtifact, validateReportSize } from './lib/report-schema.mjs';
+import {
+  validateReportArtifact, validateReportSize, PAID_MODES, MAX_PROVIDER_SUBMITS_PER_RUN,
+} from './lib/report-schema.mjs';
 
 export function readExpectations(env = process.env) {
   const expectations = {};
@@ -75,11 +77,22 @@ export function validateReportFile(reportPath, expectations = {}, fsImpl = fs) {
   // here rather than trusting the report's own `verdict`, because the whole
   // point of a dedicated validator is to not take one component's
   // self-reported success on faith.
-  if (parsed.mode !== 'staging-full-certification' && (parsed.providerSubmits !== 0 || parsed.paidRequests !== 0)) {
+  if (!PAID_MODES.includes(parsed.mode) && (parsed.providerSubmits !== 0 || parsed.paidRequests !== 0)) {
     return {
       ok: false,
       code: 'SPEND',
-      message: `ZERO-SPEND INVARIANT VIOLATED: mode=${parsed.mode} providerSubmits=${parsed.providerSubmits} paidRequests=${parsed.paidRequests} (both must be 0 outside staging-full-certification)`,
+      message: `ZERO-SPEND INVARIANT VIOLATED: mode=${parsed.mode} providerSubmits=${parsed.providerSubmits} paidRequests=${parsed.paidRequests} (both must be 0 outside ${PAID_MODES.join(' / ')})`,
+    };
+  }
+
+  // The paid modes are ONE authorized request each. More than one is never a
+  // result to accept, whatever the verdict says.
+  if (parsed.providerSubmits > MAX_PROVIDER_SUBMITS_PER_RUN || parsed.paidRequests > MAX_PROVIDER_SUBMITS_PER_RUN
+    || parsed.providerSubmits < 0 || parsed.paidRequests < 0) {
+    return {
+      ok: false,
+      code: 'SPEND',
+      message: `SINGLE-DISPATCH CAP VIOLATED: mode=${parsed.mode} providerSubmits=${parsed.providerSubmits} paidRequests=${parsed.paidRequests} (neither may exceed ${MAX_PROVIDER_SUBMITS_PER_RUN})`,
     };
   }
 

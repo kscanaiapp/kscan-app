@@ -40,7 +40,12 @@ import {
   type VtoPersonPickOutcome,
 } from '../services/vto/vtoPersonInput';
 import { hasVtoConsent } from '../services/vto/vtoConsent';
-import type { VtoGarmentInput, VtoOrigin, VtoPersonInput } from '../types/vto';
+import type {
+  VtoGarmentInput,
+  VtoInlineGarmentLoader,
+  VtoOrigin,
+  VtoPersonInput,
+} from '../types/vto';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 
 export interface UseVirtualTryOnArgs {
@@ -48,6 +53,8 @@ export interface UseVirtualTryOnArgs {
   origin: VtoOrigin;
   /** Development only; the server ignores it unless that deployment opted in. */
   devScenario?: string;
+  /** Reads a user-supplied garment's bytes at generation time. See types/vto. */
+  loadInlineGarment?: VtoInlineGarmentLoader;
 }
 
 export interface UseVirtualTryOnResult extends VtoSnapshot {
@@ -133,6 +140,7 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
       garment: argsRef.current.garment,
       origin: argsRef.current.origin,
       devScenario: argsRef.current.devScenario,
+      loadInlineGarment: argsRef.current.loadInlineGarment,
       consentGranted: hasVtoConsent(),
     });
   }, []);
@@ -142,6 +150,7 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
       garment: argsRef.current.garment,
       origin: argsRef.current.origin,
       devScenario: argsRef.current.devScenario,
+      loadInlineGarment: argsRef.current.loadInlineGarment,
       consentGranted: hasVtoConsent(),
     });
   }, []);

@@ -52,6 +52,13 @@
  * still-signed-in actor's stores with it. That distinction is the whole reason
  * a second primitive exists.
  *
+ * ELISE CONTEXTUAL TRY IT ON. The device-local offer bindings
+ * (services/style-chat/eliseVtoOfferBindings.ts) are filed one record per
+ * account, so they are owner-scoped deletion data in exactly the sense above
+ * and are erased by `purgeEliseVtoOfferBindingsForActor`, which takes the owner
+ * explicitly. The Closet candidates those bindings point at are already erased
+ * by the `closet_candidates` step.
+ *
  * IDEMPOTENT AND RESUMABLE. Every step tolerates already-done: a manifest with
  * no matching records, an AsyncStorage key that is already absent, a directory
  * that no longer exists. A partially failed run reports `complete: false`, and
@@ -75,6 +82,7 @@ import { clearReasonsForUser } from '../signature-style/localSignatureStyleReaso
 import { clearCachedPackingPlan } from '../packing/packingPlanCache';
 import { clearOnboardingComplete } from '../onboardingCompletion';
 import { clearFreeTierStoresForActor } from '../free-tier/freeTierStorage';
+import { purgeEliseVtoOfferBindingsForActor } from '../style-chat/eliseVtoOfferBindings';
 
 export type PurgeStepResult = { step: string; ok: boolean };
 
@@ -114,6 +122,7 @@ type PurgeDeps = Partial<{
   clearPackingPlanCache: (ownerId: string) => Promise<void>;
   clearOnboarding: (ownerId: string) => Promise<void>;
   clearFreeTierStores: (ownerId: string) => Promise<{ ok: boolean }>;
+  purgeEliseVtoOfferBindings: (ownerId: string) => Promise<{ ok: boolean }>;
 }>;
 
 /**
@@ -238,6 +247,14 @@ export async function purgeOwnerScopedLocalData(
   steps.push(
     await runStep('free_tier_stores', () =>
       (deps.clearFreeTierStores ?? clearFreeTierStoresForActor)(owner),
+    ),
+  );
+  // Elise contextual Try It On. Each account has its own device-local record
+  // tying an opaque id on a chat message to a garment fingerprint (ids and
+  // hashes; no media). It is owner-keyed, so it is erased here, by name.
+  steps.push(
+    await runStep('elise_vto_offer_bindings', () =>
+      (deps.purgeEliseVtoOfferBindings ?? purgeEliseVtoOfferBindingsForActor)(owner),
     ),
   );
   steps.push(

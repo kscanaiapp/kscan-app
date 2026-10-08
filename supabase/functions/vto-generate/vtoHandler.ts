@@ -18,6 +18,8 @@
  *   4. feature control (app_config) -- disabled means nothing runs
  *   5. K+ entitlement (user_entitlements) -- the existing authority, unchanged
  *   6. eligibility   -- server re-derives it; the client's opinion is advisory
+ *                       (a `user_supplied_garment` is validated here too: its
+ *                       content hash is recomputed and must equal its fingerprint)
  *   7. person input  -- shape and size bounds
  *   8. provider adapter -- selected by server config, never by the body
  *   9. result validation -- 200 from a provider is not a displayable result
@@ -54,8 +56,10 @@ import {
   shortUserId,
 } from '../_shared/deletion/common.ts';
 import {
+  VTO_INLINE_GARMENT_REQUEST_BODY_MAX_CHARS,
   VTO_ORIGINS,
   VTO_PERSON_PAYLOAD_MAX_CHARS,
+  VTO_REQUEST_BODY_MAX_CHARS,
   type VtoFailureCode,
   type VtoOrigin,
 } from './vtoContract.ts';
@@ -73,14 +77,29 @@ import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { dimensionBucket, logVtoEvent, payloadBucket } from './vtoTelemetry.ts';
 import { isMockVtoScenario, resolveVtoProvider } from './providers/index.ts';
 import { resolveOwnedVtoGarment, type OwnedVtoGarment } from './vtoOwnedGarment.ts';
+import {
+  isUserSuppliedVtoGarmentSource,
+  resolveUserSuppliedVtoGarment,
+  type UserSuppliedVtoGarment,
+} from './vtoUserSuppliedGarment.ts';
 
 /** Wall-clock ceiling on one generation attempt. Bounded well inside the
  *  platform's own request budget so a hung provider surfaces as a clean
  *  provider_timeout instead of an opaque gateway error. */
 const GENERATION_TIMEOUT_MS = 45_000;
 
-/** Hard ceiling on the whole request body. Rejected before any parse work. */
-const MAX_BODY_CHARS = VTO_PERSON_PAYLOAD_MAX_CHARS + 8_192;
+/**
+ * Hard ceilings on the whole request body.
+ *
+ * TWO, ON PURPOSE. The absolute ceiling is the only one that can be applied
+ * before any parse work, so it is the larger: a person payload plus exactly one
+ * bounded inline garment. But only the `user_supplied_garment` source may carry that
+ * second payload, so once the body is parsed every OTHER source is held to the
+ * ceiling it always had. Adding an inline garment therefore widened nothing for
+ * a commerce or Closet request.
+ */
+const ABSOLUTE_MAX_BODY_CHARS = VTO_INLINE_GARMENT_REQUEST_BODY_MAX_CHARS;
+const MAX_BODY_CHARS = VTO_REQUEST_BODY_MAX_CHARS;
 
 const PERSON_DATA_URI_PATTERN = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
 
@@ -193,6 +212,7 @@ function normalizeRequestId(value: unknown): string {
 
 export interface VtoHandlerDeps {
   resolveOwnedVtoGarment: typeof resolveOwnedVtoGarment;
+  resolveUserSuppliedVtoGarment: typeof resolveUserSuppliedVtoGarment;
   requireUser: typeof requireUser;
   assertAccountActive: typeof assertAccountActive;
   readVtoFeatureConfig: typeof readVtoFeatureConfig;
@@ -207,6 +227,7 @@ export interface VtoHandlerDeps {
 
 export const defaultVtoHandlerDeps: VtoHandlerDeps = {
   resolveOwnedVtoGarment,
+  resolveUserSuppliedVtoGarment,
   requireUser,
   assertAccountActive,
   readVtoFeatureConfig,
@@ -247,7 +268,7 @@ export async function handleVtoRequest(
     return json({ status: 'failed', error: { code: 'unknown', retryable: false } }, 405);
   }
 
-  if (rawBodyText.length > MAX_BODY_CHARS) {
+  if (rawBodyText.length > ABSOLUTE_MAX_BODY_CHARS) {
     return fail('invalid_person_input', { requestId: 'unlabelled', stage: 'body_size' });
   }
 
@@ -259,6 +280,16 @@ export async function handleVtoRequest(
     }
   } catch {
     body = {};
+  }
+
+  // Only a request that NAMES the inline-garment source may use the larger
+  // ceiling. Naming it buys the room and nothing else: the source is validated
+  // in full at step 6, after identity, the kill switch and K+.
+  const namesInlineGarment = isUserSuppliedVtoGarmentSource(
+    (body.garment as { source?: unknown } | null | undefined)?.source,
+  );
+  if (!namesInlineGarment && rawBodyText.length > MAX_BODY_CHARS) {
+    return fail('invalid_person_input', { requestId: 'unlabelled', stage: 'body_size' });
   }
 
   const requestId = normalizeRequestId(body.requestId);
@@ -300,7 +331,34 @@ export async function handleVtoRequest(
     ? body.garment
     : {}) as Record<string, unknown>;
   let ownedGarment: OwnedVtoGarment | null = null;
-  if (garment.source !== undefined || origin === 'closet_item') {
+  let suppliedGarment: UserSuppliedVtoGarment | null = null;
+  if (isUserSuppliedVtoGarmentSource(garment.source)) {
+    // USER-SUPPLIED GARMENT. Bounded garment media the authenticated client is
+    // sending inline for this one request. It is not an ownership claim:
+    // nothing is read from or written to the Closet, and no device-local id is
+    // consumed. It is only ever the bytes its own fingerprint names -- the hash
+    // is recomputed, not believed.
+    //
+    // ORIGIN IS NOT CONSULTED. `origin` is a label the client picks, so it
+    // cannot prove where an image came from. It is recorded as bounded metadata
+    // and nothing else: it neither grants nor refuses this source. What
+    // authorizes the request is everything above -- the verified JWT, the
+    // account guard, the kill switch and canonical K+ -- and everything below:
+    // eligibility, the person input, the K+ recheck and the quota reservation.
+    // What validates the GARMENT is its own payload bounds and recomputed hash.
+    // That it came from Elise is enforced where it can be: by the app-owned
+    // offer and its device-local binding, on the device.
+    const resolved = await deps.resolveUserSuppliedVtoGarment(garment);
+    if (resolved.ok === false) {
+      return fail(resolved.code, {
+        requestId, uid, origin, stage: 'user_supplied_garment',
+        // A fixed reason code -- never the payload, the hash or the category.
+        providerDetail: resolved.detail,
+      });
+    }
+    suppliedGarment = resolved.garment;
+    garment = { productRef: suppliedGarment.productRef, category: suppliedGarment.category };
+  } else if (garment.source !== undefined || origin === 'closet_item') {
     const source = garment.source as { type?: unknown; closetItemId?: unknown } | null;
     if (!source || source.type !== 'closet_item' || origin !== 'closet_item') {
       return fail('invalid_garment_input', { requestId, uid, origin, stage: 'garment_source' });
@@ -315,7 +373,11 @@ export async function handleVtoRequest(
   // and the cloud metadata endpoint. Validate network topology before this URL
   // can reach a paid third-party provider. Retailer-neutral: this rejects
   // addresses, never brands.
-  const garmentUrlCheck = assertSafeRemoteMediaUrl(garment.imageUrl);
+  // An inline garment has no URL: there is nothing for the server to fetch, so
+  // there is no topology to validate and the check is not consulted at all.
+  const garmentUrlCheck = suppliedGarment
+    ? { ok: true as const, url: '' }
+    : assertSafeRemoteMediaUrl(garment.imageUrl);
   if (!garmentUrlCheck.ok) {
     return fail('invalid_garment_input', {
       requestId,
@@ -333,6 +395,7 @@ export async function handleVtoRequest(
     garmentImageUrl: garmentUrlCheck.url,
     productRef: garment.productRef,
     supportedCategories: config.supportedCategories,
+    inlineGarmentMedia: suppliedGarment !== null,
   });
   if (!eligibility.eligible) {
     return fail(INELIGIBILITY_TO_FAILURE[eligibility.reason] ?? 'unknown', {
@@ -409,7 +472,8 @@ export async function handleVtoRequest(
   const idempotencyKey = await buildVtoIdempotencyKey({
     userId: authUser.id,
     productRef: String(garment.productRef ?? ''),
-    garmentImageUrl: ownedGarment?.mediaIdentity ?? eligibility.garmentImageUrl,
+    garmentImageUrl:
+      suppliedGarment?.mediaIdentity ?? ownedGarment?.mediaIdentity ?? eligibility.garmentImageUrl,
     personDataUri,
     requestGeneration: typeof body.requestGeneration === 'string' ? body.requestGeneration : null,
   });
@@ -459,6 +523,7 @@ export async function handleVtoRequest(
       {
         personDataUri,
         garmentImageUrl: eligibility.garmentImageUrl,
+        ...(suppliedGarment ? { garmentDataUri: suppliedGarment.garmentDataUri } : {}),
         slot: eligibility.slot,
         canonicalCategory: eligibility.canonicalCategory,
       },
@@ -544,6 +609,7 @@ export async function handleVtoRequest(
     requestId,
     status: 'success',
     ...(ownedGarment ? { garmentSource: ownedGarment.source } : {}),
+    ...(suppliedGarment ? { garmentSource: suppliedGarment.source } : {}),
     provider: selection.provider.id,
     result: {
       dataUri: validation.media.dataUri,
