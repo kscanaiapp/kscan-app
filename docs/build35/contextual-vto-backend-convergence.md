@@ -11,4 +11,6 @@ Complete bundle identities are unchanged by this recovery:
 
 Local validation: 83 focused Deno tests passed; both entrypoints typechecked using `deno check --no-config --no-lock`. The no-config option prevents mobile package auto-discovery during this backend-only validation; it does not alter source, test assertions, or CI. Exact-head Linux CI remains required before merge.
 
+The first canonical-branch CI run exposed pre-existing unpatched dependency resolutions (`compression`, `proxy-addr`, `shell-quote`, `source-map-js`) and missing exact VTO scope inventory rows. This repair recovers the same four pinned remediation versions already used on integration by #512, updates only their lockfile resolutions, and records the six exact existing authorized backend/test paths. No exception or failure baseline was widened. The initial Project checks Linux run passed before these configuration repairs; the final head must re-run all gates.
+
 Staging zero-spend evidence on #521: [run 37807287304](https://github.com/kscanaiapp/kscan-app/actions/runs/37807287304), 22 controls PASS, zero reservations/provider submissions/paid requests, clean synthetic actor cleanup. This does not certify paid generation, candidate UI, native devices, store purchases, or Production activation. Paid tests remain held pending the remaining allowance.

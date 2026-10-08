@@ -85,6 +85,13 @@ added to a list without a justification.
 | `docs/vto-customer-activation-discovery.md` | Build 35 VTO customer activation record: the eligibility source, K+ seam, consent routing, Home/cue lifecycles, awareness-state scope, telemetry attribution and the #455/#457 convergence notes the activation brief requires. Declared as an exact path rather than by widening `docs/vto-*`. | Owner-authorized Build 35 VTO Customer Activation & Discovery V2 brief §30 (2026-10-04) |
 | `hooks/useVtoAwareness.ts` | Build 35 VTO customer activation: the React bindings that gather the discovery model's inputs (build flag, remote row, canonical K+ summary, running try-on session, K+ commerce state) for the Home introduction and the first-use cue. It decides nothing itself and imports nothing that can choose a photo, reach a camera, or call the try-on client; it is enrolled in the VTO-NC-010 import allowlist. Declared as an exact path rather than by widening to `hooks/useVto*`: the guard refused it, which is the guard working. | Owner-authorized Build 35 VTO Customer Activation & Discovery V2 brief §11 (shared discovery model), §13 (customer surfaces) (2026-10-04) |
 
+| `supabase/functions/vto-generate/vtoUserSuppliedGarment.ts` | Recover #521's exact bounded inline-garment validator onto canonical backend authority; preserve decoded bytes, MIME, encoding and content hash checks. | Build 35 convergence and repair briefs (2026-10-08), §4 and addendum §3; exact approved source `fbe96bb8935914dd1dfe540e778e2f7c89cb1733` |
+| `supabase/functions/vto-generate/vtoUserSuppliedGarment.test.ts` | Recover the existing validator/handler regression suite, including zero-dispatch rejection and log privacy controls. | Same Build 35 authority and source as above |
+| `supabase/functions/vto-generate/vtoEligibility.ts` | Recover inline-source eligibility while preserving canonical category denial. | Same Build 35 authority and source as above |
+| `supabase/functions/vto-generate/providers/mockProvider.ts` | Recover inline-source adapter contract used by deterministic source tests; this provides no real-provider proof. | Same Build 35 authority and source as above |
+| `supabase/functions/vto-generate/providers/mockProvider.test.ts` | Recover the existing adapter regression assertions for the inline source. | Same Build 35 authority and source as above |
+| `supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts` | Recover real-adapter source regressions for bounded inline media serialization; tests do not invoke the paid provider. | Same Build 35 authority and source as above |
+
 ### Explicitly NOT authorized, and not touched
 
 `supabase/functions/vto-generate/**` except the exact Build 35 paths authorized
