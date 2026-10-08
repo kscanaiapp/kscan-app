@@ -414,6 +414,7 @@ export default function App() {
       detailStatus: item.detailStatus ?? 'complete',
     } : null;
   }).filter(Boolean);
+  const failedBatchCandidateIds = batchSelectedCandidateIds.filter((id) => batchItemStates[id] === 'failed');
 
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -1647,6 +1648,10 @@ export default function App() {
               onRetryPartialItem: !batchQueueActive && activeBatchItem.detailStatus === 'partial'
                 ? () => { void runBatchQueue([activeBatchItem.id]); }
                 : undefined,
+              onRetryFailedItems: !batchQueueActive && failedBatchCandidateIds.length
+                ? () => { void runBatchQueue(failedBatchCandidateIds); }
+                : undefined,
+              failedCount: failedBatchCandidateIds.length,
             } : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
               if (batchResultVisible && !isActorRequestCurrent(batchActorRequestRef.current)) return;

@@ -41,6 +41,8 @@ type Props = {
   onAddAllToDressingRoom?: () => void;
   onResumeQueue?: () => void;
   onRetryPartialItem?: () => void;
+  onRetryFailedItems?: () => void;
+  failedCount?: number;
   resumeCount?: number;
   // Review/processing surface
   candidates?: ReadonlyArray<CandidateReviewDescriptor>;
@@ -90,6 +92,8 @@ export function MultiItemResultNavigator({
   onAddAllToDressingRoom,
   onResumeQueue,
   onRetryPartialItem,
+  onRetryFailedItems,
+  failedCount = 0,
   resumeCount = 0,
   candidates = [],
   selectedCandidateIds = [],
@@ -235,6 +239,17 @@ export function MultiItemResultNavigator({
           testID="multi-item-retry-partial"
         >
           <Text style={styles.bulkSecondaryText}>RETRY MATCHES FOR THIS ITEM</Text>
+        </TouchableOpacity>
+      ) : null}
+      {onRetryFailedItems && failedCount > 0 ? (
+        <TouchableOpacity
+          onPress={onRetryFailedItems}
+          style={styles.bulkSecondary}
+          accessibilityRole="button"
+          accessibilityLabel={`Retry matches for ${failedCount} failed ${failedCount === 1 ? 'item' : 'items'}`}
+          testID="multi-item-retry-failed"
+        >
+          <Text style={styles.bulkSecondaryText}>RETRY ITEMS NOT ANALYZED</Text>
         </TouchableOpacity>
       ) : null}
 

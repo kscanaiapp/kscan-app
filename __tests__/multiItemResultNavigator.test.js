@@ -55,3 +55,14 @@ test('quota resume and partial retry require separate explicit user presses', ()
   assert.deepEqual(calls, ['resume', 'retry']);
   assert.match(textContent(tree), /PARTIAL/);
 });
+
+test('failed siblings remain non-savable but expose an explicit retry while ready sibling is visible', () => {
+  const calls = [];
+  const tree = render({ imageCount: 2, items: [ready, queued], selectedItemId: 'ready',
+    itemStates: { ready: 'ready', queued: 'failed' }, failedCount: 1,
+    onRetryFailedItems: () => calls.push('failed-only') });
+  assert.equal(byId(tree, 'multi-item-result-1').props.disabled, true);
+  assert.deepEqual(calls, []);
+  byId(tree, 'multi-item-retry-failed').props.onPress();
+  assert.deepEqual(calls, ['failed-only']);
+});

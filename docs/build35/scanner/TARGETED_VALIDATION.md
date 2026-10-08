@@ -70,3 +70,40 @@ Important executed assertions:
 TestSprite preflight: CLI version `0.5.0`; authentication valid; only the existing
 Staging backend API project was listed. No local client build was deployed or
 tunneled. `TESTSPRITE_MOBILE=UNVERIFIED_BECAUSE_UNDEPLOYED`.
+
+## Initial exact-head CI follow-up
+
+After inspection of Project checks run `37809112969` / job `113421047098`, the
+restored pinned review CTA was made fully opaque and two fixture contracts were
+updated for active-item analysis and batch-safe aggregate commerce isolation.
+
+```powershell
+node --test __tests__/liveCommerceSurfaceStateContract.test.js `
+  __tests__/scanResultActionSurface.test.js `
+  __tests__/vtoShippedSurfaceReach.test.js `
+  __tests__/multiImageResultPersistence.test.js `
+  __tests__/multiItemResultNavigator.test.js
+```
+
+Observed: 44 tests, 44 passed, 0 failed/skipped/cancelled, exit 0.
+`git diff --check` passed. Baseline unchanged. No new Linux CI result is claimed
+until the follow-up patch has been published and run against its exact head.
+
+Expanded independent-review validation:
+
+```powershell
+node --test __tests__/scannerRouteActorReset.test.js `
+  __tests__/multiItemResultNavigator.test.js `
+  __tests__/multiImageSelectedQueue.test.js `
+  __tests__/multiImageResultPersistence.test.js `
+  __tests__/liveCommerceSurfaceStateContract.test.js `
+  __tests__/scanResultActionSurface.test.js `
+  __tests__/vtoShippedSurfaceReach.test.js
+```
+
+Observed: 59 tests, 59 passed, 0 failed/skipped/cancelled, exit 0. The real route
+uses a simulated Scanner stateful child to prove actor-key remount/reset;
+removing the real route key preserves the previous private result and is caught.
+Real selected-queue callback execution proves a failed provider item lacking
+optional detection attributes can retry while a ready sibling is not dispatched
+again. Missing or mismatched media still rejects before provider dispatch.

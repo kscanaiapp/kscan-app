@@ -146,6 +146,8 @@ interface ScanResultV2Props {
     onAddAllToDressingRoom?: () => void;
     onResumeQueue?: () => void;
     onRetryPartialItem?: () => void;
+    onRetryFailedItems?: () => void;
+    failedCount?: number;
     resumeCount?: number;
     itemStates?: Readonly<Record<string, ScanItemQueueState>>;
     queueNotice?: string | null;
@@ -925,7 +927,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(255, 253, 249, 0.96)',
+    backgroundColor: 'rgb(255, 253, 249)',
     borderTopWidth: 1,
     borderTopColor: LUXURY.colors.border,
     paddingHorizontal: SPACING.xl,

@@ -123,9 +123,11 @@ test('the app renders ScanResultV2 for a completed live scan', () => {
   const app = read('app.js').replace(/\s+/g, ' ');
   assert.match(
     app,
-    /<ScanResultV2\b[\s\S]*?analysis=\{analysis\}/,
+    /<ScanResultV2\b[\s\S]*?analysis=\{displayAnalysis\}/,
     'app.js must render an analysis-carrying ScanResultV2 -- the surface under test',
   );
+  assert.match(app, /const displayAnalysis = batchResultVisible \? activeBatchItem\.analysis : analysis;/,
+    'batch try-on must derive from the active item while the established scan path retains its analysis');
 });
 
 // ── Identity: Product A's try-on can only be Product A's ────────────────────

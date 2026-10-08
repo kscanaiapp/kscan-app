@@ -143,6 +143,24 @@ test('provider failure preserves genuine detection as a partial result and conti
   assert.deepEqual(Array.from(result.items, (item) => item.sourceImageUri), ['file:///image-1.jpg', 'file:///image-0.jpg']);
 });
 
+test('failed provider detail without detection attributes can explicitly retry without replaying a ready sibling', async () => {
+  let first = true;
+  const h = harness(async (input) => {
+    if (input.selectedCandidate.candidateId === 'server-b' && first) {
+      first = false;
+      throw new Error('transient provider failure');
+    }
+    return { response: { status: 'completed' } };
+  });
+  delete h.candidates[1].source;
+  const result = await h.run(['b', 'a']);
+  assert.deepEqual(Array.from(result.items, (item) => item.id), ['a']);
+  assert.ok(h.events.some((event) => event.candidateId === 'b' && event.state === 'failed'));
+  const retried = await h.run(['b']);
+  assert.deepEqual(Array.from(retried.items, (item) => item.id), ['b']);
+  assert.deepEqual(h.calls.map((call) => call.selectedCandidate.candidateId), ['server-b', 'server-a', 'server-b']);
+});
+
 test('rapid repeat calls spend only one active queue', async () => {
   let resolve;
   const pending = new Promise((done) => { resolve = done; });

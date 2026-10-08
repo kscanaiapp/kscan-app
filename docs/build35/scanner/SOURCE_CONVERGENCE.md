@@ -33,6 +33,9 @@ revert `useKScan`, Scanner V2, the persistence model or actor authority.
 | B35-SCAN-003 | P2 | Per-item save and Save All were unwired; generic aggregate persistence would violate image-2 provenance. | Each save uses its item's original URI, analysis, actor request and screen generation. Synchronous save locks and saved-ID refs prevent duplicate writes. Real library tests prove distinct media bytes and reopen provenance; a source mutation rebinding image 2 to image 1 is caught. Aggregate multi-photo saving remains held. |
 | B35-SCAN-004 | P3 | Add All was unwired and the partial donor swallowed original single-item errors. | Bulk room action preserves each item's own media/result, processes sequentially under actor scope, retains successful siblings and reports accurate partial counts. Existing specific single-item errors remain. Executed room component tests cover media identity, partial success and actor changes. |
 | B35-SCAN-005 | P3 | Quota/partial detail recovery had no reachable result control. | Quota returns only remaining IDs and resumes explicitly without replaying complete siblings. Failed detail retains genuine detection as PARTIAL and provides an explicit retry action. Review/processing controls and ready-only bulk counts are tested through the real navigator. |
+| B35-SCAN-007 | P3 | Recovered donor review CTA background reintroduced known translucent pinned-bar content bleed. | Failed exact-head Project checks identified the regression. Restored opaque RGB background; original opacity test and its pre-repair negative control pass. |
+| B35-SCAN-008 | P1 | `app/scan/index.tsx` directly exported Scanner; AuthGate retains Stack and an authenticated A→B transition can settle without route replacement. Completed local Scanner photos/results had no display reset boundary. | Scanner route now subscribes to AuthSession and keys its complete local session by canonical actor ID and epoch. Real route tests prove A→B and batched same-account sign-out/sign-in reset result state; unchanged epoch keeps the existing scan. A source mutation removing the key demonstrates the leak. |
+| B35-SCAN-009 | P2 | A provider/detail failure with no optional detection attributes produces FAILED rather than PARTIAL. After a sibling became ready, failed chips were disabled and recovery was unreachable. | Result navigator now exposes explicit failed-item retry, using only failed selected IDs. Executed queue regression proves b-fails/a-ready/b-retry dispatch order without reprocessing a. Missing/mismatched original evidence still rejects before dispatch. |
 
 ## Validation
 
@@ -54,6 +57,23 @@ Supabase policy/schema, entitlement authority or provider budget was changed.
 Required exact-head Linux/full-suite/security/native/export CI is owned by the
 integration lane. It must pass before this draft PR can merge. This document
 does not assert `CI_VERIFIED` or `UNEXPECTED_NEW_FAILURES=0` for the full suite.
+
+Initial PR #526 head `799a2177d6872c0494db487056480885f8debc0a` failed Linux
+Project checks (`37809112969`, job `113421047098`) with 3 unexpected identities:
+the translucent CTA defect above and two stale source fixtures requiring
+`analysis={analysis}`/unconditional aggregate retry despite intentional active
+item projection. The fixtures now assert that projection explicitly, including
+an executed commerce projection test preserving pending/error/success for the
+single-item path and preventing aggregate retry/status leakage into batch items.
+The failure baseline was not modified. Follow-up validation passed 44 tests;
+new exact-head Linux CI remains required after the follow-up patch is published.
+
+Independent patch review then identified the retained-route actor display and
+failed-sibling recovery gaps above. After their focused repairs, the expanded
+follow-up command passed 59 tests, including route-key mutation detection and
+recoverable failed-item retry without ready-sibling replay. Account display
+isolation is now based on an explicit source reset boundary; it is not inferred
+from existing route navigation or asynchronous write checks alone.
 
 ## Runtime holds and required evidence
 
