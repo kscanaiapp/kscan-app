@@ -27,6 +27,9 @@ function load(file, mocks, transform = (source) => source) {
     module: mod,
     require: (specifier) => {
       if (specifier in mocks) return mocks[specifier];
+      // These exercise the enabled certification lifecycle; release holds have
+      // separate negative controls in build35StylistSpeechHold.test.js.
+      if (specifier.endsWith('/constants/featureFlags')) return { STYLIST_SPEECH_ENABLED: true };
       throw new Error(`Unexpected import in ${file}: ${specifier}`);
     },
   };

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
+import { STYLIST_SPEECH_ENABLED } from '../../constants/featureFlags';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { useAvatarSpeechSelection } from '../../stores/avatarSpeechStore';
@@ -47,7 +48,7 @@ export function StyleChatVoiceRetry({ sessionId, messageId }: StyleChatVoiceRetr
     setFailed((previous) => nextVoiceRetryFailedState(previous, { ownsSpeechState, phase }));
   }, [ownsSpeechState, phase]);
 
-  if (!failed || !actorId) return null;
+  if (!STYLIST_SPEECH_ENABLED || !failed || !actorId) return null;
 
   const retryInFlight = isVoiceRetryInFlight({ ownsSpeechState, phase });
 

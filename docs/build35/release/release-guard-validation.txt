@@ -1,0 +1,40 @@
+✔ canonical release resolves all holds OFF with production identities and store artifact shape (7.1663ms)
+✔ certification remains independently enabled for proof gathering (1.2512ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_TODAY_WITH_ELISE_V1 enablement or inherited/missing override (23.5042ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1 enablement or inherited/missing override (2.4623ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1 enablement or inherited/missing override (1.8732ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1 enablement or inherited/missing override (2.0832ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1 enablement or inherited/missing override (2.4601ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1 enablement or inherited/missing override (2.0109ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_ELISE_SPEECH enablement or inherited/missing override (3.5436ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED enablement or inherited/missing override (4.712ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED enablement or inherited/missing override (3.1372ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_PACKING_INTELLIGENCE_V1 enablement or inherited/missing override (1.9712ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_SMART_WATCHLIST_V1 enablement or inherited/missing override (2.9862ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_VTO_UI_ENABLED enablement or inherited/missing override (2.2298ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_VOICESCAN_ENABLED enablement or inherited/missing override (2.1826ms)
+✔ release guard rejects unapproved EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER enablement or inherited/missing override (1.8729ms)
+✔ release guard rejects inherited KSCAN_VOICE_NATIVE_CAPABILITY (1.0918ms)
+✔ release guard rejects inherited KSCAN_VOICE_CERTIFICATION (0.9626ms)
+✔ release guard rejects inherited EXPO_PUBLIC_LIVE_VTO_ENABLED (1.1279ms)
+✔ release guard rejects inherited EXPO_PUBLIC_LIVE_VTO_HARNESS (0.9915ms)
+✔ release guard rejects inherited EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI (0.8227ms)
+✔ release guard rejects inherited EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS (0.8967ms)
+✔ release guard rejects inherited EXPO_PUBLIC_SCAN_IDENTITY_DEBUG (0.7924ms)
+✔ release guard rejects inherited SCAN_IDENTITY_DEBUG (0.9113ms)
+✔ a certification inheritance swap is rejected even if all held flags are overridden (1.4932ms)
+✔ resolver refuses missing parents, malformed maps and cycles rather than silently merging partial profiles (6.0397ms)
+✔ resolver honors nested parent env/platform fields before release overrides (1.4957ms)
+✔ production identity checks reject substring spoofing, staging keys and native package drift (8.7998ms)
+✔ effective build environment must be complete, OFF and free of unapproved endpoints (4.37ms)
+✔ a newly enabled capability in any parent fails rather than expanding release scope (1.9597ms)
+✔ debug client, simulator, internal distribution and disabled versioning are rejected (10.2502ms)
+✔ CLI withholds malformed input values and exits nonzero (94.3968ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 350.162

@@ -25,6 +25,7 @@ function transpileModule(file, mocks, sourceTransform = (source) => source) {
     exports: mod.exports, module: mod,
     require: (specifier) => {
       if (specifier in mocks) return mocks[specifier];
+      if (specifier.endsWith('/constants/featureFlags')) return { STYLIST_SPEECH_ENABLED: true };
       throw new Error(`Unexpected import in ${file}: ${specifier}`);
     },
   };

@@ -28,6 +28,8 @@ const GATE_INPUTS = [
   path.join('android', 'app', 'src', 'main', 'AndroidManifest.xml'),
   path.join('android', 'app', 'src', 'release', 'AndroidManifest.xml'),
   path.join('android', 'app', 'src', 'certification', 'AndroidManifest.xml'),
+  path.join('android', 'app', 'src', 'push', 'AndroidManifest.xml'),
+  path.join('android', 'app', 'src', 'voicePush', 'AndroidManifest.xml'),
 ];
 
 function runGate(root = REPO_ROOT) {
@@ -362,6 +364,34 @@ test('negative control: removing the selector from staging-certification fails t
   assert.equal(exitCode, 1);
 });
 
+test('release OFF selector overrides do not grant native capabilities', () => {
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build['build35-release'].env.EXPO_PUBLIC_SMART_WATCHLIST_V1 = 'false';
+    eas.build['build35-release'].env.KSCAN_VOICE_NATIVE_CAPABILITY = 'false';
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 0);
+});
+
+test('native selector whitespace and case cannot bypass the unauthorized profile guard', () => {
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build['build35-release'].env.EXPO_PUBLIC_SMART_WATCHLIST_V1 = ' TRUE ';
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('an authorized native selector must actually enable its capability', () => {
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build['staging-certification'].env.KSCAN_VOICE_CERTIFICATION = 'false';
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
 test('negative control: an exception manifest that stops granting its declared permission fails the gate', () => {
   // ANDROID-VOICE-01 (b2): additionalGrantedPermissions is a promise, not
   // just an allowlist -- a manifest that no longer grants what it declares
@@ -426,7 +456,7 @@ test('negative control: a declared exception build.gradle never selects fails th
     write(
       path.join('android', 'app', 'build.gradle'),
       read(path.join('android', 'app', 'build.gradle')).replace(
-        "manifest.srcFile 'src/certification/AndroidManifest.xml'",
+        "releaseCapabilityManifest = 'src/certification/AndroidManifest.xml'",
         '// selector removed by fixture',
       ),
     );
