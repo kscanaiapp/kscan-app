@@ -119,6 +119,16 @@ export function resolveVoiceScanEnabled(
 
 export const VOICESCAN_ENABLED = resolveVoiceScanEnabled();
 
+/** Spoken stylist replies are a separate, uncertified capability from Voice
+ * Scan. Preferences never override this build-time rollout hold. */
+export function resolveStylistSpeechEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_ELISE_SPEECH,
+): boolean {
+  return value === 'true';
+}
+
+export const STYLIST_SPEECH_ENABLED = resolveStylistSpeechEnabled();
+
 // ── K+ entitlement boundary ──────────────────────────────────────────────────
 /**
  * LEGACY COMPLIMENTARY EARLY ACCESS ACQUISITION FLAG.

@@ -116,10 +116,10 @@ function firstJsxTag(node) {
   return null;
 }
 
-test('link 2: app.js renders ScanResultV2 when the flag is on and AnalysisCard only when it is off', () => {
+test('link 2: app.js renders ScanResultV2 for the flag or deliberate batch and AnalysisCard otherwise', () => {
   const sourceFile = parseSource(readSource('app.js'), 'app.js');
   const choice = [...walkAst(sourceFile)].find(
-    (node) => ts.isConditionalExpression(node) && node.condition.getText() === 'SCAN_RESULTS_V2_UI_ENABLED',
+    (node) => ts.isConditionalExpression(node) && node.condition.getText() === '(SCAN_RESULTS_V2_UI_ENABLED || eligibleBatchSession)',
   );
   assert.ok(choice, 'app.js must branch the result surface on SCAN_RESULTS_V2_UI_ENABLED');
   assert.equal(firstJsxTag(choice.whenTrue), 'ScanResultV2');
@@ -143,6 +143,11 @@ function identityOperands(sourceFile, tagName) {
   const expression = attribute?.initializer && ts.isJsxExpression(attribute.initializer)
     ? attribute.initializer.expression
     : null;
+  if (expression && ts.isConditionalExpression(expression)) {
+    assert.equal(expression.condition.getText(), 'batchResultVisible');
+    assert.equal(expression.whenTrue.getText(), 'activeBatchSavedId', 'a batch report must use its active persisted item ID');
+    return coalesceOperands(expression.whenFalse);
+  }
   return expression ? coalesceOperands(expression) : null;
 }
 

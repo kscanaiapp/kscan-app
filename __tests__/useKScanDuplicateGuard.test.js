@@ -117,6 +117,8 @@ function loadUseKScanWithMocks({
     // harness so every pre-existing single-image assertion keeps its original
     // contract. Focused multi-image tests exercise the enabled path separately.
     MULTI_IMAGE_SCANNER_ENABLED: false,
+    createActorRequest: () => ({ actorId: 'test-actor', epoch: 1, requestId: 'test-scan-request' }),
+    isActorRequestCurrent: () => true,
     MAX_SCAN_IMAGES: 5,
     normalizeImageSelections: (assets, source, existing = []) => {
       if (!Array.isArray(assets)) throw new Error('INVALID_IMAGE_SELECTION');

@@ -50,13 +50,13 @@ function liveResultSurfaceFile() {
 /**
  * The analysis-carrying <ScanResultV2 .../> invocation in app.js — distinct
  * from the candidate-review invocation (Android only), which intentionally
- * carries zero commerce props. Identified by `analysis={analysis}`, not by
+ * carries zero commerce props. Identified by the active analysis projection, not by
  * position, so this stays correct if the file is reordered.
  */
 function liveAnalysisCallSite(componentName) {
   const src = read('app.js').replace(/\s+/g, ' ');
   const blocks = [...src.matchAll(new RegExp(`<${componentName}\\b[\\s\\S]*?/>`, 'g'))].map((m) => m[0]);
-  const live = blocks.find((b) => b.includes('analysis={analysis}'));
+  const live = blocks.find((b) => b.includes('analysis={displayAnalysis}'));
   assert.ok(live, `app.js must render an analysis-carrying <${componentName} .../>`);
   return live;
 }
@@ -75,14 +75,29 @@ test('NEGATIVE CONTROL: the live surface receives commerceStatus and onRetryComm
 
   assert.match(
     callSite,
-    /commerceStatus=\{analysis\?\.commerceDeferred \? commerceStatus : 'idle'\}/,
+    /commerceStatus=\{!batchResultVisible && analysis\?\.commerceDeferred \? commerceStatus : 'idle'\}/,
     `${file}: app.js must pass the hook's live commerce status into the live surface`,
   );
   assert.match(
     callSite,
-    /onRetryCommerce=\{retryCommerce\}/,
+    /onRetryCommerce=\{batchResultVisible \? undefined : retryCommerce\}/,
     `${file}: app.js must wire retryCommerce into the live surface`,
   );
+});
+
+test('the active batch result never inherits aggregate commerce state or retry dispatch', () => {
+  const callSite = liveAnalysisCallSite('ScanResultV2');
+  const statusExpression = callSite.match(/commerceStatus=\{([^}]+)\}/)?.[1];
+  const retryExpression = callSite.match(/onRetryCommerce=\{([^}]+)\}/)?.[1];
+  assert.ok(statusExpression && retryExpression);
+  const retry = () => {};
+  const project = new Function('batchResultVisible', 'analysis', 'commerceStatus', 'retryCommerce',
+    `return { status: (${statusExpression}), retry: (${retryExpression}) };`);
+  for (const state of ['pending', 'error', 'success']) {
+    assert.deepEqual(project(true, { commerceDeferred: true }, state, retry), { status: 'idle', retry: undefined });
+    assert.deepEqual(project(false, { commerceDeferred: true }, state, retry), { status: state, retry });
+  }
+  assert.match(read('app.js'), /const displayAnalysis = batchResultVisible \? activeBatchItem\.analysis : analysis;/);
 });
 
 test('NEGATIVE CONTROL: the live surface component declares the commerce status/retry contract', () => {

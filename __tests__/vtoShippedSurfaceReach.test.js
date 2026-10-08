@@ -123,9 +123,11 @@ test('the app renders ScanResultV2 for a completed live scan', () => {
   const app = read('app.js').replace(/\s+/g, ' ');
   assert.match(
     app,
-    /<ScanResultV2\b[\s\S]*?analysis=\{analysis\}/,
+    /<ScanResultV2\b[\s\S]*?analysis=\{displayAnalysis\}/,
     'app.js must render an analysis-carrying ScanResultV2 -- the surface under test',
   );
+  assert.match(app, /const displayAnalysis = batchResultVisible \? activeBatchItem\.analysis : analysis;/,
+    'batch try-on must derive from the active item while the established scan path retains its analysis');
 });
 
 // ── Identity: Product A's try-on can only be Product A's ────────────────────
@@ -223,9 +225,9 @@ test('the feature flag gate is absolute on the live surface', () => {
       );
       continue;
     }
-    assert.equal(
-      profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
-      undefined,
+    const value = profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED;
+    assert.ok(
+      value === undefined || value === 'false',
       'VTO must remain dark outside the governed certification profiles',
     );
   }

@@ -163,6 +163,7 @@ function loadScanResultV2(
     './SimilarFindsShelf': { SimilarFindsShelf: 'SimilarFindsShelf' },
     './PurchaseOptionsPanel': { PurchaseOptionsPanel: 'PurchaseOptionsPanel' },
     './MultiItemCommerceSection': { MultiItemCommerceSection: 'MultiItemCommerceSection' },
+    './MultiItemResultNavigator': { MultiItemResultNavigator: 'MultiItemResultNavigator' },
     './ScanResultActionRow': { ScanResultActionRow: 'ScanResultActionRow' },
     '../luxury/EmptyStateCard': { EmptyStateCard: 'EmptyStateCard' },
     './types': {
@@ -394,7 +395,8 @@ function appSingleInstanceProblems(sourceFile) {
   }
 
   const surfaceChoice = [...walkAst(sourceFile)].find(
-    (node) => ts.isConditionalExpression(node) && node.condition.getText() === 'SCAN_RESULTS_V2_UI_ENABLED',
+    (node) => ts.isConditionalExpression(node) &&
+      ['SCAN_RESULTS_V2_UI_ENABLED', '(SCAN_RESULTS_V2_UI_ENABLED || eligibleBatchSession)'].includes(node.condition.getText()),
   );
   let surfacesGated = false;
   for (let cursor = surfaceChoice?.parent; cursor; cursor = cursor.parent) {

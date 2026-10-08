@@ -70,17 +70,24 @@ export function normalizeImageSelections(
   if (!Array.isArray(assets)) throw new Error('INVALID_IMAGE_SELECTION');
   const out = [...existing];
   const seen = new Set(existing.map((image) => image.uri));
+  // The same library asset picked twice arrives as two different cache files
+  // that share one assetId. The id is the photo's identity (scan sessions and
+  // candidate ids are keyed by it), so a repeated id is a duplicate photo and
+  // never a second image that would collide with the first.
+  const seenIds = new Set(existing.map((image) => image.id));
 
   for (const asset of assets) {
     const uri = safeUri(asset?.uri);
     if (!uri) throw new Error('MALFORMED_IMAGE');
     if (seen.has(uri)) continue;
-    if (out.length >= MAX_SCAN_IMAGES) throw new Error('TOO_MANY_IMAGES');
     const suppliedId = typeof asset.assetId === 'string' && asset.assetId.trim()
       ? asset.assetId.trim().slice(0, 80)
       : null;
+    if (suppliedId && seenIds.has(suppliedId)) continue;
+    if (out.length >= MAX_SCAN_IMAGES) throw new Error('TOO_MANY_IMAGES');
+    const id = suppliedId || `image-${out.length + 1}-${stableHash(uri)}`;
     out.push({
-      id: suppliedId || `image-${out.length + 1}-${stableHash(uri)}`,
+      id,
       uri,
       source,
       originalIndex: out.length,
@@ -89,6 +96,7 @@ export function normalizeImageSelections(
         : {}),
     });
     seen.add(uri);
+    seenIds.add(id);
   }
 
   if (out.length === 0) throw new Error('EMPTY_IMAGE_SELECTION');

@@ -499,7 +499,11 @@ test('CROSS-OBJECTIVE NEGATIVE CONTROL: none of the new certification-only Gradl
   }
 });
 
-test('production/staging/preview/development env still do not declare any Build 34 certification key (cross-check against eas.json)', () => {
+function certificationKeyIsHeld(value) {
+  return value === undefined || value === 'false';
+}
+
+test('non-certification profiles do not enable Build 34 certification keys (explicit release holds allowed)', () => {
   const eas = JSON.parse(read(path.join(REPO_ROOT, 'eas.json')));
   const CERT_ONLY_KEYS = [
     'EXPO_PUBLIC_VOICESCAN_ENABLED',
@@ -509,7 +513,16 @@ test('production/staging/preview/development env still do not declare any Build 
   for (const [name, profile] of Object.entries(eas.build)) {
     if (name === 'staging-certification' || name === 'production-certification') continue;
     for (const key of CERT_ONLY_KEYS) {
-      assert.ok(!(profile.env && key in profile.env), `profile "${name}" must not declare ${key}`);
+      const value = profile.env?.[key];
+      assert.ok(certificationKeyIsHeld(value), `profile "${name}" must leave ${key} absent or explicitly false`);
     }
+  }
+});
+
+test('non-certification key rule accepts exact OFF only and rejects all enabling or malformed values', () => {
+  assert.equal(certificationKeyIsHeld(undefined), true);
+  assert.equal(certificationKeyIsHeld('false'), true);
+  for (const value of ['true', ' TRUE ', 'True', '1', true, false, '', 'FALSE']) {
+    assert.equal(certificationKeyIsHeld(value), false);
   }
 });

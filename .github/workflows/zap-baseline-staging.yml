@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Validate ZAP target and workflow regression contract
+        run: node security/scripts/validate-zap-target.js --self-test
+
       - name: Check approved ZAP variables
         id: vars
         env:
@@ -150,7 +153,9 @@ jobs:
         id: zap
         if: steps.vars.outputs.configured == 'true'
         env:
-          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          # Same verified, approved-host 2xx health endpoint used by the preflight.
+          # Supabase project root is 404 and ZAP can abort before writing JSON.
+          ZAP_SCAN_URL: ${{ steps.validate_target.outputs.health_url }}
         run: |
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -166,7 +171,7 @@ jobs:
             --workdir /zap/wrk \
             -t "${ZAP_IMAGE}" \
             zap-baseline.py \
-            -t "${ZAP_STAGING_URL}" \
+            -t "${ZAP_SCAN_URL}" \
             -c .zap/baseline-rules.tsv \
             -m 3 \
             -T 10 \

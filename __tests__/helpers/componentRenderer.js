@@ -218,6 +218,22 @@ function createRenderer() {
       if (guard >= 25) throw new Error('the tree never settled');
       return tree;
     },
+    /**
+     * Run every mounted effect cleanup, as React does when the tree is removed
+     * (for example when a route is replaced). Additive: nothing calls this
+     * unless a test is about unmount behaviour.
+     */
+    unmount() {
+      for (const entry of registry.values()) {
+        for (const slot of entry.slots) {
+          if (slot && typeof slot.cleanup === 'function') {
+            const cleanup = slot.cleanup;
+            slot.cleanup = undefined;
+            cleanup();
+          }
+        }
+      }
+    },
   };
 }
 

@@ -1,0 +1,28 @@
+name: Build 35 Release Profile Guard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-profile:
+    name: Build 35 release holds and identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Resolve release inheritance and enforce holds
+        run: node scripts/check-build35-release-profile.js
+      - name: Prove release guard negative controls and native selector OFF handling
+        run: node --test __tests__/build35ReleaseProfile.test.js __tests__/nativeConfigParityGate.test.js __tests__/build35StylistSpeechHold.test.js
+      - name: Check native configuration parity
+        run: node scripts/check-native-config-parity.js
