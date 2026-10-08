@@ -554,3 +554,39 @@ test('no-overwrite creation: an injected collision mints a fresh media identity'
   assert.notEqual(second.imageUri, first.imageUri, 'paths must not collide across actors');
   assert.equal(memfs.files.get(first.imageUri), guardedBytes, 'first actor image not overwritten');
 });
+
+test('multi-image item saves and reopening retain each source media and bounded provenance', async () => {
+  const { library, actorContext, memfs } = loadIsolationModules();
+  actorContext.advanceActorEpoch('A');
+  const actorRequest = actorContext.createActorRequest();
+  const saved = [];
+  for (let index = 0; index < 2; index += 1) {
+    saved.push(await library.saveScan({
+      photoUri: `/tmp/image-${index}.jpg`, source: 'upload', actorRequest,
+      analysis: {
+        result: `Garment from image ${index + 1}`, metadata: { category: `Category ${index}` },
+        multiScan: { schemaVersion: 1, groupId: 'batch-1', itemId: `item-${index}`,
+          sourceImageId: `image-${index}`, sourceImageIndex: index, imageCount: 2, itemCount: 2,
+          providerPayload: 'must not persist', sourceImageUri: '/tmp/private.jpg' },
+      },
+    }));
+  }
+  assert.ok(saved.every(Boolean));
+  assert.notEqual(saved[0].imageUri, saved[1].imageUri);
+  assert.match(memfs.files.get(saved[0].imageUri), /image-0\.jpg/);
+  assert.match(memfs.files.get(saved[1].imageUri), /image-1\.jpg/);
+  const reopened = await library.loadLibrary('A');
+  for (let index = 0; index < 2; index += 1) {
+    const item = reopened.find((entry) => entry.id === saved[index].id);
+    assert.equal(item.result, `Garment from image ${index + 1}`);
+    assert.equal(item.imageUri, saved[index].imageUri);
+    assert.equal(item.metadata.multiScan.sourceImageIndex, index);
+    assert.equal(item.metadata.multiScan.sourceImageId, `image-${index}`);
+    assert.equal(item.metadata.multiScan.providerPayload, undefined);
+    assert.equal(item.metadata.multiScan.sourceImageUri, undefined);
+  }
+  actorContext.advanceActorEpoch('B');
+  assert.deepEqual(await library.loadLibrary('B'), []);
+  assert.equal(await library.saveScan({ photoUri: '/tmp/image-1.jpg',
+    analysis: { result: 'stale item', metadata: {} }, actorRequest }), null);
+});
