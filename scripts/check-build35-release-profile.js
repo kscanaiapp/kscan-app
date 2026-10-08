@@ -7,6 +7,11 @@ const path = require('node:path');
 const { resolveEasBuildProfile } = require('./resolve-eas-build-profiles');
 
 const PROFILE = 'build35-release';
+const STORE_PROFILES = Object.freeze(['production', PROFILE]);
+const DORMANT_TODAY_CHILDREN = new Set([
+  'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1',
+  'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1',
+]);
 const PACKAGE = 'com.kscanai.app';
 const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
@@ -87,18 +92,32 @@ function resolveCheckedProfile(eas, name) {
   return resolveEasBuildProfile(eas, name);
 }
 
-function validateEnvironment(env, failures) {
+// `strict` (build35-release): every hold must be an explicit "false".
+// semantic (base `production`): the repository contract is that ordinary production ships
+// dark by ABSENCE (six suites pin it), and each hold resolver is exact-"true" opt-in in
+// constants/featureFlags.ts. A hold is therefore accepted when absent or "false". The Today
+// greeting/weather children are the single documented exception: the owner authorized their
+// config to stay "true" while dormant (todayWithEliseFeatureFlags.test.js), which is inert
+// only while the Today parent resolves "false" (TODAY_WITH_ELISE_ACTIVE = parent && child).
+function validateEnvironment(env, failures, { strict = true } = {}) {
   if (!isObject(env)) {
     failures.push('Effective environment must be an object');
     return;
   }
+  const dormantChildAllowed = (key) => !strict && DORMANT_TODAY_CHILDREN.has(key) && env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1 === 'false';
   for (const key of REQUIRED_OFF) {
-    if (env[key] !== 'false') failures.push(`${key} must resolve explicitly false`);
+    if (strict) {
+      if (env[key] !== 'false') failures.push(`${key} must resolve explicitly false`);
+    } else if (env[key] !== undefined && env[key] !== 'false' && !dormantChildAllowed(key)) {
+      failures.push(`${key} must resolve absent or false (default-dark store profile)`);
+    }
   }
+  if (!strict && env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1 !== 'false') failures.push('EXPO_PUBLIC_TODAY_WITH_ELISE_V1 must resolve explicitly false (it gates its dormant children)');
   for (const key of OPTIONAL_OFF) {
     if (env[key] !== undefined && env[key] !== 'false') failures.push(`${key} must be absent or explicitly false`);
   }
-  if (env.EXPO_PUBLIC_ENVIRONMENT !== 'production') failures.push('Public environment must resolve production');
+  if (strict && env.EXPO_PUBLIC_ENVIRONMENT !== 'production') failures.push('Public environment must resolve production');
+  if (!strict && env.EXPO_PUBLIC_ENVIRONMENT !== undefined && env.EXPO_PUBLIC_ENVIRONMENT !== 'production') failures.push('Public environment must be absent or production');
   if (env.EXPO_PUBLIC_SUPABASE_URL !== PRODUCTION_URL) failures.push('Supabase URL must resolve the exact production origin');
   // A public anon JWT is not authenticated here; check its source identity and
   // role without ever printing its value or decoded claims.
@@ -116,7 +135,7 @@ function validateEnvironment(env, failures) {
     failures.push('Legacy API endpoint is not approved for the release profile');
   }
   for (const key of Object.keys(env)) {
-    if (key.startsWith('EXPO_PUBLIC_') && env[key] === 'true' && !APPROVED_ON.has(key)) {
+    if (key.startsWith('EXPO_PUBLIC_') && env[key] === 'true' && !APPROVED_ON.has(key) && !dormantChildAllowed(key)) {
       failures.push('An unapproved public capability resolves enabled');
     }
     if (/^EXPO_PUBLIC_.*(?:SECRET|SERVICE_ROLE|ACCESS_TOKEN|PRIVATE_KEY|PASSWORD)/i.test(key)) {
@@ -125,16 +144,21 @@ function validateEnvironment(env, failures) {
   }
 }
 
-function validateReleaseProfile({ eas, app, gradle, effectiveEnv }) {
+function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = PROFILE }) {
   const failures = [];
   let profile;
   try {
-    profile = resolveCheckedProfile(eas, PROFILE);
+    profile = resolveCheckedProfile(eas, profileName);
   } catch (error) {
     return [error.message];
   }
-  if (eas.build[PROFILE].extends !== 'production') failures.push('Release profile must extend production, independently of certification');
-  if (profile.environment !== 'production') failures.push('EAS environment must resolve production');
+  // `eas build --profile production` is the store command for this release, so
+  // `production` itself is verified here too (semantic mode), not only its derivative.
+  const isBaseProduction = profileName === 'production';
+  if (!isBaseProduction && eas.build[profileName].extends !== 'production') failures.push('Release profile must extend production, independently of certification');
+  if (isBaseProduction && eas.build.production.extends !== undefined) failures.push('Production profile must not inherit from another profile (certification inheritance enables unproven features)');
+  // EAS resolves a profile named `production` to the production environment by default.
+  if ((profile.environment ?? (isBaseProduction ? 'production' : undefined)) !== 'production') failures.push('EAS environment must resolve production');
   if (profile.distribution !== 'store') failures.push('Release distribution must resolve store');
   if (profile.autoIncrement !== true || eas.cli?.appVersionSource !== 'remote') failures.push('Release numbering must use remote versions with autoIncrement');
   if (profile.developmentClient === true) failures.push('Release cannot enable a development client');
@@ -142,11 +166,13 @@ function validateReleaseProfile({ eas, app, gradle, effectiveEnv }) {
   if (profile.android?.gradleCommand !== undefined || profile.android?.withoutCredentials === true) failures.push('Android release cannot bypass the store build or signing path');
   if (profile.ios?.buildConfiguration !== 'Release' || profile.ios?.simulator === true) failures.push('iOS release must use a physical-device Release build');
   if (profile.android?.autoIncrement === false || profile.ios?.autoIncrement === false) failures.push('Platform version numbering cannot disable autoIncrement');
-  for (const key of REQUIRED_OFF) {
-    if (eas.build[PROFILE].env?.[key] !== 'false') failures.push(`${key} requires an explicit release override`);
+  if (!isBaseProduction) {
+    for (const key of REQUIRED_OFF) {
+      if (eas.build[profileName].env?.[key] !== 'false') failures.push(`${key} requires an explicit release override`);
+    }
   }
-  validateEnvironment(profile.env, failures);
-  if (effectiveEnv !== undefined) validateEnvironment(effectiveEnv, failures);
+  validateEnvironment(profile.env, failures, { strict: !isBaseProduction });
+  if (effectiveEnv !== undefined) validateEnvironment(effectiveEnv, failures, { strict: !isBaseProduction });
   const expo = app?.expo;
   if (expo?.android?.package !== PACKAGE || expo?.ios?.bundleIdentifier !== PACKAGE) failures.push('Both native identities must equal the approved package');
   // Strip comments so prose cannot satisfy a native identity assertion.
@@ -178,12 +204,18 @@ function main(args = process.argv.slice(2)) {
     console.error('FAIL Build 35 release inputs could not be read or parsed (values withheld).');
     return 2;
   }
-  const failures = validateReleaseProfile(input);
-  for (const failure of failures) console.error(`FAIL ${failure}`);
-  if (failures.length) return 1;
-  console.log(`PASS ${PROFILE}: ${args.length ? 'source and supplied effective environment' : 'source configuration'} holds and identities; artifact/device/store certification remains required.`);
-  return 0;
+  // Both store commands are guarded: `production` (the mandated store build) and
+  // `build35-release` (its explicit, independent derivative). A supplied effective
+  // environment snapshot is checked once per profile run, so it must satisfy every hold.
+  let failed = false;
+  for (const profileName of STORE_PROFILES) {
+    const failures = validateReleaseProfile({ ...input, profileName });
+    for (const failure of failures) console.error(`FAIL [${profileName}] ${failure}`);
+    if (failures.length) failed = true;
+    else console.log(`PASS ${profileName}: ${args.length ? 'source and supplied effective environment' : 'source configuration'} holds and identities; artifact/device/store certification remains required.`);
+  }
+  return failed ? 1 : 0;
 }
 
 if (require.main === module) process.exitCode = main();
-module.exports = { PROFILE, REQUIRED_OFF, OPTIONAL_OFF, resolveCheckedProfile, validateReleaseProfile, main };
+module.exports = { PROFILE, STORE_PROFILES, REQUIRED_OFF, OPTIONAL_OFF, resolveCheckedProfile, validateReleaseProfile, main };

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { PROFILE, REQUIRED_OFF, OPTIONAL_OFF, validateReleaseProfile, resolveCheckedProfile } = require('../scripts/check-build35-release-profile');
+const { PROFILE, STORE_PROFILES, REQUIRED_OFF, OPTIONAL_OFF, validateReleaseProfile, resolveCheckedProfile } = require('../scripts/check-build35-release-profile');
 const ROOT = path.resolve(__dirname, '..');
 function input() {
   return {
@@ -90,6 +90,81 @@ test('debug client, simulator, internal distribution and disabled versioning are
     (profile) => { profile.android.withoutCredentials = true; },
     (profile) => { profile.ios.autoIncrement = false; },
   ]) checkMutation(({ eas }) => mutate(eas.build[PROFILE]), /Release|release|numbering|iOS/);
+});
+// `eas build --platform <p> --profile production` is the mandated store command. Ordinary
+// production ships dark by ABSENCE (pinned by six suites) and every hold resolver is exact-"true"
+// opt-in, so it is verified in semantic mode: each hold absent or "false", the Today parent
+// explicitly "false", and the Today greeting/weather children (owner-authorized to stay "true"
+// while dormant) accepted ONLY while that parent is "false". build35-release stays strict.
+const TODAY_PARENT = 'EXPO_PUBLIC_TODAY_WITH_ELISE_V1';
+const TODAY_CHILDREN = ['EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1'];
+function productionFixture(mutate) {
+  const fixture = input(); fixture.profileName = 'production';
+  if (mutate) mutate(fixture.eas.build.production.env, fixture);
+  return validateReleaseProfile(fixture).join('\n');
+}
+test('the production store profile passes in default-dark semantic mode', () => {
+  assert.deepEqual(STORE_PROFILES, ['production', PROFILE]);
+  assert.equal(productionFixture(), '');
+});
+for (const key of REQUIRED_OFF) {
+  test(`production store profile rejects ${key} resolving enabled`, () => {
+    const failures = productionFixture((env) => {
+      env[key] = 'true';
+      // A dormant child is only tolerated under an OFF parent; enabling the parent too must fail.
+      if (TODAY_CHILDREN.includes(key)) env[TODAY_PARENT] = 'true';
+    });
+    assert.match(failures, /absent or false|explicitly false/);
+  });
+  if (key !== TODAY_PARENT) {
+    test(`production store profile accepts ${key} absent (default-dark by exact-true resolvers)`, () => {
+      assert.equal(productionFixture((env) => { delete env[key]; }), '');
+    });
+  }
+}
+test('Today children are dormant only while the Today parent is explicitly false', () => {
+  for (const child of TODAY_CHILDREN) {
+    assert.equal(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'false'; }), '');
+    assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'true'; }), /absent or false|explicitly false/);
+    assert.match(productionFixture((env) => { env[child] = 'true'; delete env[TODAY_PARENT]; }), /TODAY_WITH_ELISE_V1 must resolve explicitly false/);
+  }
+});
+test('production public environment, when stated, must be production', () => {
+  assert.match(productionFixture((env) => { env.EXPO_PUBLIC_ENVIRONMENT = 'staging'; }), /absent or production/);
+});
+test('a certification-only capability enabled in production is rejected as unapproved', () => {
+  assert.match(productionFixture((env) => { env.EXPO_PUBLIC_NEW_UNCERTIFIED_FEATURE = 'true'; }), /unapproved public capability/);
+  assert.match(productionFixture((env) => { env.EXPO_PUBLIC_LIVE_VTO_ENABLED = 'true'; }), /absent or explicitly false/);
+});
+test('production cannot inherit a certification profile, simulator build or internal distribution', () => {
+  const inherit = input(); inherit.profileName = 'production';
+  inherit.eas.build.production.extends = 'staging';
+  assert.match(validateReleaseProfile(inherit).join('\n'), /must not inherit/);
+  // Certification already extends production, so inheriting it is rejected as a cycle.
+  const cycle = input(); cycle.profileName = 'production';
+  cycle.eas.build.production.extends = 'production-certification';
+  assert.match(validateReleaseProfile(cycle).join('\n'), /invalid or cyclic/);
+  for (const mutate of [
+    (profile) => { profile.ios.simulator = true; },
+    (profile) => { profile.distribution = 'internal'; },
+    (profile) => { profile.autoIncrement = false; },
+    (profile) => { profile.android.buildType = 'apk'; },
+  ]) {
+    const fixture = input(); fixture.profileName = 'production';
+    mutate(fixture.eas.build.production);
+    assert.ok(validateReleaseProfile(fixture).length > 0);
+  }
+});
+test('production store profile keeps the production backend identity and rejects a staging key', () => {
+  const fixture = input(); fixture.profileName = 'production';
+  fixture.eas.build.production.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = fixture.eas.build.staging.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  assert.match(validateReleaseProfile(fixture).join('\n'), /production anon identity/);
+});
+test('CLI guards both store profiles and reports each by name', () => {
+  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/check-build35-release-profile.js')], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /PASS production:/);
+  assert.match(result.stdout, /PASS build35-release:/);
 });
 test('CLI withholds malformed input values and exits nonzero', () => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-release-test-'));
