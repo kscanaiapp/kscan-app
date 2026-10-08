@@ -395,7 +395,10 @@ function main() {
       const eas = JSON.parse(easRaw);
       const expectedProfiles = new Set(exception.selectorSetByEasProfiles || []);
       for (const [profileName, profile] of Object.entries(eas.build || {})) {
-        const setsSelector = Boolean(profile.env && exception.selectorEnvironmentVariable in profile.env);
+        // Explicit OFF overrides are safe release holds, not permission grants.
+        // Match Gradle's selector parsing so TRUE/whitespace cannot bypass this.
+        const value = profile.env?.[exception.selectorEnvironmentVariable];
+        const setsSelector = typeof value === 'string' && value.trim().toLowerCase() === 'true';
         if (setsSelector && !expectedProfiles.has(profileName)) {
           failures.push(
             `EAS profile "${profileName}" sets "${exception.selectorEnvironmentVariable}", but exception "${label}" ` +

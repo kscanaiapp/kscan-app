@@ -25,6 +25,7 @@ import {
 } from '../../constants/stylistIdentity';
 import { StylistAvatar } from './StylistAvatar';
 import { useVoiceResponsesPreference } from '../../hooks/useVoiceResponsesPreference';
+import { STYLIST_SPEECH_ENABLED } from '../../constants/featureFlags';
 
 interface PersonalizeStylistModalProps {
   visible: boolean;
@@ -200,6 +201,7 @@ export function PersonalizeStylistModal({
                 {nameError ? <Text style={styles.fieldError}>{nameError}</Text> : null}
               </View>
 
+              {STYLIST_SPEECH_ENABLED ? <>
               <View style={styles.voicePreferenceRow}>
                 <View style={styles.voicePreferenceCopy}>
                   <Text style={styles.label}>VOICE RESPONSES</Text>
@@ -235,6 +237,7 @@ export function PersonalizeStylistModal({
                   {voicePreferenceError}
                 </Text>
               ) : null}
+              </> : null}
 
               <View style={styles.avatarSection}>
                 <Text style={styles.label} accessibilityRole="header">ABSTRACT</Text>
