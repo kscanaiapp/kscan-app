@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-08T18:12:48.452Z",
-    "generatedFromGitSha": "64808276f927b7873e072413dfbd395518f933f1"
+    "generatedAtUtc": "2026-10-08T22:48:38.223Z",
+    "generatedFromGitSha": "5f54104c90254926d2f621b157041e132d413b48"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -409,9 +409,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 16,
-        "treeFileCount": 20,
+        "treeFileCount": 21,
         "bundleHash": "abcb61d6fcf919d81a9f046ed7d9e9fe7ec9a1e15ac6a17e3fb3cdcb911c79fd",
-        "treeHash": "8684b2a0e3a44c3b8a126e6b5c6639104b714359e93361fff46c548055fbcbf5",
+        "treeHash": "836709657c34403743885892da8c1d90ccf54b7e4ff60a7f96863f6a730c6aee",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -427,6 +427,11 @@
             "path": "supabase/functions/commerce-watch-refresh/changeEngine.ts",
             "sha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/entitlementDispatch.test.ts",
+            "sha256": "91031c859f90baca4f6ad882c7dac53f44c41eab61ccefa0fd18f0d66517f4cf",
+            "bundle": false
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
@@ -1375,9 +1380,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 3,
-        "treeFileCount": 3,
+        "treeFileCount": 4,
         "bundleHash": "e827abc30f9172b6eaf2aeb5048831525f2f0c8ce93f1da6e55b324aa2d725a2",
-        "treeHash": "e827abc30f9172b6eaf2aeb5048831525f2f0c8ce93f1da6e55b324aa2d725a2",
+        "treeHash": "46e5f3e45badbdfc85341a3367c4d71f2d5562750beffb116d52c15ddca7b1ac",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1388,6 +1393,11 @@
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
             "sha256": "98787341c2f496ee9ba7b34002674d0f41986c952d89c012b7086d776ed10343",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/kplus-activate/campaignHold.test.ts",
+            "sha256": "07fce4f8bd9f2aadbdebb87b3a4a240116e573891592f0502970d169b451fbc6",
+            "bundle": false
           },
           {
             "path": "supabase/functions/kplus-activate/index.ts",
