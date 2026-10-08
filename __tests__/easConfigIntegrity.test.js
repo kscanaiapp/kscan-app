@@ -335,8 +335,8 @@ test('NEGATIVE CONTROL: no profile other than the governed certification profile
     if (name === 'staging-certification' || name === 'production-certification') continue;
     for (const key of [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS]) {
       assert.ok(
-        !(profile.env && key in profile.env),
-        `profile "${name}" must not declare certification-only key ${key}`,
+        !(profile.env && key in profile.env) || profile.env[key] === 'false',
+        `profile "${name}" must not enable certification-only key ${key}; explicit false is a release hold`,
       );
     }
   }

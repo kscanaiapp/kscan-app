@@ -223,9 +223,9 @@ test('the feature flag gate is absolute on the live surface', () => {
       );
       continue;
     }
-    assert.equal(
-      profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED,
-      undefined,
+    const value = profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED;
+    assert.ok(
+      value === undefined || value === 'false',
       'VTO must remain dark outside the governed certification profiles',
     );
   }

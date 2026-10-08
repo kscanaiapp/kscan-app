@@ -23,6 +23,7 @@ import {
   ensureSpeechAppStateListener,
   registerSpeechInterruptionHandler,
 } from './avatars/speechAppState';
+import { STYLIST_SPEECH_ENABLED } from '../constants/featureFlags';
 
 /**
  * `auto` is StyleChat speaking a newly persisted message on its own and must
@@ -150,6 +151,9 @@ async function failCurrent(value: number): Promise<void> {
  * references only; the authenticated Edge Function owns text and voice lookup.
  */
 export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Promise<void> {
+  // Check before binding lifecycle listeners, changing state, fetching audio,
+  // or touching native playback. Teardown remains available while held.
+  if (!STYLIST_SPEECH_ENABLED) return;
   if (
     !payload.actorId ||
     !payload.sessionId ||
