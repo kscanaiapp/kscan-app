@@ -95,12 +95,18 @@ function detectionPayload(photo, uri) {
     category: garment.category,
     subtype: garment.subtype,
     ...(garment.bounds ? { bounds: garment.bounds } : {}),
-    attributes: { category: garment.category, colorPalette: [garment.color ?? 'black'] },
-    identification: {
-      visual_observation: `DET|${uri}|${garment.candidateId}`,
-      primary_color: garment.color ?? 'black',
-      subtype: garment.subtype,
-    },
+    // `bare` models a detection entry with no attributes/identification, whose
+    // selected-item failure therefore has no genuine detail to fall back on.
+    ...(garment.bare
+      ? {}
+      : {
+        attributes: { category: garment.category, colorPalette: [garment.color ?? 'black'] },
+        identification: {
+          visual_observation: `DET|${uri}|${garment.candidateId}`,
+          primary_color: garment.color ?? 'black',
+          subtype: garment.subtype,
+        },
+      }),
   }));
   return {
     status: 'completed',
@@ -287,6 +293,7 @@ function mountUseKScan(options = {}) {
       searchSneakers: async () => [],
       shouldEnrichSneakers: () => false,
     },
+    ...(options.stubs ?? {}),
   };
 
   const mutate = {

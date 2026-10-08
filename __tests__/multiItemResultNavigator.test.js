@@ -66,3 +66,16 @@ test('failed siblings remain non-savable but expose an explicit retry while read
   byId(tree, 'multi-item-retry-failed').props.onPress();
   assert.deepEqual(calls, ['failed-only']);
 });
+
+test('detection and queue notices are announced politely in review and processing, and absent when there is nothing to report', () => {
+  const live = (tree) => findAll(tree, (node) => node.props?.accessibilityLiveRegion === 'polite');
+  for (const mode of ['review', 'processing']) {
+    const tree = render({ mode, imageCount: 3, candidates: [candidate], selectedCandidateIds: [],
+      detectionNotice: 'Photo 2 could not be analyzed.', queueNotice: 'Daily scan limit reached. Try again tomorrow.' });
+    assert.equal(live(tree).length, 2, mode);
+    assert.match(textContent(tree), /Photo 2 could not be analyzed\./);
+    assert.match(textContent(tree), /Daily scan limit reached/);
+  }
+  const quiet = render({ mode: 'review', imageCount: 3, candidates: [candidate], selectedCandidateIds: [] });
+  assert.equal(live(quiet).length, 0);
+});

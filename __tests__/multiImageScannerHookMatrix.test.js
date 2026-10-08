@@ -550,6 +550,12 @@ test('DEFECT B35-SCAN-013: photos that failed, had no fashion items, or were cut
   assert.match(capped.hook.analysis.detectionNotice, /4 more/);
   capped.unmount();
 
+  const empty = await analyzed({ 0: { garments: [] }, 1: THREE_PHOTOS[1], 2: { garments: [] } }, 3);
+  assert.match(empty.hook.analysis.detectionNotice, /Photos 1, 3 had no fashion items/);
+  assert.deepEqual(candidateIds(empty), ['asset-1:g1'], 'the merged analysis is built from a photo that produced items');
+  assert.equal(empty.hook.analysis.result, 'DET-TOP|file:///cache/b.jpg', 'an empty photo never becomes the base of the merged analysis');
+  empty.unmount();
+
   const clean = await analyzed({ 0: THREE_PHOTOS[0], 1: THREE_PHOTOS[1] }, 2);
   assert.equal(clean.hook.analysis.detectionNotice ?? null, null, 'a fully successful batch carries no notice');
   clean.unmount();

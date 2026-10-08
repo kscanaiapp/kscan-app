@@ -749,13 +749,17 @@ export default function App() {
   }, []);
 
   // Preserve the established Scanner behavior for the one-selected-item case:
-  // once that one item is completely analyzed, persist it automatically.
+  // once that one item is completely analyzed, persist it automatically. A
+  // PARTIAL item (detection only, the detail call failed) is not "completely
+  // analyzed": saving it would pin a degraded record that a later successful
+  // retry could never update. It waits for an explicit save or a retry.
   useEffect(() => {
     if (
       !eligibleBatchSession ||
       batchQueueActive ||
       batchSelectedCandidateIds.length !== 1 ||
       batchItems.length !== 1 ||
+      batchItems[0].detailStatus === 'partial' ||
       savedBatchScanIds[batchItems[0].id]
     ) return;
     void persistBatchItem(batchItems[0]);

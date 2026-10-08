@@ -825,10 +825,18 @@ export function useKScan() {
               nonFashionPhotos.push(photoNumber);
               continue;
             }
-            if (!baseAnalysis) baseAnalysis = entry.data;
             const candidates = Array.isArray(entry.data.confirmationCandidates)
               ? entry.data.confirmationCandidates
               : [];
+            // A photo the backend answered but in which it found no garment adds
+            // nothing to the review; say so. It is not counted as non-fashion for
+            // the all-non-fashion outcome below, and it never becomes the base of
+            // the merged analysis.
+            if (candidates.length === 0) {
+              nonFashionPhotos.push(photoNumber);
+              continue;
+            }
+            if (!baseAnalysis) baseAnalysis = entry.data;
             for (const candidate of candidates) {
               if (mergedCandidates.length >= 5) {
                 omittedCandidates += 1;
