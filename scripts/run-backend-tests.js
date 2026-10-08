@@ -81,6 +81,9 @@ const GOVERNED = [
   'style-outfit-generate',
   'commerce-watch-refresh',
   'vto-generate',
+  // SEC-B35-KPLUS-001: the Early Access server hold had only a source-text test; its behavior
+  // (closed campaign => zero grant and zero RevenueCat calls) is now executed under the governed runner.
+  'kplus-activate',
   '_shared',
 ];
 
