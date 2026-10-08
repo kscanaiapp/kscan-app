@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Validate ZAP target and workflow regression contract
+        run: node security/scripts/validate-zap-target.js --self-test
+
       - name: Check approved ZAP variables
         id: vars
         env:
