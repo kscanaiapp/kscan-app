@@ -113,6 +113,9 @@ const ALLOWLIST = [
   { file: 'eas.json', token: 'EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Owner-ratified eas.json build flag, repeated across 4 profiles; not proven safe to rename pre-freeze.' },
   { file: 'eas.json', token: 'EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Owner-ratified eas.json build flag, repeated across 4 profiles; not proven safe to rename pre-freeze.' },
   { file: 'eas.json', token: 'EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Owner-ratified eas.json build flag, repeated across 4 profiles; not proven safe to rename pre-freeze.' },
+  { file: 'scripts/check-build35-release-profile.js', token: 'EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Fixed release capability allowlist checks the retained EAS wire key; it introduces no product copy or new env name.' },
+  { file: 'scripts/check-build35-release-profile.js', token: 'EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Fixed release capability allowlist checks the retained EAS wire key; it introduces no product copy or new env name.' },
+  { file: 'scripts/check-build35-release-profile.js', token: 'EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'Fixed release capability allowlist checks the retained EAS wire key; it introduces no product copy or new env name.' },
   { file: 'services/signature-style/localSignatureStyleFeedbackStore.ts', token: 'EXPO_PUBLIC_STYLE_DNA_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'process.env read of the retained env var name; internal constant is SIGNATURE_STYLE_ENABLED.' },
   { file: 'services/signature-style/localSignatureStyleProfile.ts', token: 'EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'process.env read of the retained env var name; internal constant is SIGNATURE_STYLE_PROFILE_ENABLED.' },
   { file: 'services/signature-style/localSignatureStyleReasons.ts', token: 'EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED', classification: 'EXTERNAL_WIRE_CONTRACT', reason: 'process.env read of the retained env var name; internal constant is SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED.' },
@@ -183,6 +186,8 @@ const ALLOWLIST = [
   { file: 'docs/pre-build-smoke-audit-report.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Dated smoke-audit report citing a real historical git branch name.' },
   { file: 'docs/release-production-naming.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Cites a real historical git branch name in its "last updated" header.' },
   { file: 'docs/staging-rebuild/repair05-canonical-authority-reconfirmation-2026-09-08.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Cites a real historical git branch name in a provenance table.' },
+  { file: 'docs/build35/release/focused-validation.txt', token: 'centralized Signature Style copy replaces legacy "Style DNA" user-facing strings', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Exact existing test title in the dated Build 35 passing evidence; it is recorded test output, not customer-facing copy.' },
+  { file: 'docs/build35/release/focused-validation.txt', token: 'legacy "Style DNA" strings are absent from audited surfaces (Signature Style rename regression guard)', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Exact existing test title in the dated Build 35 passing evidence; only this title is classified, not the whole evidence file.' },
 ];
 
 for (const entry of ALLOWLIST) {
@@ -262,9 +267,13 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
   // are inside config/migration-authority-manifest.json, which is already an
   // ENTIRE_FILE IMMUTABLE_HISTORICAL_MIGRATION allowlist entry; no new file and
   // no active source gained the term.
+  // 107 -> 111 (Build 35 release guard): two source lines reference the
+  // three existing EAS wire keys in the fixed capability allowlist; two
+  // historical passing test-output lines quote existing test titles. Each
+  // is now classified by exact file/token above, without a blanket exemption.
   assert.equal(
     totalOccurrences,
-    107,
+    111,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });

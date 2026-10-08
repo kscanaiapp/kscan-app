@@ -1,0 +1,22 @@
+Build 35 CI regression repair validation — 2026-10-08
+
+Reviewed failed Project checks jobs:
+https://github.com/kscanaiapp/kscan-app/actions/runs/37808610361/job/113419337991
+https://github.com/kscanaiapp/kscan-app/actions/runs/37808601434/job/113419302032
+
+Both reported 16 observed failures: 13 known, 3 unexpected.
+All three unexpected failures were reproduced in a focused local run.
+
+Repairs:
+- Certification key and VTO checks now accept only absent or exact false outside certification; true and malformed enablement remain forbidden.
+- Terminology classification names exact retained wire keys in the guard and exact historical test-output titles in the evidence file.
+- Retained occurrence pin updated 107 -> 111 with the four additional classified source/evidence lines explained in place.
+- No test-failure baseline or application/backend runtime change.
+
+Focused command:
+node --test __tests__/androidBuild34CertificationGuards.test.js __tests__/signatureStyleTerminologyGuard.test.js __tests__/vtoShippedSurfaceReach.test.js __tests__/build35ReleaseProfile.test.js __tests__/easConfigIntegrity.test.js
+
+Result: 109 tests, 109 passed, 0 failed, 0 skipped.
+Raw local output: C:/Users/jsmit/AppData/Local/Temp/kscan-build35-ci-repair-887cc13b-c134-41b6-be2a-38a6b7b5423c.log
+
+Source validation does not establish final-head remote CI. Root must commit/push and verify fresh Linux checks before merge.
