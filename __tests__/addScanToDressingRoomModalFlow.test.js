@@ -645,3 +645,46 @@ test('NEGATIVE CONTROL: resetting the guard when the sheet closes lets a tap dur
 
   assert.deepEqual(m.pushes, ['/dressing-rooms', '/dressing-rooms'], 'the regression this test guards against');
 });
+
+test('multi-image Add All preserves item media and results in explicit order', async () => {
+  const m = mount({ props: { additionalScans: [{
+    localImageUri: 'file:///second.jpg',
+    scan: { sourceId: 'second-item', result: 'Second garment', metadata: { category: 'Dress' } },
+  }] } });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  await m.settled();
+  assert.deepEqual(m.services.added.map((entry) => entry.scan.localImageUri), ['file:///scan.jpg', 'file:///second.jpg']);
+  assert.equal(m.services.added[1].scan.result, 'Second garment');
+  assert.equal(m.services.added[1].scan.sourceId, 'second-item');
+  assert.match(m.text(), /Added 2 items to Trip\./);
+});
+
+test('multi-image Add All reports partial success without losing successful siblings', async () => {
+  const services = createServices();
+  services.addImpl = async (input) => {
+    if (input.scan.sourceId === 'second-item') throw new Error('unavailable');
+    return { id: 'saved-first' };
+  };
+  const m = mount({ services, props: { additionalScans: [{
+    localImageUri: 'file:///second.jpg', scan: { sourceId: 'second-item', result: 'Second garment' },
+  }] } });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  await m.settled();
+  assert.match(m.text(), /Added 1 of 2 items to Trip\./);
+});
+
+test('multi-image Add All stops before the next item after actor changes', async () => {
+  const services = createServices();
+  const pending = deferred();
+  services.addImpl = async () => pending.promise;
+  const m = mount({ services, props: { additionalScans: [{ localImageUri: 'file:///second.jpg' }] } });
+  await m.settled();
+  m.press(ROOM_BUTTON);
+  m.authority.actorContext.advanceActorEpoch('actor-b');
+  pending.resolve({ id: 'saved-first' });
+  await m.settled();
+  assert.equal(services.added.length, 1);
+  assert.doesNotMatch(m.text(), /Added .* to Trip\./);
+});

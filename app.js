@@ -328,23 +328,147 @@ export default function App() {
     retry,
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
+    analyzeSelectedCandidates,
     selectStaticFixture,
     selectGalleryPhoto,
     addGalleryPhotos,
     removeSelectedImage,
   } = useKScan();
 
+  // Restored multi-photo result orchestration lives at the screen layer so the
+  // governed ten-slot useKScan hook contract remains unchanged.
+  const [batchSelectedCandidateIds, setBatchSelectedCandidateIds] = useState([]);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchItemStates, setBatchItemStates] = useState({});
+  const [batchQueueActive, setBatchQueueActive] = useState(false);
+  const [batchQueueNotice, setBatchQueueNotice] = useState(null);
+  const [batchRemainingCandidateIds, setBatchRemainingCandidateIds] = useState([]);
+  const [batchSelectedItemId, setBatchSelectedItemId] = useState(null);
+  const [savedBatchScanIds, setSavedBatchScanIds] = useState({});
+  const [addAllBatchToRoom, setAddAllBatchToRoom] = useState(false);
+  const batchSessionKeyRef = useRef(null);
+  const batchGroupIdRef = useRef(null);
+  const batchGenerationRef = useRef(0);
+  const batchSavingItemIdsRef = useRef(new Set());
+  const batchActorRequestRef = useRef(null);
+  const batchQueueLockRef = useRef(false);
+  const batchSavedIdsRef = useRef({});
+
+  const trueMultiPhotoSession =
+    MULTI_IMAGE_SCANNER_ENABLED &&
+    status === 'result' &&
+    Array.isArray(analysis?.confirmationCandidates) &&
+    analysis.confirmationCandidates.length > 0 &&
+    (selectedImages.length > 1 || analysis.confirmationCandidates.length > 1);
+
+  const batchSessionKey = trueMultiPhotoSession
+    ? [
+        ...selectedImages.map((image) => image.id),
+        ...analysis.confirmationCandidates.map((candidate) => candidate.id),
+      ].join('|')
+    : null;
+
+  const batchCandidateDescriptors = trueMultiPhotoSession
+    ? analysis.confirmationCandidates.map((candidate) => {
+        const identification = candidate.source?.identification ?? {};
+        const attributes = candidate.source?.attributes ?? {};
+        return {
+          id: candidate.id,
+          label: candidate.label || candidate.category || 'Fashion item',
+          category: candidate.category || attributes.category || null,
+          subtype: candidate.subtype || identification.subtype || null,
+          primaryColor:
+            identification.primary_color ||
+            (Array.isArray(attributes.colorPalette) ? attributes.colorPalette[0] : null) ||
+            null,
+          sourceImageIndex: Number.isInteger(candidate.sourceImageIndex)
+            ? candidate.sourceImageIndex
+            : 0,
+          sourceImageId: candidate.sourceImageId || 'primary',
+        };
+      })
+    : [];
+
+  const activeBatchItem =
+    batchItems.find((item) => item.id === batchSelectedItemId) ?? batchItems[0] ?? null;
+  const batchResultVisible = trueMultiPhotoSession && Boolean(activeBatchItem);
+
   const activeResultCandidate = Array.isArray(analysis?.confirmationCandidates)
     ? analysis.confirmationCandidates.find((candidate) => candidate.id === selectedCandidateId) ?? null
     : null;
-  const activeResultImageUri = activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
-  const activeResultSource = activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
+  const displayAnalysis = batchResultVisible ? activeBatchItem.analysis : analysis;
+  const activeResultImageUri = batchResultVisible
+    ? activeBatchItem.sourceImageUri
+    : activeResultCandidate?.sourceImageUri ?? photo?.uri ?? null;
+  const activeResultSource = batchResultVisible
+    ? activeBatchItem.source
+    : activeResultCandidate?.sourceImageSource ?? photo?.source ?? 'scan';
+  const activeBatchSavedId = activeBatchItem ? savedBatchScanIds[activeBatchItem.id] ?? null : null;
+  const batchItemSummaries = batchSelectedCandidateIds.map((id) => {
+    const item = batchItems.find((entry) => entry.id === id)
+      ?? batchCandidateDescriptors.find((entry) => entry.id === id);
+    return item ? {
+      id: item.id,
+      label: item.label,
+      sourceImageIndex: item.sourceImageIndex,
+      detailStatus: item.detailStatus ?? 'complete',
+    } : null;
+  }).filter(Boolean);
+  const failedBatchCandidateIds = batchSelectedCandidateIds.filter((id) => batchItemStates[id] === 'failed');
 
   const router = useRouter();
   const params = useLocalSearchParams();
   const returnToSessionId = params?.returnToSessionId ? String(params.returnToSessionId) : null;
   const visualContextIntentId = params?.visualContextIntentId ? String(params.visualContextIntentId) : null;
   const isReturningToElise = Boolean(returnToSessionId);
+  const eligibleBatchSession = trueMultiPhotoSession && !isReturningToElise;
+
+  // A source/candidate identity change is a genuinely new batch. Reset only on
+  // that boundary (or when leaving the batch path), never because commerce or
+  // other enrichment replaced the analysis object.
+  useEffect(() => {
+    if (!eligibleBatchSession || !batchSessionKey) {
+      if (batchSessionKeyRef.current !== null) {
+        batchGenerationRef.current += 1;
+        batchSessionKeyRef.current = null;
+        batchGroupIdRef.current = null;
+        batchActorRequestRef.current = null;
+        batchQueueLockRef.current = false;
+        batchSavedIdsRef.current = {};
+        batchSavingItemIdsRef.current.clear();
+        setBatchSelectedCandidateIds([]);
+        setBatchItems([]);
+        setBatchItemStates({});
+        setBatchQueueActive(false);
+        setBatchQueueNotice(null);
+        setBatchRemainingCandidateIds([]);
+        setBatchSelectedItemId(null);
+        setSavedBatchScanIds({});
+        setAddAllBatchToRoom(false);
+      }
+      return;
+    }
+    if (batchSessionKeyRef.current === batchSessionKey) return;
+
+    batchGenerationRef.current += 1;
+    batchSessionKeyRef.current = batchSessionKey;
+    batchActorRequestRef.current = createActorRequest();
+    batchQueueLockRef.current = false;
+    batchSavedIdsRef.current = {};
+    batchGroupIdRef.current =
+      `multi-${Date.now().toString(36)}-${batchGenerationRef.current}`;
+    batchSavingItemIdsRef.current.clear();
+    setBatchSelectedCandidateIds([]);
+    setBatchItems([]);
+    setBatchItemStates({});
+    setBatchQueueActive(false);
+    setBatchQueueNotice(null);
+    setBatchRemainingCandidateIds([]);
+    setBatchSelectedItemId(null);
+    setSavedBatchScanIds({});
+    setAddAllBatchToRoom(false);
+  }, [eligibleBatchSession, batchSessionKey]);
+
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
   const qaTapRef = useRef({ count: 0, lastTap: 0 });
 
@@ -443,6 +567,210 @@ export default function App() {
     scanPersistenceGenerationRef.current += 1;
   }, []);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
+
+  const toggleBatchCandidate = useCallback((candidateId) => {
+    if (!eligibleBatchSession || batchQueueActive) return;
+    if (!batchCandidateDescriptors.some((candidate) => candidate.id === candidateId)) return;
+    if (batchItemStates[candidateId] === 'ready') return;
+    setBatchSelectedCandidateIds((current) => (
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : [...current, candidateId]
+    ));
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchCandidateDescriptors,
+    batchItemStates,
+  ]);
+
+  const runBatchQueue = useCallback(async (candidateIdsOverride = null) => {
+    if (!eligibleBatchSession || batchQueueLockRef.current ||
+        !isActorRequestCurrent(batchActorRequestRef.current)) return;
+    const sourceIds = Array.isArray(candidateIdsOverride) && candidateIdsOverride.length > 0
+      ? candidateIdsOverride
+      : batchSelectedCandidateIds;
+    const ids = [];
+    const seen = new Set();
+    for (const candidateId of sourceIds) {
+      if (
+        typeof candidateId !== 'string' ||
+        !candidateId ||
+        seen.has(candidateId) ||
+        (batchItemStates[candidateId] === 'ready' &&
+          batchItems.find((item) => item.id === candidateId)?.detailStatus !== 'partial')
+      ) continue;
+      seen.add(candidateId);
+      ids.push(candidateId);
+    }
+    if (ids.length === 0) return;
+
+    const generation = batchGenerationRef.current;
+    batchQueueLockRef.current = true;
+    setBatchQueueActive(true);
+    setBatchQueueNotice(null);
+    setBatchRemainingCandidateIds([]);
+    setBatchItemStates((current) => {
+      const next = { ...current };
+      for (const id of ids) {
+        if (next[id] !== 'ready') next[id] = 'queued';
+      }
+      return next;
+    });
+
+    let outcome;
+    try {
+      outcome = await analyzeSelectedCandidates(ids, (event) => {
+        if (generation !== batchGenerationRef.current) return;
+        if (!event?.candidateId || !event.state) return;
+        setBatchItemStates((current) => ({
+          ...current,
+          [event.candidateId]: event.state,
+        }));
+        if (event.state === 'ready' && event.item) {
+          const item = { ...event.item, batchGeneration: generation };
+          setBatchItems((current) => (
+            current.some((entry) => entry.id === item.id)
+              ? current.map((entry) => entry.id === item.id ? item : entry)
+              : [...current, item]
+          ));
+          setBatchSelectedItemId((current) => current || event.item.id);
+        } else if (event.state === 'failed' && event.message) {
+          setBatchQueueNotice(event.message);
+        }
+      });
+    } catch {
+      outcome = { halted: 'failed', message: 'The remaining items could not be analyzed. Please try again.' };
+    }
+
+    if (generation !== batchGenerationRef.current) return;
+    batchQueueLockRef.current = false;
+    setBatchQueueActive(false);
+
+    if (outcome?.halted === 'quota') {
+      setBatchQueueNotice(
+        outcome.message || 'Daily scan limit reached. You can resume the remaining items later.',
+      );
+      setBatchRemainingCandidateIds(
+        Array.isArray(outcome.remainingCandidateIds) ? outcome.remainingCandidateIds : [],
+      );
+      return;
+    }
+
+    if (outcome?.halted && outcome.halted !== 'superseded') {
+      setBatchQueueNotice(outcome.message || 'The remaining items could not be analyzed.');
+    }
+    setBatchRemainingCandidateIds([]);
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchSelectedCandidateIds,
+    batchItemStates,
+    batchItems,
+    analyzeSelectedCandidates,
+  ]);
+
+  const resumeBatchQueue = useCallback(() => {
+    if (batchRemainingCandidateIds.length === 0 || batchQueueActive) return;
+    void runBatchQueue(batchRemainingCandidateIds);
+  }, [batchRemainingCandidateIds, batchQueueActive, runBatchQueue]);
+
+  const persistBatchItem = useCallback(async (item) => {
+    if (!item?.id || !item?.sourceImageUri || !item?.analysis) return null;
+    if (item.batchGeneration !== batchGenerationRef.current) return null;
+    const actorRequest = item.actorRequest;
+    if (!isActorRequestCurrent(actorRequest)) return null;
+    if (batchSavedIdsRef.current[item.id]) return batchSavedIdsRef.current[item.id];
+    if (batchSavingItemIdsRef.current.has(item.id)) return null;
+
+    batchSavingItemIdsRef.current.add(item.id);
+    const generation = batchGenerationRef.current;
+    const groupId = batchGroupIdRef.current
+      ?? `multi-${Date.now().toString(36)}-${generation}`;
+    batchGroupIdRef.current = groupId;
+    try {
+      const saved = await saveScan({
+        photoUri: item.sourceImageUri,
+        analysis: {
+          ...item.analysis,
+          multiScan: {
+            schemaVersion: 1,
+            groupId,
+            itemId: item.id,
+            sourceImageId: item.sourceImageId,
+            sourceImageIndex: item.sourceImageIndex,
+            imageCount: Math.max(1, Math.min(selectedImages.length || 1, 5)),
+            itemCount: Math.max(
+              1,
+              Math.min(batchSelectedCandidateIds.length || batchItems.length || 1, 5),
+            ),
+          },
+        },
+        source: item.source || 'scan',
+        actorRequest,
+      });
+
+      if (
+        saved &&
+        generation === batchGenerationRef.current &&
+        isActorRequestCurrent(actorRequest)
+      ) {
+        batchSavedIdsRef.current[item.id] = saved.id;
+        setSavedBatchScanIds((current) => ({ ...current, [item.id]: saved.id }));
+        setSavedToast(true);
+        return saved.id;
+      }
+      if (generation === batchGenerationRef.current && isActorRequestCurrent(actorRequest)) {
+        setBatchQueueNotice('This item could not be saved. Please try again.');
+      }
+      return null;
+    } catch {
+      if (generation === batchGenerationRef.current && isActorRequestCurrent(actorRequest)) {
+        setBatchQueueNotice('This item could not be saved. Please try again.');
+      }
+      return null;
+    } finally {
+      if (generation === batchGenerationRef.current) batchSavingItemIdsRef.current.delete(item.id);
+    }
+  }, [
+    savedBatchScanIds,
+    selectedImages.length,
+    batchSelectedCandidateIds.length,
+    batchItems.length,
+  ]);
+
+  const saveAllBatchItems = useCallback(async () => {
+    if (batchItems.length === 0) return;
+    for (const item of batchItems) await persistBatchItem(item);
+  }, [batchItems, persistBatchItem]);
+
+  useEffect(() => () => {
+    batchGenerationRef.current += 1;
+  }, []);
+
+  // Preserve the established Scanner behavior for the one-selected-item case:
+  // once that one item is completely analyzed, persist it automatically. A
+  // PARTIAL item (detection only, the detail call failed) is not "completely
+  // analyzed": saving it would pin a degraded record that a later successful
+  // retry could never update. It waits for an explicit save or a retry.
+  useEffect(() => {
+    if (
+      !eligibleBatchSession ||
+      batchQueueActive ||
+      batchSelectedCandidateIds.length !== 1 ||
+      batchItems.length !== 1 ||
+      batchItems[0].detailStatus === 'partial' ||
+      savedBatchScanIds[batchItems[0].id]
+    ) return;
+    void persistBatchItem(batchItems[0]);
+  }, [
+    eligibleBatchSession,
+    batchQueueActive,
+    batchSelectedCandidateIds.length,
+    batchItems,
+    persistBatchItem,
+    savedBatchScanIds,
+  ]);
 
   // perceiving: true while the post-result PerceptionLayer (real metadata) is
   // running. The AnalysisCard is held back until perceiving becomes false.
@@ -1195,11 +1523,25 @@ export default function App() {
       localImageUri={activeResultImageUri}
       scan={{
         sourceType: activeResultSource === 'upload' ? 'upload_inspiration' : 'live_scan',
-        sourceId: photo?.qaFixtureName ?? null,
-        result: analysis?.result ?? null,
-        metadata: analysis?.metadata ?? null,
+        sourceId: batchResultVisible ? activeBatchItem.id : photo?.qaFixtureName ?? null,
+        result: displayAnalysis?.result ?? null,
+        metadata: displayAnalysis?.metadata ?? null,
       }}
-      onClose={() => setScanRoomModalVisible(false)}
+      additionalScans={addAllBatchToRoom && batchResultVisible ? batchItems
+        .filter((item) => item.id !== activeBatchItem.id)
+        .map((item) => ({
+          localImageUri: item.sourceImageUri,
+          scan: {
+            sourceType: item.source === 'upload' ? 'upload_inspiration' : 'live_scan',
+            sourceId: item.id,
+            result: item.analysis?.result ?? null,
+            metadata: item.analysis?.metadata ?? null,
+          },
+        })) : []}
+      onClose={() => {
+        setScanRoomModalVisible(false);
+        setAddAllBatchToRoom(false);
+      }}
     />
   ) : null;
 
@@ -1243,9 +1585,9 @@ export default function App() {
       )}
 
       {resultSurfaceVisible && (
-        SCAN_RESULTS_V2_UI_ENABLED ? (
+        (SCAN_RESULTS_V2_UI_ENABLED || eligibleBatchSession) ? (
           <ScanResultV2
-            analysis={analysis}
+            analysis={displayAnalysis}
             scanImageUri={activeResultImageUri}
             // The report target for this scan's AI prose: its persisted Recent
             // Scan id (saveScan resolves it a moment after the result appears),
@@ -1253,30 +1595,73 @@ export default function App() {
             // the single-item save), else the QA fixture name. Null until one
             // exists, which hides the Report control instead of filing a report
             // the server cannot resolve.
-            scanSourceId={savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
+            scanSourceId={batchResultVisible ? activeBatchSavedId : savedScanId ?? savedMultiItemScanId ?? photo?.qaFixtureName ?? null}
             // v127 (P1-B): only meaningful on this live-scan surface — a
             // reopened Recent Scan (app/library.tsx) renders AnalysisCard
             // without this prop, so it stays 'idle' there and the section
             // keeps its pre-existing hidden-when-empty behavior.
-            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
-            onRetryCommerce={retryCommerce}
+            commerceStatus={!batchResultVisible && analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={batchResultVisible ? undefined : retryCommerce}
             // Build 32: only meaningful on this live-scan surface, same reason
             // as commerceStatus above — a reopened Recent Scan renders from
             // its own persisted snapshot instead (see app/library.tsx).
-            multiItemCommerce={multiItemCommerce}
-            multiItemCommerceStatus={multiItemCommerceStatus}
-            onRetryMultiItemCommerce={retryMultiItemCommerce}
+            multiItemCommerce={batchResultVisible ? [] : multiItemCommerce}
+            multiItemCommerceStatus={batchResultVisible ? 'idle' : multiItemCommerceStatus}
+            onRetryMultiItemCommerce={batchResultVisible ? undefined : retryMultiItemCommerce}
             onDismiss={dismissResult}
-            onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
-            saveActionLabel={savedScanId ? 'View Closet' : undefined}
-            onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
+            onSaveToLibrary={batchResultVisible
+              ? activeBatchSavedId ? () => router.push('/library') : () => { void persistBatchItem(activeBatchItem); }
+              : savedScanId ? () => router.push('/library') : undefined}
+            saveActionLabel={batchResultVisible ? activeBatchSavedId ? 'View Closet' : 'Save Item' : savedScanId ? 'View Closet' : undefined}
+            onAddToDressingRoom={dressingRoomsEnabled ? () => {
+              if (batchResultVisible && !isActorRequestCurrent(batchActorRequestRef.current)) return;
+              setAddAllBatchToRoom(false);
+              setScanRoomModalVisible(true);
+            } : undefined}
             overlay={addScanToRoomModal}
             selectedCandidateId={selectedCandidateId}
             onSelectCandidate={selectConfirmationCandidate}
             onAnalyzeSelectedCandidate={analyzeSelectedCandidate}
+            candidateReview={eligibleBatchSession && !batchResultVisible ? {
+              stage: batchQueueActive ? 'processing' : 'review',
+              imageCount: selectedImages.length,
+              candidates: batchCandidateDescriptors,
+              selectedCandidateIds: batchSelectedCandidateIds,
+              itemStates: batchItemStates,
+              onToggleCandidate: toggleBatchCandidate,
+              onConfirmSelection: () => { void runBatchQueue(batchRemainingCandidateIds.length ? batchRemainingCandidateIds : null); },
+              detectionNotice: analysis?.detectionNotice ?? null,
+              queueNotice: batchQueueNotice,
+            } : undefined}
+            multiItem={batchResultVisible ? {
+              imageCount: selectedImages.length,
+              items: batchItemSummaries,
+              selectedItemId: activeBatchItem.id,
+              savedItemIds: new Set(Object.keys(savedBatchScanIds)),
+              onSelectItem: setBatchSelectedItemId,
+              itemStates: batchItemStates,
+              queueNotice: batchQueueNotice,
+              onSaveAll: batchSelectedCandidateIds.length > 1 ? () => { void saveAllBatchItems(); } : undefined,
+              saveAllDisabled: batchItems.length === 0,
+              onAddAllToDressingRoom: dressingRoomsEnabled && batchItems.length > 1 ? () => {
+                if (!isActorRequestCurrent(batchActorRequestRef.current)) return;
+                setAddAllBatchToRoom(true);
+                setScanRoomModalVisible(true);
+              } : undefined,
+              onResumeQueue: !batchQueueActive && batchRemainingCandidateIds.length ? resumeBatchQueue : undefined,
+              resumeCount: batchRemainingCandidateIds.length,
+              onRetryPartialItem: !batchQueueActive && activeBatchItem.detailStatus === 'partial'
+                ? () => { void runBatchQueue([activeBatchItem.id]); }
+                : undefined,
+              onRetryFailedItems: !batchQueueActive && failedBatchCandidateIds.length
+                ? () => { void runBatchQueue(failedBatchCandidateIds); }
+                : undefined,
+              failedCount: failedBatchCandidateIds.length,
+            } : undefined}
             onAskStyleChat={styleChatEnabled ? () => {
+              if (batchResultVisible && !isActorRequestCurrent(batchActorRequestRef.current)) return;
               const source = activeResultSource === 'upload' ? 'upload' : 'camera';
-              const meta = analysis?.metadata ?? {};
+              const meta = displayAnalysis?.metadata ?? {};
               setStyleChatHandoffContext({
                 source,
                 imageUri: activeResultImageUri,
@@ -1285,7 +1670,7 @@ export default function App() {
                 silhouette: meta.silhouette || null,
                 material: meta.material || null,
                 descriptors: Array.isArray(meta.styleTags) ? meta.styleTags : undefined,
-                analysisText: analysis?.result || null,
+                analysisText: displayAnalysis?.result || null,
                 createdAt: new Date().toISOString(),
               });
               router.push('/style-chat');

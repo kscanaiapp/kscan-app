@@ -40,6 +40,15 @@ import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 import { resolvePurchaseShelfMode } from '../AnalysisCard';
+import {
+  MultiItemResultNavigator,
+  type MultiItemNavigatorMode,
+  type MultiItemResultSummary,
+} from './MultiItemResultNavigator';
+import type {
+  CandidateReviewDescriptor,
+  ScanItemQueueState,
+} from '../../services/multiImageScan';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
@@ -125,6 +134,36 @@ interface ScanResultV2Props {
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
   onAnalyzeSelectedCandidate?: (candidateId: string) => void;
+  /** Restored multi-image progressive result navigator. */
+  multiItem?: {
+    imageCount: number;
+    items: ReadonlyArray<MultiItemResultSummary>;
+    selectedItemId: string;
+    savedItemIds?: ReadonlySet<string>;
+    onSelectItem: (itemId: string) => void;
+    onSaveAll?: () => void;
+    saveAllDisabled?: boolean;
+    onAddAllToDressingRoom?: () => void;
+    onResumeQueue?: () => void;
+    onRetryPartialItem?: () => void;
+    onRetryFailedItems?: () => void;
+    failedCount?: number;
+    resumeCount?: number;
+    itemStates?: Readonly<Record<string, ScanItemQueueState>>;
+    queueNotice?: string | null;
+  };
+  /** Restored deliberate multi-select review surface; no provider work occurs here. */
+  candidateReview?: {
+    stage: 'review' | 'processing';
+    imageCount: number;
+    candidates: ReadonlyArray<CandidateReviewDescriptor>;
+    selectedCandidateIds: ReadonlyArray<string>;
+    itemStates?: Readonly<Record<string, ScanItemQueueState>>;
+    onToggleCandidate: (candidateId: string) => void;
+    onConfirmSelection: () => void;
+    detectionNotice?: string | null;
+    queueNotice?: string | null;
+  };
   testID?: string;
 }
 
@@ -155,6 +194,8 @@ export function ScanResultV2({
   selectedCandidateId,
   onSelectCandidate,
   onAnalyzeSelectedCandidate,
+  multiItem,
+  candidateReview,
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
@@ -317,6 +358,106 @@ export function ScanResultV2({
     onAnalyzeSelectedCandidate?.(activeCandidateId);
   }, [activeCandidateId, onAnalyzeSelectedCandidate]);
 
+  const selectedReviewCount = candidateReview?.selectedCandidateIds.length ?? 0;
+  const reviewCtaLabel = selectedReviewCount === 0
+    ? 'Select items to match'
+    : selectedReviewCount === 1
+      ? 'Find Matches for 1 Item'
+      : `Find Matches for ${selectedReviewCount} Items`;
+  const reviewCtaDisabled =
+    selectedReviewCount === 0 || candidateReview?.stage === 'processing';
+
+  // Restored deliberate multi-image review/processing surface. Provider calls
+  // begin only after the explicit count-aware CTA.
+  if (candidateReview) {
+    const navigatorMode: MultiItemNavigatorMode =
+      candidateReview.stage === 'processing' ? 'processing' : 'review';
+    return (
+      <ResultSurfaceModal onRequestClose={runExit}>
+        <View style={styles.backdrop} pointerEvents="box-none">
+          <Animated.View
+            testID={testID ?? 'scan-result-v2-review'}
+            style={[
+              styles.cardWrap,
+              {
+                width: '100%',
+                maxWidth: modalMaxWidth,
+                alignSelf: 'center',
+                marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
+                transform: [{ translateY }],
+                opacity,
+              },
+            ]}
+          >
+            <View style={[styles.card, { maxHeight: windowHeight * 0.92 }]}>
+              <ScrollView
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                  styles.cardInner,
+                  { paddingBottom: 120 + Math.max(insets.bottom, SPACING.md) },
+                ]}
+              >
+                <View style={styles.header}>
+                  <Text style={styles.brandTitle}>K SCAN AI</Text>
+                  <Text style={styles.statusLabel}>
+                    {candidateReview.stage === 'processing'
+                      ? 'FINDING YOUR MATCHES'
+                      : 'CHOOSE YOUR ITEMS'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleBack}
+                    activeOpacity={0.78}
+                    accessibilityRole="button"
+                    accessibilityLabel="Go back"
+                    style={styles.backButton}
+                  >
+                    <Text style={styles.backButtonText}>←</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.divider}>
+                  <Text style={styles.dividerText}>✧</Text>
+                </View>
+
+                <MultiItemResultNavigator
+                  mode={navigatorMode}
+                  imageCount={candidateReview.imageCount}
+                  candidates={candidateReview.candidates}
+                  selectedCandidateIds={candidateReview.selectedCandidateIds}
+                  itemStates={candidateReview.itemStates}
+                  onToggleCandidate={candidateReview.onToggleCandidate}
+                  detectionNotice={candidateReview.detectionNotice}
+                  queueNotice={candidateReview.queueNotice}
+                />
+              </ScrollView>
+
+              <View
+                style={[
+                  styles.reviewCtaWrap,
+                  { paddingBottom: Math.max(SPACING.md, insets.bottom) },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={reviewCtaDisabled ? undefined : candidateReview.onConfirmSelection}
+                  disabled={reviewCtaDisabled}
+                  activeOpacity={0.86}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: reviewCtaDisabled }}
+                  accessibilityLabel={reviewCtaLabel}
+                  style={[styles.reviewCta, reviewCtaDisabled && styles.reviewCtaDisabled]}
+                  testID="candidate-review-cta"
+                >
+                  <Text style={styles.reviewCtaText}>{reviewCtaLabel.toUpperCase()}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
+        </View>
+      </ResultSurfaceModal>
+    );
+  }
+
   // If no meaningful data at all, show empty state
   if (!v2Data) {
     return (
@@ -429,6 +570,10 @@ export function ScanResultV2({
               <View style={styles.divider}>
                 <Text style={styles.dividerText}>✧</Text>
               </View>
+
+              {multiItem ? (
+                <MultiItemResultNavigator mode="results" {...multiItem} />
+              ) : null}
 
               {/* Hero */}
               <ScanResultHero
@@ -776,6 +921,35 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.2,
     color: LUXURY.colors.stone,
+  },
+  reviewCtaWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgb(255, 253, 249)',
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.border,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    zIndex: 50,
+    elevation: 50,
+  },
+  reviewCta: {
+    minHeight: 52,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  reviewCtaDisabled: {
+    opacity: 0.5,
+  },
+  reviewCtaText: {
+    ...LUXURY.typography.cta,
+    color: LUXURY.colors.inverse,
+    textAlign: 'center',
   },
   privacySubtext: {
     ...LUXURY.typography.caption,

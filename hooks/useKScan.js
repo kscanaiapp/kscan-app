@@ -6,6 +6,7 @@ import { MULTI_IMAGE_SCANNER_ENABLED, SCAN_IDENTIFY_BACKEND_ENABLED } from '../c
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import {
   MAX_SCAN_IMAGES,
   normalizeImageSelections,
@@ -171,6 +172,7 @@ export function useKScan() {
   // Display candidate id -> authoritative source image/session/server candidate.
   const multiImageCandidateLookupRef = useRef(new Map());
   const initialMultiItemAnalysisRef = useRef(null);
+  const multiImageActorRequestRef = useRef(null);
   const retryRequestModeRef = useRef('multi_item_detection');
   const prevIsAnalyzingRef = useRef(false);
   // Session-latched Scanner V2 rollout decision (Phase 2B.2). Resolved once at
@@ -554,6 +556,10 @@ export function useKScan() {
       if (operationId === null) return;
 
       // Resolve the Scanner V2 rollout flag ONCE for this session and latch it.
+      // Candidate authority belongs to the actor who began detection, including
+      // multiple garments found in one source image.
+      const scanActorRequest = createActorRequest();
+      multiImageActorRequestRef.current = scanActorRequest;
       // Detection, selection, identification and persistence all read this same
       // value, so a flag change between capture and selection can never make
       // the two halves of one scan speak different contracts.
@@ -575,7 +581,7 @@ export function useKScan() {
       const finishAnalysis = async (data, processingStart) => {
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
-        if (!isOperationValid(operationId)) {
+        if (!isOperationValid(operationId) || !isActorRequestCurrent(scanActorRequest)) {
           logAnalyzeDiag({
             event: 'scan_stale_result_discarded',
             source: 'finishAnalysis',
@@ -592,7 +598,7 @@ export function useKScan() {
           await new Promise(r => setTimeout(r, MIN_ANALYSIS_MS - elapsed));
         }
 
-        if (!isOperationValid(operationId)) {
+        if (!isOperationValid(operationId) || !isActorRequestCurrent(scanActorRequest)) {
           logAnalyzeDiag({
             event: 'scan_stale_result_discarded',
             source: 'finishAnalysis_after_min_delay',
@@ -713,6 +719,7 @@ export function useKScan() {
         // and correlated, then sent through the CURRENT Scanner V2/legacy
         // boundary. No request ever contains more than one evidence image.
         if (imagesForAttempt.length > 1) {
+          const batchActorRequest = scanActorRequest;
           if (!SCAN_IDENTIFY_BACKEND_ENABLED) {
             throw userSafeError(
               'scan backend disabled',
@@ -727,7 +734,7 @@ export function useKScan() {
           // sanitizer exposes a last-operation status read. Detection can fan out
           // afterward without risking cross-image privacy attestation.
           for (const image of imagesForAttempt) {
-            if (!isOperationValid(operationId)) return;
+            if (!isOperationValid(operationId) || !isActorRequestCurrent(batchActorRequest)) return;
             let session = multiImageSessionsRef.current.get(image.id);
             if (!session || session.sourceImageUri !== image.uri) {
               session = createScanSession(image.uri);
@@ -774,6 +781,9 @@ export function useKScan() {
 
           const settled = await Promise.allSettled(
             preparedEntries.map(async (entry) => {
+              if (!isOperationValid(operationId) || !isActorRequestCurrent(batchActorRequest)) {
+                throw new Error('SCAN_SUPERSEDED');
+              }
               const outcome = await runDetectionForEvidence({
                 evidence: entry.evidence,
                 session: entry.session,
@@ -789,26 +799,49 @@ export function useKScan() {
             }),
           );
 
-          if (!isOperationValid(operationId)) return;
+          if (!isOperationValid(operationId) || !isActorRequestCurrent(batchActorRequest)) return;
 
           let baseAnalysis = null;
           let nonFashionCount = 0;
           const mergedCandidates = [];
           const lookup = new Map();
+          // Photos that did not contribute are reported, never silently dropped:
+          // a user who picked five photos must be able to tell why fewer
+          // appear. 1-based, matching the "Image N" labels on the result.
+          const failedPhotos = [];
+          const nonFashionPhotos = [];
+          let omittedCandidates = 0;
 
-          for (const result of settled) {
-            if (result.status !== 'fulfilled') continue;
+          for (let position = 0; position < settled.length; position += 1) {
+            const result = settled[position];
+            const photoNumber = preparedEntries[position].image.originalIndex + 1;
+            if (result.status !== 'fulfilled') {
+              failedPhotos.push(photoNumber);
+              continue;
+            }
             const entry = result.value;
             if (entry.data.type === 'non-fashion') {
               nonFashionCount += 1;
+              nonFashionPhotos.push(photoNumber);
               continue;
             }
-            if (!baseAnalysis) baseAnalysis = entry.data;
             const candidates = Array.isArray(entry.data.confirmationCandidates)
               ? entry.data.confirmationCandidates
               : [];
+            // A photo the backend answered but in which it found no garment adds
+            // nothing to the review; say so. It is not counted as non-fashion for
+            // the all-non-fashion outcome below, and it never becomes the base of
+            // the merged analysis.
+            if (candidates.length === 0) {
+              nonFashionPhotos.push(photoNumber);
+              continue;
+            }
+            if (!baseAnalysis) baseAnalysis = entry.data;
             for (const candidate of candidates) {
-              if (mergedCandidates.length >= 5) break;
+              if (mergedCandidates.length >= 5) {
+                omittedCandidates += 1;
+                continue;
+              }
               const displayId = `${entry.image.id}:${candidate.id}`;
               const enriched = {
                 ...candidate,
@@ -827,7 +860,6 @@ export function useKScan() {
                 serverCandidateId: candidate.id,
               });
             }
-            if (mergedCandidates.length >= 5) break;
           }
 
           if (!baseAnalysis || mergedCandidates.length === 0) {
@@ -839,15 +871,36 @@ export function useKScan() {
               }, processingStart);
               return;
             }
+            // When nothing usable came back and at least one photo FAILED, report
+            // the real cause (no connection, timeout, daily limit) instead of
+            // telling the user their photos were unclear.
+            const firstFailure = settled.find((entry) => entry.status === 'rejected');
+            if (firstFailure && typeof firstFailure.reason?.userMessage === 'string') {
+              throw firstFailure.reason;
+            }
             throw userSafeError(
               'no valid garments detected',
               'We could not find a clear fashion item in those images. Remove unclear images or try again.',
             );
           }
 
+          const photoList = (numbers) => (
+            numbers.length === 1 ? `Photo ${numbers[0]}` : `Photos ${numbers.join(', ')}`
+          );
+          const detectionNotes = [];
+          if (failedPhotos.length > 0) {
+            detectionNotes.push(`${photoList(failedPhotos)} could not be analyzed.`);
+          }
+          if (nonFashionPhotos.length > 0) {
+            detectionNotes.push(`${photoList(nonFashionPhotos)} had no fashion items.`);
+          }
+          if (omittedCandidates > 0) {
+            detectionNotes.push(`Showing the first 5 items found; ${omittedCandidates} more not shown.`);
+          }
           const mergedAnalysis = {
             ...baseAnalysis,
             confirmationCandidates: mergedCandidates,
+            ...(detectionNotes.length > 0 ? { detectionNotice: detectionNotes.join(' ') } : {}),
           };
           multiImageCandidateLookupRef.current = lookup;
           initialMultiItemAnalysisRef.current = mergedAnalysis;
@@ -1028,6 +1081,222 @@ export function useKScan() {
       });
     }
   }, []);
+
+  /**
+   * Restored multi-image selected-item queue.
+   *
+   * This deliberately adds NO React state to useKScan (the ten-slot contract is
+   * governed by the duplicate-guard harness). The screen owns presentation
+   * state; this hook owns evidence continuity, provider calls, cancellation and
+   * the one-active-operation boundary.
+   */
+  const analyzeSelectedCandidates = useCallback(async (candidateIds, onProgress) => {
+    const actorRequest = multiImageActorRequestRef.current;
+    if (!isActorRequestCurrent(actorRequest)) {
+      return { items: [], halted: 'actor_changed', message: 'Please start a new scan for this account.' };
+    }
+    if (scanInFlightRef.current) {
+      return { items: [], halted: 'busy', message: 'A scan is already in progress.' };
+    }
+
+    const initialAnalysis = initialMultiItemAnalysisRef.current;
+    const candidates = Array.isArray(initialAnalysis?.confirmationCandidates)
+      ? initialAnalysis.confirmationCandidates
+      : [];
+    const orderedIds = [];
+    const seen = new Set();
+    for (const rawId of Array.isArray(candidateIds) ? candidateIds : []) {
+      const id = typeof rawId === 'string' ? rawId.trim() : '';
+      if (!id || seen.has(id) || !candidates.some((candidate) => candidate.id === id)) continue;
+      seen.add(id);
+      orderedIds.push(id);
+    }
+    if (orderedIds.length === 0) {
+      return { items: [], halted: null, message: null };
+    }
+
+    const operationId = startInFlight();
+    if (operationId === null) {
+      return { items: [], halted: 'busy', message: 'A scan is already in progress.' };
+    }
+
+    const items = [];
+    const emit = (event) => {
+      if (typeof onProgress === 'function' && isOperationValid(operationId) && isActorRequestCurrent(actorRequest)) {
+        onProgress(event);
+      }
+    };
+
+    try {
+      for (let index = 0; index < orderedIds.length; index += 1) {
+        if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) {
+          return { items, halted: 'superseded', message: null };
+        }
+
+        const candidateId = orderedIds[index];
+        const candidate = candidates.find((entry) => entry.id === candidateId);
+        const binding = candidate ? multiImageCandidateLookupRef.current.get(candidate.id) : null;
+        const session = binding?.session ?? multiItemSessionRef.current;
+        const sourceImageUri = binding?.image?.uri ?? candidate?.sourceImageUri ?? photo?.uri;
+        const sourceImageSource =
+          binding?.image?.source ?? candidate?.sourceImageSource ?? photo?.source ?? 'camera';
+
+        emit({ candidateId, state: 'analyzing', index, total: orderedIds.length });
+
+        if (!candidate || !session?.preparedImageUri || !session.imageDigestPrefix) {
+          emit({
+            candidateId,
+            state: 'failed',
+            index,
+            total: orderedIds.length,
+            message: 'The original image is no longer available.',
+          });
+          continue;
+        }
+        if (!sourceImageUri || sourceImageUri !== session.sourceImageUri) {
+          emit({
+            candidateId,
+            state: 'failed',
+            index,
+            total: orderedIds.length,
+            message: 'The original image is no longer available.',
+          });
+          continue;
+        }
+
+        let data = null;
+        let detailStatus = 'complete';
+        try {
+          const serverCandidateId =
+            binding?.serverCandidateId ?? candidate.serverCandidateId ?? candidate.id;
+          const evidenceSource = binding?.evidenceSource
+            ?? session.evidenceSource
+            ?? (sourceImageSource === 'upload' ? 'gallery' : 'camera');
+          const evidence = prepareScannerEvidence({
+            preparedImage: session.preparedImageUri,
+            source: evidenceSource,
+            evidenceId: session.evidenceId,
+          });
+          if (!evidence) throw new Error('PREPARED_EVIDENCE_UNAVAILABLE');
+
+          const v2Candidate = Array.isArray(session.v2Candidates)
+            ? session.v2Candidates.find(
+              (entry) => (entry.candidateId === candidate.id || entry.candidateId === serverCandidateId)
+                && entry.evidenceId === evidence.evidenceId,
+            )
+            : undefined;
+
+          const outcome = await runScannerIdentification({
+            mode: 'identify_selected_item',
+            evidence,
+            platform: Platform?.OS === 'android' ? 'android' : 'ios',
+            requestId: createEvidenceId(),
+            sessionFlag: scannerV2SessionRef.current,
+            selectedCandidate: {
+              evidenceId: evidence.evidenceId,
+              candidateId: serverCandidateId,
+              category: v2Candidate?.category ?? candidate.category,
+              ...(v2Candidate?.subtype ?? candidate.subtype
+                ? { subtype: v2Candidate?.subtype ?? candidate.subtype }
+                : {}),
+              ...(v2Candidate?.bounds ?? candidate.bounds
+                ? { bounds: v2Candidate?.bounds ?? candidate.bounds }
+                : {}),
+              ...(v2Candidate?.detectionDigest
+                ? { detectionDigest: v2Candidate.detectionDigest }
+                : {}),
+            },
+            legacyCorrelation: {
+              scanSessionId: session.scanSessionId,
+              imageDigestPrefix: session.imageDigestPrefix,
+            },
+            localPrivacyFiltered: session.localPrivacyFiltered,
+            signal: activeAbortControllerRef.current?.signal,
+          });
+
+          const identifyResponse = outcome.response;
+          if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) {
+            return { items, halted: 'superseded', message: null };
+          }
+          // The production transport reports a spent daily quota as a `failed`
+          // response flagged `rateLimited`; a raw 'rate_limited' status is also
+          // honoured. Either way the queue pauses here and the remaining items
+          // wait for an explicit resume instead of being spent against the limit.
+          if (identifyResponse?.status === 'rate_limited' || identifyResponse?.rateLimited === true) {
+            emit({ candidateId, state: 'queued', index, total: orderedIds.length });
+            return {
+              items,
+              halted: 'quota',
+              message: identifyResponse.userMessage || 'Daily scan limit reached. Try again tomorrow.',
+              remainingCandidateIds: orderedIds.slice(index),
+            };
+          }
+
+          if (outcome.v2ValidationFailure || outcome.rejection) {
+            throw new Error('SCANNER_V2_CONTRACT_FAILURE');
+          }
+
+          data = mapScanIdentifyToAnalysis(identifyResponse, {
+            identificationV2: outcome.identificationV2,
+            source: evidenceSource,
+          });
+          if (data.type === 'non-fashion') {
+            throw new Error('SELECTED_GARMENT_NOT_IDENTIFIED');
+          }
+        } catch (err) {
+          if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) {
+            return { items, halted: 'superseded', message: null };
+          }
+          // Preserve the genuine detection result as a partial item when the
+          // selected-item detail call fails. One provider failure must not
+          // discard successful sibling detections.
+          const source = candidate?.source;
+          if (source?.attributes || source?.identification) {
+            detailStatus = 'partial';
+            data = mapScanIdentifyToAnalysis({
+              status: 'completed',
+              attributes: source.attributes ?? {},
+              identification: source.identification,
+              recommendedProducts: [],
+              userMessage: candidate.label,
+            }, {
+              source: sourceImageSource === 'upload' ? 'gallery' : 'camera',
+            });
+          } else {
+            emit({
+              candidateId,
+              state: 'failed',
+              index,
+              total: orderedIds.length,
+              message: 'This item could not be analyzed.',
+            });
+            continue;
+          }
+        }
+
+        const item = {
+          id: candidate.id,
+          sourceImageId: candidate.sourceImageId ?? binding?.image?.id ?? 'primary',
+          sourceImageIndex:
+            Number.isInteger(candidate.sourceImageIndex)
+              ? candidate.sourceImageIndex
+              : binding?.image?.originalIndex ?? 0,
+          sourceImageUri,
+          source: sourceImageSource,
+          label: candidate.label || candidate.category || 'Fashion item',
+          analysis: data,
+          detailStatus,
+          actorRequest,
+        };
+        items.push(item);
+        emit({ candidateId, state: 'ready', item, index, total: orderedIds.length });
+      }
+
+      return { items, halted: null, message: null };
+    } finally {
+      clearInFlight(operationId);
+    }
+  }, [photo, startInFlight, clearInFlight, isOperationValid]);
 
   const analyzeSelectedCandidate = useCallback(async (candidateIdOverride) => {
     if (scanInFlightRef.current) return;
@@ -1535,6 +1804,7 @@ export function useKScan() {
     retry,
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
+    analyzeSelectedCandidates,
     retryCommerce,
     retryMultiItemCommerce,
     selectStaticFixture,

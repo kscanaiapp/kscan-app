@@ -181,10 +181,10 @@ test('governance: no active Scanner path calls identifyScanImage directly', () =
 
 test('governance: camera, gallery, multi-image, detection and selection all reach the adapter', () => {
   const hook = read('hooks/useKScan.js');
-  // One detection call site, inside the per-image map, and one selection call
-  // site, inside the sequential queue. Camera and gallery share both.
+  // Detection, single selection and the deliberate multi-image sequential queue
+  // all preserve the current adapter (the restored queue is additive).
   const runCalls = hook.match(/runScannerIdentification\(\{/g) ?? [];
-  assert.equal(runCalls.length, 2, 'exactly one detection and one selection call site');
+  assert.equal(runCalls.length, 3, 'exactly one detection and two governed selection call sites');
   assert.match(hook, /mode:\s*'detect_items'/);
   assert.match(hook, /mode:\s*'identify_selected_item'/);
 });

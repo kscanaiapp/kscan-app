@@ -154,6 +154,14 @@ export type ScanIdentifyResponse = {
   /** Bounded contract-error signal for a non-2xx. Never carries a body. */
   httpStatus?: number;
   contractErrorCode?: string;
+  /**
+   * True only when the backend explicitly answered with its daily-limit
+   * `rate_limited` status. The response is still a `failed` one (the legacy
+   * status union is unchanged, so every existing consumer keeps its behaviour);
+   * the flag lets the Scanner queue pause and resume instead of treating a spent
+   * quota as an item-level failure.
+   */
+  rateLimited?: boolean;
 };
 
 export type MatchConfidenceTier =

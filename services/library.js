@@ -69,6 +69,51 @@ function normalizeActorIdArg(actorId) {
 }
 
 /**
+ * Additive multi-image provenance from the previously certified Scanner.
+ * Bounded, identifier-only metadata: no raw provider payload, evidence id,
+ * Base64, bounds, or local path is introduced here.
+ */
+function normalizeMultiScanMetadata(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const boundedId = (candidate) => (
+    typeof candidate === 'string' && candidate.trim()
+      ? candidate.trim().slice(0, 200)
+      : null
+  );
+  const groupId = boundedId(value.groupId);
+  const itemId = boundedId(value.itemId);
+  const sourceImageId = boundedId(value.sourceImageId);
+  const sourceImageIndex = Number(value.sourceImageIndex);
+  const imageCount = Number(value.imageCount);
+  const itemCount = Number(value.itemCount);
+  if (
+    Number(value.schemaVersion) !== 1 ||
+    !groupId ||
+    !itemId ||
+    !sourceImageId ||
+    !Number.isInteger(sourceImageIndex) ||
+    sourceImageIndex < 0 ||
+    sourceImageIndex >= 5 ||
+    !Number.isInteger(imageCount) ||
+    imageCount < 1 ||
+    imageCount > 5 ||
+    !Number.isInteger(itemCount) ||
+    itemCount < 1 ||
+    itemCount > 5
+  ) return null;
+
+  return {
+    schemaVersion: 1,
+    groupId,
+    itemId,
+    sourceImageId,
+    sourceImageIndex,
+    imageCount,
+    itemCount,
+  };
+}
+
+/**
  * Actor visibility contract.
  *   actorId === undefined -> unfiltered (internal complete-manifest reads only)
  *   actorId === null      -> signed-out projection: ownerless records only
@@ -651,6 +696,7 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
       return null;
     }
     const owner = authority.ownerId;
+    const multiScan = normalizeMultiScanMetadata(analysis?.multiScan);
 
     /** @type {SavedScan} */
     const scan = {
@@ -707,6 +753,7 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
       // only in transient Scanner state and are gone when the scan is reopened.
       purchaseOptions: selectPurchaseOptionsSnapshot(analysis),
       source:   source || 'scan',
+      ...(multiScan ? { metadata: { multiScan } } : {}),
     };
 
     const committed = await enqueueLibraryMutation(async () => {
