@@ -367,28 +367,41 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         };
       }
 
-      const garment = await fetchWithTimeoutAndCap(
-        input.garmentImageUrl,
-        GARMENT_FETCH_TIMEOUT_MS,
-        GARMENT_FETCH_MAX_BYTES,
-        signal,
-        doFetch,
-      );
-      if (!garment.ok) {
-        // The garment never resolved, so the submit was never sent.
-        return {
-          ok: false, failure: 'invalid_garment_input', detail: `garment_fetch_${garment.reason}`, billable: false,
-        };
+      // The garment reaches the same multipart field by one of two routes. An
+      // INLINE garment (the orchestrator already validated it) is decoded
+      // straight into the Blob -- it is never given a URL, so nothing is
+      // fetched and nothing becomes fetchable. Every other garment is a remote
+      // image and goes through the one guarded fetch below, unchanged.
+      let garmentBlob: Blob;
+      if (typeof input.garmentDataUri === 'string') {
+        const inline = dataUriToBlob(input.garmentDataUri);
+        if (!inline) {
+          return {
+            ok: false, failure: 'invalid_garment_input', detail: 'garment_data_uri_undecodable', billable: false,
+          };
+        }
+        garmentBlob = inline.blob;
+      } else {
+        const garment = await fetchWithTimeoutAndCap(
+          input.garmentImageUrl,
+          GARMENT_FETCH_TIMEOUT_MS,
+          GARMENT_FETCH_MAX_BYTES,
+          signal,
+          doFetch,
+        );
+        if (!garment.ok) {
+          // The garment never resolved, so the submit was never sent.
+          return {
+            ok: false, failure: 'invalid_garment_input', detail: `garment_fetch_${garment.reason}`, billable: false,
+          };
+        }
+        garmentBlob = new Blob([garment.bytes], { type: garment.mediaType });
       }
 
       const form = new FormData();
       form.set('task_type', 'async');
       form.set('person_image', person.blob, 'person.jpg');
-      form.set(
-        'top_garment',
-        new Blob([garment.bytes], { type: garment.mediaType }),
-        'garment.jpg',
-      );
+      form.set('top_garment', garmentBlob, 'garment.jpg');
 
       let submitResponse: Response;
       try {

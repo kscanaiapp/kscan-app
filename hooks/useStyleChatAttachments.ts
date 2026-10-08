@@ -101,6 +101,14 @@ const resolvingDraftIds = new Set<string>();
 const savingClosetCandidateIds = new Set<string>();
 /** Focused draft id per session (client UI only). */
 const focusedDraftBySession = new Map<string, string | null>();
+/**
+ * The draft the CUSTOMER focused, per session. Distinct from the map above on
+ * purpose: the composer also focuses the first attachment by itself, and a
+ * default is not a choice. Only the explicit focus action writes here, and a
+ * focus is "explicit" only while this still names the currently focused draft
+ * -- so an automatic refocus after a removal can never be mistaken for one.
+ */
+const explicitFocusBySession = new Map<string, string | null>();
 const focusListeners = new Set<() => void>();
 
 function notifyFocus() {
@@ -768,6 +776,7 @@ export function useStyleChatAttachments(sessionId: string) {
     (draftId: string) => {
       const exists = getDraftAttachments(sessionId).some((entry) => entry.draftId === draftId);
       if (!exists) return;
+      explicitFocusBySession.set(sessionId, draftId);
       setFocusedDraftId(sessionId, draftId);
     },
     [sessionId],
@@ -1069,6 +1078,13 @@ export function useStyleChatAttachments(sessionId: string) {
       ...snapshot,
       references: orderedRefs.length ? orderedRefs : snapshot.references,
       focusedDraftId: getFocusedDraftId(sessionId),
+      /**
+       * True only when the customer picked the focused draft themselves. The
+       * automatic first-attachment focus leaves this false.
+       */
+      focusedDraftExplicit:
+        getFocusedDraftId(sessionId) !== null
+        && explicitFocusBySession.get(sessionId) === getFocusedDraftId(sessionId),
       fashionContext:
         fashionContextDecision.kind === 'send' ? fashionContextDecision.context : null,
       /**
@@ -1127,6 +1143,7 @@ export function useStyleChatAttachments(sessionId: string) {
   useEffect(() => registerAttachmentSagaReset(() => {
     resolvingDraftIds.clear();
     focusedDraftBySession.clear();
+    explicitFocusBySession.clear();
     notifyFocus();
   }), []);
 

@@ -30,6 +30,7 @@ import {
   ELISE_LOCAL_CLARIFICATION_PROVIDER,
   analyzeEliseTurn,
   buildEliseConversationNotices,
+  guardEliseVtoInvitationProse,
   validateEliseReply,
   type EliseReplyViolation,
   type EliseTurnAnalysis,
@@ -79,6 +80,18 @@ export type SendAttachmentsInput = {
    * as they are when the response lands.
    */
   fashionContext?: unknown;
+  /**
+   * Decides whether this turn's reply may carry the app-owned contextual Try It
+   * On offer, and returns the block to append, or null.
+   *
+   * Supplied by the screen, closed over THIS immutable send snapshot (its
+   * drafts, the context that was sent, and whether the focus was the
+   * customer's own choice). It is application code: it never sees Elise's
+   * reply, and nothing the model produces can stand in for it. This hook only
+   * decides WHEN it may run -- after a real reply exists -- and stays free of
+   * any Virtual Try-On or device-storage dependency of its own.
+   */
+  prepareVtoOffer?: () => Promise<StyleChatUiBlock | null>;
   onSending?: () => void;
   /** Called only after a successful attachment-aware send. */
   onSent?: () => void;
@@ -750,7 +763,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         //    now that the backend acknowledged the v2 contract. Bounded
         //    attachment summaries persist in the existing ui_blocks column
         //    (stable references + display fields only; never image bytes).
-        const trimmedAssistant = result.message.content.trim();
+        // VTO PROSE GUARD. The application owns the Try It On invitation, so a
+        // sentence in which the MODEL invites one is removed here -- before the
+        // reply is checked for emptiness, shown, stored or spoken. It is a
+        // negative guard only: a match never creates an offer, and a reply it
+        // empties is handled by the existing empty-reply paths below.
+        const trimmedAssistant = guardEliseVtoInvitationProse(result.message.content).text.trim();
         const hasActions = Array.isArray(result.actions) && result.actions.length > 0;
 
         // Empty user-facing text + empty actions must not produce a blank bubble.
@@ -794,9 +812,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // Optional "Why this works" explanation for concrete recommendations. Stored in
         // the existing ui_blocks jsonb column so it persists across reload with no schema
         // change; absent explanations render as a normal message bubble.
+        const whyThisWorks = result.message.whyThisWorks
+          ? guardEliseVtoInvitationProse(result.message.whyThisWorks).text.trim()
+          : '';
         const explanationBlocks: StyleChatUiBlock[] =
-          ENABLE_STYLECHAT_EXPLANATIONS && result.message.whyThisWorks
-            ? [{ type: 'why_this_works', title: 'Why this works', body: result.message.whyThisWorks }]
+          ENABLE_STYLECHAT_EXPLANATIONS && whyThisWorks
+            ? [{ type: 'why_this_works', title: 'Why this works', body: whyThisWorks }]
             : [];
 
         const replyViolations: EliseReplyViolation[] | null =
@@ -838,6 +859,19 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
               result: conciergeResult,
             } as unknown as StyleChatUiBlock);
           }
+        }
+
+        // CONTEXTUAL TRY IT ON. Decided by the APPLICATION, from the send
+        // snapshot captured before Elise was asked -- never from her reply. When
+        // exactly one uploaded garment is one K Scan can genuinely visualize,
+        // one app-owned block is appended: it carries an opaque device-local id
+        // and nothing else, and the bubble renders the invitation and its
+        // button together from it. Nothing is read from the image and nothing
+        // is sent here; a Free customer gets the offer too, as the way into K+.
+        if (hasAttachments && trimmedAssistant && sendAttachments?.prepareVtoOffer) {
+          const vtoOffer = await sendAttachments.prepareVtoOffer().catch(() => null);
+          if (!isCurrentSend()) return;
+          if (vtoOffer) explanationBlocks.push(vtoOffer);
         }
 
         const optimisticAssistant: StyleChatMessage = {

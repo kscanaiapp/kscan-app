@@ -76,7 +76,7 @@ import {
   shouldOfferModeChoice,
   type VtoCapability,
 } from '../../services/vto/vtoLiveCapability';
-import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
+import type { VtoGarmentInput, VtoInlineGarmentLoader, VtoOrigin } from '../../types/vto';
 
 export interface VirtualTryOnSheetProps {
   visible: boolean;
@@ -103,6 +103,12 @@ export interface VirtualTryOnSheetProps {
    */
   sizeGuideUrl?: string | null;
   devScenario?: string;
+  /**
+   * Reads a user-supplied (device-local) garment's bytes at generation time.
+   * Passed straight through to the request lifecycle; the sheet never calls
+   * it, so opening, closing or re-rendering this surface reads nothing.
+   */
+  loadInlineGarment?: VtoInlineGarmentLoader;
   /**
    * The capability router's answer for this garment.
    *
@@ -157,10 +163,11 @@ export function VirtualTryOnSheet({
   onMinimize,
   sizeGuideUrl,
   devScenario,
+  loadInlineGarment,
   capability,
   testID,
 }: VirtualTryOnSheetProps) {
-  const vto = useVirtualTryOn({ garment, origin, devScenario });
+  const vto = useVirtualTryOn({ garment, origin, devScenario, loadInlineGarment });
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -832,7 +839,7 @@ export function VirtualTryOnSheet({
                     <Image
                       source={{ uri: garment.imageUrl }}
                       style={styles.reviewThumb}
-                      accessibilityLabel={`${garmentTitle} product image`}
+                      accessibilityLabel={`${garmentTitle} garment image`}
                     />
                   ) : null}
                 </View>

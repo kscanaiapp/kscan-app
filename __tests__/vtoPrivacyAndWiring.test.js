@@ -643,16 +643,18 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'components/vto/TryItOnEntry.tsx': [
     '../../constants/theme', '../../hooks/useVtoAvailability',
-    // CONVERGENCE #277: minimize/restore needs the live session status, and the
-    // pill reports it. Neither reads or writes ownership state.
-    '../../hooks/useVtoSessionStatus',
     // P3-C: the capability router is asked ONCE, here, and handed to the sheet.
     // The entry point itself is unchanged -- still one Try It On, still gated
     // by the same availability/K+ answer as before.
     '../../hooks/useVtoLiveCapability',
-    '../../services/haptics', '../../services/vto/vtoTelemetry',
+    '../../services/haptics',
     '../../types/vto', '../kplus/KPlusGate',
-    './VirtualTryOnSheet', './VtoMinimizedPill',
+    // BUILD 35 ELISE CONTEXTUAL VTO. The sheet, its collapsed state and the
+    // minimized pill moved to the shared launch host so a second entry point
+    // could use the SAME lifecycle. The entry lost four imports
+    // (useVtoSessionStatus, vtoTelemetry, VirtualTryOnSheet, VtoMinimizedPill)
+    // and gained this one; it acquired no new capability.
+    './VtoLaunchHost',
     // BUILD 35 CUSTOMER ACTIVATION. The entry renders what the pure discovery
     // model decides, records awareness history through vtoAwareness (which
     // holds no device storage itself), and may show the inline first-use cue.
@@ -668,6 +670,54 @@ const VTO_ALLOWED_IMPORTS = {
     // applies to this surface unchanged.
     '../icons/kscan',
     'react', 'react-native',
+  ],
+
+  // ── BUILD 35 ELISE CONTEXTUAL VTO ────────────────────────────────────────
+  // Enrolled for the reason every surface here is: a module this control does
+  // not name is a module it does not guard, and enrolment subjects each of them
+  // to the forbidden-call scan below.
+  //   VtoLaunchHost         -- the lifecycle extracted from TryItOnEntry: sheet
+  //                            visibility, collapse, the single sheet mount, the
+  //                            pill. Exactly the imports that moved with it.
+  //   EliseVtoOffer         -- the app-owned conversational offer. It resolves
+  //                            an opaque device-local id, asks the SAME
+  //                            availability hook and K+ gate as the product
+  //                            control, and mounts the same host. It cannot
+  //                            start a request or choose a photo.
+  //   eliseVtoOffer         -- PURE. The block contract and the one-garment
+  //                            selection policy. No imports at all.
+  //   eliseVtoUploadSource  -- the bridge to the device-local candidate. It
+  //                            READS the candidate store and the candidate's
+  //                            own file, and writes neither: the forbidden-call
+  //                            scan below is what keeps "a try-on is not an
+  //                            acquisition" true of it.
+  // NOT enrolled, deliberately: services/style-chat/eliseVtoOfferBindings.ts.
+  // It is the one module that persists the opaque-id binding on the device, so
+  // it holds device storage by design -- the same reason
+  // services/featureAwareness and services/thirdPartyAiConsent are shared
+  // services rather than VTO files.
+  'components/vto/VtoLaunchHost.tsx': [
+    '../../hooks/useVtoAwareness', '../../hooks/useVtoSessionStatus',
+    '../../services/haptics', '../../services/vto/vtoAwareness',
+    '../../services/vto/vtoLiveCapability', '../../services/vto/vtoTelemetry',
+    '../../types/vto', './VirtualTryOnSheet', './VtoMinimizedPill', 'react',
+  ],
+  'components/style-chat/EliseVtoOffer.tsx': [
+    '../../constants/theme', '../../contexts/AuthSessionContext',
+    '../../hooks/useVtoAvailability', '../../hooks/useVtoAwareness',
+    '../../services/haptics', '../../services/style-chat/eliseVtoOffer',
+    '../../services/style-chat/eliseVtoUploadSource',
+    '../../services/vto/vtoDiscovery', '../../services/vto/vtoTelemetry',
+    '../../types/vto', '../icons/kscan', '../kplus/KPlusGate',
+    '../vto/VtoLaunchHost', 'react', 'react-native',
+  ],
+  'services/style-chat/eliseVtoOffer.ts': [],
+  'services/style-chat/eliseVtoUploadSource.ts': [
+    '../../constants/featureFlags', '../../types/closetCandidate', '../../types/vto',
+    '../actorContext', '../actorScope', '../closetCandidateLibrary',
+    '../vto/vtoEligibility', '../vto/vtoFeatureControl',
+    './eliseFashionContextV2', './eliseVtoOffer', './eliseVtoOfferBindings',
+    'expo-crypto', 'expo-file-system/legacy',
   ],
 
   // ── BUILD 35 CUSTOMER ACTIVATION (awareness is presentation) ──────────────

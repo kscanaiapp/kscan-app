@@ -250,6 +250,7 @@ function noopPurgeDeps() {
     'purgeSavedLookReturnContext', 'purgeStylistVoicePreference',
     'clearSignatureStylePreferences', 'clearSignatureStyleFeedback',
     'clearSignatureStyleReasons', 'clearPackingPlanCache', 'clearOnboarding',
+    'purgeEliseVtoOfferBindings',
     // CPR-FT-001 — owner-scoped since B34-FE-FT-001, purged since this campaign.
     'clearFreeTierStores',
   ]) {
@@ -472,6 +473,7 @@ test('DELETE: purging a departed owner leaves the signed-in actor completely int
     'purgeSavedLookReturnContext', 'purgeStylistVoicePreference',
     'clearSignatureStylePreferences', 'clearSignatureStyleFeedback',
     'clearSignatureStyleReasons', 'clearPackingPlanCache', 'clearOnboarding',
+    'purgeEliseVtoOfferBindings',
   ]) {
     deps[name] = async (owner) => {
       purged.push({ name, owner });

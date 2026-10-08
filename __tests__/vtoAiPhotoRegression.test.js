@@ -429,7 +429,13 @@ test('regression: there is exactly ONE Try It On entry point', () => {
   // capability router changed which MODES exist behind the entry, not whether
   // the entry renders.
   assert.ok(/if \(!available && !upgradeOpportunity\) return null;/.test(entry));
-  assert.equal([...entry.matchAll(/<VirtualTryOnSheet/g)].length, 1);
+  // The sheet itself is mounted by the ONE shared launch host, which the entry
+  // renders exactly once. Still one sheet in the app; it simply has one owner
+  // that more than one entry point can use.
+  assert.equal([...entry.matchAll(/<VirtualTryOnSheet/g)].length, 0);
+  assert.equal([...entry.matchAll(/<VtoLaunchHost/g)].length, 1);
+  const host = code('components/vto/VtoLaunchHost.tsx');
+  assert.equal([...host.matchAll(/<VirtualTryOnSheet/g)].length, 1);
   // And no second entry component was introduced anywhere.
   const vtoComponents = fs.readdirSync(path.join(ROOT, 'components', 'vto'));
   const entryLike = vtoComponents.filter((name) => /TryItOn|TryOnEntry/i.test(name));

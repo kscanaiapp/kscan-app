@@ -51,6 +51,10 @@ const FEATURE_CONTROL = 'services/vto/vtoFeatureControl.ts';
 const AVAILABILITY_HOOK = 'hooks/useVtoAvailability.ts';
 const AWARENESS_HOOKS = 'hooks/useVtoAwareness.ts';
 const ENTRY = 'components/vto/TryItOnEntry.tsx';
+// The shared launch host the entry (and Elise's contextual offer) mounts the
+// one VirtualTryOnSheet through. Rendered for REAL below, so "tapping the
+// control opens the governed sheet" is still answered by shipped code.
+const HOST = 'components/vto/VtoLaunchHost.tsx';
 const CUE = 'components/vto/VtoFirstUseCue.tsx';
 const HOME_CARD = 'components/home/HomeVtoDiscoveryCard.tsx';
 const HOME = 'components/home/HomeLuxuryTechV1.tsx';
@@ -1284,9 +1288,21 @@ function renderEntry(o = {}) {
       '../../services/vto/vtoAwareness': world.awareness,
       '../../services/vto/vtoDiscovery': world.discovery,
       '../../services/vto/vtoTelemetry': world.telemetry,
-      './VirtualTryOnSheet': { VirtualTryOnSheet: 'VirtualTryOnSheet' },
       './VtoFirstUseCue': { VtoFirstUseCue: 'VtoFirstUseCue' },
-      './VtoMinimizedPill': { VtoMinimizedPill: 'VtoMinimizedPill' },
+      './VtoLaunchHost': runModule(
+        HOST,
+        {
+          ...renderer.runtimeModules,
+          '../../hooks/useVtoAwareness': awarenessHooks,
+          '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: world.env.vtoStatus }) },
+          '../../services/haptics': { selectionTick: () => { calls.haptics += 1; } },
+          '../../services/vto/vtoAwareness': world.awareness,
+          '../../services/vto/vtoTelemetry': world.telemetry,
+          './VirtualTryOnSheet': { VirtualTryOnSheet: 'VirtualTryOnSheet' },
+          './VtoMinimizedPill': { VtoMinimizedPill: 'VtoMinimizedPill' },
+        },
+        { mutate: o.mutate ? o.mutate[HOST] : undefined },
+      ),
     },
     { mutate: o.mutate ? o.mutate[ENTRY] : undefined },
   );
@@ -1586,7 +1602,9 @@ function checkTelemetryIsBounded(o = {}) {
   // dimension is a deliberate edit to this list as well as to the sink.
   assert.deepEqual([...telemetry.VTO_EVENT_PROPERTIES].sort(), [
     'actor_kplus_state', 'category', 'eligibility', 'failureCode', 'inputBucket', 'latencyMs', 'mode',
-    'origin', 'outputBucket', 'provider', 'retryCount', 'slot', 'surface',
+    // 'reasonCode': why an Elise contextual offer could not launch. Bounded to a
+    // closed set in VTO_BOUNDED_PROPERTY_VALUES, like surface and K+ state.
+    'origin', 'outputBucket', 'provider', 'reasonCode', 'retryCount', 'slot', 'surface',
   ]);
 
   telemetry.emitVtoEvent('vto_awareness_impression', { surface: 'home', actor_kplus_state: 'free' });
@@ -1722,10 +1740,17 @@ test('copy: consent wording is NOT touched by this lane, and no surface restates
 
 test('routing: every awareness surface ends at the product control, and the control at the governed sheet', () => {
   const entry = stripComments(read(ENTRY));
-  // One sheet, mounted only on an explicit tap of the control.
-  assert.equal([...entry.matchAll(/<VirtualTryOnSheet/g)].length, 1);
-  assert.match(entry, /\{sheetVisible \? \(\s*<VirtualTryOnSheet/);
-  assert.equal([...entry.matchAll(/setSheetVisible\(true\)/g)].length, 1, 'one way to open it');
+  const host = stripComments(read(HOST));
+  // One sheet, in the ONE shared launch host, mounted only on an explicit open.
+  // (Retargeted from the entry when the sheet lifecycle was extracted so Elise's
+  // contextual offer could share it: the invariants are unchanged, they are
+  // simply asserted of the file that now owns them.)
+  assert.equal([...host.matchAll(/<VirtualTryOnSheet/g)].length, 1);
+  assert.match(host, /\{sheetVisible \? \(\s*<VirtualTryOnSheet/);
+  assert.equal([...host.matchAll(/setSheetVisible\(true\)/g)].length, 1, 'one way to open it');
+  assert.equal([...entry.matchAll(/<VirtualTryOnSheet/g)].length, 0, 'the entry mounts no sheet of its own');
+  assert.equal([...entry.matchAll(/setSheetVisible/g)].length, 0, 'and cannot open one any other way');
+  assert.equal([...entry.matchAll(/<VtoLaunchHost/g)].length, 1, 'it hands its garment to the shared host');
   // The cue calls the control's handler; it has no route of its own.
   assert.match(entry, /<VtoFirstUseCue cta=\{cta\} targetRef=\{controlRef\} onTry=\{openSheet\} \/>/);
   assert.match(entry, /<VtoFirstUseCue cta=\{cta\} targetRef=\{controlRef\} onTry=\{unlock\} \/>/);

@@ -44,6 +44,33 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/commerce-watch-refresh/index.ts',
   'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts',
   'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.test.ts',
+  // Build 35 Elise contextual Virtual Try-On (owner brief 2026-10-07). Exact
+  // paths, each with its own row and reason in the integration manifest; this
+  // is not a `vto-generate/**` grant, and every other backend file stays
+  // read-only.
+  //   vtoUserSuppliedGarment(.test).ts  the neutral inline-garment source:
+  //                                     bounded JPEG, content hash recomputed.
+  //   vtoEligibility.ts                 one additive flag that waives the URL
+  //                                     rule for a validated inline garment.
+  //                                     Category authority is unchanged.
+  //   providers/mockProvider(.test).ts  the mock accepts the same request
+  //                                     shape the real adapter must decode.
+  //   providers/aiLabToolsProvider.test.ts
+  //                                     coverage for the adapter's inline route
+  //                                     (the adapter itself is listed above).
+  //   stylechat-generate/index.ts       four lines of system instruction: Elise
+  //                                     does not offer Try It On herself and
+  //                                     makes no fit, sizing or body claims.
+  //                                     No model action was added: try_on_item
+  //                                     is still dropped by actions.ts, which is
+  //                                     NOT on this list and was not touched.
+  'supabase/functions/vto-generate/vtoUserSuppliedGarment.ts',
+  'supabase/functions/vto-generate/vtoUserSuppliedGarment.test.ts',
+  'supabase/functions/vto-generate/vtoEligibility.ts',
+  'supabase/functions/vto-generate/providers/mockProvider.ts',
+  'supabase/functions/vto-generate/providers/mockProvider.test.ts',
+  'supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts',
+  'supabase/functions/stylechat-generate/index.ts',
 ]);
 
 // ── The manifest parses, and every row carries its justification ────────────

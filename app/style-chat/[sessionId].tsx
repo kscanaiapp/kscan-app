@@ -40,6 +40,9 @@ import { useStyleChat } from '../../hooks/useStyleChat';
 import { useGenderStylingContext } from '../../hooks/useGenderStylingContext';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
+import { removeEliseVtoOfferBindingsForSession } from '../../services/style-chat/eliseVtoOfferBindings';
+import { prepareEliseVtoOffer } from '../../services/style-chat/eliseVtoUploadSource';
+import type { StyleChatUiBlock } from '../../services/style-chat/types';
 import {
   getStyleChatHandoffContext,
   clearStyleChatHandoffContext,
@@ -356,6 +359,7 @@ export default function StyleChatSessionScreen() {
             setIsDeleting(true);
             try {
               await deleteStyleChatSession(sessionId);
+              void removeEliseVtoOfferBindingsForSession(sessionId);
               clearVisualContext();
               clearDraftAttachments(sessionId, { actorKey });
               router.replace('/style-chat');
@@ -769,6 +773,22 @@ export default function StyleChatSessionScreen() {
                   drafts: snapshot.drafts,
                   ...(snapshot.fashionContext
                     ? { fashionContext: snapshot.fashionContext }
+                    : {}),
+                  // Contextual Try It On. Bound to THIS snapshot here, so the
+                  // garment is correlated from what was actually sent and from
+                  // whether the customer chose the focused photo themselves --
+                  // never from Elise's reply.
+                  ...(snapshot.fashionContext
+                    ? {
+                        prepareVtoOffer: async () =>
+                          (await prepareEliseVtoOffer({
+                            sessionId,
+                            drafts: snapshot.drafts,
+                            sentContext: snapshot.fashionContext,
+                            focusedDraftId: snapshot.focusedDraftId,
+                            focusExplicit: snapshot.focusedDraftExplicit,
+                          })) as StyleChatUiBlock | null,
+                      }
                     : {}),
                   onSending: () => chatAttachments.markSending(snapshot.drafts),
                   onSent: () => {

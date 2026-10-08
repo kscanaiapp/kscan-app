@@ -143,7 +143,7 @@ test('minimize: the sheet stays MOUNTED while collapsed', () => {
   // useVirtualTryOn calls leaveVtoSurface on unmount, so rendering the sheet
   // conditionally on `!minimized` would cancel the generation the pill claims
   // is still running. Collapsing must go through Modal visibility instead.
-  const entry = code('components/vto/TryItOnEntry.tsx');
+  const entry = code('components/vto/VtoLaunchHost.tsx');
   assert.match(
     entry,
     /<VirtualTryOnSheet\s+visible=\{!minimized\}/,
@@ -188,9 +188,10 @@ test('minimize: the observing hook holds no authority over the request', () => {
 });
 
 test('minimize: only the card that opened the try-on shows a pill', () => {
-  // TryItOnEntry renders once per product card. A pill keyed on session status
-  // alone would appear on every eligible card on screen.
-  const entry = code('components/vto/TryItOnEntry.tsx');
+  // An entry renders once per product card (or once per Elise offer). A pill
+  // keyed on session status alone would appear on every one of them, so the
+  // shared host gates it on the launch state its own entry holds.
+  const entry = code('components/vto/VtoLaunchHost.tsx');
   assert.match(
     entry,
     /\{sheetVisible && minimized \? \(\s*<VtoMinimizedPill/,
@@ -208,7 +209,7 @@ test('minimize: the pill is offered only while something is actually running', (
 });
 
 test('minimize: the pill reports ready only from a validated success', () => {
-  const entry = code('components/vto/TryItOnEntry.tsx');
+  const entry = code('components/vto/VtoLaunchHost.tsx');
   assert.match(entry, /ready=\{session\.status === 'success'\}/);
   const pillModule = loadTsModule('services/vto/vtoProgressStages.ts', { '../../types/vto': {} });
   assert.equal(pillModule.VTO_PILL_RENDERING_LABEL, 'Try-On Rendering…');

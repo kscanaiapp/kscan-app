@@ -194,6 +194,7 @@ function purgeDepsExceptFreeTier() {
     'purgeSavedLookReturnContext', 'purgeStylistVoicePreference',
     'clearSignatureStylePreferences', 'clearSignatureStyleFeedback',
     'clearSignatureStyleReasons', 'clearPackingPlanCache', 'clearOnboarding',
+    'purgeEliseVtoOfferBindings',
   ]) {
     deps[name] = async () => ({ ok: true });
   }

@@ -27,6 +27,8 @@ import type { VtoEligibility } from '../types/vto';
 
 export interface UseVtoAvailabilityArgs {
   ownedMediaReady?: boolean;
+  /** A user-supplied garment whose local media was found. Advisory only. */
+  inlineMediaReady?: boolean;
   category: string | null | undefined;
   imageUrl: string | null | undefined;
   productRef: string | null | undefined;
@@ -101,6 +103,7 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
     const eligibility = evaluateVtoEligibility({
       category: args.category,
       ownedMediaReady: args.ownedMediaReady,
+      inlineMediaReady: args.inlineMediaReady,
       imageUrl: args.imageUrl,
       productRef: args.productRef,
       featureEnabled: config.enabled,
@@ -114,6 +117,7 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
     const eligibleWithKPlus = evaluateVtoEligibility({
       category: args.category,
       ownedMediaReady: args.ownedMediaReady,
+      inlineMediaReady: args.inlineMediaReady,
       imageUrl: args.imageUrl,
       productRef: args.productRef,
       featureEnabled: config.enabled,
@@ -129,5 +133,5 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
       liveRemoteEnabled: config.liveEnabled === true,
       liveSupportedCategories: config.liveSupportedCategories,
     };
-  }, [args.category, args.imageUrl, args.productRef, args.ownedMediaReady, config, hasKPlus, isAuthenticated, kplusState]);
+  }, [args.category, args.imageUrl, args.productRef, args.ownedMediaReady, args.inlineMediaReady, config, hasKPlus, isAuthenticated, kplusState]);
 }
