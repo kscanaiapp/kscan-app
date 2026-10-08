@@ -219,3 +219,22 @@ Deno.test('the provider is never handed a K Scan identity', () => {
   const keys = Object.keys(INPUT).sort();
   assertEquals(keys, ['canonicalCategory', 'garmentImageUrl', 'personDataUri', 'slot']);
 });
+
+Deno.test('an inline garment is accepted in place of a URL, exactly as a real adapter must', async () => {
+  const provider = createMockVtoProvider({ scenario: 'success', latencyMs: 0 });
+  const accepted = await provider.generate(
+    { ...INPUT, garmentImageUrl: '', garmentDataUri: 'data:image/jpeg;base64,AAAA' },
+    { signal: signal() },
+  );
+  assertEquals(accepted.ok, true);
+
+  const refused = await provider.generate(
+    { ...INPUT, garmentImageUrl: 'https://cdn.example.com/coat.jpg', garmentDataUri: 'file:///local.jpg' },
+    { signal: signal() },
+  );
+  assertEquals(refused.ok, false);
+  if (refused.ok === false) {
+    assertEquals(refused.failure, 'invalid_garment_input');
+    assertEquals(refused.billable, false);
+  }
+});

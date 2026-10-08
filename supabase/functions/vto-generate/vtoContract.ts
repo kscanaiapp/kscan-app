@@ -65,6 +65,56 @@ export type VtoMediaType = (typeof VTO_ALLOWED_MEDIA_TYPES)[number];
  *  limit -- it exists so an absurd body is rejected cheaply. */
 export const VTO_PERSON_PAYLOAD_MAX_CHARS = 2_000_000;
 
+/**
+ * USER-SUPPLIED GARMENT (the `user_supplied_garment` source).
+ *
+ * Some garments exist only on the customer's device -- today, a photo they
+ * gave Elise -- so there is no URL for the server to fetch and no row for it to
+ * resolve. Such a garment travels as a second, separately bounded data URI on
+ * the same request, and is held only for the life of that request.
+ *
+ * THE NAME IS NEUTRAL ON PURPOSE. It means exactly "the authenticated client
+ * is supplying bounded garment media for this explicit request". It does not
+ * mean owned, purchased, saved to the Closet, a verified retailer product, or
+ * anything about which screen it came from. `origin` stays what it always was
+ * -- a telemetry label the client chooses -- and authorizes nothing.
+ *
+ * JPEG only: the one producer is the normalized JPEG the device-local
+ * candidate store writes, so any other media type is not that source.
+ */
+export const VTO_USER_SUPPLIED_GARMENT_SOURCE_TYPE = 'user_supplied_garment' as const;
+export const VTO_INLINE_GARMENT_MEDIA_TYPES = ['image/jpeg'] as const;
+
+/** The one content-identity scheme an inline garment may be fingerprinted
+ *  with, mirroring CLOSET_CANDIDATE_CONTENT_HASH_VERSION on the client: SHA-256
+ *  over the canonical Base64 encoding of the normalized JPEG's bytes. */
+export const VTO_GARMENT_CONTENT_HASH_VERSION = 'sha256-normalized-v1' as const;
+
+/** Transport ceiling for the inline garment data URI, mirroring
+ *  VTO_GARMENT_PAYLOAD_MAX_CHARS on the client. Like the person ceiling it is
+ *  a safety bound, not a vendor limit. */
+export const VTO_GARMENT_PAYLOAD_MAX_CHARS = 3_000_000;
+
+/** Bounds on the DECODED inline garment. The upper one is what the encoded
+ *  ceiling above already implies (3 bytes per 4 characters), stated as its own
+ *  number so the decoded size is checked rather than assumed. */
+export const VTO_INLINE_GARMENT_MIN_BYTES = 1024;
+export const VTO_INLINE_GARMENT_MAX_BYTES = 2_250_000;
+
+/** Room for everything in the request that is not image payload. */
+export const VTO_REQUEST_ENVELOPE_MAX_CHARS = 8_192;
+
+/** Whole-body ceiling for a request that carries NO inline garment. Unchanged
+ *  from before the inline garment existed. */
+export const VTO_REQUEST_BODY_MAX_CHARS =
+  VTO_PERSON_PAYLOAD_MAX_CHARS + VTO_REQUEST_ENVELOPE_MAX_CHARS;
+
+/** Whole-body ceiling for a `user_supplied_garment` request: the same envelope
+ *  plus exactly one bounded garment payload. Derived, not chosen: one person
+ *  image + one garment image + the envelope. No other source may use it. */
+export const VTO_INLINE_GARMENT_REQUEST_BODY_MAX_CHARS =
+  VTO_REQUEST_BODY_MAX_CHARS + VTO_GARMENT_PAYLOAD_MAX_CHARS;
+
 /** Bounds on vendor Retry-After guidance K Scan will repeat to a caller. */
 export const VTO_RETRY_AFTER_MIN_SECONDS = 1;
 export const VTO_RETRY_AFTER_MAX_SECONDS = 3600;
@@ -79,8 +129,16 @@ export const VTO_RESULT_MAX_BYTES = 8 * 1024 * 1024;
 export interface VtoProviderInput {
   /** data:image/...;base64,... of the sanitized person image. */
   personDataUri: string;
-  /** Remote https garment image. */
+  /** Remote https garment image. Empty when `garmentDataUri` is supplied. */
   garmentImageUrl: string;
+  /**
+   * Bounded inline garment (data:image/jpeg;base64,...), already validated by
+   * the orchestrator. When present it IS the garment: an adapter decodes it
+   * directly and must not fetch `garmentImageUrl`. It is never given a URL of
+   * its own, so it is never fetchable by anyone else. An adapter that does not
+   * understand it finds an empty `garmentImageUrl` and fails closed.
+   */
+  garmentDataUri?: string;
   slot: VtoGarmentSlot;
   /** Canonical K Scan taxonomy token, e.g. 'top'. */
   canonicalCategory: string;
