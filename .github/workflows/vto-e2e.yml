@@ -1,10 +1,10 @@
 # VTO backend E2E certification harness.
 #
 # `contract` runs automatically on every push/PR (no live staging mutation).
-# `staging-dryrun`, `staging-full-certification` and `cleanup` are
-# workflow_dispatch only, target the governed "staging" GitHub environment,
-# and never run on a normal PR/push — see scripts/vto-e2e/run.mjs for the
-# harness itself.
+# `staging-dryrun`, `staging-full-certification`, `cleanup` and the three
+# `staging-user-garment-*` modes are workflow_dispatch only, target the
+# governed "staging" GitHub environment, and never run on a normal PR/push —
+# see scripts/vto-e2e/run.mjs for the harness itself.
 #
 # `defaults.run.shell: bash` below is load-bearing, not stylistic: GitHub
 # Actions' UNDECLARED default shell on Linux runners is `bash -e {0}` —
@@ -37,8 +37,11 @@ on:
           - staging-dryrun
           - staging-full-certification
           - cleanup
+          - staging-user-garment-dryrun
+          - staging-user-garment-certification
+          - staging-user-garment-log-audit
       confirm_paid_certification:
-        description: Must be YES to run staging-full-certification (the one authorized real-provider paid request)
+        description: Must be YES to run staging-full-certification or staging-user-garment-certification (each is one authorized real-provider paid request)
         required: false
         default: 'NO'
         type: choice
@@ -46,7 +49,7 @@ on:
           - 'NO'
           - 'YES'
       run_tag:
-        description: Run tag to target for cleanup mode recovery (optional — omit for dryrun/full-certification, which generate their own)
+        description: Run tag to target for cleanup mode recovery, or the run tag of the run under audit for staging-user-garment-log-audit (omit for the dry-run and certification modes, which generate their own)
         required: false
         default: ''
         type: string
@@ -60,6 +63,24 @@ on:
         required: false
         default: ''
         type: string
+      audit_since:
+        description: ISO timestamp the audited run's window starts at (staging-user-garment-log-audit only)
+        required: false
+        default: ''
+        type: string
+      audit_until:
+        description: ISO timestamp the audited run's window ends at (staging-user-garment-log-audit only)
+        required: false
+        default: ''
+        type: string
+      audit_expect_dispatches:
+        description: Provider dispatches the audited run reported (staging-user-garment-log-audit only)
+        required: false
+        default: '0'
+        type: choice
+        options:
+          - '0'
+          - '1'
 
 permissions:
   contents: read
@@ -418,3 +439,228 @@ jobs:
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
         run: node scripts/vto-e2e/run.mjs --mode=cleanup --run-tag="${{ github.event.inputs.run_tag }}" --user-ids="${{ github.event.inputs.user_ids }}"
+
+  # ── user_supplied_garment: a garment photo the customer gave Elise, sent
+  #    inline ───────────────────────────────────────────────────────────────
+  #
+  # Three jobs, each workflow_dispatch only, each in the governed "staging"
+  # environment. They share the harness's existing synthetic-auth pattern
+  # (real signup, fresh password grant, token masked and held in process
+  # memory only) and its one governed SQL venue. What is theirs alone: their
+  # own actor namespace, their own cleanup ledger, and the rule that K+ is
+  # granted and revoked ONLY through the canonical authority
+  # (grant_kplus_complimentary / revoke_kplus_grant) -- no entitlement table
+  # is written.
+
+  # Zero spend. Every request this job sends is refused before the provider
+  # by construction, and the harness refuses to send one that is not. Proves
+  # the contract boundary, including the request-size ceilings to the exact
+  # character.
+  staging-user-garment-dryrun:
+    name: VTO E2E — user-supplied garment dry run
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'staging-user-garment-dryrun'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
+
+      - name: Generate run tag
+        id: runtag
+        run: |
+          TAG="vto-ug-dryrun-$(date -u +%Y%m%dT%H%M%SZ)-$(node -e 'process.stdout.write(require("crypto").randomBytes(4).toString("hex"))')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Run harness staging-user-garment-dryrun mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: node scripts/vto-e2e/run.mjs --mode=staging-user-garment-dryrun --run-tag="${{ steps.runtag.outputs.tag }}" | tee vto-e2e-user-garment-dryrun-report.json
+
+      - name: Validate report
+        env:
+          VTO_E2E_EXPECT_RUN_ID: ${{ steps.runtag.outputs.tag }}
+          VTO_E2E_EXPECT_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          VTO_E2E_EXPECT_MODE: staging-user-garment-dryrun
+          VTO_E2E_EXPECT_AUTHORITY_SHA: ${{ github.sha }}
+        run: node scripts/vto-e2e/validate-report.mjs vto-e2e-user-garment-dryrun-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vto-e2e-user-garment-dryrun-report-${{ github.run_number }}
+          path: vto-e2e-user-garment-dryrun-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The ONE authorized real-provider request for this source. It needs the
+  # mode AND confirm_paid_certification=YES, and it refuses to be re-run: a
+  # second attempt of this job would be a second paid request.
+  staging-user-garment-certification:
+    name: VTO E2E — user-supplied garment certification (paid, one request)
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.mode == 'staging-user-garment-certification' &&
+      github.event.inputs.confirm_paid_certification == 'YES'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Refuse a re-run
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_ATTEMPT" != "1" ]; then
+            echo "This job sends the ONE authorized real-provider request. Re-running it would send a second." >&2
+            exit 2
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
+
+      - name: Generate run tag
+        id: runtag
+        run: |
+          TAG="vto-ug-cert-$(date -u +%Y%m%dT%H%M%SZ)-$(node -e 'process.stdout.write(require("crypto").randomBytes(4).toString("hex"))')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Run harness staging-user-garment-certification mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: node scripts/vto-e2e/run.mjs --mode=staging-user-garment-certification --run-tag="${{ steps.runtag.outputs.tag }}" | tee vto-e2e-user-garment-cert-report.json
+
+      - name: Validate report
+        env:
+          VTO_E2E_EXPECT_RUN_ID: ${{ steps.runtag.outputs.tag }}
+          VTO_E2E_EXPECT_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          VTO_E2E_EXPECT_MODE: staging-user-garment-certification
+          VTO_E2E_EXPECT_AUTHORITY_SHA: ${{ github.sha }}
+        run: node scripts/vto-e2e/validate-report.mjs vto-e2e-user-garment-cert-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vto-e2e-user-garment-cert-report-${{ github.run_number }}
+          path: vto-e2e-user-garment-cert-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # Read-only. Reads back what the Edge runtime logged during one run's
+  # window and reports COUNTS of anything that must never be logged (image
+  # payloads, credentials, the garment fingerprint). Creates nothing, spends
+  # nothing, and can be repeated for the same window -- which is why it is not
+  # a step inside the one paid run.
+  staging-user-garment-log-audit:
+    name: VTO E2E — user-supplied garment log audit
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'staging-user-garment-log-audit'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate run tag
+        id: runtag
+        run: |
+          TAG="vto-ug-logaudit-$(date -u +%Y%m%dT%H%M%SZ)-$(node -e 'process.stdout.write(require("crypto").randomBytes(4).toString("hex"))')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Run harness staging-user-garment-log-audit mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          AUDIT_RUN_TAG: ${{ github.event.inputs.run_tag }}
+          AUDIT_SINCE: ${{ github.event.inputs.audit_since }}
+          AUDIT_UNTIL: ${{ github.event.inputs.audit_until }}
+          AUDIT_EXPECT_DISPATCHES: ${{ github.event.inputs.audit_expect_dispatches }}
+        run: |
+          node scripts/vto-e2e/run.mjs \
+            --mode=staging-user-garment-log-audit \
+            --run-tag="${{ steps.runtag.outputs.tag }}" \
+            --audit-run-tag="$AUDIT_RUN_TAG" \
+            --since="$AUDIT_SINCE" \
+            --until="$AUDIT_UNTIL" \
+            --expect-dispatches="$AUDIT_EXPECT_DISPATCHES" \
+            | tee vto-e2e-user-garment-log-audit-report.json
+
+      - name: Validate report
+        env:
+          VTO_E2E_EXPECT_RUN_ID: ${{ steps.runtag.outputs.tag }}
+          VTO_E2E_EXPECT_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          VTO_E2E_EXPECT_MODE: staging-user-garment-log-audit
+          VTO_E2E_EXPECT_AUTHORITY_SHA: ${{ github.sha }}
+        run: node scripts/vto-e2e/validate-report.mjs vto-e2e-user-garment-log-audit-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vto-e2e-user-garment-log-audit-report-${{ github.run_number }}
+          path: vto-e2e-user-garment-log-audit-report.json
+          if-no-files-found: warn
+          retention-days: 30

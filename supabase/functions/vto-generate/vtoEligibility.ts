@@ -51,6 +51,13 @@ export interface ServerEligibilityInput {
   garmentImageUrl: unknown;
   productRef: unknown;
   supportedCategories: readonly string[];
+  /**
+   * True ONLY when the orchestrator already holds a validated inline garment
+   * (the `user_supplied_garment` source, see vtoUserSuppliedGarment.ts). No URL
+   * exists to judge, so the URL rule is skipped. Category canonicalization and the
+   * supported-category allowlist are NOT skipped: they apply identically.
+   */
+  inlineGarmentMedia?: boolean;
 }
 
 export type ServerEligibility =
@@ -67,6 +74,9 @@ export function evaluateServerVtoEligibility(input: ServerEligibilityInput): Ser
   const slot = resolveVtoGarmentSlot(canonical);
   if (!slot || !input.supportedCategories.includes(canonical)) {
     return { eligible: false, reason: 'unsupported_category' };
+  }
+  if (input.inlineGarmentMedia === true) {
+    return { eligible: true, slot, canonicalCategory: canonical, garmentImageUrl: '' };
   }
   if (!isSupportedGarmentImageUrl(input.garmentImageUrl)) {
     return { eligible: false, reason: 'missing_garment_image' };

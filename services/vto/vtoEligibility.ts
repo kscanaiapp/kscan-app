@@ -91,6 +91,13 @@ export const DEFAULT_VTO_SUPPORTED_CATEGORIES: readonly string[] = [
 export interface VtoEligibilityInput {
   /** Advisory readiness only. The server resolves the owned reference anew. */
   ownedMediaReady?: boolean;
+  /**
+   * Advisory readiness for a user-supplied (device-local) garment, which has no
+   * remote URL to judge. It waives the URL rule and nothing else: category,
+   * feature control and entitlement are evaluated exactly as for any item, and
+   * the server re-validates the bytes it actually receives.
+   */
+  inlineMediaReady?: boolean;
   /** Free-form category as commerce produced it. */
   category: string | null | undefined;
   /** Remote https garment image. A garment with no image cannot be rendered. */
@@ -136,7 +143,11 @@ export function evaluateVtoEligibility(input: VtoEligibilityInput): VtoEligibili
     return { eligible: false, reason: 'unsupported_category' };
   }
 
-  if (input.ownedMediaReady !== true && !isSupportedGarmentImageUrl(input.imageUrl)) {
+  if (
+    input.ownedMediaReady !== true
+    && input.inlineMediaReady !== true
+    && !isSupportedGarmentImageUrl(input.imageUrl)
+  ) {
     return { eligible: false, reason: 'missing_garment_image' };
   }
 

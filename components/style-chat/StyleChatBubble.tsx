@@ -6,6 +6,11 @@ import { ELISE_CONVERSATION_NOTICE_BLOCK_TYPE } from '../../services/style-chat/
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
+import { EliseVtoOffer } from './EliseVtoOffer';
+import {
+  ELISE_VTO_OFFER_BLOCK_TYPE,
+  parseEliseVtoOfferBlock,
+} from '../../services/style-chat/eliseVtoOffer';
 import { StyleChatFeedbackControls } from './StyleChatFeedbackControls';
 import { StyleChatVoiceRetry } from './StyleChatVoiceRetry';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
@@ -269,6 +274,19 @@ export function StyleChatBubble({
                   ? ((block as unknown as { actions: never[] }).actions)
                   : [];
                 return <StyleChatActionCards key={`actions-${i}`} actions={actions} />;
+              }
+
+              // Contextual Try It On. An APP-OWNED block: the invitation and
+              // its button are one object, rendered together from the opaque
+              // device-local id the block carries. A block this build cannot
+              // read exactly -- another contract version, a malformed id -- is
+              // rendered as nothing. It is never handed to the generic block
+              // view, so stored fields can never surface as text.
+              if (block?.type === ELISE_VTO_OFFER_BLOCK_TYPE) {
+                const offer = parseEliseVtoOfferBlock(block);
+                return offer ? (
+                  <EliseVtoOffer key={`vto-offer-${i}`} localBindingId={offer.localBindingId} />
+                ) : null;
               }
 
               // Build 34 / K+ Wardrobe Concierge V1 (C4 section 41). Rendered

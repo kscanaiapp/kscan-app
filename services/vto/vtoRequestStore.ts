@@ -28,6 +28,8 @@ import type {
   VtoGarmentInput,
   VtoGenerationResult,
   VtoGenerationStatus,
+  VtoInlineGarmentLoader,
+  VtoInlineGarmentPayload,
   VtoOrigin,
   VtoPersonInput,
 } from '../../types/vto';
@@ -263,6 +265,13 @@ export interface StartVtoOptions {
    * retryVtoGeneration.
    */
   consentGranted?: boolean;
+  /**
+   * Reads a user-supplied garment's bytes for THIS attempt. Supplied by the
+   * surface that owns the device-local source; the store holds no storage
+   * capability of its own. Required for that source: without it the attempt
+   * fails closed before anything leaves the device.
+   */
+  loadInlineGarment?: VtoInlineGarmentLoader;
   /** Injected in tests. */
   generate?: typeof requestVtoGeneration;
   buildPayload?: typeof buildVtoPersonPayload;
@@ -337,6 +346,26 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
     inputBucket: dimensionBucket(person.width, person.height),
   });
 
+  // USER-SUPPLIED GARMENT. Its bytes are read HERE, at the moment of an
+  // explicit generation and after the consent backstop above -- never when an
+  // offer was shown or a sheet was opened. The loader re-verifies the source it
+  // was created for, so a garment that changed, expired or belongs to another
+  // account yields no bytes and the attempt ends before the person image is
+  // even prepared. The data URI lives in this call frame only: it is not put in
+  // the snapshot, and nothing here records it.
+  let garmentDataUri: string | undefined;
+  if (options.garment.source?.type === 'user_supplied_garment') {
+    const loaded: VtoInlineGarmentPayload = options.loadInlineGarment
+      ? await options.loadInlineGarment(options.garment).catch(() => ({ ok: false as const }))
+      : { ok: false };
+    if (!isCurrent()) return;
+    if (loaded.ok !== true) {
+      applyFailure(token, actorRequest, requestId, options.origin, 'invalid_garment_input');
+      return;
+    }
+    garmentDataUri = loaded.dataUri;
+  }
+
   const payload = await buildPayload(person);
   if (!isCurrent()) {
     if (payload.ok) void releaseVtoPersonInput(payload.transientUri);
@@ -357,6 +386,7 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
     origin: options.origin,
     garment: options.garment,
     personDataUri: payload.dataUri,
+    ...(garmentDataUri !== undefined ? { garmentDataUri } : {}),
     signal: controller.signal,
     // VTO-QUOTA-001 / VTO-DUP-001. The INTENT SEQUENCE is the attempt
     // generation. See intentSequence above: neither the store token (changes

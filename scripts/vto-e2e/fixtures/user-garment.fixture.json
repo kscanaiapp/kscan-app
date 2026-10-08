@@ -1,0 +1,14 @@
+{
+  "file": "user-garment.jpg",
+  "description": "Synthetic, procedurally drawn long-sleeve top on a plain background with generated grain. Not a photograph. No person, no brand, no customer data.",
+  "generator": "Pillow ImageDraw flat shapes + seeded numpy grain (seed 20261007); JPEG quality 90, 4:2:0, no EXIF",
+  "mediaType": "image/jpeg",
+  "width": 1080,
+  "height": 1440,
+  "byteLength": 551897,
+  "base64Length": 735864,
+  "contentHashVersion": "sha256-normalized-v1",
+  "contentHash": "b8893d742ce1d4690484c722d674b71651e96ab446f91f20089578624c28a252",
+  "sha256OfBytes": "fb0cf3e841d6f1e1c05b59372f643a56bce9f7adfb28eaa3a0922d707485783a",
+  "category": "top"
+}

@@ -123,15 +123,50 @@ export interface VtoPersonInput {
 }
 
 /**
+ * USER-SUPPLIED GARMENT. Bounded garment media the authenticated client sends
+ * inline for one explicit request, because the image exists only on this
+ * device (today: a photo the customer gave Elise). The name is neutral on
+ * purpose: it is NOT an ownership claim, not a Closet item, not a retailer
+ * product, and it says nothing the server treats as authority.
+ *
+ * The content hash is a consistency signal: the server recomputes it from the
+ * bytes it receives and refuses a mismatch. It proves the bytes are the bytes
+ * the fingerprint names, and nothing else.
+ */
+export const VTO_USER_SUPPLIED_GARMENT_SOURCE_TYPE = 'user_supplied_garment' as const;
+
+/** Mirrors CLOSET_CANDIDATE_CONTENT_HASH_VERSION and the server contract. */
+export const VTO_GARMENT_CONTENT_HASH_VERSION = 'sha256-normalized-v1' as const;
+
+/** Transport ceiling for the inline garment data URI. The same number as the
+ *  server's VTO_GARMENT_PAYLOAD_MAX_CHARS; pinned equal by
+ *  __tests__/vtoEliseContextualOffer.test.js. */
+export const VTO_GARMENT_PAYLOAD_MAX_CHARS = 3_000_000;
+
+export type VtoGarmentSource =
+  /** Reference only. The server resolves ownership and private media. */
+  | { type: 'closet_item'; closetItemId: string }
+  | {
+      type: typeof VTO_USER_SUPPLIED_GARMENT_SOURCE_TYPE;
+      contentHash: string;
+      contentHashVersion: typeof VTO_GARMENT_CONTENT_HASH_VERSION;
+    };
+
+/**
  * The garment being visualized, derived from existing K Scan commerce data.
  * VTO does not own a product catalog and must not widen one: this is a
  * reference plus the fields a generation provider actually needs.
  */
 export interface VtoGarmentInput {
-  /** Reference only. The server resolves ownership and private media. */
-  source?: { type: 'closet_item'; closetItemId: string };
+  source?: VtoGarmentSource;
   /** Advisory UI evidence; never sent as authority. */
   ownedMediaReady?: boolean;
+  /**
+   * Advisory UI evidence that a user-supplied garment's local media was found
+   * when the launch was resolved. Never sent, and never authority: the bytes
+   * are re-read and re-verified at generation time.
+   */
+  inlineMediaReady?: boolean;
   /** Stable-ish reference to the commerce candidate this came from. */
   productRef: string;
   /** Remote https image of the garment (retailer/catalog image). */
@@ -142,6 +177,17 @@ export interface VtoGarmentInput {
   /** Commerce provenance label, telemetry/debug only -- never a ranking input. */
   commerceSource: string | null;
 }
+
+/**
+ * Reads a user-supplied garment's bytes at GENERATION time and returns them as
+ * a transient data URI. Supplied by the surface that owns the device-local
+ * source, so no VTO module ever touches device storage for it. The result is
+ * handed straight to the transport: it is never placed in the store snapshot,
+ * never persisted, and never logged. `ok: false` means the source is no longer
+ * the one the launch was created for; the generation does not run.
+ */
+export type VtoInlineGarmentPayload = { ok: true; dataUri: string } | { ok: false };
+export type VtoInlineGarmentLoader = (garment: VtoGarmentInput) => Promise<VtoInlineGarmentPayload>;
 
 export interface VtoRequestDescriptor {
   /** Monotonic per-session token. A newer token always supersedes an older one. */
