@@ -169,7 +169,10 @@ test('PINNED: exactly which claims the shipped records authorize against the shi
   // Update this table in the same change that records fresh runtime evidence.
   assert.deepEqual(Object.fromEntries(['packing_generation_and_refinement', 'watch_tracking', 'watch_provider_entitlement_boundary',
     'closet_outbound_sync', 'closet_cross_device_restore'].map(type => [type, shipping(type)])), {
-    packing_generation_and_refinement: true, // identical governed source to the run that earned it
+    // Earned at fingerprint 7131b140...; contextual VTO (#521/#523) changes the governed
+    // stylechat-generate source (now c4c643b5...), so the proof no longer authorizes.
+    // Re-prove with the single remaining, owner-gated Packing invocation before flipping back.
+    packing_generation_and_refinement: false,
     watch_tracking: false, // earned against the pre-recheck backend; shipping Watch source differs
     watch_provider_entitlement_boundary: false, // never runtime-proven
     closet_outbound_sync: false, // source proof only
