@@ -81,7 +81,8 @@ Deno.serve(async (req: Request) => {
   // SEC-B35-KPLUS-001: Early Access is not an open signup entitlement.
   // Fail closed unless an authorized operator deliberately enables this campaign
   // on the server. Client flags are advisory and must never grant K+.
-  if (Deno.env.get('KPLUS_EARLY_ACCESS_ENABLED') !== 'true') {
+  if (Deno.env.get('KPLUS_EARLY_ACCESS_ENABLED') !== 'true' ||
+      Deno.env.get('KPLUS_EARLY_ACCESS_CAMPAIGN_ELIGIBILITY_CERTIFIED') !== 'true') {
     logEvent('kplus_early_access_campaign_closed', {
       uid: shortUserId(authUser.id),
     });
