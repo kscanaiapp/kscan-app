@@ -74,9 +74,17 @@ const TEST_SUFFIX = '.test.ts';
  * the same "asserted but never executed" hole VTO-GATE-001 below describes.
  * Registering it here is what makes `npm run test:backend` enforce them.
  */
+/**
+ * `process-account-deletions` joined with DEL-01, and it was a decision: it is
+ * the irreversible purge worker, and its post-Auth-delete failure handling
+ * (a request stranded as `deactivated` with `user_id` NULL, unclaimable and with
+ * its RevenueCat mirror unretired) can only be proven by driving the real
+ * Deno.serve handler against a fake backend, not by grepping its source.
+ */
 const GOVERNED = [
   'scan-identify',
   'handle-user-deletion',
+  'process-account-deletions',
   'stylechat-generate',
   'style-outfit-generate',
   'commerce-watch-refresh',
