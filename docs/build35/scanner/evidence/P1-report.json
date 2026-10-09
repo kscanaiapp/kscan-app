@@ -1,0 +1,5030 @@
+{
+  "schema": "scanner-live-certification-report-1",
+  "runMode": "STAGING_LIVE",
+  "generatedAt": "2026-10-09T14:35:27.257Z",
+  "phase": "P1",
+  "actor": "A",
+  "source": {
+    "sha": "95568a60a7c8b4413278be26ef544d8c2532f471",
+    "ref": "test/build35-scanner-live-certification-v1",
+    "runId": "37944817914"
+  },
+  "thresholdsDigestSource": "security/release/scanner-live-certification/corpus.json",
+  "fixtures": {
+    "O": {
+      "uri": "file:///fixtures/outerwear.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 109893
+    },
+    "T": {
+      "uri": "file:///fixtures/top.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 27225
+    },
+    "D": {
+      "uri": "file:///fixtures/dress.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 22855
+    },
+    "J": {
+      "uri": "file:///fixtures/bottom_jeans.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 29555
+    },
+    "F": {
+      "uri": "file:///fixtures/footwear.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 86960
+    },
+    "A": {
+      "uri": "file:///fixtures/accessory.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 68972
+    },
+    "X": {
+      "uri": "file:///fixtures/ambiguous_two_garments.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 16868
+    },
+    "N": {
+      "uri": "file:///fixtures/non_fashion.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 22134
+    }
+  },
+  "budget": {
+    "priorSource": "ledger_and_explicit",
+    "limits": {
+      "imageModeTotal": 56,
+      "commerceOnlyTotal": 40,
+      "imageModePerActorPerUtcDay": 28
+    },
+    "prior": {
+      "imageMode": 0,
+      "commerceOnly": 0,
+      "imageModePerActorToday": {
+        "A": 0,
+        "B": 0
+      }
+    },
+    "usedThisRun": {
+      "imageMode": 23,
+      "commerceOnly": 15,
+      "byActorDay": {
+        "A|2026-10-09": 23
+      }
+    },
+    "remaining": {
+      "imageMode": 33,
+      "commerceOnly": 25
+    },
+    "refused": []
+  },
+  "quotaLedgerReconciliation": {
+    "ledgerImageModeDelta": 23,
+    "ledgerCommerceOnlyDelta": 15,
+    "harnessImageModeSent": 23,
+    "harnessCommerceOnlySent": 15,
+    "matches": true
+  },
+  "aborted": null,
+  "elapsedMs": 186048,
+  "summary": {
+    "requests": {
+      "total": 38,
+      "sent": 38,
+      "imageMode": 23,
+      "commerceOnly": 15,
+      "injectedFailures": 0,
+      "budgetRefused": 0,
+      "httpErrors": []
+    },
+    "latencyMs": {
+      "detection": {
+        "n": 8,
+        "min": 4258,
+        "p50": 7603,
+        "p95": 9760,
+        "max": 9760
+      },
+      "selectedItem": {
+        "n": 15,
+        "min": 5208,
+        "p50": 6276,
+        "p95": 9328,
+        "max": 9328
+      },
+      "commerce": {
+        "n": 15,
+        "min": 1932,
+        "p50": 2359,
+        "p95": 2745,
+        "max": 2745
+      }
+    },
+    "identification": {
+      "itemsScored": 12,
+      "primaryCategoryCorrect": 1,
+      "subtypeAcceptable": 1,
+      "primaryColorAcceptable": 1,
+      "criticalMisidentifications": [],
+      "ungroundedBrandClaims": [],
+      "overconfidentWrong": [],
+      "requiredGarmentRecall": 1,
+      "extraFalseCandidatesPerFashionPhoto": 0.42857142857142855,
+      "nonFashionFalseCandidates": 0,
+      "distractorAsGarment": 0,
+      "missedRequired": [],
+      "candidateIdentityDrift": []
+    },
+    "commerceFacts": {
+      "itemsWithCommerceRequest": 15,
+      "itemsWithOffers": 11,
+      "brokenDestinations": 0,
+      "insanePrices": 0,
+      "duplicateDestinations": 60,
+      "orderChanged": [],
+      "precheckIncompatibleTop3": [],
+      "retailerShareTop5": {
+        "Old Navy": 0.163,
+        "H&M": 0.061,
+        "Kohl's": 0.061,
+        "Target": 0.061,
+        "Macy's": 0.041,
+        "Uniqlo": 0.041,
+        "Gap Factory": 0.041,
+        "Walmart": 0.041,
+        "Lulus": 0.02,
+        "Nordstrom Rack": 0.02
+      }
+    },
+    "findings": []
+  },
+  "results": [
+    {
+      "label": "P1-O",
+      "ids": [
+        "O"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 9511,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "O",
+            "entrySeq": 1,
+            "latencyMs": 9507,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-jacket-leather-jacket",
+                "label": "leather jacket",
+                "category": "jacket",
+                "subtype": "leather jacket",
+                "hasBounds": true,
+                "confidenceScore": 0.95
+              },
+              {
+                "order": 1,
+                "candidateId": "garment-2-sweater-turtleneck-sweater",
+                "label": "turtleneck sweater",
+                "category": "sweater",
+                "subtype": "turtleneck sweater",
+                "hasBounds": true,
+                "confidenceScore": 0.85
+              }
+            ],
+            "detectionScore": {
+              "imageId": "O",
+              "nonFashion": false,
+              "candidatesReturned": 2,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 1,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-jacket-leather-jacket",
+                  "garment": "jacket",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "garment-1-jacket-leather-jacket",
+          "sourceImageId": "O",
+          "label": "leather jacket",
+          "category": "jacket",
+          "subtype": "leather jacket"
+        },
+        {
+          "id": "garment-2-sweater-turtleneck-sweater",
+          "sourceImageId": "O",
+          "label": "turtleneck sweater",
+          "category": "sweater",
+          "subtype": "turtleneck sweater"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "O",
+          "itemId": "garment-1-jacket-leather-jacket",
+          "serverCandidateId": "garment-1-jacket-leather-jacket",
+          "boundGarmentKey": "jacket",
+          "detectedCandidate": {
+            "label": "leather jacket",
+            "category": "jacket",
+            "subtype": "leather jacket"
+          },
+          "selected": {
+            "latencyMs": 7510,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Moto Jacket Black Leather Leather Jacket",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "outerwear",
+                "subtype": "leather jacket",
+                "primary_color": "black",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "leather",
+                "silhouette": "moto jacket",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "outerwear",
+                "itemType": "leather jacket",
+                "colorPalette": [
+                  "black"
+                ],
+                "materialEstimate": "leather",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Black Leather Jacket",
+            "result": "A black leather moto jacket featuring a stand collar with snap neck tab, front zip closure, and zipped chest pocket with panelling details.",
+            "category": "outerwear",
+            "itemType": "leather jacket",
+            "color": "black",
+            "material": "leather",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "O",
+            "garment": "jacket",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "outerwear",
+            "returnedFamily": "outerwear",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "outerwear",
+            "returnedFamily": "outerwear"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2260,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-1-jacket-leather-jacket",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1350,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Coalition LA Black Vegan Leather Moto Jacket Womens",
+              "retailer": "Lulus",
+              "provider": null,
+              "price": "$79.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Levi's Women's Jackets & Coats Levi's Black Leather Jacket",
+              "retailer": "Nordstrom Rack",
+              "provider": null,
+              "price": "$49.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Milwaukee Leather Lkm1703 Men's Classic Black Premium Leather Motorcycle Biker Rider Jacket",
+              "retailer": "Milwaukee Motorcycle Clothing Co",
+              "provider": null,
+              "price": "$99.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "INC International Concepts Women's Faux-Leather Moto Jacket",
+              "retailer": "Macy's",
+              "provider": null,
+              "price": "$69.65",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Women's Loft Pebbled Faux Leather Moto Jacket",
+              "retailer": "LOFT",
+              "provider": null,
+              "price": "$80.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Sam Edelman Leather Moto Jacket",
+              "retailer": "Nordstrom Rack",
+              "provider": null,
+              "price": "$159.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Woman Zara Cropped Faux Leather Biker Jacket",
+              "retailer": "Zara USA",
+              "provider": null,
+              "price": "$79.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "BILT Alder 2 Leather Jacket",
+              "retailer": "Cycle Gear",
+              "provider": null,
+              "price": "$229.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "O",
+          "itemId": "garment-2-sweater-turtleneck-sweater",
+          "serverCandidateId": "garment-2-sweater-turtleneck-sweater",
+          "boundGarmentKey": null,
+          "detectedCandidate": {
+            "label": "turtleneck sweater",
+            "category": "sweater",
+            "subtype": "turtleneck sweater"
+          },
+          "selected": {
+            "latencyMs": 8736,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Fitted Black Ribbed Knit Turtleneck Sweater",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "sweater",
+                "subtype": "turtleneck sweater",
+                "primary_color": "black",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "ribbed knit",
+                "silhouette": "fitted",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.88,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "sweater",
+                "itemType": "turtleneck sweater",
+                "colorPalette": [
+                  "black"
+                ],
+                "materialEstimate": "ribbed knit",
+                "pattern": "solid",
+                "confidenceScore": 0.88
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Black Turtleneck Sweater",
+            "result": "A dark ribbed knit turtleneck collar layer worn underneath a leather jacket.",
+            "category": "sweater",
+            "itemType": "turtleneck sweater",
+            "color": "black",
+            "material": "ribbed knit",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.88
+          },
+          "identificationScore": null,
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "tops",
+            "returnedFamily": "tops"
+          },
+          "commerce": {
+            "uiStatus": "error",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2696,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-2-sweater-turtleneck-sweater",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "none",
+            "errorType": "timeout",
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1901,
+              "earlyExit": false,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 0
+          },
+          "offers": [],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 0
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 0,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 16249,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "recordsForActor": 2,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 2,
+        "savedItemCount": 2
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 2707,
+        "deferredItems": 2,
+        "requestsIssued": 2,
+        "arrival": [],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 9511,
+        "queueMs": 16249,
+        "commerceMs": 2707,
+        "endToEndMs": 19427
+      }
+    },
+    {
+      "label": "P1-T",
+      "ids": [
+        "T"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 9156,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "T",
+            "entrySeq": 6,
+            "latencyMs": 9154,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-hoodie-pullover-hoodie",
+                "label": "pullover hoodie",
+                "category": "hoodie",
+                "subtype": "pullover hoodie",
+                "hasBounds": true,
+                "confidenceScore": 0.96
+              },
+              {
+                "order": 1,
+                "candidateId": "garment-2-pants-jeans",
+                "label": "jeans",
+                "category": "pants",
+                "subtype": "jeans",
+                "hasBounds": true,
+                "confidenceScore": 0.88
+              }
+            ],
+            "detectionScore": {
+              "imageId": "T",
+              "nonFashion": false,
+              "candidatesReturned": 2,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 0,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-hoodie-pullover-hoodie",
+                  "garment": "hoodie",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                },
+                {
+                  "candidateId": "garment-2-pants-jeans",
+                  "garment": "dark_jeans_edge",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "garment-1-hoodie-pullover-hoodie",
+          "sourceImageId": "T",
+          "label": "pullover hoodie",
+          "category": "hoodie",
+          "subtype": "pullover hoodie"
+        },
+        {
+          "id": "garment-2-pants-jeans",
+          "sourceImageId": "T",
+          "label": "jeans",
+          "category": "pants",
+          "subtype": "jeans"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "T",
+          "itemId": "garment-1-hoodie-pullover-hoodie",
+          "serverCandidateId": "garment-1-hoodie-pullover-hoodie",
+          "boundGarmentKey": "hoodie",
+          "detectedCandidate": {
+            "label": "pullover hoodie",
+            "category": "hoodie",
+            "subtype": "pullover hoodie"
+          },
+          "selected": {
+            "latencyMs": 7271,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Pullover White Cotton Blend Pullover Hoodie",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "hoodie",
+                "subtype": "pullover hoodie",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "graphic print",
+                "material_estimate": "cotton blend",
+                "silhouette": "pullover",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.98,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "hoodie",
+                "itemType": "pullover hoodie",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "cotton blend",
+                "pattern": "graphic print",
+                "confidenceScore": 0.98
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Pullover Hoodie",
+            "result": "White long-sleeve pullover hoodie with black graphic text print on the chest, adjustable drawstring hood, and front kangaroo pocket.",
+            "category": "hoodie",
+            "itemType": "pullover hoodie",
+            "color": "white",
+            "material": "cotton blend",
+            "pattern": "graphic print",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.98
+          },
+          "identificationScore": {
+            "imageId": "T",
+            "garment": "hoodie",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "tops",
+            "returnedFamily": "tops",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.98,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "tops",
+            "returnedFamily": "tops"
+          },
+          "commerce": {
+            "uiStatus": "error",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2599,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-1-hoodie-pullover-hoodie",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "none",
+            "errorType": "timeout",
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1899,
+              "earlyExit": false,
+              "deadlineMs": 1897
+            },
+            "serverOfferCount": 0
+          },
+          "offers": [],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 0
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 0,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "T",
+          "itemId": "garment-2-pants-jeans",
+          "serverCandidateId": "garment-2-pants-jeans",
+          "boundGarmentKey": "dark_jeans_edge",
+          "detectedCandidate": {
+            "label": "jeans",
+            "category": "pants",
+            "subtype": "jeans"
+          },
+          "selected": {
+            "latencyMs": 5723,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Straight Navy Denim Jeans",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "pants",
+                "subtype": "jeans",
+                "primary_color": "Navy",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "denim",
+                "silhouette": "straight",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.88,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "pants",
+                "itemType": "jeans",
+                "colorPalette": [
+                  "dark blue"
+                ],
+                "materialEstimate": "denim",
+                "pattern": "solid",
+                "confidenceScore": 0.88
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Navy Jeans",
+            "result": "Dark wash denim jeans visible around the waist and hips at the bottom of the image.",
+            "category": "pants",
+            "itemType": "jeans",
+            "color": "Navy",
+            "material": "denim",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.88
+          },
+          "identificationScore": {
+            "imageId": "T",
+            "garment": "dark_jeans_edge",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "bottoms",
+            "returnedFamily": "bottoms",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.88,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "bottoms",
+            "returnedFamily": "bottoms"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2465,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-2-pants-jeans",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1495,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "UNIQLO Men's Slim Straight Jeans | Selvedge | Tall, Navy, 27 inch",
+              "retailer": "Uniqlo",
+              "provider": null,
+              "price": "$59.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Old Navy Men's Slim Built-In Flex Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$24.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Women's MUJI Stretch Denim Slim Pants",
+              "retailer": "Muji Usa Online Store",
+              "provider": null,
+              "price": "$49.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "PAIGE Men's Federal Slim Straight Jeans",
+              "retailer": "PAIGE",
+              "provider": null,
+              "price": "$209.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "UNIQLO Men's Slim Straight Jeans",
+              "retailer": "Uniqlo",
+              "provider": null,
+              "price": "$59.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Man Zara Slim Fit Jeans",
+              "retailer": "Zara USA",
+              "provider": null,
+              "price": "$49.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Men H&M Blue Slim Jeans",
+              "retailer": "H&M",
+              "provider": null,
+              "price": "$41.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "AE Patched Slim Straight Jean Men's",
+              "retailer": "American Eagle Outfitters",
+              "provider": null,
+              "price": "$35.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 12996,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "recordsForActor": 2,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 2,
+        "savedItemCount": 2
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 2621,
+        "deferredItems": 2,
+        "requestsIssued": 2,
+        "arrival": [],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 9156,
+        "queueMs": 12996,
+        "commerceMs": 2621,
+        "endToEndMs": 16075
+      }
+    },
+    {
+      "label": "P1-D",
+      "imageId": "D",
+      "path": "legacy_single_item",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 6590,
+        "nonFashionMessage": null,
+        "evidence": {
+          "imageId": "D",
+          "entrySeq": 11,
+          "latencyMs": 6588,
+          "responseStatus": "completed",
+          "detected": [
+            {
+              "order": 0,
+              "candidateId": "garment-1-dress-wedding-dress",
+              "label": "wedding dress",
+              "category": "dress",
+              "subtype": "wedding dress",
+              "hasBounds": true,
+              "confidenceScore": 0.98
+            }
+          ],
+          "detectionScore": {
+            "imageId": "D",
+            "nonFashion": false,
+            "candidatesReturned": 1,
+            "required": 1,
+            "requiredDetected": 1,
+            "missedRequired": [],
+            "extraFalseCandidates": 0,
+            "distractorAsGarment": 0,
+            "nonFashionFalseCandidates": 0,
+            "assignments": [
+              {
+                "candidateId": "garment-1-dress-wedding-dress",
+                "garment": "gown",
+                "categoryOk": true,
+                "subtypeOk": true
+              }
+            ]
+          }
+        }
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "items": [
+        {
+          "imageId": "D",
+          "itemId": "garment-1-dress-wedding-dress",
+          "serverCandidateId": "garment-1-dress-wedding-dress",
+          "boundGarmentKey": "gown",
+          "detectedCandidate": {
+            "label": "wedding dress",
+            "category": "dress",
+            "subtype": "wedding dress"
+          },
+          "selected": {
+            "latencyMs": 9328,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "A-Line White Satin Wedding Dress",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "dress",
+                "subtype": "wedding dress",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "satin",
+                "silhouette": "A-line",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.98,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "dress",
+                "itemType": "wedding dress",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "satin",
+                "pattern": "solid",
+                "confidenceScore": 0.98
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Wedding Dress",
+            "result": "Strapless white A-line wedding gown with a fitted bodice and a wide ruched champagne waist sash.",
+            "category": "dress",
+            "itemType": "wedding dress",
+            "color": "white",
+            "material": "satin",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.98
+          },
+          "identificationScore": {
+            "imageId": "D",
+            "garment": "gown",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "dress",
+            "returnedFamily": "dress",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.98,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "dress",
+            "returnedFamily": "dress"
+          },
+          "commerce": {
+            "uiStatus": "error",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2745,
+            "httpStatus": 200,
+            "echoedCandidateId": null,
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "none",
+            "errorType": "timeout",
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1901,
+              "earlyExit": false,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 0
+          },
+          "offers": [],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 0
+          },
+          "hookStatus": "result",
+          "commerceDeferredSeen": true,
+          "commerceSettled": true,
+          "identifyMs": 9330
+        }
+      ],
+      "findings": [],
+      "timings": {
+        "detectionMs": 6590,
+        "identifyMs": 9330
+      }
+    },
+    {
+      "label": "P1-J",
+      "ids": [
+        "J"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 9761,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "J",
+            "entrySeq": 14,
+            "latencyMs": 9760,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-tops-t-shirt",
+                "label": "T-Shirt",
+                "category": "tops",
+                "subtype": "T-Shirt",
+                "hasBounds": true,
+                "confidenceScore": 0.93
+              },
+              {
+                "order": 1,
+                "candidateId": "garment-2-bottoms-jeans",
+                "label": "jeans",
+                "category": "pants",
+                "subtype": "jeans",
+                "hasBounds": true,
+                "confidenceScore": 0.98
+              },
+              {
+                "order": 2,
+                "candidateId": "garment-3-footwear-sneakers",
+                "label": "sneakers",
+                "category": "footwear",
+                "subtype": "sneakers",
+                "hasBounds": true,
+                "confidenceScore": 0.95
+              }
+            ],
+            "detectionScore": {
+              "imageId": "J",
+              "nonFashion": false,
+              "candidatesReturned": 3,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 0,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-tops-t-shirt",
+                  "garment": "white_tee",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                },
+                {
+                  "candidateId": "garment-2-bottoms-jeans",
+                  "garment": "jeans",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                },
+                {
+                  "candidateId": "garment-3-footwear-sneakers",
+                  "garment": "white_sneakers",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "garment-1-tops-t-shirt",
+          "sourceImageId": "J",
+          "label": "T-Shirt",
+          "category": "tops",
+          "subtype": "T-Shirt"
+        },
+        {
+          "id": "garment-2-bottoms-jeans",
+          "sourceImageId": "J",
+          "label": "jeans",
+          "category": "pants",
+          "subtype": "jeans"
+        },
+        {
+          "id": "garment-3-footwear-sneakers",
+          "sourceImageId": "J",
+          "label": "sneakers",
+          "category": "footwear",
+          "subtype": "sneakers"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "J",
+          "itemId": "garment-1-tops-t-shirt",
+          "serverCandidateId": "garment-1-tops-t-shirt",
+          "boundGarmentKey": "white_tee",
+          "detectedCandidate": {
+            "label": "T-Shirt",
+            "category": "tops",
+            "subtype": "T-Shirt"
+          },
+          "selected": {
+            "latencyMs": 5993,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Regular Fit White Cotton T-Shirt",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "tops",
+                "subtype": "T-Shirt",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "cotton",
+                "silhouette": "regular fit",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "tops",
+                "itemType": "T-Shirt",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "cotton",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White T-shirt",
+            "result": "Plain white crewneck t-shirt",
+            "category": "tops",
+            "itemType": "T-Shirt",
+            "color": "white",
+            "material": "cotton",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "J",
+            "garment": "white_tee",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "tops",
+            "returnedFamily": "tops",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "tops",
+            "returnedFamily": "tops"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 1932,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-1-tops-t-shirt",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1184,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Men H&M Regular Fit T-Shirt",
+              "retailer": "H&M",
+              "provider": null,
+              "price": "$6.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Men's Signature Midweight Cotton T-Shirt",
+              "retailer": "Banana Republic Factory",
+              "provider": null,
+              "price": "$17.50",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Men's Sonoma Goods For Life Classic-Fit Supersoft Crewneck Tee",
+              "retailer": "Kohl's",
+              "provider": null,
+              "price": "$7.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "T-Shirt Gap Logo Gap",
+              "retailer": "Gap Factory",
+              "provider": null,
+              "price": "$9.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "George Men's Crew T-Shirts",
+              "retailer": "Walmart",
+              "provider": null,
+              "price": "$16.98",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Men's Hollister Relaxed Everyday Tee",
+              "retailer": "Hollister Co - Official",
+              "provider": null,
+              "price": "$11.21",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Men's J.Crew Essential Crewneck T-Shirt",
+              "retailer": "J.Crew Factory",
+              "provider": null,
+              "price": "$24.50",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Old Navy Men's Crew-Neck T-Shirt",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$8.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "J",
+          "itemId": "garment-2-bottoms-jeans",
+          "serverCandidateId": "garment-2-bottoms-jeans",
+          "boundGarmentKey": "jeans",
+          "detectedCandidate": {
+            "label": "jeans",
+            "category": "pants",
+            "subtype": "jeans"
+          },
+          "selected": {
+            "latencyMs": 6276,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Straight Leg Blue Denim Jeans",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "pants",
+                "subtype": "jeans",
+                "primary_color": "blue",
+                "secondary_colors": null,
+                "pattern": "faded",
+                "material_estimate": "denim",
+                "silhouette": "straight leg",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "pants",
+                "itemType": "jeans",
+                "colorPalette": [
+                  "blue"
+                ],
+                "materialEstimate": "denim",
+                "pattern": "faded",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Blue Jeans",
+            "result": "Medium-wash blue denim jeans featuring whiskering, fading, and creased texture along the legs.",
+            "category": "pants",
+            "itemType": "jeans",
+            "color": "blue",
+            "material": "denim",
+            "pattern": "faded",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "J",
+            "garment": "jeans",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "bottoms",
+            "returnedFamily": "bottoms",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "bottoms",
+            "returnedFamily": "bottoms"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2022,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-2-bottoms-jeans",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1139,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 3
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Lee Women's Legendary Straight Leg Jeans",
+              "retailer": "Kohl's",
+              "provider": null,
+              "price": "$29.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Gap Womens Mid Rise Classic Straight Jeans Jeans",
+              "retailer": "Gap Factory",
+              "provider": null,
+              "price": "$29.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$22.19",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 2
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 3,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "J",
+          "itemId": "garment-3-footwear-sneakers",
+          "serverCandidateId": "garment-3-footwear-sneakers",
+          "boundGarmentKey": "white_sneakers",
+          "detectedCandidate": {
+            "label": "sneakers",
+            "category": "footwear",
+            "subtype": "sneakers"
+          },
+          "selected": {
+            "latencyMs": 7203,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Low-Top White Canvas Sneakers",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "footwear",
+                "subtype": "sneakers",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "canvas",
+                "silhouette": "low-top",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "footwear",
+                "itemType": "sneakers",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "canvas",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Sneakers",
+            "result": "White low-top lace-up canvas sneakers featuring white rubber toe caps and rubber soles with dark trim detailing.",
+            "category": "footwear",
+            "itemType": "sneakers",
+            "color": "white",
+            "material": "canvas",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "J",
+            "garment": "white_sneakers",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "footwear",
+            "returnedFamily": "footwear",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "footwear",
+            "returnedFamily": "footwear"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2669,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-3-footwear-sneakers",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1550,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 6
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "H&M Women's Twill Sneakers",
+              "retailer": "H&M",
+              "provider": null,
+              "price": "$27.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Veja Wata II Low Sneakers",
+              "retailer": "VEJA",
+              "provider": null,
+              "price": "$81.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Men's Goodfellow & Co Billy Lace Up Sneakers",
+              "retailer": "Target",
+              "provider": null,
+              "price": "$30.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Old Navy Men's Prep Sneakers",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$17.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Keds Women's Champion",
+              "retailer": "Keds.com",
+              "provider": null,
+              "price": "$27.29",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Blowfish Martina Women's",
+              "retailer": "Famous Footwear",
+              "provider": null,
+              "price": "$44.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 5
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 6,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 19475,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "recordsForActor": 3,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 3,
+        "savedItemCount": 3
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 2703,
+        "deferredItems": 3,
+        "requestsIssued": 3,
+        "arrival": [],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 9761,
+        "queueMs": 19475,
+        "commerceMs": 2703,
+        "endToEndMs": 22611
+      }
+    },
+    {
+      "label": "P1-F",
+      "imageId": "F",
+      "path": "legacy_single_item",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 5371,
+        "nonFashionMessage": null,
+        "evidence": {
+          "imageId": "F",
+          "entrySeq": 21,
+          "latencyMs": 5370,
+          "responseStatus": "completed",
+          "detected": [
+            {
+              "order": 0,
+              "candidateId": "garment-1-footwear-sneakers",
+              "label": "sneakers",
+              "category": "footwear",
+              "subtype": "sneakers",
+              "hasBounds": true,
+              "confidenceScore": 0.95
+            }
+          ],
+          "detectionScore": {
+            "imageId": "F",
+            "nonFashion": false,
+            "candidatesReturned": 1,
+            "required": 1,
+            "requiredDetected": 1,
+            "missedRequired": [],
+            "extraFalseCandidates": 0,
+            "distractorAsGarment": 0,
+            "nonFashionFalseCandidates": 0,
+            "assignments": [
+              {
+                "candidateId": "garment-1-footwear-sneakers",
+                "garment": "red_sneaker",
+                "categoryOk": true,
+                "subtypeOk": true
+              }
+            ]
+          }
+        }
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "items": [
+        {
+          "imageId": "F",
+          "itemId": "garment-1-footwear-sneakers",
+          "serverCandidateId": "garment-1-footwear-sneakers",
+          "boundGarmentKey": "red_sneaker",
+          "detectedCandidate": {
+            "label": "sneakers",
+            "category": "footwear",
+            "subtype": "sneakers"
+          },
+          "selected": {
+            "latencyMs": 5830,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Low-Top Sneaker Red Synthetic Sneakers",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "footwear",
+                "subtype": "sneakers",
+                "primary_color": "red",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "synthetic",
+                "silhouette": "low-top sneaker",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "footwear",
+                "itemType": "sneakers",
+                "colorPalette": [
+                  "red"
+                ],
+                "materialEstimate": "synthetic",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Red Sneakers",
+            "result": "Red low-top lace-up athletic sneaker with silver eyelets and a white textured grooved sole.",
+            "category": "footwear",
+            "itemType": "sneakers",
+            "color": "red",
+            "material": "synthetic",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "F",
+            "garment": "red_sneaker",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "footwear",
+            "returnedFamily": "footwear",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "footwear",
+            "returnedFamily": "footwear"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 1959,
+            "httpStatus": 200,
+            "echoedCandidateId": null,
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1118,
+              "earlyExit": true,
+              "deadlineMs": 1897
+            },
+            "serverOfferCount": 3
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "adidas Women's Vl Court 3.0 Sneaker",
+              "retailer": "Famous Footwear",
+              "provider": null,
+              "price": "$79.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "adidas Women's Samba Jane",
+              "retailer": "Foot Locker",
+              "provider": null,
+              "price": "$100.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Puma Men's Speedcat OG",
+              "retailer": "PUMA",
+              "provider": null,
+              "price": "$100.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 2
+          },
+          "hookStatus": "result",
+          "commerceDeferredSeen": true,
+          "commerceSettled": true,
+          "identifyMs": 5832
+        }
+      ],
+      "findings": [],
+      "timings": {
+        "detectionMs": 5371,
+        "identifyMs": 5832
+      }
+    },
+    {
+      "label": "P1-A",
+      "ids": [
+        "A"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 7604,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "A",
+            "entrySeq": 24,
+            "latencyMs": 7603,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-bags-backpack",
+                "label": "backpack",
+                "category": "bags",
+                "subtype": "backpack",
+                "hasBounds": true,
+                "confidenceScore": 0.95
+              },
+              {
+                "order": 1,
+                "candidateId": "garment-2-eyewear-aviator-sunglasses",
+                "label": "aviator sunglasses",
+                "category": "eyewear",
+                "subtype": "aviator sunglasses",
+                "hasBounds": true,
+                "confidenceScore": 0.92
+              }
+            ],
+            "detectionScore": {
+              "imageId": "A",
+              "nonFashion": false,
+              "candidatesReturned": 2,
+              "required": 2,
+              "requiredDetected": 2,
+              "missedRequired": [],
+              "extraFalseCandidates": 0,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-bags-backpack",
+                  "garment": "satchel",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                },
+                {
+                  "candidateId": "garment-2-eyewear-aviator-sunglasses",
+                  "garment": "aviators",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "garment-1-bags-backpack",
+          "sourceImageId": "A",
+          "label": "backpack",
+          "category": "bags",
+          "subtype": "backpack"
+        },
+        {
+          "id": "garment-2-eyewear-aviator-sunglasses",
+          "sourceImageId": "A",
+          "label": "aviator sunglasses",
+          "category": "eyewear",
+          "subtype": "aviator sunglasses"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "A",
+          "itemId": "garment-1-bags-backpack",
+          "serverCandidateId": "garment-1-bags-backpack",
+          "boundGarmentKey": "satchel",
+          "detectedCandidate": {
+            "label": "backpack",
+            "category": "bags",
+            "subtype": "backpack"
+          },
+          "selected": {
+            "latencyMs": 7314,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Flap Backpack Blue Canvas Backpack",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "bags",
+                "subtype": "backpack",
+                "primary_color": "blue",
+                "secondary_colors": null,
+                "pattern": "striped",
+                "material_estimate": "canvas",
+                "silhouette": "flap backpack",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "bags",
+                "itemType": "backpack",
+                "colorPalette": [
+                  "blue"
+                ],
+                "materialEstimate": "canvas",
+                "pattern": "striped",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Blue Backpack",
+            "result": "Blue and white striped canvas backpack with black faux-leather straps and buckle detailing.",
+            "category": "bags",
+            "itemType": "backpack",
+            "color": "blue",
+            "material": "canvas",
+            "pattern": "striped",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "A",
+            "garment": "satchel",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "bag",
+            "returnedFamily": "bag",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "bag",
+            "returnedFamily": "bag"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2359,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-1-bags-backpack",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1708,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Alilang Canvas Flap Backpack with Drawstring Closure Side Pockets and Adjustable Shoulder Straps",
+              "retailer": "Target",
+              "provider": null,
+              "price": "$43.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "RIMOWA Never Still Canvas Flap Backpack Large",
+              "retailer": "rimowa.com/us/en",
+              "provider": null,
+              "price": "$1,850.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Men's Large Vintage Canvas Backpack",
+              "retailer": "More than a Backpack",
+              "provider": null,
+              "price": "$71.83",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Canvas Backpack — Winter Project Artist",
+              "retailer": "WPA Winter Project Artist",
+              "provider": null,
+              "price": "$250.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "TSD BRAND TSD Atona Backpack",
+              "retailer": "Macy's",
+              "provider": null,
+              "price": "$63.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Vintage Denim Backpack with Magnetic Flap Casual Daypack Shoulder Bag Rucksack",
+              "retailer": "Walmart - YIRUIKE BAG",
+              "provider": null,
+              "price": "$29.98",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Alilang Large Laptop Backpack with Front Flap Pocket Buckle Straps Side Pockets and Padded Shoulder Straps",
+              "retailer": "Target",
+              "provider": null,
+              "price": "$63.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Jansport Right Pack",
+              "retailer": "DICK'S Sporting Goods",
+              "provider": null,
+              "price": "$75.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "A",
+          "itemId": "garment-2-eyewear-aviator-sunglasses",
+          "serverCandidateId": "garment-2-eyewear-aviator-sunglasses",
+          "boundGarmentKey": "aviators",
+          "detectedCandidate": {
+            "label": "aviator sunglasses",
+            "category": "eyewear",
+            "subtype": "aviator sunglasses"
+          },
+          "selected": {
+            "latencyMs": 5420,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Gold Eyewear",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "eyewear",
+                "subtype": null,
+                "primary_color": "gold",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": null,
+                "silhouette": "aviator",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "eyewear",
+                "itemType": "aviator sunglasses",
+                "colorPalette": [
+                  "gold"
+                ],
+                "materialEstimate": "metal",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Gold Eyewear",
+            "result": "Gold-tone wire frame aviator sunglasses with brown gradient lenses lying on a book on a wooden deck.",
+            "category": "eyewear",
+            "itemType": "eyewear",
+            "color": "gold",
+            "material": "metal",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "A",
+            "garment": "aviators",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "eyewear",
+            "returnedFamily": "eyewear",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "eyewear",
+            "returnedFamily": "eyewear"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2154,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-2-eyewear-aviator-sunglasses",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1331,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 3
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Firmoo Women Glasses Medium Joy013 Rose Gold Metal Rectangle Frame",
+              "retailer": "Firmoo Optical",
+              "provider": null,
+              "price": "$28.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "DIFF Prescription Modern Gold Frame Gold Rx Lens",
+              "retailer": "DIFF Eyewear",
+              "provider": null,
+              "price": "$159.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Vooglam Rectangle Gold Eyeglasses",
+              "retailer": "Vooglam",
+              "provider": null,
+              "price": "$39.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": false,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 2
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 3,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 12737,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "recordsForActor": 2,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 2,
+        "savedItemCount": 2
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 2379,
+        "deferredItems": 2,
+        "requestsIssued": 2,
+        "arrival": [],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 7604,
+        "queueMs": 12737,
+        "commerceMs": 2379,
+        "endToEndMs": 15559
+      }
+    },
+    {
+      "label": "P1-X",
+      "ids": [
+        "X"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 8286,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "X",
+            "entrySeq": 29,
+            "latencyMs": 8285,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-top-hoodie",
+                "label": "hoodie",
+                "category": "top",
+                "subtype": "hoodie",
+                "hasBounds": true,
+                "confidenceScore": 0.95
+              },
+              {
+                "order": 1,
+                "candidateId": "garment-2-top-hoodie",
+                "label": "hoodie",
+                "category": "top",
+                "subtype": "hoodie",
+                "hasBounds": true,
+                "confidenceScore": 0.95
+              },
+              {
+                "order": 2,
+                "candidateId": "garment-3-bottom-jeans",
+                "label": "jeans",
+                "category": "pants",
+                "subtype": "jeans",
+                "hasBounds": true,
+                "confidenceScore": 0.88
+              },
+              {
+                "order": 3,
+                "candidateId": "garment-4-bottom-jeans",
+                "label": "jeans",
+                "category": "pants",
+                "subtype": "jeans",
+                "hasBounds": true,
+                "confidenceScore": 0.88
+              }
+            ],
+            "detectionScore": {
+              "imageId": "X",
+              "nonFashion": false,
+              "candidatesReturned": 4,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 2,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-top-hoodie",
+                  "garment": "hoodie_left",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                },
+                {
+                  "candidateId": "garment-2-top-hoodie",
+                  "garment": "hoodie_right",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "garment-1-top-hoodie",
+          "sourceImageId": "X",
+          "label": "hoodie",
+          "category": "top",
+          "subtype": "hoodie"
+        },
+        {
+          "id": "garment-2-top-hoodie",
+          "sourceImageId": "X",
+          "label": "hoodie",
+          "category": "top",
+          "subtype": "hoodie"
+        },
+        {
+          "id": "garment-3-bottom-jeans",
+          "sourceImageId": "X",
+          "label": "jeans",
+          "category": "pants",
+          "subtype": "jeans"
+        },
+        {
+          "id": "garment-4-bottom-jeans",
+          "sourceImageId": "X",
+          "label": "jeans",
+          "category": "pants",
+          "subtype": "jeans"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "X",
+          "itemId": "garment-1-top-hoodie",
+          "serverCandidateId": "garment-1-top-hoodie",
+          "boundGarmentKey": "hoodie_left",
+          "detectedCandidate": {
+            "label": "hoodie",
+            "category": "top",
+            "subtype": "hoodie"
+          },
+          "selected": {
+            "latencyMs": 5555,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Pullover Hoodie White Cotton Blend Hoodie",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "top",
+                "subtype": "hoodie",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "graphic print",
+                "material_estimate": "cotton blend",
+                "silhouette": "pullover hoodie",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.98,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "top",
+                "itemType": "hoodie",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "cotton blend",
+                "pattern": "graphic print",
+                "confidenceScore": 0.98
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Hoodie",
+            "result": "A white pullover hoodie with a black chest graphic logo, white drawstring hood, kangaroo front pouch pocket, and ribbed cuffs and hem.",
+            "category": "top",
+            "itemType": "hoodie",
+            "color": "white",
+            "material": "cotton blend",
+            "pattern": "graphic print",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.98
+          },
+          "identificationScore": {
+            "imageId": "X",
+            "garment": "hoodie_left",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "tops",
+            "returnedFamily": "tops",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.98,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "tops",
+            "returnedFamily": "tops"
+          },
+          "commerce": {
+            "uiStatus": "error",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2448,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-1-top-hoodie",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "none",
+            "errorType": "timeout",
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1900,
+              "earlyExit": false,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 0
+          },
+          "offers": [],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 0
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 0,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "X",
+          "itemId": "garment-2-top-hoodie",
+          "serverCandidateId": "garment-2-top-hoodie",
+          "boundGarmentKey": "hoodie_right",
+          "detectedCandidate": {
+            "label": "hoodie",
+            "category": "top",
+            "subtype": "hoodie"
+          },
+          "selected": {
+            "latencyMs": 5308,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Pullover Hoodie White Cotton Blend Hoodie",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "top",
+                "subtype": "hoodie",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "graphic print",
+                "material_estimate": "cotton blend",
+                "silhouette": "pullover hoodie",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.98,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "top",
+                "itemType": "hoodie",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "cotton blend",
+                "pattern": "graphic print",
+                "confidenceScore": 0.98
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Hoodie",
+            "result": "White relaxed-fit hooded pullover featuring a black graphic logo on the chest, white drawstrings, long sleeves with ribbed cuffs, and a kangaroo front pocket.",
+            "category": "top",
+            "itemType": "hoodie",
+            "color": "white",
+            "material": "cotton blend",
+            "pattern": "graphic print",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.98
+          },
+          "identificationScore": {
+            "imageId": "X",
+            "garment": "hoodie_right",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "tops",
+            "returnedFamily": "tops",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.98,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "tops",
+            "returnedFamily": "tops"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2299,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-2-top-hoodie",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1347,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "H&M Loose Fit Hoodie in White at Nordstrom",
+              "retailer": "Nordstrom",
+              "provider": null,
+              "price": "$24.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Adult Pullover Hoodie by Make Market",
+              "retailer": "Michaels Stores",
+              "provider": null,
+              "price": "$27.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Men H&M Loose Fit Hoodie",
+              "retailer": "H&M",
+              "provider": null,
+              "price": "$19.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "AE Relaxed Fit Lived-In Hoodie Men's",
+              "retailer": "American Eagle Outfitters",
+              "provider": null,
+              "price": "$37.47",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Dsg Men's Classic Fleece Hoodie",
+              "retailer": "DICK'S Sporting Goods",
+              "provider": null,
+              "price": "$45.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Cotton On Men's Box Fit Hoodie",
+              "retailer": "Cotton On",
+              "provider": null,
+              "price": "$59.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Men's Abercrombie & Fitch Essential Popover 2.0 Hoodie",
+              "retailer": "Abercrombie & Fitch",
+              "provider": null,
+              "price": "$60.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Women's Quince Everyday Fleece Hoodie",
+              "retailer": "Quince",
+              "provider": null,
+              "price": "$44.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "X",
+          "itemId": "garment-3-bottom-jeans",
+          "serverCandidateId": "garment-3-bottom-jeans",
+          "boundGarmentKey": null,
+          "detectedCandidate": {
+            "label": "jeans",
+            "category": "pants",
+            "subtype": "jeans"
+          },
+          "selected": {
+            "latencyMs": 8897,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Straight-Leg Navy Denim Jeans",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "pants",
+                "subtype": "jeans",
+                "primary_color": "Navy",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "denim",
+                "silhouette": "straight-leg",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.92,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "pants",
+                "itemType": "jeans",
+                "colorPalette": [
+                  "dark blue"
+                ],
+                "materialEstimate": "denim",
+                "pattern": "solid",
+                "confidenceScore": 0.92
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Navy Jeans",
+            "result": "Dark blue wash denim jeans visible at the hips and upper thigh",
+            "category": "pants",
+            "itemType": "jeans",
+            "color": "Navy",
+            "material": "denim",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.92
+          },
+          "identificationScore": null,
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "bottoms",
+            "returnedFamily": "bottoms"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2126,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-3-bottom-jeans",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1454,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Old Navy Women's Extra High-Waisted Straight Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$22.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$22.19",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Zara - Trf Mid-Rise Straight Fit Jeans - Navy Blue - 32 (Us 14) - Woman",
+              "retailer": "Zara USA",
+              "provider": null,
+              "price": "$49.90",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Rustler Men's Jeans Wrangler Rustler Regular Fit Jeans",
+              "retailer": "Walmart",
+              "provider": null,
+              "price": "$14.98",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Quince Women's Bella Stretch Straight Jeans",
+              "retailer": "Quince",
+              "provider": null,
+              "price": "$50.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Gap Factory Women's Low Slung Relaxed Straight Jeans",
+              "retailer": "Gap Factory",
+              "provider": null,
+              "price": "$31.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Levi's Women's 724 High Rise Straight Jeans",
+              "retailer": "Levi's",
+              "provider": null,
+              "price": "$44.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "AE Stretch High-Waisted Straight Jean Women's",
+              "retailer": "American Eagle Outfitters",
+              "provider": null,
+              "price": "$24.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "X",
+          "itemId": "garment-4-bottom-jeans",
+          "serverCandidateId": "garment-4-bottom-jeans",
+          "boundGarmentKey": null,
+          "detectedCandidate": {
+            "label": "jeans",
+            "category": "pants",
+            "subtype": "jeans"
+          },
+          "selected": {
+            "latencyMs": 5208,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Straight Navy Denim Jeans",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "pants",
+                "subtype": "jeans",
+                "primary_color": "Navy",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "denim",
+                "silhouette": "straight",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.9,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "pants",
+                "itemType": "jeans",
+                "colorPalette": [
+                  "dark blue"
+                ],
+                "materialEstimate": "denim",
+                "pattern": "solid",
+                "confidenceScore": 0.9
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Navy Jeans",
+            "result": "Dark blue denim jeans visible below the hem of the white hoodie",
+            "category": "pants",
+            "itemType": "jeans",
+            "color": "Navy",
+            "material": "denim",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.9
+          },
+          "identificationScore": null,
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "bottoms",
+            "returnedFamily": "bottoms"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "latencyMs": 2584,
+            "httpStatus": 200,
+            "echoedCandidateId": "garment-4-bottom-jeans",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1465,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Old Navy Women's Extra High-Waisted Straight Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$22.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$22.19",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Old Navy Women's Mid-Rise Straight Leg Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$26.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Wrangler Men's Relaxed Fit Straight Jeans",
+              "retailer": "Target",
+              "provider": null,
+              "price": "$29.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Levi's Women's Classic Mid Rise Straight-Leg Jeans",
+              "retailer": "Kohl's",
+              "provider": null,
+              "price": "$38.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Quince Women's Bella Stretch Straight Jeans",
+              "retailer": "Quince",
+              "provider": null,
+              "price": "$50.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "AE Stretch High-Waisted Straight Jean Women's",
+              "retailer": "American Eagle Outfitters",
+              "provider": null,
+              "price": "$24.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Old Navy Women's High-Waisted Og Straight Ankle Jeans",
+              "retailer": "Old Navy",
+              "provider": null,
+              "price": "$29.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 24972,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "recordsForActor": 4,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 4,
+        "savedItemCount": 4
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 2586,
+        "deferredItems": 4,
+        "requestsIssued": 4,
+        "arrival": [],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 8286,
+        "queueMs": 24972,
+        "commerceMs": 2586,
+        "endToEndMs": 28020
+      }
+    },
+    {
+      "label": "P1-N",
+      "imageId": "N",
+      "path": "no_candidates",
+      "detection": {
+        "status": "non-fashion",
+        "error": null,
+        "elapsedMs": 4259,
+        "nonFashionMessage": "No fashion items or clothing accessories detected.",
+        "evidence": {
+          "imageId": "N",
+          "entrySeq": 38,
+          "latencyMs": 4258,
+          "responseStatus": "non_fashion",
+          "detected": [],
+          "detectionScore": {
+            "imageId": "N",
+            "nonFashion": true,
+            "candidatesReturned": 0,
+            "required": 0,
+            "requiredDetected": 0,
+            "missedRequired": [],
+            "extraFalseCandidates": 0,
+            "distractorAsGarment": 0,
+            "nonFashionFalseCandidates": 0,
+            "assignments": []
+          }
+        }
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "items": [],
+      "findings": []
+    }
+  ],
+  "requestLog": [
+    {
+      "seq": 1,
+      "phase": "P1:O",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "8a2a3c9cc1ea",
+      "sessionHash": "267f9a63363c",
+      "hasImage": true,
+      "imageChars": 146524,
+      "imageKey": "8a2a3c9cc1ea",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 2138,
+      "latencyMs": 9507,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "a5f5b083f90f",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 2,
+      "phase": "P1:O",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-jacket-leather-jacket",
+      "imageDigestPrefix": "8a2a3c9cc1ea",
+      "sessionHash": "267f9a63363c",
+      "hasImage": true,
+      "imageChars": 146524,
+      "imageKey": "8a2a3c9cc1ea",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 12415,
+      "latencyMs": 7510,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "52d7f853c8ae",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 3,
+      "phase": "P1:O",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-2-sweater-turtleneck-sweater",
+      "imageDigestPrefix": "8a2a3c9cc1ea",
+      "sessionHash": "267f9a63363c",
+      "hasImage": true,
+      "imageChars": 146524,
+      "imageKey": "8a2a3c9cc1ea",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 19926,
+      "latencyMs": 8736,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "d0e1e34f2f0d",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 4,
+      "phase": "P1:O",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-jacket-leather-jacket",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 28663,
+      "latencyMs": 2260,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "3fa74e1f80af",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 5,
+      "phase": "P1:O",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-sweater-turtleneck-sweater",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 28663,
+      "latencyMs": 2696,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "f92b0e869d21",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 6,
+      "phase": "P1:T",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "1af4009e9bcf",
+      "sessionHash": "60aaff2a38f8",
+      "hasImage": true,
+      "imageChars": 36300,
+      "imageKey": "1af4009e9bcf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 31564,
+      "latencyMs": 9154,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "354d83bc31a5",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 7,
+      "phase": "P1:T",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-hoodie-pullover-hoodie",
+      "imageDigestPrefix": "1af4009e9bcf",
+      "sessionHash": "60aaff2a38f8",
+      "hasImage": true,
+      "imageChars": 36300,
+      "imageKey": "1af4009e9bcf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 41475,
+      "latencyMs": 7271,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "8a4829b9724d",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 8,
+      "phase": "P1:T",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-2-pants-jeans",
+      "imageDigestPrefix": "1af4009e9bcf",
+      "sessionHash": "60aaff2a38f8",
+      "hasImage": true,
+      "imageChars": 36300,
+      "imageKey": "1af4009e9bcf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 48747,
+      "latencyMs": 5723,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "5a6d69c21973",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 9,
+      "phase": "P1:T",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-pants-jeans",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 54471,
+      "latencyMs": 2465,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "f6ab377b201e",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 10,
+      "phase": "P1:T",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-hoodie-pullover-hoodie",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 54470,
+      "latencyMs": 2599,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "3b9024fd902b",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 11,
+      "phase": "P1:D",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "a0c07bbf2edf",
+      "sessionHash": "0905b7be6f01",
+      "hasImage": true,
+      "imageChars": 30476,
+      "imageKey": "a0c07bbf2edf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 57272,
+      "latencyMs": 6588,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "04a2e69282b1",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 12,
+      "phase": "P1:D",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-dress-wedding-dress",
+      "imageDigestPrefix": "a0c07bbf2edf",
+      "sessionHash": "0905b7be6f01",
+      "hasImage": true,
+      "imageChars": 30476,
+      "imageKey": "a0c07bbf2edf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 64161,
+      "latencyMs": 9328,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "c5262bdf2f1e",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 13,
+      "phase": "P1:D",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": null,
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 73490,
+      "latencyMs": 2745,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "01f4da2f7bf5",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 14,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "0c3e3965088c",
+      "sessionHash": "5eed43ff9ad4",
+      "hasImage": true,
+      "imageChars": 39408,
+      "imageKey": "0c3e3965088c",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 76466,
+      "latencyMs": 9760,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "b2a54b3ffcd2",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 15,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-tops-t-shirt",
+      "imageDigestPrefix": "0c3e3965088c",
+      "sessionHash": "5eed43ff9ad4",
+      "hasImage": true,
+      "imageChars": 39408,
+      "imageKey": "0c3e3965088c",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 86959,
+      "latencyMs": 5993,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "bf2c6227dbf4",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 16,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-2-bottoms-jeans",
+      "imageDigestPrefix": "0c3e3965088c",
+      "sessionHash": "5eed43ff9ad4",
+      "hasImage": true,
+      "imageChars": 39408,
+      "imageKey": "0c3e3965088c",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 92953,
+      "latencyMs": 6276,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "e7a00b6482f3",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 17,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-3-footwear-sneakers",
+      "imageDigestPrefix": "0c3e3965088c",
+      "sessionHash": "5eed43ff9ad4",
+      "hasImage": true,
+      "imageChars": 39408,
+      "imageKey": "0c3e3965088c",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 99229,
+      "latencyMs": 7203,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "1a52b2ee7e3e",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 18,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-tops-t-shirt",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 106434,
+      "latencyMs": 1932,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "745930055580",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 19,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-bottoms-jeans",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 106434,
+      "latencyMs": 2022,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "7e6244b6ea4a",
+      "offerCount": 3,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 20,
+      "phase": "P1:J",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-3-footwear-sneakers",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 106434,
+      "latencyMs": 2669,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "7d008184f3cb",
+      "offerCount": 6,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 21,
+      "phase": "P1:F",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "3f903c00a84f",
+      "sessionHash": "a2b3e15f4380",
+      "hasImage": true,
+      "imageChars": 115948,
+      "imageKey": "3f903c00a84f",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 109271,
+      "latencyMs": 5370,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "ea994fa5f751",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 22,
+      "phase": "P1:F",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-footwear-sneakers",
+      "imageDigestPrefix": "3f903c00a84f",
+      "sessionHash": "a2b3e15f4380",
+      "hasImage": true,
+      "imageChars": 115948,
+      "imageKey": "3f903c00a84f",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 114942,
+      "latencyMs": 5830,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "baf63174d8b9",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 23,
+      "phase": "P1:F",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": null,
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 120773,
+      "latencyMs": 1959,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "b9ac8c3308e8",
+      "offerCount": 3,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 24,
+      "phase": "P1:A",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "b63fd4cd5197",
+      "sessionHash": "a12313f5332d",
+      "hasImage": true,
+      "imageChars": 91964,
+      "imageKey": "b63fd4cd5197",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 122926,
+      "latencyMs": 7603,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "814b75127a96",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 25,
+      "phase": "P1:A",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-bags-backpack",
+      "imageDigestPrefix": "b63fd4cd5197",
+      "sessionHash": "a12313f5332d",
+      "hasImage": true,
+      "imageChars": 91964,
+      "imageKey": "b63fd4cd5197",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 131271,
+      "latencyMs": 7314,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "91940d86c6b4",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 26,
+      "phase": "P1:A",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-2-eyewear-aviator-sunglasses",
+      "imageDigestPrefix": "b63fd4cd5197",
+      "sessionHash": "a12313f5332d",
+      "hasImage": true,
+      "imageChars": 91964,
+      "imageKey": "b63fd4cd5197",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 138585,
+      "latencyMs": 5420,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "0518a864bdd9",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 27,
+      "phase": "P1:A",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-eyewear-aviator-sunglasses",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 144007,
+      "latencyMs": 2154,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "3116df18a31c",
+      "offerCount": 3,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 28,
+      "phase": "P1:A",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-bags-backpack",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 144007,
+      "latencyMs": 2359,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "7ff78ad353cb",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 29,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "e3ac2a935589",
+      "sessionHash": "09ec10c4eef4",
+      "hasImage": true,
+      "imageChars": 22492,
+      "imageKey": "e3ac2a935589",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 146512,
+      "latencyMs": 8285,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "b8061bfb5415",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 30,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-top-hoodie",
+      "imageDigestPrefix": "e3ac2a935589",
+      "sessionHash": "09ec10c4eef4",
+      "hasImage": true,
+      "imageChars": 22492,
+      "imageKey": "e3ac2a935589",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 155556,
+      "latencyMs": 5555,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "f27daec97a41",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 31,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-2-top-hoodie",
+      "imageDigestPrefix": "e3ac2a935589",
+      "sessionHash": "09ec10c4eef4",
+      "hasImage": true,
+      "imageChars": 22492,
+      "imageKey": "e3ac2a935589",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 161113,
+      "latencyMs": 5308,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "b0bac62e35f0",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 32,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-3-bottom-jeans",
+      "imageDigestPrefix": "e3ac2a935589",
+      "sessionHash": "09ec10c4eef4",
+      "hasImage": true,
+      "imageChars": 22492,
+      "imageKey": "e3ac2a935589",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 166421,
+      "latencyMs": 8897,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "6c861655d952",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 33,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-4-bottom-jeans",
+      "imageDigestPrefix": "e3ac2a935589",
+      "sessionHash": "09ec10c4eef4",
+      "hasImage": true,
+      "imageChars": 22492,
+      "imageKey": "e3ac2a935589",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 175319,
+      "latencyMs": 5208,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "fe1bda0f3107",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 34,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-3-bottom-jeans",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 180528,
+      "latencyMs": 2126,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "c054d78ac330",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 35,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-top-hoodie",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 180528,
+      "latencyMs": 2299,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "e67e6c497d07",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 36,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-top-hoodie",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 180527,
+      "latencyMs": 2448,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "34e795c802a3",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 37,
+      "phase": "P1:X",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-4-bottom-jeans",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 180528,
+      "latencyMs": 2584,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "e7a8c438ee94",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 38,
+      "phase": "P1:N",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "9a8a0c2bddd4",
+      "sessionHash": "d57a921b8854",
+      "hasImage": true,
+      "imageChars": 29512,
+      "imageKey": "9a8a0c2bddd4",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 183294,
+      "latencyMs": 4258,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "3d2ce87b6182",
+      "offerCount": 0,
+      "responseStatus": "non_fashion"
+    }
+  ]
+}

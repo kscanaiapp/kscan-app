@@ -1,0 +1,7 @@
+{
+  "run": "P2 live, workflow run 37947187094, 2026-10-09 (pre-repair backend, Staging scan-identify v80)",
+  "garments": [
+    { "key": "O:jacket", "scores": [3,3,2,2,2,2,2,2] },
+    { "key": "D:gown",   "scores": [3,3,2,1,1], "note": "all five offers are Poshmark resale; the fastest provider (230 ms) closed the shelf via the early-exit rule" }
+  ]
+}
