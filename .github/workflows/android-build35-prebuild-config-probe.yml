@@ -1,0 +1,54 @@
+name: Android Build35 Prebuild Config Probe
+
+on:
+  push:
+    branches:
+      - audit/build35-android-prebuild-config-20261009
+
+permissions:
+  contents: read
+
+jobs:
+  gradle-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Resolve Android Gradle configuration without producing an artifact
+        shell: bash
+        env:
+          EAS_BUILD_PROFILE: production
+          EXPO_PUBLIC_SUPABASE_URL: https://wyyuqfdxucjksghsmhry.supabase.co
+        run: |
+          set -euo pipefail
+          cat > /tmp/kscan-prebuild-probe.gradle <<'GROOVY'
+          gradle.afterProject { p ->
+            if (p.path == ':app') {
+              p.afterEvaluate {
+                def a = p.extensions.findByName('android')
+                def ext = p.rootProject.ext
+                println "KSCAN_PROBE_COMPILE_SDK=" + ext.compileSdkVersion
+                println "KSCAN_PROBE_TARGET_SDK=" + ext.targetSdkVersion
+                println "KSCAN_PROBE_MIN_SDK=" + ext.minSdkVersion
+                println "KSCAN_PROBE_NAMESPACE=" + a.namespace
+                println "KSCAN_PROBE_APPLICATION_ID=" + a.defaultConfig.applicationId
+                println "KSCAN_PROBE_VERSION_CODE=" + a.defaultConfig.versionCode
+                println "KSCAN_PROBE_VERSION_NAME=" + a.defaultConfig.versionName
+                println "KSCAN_PROBE_RELEASE_MINIFY=" + a.buildTypes.release.minifyEnabled
+                println "KSCAN_PROBE_RELEASE_SHRINK_RESOURCES=" + a.buildTypes.release.shrinkResources
+                println "KSCAN_PROBE_RELEASE_MANIFEST=" + a.sourceSets.release.manifest.srcFile
+              }
+            }
+          }
+          GROOVY
+          chmod +x android/gradlew
+          cd android
+          ./gradlew -q :app:help -I /tmp/kscan-prebuild-probe.gradle --no-daemon
