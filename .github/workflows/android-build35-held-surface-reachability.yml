@@ -1,0 +1,34 @@
+name: Android Build35 Held Surface Reachability
+
+on:
+  push:
+    branches:
+      - audit/build35-android-prebuild-config-20261009
+
+permissions:
+  contents: read
+
+jobs:
+  held-surfaces:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Held feature reachability and containment
+        run: |
+          node --test \
+            __tests__/build35ReleaseProfile.test.js \
+            __tests__/build35StylistSpeechHold.test.js \
+            __tests__/multiImageScannerControls.test.js \
+            __tests__/packingUxMaturity.test.js \
+            __tests__/watchlistFeatureContainment.test.js \
+            __tests__/watchlistShippedSurfaceReach.test.js \
+            __tests__/vtoShippedSurfaceReach.test.js \
+            __tests__/homeVoiceScanPill.test.js \
+            __tests__/todayWithEliseHomeMount.test.js \
+            __tests__/closetCandidateFeatureFlags.test.js \
+            __tests__/kplusFeatureFlags.test.js
