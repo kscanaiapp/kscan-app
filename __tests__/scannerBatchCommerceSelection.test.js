@@ -111,3 +111,22 @@ test('B35-SCAN-014: three selected items of a five-photo capture cannot swap off
     'photo-1-match', 'photo-2-match', 'photo-3-match',
   ]);
 });
+
+test('B35-SCAN-014: UI dispatches only selected batch items and persists late matches', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { ROOT } = require('./helpers/componentRenderer');
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks/useKScan.js'), 'utf8');
+  const screen = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  assert.match(hook, /retryRequestModeRef\.current === 'multi_item_detection'[\s\S]*?return;/,
+    'detection result must not fan out commerce over unselected candidates');
+  assert.match(screen, /hydrateSelectedBatchCommerce\(item, \{/,
+    'each selected item must use the actor/generation-gated commerce helper');
+  assert.match(screen, /batchCommerceAttemptedRef\.current\.has\(flightKey\)/,
+    'a rerender must not repeat provider calls for the same selected item');
+  assert.match(screen, /attachedBatchPurchaseOptionsRef\.current\.has\(key\)/,
+    'a late commerce result must be attached to an already-saved item at most once per shelf');
+  assert.match(screen, /attachScanPurchaseOptions\(savedId, options, \{ actorRequest: item\.actorRequest \}\)/);
+  assert.match(screen, /onRetryCommerce=\{batchResultVisible/,
+    'the selected garment has an explicit commerce retry without rerunning identification');
+});
