@@ -647,6 +647,18 @@ export default function App() {
         }));
         if (event.state === 'ready' && event.item) {
           const item = { ...event.item, batchGeneration: generation };
+          // An explicit selected-item retry supersedes the previous item's
+          // commerce result even within the SAME batch generation. Abort the
+          // old offer request and allow one fresh MODE B call for this version.
+          const commerceFlightKey = `${generation}:${item.id}`;
+          batchCommerceFlightsRef.current.get(commerceFlightKey)?.abort();
+          batchCommerceFlightsRef.current.delete(commerceFlightKey);
+          batchCommerceAttemptedRef.current.delete(commerceFlightKey);
+          setBatchCommerceStatuses((current) => {
+            const next = { ...current };
+            delete next[item.id];
+            return next;
+          });
           setBatchItems((current) => (
             current.some((entry) => entry.id === item.id)
               ? current.map((entry) => entry.id === item.id ? item : entry)
@@ -798,7 +810,9 @@ export default function App() {
       // Only replace the exact item in this batch. Its source image and actor
       // binding are preserved by hydrateSelectedBatchCommerce.
       setBatchItems((current) => current.map((entry) =>
-        entry.id === item.id && entry.batchGeneration === generation ? outcome.item : entry,
+        // A late commerce answer must not overwrite a newer detail-analysis
+        // object for the same garment after a partial-item retry.
+        entry === item && entry.batchGeneration === generation ? outcome.item : entry,
       ));
       setBatchCommerceStatuses((current) => ({ ...current, [item.id]: outcome.status }));
     } else if (outcome.status === 'error') {
