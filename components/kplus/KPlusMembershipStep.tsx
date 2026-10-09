@@ -188,9 +188,13 @@ export function KPlusMembershipStep({
   const nothingToSell = isAcquisitionEntry && liveSignalsSettled && sellable.length === 0
     && ui.lastOperation === null;
 
+  // A signed-out actor must follow the existing authentication handoff. A
+  // signed-in Free actor with zero currently verified premium benefits must
+  // NOT silently skip Step 6: show an honest Free-only explanation instead of
+  // hiding the membership choice or presenting purchasable empty benefits.
   useEffect(() => {
-    if (view.screen === 'SIGNED_OUT' || nothingToSell) onSkip();
-  }, [view.screen, nothingToSell, onSkip]);
+    if (view.screen === 'SIGNED_OUT') onSkip();
+  }, [view.screen, onSkip]);
 
   const requestOfferings = useCallback(async () => {
     dispatch({ type: 'OFFERINGS_LOAD_STARTED' });
@@ -273,8 +277,30 @@ export function KPlusMembershipStep({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (view.screen === 'SIGNED_OUT' || nothingToSell) {
+  if (view.screen === 'SIGNED_OUT') {
     return <View style={styles.root} testID="kplus-membership-skipped" />;
+  }
+
+  if (nothingToSell) {
+    return (
+      <View style={styles.root} testID="kplus-membership-no-verified-benefits">
+        <KPlusPaywallHeader compact />
+        <KPlusStatusPanel
+          testID="kplus-panel-no-verified-benefits"
+          icon={<Text style={styles.panelGlyph}>◇</Text>}
+          title="K+ membership is not available yet"
+          body="We're finishing verification of K+ benefits for this release. Paid plans are unavailable until a benefit is confirmed. You can continue with K Scan AI Free."
+        >
+          <KPlusPrimaryCta
+            testID="kplus-no-verified-benefits-continue-free"
+            label="Continue with K Scan AI Free"
+            enabled
+            onPress={onContinue}
+          />
+        </KPlusStatusPanel>
+        <KPlusLegalFooter />
+      </View>
+    );
   }
 
   if (view.screen === 'CHECKING_MEMBERSHIP') {

@@ -1066,9 +1066,13 @@ test('benefits advertise only capabilities this build ships and the server serve
   assert.ok(ui.has('kplus-paywall-benefit-voice_scan'));
   assert.ok(!ui.has('kplus-paywall-benefit-virtual_try_on'), 'VTO is not advertised without its live signal');
   assert.ok(!ui.has('kplus-paywall-benefit-packing_intelligence'));
-  // Nothing to sell -> the step routes on rather than selling an empty membership.
+  // No verified paid benefit: the step remains visible, but a purchase
+  // cannot start. The Free route is explicit rather than a silent redirect.
   const empty = mount({ voiceScan: false });
-  assert.equal(empty.env.calls.skip, 1);
+  assert.equal(empty.env.calls.skip, 0);
+  assert.ok(empty.has('kplus-panel-no-verified-benefits'));
+  assert.ok(empty.has('kplus-no-verified-benefits-continue-free'));
+  assert.ok(!empty.has('kplus-paywall-cta'));
   assert.equal(empty.env.calls.load, 0);
 });
 
@@ -1546,17 +1550,24 @@ test('NC-FC-02: VTO awareness OFF skipping Step 6 is caught', async () => {
   );
 });
 
-test('FC-02: the step still routes on when NOTHING is sellable -- that rule is about capability, not promotion', () => {
-  // Try It On switched OFF (not dimmed) and nothing else compiled in.
+test('FC-02: no verified K+ capability is an honest Free-only state, not an automatic silent skip or paid offer', async () => {
+  // Try It On switched OFF (not dimmed), with nothing else compiled in.
   const unavailable = mount({
     voiceScan: false,
     vto: true,
     live: { signals: { virtual_try_on: false }, promotion: { virtual_try_on: null }, settled: true },
   });
-  assert.equal(unavailable.env.calls.skip, 1, 'no working K+ capability -> nothing to sell');
-  // Still asking -> not skipped on a guess.
+  assert.equal(unavailable.env.calls.skip, 0, 'a Free actor must see the decision, not disappear from onboarding');
+  assert.ok(unavailable.has('kplus-membership-no-verified-benefits'));
+  assert.ok(!unavailable.has('kplus-paywall-cta'), 'no paid membership may be sold with zero proven benefits');
+  assert.equal(unavailable.env.calls.load, 0, 'do not even load paid catalog for unavailable offering');
+  await unavailable.press('kplus-no-verified-benefits-continue-free');
+  assert.equal(unavailable.env.calls.continue, 1, 'the Free path remains actionable');
+
+  // A live capability still being checked is never asserted absent on a guess.
   const asking = mount({ voiceScan: false, vto: true, live: { signals: {}, promotion: {}, settled: false } });
   assert.equal(asking.env.calls.skip, 0);
+  assert.ok(!asking.has('kplus-membership-no-verified-benefits'));
 });
 
 test('FC-02: served and promoted are separate answers from one read, and promotion never feeds availability', async () => {
