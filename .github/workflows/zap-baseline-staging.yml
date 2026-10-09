@@ -164,23 +164,43 @@ jobs:
 
           # Official ZAP Docker image. Passive only (baseline). -I keeps warnings report-only.
           # Bounded spider (-m) and overall timeout (-T). No active/full/API scan.
-          set +e
-          docker run --rm \
-            --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
-            --mount "type=bind,source=${PWD}/zap-out,target=/zap/wrk/zap-out" \
-            --workdir /zap/wrk \
-            -t "${ZAP_IMAGE}" \
-            zap-baseline.py \
-            -t "${ZAP_SCAN_URL}" \
-            -c .zap/baseline-rules.tsv \
-            -m 3 \
-            -T 10 \
-            -I \
-            -J zap-out/zap-baseline-report.json \
-            -w zap-out/zap-baseline-report.md \
-            -r zap-out/zap-baseline-report.html
-          CODE=$?
-          set -e
+          #
+          # ONE bounded retry, for an OPERATIONAL failure only. The scanner container sometimes
+          # dies before it writes any report (observed twice on 2026-10-08: a null-pointer in the
+          # automation plan, then a silent exit with no summary file; the same SHA passed on the
+          # sibling event and on a rerun). That is not a security finding, so a fresh container is
+          # tried once. The retry never changes how a report is judged: findings classification,
+          # JSON validation and the fail-closed exit below are untouched, and a second miss still
+          # fails the job. A run that produced a report is never repeated, so a result cannot be
+          # shopped for by re-running until a scan passes.
+          MAX_ATTEMPTS=2
+          ATTEMPT=0
+          while :; do
+            ATTEMPT=$((ATTEMPT + 1))
+            rm -f zap-out/zap-baseline-report.json zap-out/zap-baseline-report.md zap-out/zap-baseline-report.html
+            set +e
+            docker run --rm \
+              --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
+              --mount "type=bind,source=${PWD}/zap-out,target=/zap/wrk/zap-out" \
+              --workdir /zap/wrk \
+              -t "${ZAP_IMAGE}" \
+              zap-baseline.py \
+              -t "${ZAP_SCAN_URL}" \
+              -c .zap/baseline-rules.tsv \
+              -m 3 \
+              -T 10 \
+              -I \
+              -J zap-out/zap-baseline-report.json \
+              -w zap-out/zap-baseline-report.md \
+              -r zap-out/zap-baseline-report.html
+            CODE=$?
+            set -e
+            if [ -f zap-out/zap-baseline-report.json ] || [ "${ATTEMPT}" -ge "${MAX_ATTEMPTS}" ]; then
+              break
+            fi
+            echo "Operational failure: ZAP wrote no JSON report on attempt ${ATTEMPT} of ${MAX_ATTEMPTS}; retrying once with a fresh container"
+          done
+          echo "attempts=${ATTEMPT}" >> "$GITHUB_OUTPUT"
 
           END_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "end_time=${END_TIME}" >> "$GITHUB_OUTPUT"
@@ -234,6 +254,7 @@ jobs:
             ZAP version=${{ env.ZAP_VERSION }}
             Image digest=${{ env.ZAP_IMAGE_DIGEST }}
             Health check status=${{ steps.health.outputs.http_status }} response_time_ms=${{ steps.health.outputs.response_time_ms }}
+            Scanner attempts=${{ steps.zap.outputs.attempts }} (a second attempt means the first container wrote no report)
             Hostname=${{ steps.validate_target.outputs.hostname }}
         run: |
           set -euo pipefail

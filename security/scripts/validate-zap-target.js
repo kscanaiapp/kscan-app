@@ -254,7 +254,47 @@ function runSelfTest() {
     failed += 1;
   }
 
+  const retryViolations = zapRetryContractViolations(baselineWorkflow);
+  if (retryViolations.length === 0) {
+    console.log('PASS ZAP baseline retries only an operational (no-report) failure, once, and still fails closed');
+  } else {
+    for (const violation of retryViolations) console.error(`FAIL ZAP retry contract: ${violation}`);
+    failed += 1;
+  }
+
   process.exit(failed > 0 ? 1 : 0);
+}
+
+/**
+ * The scanner container occasionally dies before writing any report. The workflow therefore tries a
+ * fresh container ONCE, and only when no JSON report exists. This contract keeps that retry from ever
+ * becoming a way to shop for a passing scan or to hide a missing report:
+ *   - exactly one bounded retry (MAX_ATTEMPTS=2) and exactly one `docker run`;
+ *   - the loop leaves on "a report exists OR attempts are exhausted" -- never on exit status;
+ *   - stale reports are removed before every attempt, so an old file cannot satisfy the check;
+ *   - a missing report after the last attempt still prints the operational failure and exits 2;
+ *   - the report is still parsed as JSON, and nothing swallows a failure (`|| true`, continue-on-error).
+ * Returns a list of violations (empty = compliant).
+ */
+function zapRetryContractViolations(workflowText) {
+  const violations = [];
+  const text = String(workflowText);
+  const count = (needle) => text.split(needle).length - 1;
+  if (count('MAX_ATTEMPTS=2') !== 1) violations.push('MAX_ATTEMPTS must be set exactly once, to 2 (one bounded retry)');
+  if (count('docker run') !== 1) violations.push('there must be exactly one docker run (inside the bounded loop)');
+  const leave = 'if [ -f zap-out/zap-baseline-report.json ] || [ "$' + '{ATTEMPT}" -ge "$' + '{MAX_ATTEMPTS}" ]; then';
+  if (count(leave) !== 1) violations.push('the loop must leave only when a report exists or attempts are exhausted');
+  const removeAt = text.indexOf('rm -f zap-out/zap-baseline-report.json');
+  const dockerAt = text.indexOf('docker run');
+  if (removeAt < 0 || dockerAt < 0 || removeAt > dockerAt) violations.push('stale reports must be removed before every docker run');
+  if (!/Operational failure: zap-baseline-report\.json missing"\s*\n\s*exit 2/.test(text)) violations.push('a missing report after the last attempt must still fail closed with exit 2');
+  // Bound to the scan step: the parse must sit immediately before its "valid JSON" confirmation, so the
+  // later summary step's separate json.load cannot satisfy this check.
+  if (!/json\.load\(open\("zap-out\/zap-baseline-report\.json"[^\n]*\)\n\s*print\("zap-baseline-report\.json: valid JSON"\)/.test(text)) {
+    violations.push('the report must still be parsed as JSON before it is accepted');
+  }
+  if (text.includes('|| true') || /continue-on-error:\s*true/.test(text)) violations.push('nothing may swallow a failure');
+  return violations;
 }
 
 function main() {
@@ -277,6 +317,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  zapRetryContractViolations,
   validateTarget,
   deriveHealthCheckUrl,
   isAcceptableHealthStatus,
