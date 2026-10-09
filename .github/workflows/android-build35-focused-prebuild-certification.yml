@@ -1,0 +1,55 @@
+name: Android Build35 Focused Prebuild Certification
+
+on:
+  push:
+    branches:
+      - audit/build35-android-prebuild-config-20261009
+
+permissions:
+  contents: read
+
+jobs:
+  focused-source-certification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Android focused regression suites
+        run: |
+          node --test \
+            __tests__/androidBuild34CertificationGuards.test.js \
+            __tests__/androidCapabilityPermissionMatrix.test.js \
+            __tests__/androidGooglePlayComplianceV1.test.js \
+            __tests__/androidNotificationActivationGating.test.js \
+            __tests__/androidNotificationBootCapability.test.js \
+            __tests__/androidPhotoPickerAccess.test.js \
+            __tests__/androidScannerCameraSettings.test.js \
+            __tests__/androidScannerPermissionRefresh.test.js \
+            __tests__/androidVoiceProductionReadiness.test.js \
+            __tests__/androidVtoSheetInsets.test.js \
+            __tests__/androidPrivateDressingRoomSheetInsets.test.js \
+            __tests__/androidTerminalDeletionParity.test.js \
+            __tests__/androidManifestWellFormedness.test.js \
+            __tests__/androidExportedCropperContainment.test.js \
+            __tests__/androidLauncherBrandingAuthority.test.js \
+            __tests__/watchlistAndroidPushConfig.test.js \
+            __tests__/nativeConfigParityGate.test.js \
+            __tests__/kplusRevenueCatNativeCommerce.test.js
+      - name: Release profile guard
+        run: node scripts/check-build35-release-profile.js
+      - name: Native config parity
+        run: npm run verify:native-config-parity
+      - name: Dependency reachability
+        run: npm run verify:dependency-reachability
+      - name: Security tests
+        run: npm run test:security
+      - name: Auth privacy tests
+        run: npm run test:auth-privacy
+      - name: Privacy tests
+        run: npm run test:privacy
+      - name: TypeScript
+        run: npx tsc --noEmit
