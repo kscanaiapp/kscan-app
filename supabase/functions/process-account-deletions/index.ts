@@ -36,6 +36,37 @@ import {
 
 const BACKOFF_NOTE = 'Worker purge attempt';
 
+/**
+ * DEL-01 -- a purge failure that happened AFTER auth.admin.deleteUser() had
+ * succeeded (or found the user already absent).
+ *
+ * deletion_requests.user_id is ON DELETE SET NULL, so from that instant the
+ * request row has user_id NULL. The claim RPC finds work by joining profiles on
+ * user_id and the crash-recovery reconcile only handles status = 'purging', so
+ * a request rescheduled as 'deactivated' at this point is matched by nothing,
+ * ever -- and the user uuid existed only in this worker's memory. Rescheduling
+ * is therefore never a valid response here; the caller picks one of two
+ * terminal-safe dispositions instead:
+ *
+ *   dead_letter      The post-delete verification could not prove the account
+ *                    clean (residual rows, or the check itself failed). That
+ *                    needs an operator, so the request goes straight to the
+ *                    terminal 'failed' state, which alerts, instead of being
+ *                    closed as purged over possibly-remaining user data.
+ *   await_reconcile  Verification passed; only the ledger close-out failed.
+ *                    Leave the row 'purging': once its lease lapses,
+ *                    reconcile_orphaned_purging_requests closes it, exactly as
+ *                    for a worker that crashed after the Auth delete.
+ */
+class PostAuthDeleteFailure extends Error {
+  readonly disposition: 'dead_letter' | 'await_reconcile';
+  constructor(message: string, disposition: 'dead_letter' | 'await_reconcile') {
+    super(message);
+    this.name = 'PostAuthDeleteFailure';
+    this.disposition = disposition;
+  }
+}
+
 function requireWorkerAuth(req: Request): void {
   const expected = envOptional('ACCOUNT_DELETION_WORKER_SECRET');
   if (!expected) {
@@ -668,6 +699,30 @@ async function processClaimedRequest(
   }
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
+  // KPLUS-P2-001 / DEL-01 -- retire the RevenueCat K+ mirror BEFORE the Auth
+  // delete, while the user uuid it is keyed by is still persisted on the
+  // request row. Once the Auth user is gone deletion_requests.user_id is NULL
+  // and the uuid exists only in this invocation's memory, so a provider failure
+  // after that point could neither be retried nor ever be retired later.
+  //
+  // RevenueCat is never entitlement authority and this never gates on K+
+  // status -- it only clears a promotional-entitlement mirror keyed by this same
+  // UUID so it cannot outlive the account it was granted to. appUserId is the
+  // DB-claimed userId this worker already resolved; nothing here accepts a
+  // client body.
+  //
+  // A blocking outcome throws into the SAME retry/dead-letter mechanism
+  // (schedule_deletion_retry_or_fail) as every other pre-delete purge-step
+  // error, and that is safe: the Auth user still exists, so the request stays
+  // claimable. Retrying is idempotent -- RevenueCat answers 404 for a mirror an
+  // earlier attempt already retired, which retireMirroredEntitlement reports as
+  // the settled `already_retired`.
+  const revenueCatCleanup = await retireMirroredEntitlement({ appUserId: userId });
+  if (isBlockingRevenueCatCleanupStatus(revenueCatCleanup.status)) {
+    throw new Error(`revenuecat_cleanup_blocked:${revenueCatCleanup.status}`);
+  }
+  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+
   await rpc('append_deletion_state_transition', {
     p_request_id: requestId,
     p_subject_ref: subjectRef,
@@ -689,92 +744,94 @@ async function processClaimedRequest(
     logEvent('auth_user_already_absent', { uid: shortUserId(userId) });
   }
 
-  // Confirm surviving request row.
-  const surviving = await supabase
-    .from('deletion_requests')
-    .select('id,user_id,subject_ref,status')
-    .eq('id', requestId)
-    .maybeSingle();
-  if (surviving.error || !surviving.data) {
-    throw new Error('deletion_requests row did not survive Auth deletion');
-  }
-  if (surviving.data.user_id !== null) {
-    // SET NULL may be async-ish; force null if needed.
-    await supabase
-      .from('deletion_requests')
-      .update({ user_id: null })
-      .eq('id', requestId);
-  }
-
-  // B3 fix: verify AFTER the auth user is gone, not before. The prior
-  // "coverage check" ran ahead of auth.admin.deleteUser() -- i.e. it was a
-  // pre-delete inventory, not a post-delete verification -- and its actual
-  // per-table counts were discarded (only coverage.length was logged). A
-  // cascade FK that silently didn't fire (wrong table, missing constraint,
-  // a future migration that adds a user-data table without one) would
-  // never be caught. Now: any resource whose FK is supposed to have
-  // removed every row tied to this user (everything except the
-  // survive_auth_delete-tagged ledger) that still shows a nonzero count
-  // fails the request instead of marking it purged, so it durably retries
-  // (via schedule_deletion_retry_or_fail, same as any other thrown error
-  // here) rather than silently reporting success over residual user data.
-  //
-  // Renew the lease before this loop specifically: it issues one query per
-  // registry resource (currently ~44), and unlike every other step in this
-  // function it previously had no heartbeat guarding it.
-  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+  // ---- Point of no return (DEL-01) -------------------------------------------
+  // The Auth user is gone, so deletion_requests.user_id is now NULL and this
+  // request can never be re-claimed (the claim joins profiles on user_id). From
+  // here a failure must NOT fall through to the generic schedule-for-retry
+  // path: it would park the row as 'deactivated' with no user, matched by
+  // nothing ever again. Each failure is instead tagged with the disposition the
+  // caller must apply -- see PostAuthDeleteFailure.
   const coverage = [];
-  const residual = [];
-  for (const resource of USER_DATA_RESOURCES) {
-    const row = await countResourceRows(supabase, resource, userId);
-    coverage.push(row);
-    if (
-      resource.action !== 'survive_auth_delete' &&
-      typeof row.count === 'number' &&
-      row.count > 0
-    ) {
-      residual.push(row);
+  let residualVerified = false;
+  try {
+    // Confirm surviving request row.
+    const surviving = await supabase
+      .from('deletion_requests')
+      .select('id,user_id,subject_ref,status')
+      .eq('id', requestId)
+      .maybeSingle();
+    if (surviving.error || !surviving.data) {
+      throw new Error('deletion_requests row did not survive Auth deletion');
     }
-  }
-  if (residual.length > 0) {
-    alertEvent('purge_verification_failed', {
-      requestIdPrefix: requestId.slice(0, 8),
-      uid: shortUserId(userId),
-      residual: residual.map((r) => ({ table: r.table, action: r.action, count: r.count })),
+    if (surviving.data.user_id !== null) {
+      // SET NULL may be async-ish; force null if needed.
+      await supabase
+        .from('deletion_requests')
+        .update({ user_id: null })
+        .eq('id', requestId);
+    }
+
+    // B3 fix: verify AFTER the auth user is gone, not before. The prior
+    // "coverage check" ran ahead of auth.admin.deleteUser() -- i.e. it was a
+    // pre-delete inventory, not a post-delete verification -- and its actual
+    // per-table counts were discarded (only coverage.length was logged). A
+    // cascade FK that silently didn't fire (wrong table, missing constraint,
+    // a future migration that adds a user-data table without one) would
+    // never be caught. Now: any resource whose FK is supposed to have
+    // removed every row tied to this user (everything except the
+    // survive_auth_delete-tagged ledger) that still shows a nonzero count
+    // fails the request instead of marking it purged, rather than silently
+    // reporting success over residual user data. DEL-01: it cannot "durably
+    // retry" at this point -- the Auth user is gone, so the request is no
+    // longer claimable -- so a failure here (residual rows, or a verification
+    // query that could not run) dead-letters the request to 'failed' with an
+    // operator alert instead.
+    //
+    // Renew the lease before this loop specifically: it issues one query per
+    // registry resource (currently ~44), and unlike every other step in this
+    // function it previously had no heartbeat guarding it.
+    if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+    const residual = [];
+    for (const resource of USER_DATA_RESOURCES) {
+      const row = await countResourceRows(supabase, resource, userId);
+      coverage.push(row);
+      if (
+        resource.action !== 'survive_auth_delete' &&
+        typeof row.count === 'number' &&
+        row.count > 0
+      ) {
+        residual.push(row);
+      }
+    }
+    if (residual.length > 0) {
+      alertEvent('purge_verification_failed', {
+        requestIdPrefix: requestId.slice(0, 8),
+        uid: shortUserId(userId),
+        residual: residual.map((r) => ({ table: r.table, action: r.action, count: r.count })),
+      });
+      throw new Error(
+        `post-purge verification found residual rows in: ${residual.map((r) => r.table).join(', ')}`,
+      );
+    }
+
+    residualVerified = true;
+
+    const marked = await rpc('mark_deletion_request_purged', {
+      p_request_id: requestId,
+      p_worker_id: workerId,
     });
-    throw new Error(
-      `post-purge verification found residual rows in: ${residual.map((r) => r.table).join(', ')}`,
+    if (!marked.ok) {
+      throw new Error('mark purged failed');
+    }
+    const markOk = await marked.json();
+    if (markOk !== true) {
+      throw new Error('mark purged returned false');
+    }
+  } catch (err) {
+    throw new PostAuthDeleteFailure(
+      err instanceof Error ? err.message : 'purge_failed',
+      residualVerified ? 'await_reconcile' : 'dead_letter',
     );
-  }
-
-  // KPLUS-P2-001 -- retire the RevenueCat K+ mirror now that the K Scan
-  // resources it shadowed are confirmed gone (user_entitlements cascaded
-  // above; the residual check just proved it). RevenueCat is never
-  // entitlement authority and this never gates on K+ status -- it only
-  // clears a promotional-entitlement mirror keyed by this same UUID so it
-  // cannot outlive the account it was granted to. appUserId is the DB-claimed
-  // userId this worker already resolved; nothing here accepts a client body.
-  //
-  // A blocking outcome throws into the SAME retry/dead-letter mechanism
-  // (schedule_deletion_retry_or_fail) as every other purge-step error. That
-  // is safe to re-run: every earlier step already tolerates an already-gone
-  // user (see auth_user_already_absent above), so a retry here repeats a
-  // no-op purge and simply retries this one call until it settles.
-  const revenueCatCleanup = await retireMirroredEntitlement({ appUserId: userId });
-  if (isBlockingRevenueCatCleanupStatus(revenueCatCleanup.status)) {
-    throw new Error(`revenuecat_cleanup_blocked:${revenueCatCleanup.status}`);
-  }
-
-  const marked = await rpc('mark_deletion_request_purged', {
-    p_request_id: requestId,
-    p_worker_id: workerId,
-  });
-  if (!marked.ok) {
-    throw new Error('mark purged failed');
-  }
-  const markOk = await marked.json();
-  if (markOk !== true) {
-    throw new Error('mark purged returned false');
   }
 
   logEvent('purge_success', {
@@ -966,15 +1023,33 @@ Deno.serve(async (req) => {
         results.push({ requestId: row.id, ...result });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'purge_failed';
+        const postAuthDelete = err instanceof PostAuthDeleteFailure ? err : null;
         logEvent('purge_failure', {
           requestIdPrefix: String(row.id).slice(0, 8),
           code: 'PURGE_ERROR',
+          ...(postAuthDelete ? { postAuthDelete: postAuthDelete.disposition } : {}),
         });
+        if (postAuthDelete?.disposition === 'await_reconcile') {
+          // DEL-01: the Auth user is gone and the account verified clean; only
+          // the ledger close-out failed. Do NOT reschedule (the row would be
+          // parked 'deactivated' with user_id NULL and never claimed again).
+          // The row stays 'purging'; when its lease lapses the
+          // reconcile_orphaned_purging_requests call at the top of the next live
+          // invocation closes it, as for any worker that died after the delete.
+          logEvent('purge_awaiting_reconcile', { requestIdPrefix: String(row.id).slice(0, 8) });
+          results.push({ requestId: row.id, status: 'awaiting_reconcile', error: message.slice(0, 200) });
+          continue;
+        }
         await rpc('schedule_deletion_retry_or_fail', {
           p_request_id: row.id,
           p_worker_id: workerId,
           p_failure_code: 'PURGE_ERROR',
           p_failure_message: message.slice(0, 500),
+          // DEL-01: a request that failed verification after the Auth delete
+          // can never be re-claimed, so a scheduled retry would strand it.
+          // attempt_count is >= 1 once claimed, so max = 1 makes the RPC take
+          // its existing dead-letter branch (terminal 'failed') immediately.
+          ...(postAuthDelete ? { p_max_attempts: 1 } : {}),
         });
         // P1-4: if that transition dead-lettered the request (attempts
         // exhausted -> terminal 'failed'), raise an operator alert. A
