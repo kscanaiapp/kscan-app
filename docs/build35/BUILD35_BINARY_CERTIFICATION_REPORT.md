@@ -33,7 +33,7 @@ Recorded 2026-10-08/09 ET. Verdict rule: `OVERALL = PASS` iff G01–G13 are all 
 | G13 Release integrity | **FAIL** | No binary exists to agree with the backend deployment and feature configuration; live backend deployment parity is incomplete |
 
 # Work completed
-- **PRs created:** #529 (K+ hold live probe), #530 (behavioural tests), #531 (ZAP retry), #532 (Scanner executed proof), this documentation PR.
+- **PRs created:** #529 (K+ hold live probe), #530 (behavioural tests), #531 (ZAP retry), #532 (Scanner executed proof), #533 (this documentation record), draft #534 (DEL-01 repair), draft #535 (K-06 repair).
 - **PRs repaired / refreshed:** #525 (production-profile guard), #520 (Today-row pin), #521 (shared-file reconciliation + governance fixups).
 - **PRs merged by this session (head-pinned, after exact-head verification):** #527, #520, #521, #530, #531. #525 and #526 were merged outside this session's context; their exact-head state was re-verified as part of the integration tip's CI. Merging #532 was blocked by the auto-mode classifier and is left for the owner; #529 is deliberately held (see the deployment ledger).
 - **Deployments completed (Staging, governed):** `kplus-activate`, `commerce-watch-refresh`, and four K+ functions. No Production deployment completed.
