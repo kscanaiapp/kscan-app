@@ -37,13 +37,24 @@ export const COMMERCE_FUNNEL_DEFAULT_ENABLED = true;
 /**
  * Hard ceiling for the whole fast commerce fan-out.
  *
- * Chosen at the bottom of the 1.8–2.0s target band: the fast path is the first
- * thing a user sees after the scan result, and Phase 3 measurement showed
- * Poshmark alone ranging to 13.9s. Anything a provider cannot deliver inside
- * this window is not a fast result by definition — it can still arrive through
- * the deferred enrichment hop.
+ * The fast path is the first thing a user sees after the scan result, and Phase 3
+ * measurement showed Poshmark alone ranging to 13.9s, so this must stay a bound,
+ * not an open-ended wait. Anything a provider cannot deliver inside this window is
+ * not a fast result by definition — it can still arrive through the deferred
+ * enrichment hop.
+ *
+ * B35-SCAN-022: 1.9s was too tight for the PRIMARY provider. Serper answers in
+ * 1.1-1.7s but has a tail past 1.9s, and a provider call is aborted at this
+ * deadline (its late answer is discarded, not cached). Measured on Staging, 8 of 27
+ * fast-path requests over 45 days ended in `provider_timeout` (30%, all clustered at
+ * the wall), and 4 of 15 garments in the 2026-10-09 live run came back with no
+ * offers on the first attempt; a retry is a fresh draw from the same distribution.
+ * 3.0s is the ceiling Production already shipped for the pre-funnel inline commerce
+ * path. The fast path still returns as soon as FAST_COMMERCE_SUFFICIENT_RESULTS
+ * rankable offers exist, so the typical request is unchanged and only the cut-off
+ * tail is recovered. No extra provider call is made: they are already in flight.
  */
-export const FAST_COMMERCE_DEADLINE_MS = 1_900;
+export const FAST_COMMERCE_DEADLINE_MS = 3_000;
 
 /**
  * Early success. Once this many rankable candidates exist there is nothing a
