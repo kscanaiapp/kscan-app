@@ -129,4 +129,8 @@ test('B35-SCAN-014: UI dispatches only selected batch items and persists late ma
   assert.match(screen, /attachScanPurchaseOptions\(savedId, options, \{ actorRequest: item\.actorRequest \}\)/);
   assert.match(screen, /onRetryCommerce=\{batchResultVisible/,
     'the selected garment has an explicit commerce retry without rerunning identification');
+  assert.match(screen, /batchCommerceFlightsRef\.current\.get\(commerceFlightKey\)\?\.abort\(\)/,
+    'same-item detail retry aborts the prior garment commerce attempt');
+  assert.match(screen, /entry === item && entry\.batchGeneration === generation/,
+    'a late commerce response cannot replace a newer item analysis');
 });
