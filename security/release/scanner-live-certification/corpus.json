@@ -1,0 +1,264 @@
+{
+  "version": "scanner-live-corpus-1",
+  "fixtureDir": "assets/qa_fixtures",
+  "approvedBy": "owner ruling in chat, 2026-10-09: repo QA fixtures only",
+  "excluded": [
+    {
+      "file": "bottom_skirt.jpg",
+      "reason": "Not approved for third-party transmission. Never read by the harness."
+    }
+  ],
+  "thresholds": {
+    "identification": {
+      "primaryCategoryCorrectMin": 0.9,
+      "criticalMisidentificationsMax": 0,
+      "subtypeAcceptableMin": 0.75,
+      "primaryColorAcceptableMin": 0.8,
+      "ungroundedBrandClaimsMax": 0,
+      "nonFashionFalseCandidatesMax": 0,
+      "distractorAsGarmentMax": 0,
+      "requiredGarmentRecallMin": 0.8,
+      "extraFalseCandidatesPerPhotoMax": 1,
+      "overconfidentWrongMax": 0
+    },
+    "commerce": {
+      "hitAt3Min": 0.8,
+      "meanTop3PrecisionMin": 0.5,
+      "meanTop5PrecisionMin": 0.4,
+      "top1UnrelatedGarmentsMax": 1,
+      "top1UnrelatedShareMax": 0.1,
+      "brokenDestinationUrlsMax": 0,
+      "crossGarmentMixupsMax": 0,
+      "falseNoMatchClaimsMax": 0
+    },
+    "integrity": {
+      "candidateImageMixupsMax": 0,
+      "actorContaminationMax": 0,
+      "requestsForUnselectedGarmentsMax": 0,
+      "unintendedDuplicateCommerceOperationsMax": 0,
+      "savedItemSourceImageMismatchMax": 0
+    },
+    "latencyMs": {
+      "goalTimeToUsefulResult": 5000,
+      "gateDetectionP95": 20000,
+      "gateSelectedItemP95": 20000,
+      "gateCommerceP95": 15000,
+      "note": "The 5 s goal is reported as MET or NOT MET and does not gate the verdict; the hard bounds are the client request timeouts (20 s per scan request, 15 s per commerce request). Averages are never used; p50 and p95 are both reported."
+    }
+  },
+  "budget": {
+    "imageModeRequestsTotal": 56,
+    "commerceOnlyRequestsTotal": 40,
+    "imageModeRequestsPerActorPerUtcDay": 28,
+    "approvedBy": "owner ruling in chat, 2026-10-09"
+  },
+  "images": [
+    {
+      "id": "O",
+      "file": "outerwear.jpg",
+      "scenario": "single leather jacket, monochrome photo, lower face cropped",
+      "hardCaseTags": ["monochrome", "partial_garment", "cropped_person"],
+      "expectedGarments": [
+        {
+          "key": "jacket",
+          "required": true,
+          "categoryAny": ["outerwear", "jacket", "coat"],
+          "subtypeAny": ["leather jacket", "biker", "moto", "motorcycle", "bomber", "jacket"],
+          "colorAny": ["black", "gray", "grey", "charcoal", "dark", "brown", "silver"],
+          "materialAny": ["leather", "faux leather", "leather-look"],
+          "brandGrounded": [],
+          "offerTitleAny": ["jacket", "coat", "bomber", "biker", "moto", "outerwear", "blazer"],
+          "offerTitleReject": ["dress", "skirt", "sneaker", "boot", "handbag", "jeans", "trouser", "pants", "sunglasses"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "T",
+      "file": "top.jpg",
+      "scenario": "white pullover hoodie with black chest logo, dark denim visible at the bottom edge",
+      "hardCaseTags": ["low_contrast_white_on_white", "branded_logo_text"],
+      "expectedGarments": [
+        {
+          "key": "hoodie",
+          "required": true,
+          "categoryAny": ["top", "tops", "hoodie", "sweatshirt", "sweater", "knitwear", "shirt"],
+          "subtypeAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "colorAny": ["white", "off-white", "ivory", "cream"],
+          "materialAny": ["cotton", "fleece", "jersey", "polyester", "blend"],
+          "brandGrounded": ["coq"],
+          "offerTitleAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "offerTitleReject": ["dress", "skirt", "sneaker", "boot", "handbag", "jeans", "trouser", "sunglasses", "jacket"]
+        },
+        {
+          "key": "dark_jeans_edge",
+          "required": false,
+          "categoryAny": ["bottoms", "pants", "jeans", "trousers", "denim"],
+          "subtypeAny": ["jeans", "denim", "trousers", "pants"],
+          "colorAny": ["navy", "dark blue", "blue", "black", "indigo", "dark"],
+          "materialAny": ["denim"],
+          "brandGrounded": [],
+          "offerTitleAny": ["jeans", "denim", "trouser", "pants"],
+          "offerTitleReject": ["dress", "hoodie", "sneaker", "handbag", "sunglasses", "jacket"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "D",
+      "file": "dress.jpg",
+      "scenario": "strapless ivory A-line gown with a taupe sash and a train",
+      "hardCaseTags": ["low_light_dark_background", "formal_occasion"],
+      "expectedGarments": [
+        {
+          "key": "gown",
+          "required": true,
+          "categoryAny": ["dress", "gown"],
+          "subtypeAny": ["gown", "wedding", "bridal", "ball gown", "a-line", "formal", "evening", "maxi", "strapless"],
+          "colorAny": ["white", "ivory", "cream", "off-white", "champagne"],
+          "materialAny": ["satin", "taffeta", "silk", "polyester", "duchess"],
+          "brandGrounded": [],
+          "offerTitleAny": ["dress", "gown", "bridal", "wedding"],
+          "offerTitleReject": ["jeans", "jacket", "sneaker", "handbag", "hoodie", "sunglasses"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "J",
+      "file": "bottom_jeans.jpg",
+      "scenario": "mid-blue washed straight jeans, white tee tucked in, white low-top canvas sneakers",
+      "hardCaseTags": ["multi_garment_outfit", "similar_color_garments_white"],
+      "expectedGarments": [
+        {
+          "key": "jeans",
+          "required": true,
+          "categoryAny": ["bottoms", "pants", "jeans", "trousers", "denim"],
+          "subtypeAny": ["jeans", "denim", "straight", "trousers"],
+          "colorAny": ["blue", "denim", "indigo", "navy", "washed"],
+          "materialAny": ["denim"],
+          "brandGrounded": [],
+          "offerTitleAny": ["jeans", "denim"],
+          "offerTitleReject": ["dress", "jacket", "sneaker", "handbag", "hoodie", "sunglasses"]
+        },
+        {
+          "key": "white_tee",
+          "required": false,
+          "categoryAny": ["top", "tops", "shirt", "t-shirt", "tee"],
+          "subtypeAny": ["t-shirt", "tee", "shirt", "tank"],
+          "colorAny": ["white"],
+          "materialAny": ["cotton", "jersey"],
+          "brandGrounded": [],
+          "offerTitleAny": ["t-shirt", "tee", "shirt", "tank"],
+          "offerTitleReject": ["dress", "jeans", "sneaker", "handbag", "sunglasses", "jacket"]
+        },
+        {
+          "key": "white_sneakers",
+          "required": false,
+          "categoryAny": ["footwear", "shoes", "sneakers"],
+          "subtypeAny": ["sneaker", "trainer", "low-top", "canvas", "shoe"],
+          "colorAny": ["white", "off-white", "cream"],
+          "materialAny": ["canvas", "cotton"],
+          "brandGrounded": [],
+          "offerTitleAny": ["sneaker", "trainer", "shoe", "low top", "low-top", "canvas"],
+          "offerTitleReject": ["dress", "jeans", "jacket", "handbag", "hoodie", "sunglasses"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "F",
+      "file": "footwear.jpg",
+      "scenario": "single red low-top lace-up sneaker with a white sole on wet sand at sunset",
+      "hardCaseTags": ["small_accessory_like_footwear", "glare_reflection", "partial_view", "skin_visible"],
+      "expectedGarments": [
+        {
+          "key": "red_sneaker",
+          "required": true,
+          "categoryAny": ["footwear", "shoes", "sneakers"],
+          "subtypeAny": ["sneaker", "trainer", "low-top", "shoe", "lace"],
+          "colorAny": ["red", "burgundy", "maroon", "wine", "dark red", "brown", "oxblood"],
+          "materialAny": ["leather", "patent", "synthetic", "canvas", "rubber"],
+          "brandGrounded": [],
+          "offerTitleAny": ["sneaker", "trainer", "shoe", "low top", "low-top"],
+          "offerTitleReject": ["dress", "jeans", "jacket", "handbag", "hoodie", "sunglasses"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "A",
+      "file": "accessory.jpg",
+      "scenario": "striped blue/white canvas satchel with black straps and buckles, aviator sunglasses, a book",
+      "hardCaseTags": ["multi_accessory", "non_fashion_distractor_book", "overlapping_objects"],
+      "expectedGarments": [
+        {
+          "key": "satchel",
+          "required": true,
+          "categoryAny": ["bag", "bags", "handbag", "accessory", "accessories", "satchel", "crossbody", "purse"],
+          "subtypeAny": ["crossbody", "satchel", "messenger", "shoulder", "bag", "tote", "backpack"],
+          "colorAny": ["blue", "white", "navy", "black", "cream"],
+          "patternAny": ["stripe", "striped"],
+          "materialAny": ["canvas", "cotton", "leather", "linen"],
+          "brandGrounded": [],
+          "offerTitleAny": ["bag", "satchel", "crossbody", "messenger", "purse", "tote"],
+          "offerTitleReject": ["dress", "jeans", "jacket", "sneaker", "hoodie", "sunglasses"]
+        },
+        {
+          "key": "aviators",
+          "required": true,
+          "categoryAny": ["eyewear", "sunglasses", "glasses", "accessory", "accessories"],
+          "subtypeAny": ["aviator", "sunglasses", "glasses"],
+          "colorAny": ["gold", "rose gold", "brown", "copper", "pink", "bronze", "amber", "gradient"],
+          "materialAny": ["metal", "glass"],
+          "brandGrounded": [],
+          "offerTitleAny": ["sunglass", "aviator", "glasses", "eyewear"],
+          "offerTitleReject": ["dress", "jeans", "jacket", "sneaker", "hoodie", "bag"]
+        }
+      ],
+      "distractors": [
+        { "key": "book", "forbiddenTokens": ["book", "novel", "paperback"] }
+      ]
+    },
+    {
+      "id": "X",
+      "file": "ambiguous_two_garments.jpg",
+      "scenario": "two identical white hoodies at equal scale side by side",
+      "hardCaseTags": ["equal_prominence_ambiguity", "identical_items", "branded_logo_text"],
+      "expectedGarments": [
+        {
+          "key": "hoodie_left",
+          "required": true,
+          "categoryAny": ["top", "tops", "hoodie", "sweatshirt", "sweater", "knitwear", "shirt"],
+          "subtypeAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "colorAny": ["white", "off-white", "ivory", "cream"],
+          "materialAny": ["cotton", "fleece", "jersey", "polyester", "blend"],
+          "brandGrounded": ["coq"],
+          "offerTitleAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "offerTitleReject": ["dress", "skirt", "sneaker", "boot", "handbag", "jeans", "trouser", "sunglasses", "jacket"]
+        },
+        {
+          "key": "hoodie_right",
+          "required": false,
+          "categoryAny": ["top", "tops", "hoodie", "sweatshirt", "sweater", "knitwear", "shirt"],
+          "subtypeAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "colorAny": ["white", "off-white", "ivory", "cream"],
+          "materialAny": ["cotton", "fleece", "jersey", "polyester", "blend"],
+          "brandGrounded": ["coq"],
+          "offerTitleAny": ["hoodie", "hooded", "sweatshirt", "pullover"],
+          "offerTitleReject": ["dress", "skirt", "sneaker", "boot", "handbag", "jeans", "trouser", "sunglasses", "jacket"]
+        }
+      ],
+      "distractors": []
+    },
+    {
+      "id": "N",
+      "file": "non_fashion.jpg",
+      "scenario": "ceramic mug with a printed seal on a wooden table",
+      "hardCaseTags": ["non_fashion"],
+      "nonFashion": true,
+      "expectedGarments": [],
+      "distractors": []
+    }
+  ]
+}

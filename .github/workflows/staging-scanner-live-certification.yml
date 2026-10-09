@@ -1,0 +1,131 @@
+# Bounded live Scanner certification against Staging (Build 35, P1-SCAN-001 / P1-SCAN-002).
+#
+# Runs the REAL mobile Scanner client source (hook, transport, mapper, batch queue,
+# selected-item commerce, Save All, library) in Node against the REAL Staging
+# scan-identify function, using ONLY the repository's approved qa_fixtures images.
+# Protocol, ground truth, thresholds and the owner-approved call budget are declared
+# in docs/build35/scanner/LIVE_CERTIFICATION_PROTOCOL.md and
+# security/release/scanner-live-certification/corpus.json BEFORE any run.
+#
+# SPEND SAFETY (all enforced in code before a request leaves the runner):
+#   - a typed confirmation phrase is required (workflow_dispatch only);
+#   - a hard budget guard refuses any request beyond the approved caps;
+#   - what the campaign already spent is read from the server's own quota ledger
+#     (and/or the dispatcher's explicit prior counts); if neither is available the
+#     run refuses to spend.
+#
+# A `push` event only REGISTERS this workflow (GitHub cannot dispatch a workflow it
+# has never observed). The job is skipped for every event except workflow_dispatch,
+# so a push can never cause a paid request.
+#
+# It deploys nothing, writes nothing to Staging data, and creates no account: it
+# signs in the EXISTING governed synthetic accounts and masks every token at once.
+
+name: K Scan Staging Scanner Live Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Phase to run (see the protocol for each phase and its call budget)'
+        required: true
+        type: choice
+        options: [P1, P2, P3, P4, P5, P6]
+      actor:
+        description: 'Synthetic actor (B requires the STAGING_SYNTHETIC_ACTIVE_B secrets)'
+        required: true
+        type: choice
+        default: 'A'
+        options: ['A', 'B']
+      confirm:
+        description: 'Type RUN-SCANNER-LIVE to authorize the bounded spend'
+        required: true
+        type: string
+      prior_image_mode:
+        description: 'Image-mode requests already spent by the campaign (dispatcher count)'
+        required: true
+        type: string
+        default: '0'
+      prior_commerce_only:
+        description: 'Commerce-only requests already spent by the campaign (dispatcher count)'
+        required: true
+        type: string
+        default: '0'
+      prior_actor_a_today:
+        description: 'Image-mode requests actor A already spent today (UTC)'
+        required: true
+        type: string
+        default: '0'
+      prior_actor_b_today:
+        description: 'Image-mode requests actor B already spent today (UTC)'
+        required: true
+        type: string
+        default: '0'
+  # Scoped to this exact branch and to this file only: registration, never a run.
+  push:
+    branches:
+      - test/build35-scanner-live-certification-v1
+    paths:
+      - .github/workflows/staging-scanner-live-certification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-scanner-live-certification
+  cancel-in-progress: false
+
+jobs:
+  live-certification:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (frozen lockfile, no install scripts)
+        run: npm ci --no-audit --no-fund --ignore-scripts
+
+      - name: Image tooling (app-faithful 896 px / q65 preparation)
+        run: |
+          if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+          fi
+
+      - name: Run the bounded Scanner live certification
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          STAGING_SYNTHETIC_ACTIVE_B_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_B_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_B_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_B_PASSWORD }}
+          SCANNER_LIVE_CONFIRM: ${{ inputs.confirm }}
+          PRIOR_IMAGE_MODE: ${{ inputs.prior_image_mode }}
+          PRIOR_COMMERCE_ONLY: ${{ inputs.prior_commerce_only }}
+          PRIOR_ACTOR_A_TODAY: ${{ inputs.prior_actor_a_today }}
+          PRIOR_ACTOR_B_TODAY: ${{ inputs.prior_actor_b_today }}
+          PHASE: ${{ inputs.phase }}
+          ACTOR: ${{ inputs.actor }}
+        # Tokens are masked by the runner (::add-mask:: to stderr) the instant they are
+        # received. Dispatcher-controlled values reach the script only through env.
+        run: node security/release/scanner-live-certification/run.js --phase "$PHASE" --actor "$ACTOR" --out scanner-live-certification-report.json
+
+      - name: Print sanitized evidence
+        if: always()
+        run: test -s scanner-live-certification-report.json && cat scanner-live-certification-report.json
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scanner-live-certification-${{ inputs.phase }}-${{ github.run_id }}
+          path: scanner-live-certification-report.json
+          if-no-files-found: warn
+          retention-days: 30
