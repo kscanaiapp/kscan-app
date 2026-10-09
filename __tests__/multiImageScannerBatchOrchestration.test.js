@@ -45,7 +45,12 @@ function region(startMarker, endMarker, { source = APP, includeEnd = false } = {
 }
 
 const QUEUE_SRC = region('const runBatchQueue = useCallback(', '\n  const persistBatchItem = useCallback(');
-const PERSIST_SRC = region('const persistBatchItem = useCallback(', '\n  useEffect(() => () => {\n    batchGenerationRef');
+// Keep the actual persistence callbacks executable in isolation. The new
+// selected-item commerce effects between them are tested in their own suite.
+const PERSIST_SRC = [
+  region('const persistBatchItem = useCallback(', '\n  // B35-SCAN-014: hydrate MODE B'),
+  region('const saveAllBatchItems = useCallback(', '\n  useEffect(() => () => {\n    batchGenerationRef'),
+].join('\n');
 const AUTOSAVE_SRC = region('// Preserve the established Scanner behavior', '\n  // perceiving: true while');
 const RESET_SRC = region(
   'useEffect(() => {\n    if (!eligibleBatchSession || !batchSessionKey) {',
@@ -70,7 +75,7 @@ function createStore(actorRequest) {
   const state = {
     batchSelectedCandidateIds: [], batchItems: [], batchItemStates: {}, batchQueueActive: false,
     batchQueueNotice: null, batchRemainingCandidateIds: [], batchSelectedItemId: null,
-    savedBatchScanIds: {}, addAllBatchToRoom: false, savedToast: false,
+    savedBatchScanIds: {}, batchCommerceStatuses: {}, addAllBatchToRoom: false, savedToast: false,
   };
   const refs = {
     batchGenerationRef: { current: 1 },
@@ -80,6 +85,9 @@ function createStore(actorRequest) {
     batchSavingItemIdsRef: { current: new Set() },
     batchGroupIdRef: { current: 'multi-test-1' },
     batchSessionKeyRef: { current: null },
+    batchCommerceFlightsRef: { current: new Map() },
+    batchCommerceAttemptedRef: { current: new Set() },
+    attachedBatchPurchaseOptionsRef: { current: new Set() },
   };
   const setters = {};
   for (const key of Object.keys(state)) {
