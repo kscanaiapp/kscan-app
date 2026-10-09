@@ -1700,8 +1700,15 @@ export default function App() {
             // reopened Recent Scan (app/library.tsx) renders AnalysisCard
             // without this prop, so it stays 'idle' there and the section
             // keeps its pre-existing hidden-when-empty behavior.
-            commerceStatus={!batchResultVisible && analysis?.commerceDeferred ? commerceStatus : 'idle'}
-            onRetryCommerce={batchResultVisible ? undefined : retryCommerce}
+            commerceStatus={batchResultVisible
+              ? (activeBatchItem?.analysis?.commerceDeferred
+                ? (batchCommerceStatuses[activeBatchItem.id] ?? 'pending') : 'idle')
+              : (analysis?.commerceDeferred ? commerceStatus : 'idle')}
+            onRetryCommerce={batchResultVisible
+              ? (activeBatchItem?.analysis?.commerceDeferred
+                ? () => { void hydrateBatchCommerceForItem(activeBatchItem, { isRetry: true }); }
+                : undefined)
+              : retryCommerce}
             // Build 32: only meaningful on this live-scan surface, same reason
             // as commerceStatus above — a reopened Recent Scan renders from
             // its own persisted snapshot instead (see app/library.tsx).
