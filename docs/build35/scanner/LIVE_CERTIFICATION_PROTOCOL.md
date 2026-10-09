@@ -50,7 +50,8 @@ Only the device edges are replaced: the photo picker, `expo-image-manipulator`
 | P3 five-photo | O, D, F, A, N: exactly the global five-candidate bound plus one non-fashion photo; one injected network failure (zero cost, never sent), one real retry, out-of-order commerce delivery, Save All, reopen | 5 + 5 + 1 | 6 |
 | P4 deferred-commerce | (e) account change while MODE B is in flight on O + D; (b) leaving the screen mid-queue aborts the rest | 4 + 3 | 2 |
 | P5 funnel-off control | O + D as a two-photo batch (selected-item answers carry offers inline; no MODE B exists), only if the governed Staging flip is performed, with rollback | 4 | 0 |
-| P6 post-repair re-verification / variance | identify and shop A (sunglasses) and D (gown) again after the repair is deployed; re-run N and O detection for variance | 7 | 3 |
+| P6 post-repair re-verification | identify and shop A (sunglasses) again after the repair is deployed | 3 | 2 |
+| P7 variance (optional) | D identified and shopped again; N and O detection only | 4 | 1 |
 | **Planned total (before P1 results)** | | **at most 50** | **at most 22** |
 
 Headroom (6 image-mode, 18 commerce-only) is reserved for one repair re-verification.
@@ -145,3 +146,11 @@ the jacket and the jeans under the hoodies). The cap is unchanged. Remaining: 33
 3. The two P1 failures led to backend repair PR #541 (B35-SCAN-021 subtype retention,
    B35-SCAN-022 fast-path deadline). Phases P2 onward that follow a Staging deployment of that
    repair are labelled with the deployed function version in their reports.
+
+**2026-10-09, after R1.** With actor A at 27 of its 28 image-mode requests for the UTC day, the remaining live
+phases move to the next UTC day (or to a second account). To keep the verdict-critical phases inside the
+28-per-day ceiling, P6 is reduced to the one check the sunglasses repair needs (A), and the variance
+measurement becomes the optional P7. R1 (a paired commerce replay of the four P1 timeouts, commerce-only
+requests, no Gemini) was added to verify the deadline repair deployed to Staging as scan-identify v81.
+The Staging deploy that carried PR #541 was retried once after two runner-side registry throttles
+(`toomanyrequests` pulling the edge-runtime image, before anything reached Staging).

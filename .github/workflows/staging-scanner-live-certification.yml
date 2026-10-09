@@ -30,7 +30,7 @@ on:
         description: 'Phase to run (see the protocol for each phase and its call budget)'
         required: true
         type: choice
-        options: [P1, P2, P3, P4, P5, P6, R1]
+        options: [P1, P2, P3, P4, P5, P6, P7, R1]
       actor:
         description: 'Synthetic actor (B requires the STAGING_SYNTHETIC_ACTIVE_B secrets)'
         required: true

@@ -45,7 +45,8 @@ const PHASE_FIXTURES = {
   P3: ['O', 'D', 'F', 'A', 'N'],
   P4: ['O', 'D'],
   P5: ['O', 'D'],
-  P6: ['A', 'D', 'N', 'O'],
+  P6: ['A'],
+  P7: ['D', 'N', 'O'],
   R1: [],
 };
 
@@ -187,7 +188,14 @@ async function runPhase(ctx, phase, results = []) {
   } else if (phase === 'P6') {
     for (const id of PHASE_FIXTURES.P6) {
       ctx.phaseRef.name = `P6:${id}`;
-      results.push(await phases.runPhoto(ctx, id, { label: `P6-${id}`, identify: id === 'A' || id === 'D' }));
+      results.push(await phases.runPhoto(ctx, id, { label: `P6-${id}` }));
+      if (ctx.budget.tripped) break;
+    }
+  } else if (phase === 'P7') {
+    // Optional variance: D identified and shopped again; N and O detection only.
+    for (const id of PHASE_FIXTURES.P7) {
+      ctx.phaseRef.name = `P7:${id}`;
+      results.push(await phases.runPhoto(ctx, id, { label: `P7-${id}`, identify: id === 'D' }));
       if (ctx.budget.tripped) break;
     }
   }

@@ -412,13 +412,13 @@ test('the planned phases fit the approved caps and the per-day ceiling', { timeo
   assert.ok(sum('imageMode') <= corpus.budget.imageModeRequestsTotal, `image-mode ${sum('imageMode')}`);
   assert.ok(sum('commerceOnly') <= corpus.budget.commerceOnlyRequestsTotal, `commerce-only ${sum('commerceOnly')}`);
   const day1 = results.P1.imageMode + results.P2.imageMode;
-  const day2 = results.P3.imageMode + results.P4.imageMode + results.P5.imageMode + results.P6.imageMode; // 26
+  const day2 = results.P3.imageMode + results.P4.imageMode + results.P5.imageMode + results.P6.imageMode; // 24; P7 (optional variance) is not on the critical path
   assert.ok(day1 <= corpus.budget.imageModeRequestsPerActorPerUtcDay, `day 1 uses ${day1}`);
   assert.ok(day2 <= corpus.budget.imageModeRequestsPerActorPerUtcDay, `day 2 uses ${day2}`);
   // The documented plan, so a phase edit that changes spend must change this test.
   assert.deepEqual(
     Object.fromEntries(Object.entries(results).map(([k, v]) => [k, [v.imageMode, v.commerceOnly]])),
-    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [4, 0], P6: [7, 3], R1: [0, 4] },
+    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [4, 0], P6: [3, 2], P7: [4, 1], R1: [0, 4] },
   );
   fs.rmSync(out, { recursive: true, force: true });
 });
