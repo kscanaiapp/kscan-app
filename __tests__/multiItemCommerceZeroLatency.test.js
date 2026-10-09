@@ -57,7 +57,7 @@ test('legacy detection hydration remains post-result, but multi-photo detection 
   // must not decide whether this assertion can see the guard chain.
   const dispatchEffectStart = useKScanSource.indexOf('useEffect(() => {', commentStart);
   assert.ok(dispatchEffectStart > commentStart, 'dispatch effect body not found');
-  const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 400);
+  const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 800);
   assert.ok(effectSlice.includes("if (status !== 'result') return;"), 'dispatch effect must early-return before status is result');
   assert.ok(effectSlice.includes('hydrateMultiItemCommerce(candidates)'), 'legacy dispatch call not found');
   assert.ok(effectSlice.includes("retryRequestModeRef.current === 'multi_item_detection'"),
