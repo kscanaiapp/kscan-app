@@ -15,6 +15,7 @@ import test from 'node:test';
 import {
   computeRevenueCatWebhookSignature,
   REVENUECAT_WEBHOOK_SIGNATURE_HEADER,
+  verifyRevenueCatWebhook,
 } from './revenueCatWebhookAuth.ts';
 import {
   handleRevenueCatWebhook,
@@ -29,8 +30,10 @@ import {
 import { parseRevenueCatWebhook, resolveKScanActor } from './revenueCatWebhookEvent.ts';
 import { deriveKPlusLifetimePurchaseRefDigest, deriveKPlusSubscriptionRefDigest } from '../kplus/kplusEntitlementContract.ts';
 
-const AUTH = 'Bearer fixture-webhook-secret';
-const SIGNING = 'fixture-signing-secret';
+// Fixture secrets must satisfy REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH (K-06): a shorter
+// configured secret is deliberately treated as "not configured".
+const AUTH = 'Bearer fixture-webhook-authorization-secret';
+const SIGNING = 'fixture-signing-secret-0123456789-abcdef';
 const USER_A = '11111111-1111-4111-8111-111111111111';
 const USER_B = '22222222-2222-4222-8222-222222222222';
 const NOW = Date.UTC(2026, 9, 2, 12, 0, 0);
@@ -134,7 +137,7 @@ const only = (r: Rig) => {
 
 test('A: an invalid Authorization header is rejected and mutates nothing', async () => {
   const r = rig();
-  for (const bad of ['Bearer nope', AUTH + 'x', AUTH.toUpperCase(), 'fixture-webhook-secret']) {
+  for (const bad of ['Bearer nope', AUTH + 'x', AUTH.toUpperCase(), AUTH.slice('Bearer '.length)]) {
     const res = await send(r, body(), { authorization: bad });
     assert.equal(res.status, 401);
     assert.deepEqual(res.json, { status: 'unauthorized' });
@@ -827,4 +830,64 @@ test('the parser keeps only the bounded subset of fields', () => {
   assert.ok(parsed.ok);
   if (!parsed.ok) return;
   assert.doesNotMatch(JSON.stringify(parsed.event), /RAW_RECEIPT_BLOB|9\.99|USD|subscriber_attributes/);
+});
+
+// ── K-06 -- a trivially short configured secret must not authenticate ────────
+//
+// The Authorization secret is the whole boundary when no signing secret is set,
+// and anyone who can reach the endpoint can guess a 1-character secret. A
+// configured-but-too-short secret has to be treated exactly like an unset one:
+// the endpoint refuses everything (503 + not_configured alert) instead of
+// accepting the guessable value and letting a forged event reach the grant RPCs.
+
+const MIN_SECRET = 32;
+
+test('K-06: a 1-character configured Authorization secret does not authenticate -- the endpoint is not configured', async () => {
+  const r = rig({ KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION: 'x' });
+  const res = await send(r, body(), { authorization: 'x' });
+  assert.equal(res.status, 503);
+  assert.deepEqual(res.json, { status: 'not_configured' });
+  assert.equal(r.rpcCalls.length, 0, 'a forged event must never reach the grant RPC');
+  assert.ok(r.alerts.some((a) => a.event === 'kplus_rc_webhook_not_configured'));
+});
+
+test('K-06: every Authorization secret shorter than the minimum is refused, the minimum itself is accepted', async () => {
+  for (const length of [1, 8, 16, MIN_SECRET - 1]) {
+    const weak = 'a'.repeat(length);
+    const r = rig({ KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION: weak });
+    const res = await send(r, body(), { authorization: weak });
+    assert.equal(res.status, 503, `length ${length}`);
+    assert.equal(r.rpcCalls.length, 0, `length ${length}`);
+  }
+  const strong = 'a'.repeat(MIN_SECRET);
+  const r = rig({ KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION: strong });
+  const res = await send(r, body(), { authorization: strong });
+  assert.equal(res.status, 200, 'a secret of exactly the minimum length is a valid configuration');
+  assert.equal(r.rpcCalls.length, 1);
+});
+
+test('K-06: verifyRevenueCatWebhook itself reports a too-short Authorization secret as not_configured', async () => {
+  const result = await verifyRevenueCatWebhook({
+    headers: new Headers({ authorization: 'x' }),
+    rawBody: body(),
+    authorizationSecret: 'x',
+    signingSecret: null,
+    nowMs: NOW,
+  });
+  assert.deepEqual(result, { ok: false, reason: 'not_configured' });
+});
+
+test('K-06: a configured-but-too-short SIGNING secret fails closed -- it is never silently ignored', async () => {
+  // Treating a weak signing secret as "no signing secret" would quietly drop the
+  // HMAC requirement the operator believes is on. The endpoint refuses instead.
+  const weakSigning = 'short-signing';
+  const r = rig({ KPLUS_REVENUECAT_WEBHOOK_SIGNING_SECRET: weakSigning });
+  const raw = body();
+  const res = await send(r, raw, {
+    authorization: AUTH,
+    [REVENUECAT_WEBHOOK_SIGNATURE_HEADER]: await sign(raw, Math.floor(NOW / 1000), weakSigning),
+  });
+  assert.equal(res.status, 503);
+  assert.equal(r.rpcCalls.length, 0);
+  assert.ok(r.alerts.some((a) => a.event === 'kplus_rc_webhook_not_configured'));
 });
