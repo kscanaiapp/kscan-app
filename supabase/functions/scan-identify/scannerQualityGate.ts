@@ -131,9 +131,32 @@ const COMPATIBLE_SUBTYPES: Readonly<Record<string, ReadonlySet<string>>> = {
     'bucket bag', 'purse',
   ]),
   accessory: new Set([
-    'belt', 'scarf', 'sunglasses', 'hat', 'jewelry', 'earrings', 'earring',
+    'belt', 'scarf', 'sunglasses', 'glasses', 'eyeglasses', 'aviator', 'aviators', 'shades',
+    'goggles', 'hat', 'jewelry', 'earrings', 'earring',
     'necklace', 'bracelet', 'brooch', 'watch', 'cap',
   ]),
+};
+
+/**
+ * Category labels the model emits that have no curated allow-list of their own, mapped
+ * to the curated family they belong to (B35-SCAN-021).
+ *
+ * `normalizeCategory()` is shared with VTO eligibility and is the IDENTITY for any
+ * label it does not know, so these cannot be fixed there without a cross-feature
+ * taxonomy change. They are resolved locally, for the Scanner quality gate only.
+ * Each target already carries the relevant subtype tokens in COMPATIBLE_SUBTYPES
+ * (dress: skirts; top: jumpsuit/romper/sweater; outerwear: vest; accessory: eyewear).
+ */
+const CATEGORY_FAMILY_ALIAS: Readonly<Record<string, string>> = {
+  skirt: 'dress',
+  skirts: 'dress',
+  jumpsuit: 'top',
+  romper: 'top',
+  knitwear: 'top',
+  vest: 'outerwear',
+  eyewear: 'accessory',
+  glasses: 'accessory',
+  accessories: 'accessory',
 };
 
 /** Category → attribute fields that are incompatible (suppress attribute only). */
@@ -353,10 +376,18 @@ function subtypeCompatible(category: string, subtype: string): boolean {
   if (!key || isGenericFashionLabel(key)) return false;
   const allowed = COMPATIBLE_SUBTYPES[cat];
   if (!allowed) {
-    // Unknown taxonomy category — do not strip merely for missing sample map.
-    // Accept when subtype normalizes to same family via normalizeCategory.
-    const subCat = normalizeCategory(subtype);
-    return !subCat || subCat === cat || subCat === 'NON_FASHION';
+    // A label with a known curated family is judged against that family, so a real
+    // contradiction (skirt + trousers, eyewear + sneakers) is still caught.
+    const family = CATEGORY_FAMILY_ALIAS[cat];
+    if (family && COMPATIBLE_SUBTYPES[family]) return subtypeCompatible(family, subtype);
+    // No curated family at all: the pair is UNVERIFIABLE, not contradictory. A
+    // conflict needs positive evidence, and normalizeCategory() (the identity for
+    // unmapped labels) can never supply it here -- "skirt" vs "mini skirt" always
+    // read as different strings. Stripping a correct subtype on that basis demoted
+    // the quality band and degraded the shopping query (live: sunglasses -> "Gold
+    // Eyewear" -> optical eyeglasses offers). Do not strip merely for a missing
+    // sample map.
+    return true;
   }
   if (allowed.has(key)) return true;
   // Soft match: any allowed token appears in subtype or vice versa
