@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-08T22:48:38.223Z",
-    "generatedFromGitSha": "5f54104c90254926d2f621b157041e132d413b48"
+    "generatedAtUtc": "2026-10-09T03:07:51.382Z",
+    "generatedFromGitSha": "c3f287708635b6e83e11a7728c371ff787b20f45"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1516,8 +1516,8 @@
         "remoteSpecifiers": [],
         "bundleFileCount": 6,
         "treeFileCount": 6,
-        "bundleHash": "87750c39c38e981ebb57c8cd5ccb6ca7bc3bb9f6ee1ddaad66d8b1f83b940c39",
-        "treeHash": "87750c39c38e981ebb57c8cd5ccb6ca7bc3bb9f6ee1ddaad66d8b1f83b940c39",
+        "bundleHash": "df1f7a360e29ad36534d3516f4390685dd7848b33f1ddd187373d1446a82befa",
+        "treeHash": "df1f7a360e29ad36534d3516f4390685dd7848b33f1ddd187373d1446a82befa",
         "files": [
           {
             "path": "supabase/functions/_shared/kplus/kplusEntitlementContract.ts",
@@ -1531,7 +1531,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatWebhookAuth.ts",
-            "sha256": "a90859f588a786a0702851b8db23681a9c0cdf4f2cac248c12e4d48a88c2fe94",
+            "sha256": "6750a5e456a4cf87c946257041373ccc664fc5ea05d755f35b35b782e8f9fb78",
             "bundle": true
           },
           {
@@ -1541,12 +1541,12 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatWebhookHandler.ts",
-            "sha256": "80b475f74356802580b95e21b79a237ef062b4f7c77ea03e1556bb589f7c8971",
+            "sha256": "caad0f60e712fb09247f03199cc5d904acd46274abf60eae8ad248d68e05f5cb",
             "bundle": true
           },
           {
             "path": "supabase/functions/kplus-revenuecat-webhook/index.ts",
-            "sha256": "7d16eeee4fe24694b604f41aff116bf1c20741b8ab6495a5c788aa6ecaac2d53",
+            "sha256": "9ad6fccf7ad74799cc645678fe3dc03aa4c17104284c0e57d3efde5f6a4f6bab",
             "bundle": true
           }
         ]
