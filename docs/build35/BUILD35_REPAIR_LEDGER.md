@@ -1,0 +1,39 @@
+# Build 35 P0–P3 defect and repair ledger
+
+Recorded 2026-10-08 ET. Status vocabulary: **LANDED** = merged with exact-head CI green; **PROVEN-STAGING** = also executed against the deployed Staging bytes; **OPEN** = not repaired; **VERIFY-PENDING** = under independent reproduction. A repair with red or missing CI is never COMPLETE. This document is public-safe: Production-configuration defects are reported to the owner privately and appear here only by ID.
+
+## Landed repairs
+
+| ID | Sev | Where | Defect and impact | Repair | Proof |
+|---|---|---|---|---|---|
+| SEC-B35-KPLUS-001 | P0/P1 | `supabase/functions/kplus-activate/index.ts` | Any signed-in, non-anonymous account could POST and receive six months of K+, bypassing the paywall and the K+ boundary on paid VTO. A client flag cannot stop a direct call | Default-OFF server hold: two independent exact-`"true"` controls checked after auth and the active-account guard and before the grant RPC and any RevenueCat mirror (#528) | Staging v26 deployed through the governed workflow (run 37850873292, source `5f54104c`); live probe 37852548431 (403 `CAMPAIGN_CLOSED` ×2, state 0 → 0, 2 closed denials / 0 completions); behavioural test, 6 of 6 mutants killed (#530). Deployment to the live environment is tracked privately with the owner |
+| B35-BE-002 | P1 | `commerce-watch-refresh` | A K+ lapse between claim and provider dispatch could still dispatch | Canonical `kplus_has_active_entitlement` re-read at the dispatch boundary, fail-closed on anything but boolean `true` (#524) | Staging v17 byte-identical (16/16); live worker `claimed: 0` for an unentitled actor (run 37853116721); 7 behavioural tests, 7 of 7 mutants killed (#530) |
+| B35-BE-001 | P2 | `vto-generate`, `stylechat-generate` | Canonical backend lacked the contextual-VTO source that Staging already ran | Exact source recovered onto the authority (#523) | Staging v19 (18/18) and v133 (52/52) byte-identical |
+| B35-INT-001 | P2 | `config/build35-premium-value-baseline.json` | #520's Today-flag registry rejected the new `build35-release` profile | pinned `[false,false,false]` | premiumValueGovernance 37/37 |
+| B35-INT-002 | P2 | same registry | #521's five intended `vto-generate` changes drifted 5 of 53 protected digests | refreshed exactly those five | 37/37; digest equals backend manifest |
+| B35-INT-003 | P2 | `kplusCapabilityFingerprints.generated.ts`, pinned proof table | contextual VTO moves the Packing fingerprint, so the earned Packing proof stops authorizing | regenerated; pinned `packing = false`, no new evidence | premiumCapabilityFingerprint 21/21. **Packing needs the one remaining owner-gated invocation to re-prove** |
+| B35-INT-004 | P2 | `vtoLiveIntegrationScope.test.js`, `edge-function-manifest.json` | owner-listed shared-file conflicts | union + regenerated manifest | 8/8; `tsc` exit 0 |
+| B35-REL-001/002 | P3 | `eas.json` (`build35-release`), Stylist Speech gate | certification inheritance could enable unproven features; held speech had no runtime reader | independent conservative profile; exact-`true` default-off gate before any side effect (#525) | guard + 5 speech-hold tests |
+| B35-REL-003 | P3 | `scripts/check-build35-release-profile.js` | the mandated store command (`production`) was unguarded | semantic verification of `production`, strict for `build35-release`; 66 tests, 3 mutants rejected | CI Release Profile Guard |
+| B35-SCAN-008/010/011/012/013 | P2/P3 | `app.js`, `hooks/useKScan.js`, `services/library.js`, results components | actor not reset at boundaries; `rate_limited` (HTTP 200) normalised to a neutral failure so quota pause never fired; duplicate library asset ids; partial item auto-saved and never refreshable; detection blamed "unclear images" for network/quota failures | repaired in #526 (`3799499a`, `8b73d5f1`, `07ad6c1d`) | 640 focused tests; 11/11 source reversals red (#532) |
+| B35-CI-007 | P3 | ZAP baseline | seeding the project root (HTTP 404) crashed the automation plan, no report, fail-closed | scan the validated health endpoint (#527) | 4 of 4 reruns green on the head |
+
+## Open or pending (P0–P3)
+
+| ID | Sev | Status | Where | Defect | Required action |
+|---|---|---|---|---|---|
+| SEC-B35-KPLUS-001 (live-environment leg) | P0/P1 | **OPEN — owner approval** | governed deploy outside Staging | closure requires owner-approved deployment and a post-deploy version/hash readback | tracked in the private owner report; this row stays open until that readback is attached |
+| B35-CI-008 | P3 | PR #531 open | ZAP baseline container sometimes writes no report | bounded, fail-closed single retry; 11 contract tests, 9 negative controls | merge #531 after exact-head green |
+| B35-CI-009 | P3 | OPEN, unreproduced | `migrationReplayConflicts` "no migration references a schema-qualified object…" | intermittent unexpected failure in the shared test pool; 15/15 in isolation; obvious writers use temp dirs | make the test read a snapshot instead of the live tree |
+| B35-TEST-001 | P3 | PR #530 open | K+ hold and Watchlist guard had source-text/unit tests only | 10 behavioural tests, 13 of 13 mutants killed | merge #530 after exact-head green |
+| B35-SCAN-014 | P2 | **OPEN — owner decision** | multi-image batch items under `BACKEND_COMMERCE_FUNNEL_V127_ENABLED` | items carry `commerceDeferred` but nothing hydrates them; one extra detection request per candidate | decide hydration vs. disabling the flag for batches (changes provider spend) |
+| K+ lifecycle K-02 | P1 | OPEN | RevenueCat webhook handler | store-sandbox purchases are acknowledged and ignored, so App Review / TestFlight purchases never unlock; separately `build35-release` leaves nothing sellable | owner decision on a time-boxed sandbox allowlist and on release-profile intent |
+| K+ lifecycle K-03 | P1 | OPEN | client commerce service | only the webhook creates grants; a webhook outage longer than the retry window loses a purchase or renewal and `kplus-revenuecat-pull-reconcile` is never called by the client | call pull-reconcile once when the resolving bound is exceeded or after restore |
+| K+ lifecycle K-04 | P2 | OPEN | `revenueCatProductClassification.ts` | no server class for annual; an unlisted/mis-classed annual product returns 422 forever | add a subscription class + runbook listing both iOS ids |
+| K+ lifecycle K-05/K-07 | P2 | UNCONFIRMED | webhook event mapping | anonymous-ID merge and shared Apple ID transfer can grant/ignore for the wrong account | confirm RevenueCat restore/transfer settings; require `original_app_user_id` absent or equal |
+| K+ lifecycle K-06 | P3 | VERIFY-PENDING | webhook auth | a 1-character configured secret is accepted | treat secrets under 32 chars as not configured |
+| DEL-01 | P1 | VERIFY-PENDING | `process-account-deletions` | failure after the Auth delete reschedules a row that can never be reclaimed and loses the RevenueCat retire | retire before the Auth delete; never reschedule after it; SQL reconcile branch needs a migration (owner) |
+| DEL-02 | P1 | OPEN | `scripts/process-deletion-request.js` | CLI purges held rows and null-grace rows, strands user-NULL rows, writes no ledger entry, skips the RevenueCat retire | gate on hold/grace/ledger before any destructive step |
+| DEL-03 | P1 (launch gate) | OPEN | restore / worker | with the worker off, the ban and restore token lapse at day 30: neither restorable nor purged | operate the worker or extend the restore window |
+| DEL-04/05 | P2 | OPEN | claim/reconcile SQL; storage coverage | out-of-band-deleted requests have no closure path; storage purge covers four fixed prefixes only | governed closure RPC; widen/verify prefixes + post-purge storage check |
+| DEL-06..13 | P3 | OPEN | various | dry-run flag default, dry-run side effect, raw ids in worker response, `wearable_*` missing, guard gaps in three functions, zero-row profile PATCH, hold lifecycle, refresh-token type | see defect register |
