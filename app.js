@@ -30,6 +30,8 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
+import { fetchDeferredCommerce } from './services/commerceHydration';
+import { hydrateSelectedBatchCommerce } from './services/batchCommerceSelection';
 import {
   saveScan,
   selectPurchaseOptionsSnapshot,
@@ -345,6 +347,12 @@ export default function App() {
   const [batchRemainingCandidateIds, setBatchRemainingCandidateIds] = useState([]);
   const [batchSelectedItemId, setBatchSelectedItemId] = useState(null);
   const [savedBatchScanIds, setSavedBatchScanIds] = useState({});
+  // Selected-item commerce belongs to the batch screen, never to the
+  // unselected detection shelf or another garment's cached request.
+  const [batchCommerceStatuses, setBatchCommerceStatuses] = useState({});
+  const batchCommerceFlightsRef = useRef(new Map());
+  const batchCommerceAttemptedRef = useRef(new Set());
+  const attachedBatchPurchaseOptionsRef = useRef(new Set());
   const [addAllBatchToRoom, setAddAllBatchToRoom] = useState(false);
   const batchSessionKeyRef = useRef(null);
   const batchGroupIdRef = useRef(null);
@@ -444,6 +452,11 @@ export default function App() {
         setBatchRemainingCandidateIds([]);
         setBatchSelectedItemId(null);
         setSavedBatchScanIds({});
+        for (const controller of batchCommerceFlightsRef.current.values()) controller.abort();
+        batchCommerceFlightsRef.current.clear();
+        batchCommerceAttemptedRef.current.clear();
+        attachedBatchPurchaseOptionsRef.current.clear();
+        setBatchCommerceStatuses({});
         setAddAllBatchToRoom(false);
       }
       return;
@@ -466,6 +479,11 @@ export default function App() {
     setBatchRemainingCandidateIds([]);
     setBatchSelectedItemId(null);
     setSavedBatchScanIds({});
+    for (const controller of batchCommerceFlightsRef.current.values()) controller.abort();
+    batchCommerceFlightsRef.current.clear();
+    batchCommerceAttemptedRef.current.clear();
+    attachedBatchPurchaseOptionsRef.current.clear();
+    setBatchCommerceStatuses({});
     setAddAllBatchToRoom(false);
   }, [eligibleBatchSession, batchSessionKey]);
 
