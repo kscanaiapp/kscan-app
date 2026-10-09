@@ -30,6 +30,8 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
+import { fetchDeferredCommerce } from './services/commerceHydration';
+import { hydrateSelectedBatchCommerce } from './services/batchCommerceSelection';
 import {
   saveScan,
   selectPurchaseOptionsSnapshot,
@@ -345,6 +347,12 @@ export default function App() {
   const [batchRemainingCandidateIds, setBatchRemainingCandidateIds] = useState([]);
   const [batchSelectedItemId, setBatchSelectedItemId] = useState(null);
   const [savedBatchScanIds, setSavedBatchScanIds] = useState({});
+  // Selected-item commerce belongs to the batch screen, never to the
+  // unselected detection shelf or another garment's cached request.
+  const [batchCommerceStatuses, setBatchCommerceStatuses] = useState({});
+  const batchCommerceFlightsRef = useRef(new Map());
+  const batchCommerceAttemptedRef = useRef(new Set());
+  const attachedBatchPurchaseOptionsRef = useRef(new Set());
   const [addAllBatchToRoom, setAddAllBatchToRoom] = useState(false);
   const batchSessionKeyRef = useRef(null);
   const batchGroupIdRef = useRef(null);
@@ -444,6 +452,11 @@ export default function App() {
         setBatchRemainingCandidateIds([]);
         setBatchSelectedItemId(null);
         setSavedBatchScanIds({});
+        for (const controller of batchCommerceFlightsRef.current.values()) controller.abort();
+        batchCommerceFlightsRef.current.clear();
+        batchCommerceAttemptedRef.current.clear();
+        attachedBatchPurchaseOptionsRef.current.clear();
+        setBatchCommerceStatuses({});
         setAddAllBatchToRoom(false);
       }
       return;
@@ -466,6 +479,11 @@ export default function App() {
     setBatchRemainingCandidateIds([]);
     setBatchSelectedItemId(null);
     setSavedBatchScanIds({});
+    for (const controller of batchCommerceFlightsRef.current.values()) controller.abort();
+    batchCommerceFlightsRef.current.clear();
+    batchCommerceAttemptedRef.current.clear();
+    attachedBatchPurchaseOptionsRef.current.clear();
+    setBatchCommerceStatuses({});
     setAddAllBatchToRoom(false);
   }, [eligibleBatchSession, batchSessionKey]);
 
@@ -629,6 +647,18 @@ export default function App() {
         }));
         if (event.state === 'ready' && event.item) {
           const item = { ...event.item, batchGeneration: generation };
+          // An explicit selected-item retry supersedes the previous item's
+          // commerce result even within the SAME batch generation. Abort the
+          // old offer request and allow one fresh MODE B call for this version.
+          const commerceFlightKey = `${generation}:${item.id}`;
+          batchCommerceFlightsRef.current.get(commerceFlightKey)?.abort();
+          batchCommerceFlightsRef.current.delete(commerceFlightKey);
+          batchCommerceAttemptedRef.current.delete(commerceFlightKey);
+          setBatchCommerceStatuses((current) => {
+            const next = { ...current };
+            delete next[item.id];
+            return next;
+          });
           setBatchItems((current) => (
             current.some((entry) => entry.id === item.id)
               ? current.map((entry) => entry.id === item.id ? item : entry)
@@ -739,6 +769,86 @@ export default function App() {
     batchItems.length,
   ]);
 
+  // B35-SCAN-014: hydrate MODE B only after the customer selected and
+  // identified THIS garment. Never block the selected-item detail queue on
+  // retailer latency and never issue queries for unseen detection candidates.
+  const hydrateBatchCommerceForItem = useCallback(async (item, { isRetry = false } = {}) => {
+    if (!item?.id || !item.analysis?.commerceDeferred || !item.analysis?.commerceEvidence?.identification) return;
+    const generation = item.batchGeneration;
+    const actorRequest = item.actorRequest;
+    const flightKey = `${generation}:${item.id}`;
+    if (generation !== batchGenerationRef.current || !isActorRequestCurrent(actorRequest)) return;
+    if (batchCommerceFlightsRef.current.has(flightKey)) return;
+    if (!isRetry && batchCommerceAttemptedRef.current.has(flightKey)) return;
+    batchCommerceAttemptedRef.current.add(flightKey);
+
+    const controller = new AbortController();
+    batchCommerceFlightsRef.current.set(flightKey, controller);
+    setBatchCommerceStatuses((current) => ({ ...current, [item.id]: 'pending' }));
+    const isCurrent = () =>
+      generation === batchGenerationRef.current &&
+      batchSessionKeyRef.current !== null &&
+      isActorRequestCurrent(actorRequest);
+
+    let outcome;
+    try {
+      outcome = await hydrateSelectedBatchCommerce(item, {
+        fetchCommerce: fetchDeferredCommerce,
+        isCurrent,
+        signal: controller.signal,
+      });
+    } catch {
+      outcome = { status: 'error', retryable: true };
+    } finally {
+      if (batchCommerceFlightsRef.current.get(flightKey) === controller) {
+        batchCommerceFlightsRef.current.delete(flightKey);
+      }
+    }
+    if (!isCurrent() || controller.signal.aborted) return;
+
+    if ((outcome.status === 'success' || outcome.status === 'empty') && outcome.item) {
+      // Only replace the exact item in this batch. Its source image and actor
+      // binding are preserved by hydrateSelectedBatchCommerce.
+      setBatchItems((current) => current.map((entry) =>
+        // A late commerce answer must not overwrite a newer detail-analysis
+        // object for the same garment after a partial-item retry.
+        entry === item && entry.batchGeneration === generation ? outcome.item : entry,
+      ));
+      setBatchCommerceStatuses((current) => ({ ...current, [item.id]: outcome.status }));
+    } else if (outcome.status === 'error') {
+      setBatchCommerceStatuses((current) => ({
+        ...current,
+        [item.id]: outcome.retryable === false ? 'idle' : 'error',
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!eligibleBatchSession) return;
+    for (const item of batchItems) {
+      if (item.analysis?.commerceDeferred && item.analysis?.commerceEvidence?.identification) {
+        void hydrateBatchCommerceForItem(item);
+      }
+    }
+  }, [eligibleBatchSession, batchItems, hydrateBatchCommerceForItem]);
+
+  // A user can Save before the matching retailer response arrives. In that
+  // case, patch the existing Recent Scan once commerce resolves, with the
+  // actor captured from the original selected item. No duplicate saved rows.
+  useEffect(() => {
+    for (const item of batchItems) {
+      const savedId = savedBatchScanIds[item.id];
+      if (!savedId || !isActorRequestCurrent(item.actorRequest)) continue;
+      const options = selectPurchaseOptionsSnapshot(item.analysis);
+      if (!options.length) continue;
+      const key = savedId + ':' + purchaseOptionsFingerprint(options);
+      if (attachedBatchPurchaseOptionsRef.current.has(key)) continue;
+      attachedBatchPurchaseOptionsRef.current.add(key);
+      void attachScanPurchaseOptions(savedId, options, { actorRequest: item.actorRequest })
+        .catch(() => attachedBatchPurchaseOptionsRef.current.delete(key));
+    }
+  }, [batchItems, savedBatchScanIds]);
+
   const saveAllBatchItems = useCallback(async () => {
     if (batchItems.length === 0) return;
     for (const item of batchItems) await persistBatchItem(item);
@@ -746,6 +856,10 @@ export default function App() {
 
   useEffect(() => () => {
     batchGenerationRef.current += 1;
+    for (const controller of batchCommerceFlightsRef.current.values()) controller.abort();
+    batchCommerceFlightsRef.current.clear();
+    batchCommerceAttemptedRef.current.clear();
+    attachedBatchPurchaseOptionsRef.current.clear();
   }, []);
 
   // Preserve the established Scanner behavior for the one-selected-item case:
@@ -1600,8 +1714,15 @@ export default function App() {
             // reopened Recent Scan (app/library.tsx) renders AnalysisCard
             // without this prop, so it stays 'idle' there and the section
             // keeps its pre-existing hidden-when-empty behavior.
-            commerceStatus={!batchResultVisible && analysis?.commerceDeferred ? commerceStatus : 'idle'}
-            onRetryCommerce={batchResultVisible ? undefined : retryCommerce}
+            commerceStatus={batchResultVisible
+              ? (activeBatchItem?.analysis?.commerceDeferred
+                ? (batchCommerceStatuses[activeBatchItem.id] ?? 'pending') : 'idle')
+              : (analysis?.commerceDeferred ? commerceStatus : 'idle')}
+            onRetryCommerce={batchResultVisible
+              ? (activeBatchItem?.analysis?.commerceDeferred
+                ? () => { void hydrateBatchCommerceForItem(activeBatchItem, { isRetry: true }); }
+                : undefined)
+              : retryCommerce}
             // Build 32: only meaningful on this live-scan surface, same reason
             // as commerceStatus above — a reopened Recent Scan renders from
             // its own persisted snapshot instead (see app/library.tsx).

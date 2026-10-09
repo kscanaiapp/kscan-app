@@ -28,9 +28,14 @@ function harness(save = async (input) => ({ id: input.analysis.multiScan.itemId 
   };
   vm.createContext(context);
   const start = app.indexOf('const persistBatchItem = useCallback(');
-  const end = app.indexOf('\n  useEffect(() => () => {\n    batchGenerationRef', start);
-  assert.ok(start > 0 && end > start);
-  vm.runInContext(app.slice(start, end) + '\nthis.persist = persistBatchItem; this.saveAll = saveAllBatchItems;', context);
+  const middle = app.indexOf('\n  // B35-SCAN-014: hydrate MODE B', start);
+  const saveAllStart = app.indexOf('const saveAllBatchItems = useCallback(', middle);
+  const end = app.indexOf('\n  useEffect(() => () => {\n    batchGenerationRef', saveAllStart);
+  assert.ok(start > 0 && middle > start && saveAllStart > middle && end > saveAllStart);
+  // The intervening commerce effects have their own async tests. Keep the
+  // original persistence/save callbacks under the exact existing harness.
+  const persistence = app.slice(start, middle) + '\n' + app.slice(saveAllStart, end);
+  vm.runInContext(persistence + '\nthis.persist = persistBatchItem; this.saveAll = saveAllBatchItems;', context);
   return { context, items, calls, notices, persist: context.persist, saveAll: context.saveAll,
     saved: () => savedState, switchActor: () => { current = false; } };
 }

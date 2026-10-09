@@ -68,36 +68,34 @@ test('every governed build profile ships the V2 result UI on this line', () => {
   assert.equal(scanResultsV2LiveEverywhere(), true);
 });
 
-test('NEGATIVE CONTROL: the live surface receives commerceStatus and onRetryCommerce from app.js', () => {
+test('NEGATIVE CONTROL: live result displays the active batch ITEM commerce state and retry, not detection aggregate', () => {
   const file = liveResultSurfaceFile();
   const componentName = file === V2_FILE ? 'ScanResultV2' : 'AnalysisCard';
   const callSite = liveAnalysisCallSite(componentName);
 
-  assert.match(
-    callSite,
-    /commerceStatus=\{!batchResultVisible && analysis\?\.commerceDeferred \? commerceStatus : 'idle'\}/,
-    `${file}: app.js must pass the hook's live commerce status into the live surface`,
-  );
-  assert.match(
-    callSite,
-    /onRetryCommerce=\{batchResultVisible \? undefined : retryCommerce\}/,
-    `${file}: app.js must wire retryCommerce into the live surface`,
-  );
+  assert.match(callSite, /commerceStatus=\{batchResultVisible/,
+    `${file}: live surface must branch for a selected batch item`);
+  assert.match(callSite, /batchCommerceStatuses\[activeBatchItem\.id\]/,
+    'each item must read ONLY its own commerce status');
+  assert.match(callSite, /analysis\?\.commerceDeferred \? commerceStatus : 'idle'/,
+    'ordinary single-image scans must preserve their hook status');
+  assert.match(callSite, /onRetryCommerce=\{batchResultVisible/,
+    'the retry must branch on selected batch mode');
+  assert.match(callSite, /hydrateBatchCommerceForItem\(activeBatchItem, \{ isRetry: true \}\)/,
+    'retry must target the exact selected item without re-running Gemini');
+  assert.match(callSite, /: retryCommerce\}/,
+    'single-image commerce must retain its existing retry callback');
 });
 
-test('the active batch result never inherits aggregate commerce state or retry dispatch', () => {
+test('active batch never inherits aggregate detection shelf or the wrong garment retry', () => {
   const callSite = liveAnalysisCallSite('ScanResultV2');
-  const statusExpression = callSite.match(/commerceStatus=\{([^}]+)\}/)?.[1];
-  const retryExpression = callSite.match(/onRetryCommerce=\{([^}]+)\}/)?.[1];
-  assert.ok(statusExpression && retryExpression);
-  const retry = () => {};
-  const project = new Function('batchResultVisible', 'analysis', 'commerceStatus', 'retryCommerce',
-    `return { status: (${statusExpression}), retry: (${retryExpression}) };`);
-  for (const state of ['pending', 'error', 'success']) {
-    assert.deepEqual(project(true, { commerceDeferred: true }, state, retry), { status: 'idle', retry: undefined });
-    assert.deepEqual(project(false, { commerceDeferred: true }, state, retry), { status: state, retry });
-  }
   assert.match(read('app.js'), /const displayAnalysis = batchResultVisible \? activeBatchItem\.analysis : analysis;/);
+  assert.match(callSite, /multiItemCommerce=\{batchResultVisible \? \[\] : multiItemCommerce\}/);
+  assert.match(callSite, /multiItemCommerceStatus=\{batchResultVisible \? 'idle' : multiItemCommerceStatus\}/);
+  assert.match(callSite, /onRetryMultiItemCommerce=\{batchResultVisible \? undefined : retryMultiItemCommerce\}/);
+  assert.match(callSite, /batchCommerceStatuses\[activeBatchItem\.id\]/);
+  assert.doesNotMatch(callSite, /commerceStatus=\{!batchResultVisible/,
+    'the old design hid per-item commerce in batch mode');
 });
 
 test('NEGATIVE CONTROL: the live surface component declares the commerce status/retry contract', () => {

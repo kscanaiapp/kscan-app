@@ -1694,10 +1694,14 @@ export function useKScan() {
     }
   }, []);
 
-  // Dispatch hydration once per deferred scan result.
+  // Dispatch hydration for an identified result. A multi-photo DETECTION
+  // result is not yet a selected garment: running MODE B here would spend on
+  // unseen candidate products and leave the actual selected-item shelf empty.
   useEffect(() => {
     if (status !== 'result') return;
     if (!analysis?.commerceDeferred) return;
+    if (MULTI_IMAGE_SCANNER_ENABLED && retryRequestModeRef.current === 'multi_item_detection'
+      && analysis?.confirmationCandidates?.length) return;
     hydrateDeferredCommerce(analysis);
   }, [status, analysis?.commerceDeferred, analysis?.commerceEvidence, hydrateDeferredCommerce]);
 
@@ -1753,7 +1757,9 @@ export function useKScan() {
     setMultiItemCommerceStatus('ready');
   }, []);
 
-  // Dispatch once per detection result that has candidates to shop.
+  // Legacy one-photo detection shelf only. Multi-photo batch commerce now
+  // dispatches AFTER explicit garment selection from app.js; never fan out
+  // paid MODE B requests for all unselected detection candidates.
   //
   // Gated on commerceDeferred for the same reason the single-item dispatch
   // above is: that marker is set only when the backend reports
@@ -1765,6 +1771,7 @@ export function useKScan() {
   useEffect(() => {
     if (status !== 'result') return;
     if (!analysis?.commerceDeferred) return;
+    if (MULTI_IMAGE_SCANNER_ENABLED && retryRequestModeRef.current === 'multi_item_detection') return;
     const candidates = analysis?.confirmationCandidates;
     if (!Array.isArray(candidates) || candidates.length === 0) return;
     hydrateMultiItemCommerce(candidates);

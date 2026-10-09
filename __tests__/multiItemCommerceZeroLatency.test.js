@@ -48,18 +48,20 @@ test('runAnalysis (the function that reaches PRIMARY_RESULT_READY) never calls m
   }
 });
 
-test('hydrateMultiItemCommerce is dispatched from its own effect, gated on status === "result", not from inside runAnalysis', () => {
+test('legacy detection hydration remains post-result, but multi-photo detection cannot dispatch unselected MODE B requests', () => {
   const commentStart = useKScanSource.indexOf(
-    "// Dispatch once per detection result that has candidates to shop.",
+    "// Legacy one-photo detection shelf only.",
   );
   assert.ok(commentStart > 0, 'multi-item commerce dispatch effect not found');
   // Anchor on the useEffect itself, not the comment above it: comment length
   // must not decide whether this assertion can see the guard chain.
   const dispatchEffectStart = useKScanSource.indexOf('useEffect(() => {', commentStart);
   assert.ok(dispatchEffectStart > commentStart, 'dispatch effect body not found');
-  const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 400);
+  const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 800);
   assert.ok(effectSlice.includes("if (status !== 'result') return;"), 'dispatch effect must early-return before status is result');
-  assert.ok(effectSlice.includes('hydrateMultiItemCommerce(candidates)'), 'dispatch call not found in the effect');
+  assert.ok(effectSlice.includes('hydrateMultiItemCommerce(candidates)'), 'legacy dispatch call not found');
+  assert.ok(effectSlice.includes("retryRequestModeRef.current === 'multi_item_detection'"),
+    'multi-photo detection MUST be explicitly excluded before MODE B dispatch');
 
   // And that effect must be textually AFTER runAnalysis is fully defined —
   // i.e. it is a sibling hook registration, not a step inside it.
@@ -74,7 +76,7 @@ test('multi-item commerce is gated by the v127 activation authority, exactly lik
   // dispatch would issue one wasted invocation per candidate and then render
   // "no strong shopping match" for a search that never ran.
   const dispatchEffectStart = useKScanSource.indexOf(
-    '// Dispatch once per detection result that has candidates to shop.',
+    '// Legacy one-photo detection shelf only.',
   );
   assert.ok(dispatchEffectStart > 0, 'multi-item commerce dispatch effect not found');
   const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 1400);
