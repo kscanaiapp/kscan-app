@@ -19,8 +19,11 @@
  * same way, for the same reason.)
  *
  * Server-only configuration (Edge Function secrets; none is set by this repo):
- *   KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION   required
+ *   KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION   required; at least 32 characters
  *   KPLUS_REVENUECAT_WEBHOOK_SIGNING_SECRET  optional; when set, signatures are required
+ *                                            and it must be at least 32 characters
+ *   (a configured secret shorter than 32 characters is treated as NOT configured:
+ *   the endpoint answers 503 to everything -- see revenueCatWebhookAuth.ts, K-06)
  *   KPLUS_REVENUECAT_PRODUCT_CLASSIFICATION  required for any grant (JSON)
  *   KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS   optional; default "production"
  */

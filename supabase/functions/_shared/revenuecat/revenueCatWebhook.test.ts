@@ -30,8 +30,10 @@ import {
 import { parseRevenueCatWebhook, resolveKScanActor } from './revenueCatWebhookEvent.ts';
 import { deriveKPlusLifetimePurchaseRefDigest, deriveKPlusSubscriptionRefDigest } from '../kplus/kplusEntitlementContract.ts';
 
-const AUTH = 'Bearer fixture-webhook-secret';
-const SIGNING = 'fixture-signing-secret';
+// Fixture secrets must satisfy REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH (K-06): a shorter
+// configured secret is deliberately treated as "not configured".
+const AUTH = 'Bearer fixture-webhook-authorization-secret';
+const SIGNING = 'fixture-signing-secret-0123456789-abcdef';
 const USER_A = '11111111-1111-4111-8111-111111111111';
 const USER_B = '22222222-2222-4222-8222-222222222222';
 const NOW = Date.UTC(2026, 9, 2, 12, 0, 0);
@@ -135,7 +137,7 @@ const only = (r: Rig) => {
 
 test('A: an invalid Authorization header is rejected and mutates nothing', async () => {
   const r = rig();
-  for (const bad of ['Bearer nope', AUTH + 'x', AUTH.toUpperCase(), 'fixture-webhook-secret']) {
+  for (const bad of ['Bearer nope', AUTH + 'x', AUTH.toUpperCase(), AUTH.slice('Bearer '.length)]) {
     const res = await send(r, body(), { authorization: bad });
     assert.equal(res.status, 401);
     assert.deepEqual(res.json, { status: 'unauthorized' });
