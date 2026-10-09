@@ -587,7 +587,64 @@ async function runPhoto(ctx, id, { actor = 'A', label = `photo-${id}`, identify 
   return out;
 }
 
+/**
+ * Paired commerce replay (R1). Re-sends MODE B for garments whose FIRST commerce attempt in an
+ * earlier run timed out, using the identification that run recorded, through the REAL client
+ * request builder and normaliser. It spends commerce-only requests only (never Gemini) and
+ * isolates the fast-path deadline: any success with discoveryMs above the old 1900 ms wall is a
+ * request the old deployment would have dropped.
+ *
+ * Limits, stated up front: the replayed evidence is the SUMMARY the earlier report kept, not the
+ * full identification object, so the provider query can differ slightly from the original.
+ */
+function replayEvidenceFromReport(report, { wallMs = 1900 } = {}) {
+  const items = (report.results ?? []).flatMap((flow) => flow.items ?? []);
+  return items
+    .filter((i) => {
+      const first = i.commerce?.attempts?.[0];
+      const errorType = first ? first.errorType : i.commerce?.errorType;
+      return errorType === 'timeout' && i.selected?.response?.identification;
+    })
+    .map((i) => ({
+      key: `${i.imageId}:${i.boundGarmentKey ?? 'unbound'}`,
+      itemId: i.itemId,
+      identification: i.selected.response.identification,
+      attributes: i.selected.response.attributes ?? null,
+      wallMs,
+    }));
+}
+
+async function runCommerceReplay(ctx, report, { actor = 'A', label = 'R1-commerce-replay' } = {}) {
+  const s = newSession(ctx, { actor });
+  const evidence = replayEvidenceFromReport(report);
+  const out = { label, path: 'commerce_replay', source: 'recorded identification summaries', replayed: [], findings: [] };
+  for (const e of evidence) {
+    const sinceSeq = ctx.recorder.entries.length;
+    const result = await s.commerceClient.fetchDeferredCommerce({
+      identification: e.identification, attributes: e.attributes, candidateId: e.itemId,
+    });
+    const entry = ctx.recorder.entries.slice(sinceSeq).find((r) => r.kind === COMMERCE_ONLY);
+    const funnel = entry?.response?.funnel ?? null;
+    out.replayed.push({
+      key: e.key,
+      outcome: result.status,
+      errorType: result.errorType ?? null,
+      offerCount: result.purchaseOptions.length,
+      latencyMs: entry?.latencyMs ?? null,
+      discoveryMs: funnel?.discoveryMs ?? null,
+      deadlineMs: funnel?.deadlineMs ?? null,
+      providers: entry?.response?.commerce?.providersTried ?? null,
+      recoveredBeyondOldWall: result.status === 'success' && typeof funnel?.discoveryMs === 'number' && funnel.discoveryMs > e.wallMs,
+      offers: result.purchaseOptions.slice(0, 8).map((o, i) => sanitizeOffer(o, i + 1)).filter(Boolean),
+    });
+    if (ctx.budget.tripped) break;
+  }
+  return out;
+}
+
 module.exports = {
+  replayEvidenceFromReport,
+  runCommerceReplay,
   ACTOR_ID,
   DETECTION,
   SELECTED,

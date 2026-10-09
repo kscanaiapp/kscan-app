@@ -46,6 +46,7 @@ const PHASE_FIXTURES = {
   P4: ['O', 'D'],
   P5: ['O', 'D'],
   P6: ['A', 'D', 'N', 'O'],
+  R1: [],
 };
 
 class RunnerError extends Error {
@@ -179,6 +180,10 @@ async function runPhase(ctx, phase, results = []) {
     ctx.phaseRef.name = 'P5';
     // Funnel OFF: selected-item answers carry offers inline and no MODE B request exists. The batch path is what ships for several photos.
     results.push(await phases.runBatch(ctx, { label: 'P5-funnel-off-two-photo', ids: ['O', 'D'] }));
+  } else if (phase === 'R1') {
+    ctx.phaseRef.name = 'R1';
+    const source = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'docs', 'build35', 'scanner', 'evidence', 'P1-report.json'), 'utf8'));
+    results.push(await phases.runCommerceReplay(ctx, source));
   } else if (phase === 'P6') {
     for (const id of PHASE_FIXTURES.P6) {
       ctx.phaseRef.name = `P6:${id}`;

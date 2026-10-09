@@ -376,6 +376,24 @@ test('a first-attempt commerce timeout is retried once, without a selected-item 
   fs.rmSync(out, { recursive: true, force: true });
 });
 
+// ── Paired commerce replay: selects exactly the garments that timed out, spends no Gemini ──
+
+test('the replay phase re-sends MODE B only for first-attempt timeouts recorded in the committed P1 evidence', { timeout: 120_000 }, async () => {
+  const p1 = require(path.join(ROOT, 'docs', 'build35', 'scanner', 'evidence', 'P1-report.json'));
+  const expected = require(path.join(KIT, 'lib', 'phases.js')).replayEvidenceFromReport(p1);
+  assert.equal(expected.length, 4, 'P1 recorded exactly four first-attempt timeouts');
+  assert.deepEqual(expected.map((e) => e.key).sort(), ['D:gown', 'O:unbound', 'T:hoodie', 'X:hoodie_left']);
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'scanner-live-replay-'));
+  const { report: r } = await runner.main(['--phase', 'R1', '--dry-local', '--out', path.join(out, 'R1.json')], {});
+  assert.equal(r.aborted, null);
+  assert.deepEqual(r.summary.findings, []);
+  assert.equal(r.summary.requests.imageMode, 0, 'a commerce replay never spends identification');
+  assert.equal(r.summary.requests.commerceOnly, 4);
+  assert.equal(r.results[0].replayed.length, 4);
+  assert.equal(r.results[0].replayed.every((x) => x.outcome === 'success' && x.offerCount > 0), true);
+  fs.rmSync(out, { recursive: true, force: true });
+});
+
 // ── The whole six-phase plan fits the approved budget, dry-run against the mock ──
 
 test('the planned phases fit the approved caps and the per-day ceiling', { timeout: 240_000 }, async () => {
@@ -400,7 +418,7 @@ test('the planned phases fit the approved caps and the per-day ceiling', { timeo
   // The documented plan, so a phase edit that changes spend must change this test.
   assert.deepEqual(
     Object.fromEntries(Object.entries(results).map(([k, v]) => [k, [v.imageMode, v.commerceOnly]])),
-    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [4, 0], P6: [7, 3] },
+    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [4, 0], P6: [7, 3], R1: [0, 4] },
   );
   fs.rmSync(out, { recursive: true, force: true });
 });
