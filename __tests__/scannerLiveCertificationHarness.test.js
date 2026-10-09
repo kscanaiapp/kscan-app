@@ -356,13 +356,34 @@ test('the live workflow can only spend on an explicit, confirmed, staging dispat
   assert.equal(/echo .*secrets\./.test(yml), false);
 });
 
+// ── A timed-out commerce request is retried once per garment and never re-spends Gemini ──
+
+test('a first-attempt commerce timeout is retried once, without a selected-item request', { timeout: 120_000 }, async () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'scanner-live-retry-'));
+  const { report: r } = await runner.main(['--phase', 'P2', '--dry-local', '--mock-timeout-first', '1', '--out', path.join(out, 'P2.json')], {});
+  assert.equal(r.aborted, null);
+  assert.deepEqual(r.summary.findings, [], JSON.stringify(r.summary.findings));
+  const flow = r.results[0];
+  assert.deepEqual(flow.commerce.retries.attempted.length, 1, 'exactly the one timed-out garment is retried');
+  assert.equal(flow.commerce.retries.selectedItemRequestsDuringRetry, 0, 'a commerce retry must not re-spend identification');
+  const retried = flow.items.filter((i) => i.commerce.attempts.length === 2);
+  assert.equal(retried.length, 1);
+  assert.equal(retried[0].commerce.attempts[0].errorType, 'timeout');
+  assert.equal(retried[0].commerce.attempts[0].offerCount, 0);
+  assert.equal(retried[0].offers.length > 0, true, 'the retry recovered the shelf');
+  assert.equal(flow.items.every((i) => i.commerce.uiStatus === 'success'), true);
+  assert.equal(r.summary.requests.commerceOnly, 3, 'two garments + one retry');
+  fs.rmSync(out, { recursive: true, force: true });
+});
+
 // ── The whole six-phase plan fits the approved budget, dry-run against the mock ──
 
 test('the planned phases fit the approved caps and the per-day ceiling', { timeout: 240_000 }, async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'scanner-live-dry-'));
   const results = {};
   for (const phase of Object.keys(runner.PHASE_FIXTURES)) {
-    const { report: r } = await runner.main(['--phase', phase, '--dry-local', '--out', path.join(out, `${phase}.json`)], {});
+    const argv = ['--phase', phase, '--dry-local', '--out', path.join(out, `${phase}.json`), ...(phase === 'P5' ? ['--mock-funnel-off'] : [])];
+    const { report: r } = await runner.main(argv, {});
     assert.equal(r.runMode, 'DRY_LOCAL_MOCK_NOT_EVIDENCE');
     assert.equal(r.aborted, null, `${phase} aborted`);
     assert.deepEqual(r.summary.findings, [], `${phase} produced integrity findings against the mock`);
@@ -373,13 +394,13 @@ test('the planned phases fit the approved caps and the per-day ceiling', { timeo
   assert.ok(sum('imageMode') <= corpus.budget.imageModeRequestsTotal, `image-mode ${sum('imageMode')}`);
   assert.ok(sum('commerceOnly') <= corpus.budget.commerceOnlyRequestsTotal, `commerce-only ${sum('commerceOnly')}`);
   const day1 = results.P1.imageMode + results.P2.imageMode;
-  const day2 = results.P3.imageMode + results.P4.imageMode + results.P5.imageMode + results.P6.imageMode;
+  const day2 = results.P3.imageMode + results.P4.imageMode + results.P5.imageMode + results.P6.imageMode; // 26
   assert.ok(day1 <= corpus.budget.imageModeRequestsPerActorPerUtcDay, `day 1 uses ${day1}`);
   assert.ok(day2 <= corpus.budget.imageModeRequestsPerActorPerUtcDay, `day 2 uses ${day2}`);
   // The documented plan, so a phase edit that changes spend must change this test.
   assert.deepEqual(
     Object.fromEntries(Object.entries(results).map(([k, v]) => [k, [v.imageMode, v.commerceOnly]])),
-    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [2, 1], P6: [5, 1] },
+    { P1: [20, 12], P2: [4, 2], P3: [10, 5], P4: [7, 2], P5: [4, 0], P6: [7, 3] },
   );
   fs.rmSync(out, { recursive: true, force: true });
 });

@@ -44,8 +44,8 @@ const PHASE_FIXTURES = {
   P2: ['O', 'D'],
   P3: ['O', 'D', 'F', 'A', 'N'],
   P4: ['O', 'D'],
-  P5: ['O'],
-  P6: ['F', 'X', 'N', 'O'],
+  P5: ['O', 'D'],
+  P6: ['A', 'D', 'N', 'O'],
 };
 
 class RunnerError extends Error {
@@ -57,11 +57,13 @@ class RunnerError extends Error {
 }
 
 function parseArgs(argv) {
-  const args = { phase: null, dryLocal: false, out: 'scanner-live-certification-report.json', actors: 'A' };
+  const args = { phase: null, dryLocal: false, mockFunnelOff: false, mockTimeoutFirst: 0, out: 'scanner-live-certification-report.json', actors: 'A' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--phase') args.phase = argv[++i];
     else if (a === '--dry-local') args.dryLocal = true;
+    else if (a === '--mock-funnel-off') args.mockFunnelOff = true;
+    else if (a === '--mock-timeout-first') args.mockTimeoutFirst = Number(argv[++i]);
     else if (a === '--out') args.out = argv[++i];
     else if (a === '--actor') args.actors = argv[++i];
     else throw new RunnerError(`unknown argument ${a}`, 'ARGS');
@@ -70,6 +72,8 @@ function parseArgs(argv) {
     throw new RunnerError(`--phase must be one of ${Object.keys(PHASE_FIXTURES).join(', ')}`, 'ARGS');
   }
   if (!['A', 'B'].includes(args.actors)) throw new RunnerError('--actor must be A or B', 'ARGS');
+  if ((args.mockFunnelOff || args.mockTimeoutFirst) && !args.dryLocal) throw new RunnerError('--mock-* flags only apply to --dry-local', 'ARGS');
+  if (!Number.isInteger(args.mockTimeoutFirst) || args.mockTimeoutFirst < 0) throw new RunnerError('--mock-timeout-first must be a non-negative integer', 'ARGS');
   return args;
 }
 
@@ -173,11 +177,12 @@ async function runPhase(ctx, phase, results = []) {
     }
   } else if (phase === 'P5') {
     ctx.phaseRef.name = 'P5';
-    results.push(await phases.runPhoto(ctx, 'O', { label: 'P5-funnel-control' }));
+    // Funnel OFF: selected-item answers carry offers inline and no MODE B request exists. The batch path is what ships for several photos.
+    results.push(await phases.runBatch(ctx, { label: 'P5-funnel-off-two-photo', ids: ['O', 'D'] }));
   } else if (phase === 'P6') {
     for (const id of PHASE_FIXTURES.P6) {
       ctx.phaseRef.name = `P6:${id}`;
-      results.push(await phases.runPhoto(ctx, id, { label: `P6-${id}`, identify: id === 'F' }));
+      results.push(await phases.runPhoto(ctx, id, { label: `P6-${id}`, identify: id === 'A' || id === 'D' }));
       if (ctx.budget.tripped) break;
     }
   }
@@ -205,7 +210,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
 
   if (args.dryLocal) {
     const { createMockEdge } = require('./lib/mockEdge');
-    mock = createMockEdge({ corpus, latency: { detection: 15, selected: 15, commerce: 15 } });
+    mock = createMockEdge({ corpus, latency: { detection: 15, selected: 15, commerce: 15 }, funnelOff: args.mockFunnelOff, timeoutFirstCommerce: args.mockTimeoutFirst });
     for (const image of corpus.images) {
       const data = prepared.get(`file:///fixtures/${image.file}`);
       if (data) mock.register(String(data).split(',')[1], image);

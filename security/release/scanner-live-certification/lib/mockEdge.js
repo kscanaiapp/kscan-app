@@ -41,7 +41,7 @@ function containsImageKey(body, depth = 0) {
   return null;
 }
 
-function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactory } = {}) {
+function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactory, funnelOff = false, timeoutFirstCommerce = 0 } = {}) {
   const known = new Map(); // sha256(imageBase64) -> corpus image
   const sessions = new Map(); // scanSessionId -> { image, candidates }
   const counters = { detection: 0, selected: 0, commerce: 0, rejected: 0 };
@@ -82,11 +82,26 @@ function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactor
     }
 
     // ── MODE B ────────────────────────────────────────────────────────────
+    if (body.requestMode === 'commerce_only' && funnelOff) {
+      // With the funnel off the MODE B route does not exist server-side; the request falls through to the image path.
+      counters.commerce += 1;
+      return send(200, { status: 'failed', userMessage: 'no image provided' });
+    }
     if (body.requestMode === 'commerce_only') {
       const bad = containsImageKey(body);
       if (bad) { counters.rejected += 1; return send(400, { error: `image_payload_rejected:${bad}` }); }
       counters.commerce += 1;
+      const commerceSeq = counters.commerce; // captured before the wait: requests overlap
       await wait('commerce');
+      if (commerceSeq <= timeoutFirstCommerce) {
+        // The fast-path wall: no provider answered in time. Retryable, zero offers, HTTP 200.
+        return send(200, {
+          status: 'completed', purchaseOptions: [], recommendedProducts: [],
+          ...(safeString(body.candidateId) ? { candidateId: safeString(body.candidateId) } : {}),
+          commerce: { available: false, retryable: true, provider: 'none', providersTried: ['serper'], count: 0, errorType: 'timeout' },
+          funnel: { version: 'v127', cacheHit: false, discoveryMs: 1900, earlyExit: false, deadlineMs: 1900 },
+        });
+      }
       const ident = body.identification ?? {};
       const garment = [...known.values()].flatMap((img) => img.expectedGarments ?? [])
         .find((g) => (g.subtypeAny ?? []).some((t) => String(ident.subtype ?? ident.item_type ?? '').toLowerCase().includes(t)))
@@ -125,6 +140,7 @@ function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactor
       }
       const garment = session.garmentByCandidate.get(cand.candidateId);
       log.push({ kind: 'selected', imageId: image.id, candidateId: cand.candidateId });
+      const inlineOffers = funnelOff ? (offerFactory ?? defaultOffers)(garment, 8) : [];
       return send(200, {
         status: 'completed',
         scanSessionId: body.scanSessionId,
@@ -135,9 +151,12 @@ function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactor
           material_estimate: (garment.materialAny ?? [])[0] ?? null, brand_guess: null, visible_brand_text: null,
           logo_detected: false, confidence_score: 0.82, non_fashion: false, visual_observation: `mock ${garment.key}`,
         },
-        recommendedProducts: [],
+        recommendedProducts: inlineOffers,
+        purchaseOptions: inlineOffers,
         // The real server emits its shoppingMeta as `commerce`; the client reads `commerce.deferred === true`.
-        commerce: { provider: 'deferred', count: 0, providersTried: [], deferred: true, funnelVersion: 'v127', reason: 'deferred_to_commerce_only_request' },
+        commerce: funnelOff
+          ? { provider: 'serper', count: inlineOffers.length, providersTried: ['serper'] }
+          : { provider: 'deferred', count: 0, providersTried: [], deferred: true, funnelVersion: 'v127', reason: 'deferred_to_commerce_only_request' },
       });
     }
 
@@ -170,7 +189,9 @@ function createMockEdge({ corpus, token = 'dry-token', latency = {}, offerFactor
       identification: { visual_observation: 'mock detection' },
       detectedGarments: candidates,
       recommendedProducts: [],
-      commerce: { provider: 'deferred', count: 0, providersTried: [], deferred: true, funnelVersion: 'v127', reason: 'deferred_to_commerce_only_request' },
+      commerce: funnelOff
+        ? { provider: 'none', count: 0, providersTried: [], commerceSkipped: true, reason: 'multi_item_detection_only' }
+        : { provider: 'deferred', count: 0, providersTried: [], deferred: true, funnelVersion: 'v127', reason: 'deferred_to_commerce_only_request' },
     });
   }
 

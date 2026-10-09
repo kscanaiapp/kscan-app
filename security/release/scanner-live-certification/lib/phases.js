@@ -184,6 +184,11 @@ function itemEvidence(ctx, {
       uiStatus: commerceStatus ?? null,
       requests: commerceList.length,
       okRequests: commerceList.filter((e) => e.outcome === 'ok').length,
+      attempts: commerceList.map((e) => ({
+        outcome: e.outcome, httpStatus: e.httpStatus ?? null, latencyMs: e.latencyMs ?? null,
+        errorType: e.response?.commerce?.errorType ?? null, offerCount: e.response?.offerCount ?? null,
+        discoveryMs: e.response?.funnel?.discoveryMs ?? null,
+      })),
       latencyMs: com?.latencyMs ?? null,
       httpStatus: com?.httpStatus ?? null,
       echoedCandidateId: com?.response?.candidateIdEcho ?? null,
@@ -255,7 +260,7 @@ async function runBatch(ctx, opts, preset = null) {
   const {
     label, ids, actor = 'A', holdCommerceMs = 0, holdFirstCommerceMs = 0,
     failFirstSelectedFor = null, accountChangeAfterMs = null, leaveMidQueue = false,
-    saveBeforeOffers = false, saveAll = true, retryFailed = false,
+    saveBeforeOffers = false, saveAll = true, retryFailed = false, retryCommerceOnError = true,
   } = opts;
   const t0 = performance.now();
   let firstCommerceHeld = false;
@@ -379,10 +384,26 @@ async function runBatch(ctx, opts, preset = null) {
 
   const pumped = await pumpCommerce({ screen, store, m: s.m, edge: s.edge, expectIds: deferredIds, timeoutMs: 75_000 });
   const settled = pumped.settled;
+  // ── one explicit commerce retry per errored garment (the screen's own retry action) ──
+  const commerceRetries = { attempted: [], selectedItemRequestsDuringRetry: 0 };
+  if (retryCommerceOnError && !switchedActor && accountChangeAfterMs === null) {
+    const failedNow = deferredIds.filter((id) => store.state.batchCommerceStatuses[id] === 'error');
+    if (failedNow.length) {
+      const selBefore = s.edge.requests.filter((r) => r.requestMode === SELECTED && r.outcome !== 'injected_network_error' && r.outcome !== 'budget_refused').length;
+      const rr = screen.render();
+      for (const id of failedNow) {
+        const item = store.state.batchItems.find((entry) => entry.id === id);
+        if (item) { commerceRetries.attempted.push(id); void rr.hydrateBatchCommerceForItem(item, { isRetry: true }); }
+      }
+      await pumpCommerce({ screen, store, m: s.m, edge: s.edge, expectIds: commerceRetries.attempted, timeoutMs: 45_000 });
+      const selAfter = s.edge.requests.filter((r) => r.requestMode === SELECTED && r.outcome !== 'injected_network_error' && r.outcome !== 'budget_refused').length;
+      commerceRetries.selectedItemRequestsDuringRetry = selAfter - selBefore;
+    }
+  }
   if (accountTimer) clearTimeout(accountTimer);
   const commerceMs = Math.round(performance.now() - commerceStart);
   result.commerce = {
-    settled, allTerminal: pumped.terminal, commerceMs, deferredItems: deferredIds.length, requestsIssued: commerceCalls(s.edge),
+    settled, allTerminal: pumped.terminal, commerceMs, deferredItems: deferredIds.length, requestsIssued: commerceCalls(s.edge), retries: commerceRetries,
     arrival, switchedActor,
   };
 
@@ -443,14 +464,17 @@ async function runBatch(ctx, opts, preset = null) {
   // ── integrity findings ───────────────────────────────────────────────────
   const selectedCount = result.items.filter((i) => i.itemState === 'ready').length;
   const requests = commerceCalls(s.edge);
-  if (!switchedActor && requests !== deferredIds.length) {
-    result.findings.push({ id: 'COMMERCE_REQUEST_COUNT', detail: `${requests} requests for ${deferredIds.length} selected deferred items` });
+  if (!switchedActor && requests !== deferredIds.length + commerceRetries.attempted.length) {
+    result.findings.push({ id: 'COMMERCE_REQUEST_COUNT', detail: `${requests} requests for ${deferredIds.length} selected deferred items + ${commerceRetries.attempted.length} explicit retries` });
+  }
+  if (commerceRetries.selectedItemRequestsDuringRetry !== 0) {
+    result.findings.push({ id: 'GEMINI_ON_COMMERCE_RETRY', detail: String(commerceRetries.selectedItemRequestsDuringRetry) });
   }
   if (commerceBeforeSelection !== 0) result.findings.push({ id: 'COMMERCE_BEFORE_SELECTION', detail: String(commerceBeforeSelection) });
   for (const item of result.items) {
     if (item.selected.sourceImageKeyMatches === false) result.findings.push({ id: 'CANDIDATE_IMAGE_MIXUP', detail: item.itemId });
     if (item.candidateIdentityDrift?.drift) result.findings.push({ id: 'CANDIDATE_IDENTITY_DRIFT', detail: `${item.itemId} ${item.candidateIdentityDrift.detectedFamily}->${item.candidateIdentityDrift.returnedFamily}` });
-    if (item.commerce.okRequests > 1 && !retryFailed) result.findings.push({ id: 'DUPLICATE_COMMERCE', detail: item.itemId });
+    if (item.commerce.requests > 1 + (commerceRetries.attempted.includes(item.itemId) ? 1 : 0)) result.findings.push({ id: 'DUPLICATE_COMMERCE', detail: item.itemId });
     if (item.commerce.echoedCandidateId && item.commerce.echoedCandidateId !== item.itemId) {
       result.findings.push({ id: 'COMMERCE_ECHO_MISMATCH', detail: `${item.itemId} sent ${String(item.itemId).length} chars` });
     }
@@ -531,8 +555,18 @@ async function runPhoto(ctx, id, { actor = 'A', label = `photo-${id}`, identify 
   await kit.waitFor(() => ['result', 'error'].includes(s.m.hook.status), { timeoutMs: 60_000, idle: () => s.m.idle(1) });
   const identifyMs = Math.round(performance.now() - t0);
   const sawDeferred = s.m.hook.analysis?.commerceDeferred === true;
-  const settled = await kit.waitFor(() => s.m.hook.commerceStatus !== 'pending', { timeoutMs: 60_000, idle: () => s.m.idle(1) });
+  let settled = await kit.waitFor(() => s.m.hook.commerceStatus !== 'pending', { timeoutMs: 60_000, idle: () => s.m.idle(1) });
   await s.m.idle(4);
+  let legacyRetry = null;
+  if (settled && s.m.hook.commerceStatus === 'error') {
+    const selBefore = s.edge.requests.filter((r) => r.requestMode === SELECTED && r.outcome !== 'injected_network_error').length;
+    s.m.hook.retryCommerce();
+    await s.m.idle(3);
+    settled = await kit.waitFor(() => s.m.hook.commerceStatus !== 'pending', { timeoutMs: 45_000, idle: () => s.m.idle(1) });
+    await s.m.idle(4);
+    legacyRetry = { attempted: true, selectedItemRequestsDuringRetry: s.edge.requests.filter((r) => r.requestMode === SELECTED && r.outcome !== 'injected_network_error').length - selBefore };
+    if (legacyRetry.selectedItemRequestsDuringRetry !== 0) out.findings.push({ id: 'GEMINI_ON_COMMERCE_RETRY', detail: String(legacyRetry.selectedItemRequestsDuringRetry) });
+  }
   const analysis = s.m.hook.analysis;
   const evidence = itemEvidence(ctx, {
     imageId: id, itemId: candidate.id, serverCandidateId: serverIdOf(candidate),
@@ -543,6 +577,7 @@ async function runPhoto(ctx, id, { actor = 'A', label = `photo-${id}`, identify 
   evidence.hookStatus = s.m.hook.status;
   evidence.commerceDeferredSeen = sawDeferred;
   evidence.commerceSettled = settled;
+  evidence.legacyRetry = legacyRetry;
   evidence.identifyMs = identifyMs;
   if (evidence.selected.sourceImageKeyMatches === false) out.findings.push({ id: 'CANDIDATE_IMAGE_MIXUP', detail: candidate.id });
   if (evidence.candidateIdentityDrift?.drift) out.findings.push({ id: 'CANDIDATE_IDENTITY_DRIFT', detail: candidate.id });

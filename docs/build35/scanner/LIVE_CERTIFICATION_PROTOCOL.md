@@ -49,14 +49,14 @@ Only the device edges are replaced: the photo picker, `expo-image-manipulator`
 | P2 two-photo | O + D selected together, batch queue, MODE B per selected item (responses held so Save All runs **before** offers arrive), late offers attach to the saved record, reopen | 2 + 2 | 2 |
 | P3 five-photo | O, D, F, A, N: exactly the global five-candidate bound plus one non-fashion photo; one injected network failure (zero cost, never sent), one real retry, out-of-order commerce delivery, Save All, reopen | 5 + 5 + 1 | 6 |
 | P4 deferred-commerce | (e) account change while MODE B is in flight on O + D; (b) leaving the screen mid-queue aborts the rest | 4 + 3 | 2 |
-| P5 funnel-off control | one photo, only if the owner-approved governed Staging flip is performed, with rollback | 2 | 0 |
-| P6 repeatability / hard cases | re-run F, X, N, O detection to measure variance; identify and shop F once more | 5 | 1 |
-| **Planned total** | | **at most 49** | **at most 23** |
+| P5 funnel-off control | O + D as a two-photo batch (selected-item answers carry offers inline; no MODE B exists), only if the governed Staging flip is performed, with rollback | 4 | 0 |
+| P6 post-repair re-verification / variance | identify and shop A (sunglasses) and D (gown) again after the repair is deployed; re-run N and O detection for variance | 7 | 3 |
+| **Planned total (before P1 results)** | | **at most 50** | **at most 22** |
 
-Headroom (7 image-mode, 17 commerce-only) is reserved for one repair re-verification.
+Headroom (6 image-mode, 18 commerce-only) is reserved for one repair re-verification.
 A phase that would exceed any cap is refused and reported, never trimmed silently.
 With one synthetic account the plan fits two UTC days (day 1: P1 + P2 = 24 image-mode;
-day 2: P3 + P4 + P5 + P6 = 25), each under the 28 per-day ceiling.
+day 2: P3 + P4 + P5 + P6 = 26), each under the 28 per-day ceiling.
 
 ## 4. Scoring
 
@@ -125,3 +125,23 @@ four-garment outfit, and no low-light handheld photograph beyond the gown fixtur
 Those cases are reported NOT TESTED unless the owner supplies additional approved
 photographs. Real-device camera/gallery ordering and HEIC/EXIF handling cannot be
 shown by this harness.
+
+## 7. Amendments (dated; thresholds and the budget digest are NOT amended)
+
+**2026-10-09, after P1 results.** P1 spent 23 image-mode and 15 commerce-only requests, not
+the planned 20 and 12: the real detector found 15 garments in the 8 photos (the ground truth
+lists the required garments; the extra ones are real visible items such as the knit layer under
+the jacket and the jeans under the hoodies). The cap is unchanged. Remaining: 33 image-mode and
+25 commerce-only. Changes made because of what P1 showed, none of which touches a threshold:
+
+1. Every phase now performs **one explicit commerce retry per garment whose first attempt
+   returned an error** (the screen's own retry action) and records the first attempt and the
+   retry separately. A retry must not issue a selected-item request (B35-SCAN-014 check 13).
+   The predeclared hit@3 gate is evaluated on the **first attempt**, which is what a customer
+   sees first; retry recovery is reported alongside it.
+2. P6 is repurposed from variance measurement to **post-repair re-verification** (A and D were
+   the garments that failed in P1) plus detection variance on N and O. P5 is a two-photo
+   funnel-off batch.
+3. The two P1 failures led to backend repair PR #541 (B35-SCAN-021 subtype retention,
+   B35-SCAN-022 fast-path deadline). Phases P2 onward that follow a Staging deployment of that
+   repair are labelled with the deployed function version in their reports.
