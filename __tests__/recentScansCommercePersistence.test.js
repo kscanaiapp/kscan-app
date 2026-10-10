@@ -482,8 +482,13 @@ test('commerce array is bounded and a 25-scan library stays small', () => {
 
 test('multi-item scans are not persisted until one garment is chosen', () => {
   // Guarantees a saved scan is single-item, so offers cannot pool under the
-  // wrong garment. app.js skips saving while confirmationCandidates exist.
-  assert.match(appSource, /analysis\.confirmationCandidates\?\.length \|\|/);
+  // wrong garment. app.js skips saving while confirmationCandidates exist
+  // UNLESS the analysis is the selected garment's own result (selectedItemResult:
+  // one chosen garment, whose offers are the ones persisted).
+  assert.match(
+    appSource,
+    /\(analysis\.confirmationCandidates\?\.length && !analysis\.selectedItemResult\) \|\|/,
+  );
   const analysis = mapScanIdentifyToAnalysis(backendResponse({
     detectedGarments: [
       { candidateId: 'g1', category: 'outerwear', subtype: 'biker jacket', confidenceScore: 0.9 },

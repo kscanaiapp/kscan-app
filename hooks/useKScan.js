@@ -1427,6 +1427,12 @@ export function useKScan() {
       if (Array.isArray(initialAnalysis?.confirmationCandidates)) {
         data.confirmationCandidates = initialAnalysis.confirmationCandidates;
       }
+      // Marks THIS analysis as the selected garment's result. It keeps the
+      // detection's candidate list for display, which is exactly why the
+      // multi-item hydration effect needs this marker: otherwise it reads those
+      // candidates as a fresh detection to fan out over (a second, parallel
+      // commerce request for the garment the single-item shelf already covers).
+      data.selectedItemResult = true;
       successPulse();
       setAnalysis(data);
       setNonFashionMessage(null);
@@ -1772,10 +1778,15 @@ export function useKScan() {
     if (status !== 'result') return;
     if (!analysis?.commerceDeferred) return;
     if (MULTI_IMAGE_SCANNER_ENABLED && retryRequestModeRef.current === 'multi_item_detection') return;
+    // A selected garment's result carries the detection's candidates only so the
+    // list stays visible. Its shelf is hydrateDeferredCommerce's, and fanning out
+    // here as well sent a duplicate request for that garment (and, with several
+    // candidates, spent on the garments the user did not select).
+    if (analysis?.selectedItemResult) return;
     const candidates = analysis?.confirmationCandidates;
     if (!Array.isArray(candidates) || candidates.length === 0) return;
     hydrateMultiItemCommerce(candidates);
-  }, [status, analysis?.commerceDeferred, analysis?.confirmationCandidates, hydrateMultiItemCommerce]);
+  }, [status, analysis?.commerceDeferred, analysis?.confirmationCandidates, analysis?.selectedItemResult, hydrateMultiItemCommerce]);
 
   // Abort any in-flight multi-item hydration when the hook unmounts.
   useEffect(() => () => {
