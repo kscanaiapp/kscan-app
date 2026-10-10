@@ -633,7 +633,7 @@ export function ScanResultV2({
               {/* Build 32: one commerce card per detected item, shown
                   simultaneously — independent of the single-selection
                   "Find Matches" flow above. */}
-              {isConfirmationStep ? (
+              {isConfirmationStep && !analysis?.selectedItemResult ? (
                 <MultiItemCommerceSection
                   candidates={confirmationCandidates}
                   cardsByCandidateId={multiItemCommerceByCandidateId}
