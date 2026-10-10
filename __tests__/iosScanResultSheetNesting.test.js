@@ -165,6 +165,8 @@ function loadScanResultV2(
     './MultiItemCommerceSection': { MultiItemCommerceSection: 'MultiItemCommerceSection' },
     './MultiItemResultNavigator': { MultiItemResultNavigator: 'MultiItemResultNavigator' },
     './ScanResultActionRow': { ScanResultActionRow: 'ScanResultActionRow' },
+    // Real, not stubbed: pure and import-free; the sheet derives its step from it.
+    '../../services/scanResultStep': runModule('services/scanResultStep.ts', {}),
     '../luxury/EmptyStateCard': { EmptyStateCard: 'EmptyStateCard' },
     './types': {
       mapLegacyToV2: (legacy) =>

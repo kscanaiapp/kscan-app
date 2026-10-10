@@ -31,6 +31,7 @@ import { SimilarFindsShelf } from './SimilarFindsShelf';
 import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
 import { MultiItemCommerceSection } from './MultiItemCommerceSection';
 import type { ItemCommerceCard } from '../../services/multiItemCommerce';
+import { isCandidateConfirmationStep } from '../../services/scanResultStep';
 import { ScanResultActionRow } from './ScanResultActionRow';
 import { ResultSurfaceModal } from './ResultSurfaceModal';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
@@ -234,7 +235,12 @@ export function ScanResultV2({
     ? analysis.confirmationCandidates
     : [];
   const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
-  const isConfirmationStep = confirmationCandidates.length > 0;
+  // The selected garment's result keeps the candidate list for display but is
+  // no longer the "choose a garment" step (see services/scanResultStep.ts).
+  const isConfirmationStep = isCandidateConfirmationStep({
+    candidateCount: confirmationCandidates.length,
+    selectedItemResult: analysis?.selectedItemResult === true,
+  });
   const multiItemCommerceByCandidateId = React.useMemo(() => {
     const map = new Map<string, ItemCommerceCard>();
     for (const card of multiItemCommerce ?? []) map.set(card.candidateId, card);
@@ -329,7 +335,7 @@ export function ScanResultV2({
       (typeof onSaveToLibrary === 'function' ||
         typeof onAskStyleChat === 'function' ||
         typeof onAddToDressingRoom === 'function')) ||
-    (confirmationCandidates.length > 0
+    (isConfirmationStep
       ? typeof onAnalyzeSelectedCandidate === 'function'
       : similarFindsTargetReady);
 
@@ -748,7 +754,7 @@ export function ScanResultV2({
               onSave={isConfirmationStep ? undefined : onSaveToLibrary}
               saveLabel={saveActionLabel}
               onFindSimilar={
-                confirmationCandidates.length > 0
+                isConfirmationStep
                   ? onAnalyzeSelectedCandidate
                     ? handleFindCandidateMatches
                     : undefined
@@ -756,7 +762,7 @@ export function ScanResultV2({
                   ? handleFindSimilar
                   : undefined
               }
-              findSimilarLabel={confirmationCandidates.length > 0 ? 'Find Matches' : 'Find Similar'}
+              findSimilarLabel={isConfirmationStep ? 'Find Matches' : 'Find Similar'}
               onAskStyleChat={isConfirmationStep ? undefined : onAskStyleChat}
               onAddToDressingRoom={isConfirmationStep ? undefined : onAddToDressingRoom}
               onLayout={(event) => setActionRowHeight(event.nativeEvent.layout.height)}
