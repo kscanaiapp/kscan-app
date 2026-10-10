@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { PROFILE, STORE_PROFILES, REQUIRED_OFF, OPTIONAL_OFF, validateReleaseProfile, resolveCheckedProfile } = require('../scripts/check-build35-release-profile');
+const { PROFILE, STORE_PROFILES, REQUIRED_OFF, REQUIRED_ON, OPTIONAL_OFF, validateReleaseProfile, resolveCheckedProfile } = require('../scripts/check-build35-release-profile');
 const ROOT = path.resolve(__dirname, '..');
 function input() {
   return {
@@ -33,6 +33,31 @@ for (const key of REQUIRED_OFF) {
   test(`release guard rejects unapproved ${key} enablement or inherited/missing override`, () => {
     checkMutation(({ eas }) => { eas.build[PROFILE].env[key] = 'true'; }, /false/);
     checkMutation(({ eas }) => { delete eas.build[PROFILE].env[key]; eas.build.production.env[key] = 'true'; }, /false|override/);
+  });
+}
+// Multi-image Scanner ships ON in both store profiles, and explicitly: the guard fails
+// closed on an absent, inherited or "false" value so it cannot be turned off by accident.
+test('multi-image Scanner is a REQUIRED_ON capability, not a held-off one', () => {
+  assert.deepEqual(REQUIRED_ON, ['EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED']);
+  assert.ok(!REQUIRED_OFF.includes('EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED'));
+});
+for (const key of REQUIRED_ON) {
+  test(`the canonical release profile and production both resolve ${key} explicitly true`, () => {
+    const fixture = input();
+    assert.equal(fixture.eas.build[PROFILE].env[key], 'true');
+    assert.equal(fixture.eas.build.production.env[key], 'true');
+    assert.equal(resolveCheckedProfile(fixture.eas, PROFILE).env[key], 'true');
+    assert.equal(resolveCheckedProfile(fixture.eas, 'production').env[key], 'true');
+  });
+  test(`release guard rejects ${key} that is false, missing or only inherited`, () => {
+    checkMutation(({ eas }) => { eas.build[PROFILE].env[key] = 'false'; }, /explicitly true/);
+    checkMutation(({ eas }) => { delete eas.build[PROFILE].env[key]; }, /explicit release override/);
+    checkMutation(({ eas }) => { eas.build[PROFILE].env[key] = 'TRUE'; }, /explicitly true/);
+    checkMutation(({ eas }) => { eas.build.production.env[key] = 'false'; delete eas.build[PROFILE].env[key]; }, /explicitly true|override/);
+  });
+  test(`production store profile rejects ${key} false or absent (semantic mode)`, () => {
+    assert.match(productionFixture((env) => { env[key] = 'false'; }), /explicitly true/);
+    assert.match(productionFixture((env) => { delete env[key]; }), /explicitly true/);
   });
 }
 for (const key of OPTIONAL_OFF) {
