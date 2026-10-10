@@ -10,6 +10,7 @@ import type { ItemCommerceCard } from '../../services/multiItemCommerce';
 import {
   commerceShelfNoticeCopy,
   isCandidateCommerceEligible,
+  isLiveShelfDispatchImminent,
   resolveItemCommerceState,
 } from '../../services/commerceShelfState';
 
@@ -27,6 +28,13 @@ interface MultiItemCommerceSectionProps {
    * will be dispatched (NOT_STARTED).
    */
   deferred?: boolean;
+  /**
+   * The scanner holds commerce for this result until the user selects a garment
+   * (multi-image Scanner). Then an idle shelf is NOT about to be dispatched, so
+   * `deferred` must not read as "dispatch is imminent": the item is NOT_STARTED
+   * and its copy points at Find Matches. Absent means dispatch is not held.
+   */
+  dispatchHeldForSelection?: boolean;
   /**
    * Whether this surface offers the Find Matches action. It is the real next step
    * from NOT_STARTED, so the copy only points at it when it exists.
@@ -59,18 +67,20 @@ export function MultiItemCommerceSection({
   cardsByCandidateId,
   status,
   deferred = false,
+  dispatchHeldForSelection = false,
   findMatchesAvailable = false,
   onRetry,
   testID,
 }: MultiItemCommerceSectionProps) {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const dispatchImminent = isLiveShelfDispatchImminent({ deferred, dispatchHeldForSelection });
 
   return (
     <View style={styles.container} testID={testID ?? 'multi-item-commerce-section'}>
       {candidates.map((candidate) => {
         const card = cardsByCandidateId.get(candidate.id);
         const state = resolveItemCommerceState({
-          deferred,
+          deferred: dispatchImminent,
           shelfStatus: status,
           eligible: isCandidateCommerceEligible(candidate),
           card,
