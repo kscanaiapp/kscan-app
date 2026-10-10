@@ -24,12 +24,17 @@ const REQUIRED_OFF = Object.freeze([
   'EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1',
   'EXPO_PUBLIC_ELISE_SPEECH',
   'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
-  'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   'EXPO_PUBLIC_VTO_UI_ENABLED',
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
   'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER',
+]);
+// Capabilities the release must ship ON, and EXPLICITLY: an absent or inherited value
+// is a failure, so a later edit of a parent profile cannot silently turn them off.
+// Multi-image Scanner (up to five photos per scan) is certified-on for the store profiles.
+const REQUIRED_ON = Object.freeze([
+  'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
 ]);
 // Existing baseline policy leaves these selectors unconfigured. Do not add
 // invented EAS worker/push variables: the worker is controlled in app_config.
@@ -46,6 +51,7 @@ const OPTIONAL_OFF = Object.freeze([
 // Deliberately fixed rather than inferred from production: adding a new ON
 // feature to a parent must not silently expand the release surface.
 const APPROVED_ON = new Set([
+  'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
   'EXPO_PUBLIC_HOME_NAVIGATION_V2', 'EXPO_PUBLIC_ACCOUNT_HOME_UX_V1',
   'EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1', 'EXPO_PUBLIC_SCAN_ROOM_V2_UI',
   'EXPO_PUBLIC_SCAN_RESULTS_V2_UI', 'EXPO_PUBLIC_ROOM_CHAT_ENABLED',
@@ -112,6 +118,9 @@ function validateEnvironment(env, failures, { strict = true } = {}) {
       failures.push(`${key} must resolve absent or false (default-dark store profile)`);
     }
   }
+  for (const key of REQUIRED_ON) {
+    if (env[key] !== 'true') failures.push(`${key} must resolve explicitly true`);
+  }
   if (!strict && env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1 !== 'false') failures.push('EXPO_PUBLIC_TODAY_WITH_ELISE_V1 must resolve explicitly false (it gates its dormant children)');
   for (const key of OPTIONAL_OFF) {
     if (env[key] !== undefined && env[key] !== 'false') failures.push(`${key} must be absent or explicitly false`);
@@ -171,6 +180,11 @@ function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = 
       if (eas.build[profileName].env?.[key] !== 'false') failures.push(`${key} requires an explicit release override`);
     }
   }
+  if (!isBaseProduction) {
+    for (const key of REQUIRED_ON) {
+      if (eas.build[profileName].env?.[key] !== 'true') failures.push(`${key} requires an explicit release override`);
+    }
+  }
   validateEnvironment(profile.env, failures, { strict: !isBaseProduction });
   if (effectiveEnv !== undefined) validateEnvironment(effectiveEnv, failures, { strict: !isBaseProduction });
   const expo = app?.expo;
@@ -218,4 +232,4 @@ function main(args = process.argv.slice(2)) {
 }
 
 if (require.main === module) process.exitCode = main();
-module.exports = { PROFILE, STORE_PROFILES, REQUIRED_OFF, OPTIONAL_OFF, resolveCheckedProfile, validateReleaseProfile, main };
+module.exports = { PROFILE, STORE_PROFILES, REQUIRED_OFF, REQUIRED_ON, OPTIONAL_OFF, resolveCheckedProfile, validateReleaseProfile, main };
