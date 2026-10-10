@@ -19,9 +19,14 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 
-/** The `if (!permission.granted) { ... }` block of the scanner screen. */
+/**
+ * The `if (cameraRequired && !permission.granted) { ... }` block of the scanner
+ * screen. The `cameraRequired &&` prefix is optional here so this pin keeps
+ * locating the gate either way: its subject is what the denied screen does.
+ */
 function permissionGate(source) {
-  const start = source.indexOf('if (!permission.granted) {');
+  const locator = /if \((?:cameraRequired && )?!permission\.granted\) \{/.exec(source);
+  const start = locator ? locator.index : -1;
   assert.notEqual(start, -1, 'the scanner permission gate exists');
   const end = source.indexOf('\n  }\n', start);
   return source.slice(start, end + 4);
