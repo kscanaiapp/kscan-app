@@ -369,6 +369,93 @@ test('identifyScanImage: invoke error → failed', async () => {
   assert.equal(out.status, 'failed');
 });
 
+// ── Invoke failure classification (Production Scanner debugger, P-NET-1) ──────
+// supabase-js raises one error type for every non-2xx answer. The adapter used
+// to map ALL of them to "check your connection", so a revoked session, a
+// deactivated account or a failing backend was presented as a network fault.
+// Only a call that never produced an HTTP response may claim a connection
+// problem; every other status must keep its own cause and carry its status.
+
+function httpInvokeError(status, body) {
+  return {
+    message: 'Edge Function returned a non-2xx status code',
+    context: { status, json: async () => body },
+  };
+}
+
+async function identifyWithInvokeError(error) {
+  const adapter = loadAdapter({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    functions: { invoke: async () => ({ data: null, error }) },
+  });
+  return adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera', localPrivacyFiltered: true });
+}
+
+const INVOKE_FAILURE_CASES = [
+  { label: '401 session rejected', status: 401, body: { error: 'Authentication required' }, message: /sign in/i },
+  { label: '403 account deactivated', status: 403, body: { error: 'ACCOUNT_DEACTIVATED' }, message: /account/i },
+  { label: '408 request timeout', status: 408, body: {}, message: /taking longer/i },
+  { label: '504 gateway timeout', status: 504, body: {}, message: /taking longer/i },
+  { label: '429 throttled', status: 429, body: {}, message: /having trouble/i },
+  { label: '500 internal error', status: 500, body: {}, message: /having trouble/i },
+  { label: '502 relay error', status: 502, body: null, message: /having trouble/i },
+  { label: '503 unavailable', status: 503, body: 'not json', message: /having trouble/i },
+  { label: '404 not found', status: 404, body: {}, message: /couldn't complete this scan/i },
+];
+
+for (const c of INVOKE_FAILURE_CASES) {
+  test(`identifyScanImage: ${c.label} keeps its own cause and status, never "check your connection"`, async () => {
+    const out = await identifyWithInvokeError(httpInvokeError(c.status, c.body));
+    assert.equal(out.status, 'failed');
+    assert.match(out.userMessage, c.message);
+    assert.doesNotMatch(out.userMessage, /connect|connection/i);
+    assert.equal(out.httpStatus, c.status, 'the HTTP status must travel with the failure');
+    assert.equal(out.contractErrorCode, undefined, 'no contract code unless the body carries one');
+  });
+}
+
+test('identifyScanImage: no HTTP response at all (fetch failure) is still reported as a connection problem', async () => {
+  const out = await identifyWithInvokeError({ message: 'Failed to send a request to the Edge Function' });
+  assert.equal(out.status, 'failed');
+  assert.match(out.userMessage, /couldn't connect to the analysis service/i);
+  assert.equal(out.httpStatus, undefined);
+});
+
+test('identifyScanImage: a fetch error whose context is not a response is a connection problem', async () => {
+  const out = await identifyWithInvokeError({
+    message: 'Failed to send a request to the Edge Function',
+    context: new TypeError('Network request failed'),
+  });
+  assert.match(out.userMessage, /couldn't connect to the analysis service/i);
+  assert.equal(out.httpStatus, undefined);
+});
+
+test('identifyScanImage: a bounded 400 contract error still carries its code and status', async () => {
+  const out = await identifyWithInvokeError(
+    httpInvokeError(400, { error: { code: 'UNSUPPORTED_CONTRACT_VERSION' } }),
+  );
+  assert.equal(out.httpStatus, 400);
+  assert.equal(out.contractErrorCode, 'UNSUPPORTED_CONTRACT_VERSION');
+  assert.doesNotMatch(out.userMessage, /connect|connection/i);
+});
+
+test('identifyScanImage: widening httpStatus cannot trigger the legacy-contract fallback', async () => {
+  // `isUnsupportedContractVersion` is a pure predicate; the module's other
+  // imports are unused by it, so empty stubs are enough to load the real one.
+  const { isUnsupportedContractVersion } = loadTsModule('services/fashionIdentificationV2Core.ts', {
+    '../types/fashionIdentificationV2': {},
+    './fashionEvidenceGateway': {},
+  });
+  assert.equal(isUnsupportedContractVersion({ httpStatus: 400, errorCode: 'UNSUPPORTED_CONTRACT_VERSION' }), true);
+  for (const status of [401, 403, 429, 500, 503, 504]) {
+    assert.equal(
+      isUnsupportedContractVersion({ httpStatus: status, errorCode: null }),
+      false,
+      `HTTP ${status} must never be read as "unsupported contract version"`,
+    );
+  }
+});
+
 test('identifyScanImage: proceeds without pixel-masking proof when local preparation is attested', async () => {
   let invoked = false;
   const adapter = loadAdapter({
