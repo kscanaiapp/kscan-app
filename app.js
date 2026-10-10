@@ -943,7 +943,9 @@ export default function App() {
       status !== 'result' ||
       !photo?.uri ||
       !analysis ||
-      analysis.confirmationCandidates?.length ||
+      // A selected garment keeps the detection's candidates for display only; it
+      // is ONE item and this record holds its offers (attached below).
+      (analysis.confirmationCandidates?.length && !analysis.selectedItemResult) ||
       hasSavedRef.current
     ) return;
     hasSavedRef.current = true;
@@ -998,6 +1000,7 @@ export default function App() {
       status !== 'result' ||
       !photo?.uri ||
       !analysis?.confirmationCandidates?.length ||
+      analysis.selectedItemResult || // saved as one item above, with its offers
       selectedImages.length > 1 ||
       hasSavedMultiItemRef.current
     ) return;
