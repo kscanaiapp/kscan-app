@@ -42,6 +42,7 @@ import {
   multiItemCommerceFingerprint,
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
+import { isScannerCameraRequired } from './services/scannerCameraRequirement';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -1151,7 +1152,17 @@ export default function App() {
 
   const scanAnim = useScanAnimation(status === 'processing');
 
-  if (!permission) {
+  // Camera access gates only the views that show the live camera. The Scan
+  // landing (Upload Image, Describe an Item), photo review, analysis and result
+  // views do not need it, so a user who declined the camera keeps the upload path.
+  const cameraRequired = isScannerCameraRequired({
+    roomV2Ui: SCAN_ROOM_V2_UI_ENABLED,
+    status,
+    v2CameraVisible,
+    hasPhoto: Boolean(photo?.uri),
+  });
+
+  if (cameraRequired && !permission) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
@@ -1161,12 +1172,15 @@ export default function App() {
             We need access to your camera to capture your look.
           </Text>
           <ActionButton label="Allow Camera" onPress={requestPermission} />
+          {SCAN_ROOM_V2_UI_ENABLED ? (
+            <ActionButton label="Back" onPress={() => setV2CameraVisible(false)} variant="tertiary" />
+          ) : null}
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!permission.granted) {
+  if (cameraRequired && !permission.granted) {
     // Once canAskAgain is false (iOS after any denial, Android after "Don't ask
     // again") the camera prompt is never shown again, so requestPermission()
     // resolves without any UI and the button did nothing. There it opens
@@ -1185,6 +1199,9 @@ export default function App() {
             label={openSettingsInstead ? 'Open Settings' : 'Grant Access'}
             onPress={openSettingsInstead ? () => Linking.openSettings() : requestPermission}
           />
+          {SCAN_ROOM_V2_UI_ENABLED ? (
+            <ActionButton label="Back" onPress={() => setV2CameraVisible(false)} variant="tertiary" />
+          ) : null}
         </View>
       </SafeAreaView>
     );
