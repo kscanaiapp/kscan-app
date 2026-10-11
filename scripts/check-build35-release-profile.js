@@ -34,11 +34,11 @@ const REQUIRED_ON = Object.freeze([
   'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
   'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
   'EXPO_PUBLIC_ELISE_V10',
+  'KSCAN_VOICE_NATIVE_CAPABILITY',
 ]);
 // Existing baseline policy leaves these selectors unconfigured. Do not add
 // invented EAS worker/push variables: the worker is controlled in app_config.
 const OPTIONAL_OFF = Object.freeze([
-  'KSCAN_VOICE_NATIVE_CAPABILITY',
   'KSCAN_VOICE_CERTIFICATION',
   'EXPO_PUBLIC_LIVE_VTO_ENABLED',
   'EXPO_PUBLIC_LIVE_VTO_HARNESS',
