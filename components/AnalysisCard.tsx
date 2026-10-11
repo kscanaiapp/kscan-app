@@ -322,7 +322,7 @@ export function AnalysisCard({
   // P-COPY-2: a saved list of detected items with no stored commerce for any of
   // them says so ONCE, instead of one identical empty shelf per item plus the
   // single-item shelf's own copy of it.
-  const savedMultiItemWithoutCommerce = savedMultiItemScanHasNoCommerce(
+  const savedMultiItemWithoutCommerce = isLibraryScan && savedMultiItemScanHasNoCommerce(
     multiItemCandidates,
     multiItemCommerce,
   );
