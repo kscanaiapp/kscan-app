@@ -92,15 +92,45 @@ function downloadLiveBundle(functionName, { run = runSupabaseProduction } = {}) 
     `project_id = "${PRODUCTION_PROJECT_REF}"\n`,
   );
 
-  try {
-    run(
-      ['functions', 'download', functionName, '--project-ref', PRODUCTION_PROJECT_REF],
-      { cwd: scratch },
-    );
-  } catch (err) {
+  // The Supabase CLI's default download path can invoke a local Docker-based
+  // ESZIP unbundler. GitHub-hosted runners have hit extractor/runtime failures,
+  // even when the function is healthy. Prefer the documented server-side
+  // unbundler. A single legacy fallback is read-only and is permitted only
+  // because the capture still refuses to proceed without verified source.
+  const classifyDownloadError = (error) => {
+    const detail = [error?.message, error?.stderr, error?.stdout]
+      .filter(Boolean).map((value) => String(value)).join(' ').toLowerCase();
+    // Never print raw CLI output: it may contain source or credential material.
+    if (/invalid eszip|unsupported eszip|failed to unbundle/.test(detail)) return 'BUNDLE_FORMAT';
+    if (/docker|container|ghcr|pull rate|image/.test(detail)) return 'LOCAL_UNBUNDLER';
+    if (/401|403|unauthoriz|forbidden|permission denied|access denied/.test(detail)) return 'ACCESS_DENIED';
+    if (/429|rate.limit|throttl/.test(detail)) return 'RATE_LIMITED';
+    if (/timeout|timed out|deadline/.test(detail)) return 'TIMEOUT';
+    if (/404|not found|does not exist/.test(detail)) return 'NOT_FOUND';
+    return 'UNKNOWN';
+  };
+  let downloadedOk = false;
+  for (const mode of ['server-api', 'legacy-local']) {
+    try {
+      run(
+        ['functions', 'download', functionName, '--project-ref', PRODUCTION_PROJECT_REF,
+          ...(mode === 'server-api' ? ['--use-api'] : [])],
+        { cwd: scratch },
+      );
+      downloadedOk = true;
+      break;
+    } catch (error) {
+      // Only a predetermined category reaches workflow logs, never the
+      // throwable, stderr, stdout, token, or source bytes.
+      console.error(`Production capture download ${mode} failed [${classifyDownloadError(error)}]`);
+      fs.rmSync(path.join(scratch, 'supabase', 'functions'), { recursive: true, force: true });
+      fs.mkdirSync(path.join(scratch, 'supabase', 'functions'), { recursive: true });
+    }
+  }
+  if (!downloadedOk) {
     fail(
       `Could not download the live bundle for ${functionName}. ` +
-        'Without it there is no exact rollback, so the deployment must not proceed.',
+        'Both bounded read-only methods failed; replacement refused without exact rollback material.',
     );
   }
 
