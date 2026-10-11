@@ -49,7 +49,7 @@ import { getActorContext } from './actorContext';
  * names itself here, so the set of things a customer has been asked about is
  * reviewable in one line.
  */
-export const THIRD_PARTY_AI_FEATURES = ['virtual_try_on'] as const;
+export const THIRD_PARTY_AI_FEATURES = ['virtual_try_on', 'elise_speech'] as const;
 export type ThirdPartyAiFeature = (typeof THIRD_PARTY_AI_FEATURES)[number];
 
 const KEY_PREFIX = 'kscan.thirdPartyAiConsent.v1';
@@ -65,6 +65,28 @@ function cacheKey(feature: ThirdPartyAiFeature, actorId: string): string {
 
 /** The consent version this process has seen granted, per feature and account. */
 const consentCache = new Map<string, string>();
+// Serialize storage mutations per account/feature. A withdrawal invoked after
+// a grant must remain the last durable write, even if the grant is still waiting
+// on device storage. Failed withdrawal also blocks reloading its old record for
+// the remainder of this process until a new explicit grant succeeds.
+const mutationQueues = new Map<string, Promise<unknown>>();
+const mutationRevisions = new Map<string, number>();
+const withdrawnKeys = new Set<string>();
+
+function nextRevision(key: string): number {
+  const revision = (mutationRevisions.get(key) ?? 0) + 1;
+  mutationRevisions.set(key, revision);
+  return revision;
+}
+
+function enqueueMutation<T>(key: string, operation: () => Promise<T>): Promise<T> {
+  const pending = (mutationQueues.get(key) ?? Promise.resolve()).catch(() => undefined).then(operation);
+  mutationQueues.set(key, pending);
+  void pending.finally(() => {
+    if (mutationQueues.get(key) === pending) mutationQueues.delete(key);
+  }).catch(() => undefined);
+  return pending;
+}
 
 /**
  * Bumped on both sides of every grant and every withdrawal. A read that started
@@ -109,7 +131,8 @@ export function hasThirdPartyAiConsentNow(feature: ThirdPartyAiFeature, version:
   if (!isKnownFeature(feature) || !isUsableVersion(version)) return false;
   const actorId = currentActorId();
   if (!actorId) return false;
-  return consentCache.get(cacheKey(feature, actorId)) === version;
+  const key = cacheKey(feature, actorId);
+  return !withdrawnKeys.has(key) && consentCache.get(key) === version;
 }
 
 /**
@@ -127,6 +150,8 @@ export async function loadThirdPartyAiConsent(
   const actorId = currentActorId();
   if (!actorId) return false;
 
+  const actorEpoch = getActorContext().epoch;
+  if (withdrawnKeys.has(cacheKey(feature, actorId))) return false;
   const startedAt = mutationEpoch;
   let granted = false;
   try {
@@ -137,7 +162,8 @@ export async function loadThirdPartyAiConsent(
 
   // The account changed while storage was being read: nothing here belongs to
   // whoever is signed in now.
-  if (currentActorId() !== actorId) return false;
+  if (currentActorId() !== actorId || getActorContext().epoch !== actorEpoch) return false;
+  if (withdrawnKeys.has(cacheKey(feature, actorId))) return false;
   // A grant or a withdrawal landed while storage was being read. It is newer
   // than this read, so the cache already holds the truth.
   if (mutationEpoch !== startedAt) return hasThirdPartyAiConsentNow(feature, version);
@@ -167,14 +193,17 @@ export async function recordThirdPartyAiConsent(
   const actorId = currentActorId();
   if (!actorId) return false;
 
+  const actorEpoch = getActorContext().epoch;
+  const key = cacheKey(feature, actorId);
+  const revision = nextRevision(key);
   mutationEpoch += 1;
   let stored = false;
   try {
     const grantedAt = new Date(now).toISOString();
-    await AsyncStorage.setItem(
+    await enqueueMutation(key, () => AsyncStorage.setItem(
       thirdPartyAiConsentKey(feature, actorId),
       JSON.stringify({ version, grantedAt }),
-    );
+    ));
     stored = true;
   } catch {
     stored = false;
@@ -182,8 +211,10 @@ export async function recordThirdPartyAiConsent(
   mutationEpoch += 1;
 
   if (!stored) return false;
-  if (currentActorId() !== actorId) return false;
-  consentCache.set(cacheKey(feature, actorId), version);
+  if (mutationRevisions.get(key) !== revision) return false;
+  if (currentActorId() !== actorId || getActorContext().epoch !== actorEpoch) return false;
+  withdrawnKeys.delete(key);
+  consentCache.set(key, version);
   return true;
 }
 
@@ -194,8 +225,8 @@ export async function recordThirdPartyAiConsent(
  * storage could not be updated -- a caller that offers withdrawal must surface
  * that, because a record that survives would be found again by the next load.
  *
- * Not wired to any screen yet: this is the API a Privacy screen control will
- * call, and it is covered by tests so it is ready when that control exists.
+ * A failed removal stays blocked in this process; the caller must report that
+ * the preference could not be saved, since durable storage was unavailable.
  */
 export async function withdrawThirdPartyAiConsent(feature: ThirdPartyAiFeature): Promise<boolean> {
   if (!isKnownFeature(feature)) return false;
@@ -203,10 +234,13 @@ export async function withdrawThirdPartyAiConsent(feature: ThirdPartyAiFeature):
   if (!actorId) return false;
 
   mutationEpoch += 1;
-  consentCache.delete(cacheKey(feature, actorId));
+  const key = cacheKey(feature, actorId);
+  nextRevision(key);
+  withdrawnKeys.add(key);
+  consentCache.delete(key);
   let removed = false;
   try {
-    await AsyncStorage.removeItem(thirdPartyAiConsentKey(feature, actorId));
+    await enqueueMutation(key, () => AsyncStorage.removeItem(thirdPartyAiConsentKey(feature, actorId)));
     removed = true;
   } catch {
     removed = false;

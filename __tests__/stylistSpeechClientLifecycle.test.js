@@ -27,6 +27,8 @@ function load(file, mocks, transform = (source) => source) {
     module: mod,
     require: (specifier) => {
       if (specifier in mocks) return mocks[specifier];
+      // Positive lifecycle fixtures represent an actor who accepted the disclosure.
+      if (specifier.endsWith('/speechConsent')) return { loadSpeechConsent: async () => true, hasSpeechConsent: () => true };
       // These exercise the enabled certification lifecycle; release holds have
       // separate negative controls in build35StylistSpeechHold.test.js.
       if (specifier.endsWith('/constants/featureFlags')) return { STYLIST_SPEECH_ENABLED: true };

@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient';
 import type { AvatarSpeechAlignment } from '../../stores/avatarSpeechStore';
 import type { StylistVoiceProfile } from '../../constants/stylistIdentity';
 import { STYLIST_SPEECH_ENABLED } from '../../constants/featureFlags';
+import { hasSpeechConsent } from './speechConsent';
 
 const CLIENT_SPEECH_TIMEOUT_MS = 20_000;
 const MAX_AUDIO_BASE64_CHARACTERS = 2_500_000;
@@ -100,6 +101,7 @@ export async function requestStylistSpeech(
   request: StylistSpeechClientRequest,
 ): Promise<StylistSpeechClientResponse> {
   if (!STYLIST_SPEECH_ENABLED) throw new Error('Stylist speech is not enabled in this build.');
+  if (!hasSpeechConsent(request.actorId)) throw new Error('Enable spoken replies in Privacy settings before using Elise Speech.');
   if (!request.actorId || !request.sessionId || !request.messageId || !request.stylistId) {
     throw new Error('Speech references are required.');
   }

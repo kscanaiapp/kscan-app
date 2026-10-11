@@ -24,6 +24,7 @@ import {
   registerSpeechInterruptionHandler,
 } from './avatars/speechAppState';
 import { STYLIST_SPEECH_ENABLED } from '../constants/featureFlags';
+import { loadSpeechConsent } from './avatars/speechConsent';
 
 /**
  * `auto` is StyleChat speaking a newly persisted message on its own and must
@@ -162,6 +163,8 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
     !payload.avatarId ||
     payload.stylistId !== payload.avatarId
   ) return;
+
+  if (!await loadSpeechConsent(payload.actorId)) return;
 
   ensureSpeechLifecycleBound();
   const key = operationKey(payload);
