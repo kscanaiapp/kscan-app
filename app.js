@@ -43,6 +43,8 @@ import {
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { isScannerCameraRequired } from './services/scannerCameraRequirement';
+import { resolveSavedScanDestination } from './services/savedScanDestination';
+import { hasUsableAnalyzedItem } from './services/failedScanActions';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -89,6 +91,10 @@ const EMPTY_METADATA = {
 };
 
 const VOICE_UI_ENABLED = false;
+
+// P-COPY-1: the post-save button's label and its route come from one place, so
+// the label always names the section the route opens.
+const SAVED_SCAN_DESTINATION = resolveSavedScanDestination(CLOSET_SEPARATION_V1);
 
 /**
  * TextScan entry point inside the Scan surface.
@@ -1277,7 +1283,7 @@ export default function App() {
             <TouchableOpacity
               testID="library-button"
               style={styles.libraryButton}
-              onPress={() => router.push('/library')}
+              onPress={() => router.push({ pathname: '/library', params: { section: 'closet' } })}
               disabled={isAnalyzing}
               activeOpacity={isAnalyzing ? 1 : 0.8}
             >
@@ -1415,16 +1421,11 @@ export default function App() {
     }
 
     if (status === 'error') {
-      // A failed scan has no usable analysis to save. Guard on concrete fields --
-      // an empty object ({}) is truthy -- so we never offer to save a scan the
-      // app just told the user failed.
-      const hasUsableAnalysis = Boolean(
-        analysis &&
-          (analysis.result ||
-            analysis.metadata?.category ||
-            (Array.isArray(analysis.products) && analysis.products.length) ||
-            analysis.type === 'non-fashion'),
-      );
+      // A failed scan has no usable analysis to save, so we never offer to save
+      // a scan the app just told the user failed. A failed selected-garment
+      // analysis leaves the DETECTION result in `analysis` (Try Again resumes
+      // from it); that is a list of garments, not an analyzed item (P-ERR-1).
+      const hasUsableAnalysis = hasUsableAnalyzedItem(analysis);
       return (
         <View style={styles.actionsContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -1751,9 +1752,9 @@ export default function App() {
             onRetryMultiItemCommerce={batchResultVisible ? undefined : retryMultiItemCommerce}
             onDismiss={dismissResult}
             onSaveToLibrary={batchResultVisible
-              ? activeBatchSavedId ? () => router.push('/library') : () => { void persistBatchItem(activeBatchItem); }
-              : savedScanId ? () => router.push('/library') : undefined}
-            saveActionLabel={batchResultVisible ? activeBatchSavedId ? 'View Closet' : 'Save Item' : savedScanId ? 'View Closet' : undefined}
+              ? activeBatchSavedId ? () => router.push(SAVED_SCAN_DESTINATION.route) : () => { void persistBatchItem(activeBatchItem); }
+              : savedScanId ? () => router.push(SAVED_SCAN_DESTINATION.route) : undefined}
+            saveActionLabel={batchResultVisible ? activeBatchSavedId ? SAVED_SCAN_DESTINATION.label : 'Save Item' : savedScanId ? SAVED_SCAN_DESTINATION.label : undefined}
             onAddToDressingRoom={dressingRoomsEnabled ? () => {
               if (batchResultVisible && !isActorRequestCurrent(batchActorRequestRef.current)) return;
               setAddAllBatchToRoom(false);

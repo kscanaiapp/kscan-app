@@ -34,6 +34,10 @@ interface CaptureReviewProps {
  * - Clear guidance text.
  * - Analyze Scan = primary glossy plum button.
  * - Retake/Replace = secondary gold-outlined button.
+ * - Both buttons sit in a footer pinned above the bottom safe area, outside the
+ *   scrolling content (P-UX-1). They used to be the last thing in the scroll
+ *   view, under a 4:5 image, the photo strip and two cards, so on a phone the
+ *   only way forward started below the fold with nothing to say it was there.
  * - No "Add to Dressing Room" here (belongs after analysis in Results).
  * - Adapts labels for camera vs upload sources.
  */
@@ -71,14 +75,12 @@ export function CaptureReview({
     reviewImages.length > 1 || Boolean(onAddImage) || Boolean(onRemoveImage);
 
   return (
+    <View style={styles.root} testID={testID}>
     <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: insets.bottom + SPACING.xxxl },
-      ]}
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      testID={testID}
+      testID="scan-room-review-scroll"
     >
       <ScanRoomHeader
         rightAction={
@@ -184,33 +186,41 @@ export function CaptureReview({
         </Text>
       </View>
 
-      {/* Buttons */}
-      <View style={styles.buttonRow}>
-        <LuxuryButton
-          title={secondaryLabel}
-          variant="secondary"
-          onPress={onRetake}
-          disabled={isAnalyzing}
-          accessibilityLabel={secondaryLabel}
-          accessibilityHint={secondaryHint}
-          testID={isUpload ? 'scan-room-replace-image' : 'scan-room-retake'}
-        />
-        <LuxuryButton
-          title={isAnalyzing ? 'ANALYZING…' : 'Analyze Scan'}
-          variant="primary"
-          onPress={onAnalyze}
-          disabled={isAnalyzing}
-          accessibilityLabel={isAnalyzing ? 'Analysis in progress' : 'Analyze scan style'}
-          accessibilityHint="Start AI style analysis on this photo"
-          testID="scan-room-analyze"
-        />
-      </View>
-
       {/* Privacy microcopy */}
       <Text style={styles.privacyText}>
         Private by design. Your uploaded images are not sold to third-party data buyers.
       </Text>
     </ScrollView>
+
+      {/* Pinned actions. Outside the ScrollView so they are on screen at every
+          viewport height and photo count; the bottom inset keeps them clear of
+          the home indicator / gesture bar. */}
+      <View
+        style={[styles.actionBar, { paddingBottom: Math.max(SPACING.md, insets.bottom) }]}
+        testID="scan-room-review-actions"
+      >
+        <View style={styles.buttonRow}>
+          <LuxuryButton
+            title={secondaryLabel}
+            variant="secondary"
+            onPress={onRetake}
+            disabled={isAnalyzing}
+            accessibilityLabel={secondaryLabel}
+            accessibilityHint={secondaryHint}
+            testID={isUpload ? 'scan-room-replace-image' : 'scan-room-retake'}
+          />
+          <LuxuryButton
+            title={isAnalyzing ? 'ANALYZING…' : 'Analyze Scan'}
+            variant="primary"
+            onPress={onAnalyze}
+            disabled={isAnalyzing}
+            accessibilityLabel={isAnalyzing ? 'Analysis in progress' : 'Analyze scan style'}
+            accessibilityHint="Start AI style analysis on this photo"
+            testID="scan-room-analyze"
+          />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -219,9 +229,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: LUXURY.colors.ivory,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.xl,
     alignItems: 'center',
+  },
+  actionBar: {
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.border,
+    backgroundColor: LUXURY.colors.ivory,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
   },
   screenTitle: {
     ...LUXURY.typography.displayTitle,
@@ -375,7 +396,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.md,
-    marginTop: SPACING.xl,
     flexWrap: 'wrap',
   },
   privacyText: {
