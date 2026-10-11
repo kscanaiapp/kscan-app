@@ -364,14 +364,14 @@ test('negative control: removing the selector from staging-certification fails t
   assert.equal(exitCode, 1);
 });
 
-test('release OFF selector overrides do not grant native capabilities', () => {
+test('a store profile cannot disable the authorized native Voice capability behind an enabled Voice UI', () => {
   const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
     const eas = readJson('eas.json');
     eas.build['build35-release'].env.EXPO_PUBLIC_SMART_WATCHLIST_V1 = 'false';
     eas.build['build35-release'].env.KSCAN_VOICE_NATIVE_CAPABILITY = 'false';
     writeJson('eas.json', eas);
   });
-  assert.equal(exitCode, 0);
+  assert.equal(exitCode, 1);
 });
 
 test('native selector whitespace and case cannot bypass the unauthorized profile guard', () => {
@@ -410,14 +410,12 @@ test('negative control: an exception manifest that stops granting its declared p
 
 // ── ANDROID-VOICE-01: the generalized capability exception's own controls ──
 
-test('negative control: committing KSCAN_VOICE_NATIVE_CAPABILITY to the production profile fails the gate', () => {
-  // The whole point of selectorSetByEasProfiles being empty for this
-  // exception is that NO committed profile may carry the selector yet --
-  // production included, since that is exactly the future activation this
-  // repair must not perform itself.
+test('negative control: removing production KSCAN_VOICE_NATIVE_CAPABILITY fails the gate', () => {
+  // The full-feature Build 35 store profiles require this selector. Removing
+  // it from Production makes the promised native microphone path inoperable.
   const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
     const eas = readJson('eas.json');
-    eas.build.production.env = { ...(eas.build.production.env || {}), KSCAN_VOICE_NATIVE_CAPABILITY: 'true' };
+    eas.build.production.env = { ...(eas.build.production.env || {}), KSCAN_VOICE_NATIVE_CAPABILITY: 'false' };
     writeJson('eas.json', eas);
   });
   assert.equal(exitCode, 1);
