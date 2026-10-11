@@ -167,6 +167,13 @@ export function useCloset() {
     } else if (result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) {
       setLoadError({ code: result.code, message: result.message });
     }
+    // hydrate and refresh share ONE generation counter, so a current refresh
+    // supersedes the read hydrate started: that read now lands as stale and
+    // returns without clearing `loading`. Whoever finishes last as the current
+    // read must end the loading phase, or the first load spins forever (a restore
+    // pass that settles before the local read is what makes refresh win).
+    // ACTOR_CHANGED describes nobody, so the new actor's own load keeps it.
+    if (result.ok || result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) setLoading(false);
     return result;
   }, [actorId, actorKey]);
 
