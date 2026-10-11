@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
 // B34-DEF-009: the migration provenance gate must catch an undeclared
@@ -27,13 +28,34 @@ if (!presentAlias) {
 }
 const CANONICAL_FILE = presentAlias;
 
-function runGate() {
+function runGate(root = REPO_ROOT) {
   try {
-    execFileSync(process.execPath, [GATE_SCRIPT], { cwd: REPO_ROOT, stdio: 'pipe' });
+    execFileSync(process.execPath, [path.join(root, 'scripts', 'check-migration-provenance.js')],
+      { cwd: root, stdio: 'pipe' });
     return 0;
   } catch (error) {
     return error.status;
   }
+}
+
+/** Negatives must NEVER modify the real migration tree; full CI runs tests concurrently. */
+function isolatedMigrationFixture(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-migration-provenance-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const migrationDir = path.join(root, 'supabase', 'migrations');
+  const scriptDir = path.join(root, 'scripts');
+  const configDir = path.join(root, 'config');
+  fs.mkdirSync(scriptDir, { recursive: true });
+  fs.mkdirSync(configDir, { recursive: true });
+  fs.cpSync(MIGRATIONS_DIR, migrationDir, { recursive: true });
+  fs.copyFileSync(GATE_SCRIPT, path.join(scriptDir, 'check-migration-provenance.js'));
+  fs.copyFileSync(MANIFEST_PATH, path.join(configDir, 'migration-provenance-manifest.json'));
+  return {
+    root,
+    migrationDir,
+    manifestPath: path.join(configDir, 'migration-provenance-manifest.json'),
+    canonical: path.join(migrationDir, path.basename(CANONICAL_FILE)),
+  };
 }
 
 test('B34-DEF-009: gate passes against the current, real migration tree', () => {
@@ -41,27 +63,25 @@ test('B34-DEF-009: gate passes against the current, real migration tree', () => 
 });
 
 test('B34-DEF-009 negative control: an undeclared copy of an aliased migration fails the gate', (t) => {
-  const duplicatePath = path.join(MIGRATIONS_DIR, '99990101000000_undeclared_duplicate_negctrl.sql');
-  fs.copyFileSync(CANONICAL_FILE, duplicatePath);
-  t.after(() => fs.rmSync(duplicatePath, { force: true }));
-
-  assert.equal(runGate(), 1, 'gate must fail on an undeclared duplicate logical migration');
+  const fixture = isolatedMigrationFixture(t);
+  const duplicatePath = path.join(fixture.migrationDir, '99990101000000_undeclared_duplicate_negctrl.sql');
+  fs.copyFileSync(fixture.canonical, duplicatePath);
+  assert.equal(runGate(fixture.root), 1, 'gate must fail on an undeclared duplicate logical migration');
+  assert.equal(fs.existsSync(path.join(MIGRATIONS_DIR, path.basename(duplicatePath))), false,
+    'negative control must never create an untracked file in the real migration directory');
 });
 
 test('B34-DEF-009 negative control: tampering with a declared alias fails the gate', (t) => {
-  const original = fs.readFileSync(CANONICAL_FILE, 'utf8');
-  fs.writeFileSync(CANONICAL_FILE, `${original}\n-- tampered for negative control\n`);
-  t.after(() => fs.writeFileSync(CANONICAL_FILE, original));
-
-  assert.equal(runGate(), 1, 'gate must fail once a declared alias no longer matches its canonical hash');
+  const fixture = isolatedMigrationFixture(t);
+  fs.appendFileSync(fixture.canonical, '\n-- tampered for negative control\n');
+  assert.equal(runGate(fixture.root), 1, 'gate must fail once a declared alias no longer matches its canonical hash');
+  assert.notEqual(fs.readFileSync(fixture.canonical, 'utf8'), fs.readFileSync(CANONICAL_FILE, 'utf8'));
 });
 
 test('B34-DEF-009 negative control: manifest pointing at the wrong hash fails the gate', (t) => {
-  const original = fs.readFileSync(MANIFEST_PATH, 'utf8');
-  const manifest = JSON.parse(original);
+  const fixture = isolatedMigrationFixture(t);
+  const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'));
   manifest.logicalMigrations[0].canonicalNormalizedHash = '0'.repeat(64);
-  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-  t.after(() => fs.writeFileSync(MANIFEST_PATH, original));
-
-  assert.equal(runGate(), 1, 'gate must fail when the manifest declares a hash the tree does not match');
+  fs.writeFileSync(fixture.manifestPath, JSON.stringify(manifest, null, 2));
+  assert.equal(runGate(fixture.root), 1, 'gate must fail when the manifest declares a hash the tree does not match');
 });
