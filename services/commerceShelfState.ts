@@ -107,6 +107,25 @@ export function resolveItemCommerceState(input: {
 }
 
 /**
+ * Whether the live multi-item shelf is about to be dispatched with no further
+ * user action, which is the only situation DEFERRED ("Finding where to buy
+ * this...") tells the truth about.
+ *
+ * `deferred` alone is not enough. With the multi-image Scanner on, useKScan
+ * deliberately holds commerce for a detection result until the user selects a
+ * garment (B35-SCAN-014: never spend on unseen candidates), so the shelf stays
+ * idle with `deferred` true until Find Matches. Reporting DEFERRED there showed a
+ * permanent spinner for a search nothing was running; the truthful state is
+ * NOT_STARTED, whose copy points at the real next step.
+ */
+export function isLiveShelfDispatchImminent(input: {
+  deferred: boolean;
+  dispatchHeldForSelection: boolean;
+}): boolean {
+  return input.deferred && !input.dispatchHeldForSelection;
+}
+
+/**
  * State of one item on a SAVED (reopened) scan. Reopen issues no network call, so
  * the stored card is the only evidence there is. No stored card means commerce
  * was never persisted for the item, which is NOT_STARTED, never COMPLETED_EMPTY:

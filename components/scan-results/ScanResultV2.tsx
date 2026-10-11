@@ -36,7 +36,7 @@ import { ResultSurfaceModal } from './ResultSurfaceModal';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
 import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
-import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
+import { MULTI_IMAGE_SCANNER_ENABLED, SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 import { resolvePurchaseShelfMode } from '../AnalysisCard';
@@ -639,6 +639,9 @@ export function ScanResultV2({
                   cardsByCandidateId={multiItemCommerceByCandidateId}
                   status={multiItemCommerceStatus}
                   deferred={Boolean(analysis?.commerceDeferred)}
+                  // useKScan holds commerce for a multi-image detection result until
+                  // the user selects a garment, so "dispatch is imminent" is false.
+                  dispatchHeldForSelection={MULTI_IMAGE_SCANNER_ENABLED}
                   findMatchesAvailable={typeof onAnalyzeSelectedCandidate === 'function'}
                   onRetry={onRetryMultiItemCommerce}
                 />
