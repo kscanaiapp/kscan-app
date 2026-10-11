@@ -265,6 +265,18 @@ test('ROLLBACK-09 failed capture child stderr is never re-emitted by the parent'
   assert.doesNotMatch(result.stderr + result.stdout, /PRIVATE_FAKE_SOURCE_AND_KEY/);
 });
 
+test('capture diagnostics reveal fixed failure categories but never expose credential-bearing child output', async () => {
+  const { safeCaptureFailureCode, runPrivateCapture } = await load('scripts/lib/private-function-capture.mjs');
+  const fake = 'Production capture download server-api failed [BUNDLE_FORMAT] PRIVATE_TOKEN' +
+    '\\nProduction capture download legacy-local failed [LOCAL_UNBUNDLER] SECRET_SOURCE';
+  assert.equal(safeCaptureFailureCode(fake), 'API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER');
+  assert.equal(safeCaptureFailureCode('PRIVATE_TOKEN unauthorized raw text'), 'STAGE_UNDETERMINED');
+  assert.throws(() => runPrivateCapture('scan-identify', { exec: () => {
+    const err = new Error('PRIVATE_TOKEN'); err.stderr = fake; throw err;
+  } }), (err) => err.message.includes('API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER') &&
+    !err.message.includes('PRIVATE_TOKEN') && !err.message.includes('SECRET_SOURCE'));
+});
+
 test('unreadable, empty and malformed live inventories cannot become new-function deletion plans', async () => {
   const { parseFunctionInventory } = await load('scripts/deploy-production-function.mjs');
   for (const response of ['invalid JSON', '{}', '[]', '[null]', '[{}]', '{"functions":{}}']) {
@@ -299,6 +311,48 @@ test('actual download accepts only known CLI cache and refuses source escapes', 
       assert.equal(result.downloaded, path.join(scratch, 'supabase/functions'));
     }
   }
+});
+
+test('capture uses server-side CLI unbundling before a legacy fallback, without weakening capture validation', async (t) => {
+  const { downloadLiveBundle } = await load('scripts/capture-production-function.mjs');
+  const calls = [];
+  const run = (args, { cwd }) => {
+    calls.push([...args]);
+    t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+    if (args.includes('--use-api')) {
+      const error = new Error('invalid eszip v2 PRIVATE_SOURCE_TOKEN');
+      error.stderr = 'SECRET_SENSITIVE_MATERIAL';
+      throw error;
+    }
+    const entrypoint = path.join(cwd, 'supabase/functions/scan-identify/index.ts');
+    fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
+    fs.writeFileSync(entrypoint, 'Deno.serve(() => new Response("ok"));');
+    const sibling = path.join(cwd, 'supabase/functions/_shared/helpers.ts');
+    fs.mkdirSync(path.dirname(sibling), { recursive: true });
+    fs.writeFileSync(sibling, 'export const ok = true;');
+  };
+  const result = downloadLiveBundle('scan-identify', { run });
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].includes('--use-api'), 'server-side unbundling must be first');
+  assert.ok(!calls[1].includes('--use-api'), 'bounded fallback uses legacy mode');
+  assert.equal(path.basename(result.downloaded), 'functions');
+  assert.ok(fs.existsSync(path.join(result.downloaded, '_shared/helpers.ts')));
+});
+
+test('failed capture never prints CLI source, tokens, or raw error output', () => {
+  const helper = pathToFileURL(path.join(ROOT, 'scripts/capture-production-function.mjs')).href;
+  const probe = `import { downloadLiveBundle } from ${JSON.stringify(helper)};
+    downloadLiveBundle('scan-identify', { run: () => {
+      const error = new Error('PRIVATE_SOURCE_MATERIAL invalid eszip v2');
+      error.stderr = 'SUPABASE_SECRET_VALUE';
+      throw error;
+    } });`;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /server-api failed \[BUNDLE_FORMAT\]/);
+  assert.match(result.stderr, /legacy-local failed \[BUNDLE_FORMAT\]/);
+  assert.match(result.stderr, /replacement refused/);
+  assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE_SOURCE_MATERIAL|SUPABASE_SECRET_VALUE/);
 });
 
 test('candidate identity rejects stale source, wrong metadata and entrypoint; exact same-source no-op is explicit', async (t) => {
