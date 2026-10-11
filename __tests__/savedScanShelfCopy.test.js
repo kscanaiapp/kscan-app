@@ -319,6 +319,29 @@ test('REOPEN, offers attached AFTER the save are shown too (save-before-commerce
   assert.equal(shelves(tree).find((node) => node.props.testID === 'purchase-options-shelf').props.products.length, 2);
 });
 
+// ── Live multi-item regression: saved-only copy must never leak into live ────
+
+test('LIVE scan with multiple candidates and no commerce retains per-item shelves, not the saved-only summary', () => {
+  const tree = AnalysisCard({
+    result: 'Three detected garments.',
+    metadata: { category: 'outerwear', color: 'black', silhouette: 'cropped' },
+    products: [],
+    purchaseOptions: [],
+    multiItemCandidates: CANDIDATES,
+    multiItemCommerce: [],
+    scanSourceType: 'live_scan',
+    onDismiss: () => {},
+  });
+  const ids = shelves(tree).map((node) => node.props.testID);
+  assert.equal(ids.includes('multi-item-commerce-not-started-summary'), false,
+    'reopened-scan-only summary must not appear on a live scan');
+  for (const candidate of CANDIDATES) {
+    assert.ok(ids.includes(`multi-item-commerce-not-started-${candidate.id}`),
+      `live scan should retain the commerce shelf for ${candidate.id}`);
+  }
+  assert.equal(ids.filter((id) => /^multi-item-commerce-not-started-(jacket|boots|bag)$/.test(id)).length, CANDIDATES.length);
+});
+
 // ── Reopened multi-item scans ─────────────────────────────────────────────────
 
 test('REOPEN, saved list of items with NO commerce: exactly ONE notice, not one per item plus one', async () => {
