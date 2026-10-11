@@ -53,6 +53,12 @@ const SIGN_IN_REQUIRED_MESSAGE = 'Please sign in to scan and identify fashion it
 // Same wording as the backend's rate_limited response; kept as a client constant
 // so the copy never depends on an arbitrary backend string.
 const RATE_LIMITED_MESSAGE = 'Daily scan limit reached. Try again tomorrow.';
+// The service answered, but not with a result. Distinct from NETWORK_MESSAGE,
+// which is reserved for a call that never produced an HTTP response.
+const SERVICE_UNAVAILABLE_MESSAGE =
+  'The analysis service is having trouble right now. Please try again in a moment.';
+const ACCOUNT_UNAVAILABLE_MESSAGE =
+  "Your account can't use scanning right now. Please sign in again or contact support.";
 const NON_FASHION_MESSAGE =
   'This does not appear to be a fashion item. Try scanning clothing, shoes, bags, or accessories.';
 
@@ -342,13 +348,19 @@ function resolveFailedUserMessage(
  */
 function logScanFailure(
   reason: ScanFailureReason,
-  detail: { scanStatus?: string; hasPayload?: boolean; backendMessage?: string } = {},
+  detail: {
+    scanStatus?: string;
+    hasPayload?: boolean;
+    backendMessage?: string;
+    httpStatus?: number | null;
+  } = {},
 ): void {
   if (!SCAN_DIAGNOSTICS_ENABLED) return;
   console.log('[scanIdentification] Failure reason:', {
     reason,
     scanStatus: detail.scanStatus,
     hasPayload: detail.hasPayload,
+    httpStatus: detail.httpStatus ?? undefined,
     backendMessage: detail.backendMessage?.slice(0, 200),
   });
 }
@@ -382,6 +394,32 @@ async function readContractError(
   } catch {
     return null;
   }
+}
+
+/**
+ * HTTP status of a failed invoke, or null when no HTTP response arrived at all
+ * (a dropped connection or fetch failure carries no numeric status). Reads only
+ * the status — never the body — so it is safe to call before or after
+ * `readContractError` consumes the response.
+ */
+function readInvokeHttpStatus(error: unknown): number | null {
+  const status = (error as { context?: { status?: unknown } } | null | undefined)?.context?.status;
+  return typeof status === 'number' && Number.isFinite(status) ? status : null;
+}
+
+/**
+ * Cause-specific copy for a failed invoke. Only a call that produced NO HTTP
+ * response may claim a connection problem; telling a user with a revoked
+ * session, a deactivated account or a failing backend to "check your
+ * connection" sends them to fix the wrong thing.
+ */
+function failureMessageForInvokeStatus(status: number | null): string {
+  if (status === null) return NETWORK_MESSAGE;
+  if (status === 401) return SIGN_IN_REQUIRED_MESSAGE;
+  if (status === 403) return ACCOUNT_UNAVAILABLE_MESSAGE;
+  if (status === 408 || status === 504) return TIMEOUT_MESSAGE;
+  if (status === 429 || status >= 500) return SERVICE_UNAVAILABLE_MESSAGE;
+  return NEUTRAL_FAILED_MESSAGE;
 }
 
 /**
@@ -567,13 +605,23 @@ export async function identifyScanImage(
     });
 
     if (error) {
-      logScanFailure('invoke_error', { hasPayload: false, backendMessage: error?.message });
+      const httpStatus = readInvokeHttpStatus(error);
+      logScanFailure('invoke_error', {
+        hasPayload: false,
+        backendMessage: error?.message,
+        httpStatus,
+      });
       // A bounded contract error (HTTP 400 with a stable `error.code`) is the
       // one failure the Scanner V2 adapter must be able to branch on. Reading
       // it costs nothing on the legacy path, where 400s do not occur, and it
       // never surfaces the response body — only the enum code and the status.
       const contractError = await readContractError(error);
-      const out = failed(NETWORK_MESSAGE);
+      const out = failed(failureMessageForInvokeStatus(httpStatus));
+      // The status travels with every HTTP failure (401/403/429/5xx), not only
+      // contract errors, so callers can classify auth/quota/timeout faithfully.
+      // `isUnsupportedContractVersion` still requires 400 + its exact code, so
+      // a wider status never triggers the legacy fallback.
+      if (httpStatus !== null) out.httpStatus = httpStatus;
       if (contractError) {
         out.httpStatus = contractError.httpStatus;
         out.contractErrorCode = contractError.code;
