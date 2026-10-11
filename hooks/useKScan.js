@@ -1320,6 +1320,16 @@ export function useKScan() {
       setStatus('error');
       return;
     }
+    // Candidate authority belongs to the actor who began detection: the same
+    // boundary runAnalysis and analyzeSelectedCandidates enforce. Without it a
+    // late answer for one account's garment is published to, and then saved
+    // for, whoever is signed in when it lands.
+    const actorRequest = multiImageActorRequestRef.current;
+    if (!isActorRequestCurrent(actorRequest)) {
+      setError('Please start a new scan for this account.');
+      setStatus('error');
+      return;
+    }
 
     const operationId = startInFlight();
     if (operationId === null) return;
@@ -1422,7 +1432,7 @@ export function useKScan() {
       if (elapsed < MIN_ANALYSIS_MS) {
         await new Promise((resolve) => setTimeout(resolve, MIN_ANALYSIS_MS - elapsed));
       }
-      if (!isOperationValid(operationId)) return;
+      if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) return;
 
       if (Array.isArray(initialAnalysis?.confirmationCandidates)) {
         data.confirmationCandidates = initialAnalysis.confirmationCandidates;
@@ -1438,7 +1448,7 @@ export function useKScan() {
       setNonFashionMessage(null);
       setStatus('result');
     } catch (err) {
-      if (!isOperationValid(operationId)) return;
+      if (!isOperationValid(operationId) || !isActorRequestCurrent(actorRequest)) return;
       errorPulse();
       setAnalysis(initialAnalysis);
       setError(
