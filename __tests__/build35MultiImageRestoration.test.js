@@ -49,9 +49,11 @@ test('restored batch candidate identity remains source-image bound', () => {
   assert.match(result, /from image/);
 });
 
-test('ordinary production remains opt-in while Staging and certification can exercise restoration', () => {
+test('multi-image Scanner ships ON in both store profiles, as do Staging and certification', () => {
   const eas = JSON.parse(read('eas.json'));
-  assert.equal(eas.build.production.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, undefined);
+  // Production Scanner certification: enabled in the real shipping profiles (explicit, never by absence).
+  assert.equal(eas.build.production.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
+  assert.equal(eas.build['build35-release'].env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
   assert.equal(eas.build.staging.env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
   assert.equal(eas.build['production-certification'].env.EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED, 'true');
 });
