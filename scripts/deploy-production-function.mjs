@@ -196,8 +196,9 @@ async function main() {
       console.log(JSON.stringify(captured));
       capturePath = captured.capture_path;
     } catch (err) {
+      const code = /Private function capture failed \[([A-Z0-9_+]+)\]/.exec(err?.message ?? '')?.[1] ?? 'STAGE_UNDETERMINED';
       fail(
-        `Could not capture the live production bundle for ${fnName}. ` +
+        `Could not capture the live production bundle for ${fnName} [${code}]. ` +
           'Refusing to replace an existing production function without exact rollback material.',
       );
     }
