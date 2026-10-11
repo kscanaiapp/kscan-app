@@ -166,6 +166,7 @@ jobs:
             --workdir /zap/wrk \
             -t "${ZAP_IMAGE}" \
             zap-baseline.py \
+            --autooff \
             -t "${ZAP_STAGING_URL}" \
             -c .zap/baseline-rules.tsv \
             -m 3 \

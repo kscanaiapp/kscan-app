@@ -95,11 +95,18 @@ function restoreCapturedBundle({ functionName, captureRoot, files, verifyJwt, bu
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `kscan-restore-${functionName}-`));
   const target = bundleLayout === 'functions-root' ? path.join(scratch, 'supabase', 'functions') :
     path.join(scratch, 'supabase', 'functions', functionName);
+  if (files.some((file) => !/^[a-zA-Z0-9_.\/-]+$/.test(file) || file.includes('..'))) {
+    fail('Captured paths cannot be represented as exact static file patterns; restoration refused');
+  }
+  // CLI deployment includes the import graph automatically, but runtime-read
+  // assets need explicit static patterns. Name every captured file exactly.
+  const staticFiles = files.map((file) => `./functions/${bundleLayout === 'functions-root' ? file : `${functionName}/${file}`}`);
   fs.mkdirSync(target, { recursive: true });
   fs.writeFileSync(
     path.join(scratch, 'supabase', 'config.toml'),
     `project_id = "${PRODUCTION_PROJECT_REF}"\n[functions.${functionName}]\nverify_jwt = ${verifyJwt}\n` +
-      `entrypoint = ${JSON.stringify(`./functions/${bundleLayout === 'functions-root' ? entrypoint : `${functionName}/${entrypoint}`}`)}\n`,
+      `entrypoint = ${JSON.stringify(`./functions/${bundleLayout === 'functions-root' ? entrypoint : `${functionName}/${entrypoint}`}`)}\n` +
+      `static_files = ${JSON.stringify(staticFiles)}\n`,
   );
 
   for (const rel of files) {

@@ -48,6 +48,7 @@ import { pathToFileURL } from 'node:url';
 import { packRecovery, unpackRecovery, recoveryHash, managedRecoveryStore, recoverAfterFailure, RECOVERY_BUCKET } from './lib/production-recovery.mjs';
 import { checkProductionContract } from './lib/production-contract-check.mjs';
 import { runPrivateCapture } from './lib/private-function-capture.mjs';
+import { verifyCandidateIdentity } from './lib/production-candidate-identity.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 const BUNDLE_HASH_FIELDS = ['ezbr_sha256', 'sha256', 'bundle_sha256', 'hash'];
@@ -291,8 +292,11 @@ async function main() {
       const health = await shallowHealthCheck(fnName, verifyJwt);
       const contract = await checkProductionContract({ functionName: fnName,
         url: process.env.SUPABASE_PRODUCTION_URL, anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY, verifyJwt });
-      const identityVerified = Boolean(newVersion && deployedBundleHash &&
-        deployed?.verify_jwt === verifyJwt && status === 'ACTIVE');
+      const candidateIdentity = verifyCandidateIdentity({ captured: runPrivateCapture(fnName), deployed, prior,
+        functionName: fnName, projectRef: PRODUCTION_PROJECT_REF, verifyJwt,
+        sourceRoot: path.join(process.cwd(), 'supabase', 'functions'),
+        priorCapture: capturePath ? JSON.parse(fs.readFileSync(capturePath, 'utf8')) : null });
+      const identityVerified = candidateIdentity.verified;
 
       const manifest = {
         function_name: fnName,
@@ -315,6 +319,7 @@ async function main() {
         health,
         contract,
         identity_verified: identityVerified,
+        candidate_identity: candidateIdentity,
         replacement_attempted: true,
         recovery: reference,
         rollback_strategy: priorVersion ? 'restore_captured_bundle' : 'remove_or_disable_new_function',

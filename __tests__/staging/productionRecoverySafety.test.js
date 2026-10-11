@@ -19,7 +19,7 @@ async function fixture(t, jwt = false) {
   const sources = { 'scan-identify/index.ts': 'import {handler} from "./handler.ts"; import "../_shared/config.json"; Deno.serve(handler);',
     'scan-identify/handler.ts': 'export const handler = () => new Response("PRIVATE ORIGINAL SOURCE");',
     '_shared/config.json': '{"safe":true}', 'scan-identify/deno.jsonc': '{/* original runtime */}',
-    'scan-identify/assets/template.html': '<p>Original asset</p>' };
+    'scan-identify/assets/template.html': '<p>Original asset</p>', '_shared/assets/engine.wasm': 'wasm fixture' };
   for (const [relative, bytes] of Object.entries(sources)) {
     fs.mkdirSync(path.dirname(path.join(files, relative)), { recursive: true });
     fs.writeFileSync(path.join(files, relative), bytes);
@@ -60,6 +60,13 @@ async function restoreOnlyTransferred(t, jwt = false) {
       const config = fs.readFileSync(path.join(cwd, 'supabase/config.toml'), 'utf8');
       assert.match(config, /entrypoint = "\.\/functions\/scan-identify\/index\.ts"/);
       assert.match(config, new RegExp(`verify_jwt = ${jwt}`));
+      const staticFiles = JSON.parse(config.match(/^static_files = (.*)$/m)[1]);
+      // Both CLI API StaticPatterns and Docker --static consume this list.
+      // Emulate exact-pattern upload selection, including runtime-read assets.
+      assert.deepEqual(staticFiles.sort(), Object.keys(sources).map((file) => `./functions/${file}`).sort());
+      const selected = staticFiles.map((file) => fs.readFileSync(path.join(cwd, 'supabase', file), 'utf8'));
+      assert.ok(selected.includes('<p>Original asset</p>'));
+      assert.ok(selected.includes('wasm fixture'));
       for (const [relative, expected] of Object.entries(sources)) {
         assert.equal(fs.readFileSync(path.join(cwd, 'supabase/functions', relative), 'utf8'), expected);
       }
@@ -79,7 +86,7 @@ test('ROLLBACK-01 capture includes every required file and valid manifest', asyn
 test('ROLLBACK-02 restore runs with original runner deleted, only transferred bytes', async (t) => {
   const restored = await restoreOnlyTransferred(t);
   assert.equal(fs.existsSync(restored.original), false);
-  assert.equal(restored.result.fileCount, 5);
+  assert.equal(restored.result.fileCount, 6);
 });
 
 test('ROLLBACK-03 corrupted package, modified and missing captured file fail closed', async (t) => {
@@ -267,4 +274,77 @@ test('unreadable, empty and malformed live inventories cannot become new-functio
   assert.deepEqual(parseFunctionInventory(JSON.stringify(rows)), rows);
   assert.deepEqual(parseFunctionInventory(JSON.stringify({ functions: rows })), rows);
   assert.throws(() => parseFunctionInventory(JSON.stringify([...rows, ...rows])), /Ambiguous/);
+});
+
+test('actual download accepts only known CLI cache and refuses source escapes', async (t) => {
+  const { downloadLiveBundle } = await load('scripts/capture-production-function.mjs');
+  for (const bookkeeping of [null, 'supabase/.temp/cli-latest', 'supabase/.temp/unexpected-source.ts', 'escaped.ts']) {
+    let scratch;
+    const run = (args, { cwd }) => {
+      scratch = cwd;
+      t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+      const entrypoint = path.join(cwd, 'supabase/functions/scan-identify/index.ts');
+      fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
+      fs.writeFileSync(entrypoint, 'Deno.serve(() => new Response("ok"));');
+      if (bookkeeping) {
+        const file = path.join(cwd, bookkeeping);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, 'v2.109.1');
+      }
+    };
+    if (bookkeeping && bookkeeping !== 'supabase/.temp/cli-latest') {
+      assert.throws(() => downloadLiveBundle('scan-identify', { run }), /outside the recoverable/);
+    } else {
+      const result = downloadLiveBundle('scan-identify', { run });
+      assert.equal(result.downloaded, path.join(scratch, 'supabase/functions'));
+    }
+  }
+});
+
+test('candidate identity rejects stale source, wrong metadata and entrypoint; exact same-source no-op is explicit', async (t) => {
+  const f = await fixture(t);
+  const { verifyCandidateIdentity } = await load('scripts/lib/production-candidate-identity.mjs');
+  const approved = path.join(f.root, 'approved-functions');
+  fs.cpSync(path.join(f.original, 'files'), approved, { recursive: true });
+  const captured = { capture_path: path.join(f.original, 'capture.json') };
+  const deployed = { version: 172, ezbr_sha256: 'b'.repeat(64), status: 'ACTIVE', verify_jwt: false };
+  const input = { captured, deployed, prior: deployed, priorCapture: f.capture,
+    sourceRoot: approved, functionName: 'scan-identify', projectRef: production, verifyJwt: false };
+  assert.equal(verifyCandidateIdentity(input).same_source_noop, true);
+  fs.writeFileSync(path.join(approved, 'scan-identify/handler.ts'), 'NEW APPROVED CANDIDATE');
+  assert.throws(() => verifyCandidateIdentity(input), /differs from approved candidate/);
+  fs.writeFileSync(path.join(approved, 'scan-identify/handler.ts'), f.sources['scan-identify/handler.ts']);
+  assert.throws(() => verifyCandidateIdentity({ ...input, priorCapture: { ...f.capture, tree_digest: 'wrong' } }), /Unchanged deployment/);
+  assert.throws(() => verifyCandidateIdentity({ ...input, deployed: { ...deployed, version: 173 } }), /identity/);
+  const invalid = { ...f.capture, entrypoint: 'scan-identify/handler.ts' };
+  fs.writeFileSync(captured.capture_path, JSON.stringify(invalid));
+  assert.throws(() => verifyCandidateIdentity(input), /identity/);
+  const next = { ...f.capture, live_version: 173, ezbr_sha256: 'c'.repeat(64) };
+  fs.writeFileSync(captured.capture_path, JSON.stringify(next));
+  const nextInput = { ...input, deployed: { ...deployed, version: 173, ezbr_sha256: next.ezbr_sha256 } };
+  assert.equal(verifyCandidateIdentity(nextInput).same_source_noop, false);
+  fs.rmSync(path.join(f.original, 'files/_shared/config.json'));
+  const { digestTree } = await load('scripts/lib/function-bundle-capture.mjs');
+  const tree = digestTree(path.join(f.original, 'files'));
+  fs.writeFileSync(captured.capture_path, JSON.stringify({ ...next,
+    files: tree.files, file_count: tree.files.length, tree_digest: tree.treeDigest }));
+  assert.throws(() => verifyCandidateIdentity(nextInput), /missing an approved local dependency/);
+});
+
+test('ZAP baseline retains complete passive scan and reports while avoiding failing automation framework', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/zap-baseline-staging.yml'), 'utf8');
+  assert.match(workflow, /zap-baseline\.py\s*\\\s*--autooff/);
+  for (const required of ['-t "${ZAP_STAGING_URL}"', '-c .zap/baseline-rules.tsv', '-m 3', '-T 10',
+    '-J zap-out/zap-baseline-report.json', 'Operational failure: zap-baseline-report.json missing']) {
+    assert.ok(workflow.includes(required), required);
+  }
+});
+
+test('actual deployment rejects stale candidate and rolls back; exact same source and changed approved candidate succeed', () => {
+  for (const mode of ['stale-candidate', 'same-source', 'changed-success']) {
+    const result = spawnSync(process.execPath, ['--experimental-vm-modules',
+      path.join(ROOT, '__tests__/helpers/productionDeployMainProbe.mjs'), ROOT, mode], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `${mode}: ${result.stdout}\n${result.stderr}`);
+    assert.equal(JSON.parse(result.stdout).passed, true);
+  }
 });

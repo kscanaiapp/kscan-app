@@ -83,7 +83,7 @@ function copyTree(from, to) {
  * Downloads the live bundle into an isolated scratch project and returns the
  * directory holding its files. Never writes into the repository.
  */
-function downloadLiveBundle(functionName) {
+function downloadLiveBundle(functionName, { run = runSupabaseProduction } = {}) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `kscan-capture-${functionName}-`));
   fs.mkdirSync(path.join(scratch, 'supabase', 'functions'), { recursive: true });
   // A minimal config so the CLI treats the scratch dir as a project root.
@@ -93,7 +93,7 @@ function downloadLiveBundle(functionName) {
   );
 
   try {
-    runSupabaseProduction(
+    run(
       ['functions', 'download', functionName, '--project-ref', PRODUCTION_PROJECT_REF],
       { cwd: scratch },
     );
@@ -112,8 +112,9 @@ function downloadLiveBundle(functionName) {
     );
   }
   const escaped = listCapturableFiles(scratch).filter((file) =>
-    file !== 'supabase/config.toml' && !file.startsWith('supabase/functions/'));
-  if (escaped.length) fail('CLI download returned files outside the recoverable function tree; replacement refused');
+    file !== 'supabase/config.toml' && file !== 'supabase/.temp/cli-latest' &&
+    !file.startsWith('supabase/functions/'));
+  if (escaped.length) throw new Error('CLI download returned files outside the recoverable function tree; replacement refused');
   // CLI download preserves ../_shared imports as siblings. Capture the whole
   // returned functions tree, not just the named function's directory.
   return { scratch, downloaded: path.join(scratch, 'supabase', 'functions') };
