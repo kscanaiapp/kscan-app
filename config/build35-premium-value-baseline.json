@@ -7,39 +7,39 @@
   ],
   "todayByProfile": {
     "preview": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "development": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "staging": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "staging-certification": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "production": [
       "false",
-      "true",
-      "true"
+      "false",
+      "false"
     ],
     "production-certification": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "build35-testing": [
-      "true",
-      "true",
-      "true"
+      "false",
+      "false",
+      "false"
     ],
     "build35-release": [
       "false",
@@ -101,5 +101,6 @@
     "types/kplusCommerceContract.ts": "537b5975ed6885db45b4db556e97dd78a8128e36bfeb4546f4f569cc851f5f62",
     "types/kplusEntitlementContract.ts": "d07871fd28dd4310774597bb163d6894ffa994fe993a5184933e9a2832ae1bfc",
     "types/todayWithElise.ts": "553ae08753519d4a54b6080a493bebe7a4cfe51d5320f2c9e2c2fb9bdbc5ec2a"
-  }
+  },
+  "todayHoldAuthority": "Owner binding pre-build addendum ADD-01, 2026-10-11: TODAY_RELEASE=HELD in every EAS profile"
 }

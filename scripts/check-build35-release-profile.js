@@ -155,6 +155,18 @@ function validateEnvironment(env, failures, { strict = true } = {}) {
 
 function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = PROFILE }) {
   const failures = [];
+  // Owner ADD-01: Today is held in every profile, including certification.
+  // Check all profiles so an unrelated build command cannot bypass the hold.
+  for (const name of Object.keys(eas.build || {})) {
+    try {
+      const env = resolveCheckedProfile(eas, name).env || {};
+      for (const flag of ['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', ...DORMANT_TODAY_CHILDREN]) {
+        if (env[flag] !== 'false') failures.push(`${name}/${flag} must resolve explicitly false (owner Today hold)`);
+      }
+    } catch (error) {
+      failures.push(`${name}: ${error.message}`);
+    }
+  }
   let profile;
   try {
     profile = resolveCheckedProfile(eas, profileName);

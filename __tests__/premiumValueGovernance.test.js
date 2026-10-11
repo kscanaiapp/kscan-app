@@ -18,7 +18,12 @@ function assertToday(config) {
     assert.deepEqual(baseline.todayFlagOrder.map(flag => env[flag]), expected, name);
   }
 }
-test('P0-TODAY-01: every effective Today flag preserves the Phase 0 baseline', () => assertToday(eas));
+test('P0-TODAY-01: every effective Today flag preserves the owner hold baseline', () => assertToday(eas));
+test('NC-PV-01: Today is OFF in every profile under the owner Build 35 hold', () => {
+  for (const name of Object.keys(eas.build)) {
+    for (const flag of baseline.todayFlagOrder) assert.equal(effective(eas, name)[flag], 'false', `${name}/${flag}`);
+  }
+});
 for (const name of Object.keys(baseline.todayByProfile)) {
   for (const flag of baseline.todayFlagOrder) {
     test(`NC-PV-TODAY: ${name}/${flag} drift is rejected`, () => {

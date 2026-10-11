@@ -141,15 +141,15 @@ for (const key of REQUIRED_OFF) {
     });
     assert.match(failures, /absent or false|explicitly false/);
   });
-  if (key !== TODAY_PARENT) {
+  if (key !== TODAY_PARENT && !TODAY_CHILDREN.includes(key)) {
     test(`production store profile accepts ${key} absent (default-dark by exact-true resolvers)`, () => {
       assert.equal(productionFixture((env) => { delete env[key]; }), '');
     });
   }
 }
-test('Today children are dormant only while the Today parent is explicitly false', () => {
+test('Today children stay explicitly OFF under the owner hold, even with their parent OFF', () => {
   for (const child of TODAY_CHILDREN) {
-    assert.equal(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'false'; }), '');
+    assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'false'; }), /owner Today hold/);
     assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'true'; }), /absent or false|explicitly false/);
     assert.match(productionFixture((env) => { env[child] = 'true'; delete env[TODAY_PARENT]; }), /TODAY_WITH_ELISE_V1 must resolve explicitly false/);
   }
