@@ -34,8 +34,8 @@ export function hasSpeechConsent(actorId: string): boolean {
 
 export async function loadSpeechConsent(actorId: string): Promise<boolean> {
   if (!SPEECH_DISCLOSURE_APPROVED || getActorContext().actorId !== actorId) return false;
-  await loadThirdPartyAiConsent('elise_speech', SPEECH_CONSENT_VERSION);
-  return hasSpeechConsent(actorId);
+  const granted = await loadThirdPartyAiConsent('elise_speech', SPEECH_CONSENT_VERSION);
+  return granted && hasSpeechConsent(actorId);
 }
 
 export async function grantSpeechConsent(actorId: string): Promise<boolean> {

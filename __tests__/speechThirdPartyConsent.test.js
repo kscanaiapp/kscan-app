@@ -10,17 +10,18 @@ function load(file, mocks, transform = (source) => source) {
   const module = { exports: {} };
   const output = ts.transpileModule(transform(fs.readFileSync(path.join(ROOT, file), 'utf8')),
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText;
-  vm.runInNewContext(output, { module, exports: module.exports, Date, Map, Set, console,
+  vm.runInNewContext(output, { module, exports: module.exports, Date, Map, Set, console, AbortController,
     require: (id) => { assert.ok(id in mocks, `Unexpected import ${id}`); return mocks[id]; } });
   return module.exports;
 }
 function fixture(approved = true) {
   let actorId = 'actor-a'; let epoch = 1; let storageFailed = false;
   let beforeSet = async () => {};
+  let beforeGet = async () => {};
   const records = new Map();
   const actor = { getActorContext: () => ({ actorId, epoch }) };
   const storage = {
-    getItem: async (key) => { if (storageFailed) throw new Error('storage unavailable'); return records.get(key) ?? null; },
+    getItem: async (key) => { await beforeGet(); if (storageFailed) throw new Error('storage unavailable'); return records.get(key) ?? null; },
     setItem: async (key, value) => { await beforeSet(); if (storageFailed) throw new Error('storage unavailable'); records.set(key, value); },
     removeItem: async (key) => { if (storageFailed) throw new Error('storage unavailable'); records.delete(key); },
   };
@@ -31,7 +32,52 @@ function fixture(approved = true) {
     (source) => source.replace(/SPEECH_DISCLOSURE_APPROVED = (?:false|true)/,
       `SPEECH_DISCLOSURE_APPROVED = ${approved}`));
   return { speech, records, changeActor: (next) => { actorId = next; epoch++; },
-    failStorage: () => { storageFailed = true; }, pauseWrites: (gate) => { beforeSet = () => gate; } };
+    failStorage: () => { storageFailed = true; }, pauseWrites: (gate) => { beforeSet = () => gate; },
+    pauseReads: (gate) => { beforeGet = () => gate; } };
+}
+
+function playbackFixture(f) {
+  const effects = { requests: 0, files: 0, plays: 0, listeners: 0 };
+  const store = load('stores/avatarSpeechStore.ts', { react: { useSyncExternalStore: () => {} } });
+  const service = load('services/avatarSpeech.ts', {
+    '../stores/avatarSpeechStore': store,
+    './avatars/speechConsent': f.speech,
+    '../constants/featureFlags': { STYLIST_SPEECH_ENABLED: true },
+    './avatars/speechAppState': { ensureSpeechAppStateListener: () => { effects.listeners++; }, registerSpeechInterruptionHandler: () => {} },
+    './avatars/stylistSpeechClient': { requestStylistSpeech: async () => { effects.requests++; return { audioBase64: 'YQ==', voiceProfile: 'feminine', alignment: null }; } },
+    './avatars/stylistSpeechFiles': { createTemporaryStylistSpeechFile: async () => { effects.files++; return 'file:///speech.mp3'; }, deleteTemporaryStylistSpeechFile: async () => {} },
+    './avatars/stylistAudioPlayback': { playStylistAudio: async () => { effects.plays++; return { stop: () => {} }; } },
+  });
+  const payload = { actorId: 'actor-a', sessionId: 'session', messageId: 'message', stylistId: 'elise_default', avatarId: 'elise_default', source: 'message' };
+  return { service, effects, payload };
+}
+
+test('warm consent load rejects an A to signed-out to A epoch change', async () => {
+  const f = fixture();
+  assert.equal(await f.speech.grantSpeechConsent('actor-a'), true);
+  let release; f.pauseReads(new Promise(resolve => { release = resolve; }));
+  const loading = f.speech.loadSpeechConsent('actor-a');
+  f.changeActor(null); f.changeActor('actor-a');
+  release();
+  assert.equal(await loading, false);
+});
+
+for (const interruption of ['same-account sign-in', 'matching scope stop']) {
+  test(`consent read cannot restart old speech after ${interruption}`, async () => {
+    const f = fixture();
+    assert.equal(await f.speech.grantSpeechConsent('actor-a'), true);
+    const { service, effects, payload } = playbackFixture(f);
+    let release; f.pauseReads(new Promise(resolve => { release = resolve; }));
+    const speaking = service.speakAvatarMessage(payload);
+    if (interruption === 'same-account sign-in') {
+      f.changeActor(null); await service.stopAvatarSpeechPlayback();
+      f.changeActor('actor-a'); await service.stopAvatarSpeechPlayback();
+    } else {
+      await service.stopAvatarSpeechPlayback({ actorId: payload.actorId, sessionId: payload.sessionId });
+    }
+    release(); await speaking;
+    assert.deepEqual(effects, { requests: 0, files: 0, plays: 0, listeners: 0 });
+  });
 }
 
 test('withdrawal wins over an earlier in-flight grant in memory and durable storage', async () => {
