@@ -168,7 +168,7 @@ test('negative control: removing the invariant guard lets an armed response thro
   // above were passing for an unrelated reason, this unguarded copy would still
   // reject the armed response and this control would fail.
   const source = fs.readFileSync(SCRIPT, 'utf8');
-  const guard = /const armed =\n[\s\S]*?Object\.prototype\.hasOwnProperty\.call\(body, 'removed'\);/;
+  const guard = /const armed =\r?\n[\s\S]*?Object\.prototype\.hasOwnProperty\.call\(body, 'removed'\);/;
   assert.match(source, guard, 'guard text moved -- update this control');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orphan-invoker-nc-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

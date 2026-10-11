@@ -536,8 +536,8 @@ function findForegroundServiceManifests(root) {
  * of `governedManifestPaths`. Factored out so the real reverify test and its
  * negative control (CONTROL L below) exercise the exact same comparison. */
 function findUngovernedForegroundServiceManifests(root, governedManifestPaths) {
-  const governed = new Set(governedManifestPaths.map((p) => path.resolve(p)));
-  return findForegroundServiceManifests(root).filter((p) => !governed.has(p));
+  const governed = new Set(governedManifestPaths.map((p) => fs.realpathSync(p)));
+  return findForegroundServiceManifests(root).filter((p) => !governed.has(fs.realpathSync(p)));
 }
 
 test('reverify the governed dependency set: no other installed package declares a foreground-service surface', () => {
@@ -554,6 +554,22 @@ test('reverify the governed dependency set: no other installed package declares 
     [],
     `a package outside GOVERNED_FGS_LIBRARIES declares a foreground-service surface: ${unexpected.join(', ')} -- add it to the governed set`,
   );
+});
+
+test('governed package symlink resolves to its actual manifest without exempting a different contributor', () => {
+  const os = require('node:os');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-fgs-package-link-'));
+  try {
+    const store = path.join(root, 'store');
+    const other = path.join(root, 'other');
+    fs.mkdirSync(store); fs.mkdirSync(other);
+    const xml = '<manifest><uses-permission android:name="android.permission.FOREGROUND_SERVICE" /></manifest>';
+    fs.writeFileSync(path.join(store, 'AndroidManifest.xml'), xml);
+    fs.writeFileSync(path.join(other, 'AndroidManifest.xml'), xml);
+    fs.symlinkSync(store, path.join(root, 'package'), 'junction');
+    assert.deepEqual(findUngovernedForegroundServiceManifests(root,
+      [path.join(root, 'package/AndroidManifest.xml')]), [path.join(other, 'AndroidManifest.xml')]);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
 test('CONTROL L (negative): a third library manifest discovered by the pure-Node scanner is treated as ungoverned', () => {
