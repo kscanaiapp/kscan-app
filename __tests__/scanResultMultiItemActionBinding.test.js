@@ -81,8 +81,10 @@ test('app.js does not write a single-item scan record while several garments are
   const start = APP.indexOf('// Save each successful scan once to the local Style Library.');
   assert.ok(start > 0, 'the single-item save effect is missing');
   const effect = APP.slice(start, start + 900);
+  // The only exception is the selected garment's own result (selectedItemResult):
+  // by then ONE garment was chosen, and this is the record that carries its offers.
   assert.ok(
-    effect.includes('analysis.confirmationCandidates?.length ||'),
+    effect.includes('(analysis.confirmationCandidates?.length && !analysis.selectedItemResult) ||'),
     'the single-item save must bail out while confirmation candidates exist, or a multi-item ' +
       'scan is persisted as though it were the primary garment alone',
   );

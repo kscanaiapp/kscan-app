@@ -133,6 +133,14 @@ export type LegacyAnalysisData = {
    * imminent" from "commerce was skipped and nothing will be dispatched".
    */
   commerceDeferred?: boolean;
+  /**
+   * This analysis is the RESULT of identifying one selected garment (set by
+   * useKScan.analyzeSelectedCandidate), not the detection result. It still
+   * carries the detection's `confirmationCandidates` so the item list stays on
+   * screen, but its shelf is the single-item one: the per-candidate multi-item
+   * shelf must neither be dispatched nor rendered for it.
+   */
+  selectedItemResult?: boolean;
   confirmationCandidates?: OutfitConfirmationCandidate[];
   secondhand?: any;
   sneakerReference?: any[];
