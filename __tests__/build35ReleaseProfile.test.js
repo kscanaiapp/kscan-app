@@ -20,7 +20,7 @@ function checkMutation(mutate, expected) {
   assert.match(validateReleaseProfile(fixture).join('\n'), expected);
 }
 
-test('canonical release resolves all holds OFF with production identities and store artifact shape', () => {
+test('canonical release resolves all launch features ON with production identities and store artifact shape', () => {
   assert.deepEqual(validateReleaseProfile(input()), []);
 });
 test('certification remains independently enabled for proof gathering', () => {
@@ -38,7 +38,7 @@ for (const key of REQUIRED_OFF) {
 // Multi-image Scanner ships ON in both store profiles, and explicitly: the guard fails
 // closed on an absent, inherited or "false" value so it cannot be turned off by accident.
 test('multi-image Scanner is a REQUIRED_ON capability, not a held-off one', () => {
-  assert.deepEqual(REQUIRED_ON, ['EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED']);
+  assert.ok(REQUIRED_ON.includes('EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED'));
   assert.ok(!REQUIRED_OFF.includes('EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED'));
 });
 for (const key of REQUIRED_ON) {
@@ -83,7 +83,7 @@ test('resolver honors nested parent env/platform fields before release overrides
   const fixture = input();
   fixture.eas.build.production.extends = 'base';
   fixture.eas.build.base = { env: { EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1: 'true' }, ios: { simulator: true } };
-  assert.equal(resolveCheckedProfile(fixture.eas, PROFILE).env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1, 'false');
+  assert.equal(resolveCheckedProfile(fixture.eas, PROFILE).env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1, 'true');
   assert.match(validateReleaseProfile(fixture).join('\n'), /physical-device/);
 });
 test('production identity checks reject substring spoofing, staging keys and native package drift', () => {
@@ -92,11 +92,11 @@ test('production identity checks reject substring spoofing, staging keys and nat
   checkMutation(({ app }) => { app.expo.ios.bundleIdentifier = 'com.kscanai.debug'; }, /native identities/);
   checkMutation((fixture) => { fixture.gradle = fixture.gradle.replace("applicationId 'com.kscanai.app'", "applicationId 'com.kscanai.debug'"); }, /applicationId/);
 });
-test('effective build environment must be complete, OFF and free of unapproved endpoints', () => {
+test('effective build environment must be complete, feature-ON and free of unapproved endpoints', () => {
   const fixture = input();
   fixture.effectiveEnv = resolveCheckedProfile(fixture.eas, PROFILE).env;
   assert.deepEqual(validateReleaseProfile(fixture), []);
-  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_ELISE_SPEECH: 'true' };
+  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_ELISE_SPEECH: 'false' };
   assert.match(validateReleaseProfile(fixture).join('\n'), /ELISE_SPEECH/);
   fixture.effectiveEnv = { EXPO_PUBLIC_ENVIRONMENT: 'production' };
   assert.match(validateReleaseProfile(fixture).join('\n'), /explicitly false/);
@@ -117,18 +117,14 @@ test('debug client, simulator, internal distribution and disabled versioning are
   ]) checkMutation(({ eas }) => mutate(eas.build[PROFILE]), /Release|release|numbering|iOS/);
 });
 // `eas build --platform <p> --profile production` is the mandated store command. Ordinary
-// production ships dark by ABSENCE (pinned by six suites) and every hold resolver is exact-"true"
-// opt-in, so it is verified in semantic mode: each hold absent or "false", the Today parent
-// explicitly "false", and the Today greeting/weather children (owner-authorized to stay "true"
-// while dormant) accepted ONLY while that parent is "false". build35-release stays strict.
-const TODAY_PARENT = 'EXPO_PUBLIC_TODAY_WITH_ELISE_V1';
-const TODAY_CHILDREN = ['EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1'];
+// production ships the same explicit ON customer feature matrix as build35-release,
+// with complimentary promotions and non-interactive placeholders OFF.
 function productionFixture(mutate) {
   const fixture = input(); fixture.profileName = 'production';
   if (mutate) mutate(fixture.eas.build.production.env, fixture);
   return validateReleaseProfile(fixture).join('\n');
 }
-test('the production store profile passes in default-dark semantic mode', () => {
+test('the production store profile passes in the full-feature semantic mode', () => {
   assert.deepEqual(STORE_PROFILES, ['production', PROFILE]);
   assert.equal(productionFixture(), '');
 });
@@ -136,28 +132,19 @@ for (const key of REQUIRED_OFF) {
   test(`production store profile rejects ${key} resolving enabled`, () => {
     const failures = productionFixture((env) => {
       env[key] = 'true';
-      // A dormant child is only tolerated under an OFF parent; enabling the parent too must fail.
-      if (TODAY_CHILDREN.includes(key)) env[TODAY_PARENT] = 'true';
     });
     assert.match(failures, /absent or false|explicitly false/);
   });
-  if (key !== TODAY_PARENT) {
-    test(`production store profile accepts ${key} absent (default-dark by exact-true resolvers)`, () => {
+  {
+    test(`production store profile accepts optional-off ${key} absent`, () => {
       assert.equal(productionFixture((env) => { delete env[key]; }), '');
     });
   }
 }
-test('Today children are dormant only while the Today parent is explicitly false', () => {
-  for (const child of TODAY_CHILDREN) {
-    assert.equal(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'false'; }), '');
-    assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'true'; }), /absent or false|explicitly false/);
-    assert.match(productionFixture((env) => { env[child] = 'true'; delete env[TODAY_PARENT]; }), /TODAY_WITH_ELISE_V1 must resolve explicitly false/);
-  }
-});
 test('production public environment, when stated, must be production', () => {
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_ENVIRONMENT = 'staging'; }), /absent or production/);
 });
-test('a certification-only capability enabled in production is rejected as unapproved', () => {
+test('unsupported or demonstration-only capability enabled in production is rejected as unapproved', () => {
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_NEW_UNCERTIFIED_FEATURE = 'true'; }), /unapproved public capability/);
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_LIVE_VTO_ENABLED = 'true'; }), /absent or explicitly false/);
 });
