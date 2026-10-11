@@ -163,7 +163,7 @@ jobs:
           docker run --rm \
             --mount "type=bind,source=${PWD}/.zap,target=/zap/wrk/.zap,readonly" \
             --mount "type=bind,source=${PWD}/zap-out,target=/zap/wrk/zap-out" \
-            --workdir /zap/wrk \
+            --workdir /zap \
             -t "${ZAP_IMAGE}" \
             zap-baseline.py \
             --autooff \

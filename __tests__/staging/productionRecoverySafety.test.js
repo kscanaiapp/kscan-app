@@ -334,6 +334,10 @@ test('candidate identity rejects stale source, wrong metadata and entrypoint; ex
 test('ZAP baseline retains complete passive scan and reports while avoiding failing automation framework', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/zap-baseline-staging.yml'), 'utf8');
   assert.match(workflow, /zap-baseline\.py\s*\\\s*--autooff/);
+  // Legacy startup writes zap.out in CWD; /zap/wrk is root-owned in the
+  // pinned image, while reports/config are explicitly rooted there by ZAP.
+  assert.match(workflow, /--workdir \/zap\s*\\/);
+  assert.doesNotMatch(workflow, /--workdir \/zap\/wrk\s*\\/);
   for (const required of ['-t "${ZAP_STAGING_URL}"', '-c .zap/baseline-rules.tsv', '-m 3', '-T 10',
     '-J zap-out/zap-baseline-report.json', 'Operational failure: zap-baseline-report.json missing']) {
     assert.ok(workflow.includes(required), required);
