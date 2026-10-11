@@ -402,8 +402,11 @@ test('no reachable production module pushes the bare library route', () => {
   // "expo-router/entry", so index.js/app.js are a legacy pair, and the two
   // alternate Home implementations are exported but imported by no route).
   // Each is re-verified as unreachable below rather than merely trusted.
+  //
+  // app.js is NOT on this list. It was, as a "legacy pre-expo-router entry", but
+  // app/scan/index.tsx mounts it as the /scan route, and that exemption is how a
+  // "View Closet" button that opened Recent Scans went unnoticed (P-COPY-1).
   const UNREACHABLE = {
-    'app.js': 'legacy pre-expo-router entry; only index.js imports it',
     'index.js': 'legacy entry; package.json main is expo-router/entry',
     [path.join('components', 'home', 'HomeV2.tsx')]: 'alternate Home; no route imports it',
     [path.join('components', 'home', 'HomeLegacy.tsx')]: 'alternate Home; no route imports it',
