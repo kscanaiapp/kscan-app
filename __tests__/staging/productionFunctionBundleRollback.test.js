@@ -403,7 +403,9 @@ test('an existing function cannot be replaced without a capture', () => {
   const src = fs.readFileSync(DEPLOY, 'utf8');
 
   assert.match(src, /AD-PRE-001/, 'the gate is named');
-  assert.match(src, /capture-production-function\.mjs/, 'the deploy invokes the capture');
+  assert.match(src, /const captured = runPrivateCapture\(fnName\)/, 'the deploy invokes the private capture helper');
+  const privateCapture = fs.readFileSync(path.join(ROOT, 'scripts/lib/private-function-capture.mjs'), 'utf8');
+  assert.match(privateCapture, /capture-production-function\.mjs/, 'the helper invokes the live capture script');
   assert.match(
     src,
     /Refusing to replace an existing production function without exact rollback material/,
@@ -423,7 +425,7 @@ test('the chain is capture -> verify -> deploy -> validate -> restore -> validat
   const rollback = fs.readFileSync(ROLLBACK, 'utf8');
 
   const order = [
-    deploy.indexOf('capture-production-function.mjs'),
+    deploy.indexOf('const captured = runPrivateCapture(fnName)'),
     deploy.indexOf('runSupabaseProduction(deployArgs)'),
     deploy.indexOf('await shallowHealthCheck(fnName'),
     deploy.indexOf('rollback-production-function.mjs'),

@@ -257,6 +257,9 @@ jobs:
             echo "## Production deployment plan"
             echo
             echo "**This is what the required-reviewer approval below is approving.**"
+            echo "Function replacement also preserves its original bundle in private, service-only"
+            echo "Supabase Storage bucket production-function-recovery (created private if absent)."
+            echo "No Storage policies are added or changed. Source is never uploaded to GitHub artifacts."
             echo
             node -e "
               const r = require(process.env.STATIC_PREFLIGHT_JSON);
@@ -525,6 +528,11 @@ jobs:
             echo "no edge-function source parity gate present; skipping"
           fi
 
+      - name: Credential-free recovery and contract regression
+        run: |
+          set -euo pipefail
+          node --test __tests__/staging/productionFunctionBundleRollback.test.js __tests__/staging/productionRecoverySafety.test.js
+
   deploy-one-function:
     name: Deploy one function
     runs-on: ubuntu-latest
@@ -740,23 +748,25 @@ jobs:
       needs.deploy-one-function.result == 'success'
     environment: production
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Probe deployed function
         env:
           SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
           SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
           FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
         run: |
           set -euo pipefail
-          BASE="${SUPABASE_PRODUCTION_URL%/}"
-          FN="${FUNCTION_NAME}"
-          CODE=$(curl -sS -o /tmp/opt.txt -w "%{http_code}" -X OPTIONS \
-            -H "apikey: ${SUPABASE_PRODUCTION_ANON_KEY}" \
-            "${BASE}/functions/v1/${FN}")
-          test "$CODE" != "503"
-          if grep -Eqi "service_role|eyJ|password|sbp_" /tmp/opt.txt; then
-            echo "Response appears to leak sensitive material"
-            exit 1
-          fi
+          node --input-type=module - <<'NODE'
+          import { checkProductionContract } from './scripts/lib/production-contract-check.mjs';
+          const result = await checkProductionContract({ functionName: process.env.FUNCTION_NAME,
+            url: process.env.SUPABASE_PRODUCTION_URL, anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY,
+            verifyJwt: process.env.EXPECTED_VERIFY_JWT === 'true' });
+          console.log(JSON.stringify(result));
+          if (!result.ok) process.exit(1);
+          NODE
 
   synthetic-tests:
     name: Synthetic tests
@@ -783,11 +793,7 @@ jobs:
       - name: Run production deployment smoke tests
         run: |
           set -euo pipefail
-          if [ -f __tests__/production/productionDeployPipeline.test.js ]; then
-            node --test __tests__/production/productionDeployPipeline.test.js
-          else
-            echo "no production smoke-test suite present yet; skipping (does not block this run)"
-          fi
+          node --test __tests__/staging/productionRecoverySafety.test.js __tests__/edgeFunctionSourceParity.test.js
 
   rollback-on-failure:
     name: Rollback on failure
@@ -824,20 +830,13 @@ jobs:
           name: production-deploy-${{ github.run_number }}
           path: .
 
-      - name: Resolve manifest path
+      - name: Resolve private recovery reference
         id: manifest
         run: |
           set -euo pipefail
-          MANIFEST="${{ needs.deploy-one-function.outputs.manifest_path }}"
-          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
-            MANIFEST="$(find artifacts/production-deployments -name '*.json' -type f 2>/dev/null | head -1 || true)"
-          fi
-          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
-            echo "No deployment manifest available for rollback"
-            exit 1
-          fi
+          MANIFEST="artifacts/production-deployments/recovery-reference.json"
+          test -f "$MANIFEST"
           echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
-          echo "Using manifest: ${MANIFEST}"
 
       - name: Roll back / contain deployed function
         env:
@@ -847,7 +846,7 @@ jobs:
           SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
-          node scripts/rollback-production-function.mjs --manifest "${{ steps.manifest.outputs.path }}" | tee rollback-result.json
+          node scripts/recover-production-function.mjs --reference "${{ steps.manifest.outputs.path }}" | tee rollback-result.json
 
       - name: Upload rollback artifact
         if: always()

@@ -1,0 +1,64 @@
+name: K Scan Protected Function Recovery
+on:
+  workflow_dispatch:
+    inputs:
+      original_run_id:
+        required: true
+        type: string
+      original_run_attempt:
+        required: true
+        type: string
+        default: '1'
+      original_source_commit:
+        required: true
+        type: string
+      confirm_production:
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: kscan-production-deployment
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Restore private prior-state bundle
+        env:
+          ORIGINAL_RUN_ID: ${{ inputs.original_run_id }}
+          ORIGINAL_RUN_ATTEMPT: ${{ inputs.original_run_attempt }}
+          ORIGINAL_SOURCE_COMMIT: ${{ inputs.original_source_commit }}
+          CONFIRM_PRODUCTION: ${{ inputs.confirm_production }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_PRODUCTION" = "RESTORE PRODUCTION CAPTURE"
+          git fetch origin rebuild/backend-authority-v2 --quiet
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/rebuild/backend-authority-v2)"
+          node scripts/recover-production-function.mjs --run-id "$ORIGINAL_RUN_ID" --run-attempt "$ORIGINAL_RUN_ATTEMPT" --source-commit "$ORIGINAL_SOURCE_COMMIT" | tee "$RUNNER_TEMP/recovery-result.json"
+      - name: Upload sanitized recovery record
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: protected-recovery-result-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/recovery-result.json
+            artifacts/production-rollbacks/
+          if-no-files-found: warn
+          retention-days: 90

@@ -37,6 +37,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { runPrivateCapture } from './lib/private-function-capture.mjs';
 import { writeJsonArtifact, ensureArtifactsDir, fail } from './lib/staging-helpers.mjs';
 import {
   planRollback,
@@ -90,13 +91,15 @@ function loadCapture(capturePath, manifest) {
  * directory, and the repository copy is the new source we are rolling back
  * away from.
  */
-function restoreCapturedBundle({ functionName, captureRoot, files, verifyJwt }) {
+function restoreCapturedBundle({ functionName, captureRoot, files, verifyJwt, bundleLayout = 'function-root', entrypoint = 'index.ts', run = runSupabaseProduction }) {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), `kscan-restore-${functionName}-`));
-  const target = path.join(scratch, 'supabase', 'functions', functionName);
+  const target = bundleLayout === 'functions-root' ? path.join(scratch, 'supabase', 'functions') :
+    path.join(scratch, 'supabase', 'functions', functionName);
   fs.mkdirSync(target, { recursive: true });
   fs.writeFileSync(
     path.join(scratch, 'supabase', 'config.toml'),
-    `project_id = "${PRODUCTION_PROJECT_REF}"\n`,
+    `project_id = "${PRODUCTION_PROJECT_REF}"\n[functions.${functionName}]\nverify_jwt = ${verifyJwt}\n` +
+      `entrypoint = ${JSON.stringify(`./functions/${bundleLayout === 'functions-root' ? entrypoint : `${functionName}/${entrypoint}`}`)}\n`,
   );
 
   for (const rel of files) {
@@ -116,9 +119,9 @@ function restoreCapturedBundle({ functionName, captureRoot, files, verifyJwt }) 
     verifyJwt,
   });
   try {
-    runSupabaseProduction(args, { cwd: scratch });
+    run(args, { cwd: scratch });
   } catch (err) {
-    fail(`Restoring the captured bundle for ${functionName} failed: ${err.message}`);
+    fail(`Restoring the captured bundle for ${functionName} failed; CLI output withheld to protect source`);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -147,20 +150,27 @@ async function shallowCheck(fnName) {
     const res = await fetch(url, {
       method: 'OPTIONS',
       headers: { apikey: anon, Authorization: `Bearer ${anon}` },
+      signal: AbortSignal.timeout(15000),
     });
-    return { status: res.status, ok: res.status !== 503 };
+    const body = await res.text();
+    return { status: res.status, ok: [200, 204].includes(res.status) && body.length <= 8192 &&
+      !/BOOT_ERROR|service_role|eyJ[a-zA-Z0-9_-]{10}|sbp_|sb_secret_|password/i.test(body) };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: 'Bounded recovery health check failed' };
   }
 }
 
 async function authNegativeCheck(fnName) {
   const base = process.env.SUPABASE_PRODUCTION_URL.replace(/\/$/, '');
   try {
-    const res = await fetch(`${base}/functions/v1/${fnName}`, { method: 'POST' });
-    return { status: res.status, ok: res.status === 401 || res.status === 404 || res.status === 403 };
+    const res = await fetch(`${base}/functions/v1/${fnName}`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestMode: 'commerce_only', mode: 'text' }), signal: AbortSignal.timeout(15000) });
+    const body = await res.text();
+    return { status: res.status, ok: [401, 403].includes(res.status) && body.length <= 8192 &&
+      !/BOOT_ERROR|service_role|eyJ[a-zA-Z0-9_-]{10}|sbp_|sb_secret_|password/i.test(body) };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: 'Bounded recovery authorization check failed' };
   }
 }
 
@@ -229,21 +239,35 @@ async function main() {
       captureRoot,
       files: plan.files,
       verifyJwt: plan.verifyJwt,
+      bundleLayout: plan.bundleLayout,
+      entrypoint: plan.entrypoint,
     });
     action = 'restored_captured_bundle';
 
     // The auth posture is the part a rollback most easily gets wrong, so it is
     // verified rather than assumed.
     const live = liveVerifyJwt(fnName);
-    if (live !== null && live !== plan.verifyJwt) {
+    if (live !== plan.verifyJwt) {
       fail(
         `Restore completed but verify_jwt is ${live} on production and the capture recorded ` +
           `${plan.verifyJwt}. The original authentication posture was NOT restored.`,
       );
     }
+    // A successful CLI exit is insufficient: download and hash the restored bytes.
+    const restoredCapture = runPrivateCapture(fnName);
+    if (restoredCapture.tree_digest !== capture.tree_digest || restoredCapture.verify_jwt !== capture.verify_jwt) {
+      fail('CRITICAL: restored live bundle or authentication posture does not match the original capture');
+    }
   } else {
     try {
       runSupabaseProduction(['functions', 'delete', fnName, '--project-ref', PRODUCTION_PROJECT_REF, '--yes']);
+      const inventory = JSON.parse(runSupabaseProduction([
+        'functions', 'list', '--project-ref', PRODUCTION_PROJECT_REF, '--output-format', 'json',
+      ]));
+      const rows = Array.isArray(inventory) ? inventory : inventory?.functions;
+      if (!Array.isArray(rows) || rows.some((row) => (row.slug || row.name) === fnName)) {
+        fail('CRITICAL: deletion recovery did not establish original function absence');
+      }
       action = 'deleted_new_function';
     } catch (err) {
       fail(`Unable to delete new function ${fnName}: ${err.message}`);
@@ -278,8 +302,16 @@ async function main() {
 // Only run the rollback when invoked as a script. Importing this module
 // (tests, tooling) must not roll anything back or call process.exit.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.on('exit', (code) => {
+    if (code !== 0) {
+      writeJsonArtifact(path.join(ensureArtifactsDir('production-rollbacks'), 'critical-recovery-failure.json'), {
+        ok: false, critical_recovery_failure: true, timestamp: new Date().toISOString(),
+        next_action: 'Stop promotions; use the private recovery reference with the protected recovery workflow',
+      });
+    }
+  });
   main().catch((err) => {
-    console.error(err);
+    console.error('CRITICAL: Production rollback failed; inspect the sanitized record and private recovery reference');
     process.exit(1);
   });
 }

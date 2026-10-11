@@ -50,9 +50,6 @@ import crypto from 'node:crypto';
 export const CAPTURE_SCHEMA = 'production-function-capture-v1';
 export const CAPTURE_DIR = 'production-function-captures';
 
-/** Files a function bundle may legitimately carry. */
-const CAPTURABLE = /\.(ts|tsx|js|mjs|json|toml|txt|md|wasm)$/i;
-
 function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
@@ -67,9 +64,9 @@ export function listCapturableFiles(root) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       const abs = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(abs);
-      else if (entry.isFile() && CAPTURABLE.test(entry.name)) {
+      else if (entry.isFile()) {
         out.push(path.relative(root, abs).split(path.sep).join('/'));
-      }
+      } else throw new Error('Function capture contains a symlink or unsupported filesystem entry');
     }
   };
   if (!fs.existsSync(root)) return out;
@@ -111,9 +108,13 @@ export function buildCaptureManifest({
   files,
   treeDigest,
   capturedAt = new Date().toISOString(),
+  bundleLayout = 'function-root',
+  entrypoint = bundleLayout === 'functions-root' ? `${functionName}/index.ts` : 'index.ts',
 }) {
   return {
     schema: CAPTURE_SCHEMA,
+    bundle_layout: bundleLayout,
+    entrypoint,
     function_name: functionName,
     target: projectRef,
     captured_at: capturedAt,
@@ -145,6 +146,11 @@ export function verifyCapture({ capture, captureRoot, expected }) {
   if (!capture || typeof capture !== 'object') {
     return { ok: false, problems: ['capture manifest is missing or not an object'], files: [] };
   }
+  if (!captureRoot || !fs.existsSync(captureRoot)) push('capture files directory is missing');
+  const layout = capture.bundle_layout ?? 'function-root';
+  if (!['function-root', 'functions-root'].includes(layout)) push('unknown captured bundle layout');
+  if (layout === 'functions-root' && (typeof capture.entrypoint !== 'string' ||
+      !capture.entrypoint.startsWith(`${capture.function_name}/`) || capture.entrypoint.includes('..'))) push('invalid captured entrypoint');
   if (capture.schema !== CAPTURE_SCHEMA) {
     push(`capture schema must be ${CAPTURE_SCHEMA}, got "${capture.schema}"`);
   }
@@ -190,6 +196,11 @@ export function verifyCapture({ capture, captureRoot, expected }) {
         push(`capture file path escapes the capture directory: ${entry.path}`);
         continue;
       }
+      if (layout === 'functions-root' && entry.path.split('/')[0] !== capture.function_name &&
+          entry.path.split('/')[0] !== '_shared' && !['import_map.json', 'deno.json', 'deno.jsonc'].includes(entry.path)) {
+        push(`capture contains an unrelated function or unsupported root file: ${entry.path}`);
+        continue;
+      }
       const abs = path.join(captureRoot, entry.path);
       if (!fs.existsSync(abs)) {
         push(`captured file is missing from disk: ${entry.path}`);
@@ -218,6 +229,7 @@ export function verifyCapture({ capture, captureRoot, expected }) {
       }
     }
   }
+  if (layout === 'functions-root' && !restored.includes(capture.entrypoint)) push('captured deployment entrypoint is missing');
 
   return { ok: problems.length === 0, problems, files: restored };
 }
@@ -288,6 +300,8 @@ export function planRollback({ manifest, capture = null, captureRoot = null, exp
     files: verified.files,
     priorVersion: manifest.prior_version,
     capturedAt: capture.captured_at,
+    bundleLayout: capture.bundle_layout ?? 'function-root',
+    entrypoint: capture.entrypoint ?? 'index.ts',
   };
 }
 

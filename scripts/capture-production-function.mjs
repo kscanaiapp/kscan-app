@@ -99,7 +99,7 @@ function downloadLiveBundle(functionName) {
     );
   } catch (err) {
     fail(
-      `Could not download the live bundle for ${functionName}: ${err.message}. ` +
+      `Could not download the live bundle for ${functionName}. ` +
         'Without it there is no exact rollback, so the deployment must not proceed.',
     );
   }
@@ -111,7 +111,12 @@ function downloadLiveBundle(functionName) {
         'Refusing to record an empty capture.',
     );
   }
-  return { scratch, downloaded };
+  const escaped = listCapturableFiles(scratch).filter((file) =>
+    file !== 'supabase/config.toml' && !file.startsWith('supabase/functions/'));
+  if (escaped.length) fail('CLI download returned files outside the recoverable function tree; replacement refused');
+  // CLI download preserves ../_shared imports as siblings. Capture the whole
+  // returned functions tree, not just the named function's directory.
+  return { scratch, downloaded: path.join(scratch, 'supabase', 'functions') };
 }
 
 function main() {
@@ -140,6 +145,16 @@ function main() {
         'EXISTING function; a new function rolls back by deletion and needs no capture.',
     );
   }
+  if (typeof live.verify_jwt !== 'boolean' || !live.version || !live.ezbr_sha256) {
+    fail('Live function identity or original JWT posture is unreadable; replacement refused');
+  }
+  if (live.import_map === true) fail('A configured import map needs explicit recovery support; replacement refused');
+  const entrypointMarker = `/functions/${functionName}/`;
+  const entrypointSuffix = typeof live.entrypoint_path === 'string' && live.entrypoint_path.includes(entrypointMarker)
+    ? live.entrypoint_path.slice(live.entrypoint_path.lastIndexOf(entrypointMarker) + '/functions/'.length) : null;
+  if (!entrypointSuffix || entrypointSuffix.includes('..') || !/^[a-zA-Z0-9_.\/-]+$/.test(entrypointSuffix)) {
+    fail('Live deployment entrypoint is unreadable or unsupported; replacement refused');
+  }
 
   const { scratch, downloaded } = downloadLiveBundle(functionName);
 
@@ -159,6 +174,8 @@ function main() {
     status: live.status ?? null,
     files,
     treeDigest,
+    bundleLayout: 'functions-root',
+    entrypoint: entrypointSuffix,
   });
 
   const capturePath = path.join(dir, 'capture.json');
@@ -192,7 +209,8 @@ function main() {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  try { main(); }
+  catch { console.error('Production capture failed; source and credential-bearing CLI output withheld'); process.exitCode = 1; }
 }
 
 export { downloadLiveBundle, findFunction, parseArgs };

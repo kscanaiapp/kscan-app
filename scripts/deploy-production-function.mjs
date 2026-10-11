@@ -7,10 +7,8 @@
  * the deployed bundle hash after deployment, not just before. `functions
  * list --output-format json` on a recent CLI returns the deployed bundle's
  * digest (seen as `ezbr_sha256` via the Supabase Management API); this
- * script looks for it under a few known field names and treats an
- * unreadable digest as a soft warning (recorded in the manifest, not a
- * deploy failure) rather than pretending a hash it could not obtain was
- * verified.
+ * script looks for it under a few known field names and refuses success when
+ * the deployed digest, version, status or JWT posture cannot be verified.
  *
  * Usage:
  *   DEPLOY_FUNCTIONS=scan-identify EXPECTED_VERIFY_JWT=false \
@@ -45,9 +43,25 @@ import {
 } from './lib/production-helpers.mjs';
 import { assertGovernedCommit } from './production-deploy-preflight.mjs';
 import { runWithTransientEdgeRuntimePullRetry } from './lib/supabase-deploy-retry.mjs';
+import os from 'node:os';
+import { pathToFileURL } from 'node:url';
+import { packRecovery, unpackRecovery, recoveryHash, managedRecoveryStore, recoverAfterFailure, RECOVERY_BUCKET } from './lib/production-recovery.mjs';
+import { checkProductionContract } from './lib/production-contract-check.mjs';
+import { runPrivateCapture } from './lib/private-function-capture.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 const BUNDLE_HASH_FIELDS = ['ezbr_sha256', 'sha256', 'bundle_sha256', 'hash'];
+
+export function parseFunctionInventory(out) {
+  const parsed = JSON.parse(out);
+  const rows = Array.isArray(parsed) ? parsed : parsed?.functions;
+  if (!Array.isArray(rows) || !rows.length || rows.some((row) => !row ||
+      !/^[a-z0-9][a-z0-9-]*$/.test(row.slug || row.name || ''))) {
+    throw new Error('Live function inventory unreadable; replacement refused');
+  }
+  if (new Set(rows.map((row) => row.slug || row.name)).size !== rows.length) throw new Error('Ambiguous live function inventory');
+  return rows;
+}
 
 function listFunctions() {
   const out = runSupabaseProduction([
@@ -58,11 +72,7 @@ function listFunctions() {
     '--output-format',
     'json',
   ]);
-  try {
-    return JSON.parse(out);
-  } catch {
-    return [];
-  }
+  return parseFunctionInventory(out);
 }
 
 function findFunction(list, name) {
@@ -181,16 +191,12 @@ async function main() {
   let capturePath = null;
   if (prior) {
     try {
-      const out = execFileSync(process.execPath, [
-        path.join('scripts', 'capture-production-function.mjs'),
-        '--function',
-        fnName,
-      ], { encoding: 'utf8', env: process.env });
-      process.stdout.write(out);
-      capturePath = JSON.parse(out.slice(out.indexOf('{'))).capture_path;
+      const captured = runPrivateCapture(fnName);
+      console.log(JSON.stringify(captured));
+      capturePath = captured.capture_path;
     } catch (err) {
       fail(
-        `Could not capture the live production bundle for ${fnName}: ${err.message}. ` +
+        `Could not capture the live production bundle for ${fnName}. ` +
           'Refusing to replace an existing production function without exact rollback material.',
       );
     }
@@ -200,7 +206,7 @@ async function main() {
   }
 
   const commit = gitHeadSha();
-  const deployArgs = ['functions', 'deploy', fnName, '--project-ref', PRODUCTION_PROJECT_REF, '--debug'];
+  const deployArgs = ['functions', 'deploy', fnName, '--project-ref', PRODUCTION_PROJECT_REF];
   if (!verifyJwt) deployArgs.push('--no-verify-jwt');
 
   console.log(JSON.stringify({
@@ -215,93 +221,124 @@ async function main() {
     verifyJwt,
   }, null, 2));
 
-  try {
-    await runWithTransientEdgeRuntimePullRetry(
-      () => runSupabaseProduction(deployArgs),
-      {
-        onRetry: ({ attempt, nextAttempt, attempts, delayMs }) => {
-          console.warn(
-            `Transient GHCR Edge Runtime pull throttle on deploy attempt ${attempt}; ` +
-              `retrying attempt ${nextAttempt}/${attempts} in ${delayMs}ms.`,
-          );
-        },
-      },
-    );
-  } catch (err) {
-    fail(`Deploy failed: ${err.message}`);
-  }
-
-  const afterList = listFunctions();
-  const deployed = findFunction(afterList, fnName);
-  const newVersion = deployed?.version ?? deployed?.id ?? null;
-  const status = deployed?.status || deployed?.function_status || 'UNKNOWN';
-  const deployedBundleHash = readBundleHash(deployed);
-
-  // "Verify source/bundle hashes after deployment" (Phase 4). The bundle
-  // hash Supabase reports is over the uploaded bundle, not the raw source
-  // file, so it cannot be compared byte-for-byte against sourceHash -- it CAN
-  // be compared against itself before/after to prove the deploy actually
-  // changed the served bundle (or, for a same-source redeploy, did not).
-  const bundleHashChanged = deployedBundleHash && priorBundleHash
-    ? deployedBundleHash !== priorBundleHash
-    : null;
-  const bundleHashVerifiable = Boolean(deployedBundleHash);
-
-  const health = await shallowHealthCheck(fnName, verifyJwt);
-
-  const manifest = {
-    function_name: fnName,
-    prior_version: priorVersion,
-    prior_bundle_hash: priorBundleHash,
-    // The rollback script resolves the capture from here when --capture is not
-    // passed explicitly, so an operator holding only the deployment manifest can
-    // still perform an exact restore.
-    capture_path: capturePath,
-    new_version: newVersion,
-    new_source_commit: commit,
-    new_source_hash: sourceHash,
-    new_bundle_hash: deployedBundleHash,
-    bundle_hash_verifiable: bundleHashVerifiable,
-    bundle_hash_changed: bundleHashChanged,
-    deployment_timestamp: new Date().toISOString(),
-    target: PRODUCTION_PROJECT_REF,
-    verify_jwt: verifyJwt,
-    status,
-    health,
-    rollback_strategy: priorVersion ? 'restore_captured_bundle' : 'remove_or_disable_new_function',
-  };
-
   const dir = ensureArtifactsDir('production-deployments');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const manifestPath = path.join(dir, `${stamp}-${fnName}.json`);
-  writeJsonArtifact(manifestPath, manifest);
+  const priorManifest = { function_name: fnName, target: PRODUCTION_PROJECT_REF,
+    prior_version: priorVersion, prior_bundle_hash: priorBundleHash, capture_path: capturePath,
+    new_source_commit: commit, verify_jwt: verifyJwt,
+    rollback_strategy: priorVersion ? 'restore_captured_bundle' : 'remove_or_disable_new_function' };
+  // Durably preserve recovery BEFORE a write. GitHub receives only this non-sensitive reference.
+  const run = process.env.GITHUB_RUN_ID;
+  const attempt = process.env.GITHUB_RUN_ATTEMPT;
+  if (!/^[0-9]+$/.test(run || '') || !/^[0-9]+$/.test(attempt || '')) fail('Governed run identity required for private recovery');
+  const bytes = packRecovery(priorManifest, capturePath);
+  const reference = { bucket: RECOVERY_BUCKET, object: `controlled/${run}-${attempt}/${commit}.json`,
+    sha256: recoveryHash(bytes), function_name: fnName, source_commit: commit, target: PRODUCTION_PROJECT_REF };
+  const store = await managedRecoveryStore({ token: process.env.SUPABASE_ACCESS_TOKEN,
+    anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY, prepare: true });
+  const verifiedBytes = await store.upload(bytes, reference);
+  const checkDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-recovery-check-'));
+  try { unpackRecovery(verifiedBytes, checkDir, reference); }
+  finally { fs.rmSync(checkDir, { recursive: true, force: true }); }
+  writeJsonArtifact(path.join(dir, 'recovery-reference.json'), reference);
+  console.log(JSON.stringify({ phase: 'private-recovery-ready', recovery: reference }));
+  writeJsonArtifact(manifestPath, { ...priorManifest, recovery: reference, replacement_attempted: false });
+  let replacementAttempted = false;
+  await recoverAfterFailure({
+    attempted: () => replacementAttempted,
+    record: (result) => {
+      writeJsonArtifact(path.join(dir, 'deployment-failure.json'), { ...result, recovery: reference });
+      console.error(JSON.stringify(result));
+    },
+    operation: async () => {
+      const immediatelyBefore = findFunction(listFunctions(), fnName);
+      if ((immediatelyBefore?.version ?? null) !== (prior?.version ?? null) ||
+          readBundleHash(immediatelyBefore) !== priorBundleHash ||
+          (prior && immediatelyBefore?.verify_jwt !== prior.verify_jwt)) {
+        throw new Error('Live function changed after capture; replacement refused');
+      }
+      replacementAttempted = true;
+      writeJsonArtifact(manifestPath, { ...priorManifest, recovery: reference, replacement_attempted: true });
+        await runWithTransientEdgeRuntimePullRetry(
+          () => runSupabaseProduction(deployArgs),
+          {
+            onRetry: ({ attempt, nextAttempt, attempts, delayMs }) => {
+              console.warn(
+                `Transient GHCR Edge Runtime pull throttle on deploy attempt ${attempt}; ` +
+                  `retrying attempt ${nextAttempt}/${attempts} in ${delayMs}ms.`,
+              );
+            },
+          },
+        );
 
-  console.log(JSON.stringify({ ok: health.ok, manifestPath, manifest }, null, 2));
+      const afterList = listFunctions();
+      const deployed = findFunction(afterList, fnName);
+      const newVersion = deployed?.version ?? deployed?.id ?? null;
+      const status = deployed?.status || deployed?.function_status || 'UNKNOWN';
+      const deployedBundleHash = readBundleHash(deployed);
 
-  if (!bundleHashVerifiable) {
-    console.warn(
-      `WARNING: could not read a bundle hash from the CLI response for ${fnName}; ` +
-        'bundle-hash verification is unavailable this run (recorded, not failing the deploy).',
-    );
-  }
+      // "Verify source/bundle hashes after deployment" (Phase 4). The bundle
+      // hash Supabase reports is over the uploaded bundle, not the raw source
+      // file, so it cannot be compared byte-for-byte against sourceHash -- it CAN
+      // be compared against itself before/after to prove the deploy actually
+      // changed the served bundle (or, for a same-source redeploy, did not).
+      const bundleHashChanged = deployedBundleHash && priorBundleHash
+        ? deployedBundleHash !== priorBundleHash
+        : null;
+      const bundleHashVerifiable = Boolean(deployedBundleHash);
 
-  if (!health.ok) {
-    console.error('Post-deploy health check failed — invoking rollback');
-    try {
+      const health = await shallowHealthCheck(fnName, verifyJwt);
+      const contract = await checkProductionContract({ functionName: fnName,
+        url: process.env.SUPABASE_PRODUCTION_URL, anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY, verifyJwt });
+      const identityVerified = Boolean(newVersion && deployedBundleHash &&
+        deployed?.verify_jwt === verifyJwt && status === 'ACTIVE');
+
+      const manifest = {
+        function_name: fnName,
+        prior_version: priorVersion,
+        prior_bundle_hash: priorBundleHash,
+        // The rollback script resolves the capture from here when --capture is not
+        // passed explicitly, so an operator holding only the deployment manifest can
+        // still perform an exact restore.
+        capture_path: capturePath,
+        new_version: newVersion,
+        new_source_commit: commit,
+        new_source_hash: sourceHash,
+        new_bundle_hash: deployedBundleHash,
+        bundle_hash_verifiable: bundleHashVerifiable,
+        bundle_hash_changed: bundleHashChanged,
+        deployment_timestamp: new Date().toISOString(),
+        target: PRODUCTION_PROJECT_REF,
+        verify_jwt: verifyJwt,
+        status,
+        health,
+        contract,
+        identity_verified: identityVerified,
+        replacement_attempted: true,
+        recovery: reference,
+        rollback_strategy: priorVersion ? 'restore_captured_bundle' : 'remove_or_disable_new_function',
+      };
+
+      writeJsonArtifact(manifestPath, manifest);
+
+      console.log(JSON.stringify({ ok: health.ok && contract.ok && identityVerified, manifestPath, manifest }, null, 2));
+
+      if (!health.ok || !contract.ok || !identityVerified) throw new Error('Post-deploy validation failed');
+      // Fixtures run on the protected runner; a fixture failure uses the same immediate recovery path.
+      execFileSync(process.execPath, ['--test', '__tests__/edgeFunctionSourceParity.test.js',
+        '__tests__/staging/productionRecoverySafety.test.js'], { encoding: 'utf8', stdio: 'inherit' });
+    },
+    recover: async () => {
       execFileSync(process.execPath, [
-        path.join('scripts', 'rollback-production-function.mjs'),
-        '--manifest',
-        manifestPath,
+        path.join('scripts', 'rollback-production-function.mjs'), '--manifest', manifestPath,
         ...(capturePath ? ['--capture', capturePath] : []),
-      ], { encoding: 'utf8', stdio: 'inherit', env: process.env });
-    } catch {
-      fail('Health failed and rollback also failed');
-    }
-    fail('Deployment rolled back after health failure');
-  }
+      ], { encoding: 'utf8', env: process.env, stdio: 'inherit' });
+    },
+  });
 }
 
-main().catch((err) => {
-  console.error(err);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(() => {
+  console.error('Production deployment failed. Inspect the sanitized deployment record and private recovery reference.');
   process.exit(1);
 });
