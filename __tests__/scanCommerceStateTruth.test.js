@@ -913,7 +913,11 @@ test('NC-D REOPEN (funnel off): a scan saved with no commerce reopens as NOT_STA
 
   const tree = renderReopened(reopened);
   const perItem = shelves(tree).filter((n) => /^multi-item-commerce-/.test(n.props.testID || ''));
-  assert.equal(perItem.length, SAVED_CANDIDATES.length);
+  // P-COPY-2: a saved list with no stored commerce for ANY item now says so once,
+  // not once per item (this used to expect one identical shelf per candidate).
+  // The invariant is unchanged and still checked on every node below: commerce
+  // that never ran is NOT_STARTED and is never worded as a no-match.
+  assert.deepEqual(perItem.map((n) => n.props.testID), ['multi-item-commerce-not-started-summary']);
   for (const node of perItem) {
     const title = effectiveEmpty(node, 'emptyTitle');
     const body = effectiveEmpty(node, 'emptyBody');

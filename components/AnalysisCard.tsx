@@ -36,7 +36,12 @@ import type { ScanResultObject } from '../types/scanResultObject';
 import type { OutfitConfirmationCandidate } from '../services/outfitConfirmation/outfitDetectionBridge';
 import { SavedItemUtilityPanel } from './free-tier/SavedItemUtilityPanel';
 import { normalizeItem, normalizeItems } from '../services/free-tier/itemNormalization';
-import { purchaseShelfEmptyProps, storedItemEmptyShelfProps } from '../services/commerceShelfState';
+import {
+  purchaseShelfEmptyProps,
+  savedMultiItemScanHasNoCommerce,
+  savedMultiItemSummaryShelfProps,
+  storedItemEmptyShelfProps,
+} from '../services/commerceShelfState';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
@@ -314,6 +319,14 @@ export function AnalysisCard({
   const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
   const isConfirmationStep = confirmationCandidates.length > 0;
   const isLibraryScan = scanSourceType === 'style_library_scan';
+  // P-COPY-2: a saved list of detected items with no stored commerce for any of
+  // them says so ONCE, instead of one identical empty shelf per item plus the
+  // single-item shelf's own copy of it.
+  const savedMultiItemWithoutCommerce = savedMultiItemScanHasNoCommerce(
+    multiItemCandidates,
+    multiItemCommerce,
+  );
+  const isSavedMultiItemScan = isLibraryScan && multiItemCandidates.length !== 0;
 
   return (
     <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
@@ -452,7 +465,15 @@ export function AnalysisCard({
                   Recent Scan. Garment-organized, Best Match + Alternatives
                   only. Absent on scans saved before Build 32 or with no
                   attached commerce yet — section simply does not render. */}
-              {multiItemCandidates.length > 0 ? (
+              {savedMultiItemWithoutCommerce ? (
+                <View style={styles.candidatePanel} testID="multi-item-commerce-section">
+                  <ProductShelf
+                    products={[]}
+                    label="WHERE TO BUY"
+                    {...savedMultiItemSummaryShelfProps()}
+                  />
+                </View>
+              ) : multiItemCandidates.length > 0 ? (
                 <View style={styles.candidatePanel} testID="multi-item-commerce-section">
                   {multiItemCandidates.map((candidate) => {
                     const card = multiItemCommerce.find((entry) => entry.candidateId === candidate.id);
@@ -627,6 +648,11 @@ export function AnalysisCard({
                   label="WHERE TO BUY"
                   testID="purchase-options-shelf"
                 />
+              ) : isSavedMultiItemScan && purchaseShelfMode === 'empty' && commerceStatus === 'idle' ? (
+                // A saved multi-item scan keeps its commerce per item, in the
+                // section above. A second, single-item empty shelf here only
+                // repeated that section's copy (P-COPY-2).
+                null
               ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
                 // A completed zero-result search is a real answer, not the
                 // same as "never checked" — it still mounts the shelf so its
@@ -638,7 +664,9 @@ export function AnalysisCard({
                   pending={purchaseShelfMode === 'pending'}
                   hasError={purchaseShelfMode === 'error'}
                   onRetry={onRetryCommerce}
-                  {...purchaseShelfEmptyProps(purchaseOptions.length, commerceStatus)}
+                  {...purchaseShelfEmptyProps(purchaseOptions.length, commerceStatus, {
+                    savedScan: isLibraryScan,
+                  })}
                 />
               ) : null}
 

@@ -264,9 +264,11 @@ test('purchase cards reuse the established ProductShelf, not a second design', (
   // a time) — still the same component, not a second design. The failed and
   // no-match states are separate usages because they make different claims:
   // one says retrieval broke, the other says the garment had no match.
+  // P-COPY-2 adds one more: the single summary shelf a saved multi-item scan
+  // with no stored commerce shows in place of one identical shelf per item.
   assert.match(productShelfSource, /label = 'SIMILAR ITEMS'/);
   assert.match(analysisCardSource, /label="WHERE TO BUY"/);
-  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 7);
+  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 8);
   assert.equal(
     (analysisCardSource.match(/import\s*\{[^}]*ProductShelf[^}]*\}\s*from/g) || []).length,
     1,
