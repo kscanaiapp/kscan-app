@@ -97,8 +97,11 @@ const result = spawnSync(process.execPath, ['--test', ...found], {
   maxBuffer: 256 * 1024 * 1024,
 });
 
-process.stdout.write(result.stdout || '');
-process.stderr.write(result.stderr || '');
+// A piped write is asynchronous on Linux. Exiting immediately after queuing
+// the full report can discard everything beyond the pipe's first buffer,
+// including the failure identities needed to diagnose a CI rejection.
+fs.writeSync(process.stdout.fd, result.stdout || '');
+fs.writeSync(process.stderr.fd, result.stderr || '');
 
 if (result.status === 0) process.exit(0);
 
