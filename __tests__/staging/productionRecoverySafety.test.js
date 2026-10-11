@@ -265,6 +265,18 @@ test('ROLLBACK-09 failed capture child stderr is never re-emitted by the parent'
   assert.doesNotMatch(result.stderr + result.stdout, /PRIVATE_FAKE_SOURCE_AND_KEY/);
 });
 
+test('capture diagnostics reveal fixed failure categories but never expose credential-bearing child output', async () => {
+  const { safeCaptureFailureCode, runPrivateCapture } = await load('scripts/lib/private-function-capture.mjs');
+  const fake = 'Production capture download server-api failed [BUNDLE_FORMAT] PRIVATE_TOKEN' +
+    '\\nProduction capture download legacy-local failed [LOCAL_UNBUNDLER] SECRET_SOURCE';
+  assert.equal(safeCaptureFailureCode(fake), 'API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER');
+  assert.equal(safeCaptureFailureCode('PRIVATE_TOKEN unauthorized raw text'), 'STAGE_UNDETERMINED');
+  assert.throws(() => runPrivateCapture('scan-identify', { exec: () => {
+    const err = new Error('PRIVATE_TOKEN'); err.stderr = fake; throw err;
+  } }), (err) => err.message.includes('API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER') &&
+    !err.message.includes('PRIVATE_TOKEN') && !err.message.includes('SECRET_SOURCE'));
+});
+
 test('unreadable, empty and malformed live inventories cannot become new-function deletion plans', async () => {
   const { parseFunctionInventory } = await load('scripts/deploy-production-function.mjs');
   for (const response of ['invalid JSON', '{}', '[]', '[null]', '[{}]', '{"functions":{}}']) {
