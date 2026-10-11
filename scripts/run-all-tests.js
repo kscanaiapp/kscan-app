@@ -20,6 +20,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { evaluateFullSuiteResult } = require('./test-failure-parser-lib.js');
 
+async function main() {
 const ROOT = path.resolve(process.argv[2] || '__tests__');
 const TEST_SUFFIX = '.test.js';
 const FAILURE_BASELINE_PATH = path.join(process.cwd(), 'config', 'test-failure-baseline.json');
@@ -59,7 +60,7 @@ function walk(dir) {
 
 if (!fs.existsSync(ROOT)) {
   console.error(`Test root not found: ${ROOT}`);
-  process.exit(1);
+  return 1;
 }
 
 walk(ROOT);
@@ -79,7 +80,7 @@ console.log('─'.repeat(64));
 
 if (found.length === 0) {
   console.error('No test files discovered — refusing to report a passing suite.');
-  process.exit(1);
+  return 1;
 }
 
 const result = spawnSync(process.execPath, ['--test', ...found], {
@@ -97,25 +98,25 @@ const result = spawnSync(process.execPath, ['--test', ...found], {
   maxBuffer: 256 * 1024 * 1024,
 });
 
-// A piped write is asynchronous on Linux. Exiting immediately after queuing
-// the full report can discard everything beyond the pipe's first buffer,
-// including the failure identities needed to diagnose a CI rejection.
-fs.writeSync(process.stdout.fd, result.stdout || '');
-fs.writeSync(process.stderr.fd, result.stderr || '');
+// Wait for each piped stream to drain. A single synchronous pipe write may
+// also be partial on Linux, so its return value is not proof of a full report.
+for (const [stream, output] of [[process.stdout, result.stdout], [process.stderr, result.stderr]]) {
+  await new Promise((resolve, reject) => stream.write(output || '', (error) => error ? reject(error) : resolve()));
+}
 
-if (result.status === 0) process.exit(0);
+if (result.status === 0) return 0;
 
 let baseline;
 try {
   baseline = JSON.parse(fs.readFileSync(FAILURE_BASELINE_PATH, 'utf8'));
 } catch (error) {
   console.error(`Full suite failed and its known-failure baseline is unreadable: ${error.message}`);
-  process.exit(1);
+  return 1;
 }
 
 if (!Array.isArray(baseline.failures) || !baseline.failures.every((name) => typeof name === 'string')) {
   console.error('Full suite failed and config/test-failure-baseline.json has an invalid failures array.');
-  process.exit(1);
+  return 1;
 }
 
 const verdict = evaluateFullSuiteResult({
@@ -133,8 +134,15 @@ if (!verdict.ok) {
   } else {
     console.error('The test runner failed without a parseable test identity; refusing to mask it.');
   }
-  process.exit(1);
+  return 1;
 }
 
 console.error('Only recorded pre-existing failures remain; fixed baseline failures are allowed to disappear.');
-process.exit(0);
+return 0;
+
+}
+
+main().then((code) => { process.exitCode = code; }).catch((error) => {
+  console.error(`Full-suite runner failed: ${error.message}`);
+  process.exitCode = 1;
+});
