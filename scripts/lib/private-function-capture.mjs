@@ -6,7 +6,7 @@ import path from 'node:path';
  * untrusted and may contain Production function source or credentials.
  */
 export function safeCaptureFailureCode(stderr) {
-  const allowed = /Production capture download (server-api|legacy-local) failed \\[(BUNDLE_FORMAT|LOCAL_UNBUNDLER|ACCESS_DENIED|RATE_LIMITED|TIMEOUT|NOT_FOUND|UNKNOWN)\\]/g;
+  const allowed = /Production capture download (server-api|legacy-local) failed \[(BUNDLE_FORMAT|LOCAL_UNBUNDLER|ACCESS_DENIED|RATE_LIMITED|TIMEOUT|NOT_FOUND|UNKNOWN)\]/g;
   const codes = [];
   for (const hit of String(stderr ?? '').matchAll(allowed)) {
     codes.push((hit[1] === 'server-api' ? 'API_' : 'LEGACY_') + hit[2]);
