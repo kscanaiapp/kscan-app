@@ -352,3 +352,15 @@ test('actual deployment rejects stale candidate and rolls back; exact same sourc
     assert.equal(JSON.parse(result.stdout).passed, true);
   }
 });
+
+test('fresh Production runners install locked parser dependencies before recovery tests or replacement', () => {
+  const yaml = require('js-yaml');
+  const workflow = yaml.load(fs.readFileSync(path.join(ROOT, '.github/workflows/production-controlled-deploy.yml'), 'utf8'));
+  for (const name of ['source-validation', 'deploy-one-function', 'synthetic-tests']) {
+    const steps = workflow.jobs[name].steps;
+    const node = steps.findIndex((step) => step.uses?.startsWith('actions/setup-node@'));
+    const install = steps.findIndex((step) => step.run === 'npm ci --ignore-scripts');
+    const use = steps.findIndex((step) => /deploy-production-function|productionRecoverySafety/.test(step.run || ''));
+    assert.ok(node >= 0 && install > node && use > install, `${name} installs before importing candidate verifier`);
+  }
+});

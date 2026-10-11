@@ -499,6 +499,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install locked verification dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
       - name: Validate function source exists
         run: |
           set -euo pipefail
@@ -568,6 +576,9 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
+
+      - name: Install locked verification dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
 
       - name: Verify required Edge Function secret names
         env:
@@ -789,6 +800,9 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "20"
+
+      - name: Install locked verification dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
 
       - name: Run production deployment smoke tests
         run: |
