@@ -22,6 +22,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
@@ -45,7 +46,7 @@ function probe(overrides) {
     if (value !== undefined) env[name] = value;
   }
 
-  const result = spawnSync(process.execPath, ['--import', REGISTER, PROBE, CORE], {
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(REGISTER).href, PROBE, CORE], {
     encoding: 'utf8',
     env,
   });

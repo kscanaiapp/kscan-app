@@ -126,7 +126,7 @@ function boot({ storage = new Map(), mutations = {} } = {}) {
     const module = { exports: {} };
     cache.set(resolved, module);
 
-    const relative = path.relative(ROOT, resolved);
+    const relative = path.relative(ROOT, resolved).split(path.sep).join('/');
     let source = fs.readFileSync(resolved, 'utf8');
     if (mutations[relative]) source = mutations[relative](source, relative);
 
