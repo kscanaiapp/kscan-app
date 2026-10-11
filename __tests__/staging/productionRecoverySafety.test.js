@@ -337,8 +337,8 @@ test('failed capture never prints CLI source, tokens, or raw error output', () =
     } });`;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /server-api failed \\[BUNDLE_FORMAT\\]/);
-  assert.match(result.stderr, /legacy-local failed \\[BUNDLE_FORMAT\\]/);
+  assert.match(result.stderr, /server-api failed \[BUNDLE_FORMAT\]/);
+  assert.match(result.stderr, /legacy-local failed \[BUNDLE_FORMAT\]/);
   assert.match(result.stderr, /replacement refused/);
   assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE_SOURCE_MATERIAL|SUPABASE_SECRET_VALUE/);
 });
