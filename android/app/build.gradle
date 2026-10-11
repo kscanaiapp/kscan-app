@@ -226,7 +226,7 @@ if (easBuildProfile == CERTIFICATION_PROFILE && !(voiceScanEnabled && kscanVoice
 // profile (staging, preview, development, or any future one) stays
 // unsupported and fails closed, exactly like the certification-only selector
 // leaking into any profile but its own.
-def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES = [CERTIFICATION_PROFILE, PRODUCTION_PROFILE, PRODUCTION_CERTIFICATION_PROFILE]
+def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES = [CERTIFICATION_PROFILE, PRODUCTION_PROFILE, PRODUCTION_CERTIFICATION_PROFILE, 'build35-release']
 if (easBuildProfile != null && kscanVoiceNativeCapability && !VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES.contains(easBuildProfile)) {
     throw new GradleException(
         "kscan: KSCAN_VOICE_NATIVE_CAPABILITY resolved true under EAS_BUILD_PROFILE=" +

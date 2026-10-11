@@ -20,7 +20,7 @@ function checkMutation(mutate, expected) {
   assert.match(validateReleaseProfile(fixture).join('\n'), expected);
 }
 
-test('canonical release resolves all holds OFF with production identities and store artifact shape', () => {
+test('canonical release resolves all launch features ON with production identities and store artifact shape', () => {
   assert.deepEqual(validateReleaseProfile(input()), []);
 });
 test('certification remains independently enabled for proof gathering', () => {
@@ -38,7 +38,7 @@ for (const key of REQUIRED_OFF) {
 // Multi-image Scanner ships ON in both store profiles, and explicitly: the guard fails
 // closed on an absent, inherited or "false" value so it cannot be turned off by accident.
 test('multi-image Scanner is a REQUIRED_ON capability, not a held-off one', () => {
-  assert.deepEqual(REQUIRED_ON, ['EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED']);
+  assert.ok(REQUIRED_ON.includes('EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED'));
   assert.ok(!REQUIRED_OFF.includes('EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED'));
 });
 for (const key of REQUIRED_ON) {
@@ -92,12 +92,12 @@ test('production identity checks reject substring spoofing, staging keys and nat
   checkMutation(({ app }) => { app.expo.ios.bundleIdentifier = 'com.kscanai.debug'; }, /native identities/);
   checkMutation((fixture) => { fixture.gradle = fixture.gradle.replace("applicationId 'com.kscanai.app'", "applicationId 'com.kscanai.debug'"); }, /applicationId/);
 });
-test('effective build environment must be complete, OFF and free of unapproved endpoints', () => {
+test('effective build environment must be complete, feature-ON and free of unapproved endpoints', () => {
   const fixture = input();
   fixture.effectiveEnv = resolveCheckedProfile(fixture.eas, PROFILE).env;
   assert.deepEqual(validateReleaseProfile(fixture), []);
-  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_ELISE_SPEECH: 'true' };
-  assert.match(validateReleaseProfile(fixture).join('\n'), /ELISE_SPEECH/);
+  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_VOICESCAN_ENABLED: 'false' };
+  assert.match(validateReleaseProfile(fixture).join('\n'), /VOICESCAN_ENABLED/);
   fixture.effectiveEnv = { EXPO_PUBLIC_ENVIRONMENT: 'production' };
   assert.match(validateReleaseProfile(fixture).join('\n'), /explicitly false/);
   checkMutation(({ eas }) => { eas.build.production.env.EXPO_PUBLIC_API_URL = 'http://localhost:3001'; }, /endpoint is not approved/);
@@ -117,18 +117,14 @@ test('debug client, simulator, internal distribution and disabled versioning are
   ]) checkMutation(({ eas }) => mutate(eas.build[PROFILE]), /Release|release|numbering|iOS/);
 });
 // `eas build --platform <p> --profile production` is the mandated store command. Ordinary
-// production ships dark by ABSENCE (pinned by six suites) and every hold resolver is exact-"true"
-// opt-in, so it is verified in semantic mode: each hold absent or "false", the Today parent
-// explicitly "false", and the Today greeting/weather children (owner-authorized to stay "true"
-// while dormant) accepted ONLY while that parent is "false". build35-release stays strict.
-const TODAY_PARENT = 'EXPO_PUBLIC_TODAY_WITH_ELISE_V1';
-const TODAY_CHILDREN = ['EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1'];
+// production ships the same explicit ON customer feature matrix as build35-release,
+// with complimentary promotions and non-interactive placeholders OFF.
 function productionFixture(mutate) {
   const fixture = input(); fixture.profileName = 'production';
   if (mutate) mutate(fixture.eas.build.production.env, fixture);
   return validateReleaseProfile(fixture).join('\n');
 }
-test('the production store profile passes in default-dark semantic mode', () => {
+test('the production store profile passes in the full-feature semantic mode', () => {
   assert.deepEqual(STORE_PROFILES, ['production', PROFILE]);
   assert.equal(productionFixture(), '');
 });
@@ -136,28 +132,20 @@ for (const key of REQUIRED_OFF) {
   test(`production store profile rejects ${key} resolving enabled`, () => {
     const failures = productionFixture((env) => {
       env[key] = 'true';
-      // A dormant child is only tolerated under an OFF parent; enabling the parent too must fail.
-      if (TODAY_CHILDREN.includes(key)) env[TODAY_PARENT] = 'true';
     });
     assert.match(failures, /absent or false|explicitly false/);
   });
-  if (key !== TODAY_PARENT && !TODAY_CHILDREN.includes(key)) {
-    test(`production store profile accepts ${key} absent (default-dark by exact-true resolvers)`, () => {
-      assert.equal(productionFixture((env) => { delete env[key]; }), '');
+  {
+    test(`production store profile accepts optional-off ${key} absent`, () => {
+      if (key.startsWith('EXPO_PUBLIC_TODAY_')) assert.match(productionFixture((env) => { delete env[key]; }), /owner Today hold/);
+      else assert.equal(productionFixture((env) => { delete env[key]; }), '');
     });
   }
 }
-test('Today children stay explicitly OFF under the owner hold, even with their parent OFF', () => {
-  for (const child of TODAY_CHILDREN) {
-    assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'false'; }), /owner Today hold/);
-    assert.match(productionFixture((env) => { env[child] = 'true'; env[TODAY_PARENT] = 'true'; }), /absent or false|explicitly false/);
-    assert.match(productionFixture((env) => { env[child] = 'true'; delete env[TODAY_PARENT]; }), /TODAY_WITH_ELISE_V1 must resolve explicitly false/);
-  }
-});
 test('production public environment, when stated, must be production', () => {
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_ENVIRONMENT = 'staging'; }), /absent or production/);
 });
-test('a certification-only capability enabled in production is rejected as unapproved', () => {
+test('unsupported or demonstration-only capability enabled in production is rejected as unapproved', () => {
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_NEW_UNCERTIFIED_FEATURE = 'true'; }), /unapproved public capability/);
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_LIVE_VTO_ENABLED = 'true'; }), /absent or explicitly false/);
 });
@@ -200,4 +188,11 @@ test('CLI withholds malformed input values and exits nonzero', () => {
     assert.equal(result.status, 2);
     assert.doesNotMatch(result.stdout + result.stderr, /DO_NOT_LOG_THIS/);
   } finally { fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('owner Today hold rejects enabling any Today flag in every build profile', () => {
+  for (const name of Object.keys(input().eas.build)) for (const flag of ['EXPO_PUBLIC_TODAY_WITH_ELISE_V1','EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1','EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']) {
+    const fixture=input(); fixture.eas.build[name].env[flag]='true';
+    assert.match(validateReleaseProfile(fixture).join('\n'), /owner Today hold/);
+  }
 });

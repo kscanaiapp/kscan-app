@@ -8,38 +8,36 @@ const { resolveEasBuildProfile } = require('./resolve-eas-build-profiles');
 
 const PROFILE = 'build35-release';
 const STORE_PROFILES = Object.freeze(['production', PROFILE]);
-const DORMANT_TODAY_CHILDREN = new Set([
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1',
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1',
-]);
 const PACKAGE = 'com.kscanai.app';
 const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
+const TODAY_OFF = Object.freeze(['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']);
 const REQUIRED_OFF = Object.freeze([
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_V1',
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1',
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1',
+  ...TODAY_OFF,
+  'EXPO_PUBLIC_ELISE_SPEECH', // source controls prepared; environment deployment still pending
+  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED', // complimentary offer, not paid K+ access
+  'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER', // non-interactive design-only stub
+]);
+// Build 35 full-feature launch contract: ON in both exact store profiles.
+// Real user features ship ON; test stubs and missing-native LIVE VTO remain OFF.
+const REQUIRED_ON = Object.freeze([
   'EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1',
   'EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1',
   'EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1',
-  'EXPO_PUBLIC_ELISE_SPEECH',
-  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
+  'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   'EXPO_PUBLIC_VTO_UI_ENABLED',
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
-  'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER',
-]);
-// Capabilities the release must ship ON, and EXPLICITLY: an absent or inherited value
-// is a failure, so a later edit of a parent profile cannot silently turn them off.
-// Multi-image Scanner (up to five photos per scan) is certified-on for the store profiles.
-const REQUIRED_ON = Object.freeze([
-  'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
+  'EXPO_PUBLIC_AVATAR_MOTION_V1',
+  'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
+  'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
+  'EXPO_PUBLIC_ELISE_V10',
+  'KSCAN_VOICE_NATIVE_CAPABILITY',
 ]);
 // Existing baseline policy leaves these selectors unconfigured. Do not add
 // invented EAS worker/push variables: the worker is controlled in app_config.
 const OPTIONAL_OFF = Object.freeze([
-  'KSCAN_VOICE_NATIVE_CAPABILITY',
   'KSCAN_VOICE_CERTIFICATION',
   'EXPO_PUBLIC_LIVE_VTO_ENABLED',
   'EXPO_PUBLIC_LIVE_VTO_HARNESS',
@@ -51,6 +49,7 @@ const OPTIONAL_OFF = Object.freeze([
 // Deliberately fixed rather than inferred from production: adding a new ON
 // feature to a parent must not silently expand the release surface.
 const APPROVED_ON = new Set([
+  ...REQUIRED_ON,
   'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
   'EXPO_PUBLIC_HOME_NAVIGATION_V2', 'EXPO_PUBLIC_ACCOUNT_HOME_UX_V1',
   'EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1', 'EXPO_PUBLIC_SCAN_ROOM_V2_UI',
@@ -98,30 +97,23 @@ function resolveCheckedProfile(eas, name) {
   return resolveEasBuildProfile(eas, name);
 }
 
-// `strict` (build35-release): every hold must be an explicit "false".
-// semantic (base `production`): the repository contract is that ordinary production ships
-// dark by ABSENCE (six suites pin it), and each hold resolver is exact-"true" opt-in in
-// constants/featureFlags.ts. A hold is therefore accepted when absent or "false". The Today
-// greeting/weather children are the single documented exception: the owner authorized their
-// config to stay "true" while dormant (todayWithEliseFeatureFlags.test.js), which is inert
-// only while the Today parent resolves "false" (TODAY_WITH_ELISE_ACTIVE = parent && child).
+// The explicit full-feature matrix is pinned ON for both store profiles;
+// promotional and demonstration-only flags remain OFF.
 function validateEnvironment(env, failures, { strict = true } = {}) {
   if (!isObject(env)) {
     failures.push('Effective environment must be an object');
     return;
   }
-  const dormantChildAllowed = (key) => !strict && DORMANT_TODAY_CHILDREN.has(key) && env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1 === 'false';
   for (const key of REQUIRED_OFF) {
     if (strict) {
       if (env[key] !== 'false') failures.push(`${key} must resolve explicitly false`);
-    } else if (env[key] !== undefined && env[key] !== 'false' && !dormantChildAllowed(key)) {
-      failures.push(`${key} must resolve absent or false (default-dark store profile)`);
+    } else if (env[key] !== undefined && env[key] !== 'false') {
+      failures.push(`${key} must resolve absent or false (non-launch promotion/placeholder)`);
     }
   }
   for (const key of REQUIRED_ON) {
     if (env[key] !== 'true') failures.push(`${key} must resolve explicitly true`);
   }
-  if (!strict && env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1 !== 'false') failures.push('EXPO_PUBLIC_TODAY_WITH_ELISE_V1 must resolve explicitly false (it gates its dormant children)');
   for (const key of OPTIONAL_OFF) {
     if (env[key] !== undefined && env[key] !== 'false') failures.push(`${key} must be absent or explicitly false`);
   }
@@ -144,7 +136,7 @@ function validateEnvironment(env, failures, { strict = true } = {}) {
     failures.push('Legacy API endpoint is not approved for the release profile');
   }
   for (const key of Object.keys(env)) {
-    if (key.startsWith('EXPO_PUBLIC_') && env[key] === 'true' && !APPROVED_ON.has(key) && !dormantChildAllowed(key)) {
+    if (key.startsWith('EXPO_PUBLIC_') && env[key] === 'true' && !APPROVED_ON.has(key)) {
       failures.push('An unapproved public capability resolves enabled');
     }
     if (/^EXPO_PUBLIC_.*(?:SECRET|SERVICE_ROLE|ACCESS_TOKEN|PRIVATE_KEY|PASSWORD)/i.test(key)) {
@@ -160,7 +152,7 @@ function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = 
   for (const name of Object.keys(eas.build || {})) {
     try {
       const env = resolveCheckedProfile(eas, name).env || {};
-      for (const flag of ['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', ...DORMANT_TODAY_CHILDREN]) {
+      for (const flag of TODAY_OFF) {
         if (env[flag] !== 'false') failures.push(`${name}/${flag} must resolve explicitly false (owner Today hold)`);
       }
     } catch (error) {
@@ -177,7 +169,7 @@ function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = 
   // `production` itself is verified here too (semantic mode), not only its derivative.
   const isBaseProduction = profileName === 'production';
   if (!isBaseProduction && eas.build[profileName].extends !== 'production') failures.push('Release profile must extend production, independently of certification');
-  if (isBaseProduction && eas.build.production.extends !== undefined) failures.push('Production profile must not inherit from another profile (certification inheritance enables unproven features)');
+  if (isBaseProduction && eas.build.production.extends !== undefined) failures.push('Production profile must not inherit from another profile (protect exact feature matrix)');
   // EAS resolves a profile named `production` to the production environment by default.
   if ((profile.environment ?? (isBaseProduction ? 'production' : undefined)) !== 'production') failures.push('EAS environment must resolve production');
   if (profile.distribution !== 'store') failures.push('Release distribution must resolve store');
@@ -238,7 +230,7 @@ function main(args = process.argv.slice(2)) {
     const failures = validateReleaseProfile({ ...input, profileName });
     for (const failure of failures) console.error(`FAIL [${profileName}] ${failure}`);
     if (failures.length) failed = true;
-    else console.log(`PASS ${profileName}: ${args.length ? 'source and supplied effective environment' : 'source configuration'} holds and identities; artifact/device/store certification remains required.`);
+    else console.log(`PASS ${profileName}: ${args.length ? 'source and supplied effective environment' : 'source configuration'} feature matrix and identities; artifact/device/store certification remains required.`);
   }
   return failed ? 1 : 0;
 }
