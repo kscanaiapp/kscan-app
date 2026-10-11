@@ -44,6 +44,7 @@ import {
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { isScannerCameraRequired } from './services/scannerCameraRequirement';
 import { resolveSavedScanDestination } from './services/savedScanDestination';
+import { hasUsableAnalyzedItem } from './services/failedScanActions';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
 import { ScanResultV2 } from './components/scan-results/ScanResultV2';
@@ -1420,16 +1421,11 @@ export default function App() {
     }
 
     if (status === 'error') {
-      // A failed scan has no usable analysis to save. Guard on concrete fields --
-      // an empty object ({}) is truthy -- so we never offer to save a scan the
-      // app just told the user failed.
-      const hasUsableAnalysis = Boolean(
-        analysis &&
-          (analysis.result ||
-            analysis.metadata?.category ||
-            (Array.isArray(analysis.products) && analysis.products.length) ||
-            analysis.type === 'non-fashion'),
-      );
+      // A failed scan has no usable analysis to save, so we never offer to save
+      // a scan the app just told the user failed. A failed selected-garment
+      // analysis leaves the DETECTION result in `analysis` (Try Again resumes
+      // from it); that is a list of garments, not an analyzed item (P-ERR-1).
+      const hasUsableAnalysis = hasUsableAnalyzedItem(analysis);
       return (
         <View style={styles.actionsContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}

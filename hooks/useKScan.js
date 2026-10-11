@@ -1414,7 +1414,7 @@ export function useKScan() {
       if (data.type === 'non-fashion') {
         throw userSafeError(
           'selected garment not identified',
-          'The selected garment could not be identified. Please choose another item.',
+          'The selected garment could not be identified. Try again or retake the photo.',
         );
       }
 
