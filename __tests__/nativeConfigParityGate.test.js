@@ -237,8 +237,8 @@ test('the declared Voice certification exception is what the repository actually
   assert.deepEqual(capability.additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
   assert.deepEqual(
     capability.selectorSetByEasProfiles,
-    ['production-certification'],
-    'only the governed production-certification profile may commit KSCAN_VOICE_NATIVE_CAPABILITY',
+    ['production', 'build35-release', 'production-certification'],
+    'only the explicitly governed Voice-capable shipping and certification profiles may commit KSCAN_VOICE_NATIVE_CAPABILITY',
   );
   assert.deepEqual(
     capability.mustRemainRemovedEverywhere,
@@ -374,10 +374,10 @@ test('a store profile cannot disable the authorized native Voice capability behi
   assert.equal(exitCode, 1);
 });
 
-test('native selector whitespace and case cannot bypass the unauthorized profile guard', () => {
+test('unauthorized staging Voice selector remains rejected even with case and whitespace', () => {
   const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
     const eas = readJson('eas.json');
-    eas.build['build35-release'].env.EXPO_PUBLIC_SMART_WATCHLIST_V1 = ' TRUE ';
+    eas.build.staging.env.KSCAN_VOICE_NATIVE_CAPABILITY = ' TRUE ';
     writeJson('eas.json', eas);
   });
   assert.equal(exitCode, 1);
