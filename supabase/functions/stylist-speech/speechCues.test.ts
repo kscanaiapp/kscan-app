@@ -71,6 +71,8 @@ function cueDataAccess(preferenceId: string | null = 'stylist_portrait_05'): Sty
   return {
     getAuthenticatedActor: () => Promise.resolve({ id: ACTOR_ID }),
     getAccountStatus: () => Promise.resolve('active'),
+    reserveSpeechRequest: () => Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' }),
+    finishSpeechRequest: () => Promise.resolve(),
     getSession: () => {
       throw new Error('cue mode must not read sessions');
     },

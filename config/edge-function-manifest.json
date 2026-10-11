@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-08T22:26:30.754Z",
-    "generatedFromGitSha": "cfa1c2ba4f82799ff699242180ff2da134773494"
+    "generatedAtUtc": "2026-10-11T22:35:02.004Z",
+    "generatedFromGitSha": "924ed6b0a29d1ae648e5ecc43efbb83505c18905"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -970,8 +970,8 @@
         ],
         "bundleFileCount": 11,
         "treeFileCount": 22,
-        "bundleHash": "cef4685479092f4b655cc08bf1a3901fcef7454219b76ef36ff967ab2cadd964",
-        "treeHash": "b96d512173146969a92c9994e85d708dc5a52bdbe26da974ad12506e122787d1",
+        "bundleHash": "b8c9c9105dd0403979f687bcf25c9137816c03d087a33385efe59f909de5eb4a",
+        "treeHash": "287988ad554ac850047bb01f078c6421390a7d49071acbce5a3105524f4153f6",
         "files": [
           {
             "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
@@ -990,17 +990,17 @@
           },
           {
             "path": "supabase/functions/stylist-speech/handler.test.ts",
-            "sha256": "3f6f44886dff47db7469b39eba15b3306aeeab6a67497516d656211808217128",
+            "sha256": "7838106b0aff59321673ac95ed09b3ad9c9cafd8184b9e591a5d7f6bba66e14c",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/handler.ts",
-            "sha256": "e03f27d57a156b6cc63d5235c65be8e44d83d772476c7feca6bfe0b83f4d26bb",
+            "sha256": "70f353e7b8e7bf62f5f954dadaef44eeb5099edd8e8276f1c79c8805759d1e88",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/index.ts",
-            "sha256": "1a898df758c704fce8fcc361f1cc9c6a859d621203bf512f830aa15a1d0be237",
+            "sha256": "7d4696e54be1b7555ace3efab20c8aa43739a31dbddc440339afec5d620be7a3",
             "bundle": true
           },
           {
@@ -1045,7 +1045,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/speechCues.test.ts",
-            "sha256": "0370120bd554f7c30b919c596b1e27b4a8f5e00a20a03bbb05cb53908f135af9",
+            "sha256": "9a4bf9324e34bcc6b01dec19a84d0ca24cadfb305814b32696e7d02d9bb52c65",
             "bundle": false
           },
           {
@@ -1070,7 +1070,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/types.ts",
-            "sha256": "60628e49799cb522eff90b354771b3eef75345d05c3a7d208c447366d7fac41a",
+            "sha256": "923d6377f2985ba7ce0df20c31a11872b284f803405db697342746e4a2b5e5ec",
             "bundle": true
           },
           {
@@ -1136,8 +1136,8 @@
         ],
         "bundleFileCount": 6,
         "treeFileCount": 6,
-        "bundleHash": "2735e2cdaa5d6156722dc6f3973fb43d3b67e061d93e6cb1bdd20b79c8e3f19f",
-        "treeHash": "2735e2cdaa5d6156722dc6f3973fb43d3b67e061d93e6cb1bdd20b79c8e3f19f",
+        "bundleHash": "961ae960c282eb0e6533aa52351df8cb0c9ca0b6bb4ceb093d1b650ef05010b3",
+        "treeHash": "961ae960c282eb0e6533aa52351df8cb0c9ca0b6bb4ceb093d1b650ef05010b3",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
@@ -1151,7 +1151,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "27ca16a7fb819a90b56d2ba25508ae65ff32252b1e4601c9bbdf6a7b71bce0d2",
+            "sha256": "cef9af9fa3dc6c2c02b97a548697f6acc353a8c31ed196e00d76f47615683072",
             "bundle": true
           },
           {

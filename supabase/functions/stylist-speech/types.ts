@@ -80,8 +80,12 @@ export interface StylistPreferenceRow {
 }
 
 export interface StylistSpeechDataAccess {
-  getAuthenticatedActor(): Promise<{ id: string } | null>;
+  getAuthenticatedActor(): Promise<{ id: string; isAnonymous?: boolean } | null>;
   getAccountStatus(actorId: string): Promise<string | null>;
+  reserveSpeechRequest(actorId: string, fingerprint: string, characters: number): Promise<{
+    allowed: boolean; reservationId?: string; reason?: string;
+  }>;
+  finishSpeechRequest(actorId: string, reservationId: string, succeeded: boolean): Promise<void>;
   getSession(sessionId: string, actorId: string): Promise<SpeechSessionRow | null>;
   getMessage(messageId: string, actorId: string): Promise<SpeechMessageRow | null>;
   getStylistPreference(actorId: string): Promise<StylistPreferenceRow | null>;
@@ -91,6 +95,8 @@ export type SpeechErrorCode =
   | 'INVALID_REQUEST'
   | 'NOT_AUTHENTICATED'
   | 'ACCOUNT_UNAVAILABLE'
+  | 'SPEECH_DISABLED'
+  | 'SPEECH_COST_LIMIT'
   | 'SESSION_NOT_FOUND'
   | 'MESSAGE_NOT_FOUND'
   | 'MESSAGE_INELIGIBLE'
