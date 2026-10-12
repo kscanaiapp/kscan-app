@@ -250,9 +250,12 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
   // and the existing Closet intake, and asserting their absence would fail on
   // permissions this module had nothing to do with.
   const { execFileSync } = require('node:child_process');
+  // 507cec9 was an unrelated source-lineage commit with no app.json; use the
+  // actual certified iOS Vision test introduction's full-tree commit instead.
+  // The approved historical privacy/permission delta is still checked below.
   const baseline = execFileSync(
     'git',
-    ['show', '507cec9ab6a76ffe281ad4d395cd878b73a8d82c:app.json'],
+    ['show', '662effd7691973:app.json'],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
   );
   const before = JSON.parse(baseline).expo.ios;
