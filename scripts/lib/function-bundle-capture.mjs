@@ -46,6 +46,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import ts from 'typescript';
 
 export const CAPTURE_SCHEMA = 'production-function-capture-v1';
 export const CAPTURE_DIR = 'production-function-captures';
@@ -184,6 +185,38 @@ export function verifyCapture({ capture, captureRoot, expected }) {
     push(`capture file_count ${capture.file_count} does not match the ${declared.length} files declared`);
   }
 
+  // A function may import helpers stored under a sibling function directory.
+  // Authorize those exact files through the captured entrypoint's import graph,
+  // never through the current checkout or a directory-wide exception.
+  const dependencies = new Set();
+  if (layout === 'functions-root' && captureRoot) {
+    const declaredPaths = new Set(declared.filter((entry) => typeof entry?.path === 'string'
+      && !entry.path.includes('..') && !path.isAbsolute(entry.path)).map((entry) => entry.path));
+    const queue = [capture.entrypoint];
+    while (queue.length) {
+      const current = queue.shift();
+      if (dependencies.has(current)) continue;
+      if (!declaredPaths.has(current)) { push('captured import dependency is missing'); continue; }
+      const absolute = path.join(captureRoot, current);
+      if (!fs.existsSync(absolute) || !fs.lstatSync(absolute).isFile()) continue;
+      dependencies.add(current);
+      if (!/\.(?:[cm]?[jt]s|[jt]sx)$/.test(current)) continue;
+      const source = ts.createSourceFile(current, fs.readFileSync(absolute, 'utf8'), ts.ScriptTarget.Latest, true);
+      const visit = (node) => {
+        const specifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier :
+          ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : null;
+        if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.')) {
+          const dependency = path.posix.normalize(path.posix.join(path.posix.dirname(current), specifier.text));
+          if (dependency.startsWith('../') || dependency.includes('\\') || path.posix.isAbsolute(dependency)) {
+            push('captured import dependency escapes the capture directory');
+          } else queue.push(dependency);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(source);
+    }
+  }
+
   // Integrity: the bytes on disk must still be the bytes that were captured.
   const restored = [];
   if (captureRoot) {
@@ -197,7 +230,8 @@ export function verifyCapture({ capture, captureRoot, expected }) {
         continue;
       }
       if (layout === 'functions-root' && entry.path.split('/')[0] !== capture.function_name &&
-          entry.path.split('/')[0] !== '_shared' && !['import_map.json', 'deno.json', 'deno.jsonc'].includes(entry.path)) {
+          entry.path.split('/')[0] !== '_shared' && !['import_map.json', 'deno.json', 'deno.jsonc'].includes(entry.path)
+          && !dependencies.has(entry.path)) {
         push(`capture contains an unrelated function or unsupported root file: ${entry.path}`);
         continue;
       }
