@@ -540,8 +540,8 @@ test('reviewer docs: microphone/speech are described as shipped capability, not 
   for (const [name, doc] of [['runbook', runbook], ['review template', template]]) {
     assert.match(
       doc,
-      /VoiceScan is (?:DISABLED|disabled)/,
-      `${name} must state that VoiceScan is disabled rather than that the capability is missing`,
+      /VoiceScan is enabled/,
+      `${name} must describe the owner-approved VoiceScan capability`,
     );
   }
 });
@@ -559,7 +559,7 @@ test('reviewer docs: notifications are described as reachable capability, not "n
   assert.match(runbook, /expo-notifications/, 'runbook must name the shipped notifications capability');
 });
 
-test('reviewer docs: the certification-only features are documented as production-disabled', () => {
+test('reviewer docs: approved Build 35 features match the store-profile source matrix', () => {
   const env = productionEnv();
   const template = readDoc(REVIEW_TEMPLATE_PATH);
   // Each of these is absent from the production profile, and every resolver in
@@ -568,18 +568,21 @@ test('reviewer docs: the certification-only features are documented as productio
   for (const flag of [
     'EXPO_PUBLIC_VOICESCAN_ENABLED',
     'EXPO_PUBLIC_VTO_UI_ENABLED',
-    'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
     'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
     'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
     'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   ]) {
-    assert.notEqual(env[flag], 'true', `${flag} must stay off in the production profile`);
+    assert.equal(env[flag], 'true', `${flag} must be enabled in the approved store profile`);
     assert.ok(
       template.includes(flag),
       `${flag} must be named in the reviewer template's production-state table`,
     );
   }
   assert.equal(env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1, 'false');
+  assert.equal(env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
+  assert.equal(env.EXPO_PUBLIC_ELISE_SPEECH, 'false', 'Speech still requires deployed cost controls');
+  assert.match(template, /PREBUILD_VERIFIED|pre-build/);
+  assert.match(template, /POSTBUILD_REQUIRED|post-build/);
 });
 
 test('reviewer docs: account deletion is described as deactivate + restore window, not immediate purge', () => {

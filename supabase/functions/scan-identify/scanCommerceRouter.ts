@@ -949,6 +949,24 @@ function providerOutcomeFor(
   if (errorType) return 'error';
   return count > 0 ? 'success' : 'zero_result';
 }
+/**
+ * Whether an empty deferred-commerce shelf can benefit from an immediate user retry.
+ *
+ * no_results is a completed search with no acceptable offers; structural input
+ * outcomes cannot change by tapping Retry. Provider/runtime failures remain retryable.
+ */
+const NON_RETRYABLE_EMPTY_ERROR_TYPES = new Set([
+  'no_results',
+  'empty_query',
+  'weak_query',
+  'non_fashion',
+  'wrong_mode',
+]);
+
+export function isCommerceEmptyRetryable(errorType?: string): boolean {
+  const normalized = typeof errorType === 'string' ? errorType.trim().toLowerCase() : '';
+  return !NON_RETRYABLE_EMPTY_ERROR_TYPES.has(normalized);
+}
 
 /**
  * Fast commerce retrieval (v127).
@@ -1183,6 +1201,18 @@ export async function getFastCommerceResults(
   }
 
   const discoveryErrorType = shoppingSettled.errorType ?? poshmarkSettled.errorType;
+  // A provider can report a configuration/status error while another provider
+  // returned real candidates that the quality/relevance filter rejected. Once
+  // retrieval produced candidates and the governed filter reduced them to zero,
+  // the user-facing truth is a completed empty search (no_results), not the
+  // incidental status of whichever provider supplied the first error string.
+  const allDiscoveredCandidatesFiltered =
+    merged.length === 0 && pool.length > 0;
+  const finalErrorType = merged.length > 0
+    ? undefined
+    : allDiscoveredCandidatesFiltered
+      ? 'no_results'
+      : (discoveryErrorType ?? 'no_results');
   const provider: ScanCommerceProvider = merged.length > 0
     ? labelCachedProvider(merged[0], shoppingProviderLabel)
     : 'none';
@@ -1197,7 +1227,7 @@ export async function getFastCommerceResults(
     providersTried,
     query,
     count: merged.length,
-    errorType: merged.length > 0 ? undefined : (discoveryErrorType ?? 'no_results'),
+    errorType: finalErrorType,
     ...(resolved.queryStrategy ? { queryStrategy: resolved.queryStrategy } : {}),
     funnel: {
       cacheHit: false,

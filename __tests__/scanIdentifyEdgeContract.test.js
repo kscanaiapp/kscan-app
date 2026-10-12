@@ -5,6 +5,11 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const EDGE_SOURCE = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+const SCAN_QUOTA_SOURCE = fs.readFileSync(
+  path.join(ROOT, 'supabase/functions/scan-identify/scanQuota.ts'),
+  'utf8',
+);
+const SCAN_IDENTIFY_SOURCE_BUNDLE = `${EDGE_SOURCE}\n${SCAN_QUOTA_SOURCE}`;
 
 // ── 1. CORS and Auth Contract ──
 
@@ -79,9 +84,9 @@ test('edge source: paid image inference requires a real, non-anonymous K Scan AI
   assert.ok(gateIndex !== -1 && geminiIndex !== -1 && gateIndex < geminiIndex,
     'Actor eligibility must be decided before any Gemini call');
 
-  // MODE B (commerce-only, no bearer token by design) is a separate surface
-  // that never reaches Gemini and is unaffected by this authority — it must
-  // still be dispatched before this gate runs.
+  // MODE B (commerce-only) is a separate, authenticated surface that never
+  // reaches Gemini. Its own real-account and durable-quota boundary must run
+  // before this later paid-AI gate without being folded into it.
   const modeBIndex = EDGE_SOURCE.indexOf('MODE B: commerce-only request');
   assert.ok(modeBIndex !== -1 && modeBIndex < gateIndex,
     'MODE B must remain dispatched before the paid-AI actor gate, and must not be folded into it');
@@ -118,7 +123,28 @@ test('edge source: image mode remains backward-compatible', () => {
 });
 
 test('edge source: image mode works without explicit mode field', () => {
-  assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
+  // B33-SEC-003 moved this decision out of an inline ternary in index.ts and
+  // into scanQuota.canonicalizeScanMode(), because the inline form fed the
+  // caller's raw string straight into the durable quota key. The CONTRACT is
+  // unchanged — an absent or non-string mode is still an image scan — so assert
+  // the contract at its new home rather than the shape it used to have.
+  assert.ok(
+    /const mode: CanonicalScanMode = isV2Request \? 'image' : canonicalizeScanMode\(body\.mode\)/
+      .test(EDGE_SOURCE),
+    'the request boundary must canonicalize body.mode',
+  );
+  const quotaSource = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/scanQuota.ts'),
+    'utf8',
+  );
+  assert.ok(
+    quotaSource.includes("if (typeof raw !== 'string') return 'image';"),
+    'an absent or non-string mode must still default to image',
+  );
+  assert.ok(
+    quotaSource.includes("return raw.trim().toLowerCase() === 'text' ? 'text' : 'image';"),
+    'only text may leave the image bucket',
+  );
 });
 
 test('edge source: image failures return safe app-compatible shape', () => {
@@ -408,10 +434,35 @@ test('edge source: image mode captures scan intelligence with timeout protection
   );
 });
 
-test('edge source: image mode commerce lookup has a 3000ms Promise.race timeout guard', () => {
+test('edge source: image mode commerce budget stays above the provider abort', () => {
+  // B33-COM-001. This used to pin the constant to 3000, which is BELOW
+  // shoppingProvider's PROVIDER_TIMEOUT_MS (4500). An outer budget under the
+  // provider's own abort makes that abort unreachable: a call that would have
+  // returned products between 3s and 4.5s is always discarded, the provider
+  // spend is still billed, and the scan reports an empty shelf. Production ran
+  // the repaired value while governed source still carried 3000, so a governed
+  // redeploy would have silently reverted the live fix.
+  //
+  // The invariant, not the literal, is what matters — so assert the relation
+  // against the provider's own constant rather than restating a number that can
+  // drift out from under this test.
+  const imageBudget = Number(
+    /IMAGE_MODE_COMMERCE_TIMEOUT_MS = (\d+)/.exec(EDGE_SOURCE)?.[1],
+  );
+  const providerTimeout = Number(
+    /PROVIDER_TIMEOUT_MS = (\d+)/.exec(
+      fs.readFileSync(
+        path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'),
+        'utf8',
+      ),
+    )?.[1],
+  );
+  assert.ok(Number.isFinite(imageBudget), 'image commerce budget must be a literal constant');
+  assert.ok(Number.isFinite(providerTimeout), 'provider timeout must be a literal constant');
   assert.ok(
-    EDGE_SOURCE.includes('IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000'),
-    'Image mode commerce timeout constant must be 3000ms',
+    imageBudget > providerTimeout,
+    `image commerce budget (${imageBudget}ms) must exceed the provider abort `
+      + `(${providerTimeout}ms), or the provider's own timeout is unreachable`,
   );
 
   const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
@@ -580,7 +631,7 @@ test('edge source: production stage logs are present and do not leak sensitive d
   ];
   for (const label of logLabels) {
     assert.ok(
-      EDGE_SOURCE.includes(`[scan-identify] ${label}`),
+      SCAN_IDENTIFY_SOURCE_BUNDLE.includes(`[scan-identify] ${label}`),
       `Must include production stage log: ${label}`,
     );
   }
@@ -596,7 +647,7 @@ test('edge source: authenticated image scan checks DB quota before Gemini', () =
   const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
   assert.ok(
-    EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
+    SCAN_QUOTA_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
     'Must call scan_identify daily quota RPC',
   );
   assert.ok(quotaIndex !== -1, 'Must check authenticated quota');
@@ -638,22 +689,26 @@ test('edge source: quota exceeded does not call Gemini, commerce, or similarity'
   assert.ok(rateLimitReturn < similarityIndex, 'Rate-limited response must return before similarity');
 });
 
-test('edge source: quota DB/RPC failure fails open and proceeds to Gemini', () => {
-  assert.ok(EDGE_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
+test('edge source: quota DB/RPC failure fails closed before paid work', () => {
+  assert.ok(SCAN_QUOTA_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when quota check fails',
+    SCAN_QUOTA_SOURCE.includes("return { outcome: 'unverified', reason: 'quota_rpc_error' }"),
+    'RPC failure must return an unverified decision, never authorize paid work',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("if (quota.outcome === 'unverified')"),
+    'The request boundary must stop on an unverified quota decision',
   );
 });
 
-test('edge source: missing service role key fails open for authenticated quota', () => {
+test('edge source: missing service role key fails closed for authenticated quota', () => {
   assert.ok(
-    EDGE_SOURCE.includes('reason=missing_service_role_client'),
+    SCAN_QUOTA_SOURCE.includes('reason=missing_service_role_client'),
     'Must detect missing service role client',
   );
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when service role client missing',
+    SCAN_QUOTA_SOURCE.includes("return { outcome: 'unverified', reason: 'missing_service_role_client' }"),
+    'Missing quota authority must not authorize paid work',
   );
 });
 
@@ -675,7 +730,7 @@ test('edge source: TextScan remains authenticated-only', () => {
 });
 
 test('edge source: quota logs do not expose full user id, tokens, image, or text', () => {
-  const quotaLogLines = EDGE_SOURCE.split('\n').filter(
+  const quotaLogLines = SCAN_IDENTIFY_SOURCE_BUNDLE.split('\n').filter(
     (line) =>
       line.includes('quota_allowed') ||
       line.includes('quota_rate_limited') ||

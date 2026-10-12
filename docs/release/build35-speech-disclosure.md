@@ -41,7 +41,7 @@ across an app restart. Text replies remain available.
 
 The owner explicitly approved this exact wording in the Build 35 integration
 chat on 2026-10-11; the approval constant is true for this version. Technical
-backend cost, kill-switch and entitlement repairs
+backend cost, kill-switch and account-authorization repairs
 continue independently. Approval of this disclosure does not certify those
 controls, authorize paid calls, or approve a Production deployment.
 

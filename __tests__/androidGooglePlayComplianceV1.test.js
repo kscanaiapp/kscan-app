@@ -536,8 +536,8 @@ function findForegroundServiceManifests(root) {
  * of `governedManifestPaths`. Factored out so the real reverify test and its
  * negative control (CONTROL L below) exercise the exact same comparison. */
 function findUngovernedForegroundServiceManifests(root, governedManifestPaths) {
-  const governed = new Set(governedManifestPaths.map((p) => path.resolve(p)));
-  return findForegroundServiceManifests(root).filter((p) => !governed.has(p));
+  const governed = new Set(governedManifestPaths.map((p) => fs.realpathSync(p)));
+  return findForegroundServiceManifests(root).filter((p) => !governed.has(fs.realpathSync(p)));
 }
 
 test('reverify the governed dependency set: no other installed package declares a foreground-service surface', () => {

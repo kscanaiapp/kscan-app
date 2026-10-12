@@ -37,10 +37,12 @@ for (const name of Object.keys(baseline.todayByProfile)) {
     assert.equal(effective(eas, name).EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
   });
 }
-test('ordinary Production keeps scoped premium rollout flags off', () => {
-  const env = effective(eas, 'production');
-  for (const flag of ['PACKING_INTELLIGENCE', 'SMART_WATCHLIST', 'CLOSET_CLOUD_SYNC', 'CLOSET_CROSS_DEVICE_RESTORE', 'CLOSET_LEGACY_MIGRATION']) {
-    assert.notEqual(env[`EXPO_PUBLIC_${flag}_V1`], 'true', flag);
+test('owner-approved Build 35 store profiles enable the scoped premium features', () => {
+  for (const profile of ['production', 'build35-release']) {
+    const env = effective(eas, profile);
+    for (const flag of ['PACKING_INTELLIGENCE', 'SMART_WATCHLIST', 'CLOSET_CLOUD_SYNC', 'CLOSET_CROSS_DEVICE_RESTORE', 'CLOSET_LEGACY_MIGRATION']) {
+      assert.equal(env[`EXPO_PUBLIC_${flag}_V1`], 'true', `${profile}/${flag}`);
+    }
   }
 });
 function assertProtected(read) {

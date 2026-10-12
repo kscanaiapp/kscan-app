@@ -323,7 +323,9 @@ test('Elise sources its allowlist from the shared module so surfaces cannot drif
 });
 
 test('config.toml pins JWT posture so a deploy cannot silently change it', () => {
-  assert.match(configToml, /project_id = "wyyuqfdxucjksghsmhry"/);
+  // The checkout's local CLI target is Staging. Governed Production scripts
+  // require the explicit Production ref; JWT posture is common to both.
+  assert.match(configToml, /project_id = "yzqjvdfgefveprobvvyw"/);
   assert.match(configToml, /\[functions\.scan-identify\][\s\S]{0,80}verify_jwt = false/);
   assert.match(configToml, /\[functions\.stylechat-generate\][\s\S]{0,80}verify_jwt = true/);
   assert.match(configToml, /\[functions\.style-outfit-generate\]/, 'style-outfit-generate must be declared so verify_jwt cannot silently drift');

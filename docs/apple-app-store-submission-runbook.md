@@ -14,10 +14,10 @@ Last updated: 2026-09-08
 - **Checked-in source build number** (`app.json` → `ios.buildNumber`): `26`
 - **Submitted archive build number: ARTIFACT GATE — do not state until the production artifact exists.** `eas.json` sets `cli.appVersionSource: "remote"` and `build.production.autoIncrement: true`, so EAS assigns the build number remotely at build time. The checked-in `26` is the source value, not a prediction of what the submitted archive will carry. Read the real number off the produced artifact / App Store Connect before recording it anywhere reviewer-facing.
 - Included for this release: camera scan analysis, TextScan, retailer-neutral commerce discovery, Closet (saved scans, batch review, candidate staging, direct intake), Signature Style, StyleChat/Elise, Dressing Rooms, room chat, shared rooms, private Dressing Rooms, Mirror Selfie, photo-library inspiration upload, Google Sign-In, Sign in with Apple (including credential-state revocation handling), email/password sign-in, coarse foreground location for weather-aware StyleChat, and the account deletion + restoration lifecycle.
-- Built but DISABLED in the production profile, and therefore not part of the reviewer flow: VoiceScan, Virtual Try-On, K+, Packing Intelligence, Wardrobe Concierge, Smart Watchlist, Today with Elise.
-- Microphone and Speech Recognition: purpose strings SHIP IN THE BINARY (`NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription`) because VoiceScan is built into the codebase. Production VoiceScan is disabled, so no microphone or speech prompt is expected during review. Do not claim the app lacks microphone capability — the submitted artifact contains it.
-- Push notifications: `expo-notifications` ships and the onboarding Permissions step can request notification permission in production. It is optional and defaults off, and no push is produced in this configuration because Smart Watchlist is disabled. Do not claim "no push notifications".
-- Not present: tracking/ATT, ads, and any reachable purchase or subscription surface (the K+ boundary is disabled).
+- Build 35 store-profile source enables VoiceScan, Virtual Try-On, Packing Intelligence, Wardrobe Concierge, Smart Watchlist and Cloud Closet. Today with Elise remains OFF. Elise Speech is a ship target but stays OFF in the current store profile until its governed server cost and kill-switch deployment is verified.
+- Microphone and Speech Recognition purpose strings ship in the binary (`NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription`). VoiceScan is enabled in the Build 35 source configuration; it requests them only when the user starts Voice Scan and requires on-device recognition. Native behavior remains an artifact/device gate.
+- Push notifications use `expo-notifications`; onboarding permission is optional and defaults off. Smart Watchlist worker/scheduling and actual device delivery remain separate certification checks.
+- Tracking/ATT and ads are absent. K+ purchase and restore use RevenueCat and the platform store; verify with an authorized sandbox actor on the exact artifact.
 
 ## Local Submission Readiness
 
@@ -147,15 +147,15 @@ not mean the reviewer will see a prompt.
 |---|---|---|---|---|---|
 | Camera | Yes (`NSCameraUsageDescription`, `expo-camera`) | Yes — at scan start | Scanner | Required for scanning | **Yes** |
 | Photo library | Yes (`NSPhotoLibraryUsageDescription`, `expo-image-picker`) | Yes — at picker open | Scan from library, Closet intake, Mirror Selfie, StyleChat attachments | Yes | Likely, if the reviewer picks an existing photo |
-| Microphone | Yes (`NSMicrophoneUsageDescription`, `expo-audio`) | Yes — at VoiceScan start | VoiceScan — **disabled in production** | n/a | **No** |
-| Speech Recognition | Yes (`NSSpeechRecognitionUsageDescription`) | Yes — at VoiceScan start | VoiceScan — **disabled in production** | n/a | **No** |
+| Microphone | Yes (`NSMicrophoneUsageDescription`, `expo-audio`) | Yes — at VoiceScan start | VoiceScan — enabled in Build 35 source | n/a | Artifact/device gate |
+| Speech Recognition | Yes (`NSSpeechRecognitionUsageDescription`) | Yes — at VoiceScan start | VoiceScan — enabled in Build 35 source | n/a | Artifact/device gate |
 | Location (When In Use, approximate) | Yes (`NSLocationWhenInUseUsageDescription`, `expo-location`) | Yes — after a prominent in-app disclosure | Weather-aware StyleChat | Yes | Only if that flow is exercised |
-| Notifications | Yes (`expo-notifications`) | Yes — from the onboarding Permissions toggle | Onboarding Permissions step; delivery would come from Smart Watchlist, which is **disabled in production** | Yes, defaults off | Only if the reviewer turns the toggle on |
+| Notifications | Yes (`expo-notifications`) | Yes — from the onboarding Permissions toggle | Onboarding Permissions step; Smart Watchlist delivery requires post-build certification | Yes, defaults off | Only if the reviewer turns the toggle on |
 
 Proven absent from the current source and configuration:
 
 - **No background location** — `NSLocationAlwaysAndWhenInUseUsageDescription` is not declared and `UIBackgroundModes` is absent from `app.json`.
-- **No background listening** — no `audio` background mode; microphone use is foreground VoiceScan only, and VoiceScan is disabled in production.
+- **No background listening** — no `audio` background mode; microphone use is foreground VoiceScan only.
 - **No ATT request** — `NSUserTrackingUsageDescription` is not declared and no AppTrackingTransparency dependency exists.
 - **No contacts** — no contacts usage description or dependency.
 - **No Bluetooth** — no Bluetooth usage description or dependency.
@@ -172,7 +172,7 @@ Use these as the App Store Connect App Privacy baseline for the current build:
 - Data used for tracking: no
 - Approximate/When-In-Use location: yes for weather-aware StyleChat only (coarse, transient, optional, not stored or linked to user)
 - Contacts, payment, purchases, health, fitness, sensitive info, browsing history, advertising data: no for this build
-- Audio: no audio is captured — VoiceScan is disabled in production, though its purpose strings ship in the binary
+- Audio: VoiceScan audio is processed by the platform on-device recognizer when the user starts the flow; it is not sent to K Scan's backend.
 - Search history: declared in the privacy manifest (TextScan queries are sent while authenticated and persisted against the account when saved)
 - Device ID: collected, linked to user, app functionality — the Watchlist push-registration installation identifier
 - **Product Interaction — POSTHOG PRODUCTION STATE — PENDING REPAIR 03 ENVIRONMENT VERIFICATION.** The privacy manifest currently declares Product Interaction as collected, NOT linked, for Analytics. Whether that linkage is correct depends on whether PostHog is actually configured in the production EAS environment, which has not yet been authoritatively verified. Do not answer the App Store Connect analytics questions, and do not change the Product Interaction declaration, until Repair 03 closes.
@@ -205,7 +205,7 @@ Users can request account deletion in the app from Privacy > Delete Account. Sub
 - Sign in with a pre-verified reviewer account.
 - Allow camera permission and complete one scan.
 - Save and delete a local library item.
-- Verify no microphone, speech-recognition, ATT, or payment prompts appear (VoiceScan is disabled in production even though its purpose strings ship). Camera, photo library, and contextual approximate-location prompts may appear when their feature flows are exercised. The notifications prompt appears only if the optional onboarding Permissions toggle is turned on.
+- Verify VoiceScan microphone/speech prompts occur only at its explicit start, denial and unavailable-device handling fall back gracefully, and no background listening occurs. Camera, photo library, contextual approximate-location and optional notification prompts may appear at their feature boundaries. Verify K+ purchase/restore separately with an authorized sandbox actor.
 - Submit export/correction requests from Privacy controls.
 - Submit account deletion and verify the confirmation states immediate deactivation and the 30-day restoration window before sign-out.
 - Re-login to a deactivated account and verify access is limited to Privacy controls and that the restore path is presented.

@@ -611,11 +611,10 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
     + 'secret is configured -- before the body is parsed, and refuses everything '
     + 'when the secret is unset. Service role is used for exactly one thing: '
     + 'calling the shared provider transition wrappers, which are service-role-'
-    + 'only and own ordering, idempotency, '
-    + 'cross-user ownership and environment checks. It reads and writes no table '
-    + 'directly, never calls auth.admin, does not import the shared deletion '
-    + 'module, and takes the actor only from the provider-authenticated '
-    + 'app_user_id (a K Scan UUID), never from a caller-supplied field.',
+    + 'only and own ordering, idempotency, cross-user ownership and environment '
+    + 'checks. It reads and writes no table directly, never calls auth.admin, '
+    + 'does not import the shared deletion module, and takes the actor only from '
+    + 'the provider-authenticated app_user_id (a K Scan UUID).',
   'supabase/functions/privacy-correction-request/index.ts':
     'Authenticated correction intake writes the verified caller id, never a '
     + 'body-supplied actor.',
