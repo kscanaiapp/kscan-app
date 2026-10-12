@@ -21,13 +21,15 @@ Production before promotion: ACTIVEv51/JWTtrue, digest `e77653eea970c0ca7565ca18
 
 ## Scanner
 
-[Corrected function-only run38265655585](https://github.com/kscanaiapp/kscan-app/actions/runs/38265655585) targets scan-identify, verify_jwt=false, no migration, authority SHA above. Preflight and source validation passed; protected human approval and successful deployment/live verification remain required.
+[Corrected function-only run38265655585](https://github.com/kscanaiapp/kscan-app/actions/runs/38265655585) targets scan-identify, verify_jwt=false, no migration, authority SHA above. Preflight, source validation and the approved deployment succeeded. The existing Health check job remains at its protected approval gate; the final workflow conclusion is pending. Do not dispatch another Scanner deployment.
 
 Previous run38256999066 refused capture before replacement. Actual cause: current CLI creates `.temp/linked-project.json`; source-layout guard rejected it. PR555 validates the exact project reference/schema while refusing unknown files. Read-only Production capture verified all42 files; Production before replacement ACTIVEv172/JWTfalse, eszip digest `e5b6e5d4a539567fd2f4b76a55738ba410023e0848f6988d242a0fa9e5c22b23`. Replacement succeeded: independently verified ACTIVEv173/JWTfalse, eszip digest `79678f229c9fa8adcebaef238ee28d0b2cc4751bca0dd8c748de9df9d152d5fb`; all42 files match approved Git bytes. Only Scanner changed in the complete function inventory. Private bucket and both recovery objects exist; bucket public=false. Recovery package digest `c5d50d365438aa6202d24e0816048c159534c6f18e1a4ebed8256b157118a0ab`. Deploy-time health and all four provider-free contracts passed. Formal workflow PASS awaits the original protected health/synthetic gates; no redeployment is needed.
 
 ## Watchlist and engineering evidence
 
 Staging Watchlistv17 matches all16 current runtime files; Productionv10 has a stale entrypoint and lacks the per-observation entitlement guard. Prepare separate governed commerce-watch-refresh promotion, preserving JWTfalse and workerdisabled. Worker activation permits paid commerce work and requires an explicit allocation; physical push receipt is post-build verification.
+
+The prepared Watchlist promotion scope is backend authority `fdc6c4d4b7677b8249306c15e2966b2b407b412d`, Production `wyyuqfdxucjksghsmhry`, function `commerce-watch-refresh` only, `verify_jwt=false`, no migration, no worker activation and no paid calls. Use the single-approval workflow with private capture and recovery, then verify live bundle parity, authentication contracts and the disabled worker control. Recheck the authority tip before dispatch. Do not enqueue it while Speech occupies the shared pending deployment slot; GitHub concurrency can replace an existing pending run. Human approval of this new Production mutation is still required.
 
 [Integration CI38259495290](https://github.com/kscanaiapp/kscan-app/actions/runs/38259495290) passed10802Node tests with97skips and zero failures, plus1371backend Deno tests with zero failures. Native declarative parity17checks and both store-profile configuration guards pass. Independent RevenueCat/K+ source review found no P0/P1/P2 source defect at the integration SHA; core Elise/Speech remain Free and Watchlist uses canonical K+ authority.
 
