@@ -29,7 +29,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      - name: Use GitHub runner's installed Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          command -v sdkmanager
+          sdkmanager --version
       - name: Install Android SDK platform 36 and build tools
         run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
       - name: Install pinned project dependencies
