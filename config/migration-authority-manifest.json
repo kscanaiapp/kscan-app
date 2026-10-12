@@ -703,6 +703,7 @@
           {
             "localVersion": "20261011222213",
             "logicalName": "build35_speech_operational_cost_controls",
+            "classification": "APPLIED_AND_CERTIFIED",
             "appliedConfirmedOn": "2026-10-12",
             "evidence": "Staging migration-only run38257025966 succeeded from integration32b9c427. Live ledger version/name verified; all three Speech tables RLS enabled, client table/RPC access denied, service-only reserve/finish RPCs present. Controls disabled, daily budget zero, reservation and cost rows zero."
           }
