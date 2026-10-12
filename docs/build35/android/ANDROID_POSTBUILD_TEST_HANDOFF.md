@@ -1,6 +1,8 @@
 # Android Post-Build Test Handoff — Build 35
 
-This handoff begins **after** the pre-build source certification passes and an authorized production AAB is created.
+**Updated for the Build 35 full-feature Android source matrix on 2026-10-12 at `ca5c13611543ebc8faff873160182974ae0d408b`, after merged PR #564.** Earlier October 9 source certificate assumed Voice, Watchlist, multi-image, VTO UI and Cloud Closet were OFF; those assumptions are now stale.
+
+This handoff begins **after** the current source candidate is frozen and an authorized production AAB is created. This document does not certify that artifact or authorize the build. Current Play listing and App Content draft: [GOOGLE_PLAY_METADATA_BUILD35_20261012.md](GOOGLE_PLAY_METADATA_BUILD35_20261012.md).
 
 It does not authorize the build itself.
 
@@ -50,28 +52,21 @@ Required:
 
 ## 3. Final merged permission posture
 
-For ordinary production, confirm the final AAB does **not** regain held capabilities through transitive manifests.
+Build 35 production has **Voice Scan ON** and **Smart Watchlist client/push capability ON**, subject to final Gradle selector resolution. Do not reuse the earlier ordinary-production “microphone/notifications absent” assumption.
 
-Expected absent unless an owner-approved release change explicitly supersedes this handoff:
+Expected **present when the governed capability selection materializes them**:
+- `RECORD_AUDIO` for user-initiated native on-device Voice Scan.
+- `POST_NOTIFICATIONS` for approved Smart Watchlist remote notifications, requested at runtime on supported Android versions.
+- Camera, Internet, vibration and optional approximate foreground location.
 
-- RECORD_AUDIO
-- POST_NOTIFICATIONS
-- RECEIVE_BOOT_COMPLETED
-- ACCESS_FINE_LOCATION
-- ACCESS_BACKGROUND_LOCATION
-- broad READ_MEDIA permissions
-- READ_EXTERNAL_STORAGE
-- WRITE_EXTERNAL_STORAGE
-- MANAGE_EXTERNAL_STORAGE
-- FOREGROUND_SERVICE_MICROPHONE
-- CAPTURE_AUDIO_OUTPUT
-- unnecessary foreground-service declarations
-- Advertising ID
-- contacts / SMS / phone / Bluetooth restricted capability
+Expected **absent**:
+- `RECEIVE_BOOT_COMPLETED`;
+- `ACCESS_FINE_LOCATION` or `ACCESS_BACKGROUND_LOCATION`;
+- broad `READ_MEDIA_*`, legacy `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` or `MANAGE_EXTERNAL_STORAGE`;
+- `FOREGROUND_SERVICE_MICROPHONE`, `CAPTURE_AUDIO_OUTPUT` and unused foreground-service capabilities;
+- Advertising ID or unrelated SMS/contacts/phone/Bluetooth permissions.
 
-Expected intended permissions include camera, Internet, vibration and approximate foreground location.
-
-Verify the cropper activity remains non-exported and no new externally invokable component appears unexpectedly.
+Prove the source `src/voicePush` overlay or actual equivalent used by the resolved `production` profile; do not infer it from a JS flag. Record the complete merged permissions and exported components. Verify the cropper remains non-exported, and PR #564's `android.speech.RecognitionService` visibility query survives manifest merging without broad package visibility.
 
 ## 4. 16 KB / ABI verification
 
@@ -89,15 +84,17 @@ Any proven incompatible shipped native library is a release blocker.
 
 ## 5. Firebase / notification artifact check
 
-Ordinary production currently holds Smart Watchlist/remote push OFF.
+Smart Watchlist is part of the **Build 35 ship-target source**. Separate the client flag, native FCM capability, production worker switch and actual delivery.
 
 For the actual AAB:
+- confirm the selected native capability manifest matches the production profile and grants only required push/voice permissions;
+- verify the governed `GOOGLE_SERVICES_JSON` EAS production secret was materialized from the correct Firebase app (`com.kscanai.app`) and is not a staging file;
+- verify the Google Services plugin, FCM/Expo token registration and account-scoped revocation on logout;
+- verify `RECEIVE_BOOT_COMPLETED` remains absent;
+- verify notifications work in foreground/background and after app process death, including token registration, refresh and tap routing;
+- independently verify Production `commerce-watch-refresh` entitlement guard and `watchlist_worker_enabled` state. Do not automatically enable an autonomous worker or authorize paid calls merely because the client ships Watchlist UI.
 
-- prove POST_NOTIFICATIONS remains absent;
-- prove no accidental push capability was materialized;
-- confirm no staging Firebase configuration is packaged;
-- if product governance intentionally enables push before the build, stop and use the push-capable artifact matrix instead of this default-dark checklist;
-- if push is enabled, verify the governed Google Services file matches `com.kscanai.app`, final Firebase resources, FCM token registration, account isolation and real delivery.
+If push is not actually functional, report it explicitly as a held/unavailable shipping capability or release blocker. Do not silently claim PASS.
 
 ## 6. Emulator smoke
 
@@ -125,7 +122,7 @@ Minimum flow:
 16. app relaunch/session restoration;
 17. Android Back from core routes/modal surfaces.
 
-Held features should remain unavailable: multi-image Scanner, Packing, Watchlist, generative VTO, cloud Closet sync, Stylist Speech, Voice Scan, Today with Elise, K+ Early Access.
+**Build 35 enabled test additions:** multi-image Scanner selection and per-item commerce, Cloud Closet cross-device restore, Packing Intelligence, Smart Watchlist, Voice Scan with on-device recognition, VTO UI, K+ paywall and purchase/restore (when Play credentials are ready), and Concierge. **Held/unavailable:** Today With Elise, complimentary K+ Early Access and Elise spoken replies. Do not equate an enabled JS flag with successful provider delivery.
 
 ## 7. Android lifecycle / UI device targets
 
@@ -133,11 +130,15 @@ Where emulator evidence is insufficient, transfer to optional/physical QA:
 
 - Android 15/16 edge-to-edge
 - gesture navigation and 3-button navigation
-- Scanner camera denial → Settings → return
+- Scanner camera denial → Settings → return; multi-image item selection and commerce hydration
 - keyboard avoidance in auth, Dressing Room and report/note sheets
 - process death during Google OAuth
 - activity recreation during picker/camera flows
 - rapid repeated taps / double-navigation protection
+- on-device SpeechRecognizer service discovery (including Android 11+ package visibility from PR #564), microphone denial, interruption, no background audio and no cloud ASR fallback
+- Smart Watchlist FCM real token and delivery flow
+- Cloud Closet cross-device sync/media restore and account isolation
+- VTO enabled UI, protected photo handling and provider success/failure
 - large image memory pressure
 - tablet/large-screen behavior where supported
 - predictive Back behavior under the current opt-out posture
@@ -148,7 +149,7 @@ Do not repair a source risk until runtime evidence establishes a defect.
 
 Before billing runtime certification:
 
-**Owner dependency:** configure the RevenueCat Google Play service-account credentials for the K Scan AI Play app.
+**Owner dependency:** independently confirm the current RevenueCat Google Play service-account credentials, Play monthly/annual subscription + base plans, real offering availability and RTDN. The 2026-10-12 owner dependency ledger reports ambiguous live Play product state even where RevenueCat catalog links exist. Do not assert readiness from catalog entries alone.
 
 Then validate on a Play-distributed test build:
 
@@ -203,7 +204,7 @@ Before production rollout, confirm directly in Play Console:
 - versionCode is higher than every previously consumed versionCode;
 - upload key accepted;
 - Play App Signing active/correct;
-- Data Safety matches final app + SDK behavior;
+- Data Safety matches final app + SDK behavior, including Voice Scan microphone, cloud image analysis, AI/VTO and push identifiers;
 - target audience/Families declarations;
 - content rating;
 - AI/UGC declarations where applicable;
