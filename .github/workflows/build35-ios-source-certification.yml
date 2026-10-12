@@ -1,0 +1,53 @@
+name: Build 35 iOS source certification
+
+on:
+  # Re-certify the exact governed integration SHA after the iOS repair PR lands.
+  push:
+    branches:
+      - integration/build35-v1-convergence
+  pull_request:
+    paths:
+      - 'store.config.json'
+      - 'app.json'
+      - 'eas.json'
+      - 'modules/**/ios/**'
+      - '__tests__/ios*.test.js'
+      - '__tests__/apple*.test.js'
+      - '__tests__/voiceScan*.test.js'
+      - '__tests__/kplus*.test.js'
+      - '.github/workflows/build35-ios-source-certification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-source:
+    name: Apple source and native-contract checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # historical iOS privacy-parity test reads a pinned source SHA
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install frozen dependencies
+        run: npm ci
+      - name: Validate release profile and native parity
+        run: |
+          node scripts/check-build35-release-profile.js
+          node scripts/check-native-config-parity.js
+      - name: Validate Apple readiness and metadata
+        run: |
+          npm run verify:apple-readiness
+          node -e "const app=require('./app.json').expo,store=require('./store.config.json').apple,meta=store.info['en-US'],eas=require('./eas.json');if(store.version!==(app.ios.version||app.version)||app.ios.bundleIdentifier!=='com.kscanai.app'||eas.build['build35-release'].distribution!=='store'||eas.build['build35-release'].environment!=='production'||!meta.description.startsWith('K Scan AI helps you')||!['Cloud Closet','Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.description.includes(v))||!['Cloud Closet','Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.releaseNotes.includes(v))||/\\bBuild\\s*35\\b/i.test(meta.releaseNotes)||store.release.automaticRelease!==false)process.exit(1)"
+      - name: Inspect generated Expo iOS configuration
+        run: |
+          node node_modules/expo/bin/cli config --type introspect --json > /tmp/kscan-ios-introspection.json
+          node -e "const c=require('/tmp/kscan-ios-introspection.json');const p=c.ios?.infoPlist||{};if(!p.NSMicrophoneUsageDescription||!p.NSSpeechRecognitionUsageDescription)process.exit(1)"
+      - name: iOS native bridge, privacy, authentication, paywall and review regression
+        run: |
+          node --test --test-concurrency=1             __tests__/ios*.test.js             __tests__/apple*.test.js             __tests__/voiceScan*.test.js             __tests__/kplusRevenueCatNativeCommerce.test.js             __tests__/kplusPaywallPhaseD.test.js             __tests__/kplusEntitlementAuthority.test.js             __tests__/kplusCapabilityAdvertisingTruth.test.js             __tests__/kscanPiiNativeReleaseTargetScope.test.js             __tests__/kscanPiiNativeResultContract.test.js             __tests__/mirrorIos*.test.js             __tests__/nativeConfigParityGate.test.js             __tests__/build35ReleaseProfile.test.js             __tests__/easConfigIntegrity.test.js             __tests__/verifyAppleReadiness.test.js             __tests__/verifyAppleSubmission.test.js             __tests__/manualDeletionAppleRevocation.test.js             __tests__/automatedDeletionAppleRevocation.test.js
