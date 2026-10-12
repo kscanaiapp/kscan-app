@@ -121,17 +121,30 @@ However, a fresh Play Store state read returned `store_status=not_found`, `base_
 - `kscan.kplus.monthly:monthly`
 - `kscan.kplus.annual:annual`
 
-**K+ Android purchase readiness is NOT certified.** `not_found` could mean the composite product/base-plan identifiers are not the actual Play entries or that the intended subscriptions have not been created/published correctly. Owner must inspect Google Play Console **Monetize → Products → Subscriptions**, confirm subscription ID, active base-plan ID, status, pricing/territory and test visibility, then reconcile RevenueCat mappings. Do not invent identifiers or publish a price not returned by Play.
+**K+ Android purchase readiness is NOT certified, but it is a POST-AAB / pre-publication gate, not an Android source or EAS build-creation blocker.** `not_found` could mean the composite product/base-plan identifiers are not the actual Play entries or that the intended subscriptions have not been created/published correctly. Owner must inspect Google Play Console **Monetize → Products → Subscriptions**, confirm subscription ID, active base-plan ID, status, pricing/territory and test visibility, then reconcile RevenueCat mappings. Do not invent identifiers or publish a price not returned by Play.
+
+## F.2 Android pre-AAB boundary and live backend reconciliation (2026-10-12)
+
+**Pre-AAB scope:** The Android release candidate must pass exact-head source/CI, native-profile integrity, Google Services credential-presence checks (without exposing secrets), manifest/permission contract, package identity, signing/remote versioning readiness and truthful listing copy. Google Play subscription visibility, Play-managed artifact analysis, purchase sandbox, device QA and Play Console publishing declarations are **post-AAB**. No EAS build is authorized by this document.
+
+**Backend evidence (Production, read-only):**
+- `scan-identify` v173 is ACTIVE and has deployed bundle hash `79678f229c9fa8adcebaef238ee28d0b2cc4751bca0dd8c748de9df9d152d5fb`, identical to Staging `scan-identify` v81. This is function-byte parity, not proof of garment accuracy or paid commerce.
+- `commerce-watch-refresh` v11 is ACTIVE, `watchlist_worker_enabled=true`, and its deployed hash matches Staging. Separate recurring scheduler approvals and populated-watch delivery are **post-artifact operational QA**, not reasons to withhold Android AAB creation.
+- `vto-generate` is ACTIVE and Production `app_config.vto_generation.enabled=true`. The UI flag does not certify provider output, fit accuracy, account entitlements or paid provider calls.
+- `kplus-activate` v11 is ACTIVE but its server campaign-guard deployment trails the governed backend authority. Emergency containment is **verified**: `grant_kplus_early_access(uuid)` is not executable by `anon`, `authenticated`, or `service_role`. The follow-up source promotion is a **shared backend change** requiring the separate protected deployment authority. Do not modify this backend from an Android-only PR or claim a new production deployment occurred.
+- `kplus-reconcile-revenuecat`, `kplus-revenuecat-webhook` and `kplus-revenuecat-pull-reconcile` are deployed and ACTIVE. Their presence is not a purchase-lifecycle PASS.
+
+**Excluded from Android pre-AAB readiness:** iOS/App Store work; RevenueCat/Play subscription publication and sandbox lifecycle; device and Play-generated APK QA; automated account-deletion worker and orphan ledger reconciliation (Build 36). Preserve working account-deletion entry points and accurate Play policy disclosure. A public rollout still requires the later checks.
 
 ## F. Actions that remain outside GitHub metadata
 
 1. In Play Console, update the **actual** Main Store Listing (title, short/full text, assets), release notes, App Content questionnaires, Data Safety and account-deletion URL. This GitHub document does **not** publish them.
 2. Verify final AAB source SHA, profile=production, `com.kscanai.app`, versionCode beyond previously consumed Play maximum, signing, SDK 36 and manifest capabilities.
-3. Verify Play subscriptions/base plans, RevenueCat Play service account/RTDN, sandbox purchase/restore, canonical K+ entitlement lifecycle. Do not assume the active RevenueCat catalog proves store purchase readiness.
+3. **After the signed AAB is uploaded/processed on the approved Play testing track**, reconcile Play subscription IDs/base plans, RevenueCat catalog retrieval/RTDN and sandbox purchase/restore with canonical K+ entitlement lifecycle. The service-account checks are already valid, but the product store lookup is still `not_found`; upload alone does not guarantee it resolves. This is NOT a pre-AAB build blocker.
 4. Verify Play App Signing certificate fingerprint vs `assetlinks.json` and test room links/OAuth.
 5. Review public privacy policy against current Voice Scan, Closet sync, cloud AI, push, VTO, AI reporting and UGC claims; the site currently says no universal device-side face/plate masking, which must not be contradicted.
-6. Run runtime Android 15/16 and 3-button/gesture QA; test Voice recognizer presence, mic denial, Scanner, multi-image, Dressing Room, push, VTO, user switching and deletion.
-7. Confirm in-app AI reporting and UGC controls across all relevant enabled output types before public rollout; resolve any gaps in the proper owner lane.
+6. **After the real AAB exists**, run runtime Android 15/16 and gesture/3-button QA; test Voice recognizer presence, mic denial, Scanner, multi-image, Dressing Room, push, VTO and user switching. This physical/artifact QA is NOT a prerequisite for producing the first AAB.
+7. Confirm in-app AI reporting and UGC controls across all relevant enabled output types before public rollout; resolve any Android-specific gaps in the Android lane and refer shared gaps to their owners. Account deletion **request intake and external URL** must remain truthful for Play disclosures; the broader deletion worker/purge lifecycle is deferred to Build 36 and is NOT a Build 35 Android AAB blocker.
 
 ## Official policy references
 
