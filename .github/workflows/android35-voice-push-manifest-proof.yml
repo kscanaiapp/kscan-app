@@ -65,7 +65,8 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/android-sdk-probe.gradle" <<'EOF'
           gradle.projectsEvaluated {
-              def p = gradle.rootProject.project(':app')
+              def p = gradle.rootProject.findProject(':app')
+              if (p == null) return
               println "CERT_COMPILE_SDK=" + p.android.compileSdk
               println "CERT_TARGET_SDK=" + p.android.defaultConfig.targetSdk
               println "CERT_MIN_SDK=" + p.android.defaultConfig.minSdk
