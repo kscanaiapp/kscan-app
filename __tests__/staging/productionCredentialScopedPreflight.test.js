@@ -764,20 +764,14 @@ test('e1. migration-only mode passes an empty function allow-list to BOTH prefli
 });
 
 test('e2. SIMULATION: migration-only mode runs the migration and nothing else', () => {
-  // Evaluated rather than grepped. Only `source-validation` and
-  // `deploy-one-function` name migration_only directly; health-check,
-  // synthetic-tests and rollback-on-failure are excluded TRANSITIVELY, by
-  // requiring a successful deploy-one-function. A grep for migration_only
-  // would report that as a hole; running the graph shows it is not one.
+  // The function execution job contains verification and recovery, so excluding
+  // it excludes the entire sequence without requesting another approval.
   const migrationOnly = simulateRun({ migrationOnly: true, apply: true });
 
   assert.equal(migrationOnly['approved-single-migration'], 'success', 'the migration must still run');
   for (const job of [
     'source-validation',
     'deploy-one-function',
-    'health-check',
-    'synthetic-tests',
-    'rollback-on-failure',
   ]) {
     assert.equal(migrationOnly[job], 'skipped', `${job} must be skipped in migration-only mode`);
   }
@@ -786,13 +780,13 @@ test('e2. SIMULATION: migration-only mode runs the migration and nothing else', 
   // run is NOT migration-only. A simulator that returned 'skipped' for
   // everything would pass the block above and fail here.
   const withFunction = simulateRun({ migrationOnly: false, apply: true });
-  for (const job of ['source-validation', 'deploy-one-function', 'health-check', 'synthetic-tests']) {
+  for (const job of ['source-validation', 'deploy-one-function']) {
     assert.equal(withFunction[job], 'success', `${job} must run when a function is being deployed`);
   }
   assert.equal(
-    withFunction['rollback-on-failure'],
+    withFunction['approved-single-migration'],
     'skipped',
-    'rollback only runs on a health/synthetic failure',
+    'combined migration shares the function approval instead of a second protected job',
   );
 });
 

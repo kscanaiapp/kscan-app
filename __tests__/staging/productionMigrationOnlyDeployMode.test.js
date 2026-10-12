@@ -68,9 +68,6 @@ function jobIf(name) {
 const MUTATING_JOBS = [
   'approved-single-migration',
   'deploy-one-function',
-  'health-check',
-  'synthetic-tests',
-  'rollback-on-failure',
 ];
 
 // --------------------------------------------------------------- 1. the mode
@@ -188,16 +185,10 @@ test('6. no Edge Function deploy step runs in migration-only mode', () => {
     );
   }
 
-  // The post-deploy chain hangs off deploy-one-function succeeding, so skipping
-  // that job skips the rest without needing its own migration_only condition.
-  for (const job of ['health-check', 'rollback-on-failure']) {
-    assert.match(
-      jobIf(job),
-      /needs\.deploy-one-function\.result == 'success'/,
-      `${job} only runs after a successful deploy`,
-    );
-  }
-  assert.match(jobIf('synthetic-tests'), /needs\.health-check\.result == 'success'/);
+  // Verification and recovery execute as steps in the excluded function job.
+  assert.match(jobs['deploy-one-function'], /id: health/);
+  assert.match(jobs['deploy-one-function'], /id: synthetic/);
+  assert.match(jobs['deploy-one-function'], /id: rollback/);
 
   // The preflight must not demand a function allow-list either.
   assert.match(
@@ -244,11 +235,8 @@ test('7. normal named-function behaviour is unchanged', () => {
     /needs\.preflight\.result == 'success' && needs\.source-validation\.result == 'success'/,
     'the original deploy conditions survive',
   );
-  assert.match(
-    jobIf('source-validation'),
-    /needs\.approved-single-migration\.result == 'success' \|\| needs\.approved-single-migration\.result == 'skipped'/,
-    'the original source-validation conditions survive',
-  );
+  assert.doesNotMatch(jobs['source-validation'], /needs\.approved-single-migration/);
+  assert.match(jobIf('source-validation'), /needs\.preflight\.result == 'success'/);
 
   // The function source check is untouched for real function names.
   assert.match(jobs['source-validation'], /test -f "supabase\/functions\/\$\{FN\}\/index\.ts"/);
@@ -403,10 +391,10 @@ test('the first account-deletion migration now has a legal governed dispatch', (
   // function_name=none + approved_migration_version + approve_migration=YES +
   // confirm_production reaches the migration job, and only that job.
   assert.match(jobIf('approved-single-migration'), /needs\.migration-plan\.outputs\.apply == 'true'/);
-  assert.doesNotMatch(
+  assert.match(
     jobIf('approved-single-migration'),
-    /migration_only/,
-    'the migration job must not be conditioned on the mode — it runs in both',
+    /migration_only == 'true'/,
+    'migration-only has an exclusive gate; combined migration shares the function approval',
   );
 });
 

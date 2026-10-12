@@ -42,8 +42,8 @@
 #
 #   Every check that needs live production — target identity, the staging
 #   refusal, the remote ledger, already-applied, unexplained drift in either
-#   direction — runs INSIDE `approved-single-migration`, which carries
-#   `environment: production`, immediately before the write, and again inside
+#   direction — runs INSIDE the scoped protected execution job immediately
+#   before the write, and again inside
 #   apply-production-migration.mjs itself. Nothing was dropped; it moved to the
 #   only place it can legitimately run.
 #
@@ -313,10 +313,9 @@ jobs:
             echo "apply=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # Everything from here on can mutate production, so everything from here on
-  # carries `environment: production` — this is the required-reviewer gate.
-  # GitHub pauses the run here until an approver acts, with the preflight
-  # job's summary (the plan above) already visible on the run.
+  # Mutually exclusive protected jobs request one approval for the complete
+  # scope. Migration-only uses this job; function plus optional migration uses
+  # deploy-one-function, including verification and automatic rollback there.
   approved-single-migration:
     name: Approved single migration
     runs-on: ubuntu-latest
@@ -325,7 +324,7 @@ jobs:
       - confirm
       - preflight
       - migration-plan
-    if: needs.migration-plan.outputs.apply == 'true'
+    if: needs.preflight.outputs.migration_only == 'true' && needs.migration-plan.outputs.apply == 'true'
     environment: production
     steps:
       - name: Checkout
@@ -489,12 +488,10 @@ jobs:
       - confirm
       - preflight
       - migration-plan
-      - approved-single-migration
     if: |
       always() &&
       needs.preflight.outputs.migration_only != 'true' &&
-      needs.preflight.result == 'success' &&
-      (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
+      needs.preflight.result == 'success'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -542,21 +539,26 @@ jobs:
           node --test __tests__/staging/productionFunctionBundleRollback.test.js __tests__/staging/productionRecoverySafety.test.js
 
   deploy-one-function:
-    name: Deploy one function
+    name: Execute approved scoped deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs:
       - confirm
       - preflight
       - source-validation
+      - migration-plan
     if: |
       always() &&
       needs.preflight.outputs.migration_only != 'true' &&
       needs.preflight.result == 'success' &&
-      needs.source-validation.result == 'success'
+      needs.source-validation.result == 'success' &&
+      needs.migration-plan.result == 'success'
     environment: production
     outputs:
       manifest_path: ${{ steps.deploy.outputs.manifest_path }}
+      health: ${{ steps.health.outcome }}
+      synthetic: ${{ steps.synthetic.outcome }}
+      rollback: ${{ steps.rollback.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -696,6 +698,140 @@ jobs:
           }
           NODE
 
+      - name: Validate required production variables (values never printed)
+        if: needs.migration-plan.outputs.apply == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PRODUCTION_PROJECT_REF SUPABASE_PRODUCTION_URL SUPABASE_PRODUCTION_ANON_KEY; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required production variables:"
+            printf -- '- %s\n' "${missing[@]}"
+            echo "They must be defined on the production GitHub Environment."
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" = "${STAGING_REF}" ]; then
+            echo "Staging project ref is forbidden here"
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" != "${EXPECTED_PRODUCTION_REF}" ]; then
+            echo "SUPABASE_PRODUCTION_PROJECT_REF must be ${EXPECTED_PRODUCTION_REF}"
+            exit 1
+          fi
+
+      # The full remote preflight, run against live production. Its own exit
+      # code gates the write; the assertions afterwards additionally PROVE on
+      # the run log that this report is a live remote one and that it selected
+      # exactly the approved migration with zero unexplained drift, so a
+      # --skip-remote or --static report can never be mistaken for this.
+      - name: Live remote preflight against production (post-approval, pre-write)
+        if: needs.migration-plan.outputs.apply == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          DEPLOY_FUNCTIONS: ${{ needs.preflight.outputs.migration_only == 'true' && '' || needs.preflight.outputs.function_name }}
+          APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+        run: |
+          set -euo pipefail
+
+          # Same capture-outside-the-checkout rule as the preflight job. The
+          # FULL preflight calls gitWorkingTreeClean() too, so its own report
+          # must not land in the worktree it is about to judge.
+          export LIVE_PREFLIGHT_JSON="$RUNNER_TEMP/live-production-preflight.json"
+
+          node scripts/production-deploy-preflight.mjs --json | tee "$LIVE_PREFLIGHT_JSON"
+          EXPECTED_VERSION="${APPROVED_MIGRATION_VERSION}" \
+          EXPECTED_REF="${EXPECTED_PRODUCTION_REF}" \
+          FORBIDDEN_REF="${STAGING_REF}" \
+          node -e "
+            const r = require(process.env.LIVE_PREFLIGHT_JSON);
+            const m = r.migrations || {};
+            const fail = (msg) => { console.error('LIVE GATE FAILED: ' + msg); process.exitCode = 1; };
+
+            if (r.remoteVerified !== true || r.mode !== 'live-remote-gate') {
+              fail('this report did not verify production remotely (mode=' + r.mode + ')');
+            }
+            if (r.environment.projectRef !== process.env.EXPECTED_REF) {
+              fail('target is ' + r.environment.projectRef + ', not ' + process.env.EXPECTED_REF);
+            }
+            if (r.environment.projectRef === process.env.FORBIDDEN_REF) {
+              fail('target is the staging project');
+            }
+            if (m.skipped === true) fail('the remote ledger was not read');
+            if (typeof m.remoteCount !== 'number') fail('no live remote ledger count was reported');
+            if ((m.unexplainedLocal || []).length !== 0) {
+              fail('unexplained local drift: ' + m.unexplainedLocal.map(x => x.version).join(', '));
+            }
+            if ((m.unexplainedRemote || []).length !== 0) {
+              fail('unexplained remote drift: ' + m.unexplainedRemote.join(', '));
+            }
+            if (!m.approvedPending || m.approvedPending.version !== process.env.EXPECTED_VERSION) {
+              fail('selected migration is ' + (m.approvedPending ? m.approvedPending.version : '(none)') +
+                   ', not the approved ' + process.env.EXPECTED_VERSION);
+            }
+            if (m.approvedSelectedForExecution !== 1) {
+              fail('selected ' + m.approvedSelectedForExecution + ' migrations for execution, not exactly 1');
+            }
+            if (r.ok !== true) fail('preflight blockers: ' + (m.blockers || []).join('; '));
+
+            if (!process.exitCode) {
+              console.log('LIVE GATE PASSED against ' + r.environment.projectRef +
+                ': remote ledger ' + m.remoteCount + ' rows, 0 unexplained local drift, ' +
+                '0 unexplained remote drift, exactly 1 migration selected (' +
+                m.approvedPending.version + ' ' + m.approvedPending.name + ').');
+            }
+          "
+
+      - name: Apply one approved migration
+        if: needs.migration-plan.outputs.apply == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          APPROVE_PRODUCTION_MIGRATION: YES
+          ALLOW_DESTRUCTIVE_MIGRATION: ${{ inputs.allow_destructive_migration }}
+        run: |
+          set -euo pipefail
+
+          # The applier does not itself gate on a clean worktree, but its result
+          # is kept out of the checkout for the same reason: nothing this
+          # pipeline produces may become drift that a later production gate
+          # would have to forgive.
+          export MIGRATION_RESULT_JSON="$RUNNER_TEMP/production-migration-result.json"
+
+          node scripts/apply-production-migration.mjs | tee "$MIGRATION_RESULT_JSON"
+
+      - name: Stage scoped migration artifacts outside checkout
+        if: always() && needs.migration-plan.outputs.apply == 'true'
+        run: |
+          set -euo pipefail
+          if [ -d artifacts/production-migrations ]; then
+            mv artifacts/production-migrations "$RUNNER_TEMP/scoped-production-migrations"
+          fi
+
+      - name: Upload migration artifact
+        if: always() && needs.migration-plan.outputs.apply == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-migration-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/live-production-preflight.json
+            ${{ runner.temp }}/production-migration-result.json
+            ${{ runner.temp }}/scoped-production-migrations/
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: Deploy function
         id: deploy
         env:
@@ -706,7 +842,7 @@ jobs:
           DEPLOY_FUNCTIONS: ${{ needs.preflight.outputs.function_name }}
           FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
           EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
-          APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          APPROVED_MIGRATION_VERSION: ''
           SKIP_PREFLIGHT_REMOTE: 'false'
         run: |
           set -euo pipefail
@@ -721,6 +857,55 @@ jobs:
             exit 1
           fi
           echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Probe deployed function
+        id: health
+        if: success() && steps.deploy.outcome == 'success'
+        env:
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import { checkProductionContract } from './scripts/lib/production-contract-check.mjs';
+          const result = await checkProductionContract({ functionName: process.env.FUNCTION_NAME,
+            url: process.env.SUPABASE_PRODUCTION_URL, anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY,
+            verifyJwt: process.env.EXPECTED_VERIFY_JWT === 'true' });
+          console.log(JSON.stringify(result));
+          if (!result.ok) process.exit(1);
+          NODE
+
+      - name: Run production deployment smoke tests
+        id: synthetic
+        if: success() && steps.health.outcome == 'success'
+        run: |
+          set -euo pipefail
+          node --test __tests__/staging/productionRecoverySafety.test.js __tests__/edgeFunctionSourceParity.test.js
+
+      - name: Roll back / contain deployed function
+        id: rollback
+        if: always() && steps.deploy.outcome == 'success' && (steps.health.outcome != 'success' || steps.synthetic.outcome != 'success')
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          node scripts/recover-production-function.mjs --reference "artifacts/production-deployments/recovery-reference.json" | tee "$RUNNER_TEMP/rollback-result.json"
+
+      - name: Upload rollback artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-rollback-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/rollback-result.json
+            artifacts/production-rollbacks/
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Stage deploy artifacts outside checkout
         if: always()
@@ -745,139 +930,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
 
-  health-check:
-    name: Health check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs:
-      - confirm
-      - preflight
-      - deploy-one-function
-    if: |
-      always() &&
-      needs.preflight.result == 'success' &&
-      needs.deploy-one-function.result == 'success'
-    environment: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Probe deployed function
-        env:
-          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
-          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
-          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
-          EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
-        run: |
-          set -euo pipefail
-          node --input-type=module - <<'NODE'
-          import { checkProductionContract } from './scripts/lib/production-contract-check.mjs';
-          const result = await checkProductionContract({ functionName: process.env.FUNCTION_NAME,
-            url: process.env.SUPABASE_PRODUCTION_URL, anonKey: process.env.SUPABASE_PRODUCTION_ANON_KEY,
-            verifyJwt: process.env.EXPECTED_VERIFY_JWT === 'true' });
-          console.log(JSON.stringify(result));
-          if (!result.ok) process.exit(1);
-          NODE
-
-  synthetic-tests:
-    name: Synthetic tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs:
-      - confirm
-      - preflight
-      - health-check
-    if: |
-      always() &&
-      needs.preflight.result == 'success' &&
-      needs.health-check.result == 'success'
-    environment: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "20"
-
-      - name: Install locked verification dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts
-
-      - name: Run production deployment smoke tests
-        run: |
-          set -euo pipefail
-          node --test __tests__/staging/productionRecoverySafety.test.js __tests__/edgeFunctionSourceParity.test.js
-
-  rollback-on-failure:
-    name: Rollback on failure
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs:
-      - confirm
-      - preflight
-      - deploy-one-function
-      - health-check
-      - synthetic-tests
-    if: |
-      always() &&
-      needs.deploy-one-function.result == 'success' &&
-      (needs.health-check.result == 'failure' || needs.synthetic-tests.result == 'failure')
-    environment: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "20"
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
-
-      - name: Download deployment manifest
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
-        with:
-          name: production-deploy-${{ github.run_number }}
-          path: .
-
-      - name: Resolve private recovery reference
-        id: manifest
-        run: |
-          set -euo pipefail
-          MANIFEST="artifacts/production-deployments/recovery-reference.json"
-          test -f "$MANIFEST"
-          echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
-
-      - name: Roll back / contain deployed function
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
-          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
-          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
-        run: |
-          set -euo pipefail
-          node scripts/recover-production-function.mjs --reference "${{ steps.manifest.outputs.path }}" | tee rollback-result.json
-
-      - name: Upload rollback artifact
+      - name: Require complete scoped deployment success
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: production-rollback-${{ github.run_number }}
-          path: |
-            rollback-result.json
-            artifacts/production-rollbacks/
-          if-no-files-found: warn
-          retention-days: 90
-
-      - name: Fail workflow after rollback/containment attempt
+        env:
+          DEPLOY: ${{ steps.deploy.outcome }}
+          HEALTH: ${{ steps.health.outcome }}
+          SYNTHETIC: ${{ steps.synthetic.outcome }}
         run: |
           set -euo pipefail
-          echo "Post-deployment validation failed; rollback/containment attempted. A human must review before retrying."
-          exit 1
+          test "$DEPLOY" = success && test "$HEALTH" = success && test "$SYNTHETIC" = success
 
   publish-deployment-artifact:
     name: Publish deployment artifact
@@ -888,9 +949,6 @@ jobs:
       - preflight
       - approved-single-migration
       - deploy-one-function
-      - health-check
-      - synthetic-tests
-      - rollback-on-failure
     if: always()
     steps:
       - name: Summary
@@ -914,9 +972,9 @@ jobs:
             echo "| Migration applied | ${{ needs.preflight.outputs.migration_version || '(none)' }} |"
             echo "| Migration job | ${{ needs.approved-single-migration.result }} |"
             echo "| FUNCTION_DEPLOYMENT | ${FUNCTION_DEPLOYMENT} |"
-            echo "| Health | ${{ needs.health-check.result }} |"
-            echo "| Synthetic | ${{ needs.synthetic-tests.result }} |"
-            echo "| Rollback/containment | ${{ needs.rollback-on-failure.result }} |"
+            echo "| Health | ${{ needs.deploy-one-function.outputs.health }} |"
+            echo "| Synthetic | ${{ needs.deploy-one-function.outputs.synthetic }} |"
+            echo "| Rollback/containment | ${{ needs.deploy-one-function.outputs.rollback }} |"
             echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -936,9 +994,9 @@ jobs:
             echo "Deploy failed"
             exit 1
           fi
-          if [ "${{ needs.health-check.result }}" != "success" ] || [ "${{ needs.synthetic-tests.result }}" != "success" ]; then
+          if [ "${{ needs.deploy-one-function.outputs.health }}" != "success" ] || [ "${{ needs.deploy-one-function.outputs.synthetic }}" != "success" ]; then
             echo "Post-deployment validation failed"
-            if [ "${{ needs.rollback-on-failure.result }}" != "success" ]; then
+            if [ "${{ needs.deploy-one-function.outputs.rollback }}" != "success" ]; then
               echo "Rollback/containment did not succeed — workflow failed"
             fi
             exit 1
