@@ -271,6 +271,8 @@ test('capture diagnostics reveal fixed failure categories but never expose crede
     '\\nProduction capture download legacy-local failed [LOCAL_UNBUNDLER] SECRET_SOURCE';
   assert.equal(safeCaptureFailureCode(fake), 'API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER');
   assert.equal(safeCaptureFailureCode('PRIVATE_TOKEN unauthorized raw text'), 'STAGE_UNDETERMINED');
+  assert.equal(safeCaptureFailureCode('Production capture stage [ENTRYPOINT]\nProduction capture stage [DOWNLOAD_LAYOUT]\nPRIVATE_TOKEN'), 'STAGE_DOWNLOAD_LAYOUT');
+  assert.equal(safeCaptureFailureCode('Production capture stage [PRIVATE_TOKEN]'), 'STAGE_UNDETERMINED');
   assert.throws(() => runPrivateCapture('scan-identify', { exec: () => {
     const err = new Error('PRIVATE_TOKEN'); err.stderr = fake; throw err;
   } }), (err) => err.message.includes('API_BUNDLE_FORMAT+LEGACY_LOCAL_UNBUNDLER') &&
@@ -309,6 +311,32 @@ test('actual download accepts only known CLI cache and refuses source escapes', 
     } else {
       const result = downloadLiveBundle('scan-identify', { run });
       assert.equal(result.downloaded, path.join(scratch, 'supabase/functions'));
+    }
+  }
+});
+
+test('capture validates the CLI linked-project cache without accepting escaped source or foreign targets', async (t) => {
+  const { downloadLiveBundle } = await load('scripts/capture-production-function.mjs');
+  for (const metadata of [
+    { ref: 'wyyuqfdxucjksghsmhry', name: 'Production', organization_id: 'org', organization_slug: 'org' },
+    { ref: 'yzqjvdfgefveprobvvyw' },
+    { ref: 'wyyuqfdxucjksghsmhry', source: 'hidden source' },
+    { ref: 'wyyuqfdxucjksghsmhry', name: {} },
+  ]) {
+    const run = (args, { cwd }) => {
+      t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+      const entrypoint = path.join(cwd, 'supabase/functions/scan-identify/index.ts');
+      fs.mkdirSync(path.dirname(entrypoint), { recursive: true });
+      fs.writeFileSync(entrypoint, 'Deno.serve(() => new Response("ok"));');
+      fs.mkdirSync(path.join(cwd, 'supabase/.temp'), { recursive: true });
+      fs.writeFileSync(path.join(cwd, 'supabase/.temp/linked-project.json'), JSON.stringify(metadata));
+    };
+    if (metadata.name === 'Production') {
+      const result = downloadLiveBundle('scan-identify', { run });
+      assert.ok(fs.existsSync(path.join(result.downloaded, 'scan-identify/index.ts')));
+      assert.ok(!fs.existsSync(path.join(result.downloaded, '.temp/linked-project.json')));
+    } else {
+      assert.throws(() => downloadLiveBundle('scan-identify', { run }), /invalid target or schema/);
     }
   }
 });

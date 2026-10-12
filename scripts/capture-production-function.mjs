@@ -141,8 +141,20 @@ function downloadLiveBundle(functionName, { run = runSupabaseProduction } = {}) 
         'Refusing to record an empty capture.',
     );
   }
+  const linkedCache = 'supabase/.temp/linked-project.json';
+  const linkedCachePath = path.join(scratch, linkedCache);
+  if (fs.existsSync(linkedCachePath)) {
+    const metadata = JSON.parse(fs.readFileSync(linkedCachePath, 'utf8'));
+    const allowedKeys = ['ref', 'name', 'organization_id', 'organization_slug'];
+    if (!metadata || Array.isArray(metadata) || metadata.ref !== PRODUCTION_PROJECT_REF ||
+        Object.keys(metadata).some((key) => !allowedKeys.includes(key)) ||
+        Object.values(metadata).some((value) => typeof value !== 'string' || value.length > 256)) {
+      throw new Error('CLI linked-project cache has an invalid target or schema; replacement refused');
+    }
+  }
   const escaped = listCapturableFiles(scratch).filter((file) =>
     file !== 'supabase/config.toml' && file !== 'supabase/.temp/cli-latest' &&
+    file !== linkedCache &&
     !file.startsWith('supabase/functions/'));
   if (escaped.length) throw new Error('CLI download returned files outside the recoverable function tree; replacement refused');
   // CLI download preserves ../_shared imports as siblings. Capture the whole
@@ -150,9 +162,12 @@ function downloadLiveBundle(functionName, { run = runSupabaseProduction } = {}) 
   return { scratch, downloaded: path.join(scratch, 'supabase', 'functions') };
 }
 
+const captureStage = (stage) => console.error(`Production capture stage [${stage}]`);
+
 function main() {
   const { functionName } = parseArgs(process.argv.slice(2));
 
+  captureStage('ENVIRONMENT');
   const missing = missingRequiredProductionVars();
   if (missing.length) {
     console.error('Missing required production variables:');
@@ -160,6 +175,7 @@ function main() {
     process.exit(1);
   }
 
+  captureStage('TARGET_IDENTITY');
   let identity;
   try {
     identity = assertProductionTarget();
@@ -167,8 +183,10 @@ function main() {
     fail(err.message);
   }
 
+  captureStage('CLI_LINK');
   runSupabaseProduction(['link', '--project-ref', PRODUCTION_PROJECT_REF, '--yes']);
 
+  captureStage('LIVE_INVENTORY');
   const live = findFunction(listFunctions(), functionName);
   if (!live) {
     fail(
@@ -176,10 +194,12 @@ function main() {
         'EXISTING function; a new function rolls back by deletion and needs no capture.',
     );
   }
+  captureStage('LIVE_METADATA');
   if (typeof live.verify_jwt !== 'boolean' || !live.version || !live.ezbr_sha256) {
     fail('Live function identity or original JWT posture is unreadable; replacement refused');
   }
   if (live.import_map === true) fail('A configured import map needs explicit recovery support; replacement refused');
+  captureStage('ENTRYPOINT');
   const entrypointMarker = `/functions/${functionName}/`;
   const entrypointSuffix = typeof live.entrypoint_path === 'string' && live.entrypoint_path.includes(entrypointMarker)
     ? live.entrypoint_path.slice(live.entrypoint_path.lastIndexOf(entrypointMarker) + '/functions/'.length) : null;
@@ -187,14 +207,17 @@ function main() {
     fail('Live deployment entrypoint is unreadable or unsupported; replacement refused');
   }
 
+  captureStage('DOWNLOAD_LAYOUT');
   const { scratch, downloaded } = downloadLiveBundle(functionName);
 
+  captureStage('CAPTURE_COPY');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const dir = path.join(ensureArtifactsDir(CAPTURE_DIR), `${stamp}-${functionName}`);
   const filesDir = path.join(dir, 'files');
   copyTree(downloaded, filesDir);
   fs.rmSync(scratch, { recursive: true, force: true });
 
+  captureStage('CAPTURE_DIGEST');
   const { files, treeDigest } = digestTree(filesDir);
   const manifest = buildCaptureManifest({
     functionName,
@@ -215,6 +238,7 @@ function main() {
   // Verify what was just written, rather than trusting that it was written
   // correctly. A capture that cannot pass its own check is worse than none,
   // because the deploy would proceed believing rollback is available.
+  captureStage('CAPTURE_VERIFY');
   const verified = verifyCapture({
     capture: manifest,
     captureRoot: filesDir,
@@ -224,6 +248,7 @@ function main() {
     fail(`Capture failed its own verification:\n  - ${verified.problems.join('\n  - ')}`);
   }
 
+  captureStage('COMPLETE');
   console.log(JSON.stringify({
     ok: true,
     capture_path: capturePath,
