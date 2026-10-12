@@ -6,6 +6,8 @@
 
 > The July 8, 2026 version of this note was superseded. In particular, **Voice Scan is no longer merely a Coming Soon placeholder**; the current production source enables user-initiated native Voice Scan, and the Play listing/Data Safety must not claim Android has no microphone capability. Similarly, current source enables Multi-image Scanner, Cloud Closet, Packing Intelligence, Smart Watchlist and the VTO UI. **Elise spoken replies and Today With Elise are OFF** in the snapshot; do not advertise them as live.
 
+**Historical provenance:** This pointer supersedes the July 8, 2026 note whose recorded source-lineage marker was `integration/free-tier-beta-into-style-dna`. That legacy branch name is retained solely to identify the previous document revision; it is not an active product term or a current release authority.
+
 ## Where to update
 
 The complete English (US) Play title, short/full descriptions and update notes, Android privacy/Data Safety decision worksheet, feature truth matrix, reviewer access, asset and Google Play App Content actions are in the linked Build 35 Android metadata package.
