@@ -1,6 +1,10 @@
 name: Build 35 iOS source certification
 
 on:
+  # Re-certify the exact governed integration SHA after the iOS repair PR lands.
+  push:
+    branches:
+      - integration/build35-v1-convergence
   pull_request:
     paths:
       - 'store.config.json'
