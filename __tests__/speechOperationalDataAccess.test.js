@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 
-function fixture({ accountError = false, summary = {}, summaryError = null,
+function fixture({ accountError = false, accountStatus = 'active', accountLockedAt = null, summary = {}, summaryError = null,
   reserve = { allowed: false, reason: 'disabled' }, reserveError = null, secret = 'fixture-service-key' } = {}) {
   let dependencies;
   const calls = [];
@@ -13,7 +13,7 @@ function fixture({ accountError = false, summary = {}, summaryError = null,
     auth: { getUser: async () => ({ data: { user: { id: 'actor-a', is_anonymous: true } }, error: null }) },
     rpc: async (name) => { calls.push({ boundary: 'actor', name }); return { data: summary, error: summaryError }; },
     from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({
-      data: { account_status: 'active' }, error: accountError ? new Error('database unavailable') : null,
+      data: { account_status: accountStatus, account_locked_at: accountLockedAt }, error: accountError ? new Error('database unavailable') : null,
     }) }) }) }),
   };
   const serverClient = { rpc: async (name, args) => {
@@ -40,6 +40,14 @@ function fixture({ accountError = false, summary = {}, summaryError = null,
 test('Speech account query errors and anonymous identities remain explicit', async () => {
   assert.equal(await fixture({ accountError: true }).access.getAccountStatus('actor-a'), null);
   assert.equal((await fixture().access.getAuthenticatedActor()).isAnonymous, true);
+});
+
+test('Speech rejects a locked profile even when its status is still active', async () => {
+  assert.notEqual(await fixture({ accountLockedAt: '2026-10-12T00:00:00Z' }).access.getAccountStatus('actor-a'), 'active');
+  assert.equal(await fixture().access.getAccountStatus('actor-a'), 'active');
+  for (const accountStatus of ['pending_deletion', 'deleted', 'locked', 'suspended', 'deactivated']) {
+    assert.notEqual(await fixture({ accountStatus }).access.getAccountStatus('actor-a'), 'active');
+  }
 });
 
 test('Speech cost mutations use only service client and verified server actor/reference cost arguments', async () => {

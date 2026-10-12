@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-12T14:57:19.628Z",
-    "generatedFromGitSha": "61ea88556e4d7a435cf377641d947fbf32246a17"
+    "generatedAtUtc": "2026-10-12T19:10:57.076Z",
+    "generatedFromGitSha": "bc65c060b036aef3036970d55d0f647237cd7bd3"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -420,8 +420,8 @@
         ],
         "bundleFileCount": 16,
         "treeFileCount": 21,
-        "bundleHash": "abcb61d6fcf919d81a9f046ed7d9e9fe7ec9a1e15ac6a17e3fb3cdcb911c79fd",
-        "treeHash": "836709657c34403743885892da8c1d90ccf54b7e4ff60a7f96863f6a730c6aee",
+        "bundleHash": "0207f4eba73c2916b83fc021629245520507ff34dd8bebe264a1c3aba678f771",
+        "treeHash": "12671255f7374c2116c7f6b4dee318e840a55c141a9fbb01ee631bd630ca2b9b",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -440,12 +440,12 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/entitlementDispatch.test.ts",
-            "sha256": "91031c859f90baca4f6ad882c7dac53f44c41eab61ccefa0fd18f0d66517f4cf",
+            "sha256": "f4e720ea656083209acfe574d84011be0246ec9666db2a0c31f6e123176fc0b4",
             "bundle": false
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "f70f749e790df9bef9d28f2ee6bcf23ae4e1c147d9a4f37d1a59d6572a776583",
+            "sha256": "d988a9f566585bf0454142f7c81e74cf075af5e3e5b7673cc2a2e1d4474aed33",
             "bundle": true
           },
           {
@@ -990,8 +990,8 @@
         ],
         "bundleFileCount": 11,
         "treeFileCount": 22,
-        "bundleHash": "2b60297e4523fbffba22f1b3cdddee05a8a2279b22fb3de3cc8d3aa7c867ed3f",
-        "treeHash": "6340877a512bbe631585f984f53933806cbecb228447abd680d3c17f2819603e",
+        "bundleHash": "4a695843482bbf8bbcf1608424c396d8252a5a24da4b63ee9be2827f28e61038",
+        "treeHash": "aae73fd551f73fbc08c7a940d78336148acd12d32571ce686a046f44284ec2e0",
         "files": [
           {
             "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
@@ -1020,7 +1020,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/index.ts",
-            "sha256": "f2aa384627cfaf2bc504a262933446d69348041e7f66f24b3e1a5cebaf3cea34",
+            "sha256": "94c870ef03a10f90646cd56c8eefa7efe8116a1f468dd94914c6762504736c23",
             "bundle": true
           },
           {
