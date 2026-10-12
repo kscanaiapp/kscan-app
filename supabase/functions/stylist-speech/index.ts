@@ -51,10 +51,11 @@ function createDataAccess(authHeader: string): StylistSpeechDataAccess {
     async getAccountStatus(actorId) {
       const { data, error } = await client
         .from('profiles')
-        .select('account_status')
+        .select('account_status, account_locked_at')
         .eq('id', actorId)
         .maybeSingle();
-      return !error && typeof data?.account_status === 'string' ? data.account_status : null;
+      return !error && data?.account_locked_at == null && typeof data?.account_status === 'string'
+        ? data.account_status : null;
     },
     async reserveSpeechRequest(actorId, fingerprint, characters) {
       const { data, error } = await costClient().rpc('reserve_speech_request', {
