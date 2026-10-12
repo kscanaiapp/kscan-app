@@ -10,6 +10,7 @@ export type SpeechFailureKind =
   | 'success'
   | 'timeout'
   | 'pre_dispatch'
+  | 'provider_network'
   | 'provider_rejection'
   | 'invalid_response';
 

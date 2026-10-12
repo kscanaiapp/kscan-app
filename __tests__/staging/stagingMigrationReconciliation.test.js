@@ -641,10 +641,17 @@ test('staging declares no genuinely unapplied migration, and the RP-106 version 
     fs.readFileSync(path.join(ROOT, 'config', 'migration-authority-manifest.json'), 'utf8'),
   );
   const applied = manifest.ledgerReconciliation.environments[STAGING_REF].appliedSinceReconciliation;
-  assert.equal(applied.length, 1);
+  assert.deepEqual(applied.map((entry) => entry.localVersion), ['20260902150000', '20261011222213']);
   assert.equal(applied[0].localVersion, '20260902150000');
   assert.equal(applied[0].logicalName, 'vto_non_billable_attempt_release');
   assert.equal(applied[0].classification, 'APPLIED_AND_CERTIFIED');
+
+  const speech = applied[1];
+  assert.equal(speech.logicalName, 'build35_speech_operational_cost_controls');
+  assert.equal(speech.classification, 'APPLIED_AND_CERTIFIED');
+  assert.equal(speech.appliedConfirmedOn, '2026-10-12');
+  assert.ok(fs.existsSync(path.join(ROOT, 'supabase', 'migrations', `${speech.localVersion}_${speech.logicalName}.sql`)));
+  assert.equal(reconciled.some((entry) => entry.localVersion === speech.localVersion), false);
 
   // It must NOT be declared reconciled — it was applied under its OWN version,
   // not present under some other version identity.
