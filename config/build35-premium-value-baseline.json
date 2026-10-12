@@ -75,7 +75,7 @@
     "services/weather/todayWeatherStore.ts": "3972ccd482fec91812317142f961999e0c5e0e79e7d3a27abfa3579a28c3947a",
     "supabase/functions/stylist-speech/elevenLabsClient.ts": "da6586d9a53007c8cf6d366212223688caa2a07a3977165fae74889b734e10e9",
     "supabase/functions/stylist-speech/handler.ts": "c5da18b92bc46456d3f6a4af374303e6cac4de7f9c6a6c049da8f2878e6aaeb2",
-    "supabase/functions/stylist-speech/index.ts": "f2aa384627cfaf2bc504a262933446d69348041e7f66f24b3e1a5cebaf3cea34",
+    "supabase/functions/stylist-speech/index.ts": "94c870ef03a10f90646cd56c8eefa7efe8116a1f468dd94914c6762504736c23",
     "supabase/functions/stylist-speech/providerDiagnostics.ts": "26524601b7ed8f17694da79b4c1dd85943fb85d129a78a3f5fa13b9105e0ce6e",
     "supabase/functions/stylist-speech/providerFailure.ts": "486112b2615480eedbe6783b6c96ef3136776f52f651e8bee0dbb804e790106e",
     "supabase/functions/stylist-speech/rateLimit.ts": "92b1b3874e6f2ec62919d8f941e8633bc69060d49cb27217137753c7c4780b4f",

@@ -28,6 +28,7 @@ Object.defineProperty(Deno, "serve", {
 
 let recorded: Recorded[] = [];
 let entitlementCalls = 0;
+let accountActive = true;
 let claimRows: Record<string, unknown>[] = [];
 let entitlementAnswer: (userId: string, entitlementKey: string, callNumber: number) => Response | 'throw' =
   () => Response.json(true);
@@ -50,6 +51,7 @@ globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) =>
   if (url.includes('/auth/v1/user')) {
     return Response.json({ id: USER_A, aud: 'authenticated', role: 'authenticated', email: 'a@example.test', is_anonymous: false });
   }
+  if (url.includes('/rpc/watchlist_actor_is_active')) return Response.json(accountActive);
   if (url.includes('/rpc/kplus_has_active_entitlement')) {
     entitlementCalls += 1;
     const parsed = JSON.parse(body || '{}');
@@ -196,4 +198,33 @@ Deno.test({ name: 'user refresh: a failed pre-claim K+ check returns 403 and cla
     method: 'POST', headers: { Authorization: 'Bearer token' }, body: JSON.stringify({ action: 'refresh' }),
   }));
   if (response.status !== 403 || recorded.some((r) => r.url.includes('/rpc/claim_')) || providerCalls() !== 0) throw new Error('not blocked');
+});
+
+Deno.test({ name: 'inactive account cannot mutate watches despite a valid JWT and K+', ...OPTIONS }, async () => {
+  accountActive = false;
+  entitlementAnswer = () => Response.json(true);
+  try {
+    for (const action of ['pause', 'resume', 'delete', 'refresh', 'create']) {
+      recorded = [];
+      const response = await worker(new Request('https://edge.local/x', {
+        method: 'POST', headers: { Authorization: 'Bearer token' },
+        body: JSON.stringify({ action, watchId: 'aaaaaaaa-0000-4000-8000-000000000001' }),
+      }));
+      if (response.status !== 403) throw new Error(`${action}: inactive actor returned ${response.status}`);
+      if (recorded.some((r) => /\/rpc\/(create_|pause_|resume_|delete_|claim_user_)/.test(r.url))) throw new Error(`${action}: watch mutation reached`);
+      if (providerCalls() !== 0) throw new Error(`${action}: paid provider reached`);
+    }
+  } finally { accountActive = true; }
+});
+
+Deno.test({ name: 'account lock after claim prevents provider dispatch despite active K+', ...OPTIONS }, async () => {
+  accountActive = false;
+  claimRows = [watchRow('aaaaaaaa-0000-4000-8000-000000000001', USER_A)];
+  entitlementAnswer = () => Response.json(true);
+  try {
+    const result = await sweep();
+    if (result.status !== 200 || providerCalls() !== 0 || rowWrites() !== 0 || eventAppends() !== 0 || pushLookups() !== 0) {
+      throw new Error('inactive claimed actor reached provider or downstream writes');
+    }
+  } finally { accountActive = true; }
 });
