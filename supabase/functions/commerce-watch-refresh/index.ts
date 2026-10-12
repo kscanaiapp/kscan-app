@@ -285,6 +285,7 @@ async function runRefreshCycle(row: WatchRow): Promise<{
 }> {
   const observedAt = new Date().toISOString();
   const outcome = await runEntitledWatchObservation(row.user_id, async (userId) => {
+    if (!(await isEligibleAccountActor(userId))) return false;
     const entitlement = await rpc('kplus_has_active_entitlement', {
       p_user_id: userId, p_entitlement_key: 'k_plus',
     });
@@ -937,6 +938,13 @@ Deno.serve(async (req: Request) => {
     body = await req.json();
   } catch {
     return json({ error: 'invalid_body', code: 'invalid_body' }, 400);
+  }
+
+  // Revalidate account state before any watch mutation. Delivery cleanup
+  // remains available during deletion so a departing actor can disarm routes.
+  if (typeof body.action === 'string' && ['create', 'pause', 'resume', 'delete', 'refresh'].includes(body.action)
+    && (authUser.isAnonymous === true || !(await isEligibleAccountActor(authUser.id)))) {
+    return json({ error: 'account_not_eligible', code: 'account_not_eligible' }, 403);
   }
 
   switch (body.action) {
