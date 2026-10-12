@@ -1,0 +1,121 @@
+name: Android 35 Voice+Push Manifest Proof
+
+on:
+  push:
+    branches:
+      - audit/android35-gradle-manifest-proof-20261012
+
+permissions:
+  contents: read
+
+jobs:
+  manifest-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      EAS_BUILD_PROFILE: build35-release
+      EAS_BUILD_GIT_COMMIT_HASH: ca5c13611543ebc8faff873160182974ae0d408b
+      KSCAN_VOICE_NATIVE_CAPABILITY: "true"
+      EXPO_PUBLIC_VOICESCAN_ENABLED: "true"
+      EXPO_PUBLIC_SMART_WATCHLIST_V1: "true"
+      EXPO_PUBLIC_SUPABASE_URL: https://wyyuqfdxucjksghsmhry.supabase.co
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK platform 36 and build tools
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Install pinned project dependencies
+        run: npm ci --no-fund --no-audit
+      - name: Materialize synthetic Firebase file for build-logic only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          p = os.environ["RUNNER_TEMP"] + "/google-services.synthetic.json"
+          data = {
+              "project_info": {"project_number": "123456789012", "project_id": "kscan-ci-manifest-only"},
+              "client": [{"client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0000000000000000",
+                  "android_client_info": {"package_name": "com.kscanai.app"}
+              }, "api_key": [{"current_key": "SYNTHETIC-NOT-A-REAL-API-KEY"}]}],
+              "configuration_version": "1"
+          }
+          with open(p, "w", encoding="utf-8") as f:
+              json.dump(data, f)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write("GOOGLE_SERVICES_JSON=" + p + "\n")
+          PY
+      - name: Resolve API levels and merge the REAL Android release manifest
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/android-sdk-probe.gradle" <<'EOF'
+          gradle.projectsEvaluated {
+              def p = gradle.rootProject.project(':app')
+              println "CERT_COMPILE_SDK=" + p.android.compileSdk
+              println "CERT_TARGET_SDK=" + p.android.defaultConfig.targetSdk
+              println "CERT_MIN_SDK=" + p.android.defaultConfig.minSdk
+              if (p.android.compileSdk.toString() != '36') throw new GradleException("compileSdk mismatch")
+              if (p.android.defaultConfig.targetSdk.apiLevel != 36) throw new GradleException("targetSdk mismatch")
+              if (p.android.defaultConfig.minSdk.apiLevel != 24) throw new GradleException("minSdk mismatch")
+          }
+          EOF
+          cd android
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace -I "$RUNNER_TEMP/android-sdk-probe.gradle" :app:processReleaseMainManifest
+      - name: Validate resolved manifest permissions, visibility and exported cropper
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, xml.etree.ElementTree as ET, shutil
+          root = pathlib.Path("android/app/build/intermediates")
+          matches = [p for p in root.rglob("AndroidManifest.xml")
+                     if "release" in p.parts and
+                     ("merged_manifest" in p.parts or "merged_manifests" in p.parts)]
+          if not matches:
+              raise SystemExit("FAIL: no AGP-generated merged release AndroidManifest.xml")
+          file = sorted(matches, key=lambda p: p.stat().st_mtime)[-1]
+          doc = ET.parse(file).getroot()
+          A = '{http://schemas.android.com/apk/res/android}'
+          perms = {e.attrib.get(A+'name') for e in doc.findall('uses-permission')}
+          perms |= {e.attrib.get(A+'name') for e in doc.findall('uses-permission-sdk-23')}
+          required = {'android.permission.CAMERA', 'android.permission.INTERNET',
+                      'android.permission.VIBRATE', 'android.permission.ACCESS_COARSE_LOCATION',
+                      'android.permission.RECORD_AUDIO', 'android.permission.POST_NOTIFICATIONS'}
+          forbidden = {'android.permission.ACCESS_FINE_LOCATION', 'android.permission.READ_MEDIA_IMAGES',
+                       'android.permission.READ_MEDIA_VIDEO', 'android.permission.READ_EXTERNAL_STORAGE',
+                       'android.permission.WRITE_EXTERNAL_STORAGE', 'android.permission.RECEIVE_BOOT_COMPLETED',
+                       'android.permission.FOREGROUND_SERVICE', 'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+                       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK', 'android.permission.CAPTURE_AUDIO_OUTPUT'}
+          if required - perms: raise AssertionError(f"missing permissions: {required-perms}")
+          if forbidden & perms: raise AssertionError(f"forbidden permissions: {forbidden & perms}")
+          actions = {e.attrib.get(A+'name') for e in doc.findall('.//queries/intent/action')}
+          if 'android.speech.RecognitionService' not in actions:
+              raise AssertionError(f"missing Voice RecognitionService query: {actions}")
+          cropper = [a for a in doc.findall('.//activity') if a.attrib.get(A+'name') == 'com.canhub.cropper.CropImageActivity']
+          if len(cropper) != 1 or cropper[0].attrib.get(A+'exported') != 'false':
+              raise AssertionError(f"exported cropper unsafe: {len(cropper)}")
+          sdk = doc.find('uses-sdk')
+          if sdk is None or sdk.attrib.get(A+'targetSdkVersion') != '36' or sdk.attrib.get(A+'minSdkVersion') != '24':
+              raise AssertionError(f"resolved SDK mismatch: {sdk.attrib if sdk is not None else None}")
+          pathlib.Path('manifest-proof').mkdir(exist_ok=True)
+          shutil.copyfile(file, 'manifest-proof/AndroidManifest.xml')
+          print('PASS: AGP merged manifest', file)
+          print('PASS: 6 required permissions; restricted/media/storage/boot/FGS absent')
+          print('PASS: Speech RecognitionService visible; CropImageActivity non-exported')
+          print('PASS: targetSdk=36, minSdk=24')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android35-gradle-merged-manifest
+          path: manifest-proof/AndroidManifest.xml
+          if-no-files-found: ignore
+          retention-days: 7
