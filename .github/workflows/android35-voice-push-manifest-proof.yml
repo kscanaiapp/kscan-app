@@ -71,8 +71,8 @@ jobs:
               println "CERT_TARGET_SDK=" + p.android.defaultConfig.targetSdk
               println "CERT_MIN_SDK=" + p.android.defaultConfig.minSdk
               if (p.android.compileSdk.toString() != '36') throw new GradleException("compileSdk mismatch")
-              if (p.android.defaultConfig.targetSdk.apiLevel != 36) throw new GradleException("targetSdk mismatch")
-              if (p.android.defaultConfig.minSdk.apiLevel != 24) throw new GradleException("minSdk mismatch")
+              if (p.android.defaultConfig.targetSdk.toString() != '36') throw new GradleException("targetSdk mismatch")
+              if (p.android.defaultConfig.minSdk.toString() != '24') throw new GradleException("minSdk mismatch")
           }
           EOF
           cd android
