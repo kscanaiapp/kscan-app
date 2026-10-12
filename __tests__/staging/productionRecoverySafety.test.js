@@ -11,6 +11,41 @@ const production = 'wyyuqfdxucjksghsmhry';
 const staging = 'yzqjvdfgefveprobvvyw';
 const commit = 'a'.repeat(40);
 
+test('Watchlist recovery preserves only imported cross-function dependencies', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-watch-recovery-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const lib = await load('scripts/lib/function-bundle-capture.mjs');
+  const sources = {
+    'commerce-watch-refresh/index.ts': 'import {observe} from "../scan-identify/observe.ts"; Deno.serve(observe);',
+    'scan-identify/observe.ts': 'export {observe} from "./provider.ts";',
+    'scan-identify/provider.ts': 'export const observe = () => new Response("original");',
+  };
+  const write = (file, bytes) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.writeFileSync(path.join(root, file), bytes);
+  };
+  for (const [file, bytes] of Object.entries(sources)) write(file, bytes);
+  const verify = () => {
+    const tree = lib.digestTree(root);
+    const capture = lib.buildCaptureManifest({ functionName: 'commerce-watch-refresh', projectRef: production,
+      liveVersion: 10, verifyJwt: false, ezbrSha256: 'b'.repeat(64), status: 'ACTIVE',
+      files: tree.files, treeDigest: tree.treeDigest, bundleLayout: 'functions-root' });
+    return lib.verifyCapture({ capture, captureRoot: root, expected: { functionName: 'commerce-watch-refresh', productionRef: production } });
+  };
+  assert.deepEqual(verify().problems, []);
+  // Sharing a directory with an imported dependency must not authorize extra files.
+  write('scan-identify/unrelated.ts', 'export const unrelated = true;');
+  assert.equal(verify().ok, false);
+  write('commerce-watch-refresh/index.ts', sources['commerce-watch-refresh/index.ts'] + '\n// import "../scan-identify/unrelated.ts";');
+  assert.equal(verify().ok, false, 'a comment cannot authorize unrelated source');
+  fs.rmSync(path.join(root, 'scan-identify/unrelated.ts'));
+  fs.rmSync(path.join(root, 'scan-identify/provider.ts'));
+  assert.equal(verify().ok, false, 'the captured dependency closure must be complete');
+  write('scan-identify/provider.ts', sources['scan-identify/provider.ts']);
+  write('commerce-watch-refresh/index.ts', 'import "../../outside.ts";');
+  assert.equal(verify().ok, false, 'an imported path cannot escape the captured root');
+});
+
 async function fixture(t, jwt = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-recovery-regression-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -406,11 +441,13 @@ test('candidate identity rejects stale source, wrong metadata and entrypoint; ex
   const nextInput = { ...input, deployed: { ...deployed, version: 173, ezbr_sha256: next.ezbr_sha256 } };
   assert.equal(verifyCandidateIdentity(nextInput).same_source_noop, false);
   fs.rmSync(path.join(f.original, 'files/_shared/config.json'));
-  const { digestTree } = await load('scripts/lib/function-bundle-capture.mjs');
+  const { digestTree, verifyCapture } = await load('scripts/lib/function-bundle-capture.mjs');
   const tree = digestTree(path.join(f.original, 'files'));
-  fs.writeFileSync(captured.capture_path, JSON.stringify({ ...next,
-    files: tree.files, file_count: tree.files.length, tree_digest: tree.treeDigest }));
-  assert.throws(() => verifyCandidateIdentity(nextInput), /missing an approved local dependency/);
+  const missingDependency = { ...next, files: tree.files, file_count: tree.files.length, tree_digest: tree.treeDigest };
+  fs.writeFileSync(captured.capture_path, JSON.stringify(missingDependency));
+  assert.ok(verifyCapture({ capture: missingDependency, captureRoot: path.join(f.original, 'files'),
+    expected: { functionName: 'scan-identify', productionRef: production } }).problems.includes('captured import dependency is missing'));
+  assert.throws(() => verifyCandidateIdentity(nextInput), /identity/);
 });
 
 test('ZAP baseline retains complete passive scan and reports while avoiding failing automation framework', () => {
