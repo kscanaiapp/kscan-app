@@ -78,7 +78,7 @@ This is an **update**, not an initial release. Do not expose the internal build 
 | Data category | Expected Build 35 capability and review action |
 | --- | --- |
 | Name, email, user ID, auth/session identifiers | Account/login, personalization, membership and deletion. Declare applicable personal-info/account categories. |
-| Photos/images | Camera/gallery scans, Closet, dressing rooms, attachments, Mirror Selfie and VTO. Cloud AI/provider processing possible. Do not claim cloud-free or universal face masking. |
+| Photos/images | Camera/gallery scans, Closet, Dressing Rooms, attachments and VTO. Cloud AI/provider processing possible. Mirror Selfie is explicitly unavailable on Android despite its shared source flag. Do not claim cloud-free or universal face masking. |
 | User-generated content | Dressing Room messages, reactions, shared images/looks and relevant saved content. Confirm reporting, blocking, moderation and user policy terms. |
 | AI prompts / style messages | Elise text and authorized fashion context processed server-side; AI-output in-app reporting must be reachable. |
 | Approximate location | Optional foreground coarse/rounded weather context. Do not declare precise/background collection without evidence. |
@@ -106,6 +106,7 @@ From `eas.json` and `scripts/check-build35-release-profile.js` at the source SHA
 | VTO user interface | ON | Actual generation depends on governed backend/provider; don't promise perfect fit |
 | Elise Concierge/Elise V10/Avatar Motion flags | ON | Separate visibility and service proof |
 | K+ paid membership | Native commerce present | Store availability, Play products/base plans and sandbox purchase remain uncertified (see owner dependencies) |
+| Mirror Selfie | OFF on Android | Native extraction is Apple-only; `mirrorSelfieAndroidGating.test.js` asserts Android unavailability despite the shared flag |
 | Elise spoken replies | OFF | Do not promise audible Elise replies in this release; source disclosure approval is not active rollout |
 | Today With Elise parent and children | HARD OFF | Do not show as released |
 | Complimentary K+ Early Access | OFF | Do not describe as available promotion |
