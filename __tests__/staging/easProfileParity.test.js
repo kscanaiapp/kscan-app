@@ -46,7 +46,13 @@ function readEas() {
 function envOf(eas, profile) {
   const build = eas.build || {};
   assert.ok(build[profile], `eas.json is missing the "${profile}" build profile`);
-  return build[profile].env || {};
+  const { resolveEasBuildProfile } = require('../../scripts/resolve-eas-build-profiles');
+  const env = { ...resolveEasBuildProfile(eas, profile).env };
+  // These approved native selectors implement the same Voice capability in
+  // store and certification manifests; compare product behavior separately.
+  delete env.KSCAN_VOICE_NATIVE_CAPABILITY;
+  delete env.KSCAN_VOICE_CERTIFICATION;
+  return env;
 }
 
 test('eas.json defines both a production and a staging build profile', () => {
@@ -58,13 +64,13 @@ test('eas.json defines both a production and a staging build profile', () => {
 test('staging exposes exactly the production client-feature flag set', () => {
   const eas = readEas();
   const production = envOf(eas, 'production');
-  const staging = envOf(eas, 'staging');
+  const staging = envOf(eas, 'staging-certification');
 
   const missingFromStaging = Object.keys(production)
-    .filter((key) => !(key in staging))
+    .filter((key) => !(key in staging) && !ENVIRONMENT_SPECIFIC_KEYS.has(key))
     .sort();
   const extraInStaging = Object.keys(staging)
-    .filter((key) => !(key in production))
+    .filter((key) => !(key in production) && !ENVIRONMENT_SPECIFIC_KEYS.has(key))
     .sort();
 
   assert.deepEqual(
@@ -84,7 +90,7 @@ test('staging exposes exactly the production client-feature flag set', () => {
 test('shared flags hold identical values unless allow-listed as environment-specific', () => {
   const eas = readEas();
   const production = envOf(eas, 'production');
-  const staging = envOf(eas, 'staging');
+  const staging = envOf(eas, 'staging-certification');
 
   const unexplainedDrift = Object.keys(production)
     .filter((key) => key in staging)

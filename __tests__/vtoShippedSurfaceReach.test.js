@@ -212,10 +212,9 @@ test('the feature flag gate is absolute on the live surface', () => {
     /VTO_UI_ENABLED && option\.vtoGarment \?/,
     'the flag must gate the entry point, so a disabled build renders nothing',
   );
-  // Build 34 certification profiles may expose the governed VTO surface.
-  // Ordinary production and every non-certification profile remain dark.
+  // Owner-approved Build 35 store profiles join the governed certification surface.
   const build = JSON.parse(read('eas.json')).build;
-  const allowed = new Set(['staging-certification', 'production-certification']);
+  const allowed = new Set(['build35-release', 'production', 'staging-certification', 'production-certification']);
   for (const [name, profile] of Object.entries(build)) {
     if (allowed.has(name)) {
       assert.equal(
@@ -228,7 +227,7 @@ test('the feature flag gate is absolute on the live surface', () => {
     const value = profile.env?.EXPO_PUBLIC_VTO_UI_ENABLED;
     assert.ok(
       value === undefined || value === 'false',
-      'VTO must remain dark outside the governed certification profiles',
+      `VTO must remain dark outside approved profiles: ${name}`,
     );
   }
 });

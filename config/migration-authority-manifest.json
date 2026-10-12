@@ -752,6 +752,13 @@
               "20261004221500"
             ],
             "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
+          },
+          {
+            "localVersion": "20261011222213",
+            "logicalName": "build35_speech_operational_cost_controls",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Owner-authorized Build 35 Speech technical repair commit 52754726388db5279d94c8154901a0c6a112fbc8. Read-only inspection on 2026-10-11 confirms this ledger version and all three new public Speech control/reservation/cost tables absent from Staging and Production. Additive RLS/service-only migration defaults disabled with zero budget. Declaration records pending source, not deployment permission: requires exact single-version governed invocation and protected human approval for Production."
           }
         ],
         "genuinelyUnapplied": [],
@@ -1499,6 +1506,13 @@
             "logicalName": "b34_fk_delete_path_indexes",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260917163000_b34_fk_delete_path_indexes.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20261011222213",
+            "logicalName": "build35_speech_operational_cost_controls",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Owner-authorized Build 35 Speech technical repair commit 52754726388db5279d94c8154901a0c6a112fbc8. Read-only inspection on 2026-10-11 confirms this ledger version and all three new public Speech control/reservation/cost tables absent from Staging and Production. Additive RLS/service-only migration defaults disabled with zero budget. Declaration records pending source, not deployment permission: requires exact single-version governed invocation and protected human approval for Production."
           }
         ],
         "remoteOnly": [

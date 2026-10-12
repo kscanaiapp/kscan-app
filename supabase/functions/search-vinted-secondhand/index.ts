@@ -175,7 +175,7 @@ function normalizeUrl(value: unknown) {
 
 function normalizeItems(raw: unknown[], limit: number): SecondhandItem[] {
   return raw
-    .map((item, index) => {
+    .map((item, index): SecondhandItem | null => {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
       const record = item as Record<string, unknown>;
       const listingUrl = normalizeUrl(

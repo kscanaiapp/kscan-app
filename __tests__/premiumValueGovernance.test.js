@@ -18,7 +18,12 @@ function assertToday(config) {
     assert.deepEqual(baseline.todayFlagOrder.map(flag => env[flag]), expected, name);
   }
 }
-test('P0-TODAY-01: every effective Today flag preserves the Phase 0 baseline', () => assertToday(eas));
+test('P0-TODAY-01: every effective Today flag preserves the owner hold baseline', () => assertToday(eas));
+test('NC-PV-01: Today is OFF in every profile under the owner Build 35 hold', () => {
+  for (const name of Object.keys(eas.build)) {
+    for (const flag of baseline.todayFlagOrder) assert.equal(effective(eas, name)[flag], 'false', `${name}/${flag}`);
+  }
+});
 for (const name of Object.keys(baseline.todayByProfile)) {
   for (const flag of baseline.todayFlagOrder) {
     test(`NC-PV-TODAY: ${name}/${flag} drift is rejected`, () => {
@@ -32,10 +37,12 @@ for (const name of Object.keys(baseline.todayByProfile)) {
     assert.equal(effective(eas, name).EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
   });
 }
-test('ordinary Production keeps scoped premium rollout flags off', () => {
-  const env = effective(eas, 'production');
-  for (const flag of ['PACKING_INTELLIGENCE', 'SMART_WATCHLIST', 'CLOSET_CLOUD_SYNC', 'CLOSET_CROSS_DEVICE_RESTORE', 'CLOSET_LEGACY_MIGRATION']) {
-    assert.notEqual(env[`EXPO_PUBLIC_${flag}_V1`], 'true', flag);
+test('owner-approved Build 35 store profiles enable the scoped premium features', () => {
+  for (const profile of ['production', 'build35-release']) {
+    const env = effective(eas, profile);
+    for (const flag of ['PACKING_INTELLIGENCE', 'SMART_WATCHLIST', 'CLOSET_CLOUD_SYNC', 'CLOSET_CROSS_DEVICE_RESTORE', 'CLOSET_LEGACY_MIGRATION']) {
+      assert.equal(env[`EXPO_PUBLIC_${flag}_V1`], 'true', `${profile}/${flag}`);
+    }
   }
 });
 function assertProtected(read) {

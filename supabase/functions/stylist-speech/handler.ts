@@ -115,12 +115,12 @@ export function createStylistSpeechHandler(
 
       const dataAccess = dependencies.createDataAccess(authHeader);
       const actor = await dataAccess.getAuthenticatedActor().catch(() => null);
-      if (!actor?.id) {
+      if (!actor?.id || actor.isAnonymous === true) {
         throw new StylistSpeechError(401, 'NOT_AUTHENTICATED', 'Authentication is required.');
       }
 
       const accountStatus = await dataAccess.getAccountStatus(actor.id);
-      if (accountStatus === 'pending_deletion' || accountStatus === 'locked') {
+      if (accountStatus !== 'active') {
         throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
       }
 
@@ -176,7 +176,25 @@ export function createStylistSpeechHandler(
       }
 
       const release = limiter.begin(actor.id, operationKey(actor.id, body), now());
+      let reservationId: string | undefined;
+      let succeeded = false;
       try {
+        // Only reference identifiers enter this irreversible digest. Text,
+        // audio, tokens and provider payloads never enter the cost ledger.
+        const fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',
+          new TextEncoder().encode(operationKey(actor.id, body)))))
+          .map((value) => value.toString(16).padStart(2, '0')).join('');
+        const reservation = await dataAccess.reserveSpeechRequest(actor.id, fingerprint, speechText.length);
+        if (!reservation.allowed || !reservation.reservationId || !UUID_RE.test(reservation.reservationId)) {
+          if (reservation.reason === 'account_unavailable') {
+            throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
+          }
+          const disabled = reservation.reason === 'disabled';
+          throw new StylistSpeechError(disabled ? 503 : 429,
+            disabled ? 'SPEECH_DISABLED' : 'SPEECH_COST_LIMIT',
+            'Speech is temporarily unavailable. Written replies remain available.');
+        }
+        reservationId = reservation.reservationId;
         const generated = await generateSpeech({
           text: speechText,
           voiceProfile,
@@ -193,9 +211,13 @@ export function createStylistSpeechHandler(
           alignment: generated.alignment,
           alignmentDiagnostics: generated.alignmentDiagnostics,
         };
+        succeeded = true;
         return json(response);
       } finally {
         release();
+        // A failed finalization leaves the lease to expire, while the attempt
+        // still counts against cost. Never retry a paid call to repair logging.
+        if (reservationId) await dataAccess.finishSpeechRequest(actor.id, reservationId, succeeded).catch(() => undefined);
       }
     } catch (error) {
       return sanitizeError(error);

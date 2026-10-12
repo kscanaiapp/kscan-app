@@ -11,20 +11,19 @@ const STORE_PROFILES = Object.freeze(['production', PROFILE]);
 const PACKAGE = 'com.kscanai.app';
 const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
+const TODAY_OFF = Object.freeze(['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']);
 const REQUIRED_OFF = Object.freeze([
+  ...TODAY_OFF,
+  'EXPO_PUBLIC_ELISE_SPEECH', // source controls prepared; environment deployment still pending
   'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED', // complimentary offer, not paid K+ access
   'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER', // non-interactive design-only stub
 ]);
 // Build 35 full-feature launch contract: ON in both exact store profiles.
 // Real user features ship ON; test stubs and missing-native LIVE VTO remain OFF.
 const REQUIRED_ON = Object.freeze([
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_V1',
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1',
-  'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1',
   'EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1',
   'EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1',
   'EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1',
-  'EXPO_PUBLIC_ELISE_SPEECH',
   'EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
@@ -148,6 +147,18 @@ function validateEnvironment(env, failures, { strict = true } = {}) {
 
 function validateReleaseProfile({ eas, app, gradle, effectiveEnv, profileName = PROFILE }) {
   const failures = [];
+  // Owner ADD-01: Today is held in every profile, including certification.
+  // Check all profiles so an unrelated build command cannot bypass the hold.
+  for (const name of Object.keys(eas.build || {})) {
+    try {
+      const env = resolveCheckedProfile(eas, name).env || {};
+      for (const flag of TODAY_OFF) {
+        if (env[flag] !== 'false') failures.push(`${name}/${flag} must resolve explicitly false (owner Today hold)`);
+      }
+    } catch (error) {
+      failures.push(`${name}: ${error.message}`);
+    }
+  }
   let profile;
   try {
     profile = resolveCheckedProfile(eas, profileName);

@@ -41,6 +41,7 @@ import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
 import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
+import { SpeechSettingsSection } from '../components/settings/SpeechSettingsSection';
 import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
@@ -746,6 +747,7 @@ export default function PrivacyScreen() {
             ) : null}
 
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
+            <SpeechSettingsSection actorId={user?.id ?? null} />
 
             <TrustCenterCard
               title="How K Scan AI Handles Your Data"

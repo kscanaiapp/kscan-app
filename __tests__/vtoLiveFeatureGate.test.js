@@ -99,13 +99,13 @@ test('flag: no EAS profile sets it -- production and staging included', () => {
   }
 });
 
-test('flag: generative VTO is enabled only in governed certification profiles', () => {
+test('flag: generative VTO is enabled only in approved store and certification profiles', () => {
   const withVtoUi = Object.entries(easProfiles)
     .filter(([, profile]) => (profile.env ?? {}).EXPO_PUBLIC_VTO_UI_ENABLED === 'true')
     .map(([name]) => name)
     .sort();
-  assert.deepEqual(withVtoUi, ['production-certification', 'staging-certification']);
-  assert.ok(!('EXPO_PUBLIC_VTO_UI_ENABLED' in (easProfiles.production.env ?? {})));
+  assert.deepEqual(withVtoUi, ['build35-release', 'production', 'production-certification', 'staging-certification']);
+  assert.equal(easProfiles.production.env.EXPO_PUBLIC_VTO_UI_ENABLED, 'true');
 });
 
 // ── The harness cannot escape development ───────────────────────────────────

@@ -83,7 +83,7 @@ test('resolver honors nested parent env/platform fields before release overrides
   const fixture = input();
   fixture.eas.build.production.extends = 'base';
   fixture.eas.build.base = { env: { EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1: 'true' }, ios: { simulator: true } };
-  assert.equal(resolveCheckedProfile(fixture.eas, PROFILE).env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1, 'true');
+  assert.equal(resolveCheckedProfile(fixture.eas, PROFILE).env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1, 'false');
   assert.match(validateReleaseProfile(fixture).join('\n'), /physical-device/);
 });
 test('production identity checks reject substring spoofing, staging keys and native package drift', () => {
@@ -96,8 +96,8 @@ test('effective build environment must be complete, feature-ON and free of unapp
   const fixture = input();
   fixture.effectiveEnv = resolveCheckedProfile(fixture.eas, PROFILE).env;
   assert.deepEqual(validateReleaseProfile(fixture), []);
-  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_ELISE_SPEECH: 'false' };
-  assert.match(validateReleaseProfile(fixture).join('\n'), /ELISE_SPEECH/);
+  fixture.effectiveEnv = { ...fixture.effectiveEnv, EXPO_PUBLIC_VOICESCAN_ENABLED: 'false' };
+  assert.match(validateReleaseProfile(fixture).join('\n'), /VOICESCAN_ENABLED/);
   fixture.effectiveEnv = { EXPO_PUBLIC_ENVIRONMENT: 'production' };
   assert.match(validateReleaseProfile(fixture).join('\n'), /explicitly false/);
   checkMutation(({ eas }) => { eas.build.production.env.EXPO_PUBLIC_API_URL = 'http://localhost:3001'; }, /endpoint is not approved/);
@@ -137,7 +137,8 @@ for (const key of REQUIRED_OFF) {
   });
   {
     test(`production store profile accepts optional-off ${key} absent`, () => {
-      assert.equal(productionFixture((env) => { delete env[key]; }), '');
+      if (key.startsWith('EXPO_PUBLIC_TODAY_')) assert.match(productionFixture((env) => { delete env[key]; }), /owner Today hold/);
+      else assert.equal(productionFixture((env) => { delete env[key]; }), '');
     });
   }
 }
@@ -187,4 +188,11 @@ test('CLI withholds malformed input values and exits nonzero', () => {
     assert.equal(result.status, 2);
     assert.doesNotMatch(result.stdout + result.stderr, /DO_NOT_LOG_THIS/);
   } finally { fs.rmSync(folder, { recursive: true, force: true }); }
+});
+
+test('owner Today hold rejects enabling any Today flag in every build profile', () => {
+  for (const name of Object.keys(input().eas.build)) for (const flag of ['EXPO_PUBLIC_TODAY_WITH_ELISE_V1','EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1','EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']) {
+    const fixture=input(); fixture.eas.build[name].env[flag]='true';
+    assert.match(validateReleaseProfile(fixture).join('\n'), /owner Today hold/);
+  }
 });

@@ -38,6 +38,7 @@ import {
 import {
   enrichCommerceOffers,
   getFastCommerceResults,
+  isCommerceEmptyRetryable,
   selectEnrichmentCandidates,
 } from './scanCommerceRouter.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
@@ -203,6 +204,11 @@ function product(partial: Partial<RecommendedProduct> & { title: string; product
 
 Deno.test('v127 flag: version, default, and env override semantics', () => {
   assert.deepEqual(COMMERCE_FUNNEL_VERSION, 'v127');
+  assert.deepEqual(
+    COMMERCE_FUNNEL_DEFAULT_ENABLED,
+    true,
+    'Build 34 is commerce-first: v127 must default ON unless the emergency env kill switch disables it',
+  );
   assert.deepEqual(isCommerceFunnelEnabled(() => undefined), COMMERCE_FUNNEL_DEFAULT_ENABLED);
   assert.deepEqual(isCommerceFunnelEnabled(() => 'true'), true);
   assert.deepEqual(isCommerceFunnelEnabled(() => 'ON'), true);
@@ -787,10 +793,17 @@ Deno.test('REGRESSION: MODE B resolves the same category route as the inline pat
   );
 
   // And the shape MODE B uses now.
+  //
+  // This used to slice a fixed 3000 characters from the start of the block,
+  // which silently made the assertion depend on how much code happened to sit
+  // above the route resolution. The B33-SEC-002 auth + durable-quota gate moved
+  // `legacy_single_item` from roughly offset 2900 to 6196 and the window went
+  // out from under it — reporting "MODE B no longer routes by known
+  // category/subtype" when the routing had not been touched at all. Bound the
+  // real block by brace matching instead, so an insertion above the route can
+  // never masquerade as a routing regression (nor hide one).
   const index = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
-  const modeB = index.slice(
-    index.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body))'),
-  ).slice(0, 3000);
+  const modeB = sliceCommerceOnlyBlock(index);
   assert.ok(
     modeB.includes("requestMode: 'legacy_single_item'"),
     'MODE B no longer routes by known category/subtype',
@@ -1014,6 +1027,28 @@ function extractFunctionAsJs(src: string, name: string): string {
   return `function ${name}(${params.join(', ')}) ${src.slice(bodyOpen, bodyClose + 1)}`;
 }
 
+/**
+ * The MODE B route, bounded by brace matching rather than a character count.
+ * A fixed-size window makes every assertion below it depend on how much
+ * unrelated code sits above, which is how a pure insertion once read as a
+ * routing regression.
+ */
+function sliceCommerceOnlyBlock(src: string): string {
+  const start = src.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body))');
+  assert.ok(start > 0, 'MODE B block not found');
+  const open = src.indexOf('{', start);
+  assert.ok(open > start, 'MODE B block has no body');
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(start, i + 1);
+    }
+  }
+  throw new Error('unbalanced MODE B block');
+}
+
 function extractRateLimiter(src: string) {
   const grab = (name: string) => extractFunctionAsJs(src, name);
   const winM = src.match(/const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = ([^;]+);/);
@@ -1081,17 +1116,41 @@ Deno.test('P1-A: the rate-limit rejection returns before any evidence parsing or
   assert.ok(modeBStart > 0 && rateLimitCheck > modeBStart && rateLimitCheck < imageRejectCheck);
 });
 
-Deno.test('P1-A: authenticated and anonymous callers share the same spend boundary', async () => {
-  // MODE B has no bearer-token requirement — verify_jwt is off for this
-  // function — so an attacker can simply omit the Authorization header and
-  // any auth-gated limiter would not bound them. The fingerprint check must
-  // not read `auth` at all, or it can be routed around by omitting a token.
+Deno.test('P1-A: omitting a token cannot route around the MODE B spend boundary', async () => {
+  // B33-SEC-002 replaced this test's premise, so the assertion had to change
+  // with it — the SECURITY INTENT is unchanged and is now enforced harder.
+  //
+  // Before: MODE B served anonymous callers, so an auth-gated limiter really
+  // could be skipped by omitting the Authorization header. The only bound
+  // available was a fingerprint window that had to apply to everyone, and this
+  // test guarded that by asserting the limiter never reads `auth`.
+  //
+  // After: omitting the header does not route around the bound, it ENDS the
+  // request — MODE B requires a real, non-anonymous principal and returns 401
+  // before parsing anything or calling a provider. Asserting "the limiter must
+  // not mention auth" would now forbid the very check that closed the hole.
+  //
+  // So assert the property that actually matters: there is no path from an
+  // unauthenticated MODE B request to provider spend.
   const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
-  const start = src.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {');
-  const rateLimitEnd = src.indexOf("429,\n      );\n    }", start);
-  assert.ok(start > 0 && rateLimitEnd > start);
-  const rateLimitBlock = src.slice(start, rateLimitEnd);
-  assert.equal(/\bauth\.\w+/.test(rateLimitBlock), false, 'rate limit is conditioned on auth state and can be bypassed by omitting a token');
+  const block = sliceCommerceOnlyBlock(src);
+
+  const authGate = block.indexOf('!auth.isAuthenticated || !userId || auth.authError');
+  const anonGate = block.indexOf('if (auth.isAnonymous)');
+  const durable = block.indexOf('checkAuthenticatedScanQuota(');
+  const evidence = block.indexOf('const evidence = readCommerceOnlyEvidence(body);');
+  const provider = block.indexOf('const fast = await getFastCommerceResults({');
+
+  assert.ok(authGate > -1, 'MODE B must reject a missing or malformed principal');
+  assert.ok(anonGate > authGate, 'an anonymous session must also be refused');
+  assert.ok(durable > anonGate, 'the durable bucket is consulted only for a real principal');
+  assert.ok(evidence > durable, 'no request body is parsed before the spend boundary is settled');
+  assert.ok(provider > evidence, 'no provider is reachable before parsing');
+
+  // Malformed auth must fail CLOSED rather than degrade to anonymous.
+  assert.ok(block.includes("'commerce_only_auth_invalid'"));
+  // And the bound that survives an isolate restart must be the durable one.
+  assert.ok(block.includes('COMMERCE_ONLY_QUOTA_MODE'), 'the boundary must be the durable daily bucket');
 });
 
 // ── N. Early-exit sufficiency counts USABLE candidates, not raw ones ────────
@@ -1798,4 +1857,60 @@ Deno.test('NON-BLOCKING: delayed, rejected, and failed telemetry cannot alter co
   }));
   await Promise.resolve();
   assert.deepEqual(commerceResponse, { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] });
+});
+Deno.test('v127 empty truth: discovered candidates filtered to zero report no_results even when another provider is disabled', async () => {
+  setEnv();
+  Deno.env.set('POSHMARK_ENABLED', 'false');
+  commerceCacheClear();
+  installFetch([
+    {
+      match: isSerper,
+      delayMs: 10,
+      body: {
+        shopping: [{
+          title: 'Nike Air Zoom Running Shoe',
+          productLink: 'https://retailer-filtered.example-shop.test/p/shoe',
+          source: 'RetailerNeutral',
+          price: '$120',
+          imageUrl: 'https://cdn.example-shop.test/filtered-shoe.jpg',
+        }],
+      },
+    },
+    { match: isBrave, delayMs: 10, body: { web: { results: [] } } },
+  ]);
+  try {
+    const result = await getFastCommerceResults(fastInput('moto jacket filtered-empty'));
+    assert.deepEqual(result.products.length, 0, 'the footwear candidate should be filtered for outerwear');
+    const serper = result.funnel.providers.find((provider) => provider.provider === 'serper');
+    assert.ok(
+      (serper?.resultCount ?? 0) > 0,
+      'the test must prove a provider returned a candidate before the governed filter emptied the shelf',
+    );
+    assert.deepEqual(
+      result.errorType,
+      'no_results',
+      'a completed search whose candidates were filtered out is a genuine empty result',
+    );
+    assert.deepEqual(isCommerceEmptyRetryable(result.errorType), false);
+  } finally {
+    restoreFetch();
+    Deno.env.set('POSHMARK_ENABLED', 'true');
+  }
+});
+
+Deno.test('v127 retry truth: completed/structural empty outcomes are terminal, provider failures remain retryable', () => {
+  for (const errorType of ['no_results', 'empty_query', 'weak_query', 'non_fashion', 'wrong_mode']) {
+    assert.deepEqual(
+      isCommerceEmptyRetryable(errorType),
+      false,
+      errorType + ' must not offer a Retry that cannot change the answer',
+    );
+  }
+  for (const errorType of ['provider_error', 'timeout', 'error', undefined]) {
+    assert.deepEqual(
+      isCommerceEmptyRetryable(errorType),
+      true,
+      String(errorType) + ' remains retryable',
+    );
+  }
 });

@@ -61,6 +61,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'speech_request_reservations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'image_scan_verdicts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
@@ -111,9 +112,9 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'kplus_entitlement_grants', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_transitions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_activations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
-  // Offer-code attempts and successful-redemption/idempotency rows contain an
-  // Auth actor UUID and HMAC-only code material (never the raw code). Both
-  // cascade at Auth deletion; campaign/code definitions contain no actor data.
+  // Build 35 offer-code attempt/redemption rows contain an Auth actor UUID and
+  // HMAC-only code material. Both cascade with Auth deletion; definitions/codes
+  // contain no actor data and therefore are not user-data resources.
   { table: 'kplus_offer_redemption_attempts', column: 'actor_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_offer_redemptions', column: 'actor_id', action: 'auth_delete_cascade', optional: true },
   // Phase E per-actor pull lease/cooldown state. Operational only and removed

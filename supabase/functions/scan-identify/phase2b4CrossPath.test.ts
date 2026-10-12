@@ -473,8 +473,12 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: true,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Build 35 Speech cost controls: owned content is read through the actor's
+  // publishable-key client. Service role is confined to reserve/finish RPCs;
+  // their SQL owns the ledger writes. There is no direct table write, Auth
+  // administration or Storage authority in this deployed closure.
   'stylist-speech': {
-    serviceRole: false, dbRead: true, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
   'tryon-clothes-pro': {
@@ -611,11 +615,10 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
     + 'secret is configured -- before the body is parsed, and refuses everything '
     + 'when the secret is unset. Service role is used for exactly one thing: '
     + 'calling the shared provider transition wrappers, which are service-role-'
-    + 'only and own ordering, idempotency, '
-    + 'cross-user ownership and environment checks. It reads and writes no table '
-    + 'directly, never calls auth.admin, does not import the shared deletion '
-    + 'module, and takes the actor only from the provider-authenticated '
-    + 'app_user_id (a K Scan UUID), never from a caller-supplied field.',
+    + 'only and own ordering, idempotency, cross-user ownership and environment '
+    + 'checks. It reads and writes no table directly, never calls auth.admin, '
+    + 'does not import the shared deletion module, and takes the actor only from '
+    + 'the provider-authenticated app_user_id (a K Scan UUID).',
   'supabase/functions/privacy-correction-request/index.ts':
     'Authenticated correction intake writes the verified caller id, never a '
     + 'body-supplied actor.',
@@ -652,6 +655,13 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/shared-room-image-url/index.ts':
     'Resolves an authorized room/share relationship before issuing a narrowly '
     + 'scoped private Storage signed URL.',
+  'supabase/functions/stylist-speech/index.ts':
+    'Build 35 Speech cost controls. The bearer actor is verified with auth.getUser; '
+    + 'account state and owned session/message references use the actor client. '
+    + 'Only reserve_speech_request and finish_speech_request use the service '
+    + 'client, with the verified actor id. Their service-only SQL enforces the '
+    + 'active-account gate, disabled/zero-budget defaults and shared cost ceiling. '
+    + 'No direct privileged table access, auth.admin or Storage operation occurs.',
   'supabase/functions/vto-generate/vtoOwnedGarment.ts':
     'Build 35 B35-R010 owned-Closet VTO resolver. The actor is supplied only '
     + 'from the already-authenticated VTO handler and the Closet UUID is treated '
@@ -687,6 +697,16 @@ Deno.test('inventory: service-role access is confined to the documented allowlis
   for (const file of Object.keys(SERVICE_ROLE_ALLOWLIST)) {
     assert(unique.includes(file), `${file} is allowlisted but no longer uses service role`);
   }
+});
+
+Deno.test('inventory: Speech service client reaches only its two cost-control RPCs', () => {
+  const index = readRepoFile('supabase/functions/stylist-speech/index.ts');
+  const calls = [...index.matchAll(/costClient\(\)\s*\.([A-Za-z]+)\(\s*['"]([^'"]+)['"]/g)]
+    .map((match) => `${match[1]}:${match[2]}`).sort();
+  assertEquals(calls, ['rpc:finish_speech_request', 'rpc:reserve_speech_request'],
+    'Speech privileged access must remain confined to reservation/finalization RPCs');
+  assertEquals([...index.matchAll(/\bcostClient\(/g)].length, 3,
+    'an additional Speech service client call needs an explicit authority review');
 });
 
 Deno.test('inventory: no style-intent request can reach a service-role artifact write', () => {

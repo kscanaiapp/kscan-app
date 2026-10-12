@@ -17,6 +17,10 @@ function load(file, mocks = {}, extra = {}) {
     require: (id) => {
       if (id === 'react/jsx-runtime') return { Fragment: 'fragment', jsx: (type, props) => ({ type, props, children: props.children }), jsxs: (type, props) => ({ type, props, children: props.children }) };
       if (id in mocks) return mocks[id];
+      if (id.endsWith('/speechConsent')) return {
+        loadSpeechConsent: () => { throw new Error('Held speech must not load consent'); },
+        hasSpeechConsent: () => { throw new Error('Held speech must not check consent'); },
+      };
       throw new Error(`Unexpected import: ${id}`);
     },
   }, { filename: file });

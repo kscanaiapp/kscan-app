@@ -26,6 +26,8 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const STAGING_REF = 'yzqjvdfgefveprobvvyw';
 const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 const OCTOBER = ['20261002010000', '20261003195716', '20261004184118', '20261004221500', '20261004231628'];
+const SPEECH = '20261011222213';
+const CAMPAIGN = [...OCTOBER, SPEECH];
 const OBSOLETE = '20260916234025';
 const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, '__tests__', 'fixtures', 'staging-ledger-2026-10-07.json'), 'utf8'));
 
@@ -62,13 +64,13 @@ test('fixture sanity: Staging holds none of the five, Production holds all five'
 
 // ---- A / K. Deploy-only with five pending: PASS, nothing selected ----------
 
-test('A+K: deploy-only with five known pending passes and selects NO migration', async () => {
+test('A+K: deploy-only with six declared pending sources selects NO migration', async () => {
   const { compareMigrations } = await loadPreflight();
   const { local, remote, reconciliation } = await world();
   const report = compareMigrations(local, remote, '', reconciliation);
   assert.equal(report.ok, true, report.blockers.join('; '));
-  assert.equal(report.knownPendingCount, 5);
-  assert.deepEqual(report.knownPending.map((m) => m.version), OCTOBER);
+  assert.equal(report.knownPendingCount, CAMPAIGN.length);
+  assert.deepEqual(report.knownPending.map((m) => m.version), CAMPAIGN);
   assert.equal(report.selectedMigration, 'NONE');
   assert.equal(report.approvedSelectedForExecution, 0);
   assert.equal(report.approvedPending, undefined);
@@ -87,7 +89,7 @@ test('K: the controlled-deploy workflow applies a migration only when a version 
 
 // ---- B. An unknown sixth pending migration -----------------------------------
 
-test('B: an undeclared sixth pending migration fails, even with an approved known one', async () => {
+test('B: an additional undeclared pending migration fails, even with an approved known one', async () => {
   const { compareMigrations } = await loadPreflight();
   const { local, remote, reconciliation } = await world();
   const withSixth = [...local, fakeLocal('20269999999999')];
@@ -101,7 +103,7 @@ test('B: an undeclared sixth pending migration fails, even with an approved know
 
 // ---- C / L. One approved among five selects exactly one ----------------------
 
-test('C: approving one of five selects exactly that version and leaves four untouched', async () => {
+test('C: approving one pending source selects exactly that version and leaves the others untouched', async () => {
   const { compareMigrations } = await loadPreflight();
   const { selectMigrationForApply } = await loadApply();
   const { local, remote, reconciliation } = await world();
@@ -109,14 +111,14 @@ test('C: approving one of five selects exactly that version and leaves four unto
   assert.equal(report.ok, true, report.blockers.join('; '));
   assert.equal(report.selectedMigration, OCTOBER[0]);
   assert.equal(report.approvedSelectedForExecution, 1);
-  assert.equal(report.otherKnownPendingCount, 4);
+  assert.equal(report.otherKnownPendingCount, CAMPAIGN.length - 1);
   const selection = selectMigrationForApply({ version: OCTOBER[0], local, remote, reconciliation });
   assert.equal(selection.ok, true, selection.blockers.join('; '));
   assert.equal(selection.migration.version, OCTOBER[0]);
-  assert.deepEqual(selection.report.knownPending.map((m) => m.version).filter((v) => v !== OCTOBER[0]), OCTOBER.slice(1));
+  assert.deepEqual(selection.report.knownPending.map((m) => m.version).filter((v) => v !== OCTOBER[0]), CAMPAIGN.slice(1));
 });
 
-test('L: five known pending never authorize batch application', async () => {
+test('L: declared pending sources never authorize batch application', async () => {
   const { selectMigrationForApply } = await loadApply();
   const { local, remote, reconciliation } = await world();
   // No list, range, wildcard or "all" is a version.
@@ -160,14 +162,14 @@ test('order: the campaign runs one version per step, in order, and ends fully al
   const { selectMigrationForApply } = await loadApply();
   const { local, reconciliation } = await world();
   let remote = [...fixture.staging.versions];
-  for (const [index, version] of OCTOBER.entries()) {
+  for (const [index, version] of CAMPAIGN.entries()) {
     const selection = selectMigrationForApply({ version, local, remote, reconciliation });
     assert.equal(selection.ok, true, `${version}: ${selection.blockers.join('; ')}`);
-    assert.equal(selection.report.knownPendingCount, 5 - index);
+    assert.equal(selection.report.knownPendingCount, CAMPAIGN.length - index);
     remote = [...remote, version]; // the ledger gains exactly this one version
     const after = compareMigrations(local, remote, version, reconciliation);
     assert.equal(after.ok, true, after.blockers.join('; '));
-    assert.equal(after.knownPendingCount, 5 - index - 1);
+    assert.equal(after.knownPendingCount, CAMPAIGN.length - index - 1);
     assert.equal(after.fulfilled.length, index + 1);
     assert.equal(after.selectedMigration, 'NONE');
   }
@@ -176,9 +178,20 @@ test('order: the campaign runs one version per step, in order, and ends fully al
   assert.equal(done.ok, true);
   assert.equal(done.knownPendingCount, 0);
   assert.deepEqual(done.localOnly, []);
-  for (const version of OCTOBER) {
+  for (const version of CAMPAIGN) {
     assert.equal(selectMigrationForApply({ version, local, remote, reconciliation }).ok, false);
   }
+});
+
+test('Speech controls require their own exact approval and fail if their declaration disappears', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const { selectMigrationForApply } = await loadApply();
+  const { local, remote, reconciliation } = await world();
+  assert.equal(compareMigrations(local, remote, '', reconciliation).selectedMigration, 'NONE');
+  assert.equal(selectMigrationForApply({ version: SPEECH, local, remote, reconciliation }).migration.version, SPEECH);
+  const missing = clone(reconciliation);
+  missing.knownPending = missing.knownPending.filter(row => row.localVersion !== SPEECH);
+  assert.equal(compareMigrations(local, remote, '', missing).ok, false);
 });
 
 // ---- D / E / F. HOLD, EXCLUDE and unknown approvals --------------------------

@@ -33,19 +33,41 @@ function createDataAccess(authHeader: string): StylistSpeechDataAccess {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authHeader } },
   });
+  // The privileged client is used only for service-only cost ledger RPCs after
+  // the request actor and owned message have been independently verified.
+  function costClient() {
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+    if (!serviceKey) throw new Error('Speech cost controls are unavailable.');
+    return createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
 
   return {
     async getAuthenticatedActor() {
       const { data, error } = await client.auth.getUser(token);
-      return error || !data.user ? null : { id: data.user.id };
+      return error || !data.user ? null : { id: data.user.id, isAnonymous: data.user.is_anonymous === true };
     },
     async getAccountStatus(actorId) {
-      const { data } = await client
+      const { data, error } = await client
         .from('profiles')
         .select('account_status')
         .eq('id', actorId)
         .maybeSingle();
-      return typeof data?.account_status === 'string' ? data.account_status : null;
+      return !error && typeof data?.account_status === 'string' ? data.account_status : null;
+    },
+    async reserveSpeechRequest(actorId, fingerprint, characters) {
+      const { data, error } = await costClient().rpc('reserve_speech_request', {
+        p_user_id: actorId, p_fingerprint: fingerprint, p_characters: characters,
+      });
+      if (error || !data || typeof data.allowed !== 'boolean') throw new Error('Speech cost controls are unavailable.');
+      return data;
+    },
+    async finishSpeechRequest(actorId, reservationId, succeeded) {
+      const { error } = await costClient().rpc('finish_speech_request', {
+        p_user_id: actorId, p_reservation_id: reservationId, p_succeeded: succeeded,
+      });
+      if (error) throw new Error('Speech cost finalization unavailable.');
     },
     async getSession(sessionId, actorId) {
       const { data, error } = await client

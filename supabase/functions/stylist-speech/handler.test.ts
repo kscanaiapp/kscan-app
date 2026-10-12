@@ -43,6 +43,8 @@ function dataAccess(overrides: DataOverrides = {}): StylistSpeechDataAccess {
   return {
     getAuthenticatedActor: () => Promise.resolve(values.actor),
     getAccountStatus: () => Promise.resolve(values.accountStatus),
+    reserveSpeechRequest: () => Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' }),
+    finishSpeechRequest: () => Promise.resolve(),
     getSession: () => Promise.resolve(values.session),
     getMessage: () => Promise.resolve(values.message),
     getStylistPreference: () => Promise.resolve(values.preference),
@@ -90,6 +92,73 @@ function speechRequest(body: unknown = DEFAULT_BODY, authorization = 'Bearer val
 async function responseBody(response: Response) {
   return await response.json() as Record<string, unknown>;
 }
+
+for (const [name, overrides, status] of [
+  ['operator kill switch', { reserveSpeechRequest: () => Promise.resolve({ allowed: false, reason: 'disabled' }) }, 503],
+  ['fleet character ceiling', { reserveSpeechRequest: () => Promise.resolve({ allowed: false, reason: 'character_budget' }) }, 429],
+  ['other isolate active request', { reserveSpeechRequest: () => Promise.resolve({ allowed: false, reason: 'concurrent_request' }) }, 429],
+  ['malformed lease', { reserveSpeechRequest: () => Promise.resolve({ allowed: true, reservationId: 'not-a-uuid' }) }, 429],
+  ['unavailable reservation authority', { reserveSpeechRequest: () => Promise.reject(new Error('database unavailable')) }, 500],
+] as const) {
+  Deno.test(`Speech paid dispatch fails closed for ${name}`, async () => {
+    let paidCalls = 0;
+    const handler = handlerFor({}, {
+      createDataAccess: () => ({ ...dataAccess(), ...overrides }),
+      generateSpeech: () => { paidCalls++; throw new Error('provider must not be reached'); },
+    });
+    assert.equal((await handler(speechRequest())).status, status);
+    assert.equal(paidCalls, 0);
+  });
+}
+
+Deno.test('unknown or unavailable account status cannot dispatch paid Speech', async () => {
+  for (const accountStatus of [null, 'unknown', 'deactivated', 'purged']) {
+    let calls = 0;
+    const handler = handlerFor({ accountStatus }, { generateSpeech: () => { calls++; throw new Error('paid'); } });
+    assert.equal((await handler(speechRequest())).status, 403);
+    assert.equal(calls, 0);
+  }
+});
+
+Deno.test('anonymous authenticated user cannot reserve or dispatch Speech', async () => {
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({ ...dataAccess(), getAuthenticatedActor: () => Promise.resolve({ id: ACTOR_ID, isAnonymous: true }) }),
+  });
+  assert.equal((await handler(speechRequest())).status, 401);
+});
+
+Deno.test('reservation carries bounded cost and a reference-only digest; completion does not retry provider', async () => {
+  let reservations = 0; let calls = 0; let completions = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({ ...dataAccess(),
+      reserveSpeechRequest: (actorId: string, fingerprint: string, characters: number) => {
+        assert.equal(actorId, ACTOR_ID); assert.match(fingerprint, /^[a-f0-9]{64}$/);
+        assert.ok(characters > 0 && characters <= 1000); reservations++;
+        return Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' });
+      },
+      finishSpeechRequest: (_actor: string, _id: string, succeeded: boolean) => {
+        assert.equal(succeeded, true); completions++;
+        return Promise.reject(new Error('ledger completion unavailable'));
+      },
+    }),
+    generateSpeech: () => { calls++; return Promise.resolve({ audioBase64: 'YQ==', alignment: null,
+      alignmentDiagnostics: { source: 'none', rawStatus: 'absent' } }); },
+  });
+  assert.equal((await handler(speechRequest())).status, 200);
+  assert.equal(reservations, 1); assert.equal(calls, 1); assert.equal(completions, 1);
+});
+
+Deno.test('provider failure finalizes consumed attempt as failed without retrying', async () => {
+  let calls = 0; let completed: boolean | null = null;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({ ...dataAccess(), finishSpeechRequest: (_actor: string, _id: string, succeeded: boolean) => {
+      completed = succeeded; return Promise.resolve();
+    } }),
+    generateSpeech: () => { calls++; throw new Error('provider failure'); },
+  });
+  assert.equal((await handler(speechRequest())).status, 500);
+  assert.equal(calls, 1); assert.equal(completed, false);
+});
 
 Deno.test('returns bound speech for an owned assistant message', async () => {
   const response = await handlerFor()(speechRequest());

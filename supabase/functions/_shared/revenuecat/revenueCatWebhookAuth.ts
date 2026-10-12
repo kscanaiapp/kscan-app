@@ -17,6 +17,13 @@
  * Policy implemented here -- the strongest the provider supports, fail closed:
  *   - The Authorization secret is REQUIRED. Unset => the endpoint is not
  *     configured and refuses everything (it is never open by omission).
+ *   - A configured secret shorter than REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH is
+ *     treated exactly like an unset one (K-06). The Authorization secret is the
+ *     whole boundary when signing is off, so a guessable value such as a single
+ *     character would let anyone who can reach the endpoint forge a grant. The
+ *     same applies to a signing secret that is set but too short: it is NOT
+ *     silently treated as "signing off" (that would quietly drop an HMAC
+ *     requirement the owner believes is enabled); the endpoint refuses instead.
  *   - If a signing secret is ALSO configured, a valid signature is REQUIRED on
  *     top: a missing, malformed, stale or wrong signature is rejected.
  *   - If no signing secret is configured the signature header is ignored (it
@@ -36,6 +43,31 @@ export const REVENUECAT_WEBHOOK_AUTHORIZATION_ENV = 'KPLUS_REVENUECAT_WEBHOOK_AU
 export const REVENUECAT_WEBHOOK_SIGNING_SECRET_ENV = 'KPLUS_REVENUECAT_WEBHOOK_SIGNING_SECRET' as const;
 export const REVENUECAT_WEBHOOK_SIGNATURE_HEADER = 'x-revenuecat-webhook-signature' as const;
 export const REVENUECAT_WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
+/** Shortest configured Authorization / signing secret the endpoint will honour (K-06). */
+export const REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH = 32;
+
+export type RevenueCatWebhookConfigFault =
+  | 'authorization_secret_missing'
+  | 'authorization_secret_too_short'
+  | 'signing_secret_too_short';
+
+/**
+ * Why this endpoint cannot authenticate anything, or null when it can.
+ *
+ * Fail closed on every secret that is present but unfit: a too-short
+ * Authorization secret is as good as none, and a too-short signing secret must
+ * refuse the endpoint rather than silently downgrade it to Authorization-only.
+ * The result is a bounded code -- it never carries a secret or its length.
+ */
+export function revenueCatWebhookConfigFault(
+  authorizationSecret: string | null,
+  signingSecret: string | null,
+): RevenueCatWebhookConfigFault | null {
+  if (!authorizationSecret) return 'authorization_secret_missing';
+  if (authorizationSecret.length < REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH) return 'authorization_secret_too_short';
+  if (signingSecret && signingSecret.length < REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH) return 'signing_secret_too_short';
+  return null;
+}
 
 export type RevenueCatWebhookAuthResult =
   | { ok: true; signatureVerified: boolean }
@@ -88,7 +120,11 @@ export async function verifyRevenueCatWebhook(params: {
   nowMs: number;
 }): Promise<RevenueCatWebhookAuthResult> {
   const { headers, rawBody, authorizationSecret, signingSecret, nowMs } = params;
-  if (!authorizationSecret) return { ok: false, reason: 'not_configured' };
+  // `!authorizationSecret` narrows the type; the fault check is the single
+  // source of truth for "present but unfit" (K-06) and is shared with the handler.
+  if (!authorizationSecret || revenueCatWebhookConfigFault(authorizationSecret, signingSecret) !== null) {
+    return { ok: false, reason: 'not_configured' };
+  }
 
   const presented = headers.get('authorization');
   if (presented === null || presented === '') return { ok: false, reason: 'missing_authorization' };

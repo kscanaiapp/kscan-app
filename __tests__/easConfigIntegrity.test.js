@@ -246,6 +246,7 @@ const CERT_MATRIX_DISABLED = Object.freeze([
 // check-native-config-parity.js separately enforces that no OTHER profile
 // sets it.
 const CERT_NATIVE_SELECTORS = Object.freeze(['KSCAN_VOICE_CERTIFICATION']);
+const TODAY_HELD = Object.freeze(['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']);
 
 const BACKEND_IDENTITY_KEYS = Object.freeze([
   'EXPO_PUBLIC_SUPABASE_URL',
@@ -258,7 +259,7 @@ test('staging-certification defines an env, but only the approved matrix overrid
   assert.ok(cert.env && typeof cert.env === 'object', 'staging-certification must define its matrix overrides');
   assert.deepEqual(
     Object.keys(cert.env).sort(),
-    [...CERT_MATRIX_ENABLED, ...CERT_MATRIX_DISABLED, ...CERT_NATIVE_SELECTORS].sort(),
+    [...CERT_MATRIX_ENABLED, ...CERT_MATRIX_DISABLED, ...CERT_NATIVE_SELECTORS, ...TODAY_HELD].sort(),
     'staging-certification env must contain exactly the approved enabled-flag overrides and native selectors, nothing else',
   );
   for (const key of BACKEND_IDENTITY_KEYS) {
@@ -321,10 +322,12 @@ test('the ordinary staging profile is not broadened by the certification matrix'
   }
 });
 
-test('the production profile is not broadened by the certification matrix', () => {
-  const production = eas.build.production;
-  for (const key of [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS]) {
-    assert.ok(!(production.env && key in production.env), `${key} must not leak into the production profile`);
+test('owner-approved store profiles carry the full feature matrix with the store native selector', () => {
+  for (const name of ['production', 'build35-release']) {
+    const env = resolveEasBuildProfile(eas, name).env;
+    for (const key of CERT_MATRIX_ENABLED) assert.equal(env[key], 'true', `${name}/${key}`);
+    assert.equal(env.KSCAN_VOICE_NATIVE_CAPABILITY, 'true', name);
+    assert.notEqual(env.KSCAN_VOICE_CERTIFICATION, 'true', name);
   }
 });
 
@@ -334,7 +337,7 @@ test('NEGATIVE CONTROL: no profile other than the governed certification profile
   // covered the day it appears rather than the day someone remembers to add
   // it to a list.
   for (const [name, profile] of Object.entries(eas.build)) {
-    if (name === 'staging-certification' || name === 'production-certification') continue;
+    if (['production', 'build35-release', 'build35-testing', 'staging-certification', 'production-certification'].includes(name)) continue;
     for (const key of [...CERT_MATRIX_ENABLED, ...CERT_NATIVE_SELECTORS]) {
       assert.ok(
         !(profile.env && key in profile.env) || profile.env[key] === 'false',

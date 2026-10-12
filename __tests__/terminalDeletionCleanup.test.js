@@ -1554,7 +1554,7 @@ test('CONTAINMENT: Android runs the identical destructive path as iOS, with no n
         else if (/\.(ts|tsx|js|jsx)$/.test(entry.name)) {
           const text = fs.readFileSync(full, 'utf8');
           if (/reconcileTerminalDeletions|purgeOwnerScopedLocalData/.test(text)) {
-            callers.push(path.relative(ROOT, full));
+            callers.push(path.relative(ROOT, full).split(path.sep).join('/'));
           }
         }
       }

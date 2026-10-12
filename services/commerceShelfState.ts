@@ -223,6 +223,80 @@ export const COMMERCE_SHELF_COPY: Readonly<
 };
 
 /**
+ * Empty-shelf copy for a REOPENED scan (P-COPY-2).
+ *
+ * Reopen issues no network call, so the saved record is the only evidence, and
+ * what it can say is narrower than the live shelf's NOT_STARTED copy. That copy
+ * ("aren't shown here" / "aren't shown in this view") was written for a live
+ * surface with a next step on it. On a reopened scan it read as if matches
+ * existed somewhere the screen would not say, and a saved list of N detected
+ * items printed it N+1 times: once per item and once more for the single-item
+ * shelf.
+ *
+ * Each entry states only what the saved record establishes:
+ *
+ *   NOT_SAVED             this scan's record holds no offers. Whether its search
+ *                         came back empty, failed or never ran is not recorded,
+ *                         so the copy says none were saved, never that none exist.
+ *   NOT_SAVED_FOR_ITEM    the same, for one item of a saved multi-item scan whose
+ *                         other items do have stored commerce.
+ *   SAVED_WITH_EACH_ITEM  a saved list of detected items, none with stored
+ *                         commerce. With the multi-image Scanner on this is every
+ *                         such record: commerce runs only for the garment the
+ *                         user chooses, and that garment is saved as its own
+ *                         Recent Scans entry with its offers. Offers may
+ *                         therefore exist and simply not be on this record, so
+ *                         the copy says where they are kept instead of that they
+ *                         are missing.
+ *
+ * None of them is a no-match statement; that stays with COMPLETED_EMPTY above.
+ */
+export const SAVED_SCAN_EMPTY_COPY = {
+  NOT_SAVED: {
+    emptyTitle: "Shopping matches weren't saved with this scan.",
+    emptyBody: 'Scan the item again to see where to buy it.',
+  },
+  NOT_SAVED_FOR_ITEM: {
+    emptyTitle: "Shopping matches weren't saved for this item.",
+    emptyBody: 'Scan it again to see where to buy it.',
+  },
+  SAVED_WITH_EACH_ITEM: {
+    emptyTitle: 'Shopping matches are saved with each item.',
+    emptyBody:
+      "When you choose an item from a scan, its matches are kept on that item's own entry in Recent Scans.",
+  },
+} as const;
+
+/**
+ * Whether a saved multi-item scan carries no commerce for ANY of its items, the
+ * case SAVED_WITH_EACH_ITEM describes. A stored card of any status (offers,
+ * no_match, error) is evidence that commerce ran for this record, and then every
+ * item keeps its own per-item treatment.
+ */
+export function savedMultiItemScanHasNoCommerce(
+  candidates: ReadonlyArray<{ id: string }>,
+  cards: ReadonlyArray<{ candidateId?: unknown } | null | undefined> | null | undefined,
+): boolean {
+  if (candidates.length === 0) return false;
+  const stored = new Set(
+    (cards ?? []).map((card) => card?.candidateId).filter((id) => typeof id === 'string'),
+  );
+  return candidates.every((candidate) => !stored.has(candidate.id));
+}
+
+/** The one empty shelf a saved multi-item scan with no commerce shows. */
+export function savedMultiItemSummaryShelfProps(): {
+  emptyTitle: string;
+  emptyBody: string;
+  testID: string;
+} {
+  return {
+    ...SAVED_SCAN_EMPTY_COPY.SAVED_WITH_EACH_ITEM,
+    testID: 'multi-item-commerce-not-started-summary',
+  };
+}
+
+/**
  * Copy for a state. RESULTS has none, and anything unexpected falls back to the
  * neutral NOT_STARTED copy: a lookup can never land on the no-match statement
  * unless the state really is COMPLETED_EMPTY.
@@ -250,27 +324,40 @@ export function commerceShelfNoticeCopy(
 
 /**
  * ProductShelf props for one item of a saved (reopened) multi-item scan that has
- * no offers to show. The state comes from the stored card alone.
+ * no offers to show. The state comes from the stored card alone. An item with no
+ * stored card says its matches were not saved (SAVED_SCAN_EMPTY_COPY), not the
+ * live shelf's NOT_STARTED copy.
  */
 export function storedItemEmptyShelfProps(
   card: CommerceCardLike,
   candidateId: string,
 ): { emptyTitle: string; emptyBody: string; testID: string } {
   const state = resolveStoredItemCommerceState(card);
-  const copy = copyFor(state);
   const kind = state === 'COMPLETED_EMPTY' ? 'no-match' : state === 'ERROR' ? 'error' : 'not-started';
-  return {
-    emptyTitle: copy.shelfTitle,
-    emptyBody: copy.shelfBody,
-    testID: `multi-item-commerce-${kind}-${candidateId}`,
-  };
+  const testID = `multi-item-commerce-${kind}-${candidateId}`;
+  if (kind === 'not-started') {
+    return { ...SAVED_SCAN_EMPTY_COPY.NOT_SAVED_FOR_ITEM, testID };
+  }
+  const copy = copyFor(state);
+  return { emptyTitle: copy.shelfTitle, emptyBody: copy.shelfBody, testID };
 }
 
-/** ProductShelf empty-state copy for the single-item WHERE TO BUY shelf. */
+/**
+ * ProductShelf empty-state copy for the single-item WHERE TO BUY shelf.
+ *
+ * `savedScan` marks a reopened Recent Scan. There the NOT_STARTED state means the
+ * record holds no offers, and the copy says exactly that. A live shelf, and every
+ * other state on either surface, is unchanged.
+ */
 export function purchaseShelfEmptyProps(
   optionsCount: number,
   commerceStatus: string | undefined,
+  options: { savedScan?: boolean } = {},
 ): { emptyTitle: string; emptyBody: string } {
-  const copy = copyFor(resolveShelfCommerceState({ optionsCount, commerceStatus }));
+  const state = resolveShelfCommerceState({ optionsCount, commerceStatus });
+  if (state === 'NOT_STARTED' && options.savedScan === true) {
+    return { ...SAVED_SCAN_EMPTY_COPY.NOT_SAVED };
+  }
+  const copy = copyFor(state);
   return { emptyTitle: copy.shelfTitle, emptyBody: copy.shelfBody };
 }

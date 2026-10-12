@@ -725,11 +725,12 @@ test('HOME ENTRY: availability is composed before entitlement, never entitlement
 // PART I — governed profile matrix + Repair 05 regression
 // ════════════════════════════════════════════════════════════════════════════
 
-test('PROFILES: ordinary production ships Watchlist dark; certification profiles ship it on', () => {
+test('PROFILES: owner-approved store and certification profiles enable Watchlist', () => {
   // Resolved through the governed resolver so `extends` inheritance is honoured.
   const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
   const profiles = resolveEasBuildProfiles(JSON.parse(read('eas.json')));
-  assert.equal((profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, undefined);
+  assert.equal((profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
+  assert.equal((profiles['build35-release'].env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
   assert.equal(loadAvailability(false).resolveWatchlistAvailable(), false);
   assert.equal((profiles['staging-certification'].env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
   assert.equal((profiles['production-certification'].env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1, 'true');
@@ -739,12 +740,12 @@ test('PROFILES: ordinary production ships Watchlist dark; certification profiles
     .sort();
   assert.deepEqual(
     on,
-    ['build35-testing', 'production-certification', 'staging-certification'],
-    'only the governed certification profiles and the Build 35 internal test profile may turn the feature on',
+    ['build35-release', 'build35-testing', 'production', 'production-certification', 'staging-certification'],
+    'only approved store and certification profiles may turn the feature on',
   );
 });
 
-test('PRODUCTION: Watchlist stays dark even with K+ forced ACTIVE', () => {
+test('FLAG OFF: Watchlist stays dark even with K+ forced ACTIVE', () => {
   // The whole point of the repair, stated once more at the profile level: the
   // production answer does not consult entitlement at all.
   const tree = renderProductShelf({ watchlistAvailable: false });
@@ -761,7 +762,7 @@ test('REPAIR 05/N-1 REGRESSION: push activation still derives from the same flag
     if (spec === '../../constants/featureFlags') return { SMART_WATCHLIST_V1: false };
     throw new Error(`unexpected import: ${spec}`);
   });
-  assert.equal(cap.resolveRemotePushActivationAllowed(), false, 'production stays push-dark');
+  assert.equal(cap.resolveRemotePushActivationAllowed(), false, 'Watchlist OFF stays push-dark');
   assert.equal(cap.resolveRemotePushActivationAllowed('android', true), true, 'certification stays eligible');
   // N-1: iOS is no longer ungated -- it answers the same governed question
   // Android does, from the same single consumer authority.

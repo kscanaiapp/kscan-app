@@ -128,6 +128,9 @@ jobs:
       - name: Run governed backend Deno suite
         run: node scripts/run-backend-tests.js
 
+      - name: Verify Speech cost-control SQL locally without provider calls
+        run: node scripts/speech/test-cost-controls.mjs
+
       - name: Run TypeScript typecheck
         run: npx tsc --noEmit -p tsconfig.json
 

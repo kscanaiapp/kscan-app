@@ -156,16 +156,15 @@ test('the Voice module peer-depends on the runtime the app actually ships', () =
 const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
 const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
 
-test('production never enables Voice Scan', () => {
-  const production = resolveEasBuildProfile(eas, 'production');
-  assert.notEqual(
-    production.env?.EXPO_PUBLIC_VOICESCAN_ENABLED,
-    'true',
-    'Voice Scan rollout to production is a separate owner decision, not a consequence of recovery',
-  );
+test('owner-approved Build 35 store profiles enable Voice with the native capability', () => {
+  for (const name of ['production', 'build35-release']) {
+    const profile = resolveEasBuildProfile(eas, name);
+    assert.equal(profile.env?.EXPO_PUBLIC_VOICESCAN_ENABLED, 'true', name);
+    assert.equal(profile.env?.KSCAN_VOICE_NATIVE_CAPABILITY, 'true', name);
+  }
 });
 
-test('Voice Scan is enabled only in the governed certification profiles', () => {
+test('Voice Scan is enabled only in the approved store and certification profiles', () => {
   const enabled = Object.keys(eas.build)
     .filter(
       (name) => resolveEasBuildProfile(eas, name).env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true',
@@ -173,8 +172,8 @@ test('Voice Scan is enabled only in the governed certification profiles', () => 
     .sort();
   assert.deepEqual(
     enabled,
-    ['build35-testing', 'production-certification', 'staging-certification'],
-    'only the governed certification profiles and the Build 35 internal test profile may carry Voice Scan',
+    ['build35-release', 'build35-testing', 'production', 'production-certification', 'staging-certification'],
+    'the owner-approved Build 35 store profiles and governed certification profiles carry Voice Scan',
   );
 });
 

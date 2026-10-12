@@ -8,7 +8,9 @@
  * The request path, in order, each step failing closed:
  *
  *   1. POST only.
- *   2. Configured at all (Authorization secret present) -- else 503.
+ *   2. Configured at all (Authorization secret present and at least
+ *      REVENUECAT_WEBHOOK_MIN_SECRET_LENGTH characters; a configured signing
+ *      secret likewise) -- else 503.
  *   3. Body size bound.
  *   4. AUTHENTICATION (revenueCatWebhookAuth.ts) -- before the body is parsed.
  *   5. Strict bounded parse -- malformed => 400, nothing mutated.
@@ -45,6 +47,7 @@ import {
 import {
   REVENUECAT_WEBHOOK_AUTHORIZATION_ENV,
   REVENUECAT_WEBHOOK_SIGNING_SECRET_ENV,
+  revenueCatWebhookConfigFault,
   verifyRevenueCatWebhook,
 } from './revenueCatWebhookAuth.ts';
 import { normalizeRevenueCatEvent, parseRevenueCatWebhook } from './revenueCatWebhookEvent.ts';
@@ -111,8 +114,12 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
   if (req.method !== 'POST') return respond(405, { status: 'method_not_allowed' });
 
   const authorizationSecret = deps.env(REVENUECAT_WEBHOOK_AUTHORIZATION_ENV);
-  if (!authorizationSecret) {
-    deps.alert('kplus_rc_webhook_not_configured', {});
+  const signingSecret = deps.env(REVENUECAT_WEBHOOK_SIGNING_SECRET_ENV);
+  // K-06: a configured-but-too-short secret is "not configured", exactly like an
+  // unset one. The fault is a bounded code; it never carries a secret or length.
+  const configFault = revenueCatWebhookConfigFault(authorizationSecret, signingSecret);
+  if (configFault !== null || !authorizationSecret) {
+    deps.alert('kplus_rc_webhook_not_configured', { reason: configFault ?? 'authorization_secret_missing' });
     return respond(503, { status: 'not_configured' });
   }
 
@@ -134,7 +141,7 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
     headers: req.headers,
     rawBody,
     authorizationSecret,
-    signingSecret: deps.env(REVENUECAT_WEBHOOK_SIGNING_SECRET_ENV),
+    signingSecret,
     nowMs: deps.now(),
   });
   if (!auth.ok) {

@@ -78,6 +78,17 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
   }
 
+  // SEC-B35-KPLUS-001: Early Access is not an open signup entitlement.
+  // Fail closed unless an authorized operator deliberately enables this campaign
+  // on the server. Client flags are advisory and must never grant K+.
+  if (Deno.env.get('KPLUS_EARLY_ACCESS_ENABLED') !== 'true' ||
+      Deno.env.get('KPLUS_EARLY_ACCESS_CAMPAIGN_ELIGIBILITY_CERTIFIED') !== 'true') {
+    logEvent('kplus_early_access_campaign_closed', {
+      uid: shortUserId(authUser.id),
+    });
+    return json({ error: 'Early Access activation is unavailable.', code: 'CAMPAIGN_CLOSED' }, 403);
+  }
+
   const grantResponse = await rpc('grant_kplus_early_access', { p_user_id: authUser.id });
   if (!grantResponse.ok) {
     const detail = await grantResponse.text().catch(() => '');

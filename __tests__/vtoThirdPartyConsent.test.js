@@ -460,7 +460,7 @@ test('service: stays a local, closed persistence seam (no network client, closed
     '@react-native-async-storage/async-storage': createFakeStorage().storage,
     './actorContext': createFakeActor('actor-a').module,
   });
-  assert.deepEqual(JSON.parse(JSON.stringify(service.THIRD_PARTY_AI_FEATURES)), ['virtual_try_on']);
+  assert.deepEqual(JSON.parse(JSON.stringify(service.THIRD_PARTY_AI_FEATURES)), ['virtual_try_on', 'elise_speech']);
 });
 
 // ── 2. The VTO consent module (BEHAVIOURAL + GOVERNANCE) ─────────────────────

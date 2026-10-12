@@ -241,16 +241,12 @@ test('certification: the backend resolves to staging, never production', () => {
   );
 });
 
-test('certification: production does not inherit certification-only flags', () => {
+test('certification: production carries only the approved Build 35 release flags', () => {
   const easJson = readJson('eas.json');
   const { env } = resolveProfile(easJson, 'production');
 
-  for (const flag of CERTIFICATION_REQUIRED_FLAGS) {
-    assert.equal(
-      env[flag],
-      undefined,
-      `${flag} leaked into the production profile -- certification-only surfaces must not ship to production unreviewed`,
-    );
+  for (const flag of CERTIFICATION_REQUIRED_FLAGS.filter((flag) => flag !== 'KSCAN_VOICE_CERTIFICATION')) {
+    assert.equal(env[flag], 'true', `${flag} must resolve true for the approved Build 35 production profile`);
   }
   assert.equal(
     env[KPLUS_EARLY_ACCESS_KEY],
@@ -275,7 +271,7 @@ test('certification: Voice client/native capability move together only in govern
     if (name === CERTIFICATION_PROFILE) {
       assert.equal(stagingNativeOn, true);
       assert.equal(productionNativeOn, false);
-    } else if (name === 'production-certification' || name === 'build35-testing') {
+    } else if (name === 'production' || name === 'production-certification' || name === 'build35-release' || name === 'build35-testing') {
       assert.equal(productionNativeOn, true);
       assert.equal(stagingNativeOn, false);
     } else {

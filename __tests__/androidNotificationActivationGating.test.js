@@ -379,13 +379,13 @@ test('CERTIFICATION: only the governed certification profiles turn push on', () 
     .sort();
   assert.deepEqual(
     on,
-    ['build35-testing', 'production-certification', 'staging-certification'],
-    'only the two store-certification profiles and the governed Build 35 internal test profile may activate push',
+    ['build35-release', 'build35-testing', 'production', 'production-certification', 'staging-certification'],
+    'only approved Build 35 release and certification profiles may activate push',
   );
   assert.equal(
     (profiles.production.env ?? {}).EXPO_PUBLIC_SMART_WATCHLIST_V1,
-    undefined,
-    'ordinary production must ship the push consumer dark',
+    'true',
+    'Build 35 production ships the Watchlist push consumer',
   );
 });
 
