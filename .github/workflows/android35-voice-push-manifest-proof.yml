@@ -37,7 +37,8 @@ jobs:
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
           "$SDKMANAGER" --version
       - name: Install Android SDK platform 36 and build tools
-        run: "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
       - name: Install pinned project dependencies
         run: npm ci --no-fund --no-audit
       - name: Materialize synthetic Firebase file for build-logic only
