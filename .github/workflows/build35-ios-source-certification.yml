@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # historical iOS privacy-parity test reads a pinned source SHA
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
