@@ -11,7 +11,9 @@ export function safeCaptureFailureCode(stderr) {
   for (const hit of String(stderr ?? '').matchAll(allowed)) {
     codes.push((hit[1] === 'server-api' ? 'API_' : 'LEGACY_') + hit[2]);
   }
-  return codes.length ? [...new Set(codes)].slice(0, 2).join('+') : 'STAGE_UNDETERMINED';
+  if (codes.length) return [...new Set(codes)].slice(0, 2).join('+');
+  const stages = [...String(stderr ?? '').matchAll(/Production capture stage \[(ENVIRONMENT|TARGET_IDENTITY|CLI_LINK|LIVE_INVENTORY|LIVE_METADATA|ENTRYPOINT|DOWNLOAD_LAYOUT|CAPTURE_COPY|CAPTURE_DIGEST|CAPTURE_VERIFY|COMPLETE)\]/g)];
+  return stages.length ? `STAGE_${stages.at(-1)[1]}` : 'STAGE_UNDETERMINED';
 }
 
 /** Explicitly pipe child stderr: Node otherwise re-emits it on execFileSync failure. */

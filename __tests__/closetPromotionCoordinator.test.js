@@ -1424,10 +1424,15 @@ test('a deadline that elapses DURING the committed write still recovers as succe
   const req = asActor(env.actorContext, 'user-a');
   const batch = await stageBatch(env, req, 1);
 
-  // The committed manifest replacement takes longer than the whole allowance.
+  // Advance the injected deadline clock only inside the committed write. A real
+  // five-millisecond allowance can expire before the write on a busy CI runner,
+  // which would exercise the separate pre-commit timeout contract instead.
+  let now = Date.now();
+  let writeReached = false;
   env.m.hooks.beforeWrite = async (p) => {
     if (!p.startsWith('/doc/kscan_closet/kscan_closet.json')) return;
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    writeReached = true;
+    now += 25;
   };
 
   const result = await promote(env, {
@@ -1436,10 +1441,12 @@ test('a deadline that elapses DURING the committed write still recovers as succe
     batchId: batch.batchId,
     candidateIds: batch.ids,
     itemTimeoutMs: 5,
+    now: () => now,
   });
 
   // The deadline is a bound on the SEQUENCE, checked at safe boundaries — it can
   // never settle mid-write and turn a durable item into a reported failure.
+  assert.equal(writeReached, true, 'deadline must elapse inside the committed write');
   assert.equal(result.results[0].status, 'promoted');
   const items = await env.closetLibrary.loadCloset('user-a');
   assert.equal(items.length, 1);
