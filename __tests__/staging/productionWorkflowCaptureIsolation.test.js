@@ -461,7 +461,7 @@ test('11. every capture written before a clean-worktree gate is rooted at RUNNER
       );
     }
   }
-  assert.equal(checked, 3, 'both direct preflights and the deployer wrapper must be covered');
+  assert.equal(checked, 4, 'static, migration-only, combined migration and deploy preflight captures must be covered');
 });
 
 // ============================================================================
