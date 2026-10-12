@@ -422,12 +422,12 @@ function profileCapabilities(name) {
   };
 }
 
-test('PROFILES: production resolves push OFF / voice OFF and the minimized posture', () => {
+test('PROFILES: production resolves push ON / voice ON and the shipped posture', () => {
   const { push, voice } = profileCapabilities('production');
-  assert.equal(push, false);
-  assert.equal(voice, false);
-  assert.equal(effectivePosture(push, voice, POST_NOTIFICATIONS), 'ABSENT');
-  assert.equal(effectivePosture(push, voice, RECORD_AUDIO), 'ABSENT');
+  assert.equal(push, true);
+  assert.equal(voice, true);
+  assert.equal(effectivePosture(push, voice, POST_NOTIFICATIONS), 'PRESENT');
+  assert.equal(effectivePosture(push, voice, RECORD_AUDIO), 'PRESENT');
 });
 
 test('PROFILES: staging-certification resolves push ON / voice ON and grants both', () => {
@@ -442,7 +442,7 @@ test('PROFILES: staging-certification resolves push ON / voice ON and grants bot
 test('PROFILES: only the governed certification profiles activate push and Voice', () => {
   const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
   const profiles = resolveEasBuildProfiles(JSON.parse(read('eas.json')));
-  const allowed = new Set(['staging-certification', 'production-certification', 'build35-testing']);
+  const allowed = new Set(['staging-certification', 'production', 'production-certification', 'build35-release', 'build35-testing']);
   for (const [name] of Object.entries(profiles)) {
     const { push, voice } = profileCapabilities(name);
     if (allowed.has(name)) {

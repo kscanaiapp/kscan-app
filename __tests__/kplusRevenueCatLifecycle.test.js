@@ -45,7 +45,7 @@ const read = (f) => fs.readFileSync(f, 'utf8');
 const DAY = 24 * 60 * 60 * 1000;
 const USER_A = '11111111-1111-4111-8111-111111111111';
 const USER_B = '22222222-2222-4222-8222-222222222222';
-const AUTH = 'Bearer fixture-webhook-secret';
+const AUTH = 'Bearer fixture-webhook-secret-0123456789abcdef';
 const CLASSIFICATION = JSON.stringify({
   version: 1,
   products: [

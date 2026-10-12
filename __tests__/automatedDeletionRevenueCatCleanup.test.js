@@ -49,7 +49,7 @@ test('KPLUS-P2-001: no RevenueCat secret key or raw HTTP call is duplicated dire
 
 // ── Ordering: cleanup runs after K Scan's own resources are confirmed purged, before the ledger is marked purged ──
 
-test('RC-DEL-001/RC-DEL-006: RevenueCat cleanup runs AFTER the Auth user delete and the residual-verification check, and BEFORE mark_deletion_request_purged', () => {
+test('RC-DEL-001/RC-DEL-006: RevenueCat cleanup runs before Auth deletion and before terminal verification/marking', () => {
   const body = processClaimedRequestBody();
   const authDeleteIdx = body.indexOf('await supabase.auth.admin.deleteUser(userId)');
   const residualIdx = body.indexOf('post-purge verification found residual rows in');
@@ -63,8 +63,8 @@ test('RC-DEL-001/RC-DEL-006: RevenueCat cleanup runs AFTER the Auth user delete 
   assert.ok(rcBlockIdx > -1, 'the worker must check isBlockingRevenueCatCleanupStatus');
   assert.ok(markIdx > -1, 'the worker must still mark the request purged');
 
-  assert.ok(authDeleteIdx < residualIdx, 'residual verification runs after the Auth delete (unchanged, B3 fix)');
-  assert.ok(residualIdx < rcCallIdx, 'RevenueCat cleanup runs only after K Scan resources are confirmed purged');
+  assert.ok(rcCallIdx < authDeleteIdx, 'RevenueCat cleanup runs while Auth still exists so a blocked provider cleanup is retryable');
+  assert.ok(authDeleteIdx < residualIdx, 'residual verification runs after the Auth delete');
   assert.ok(rcCallIdx < rcBlockIdx, 'the blocking check reads the cleanup result AFTER requesting it');
   assert.ok(rcBlockIdx < markIdx, 'a blocking cleanup outcome must be checked BEFORE the request is marked purged');
 });
@@ -78,7 +78,7 @@ test('RC-DEL-006: Apple revocation is unchanged and still runs, and still blocks
 
   assert.ok(appleCallIdx > -1 && appleBlockIdx > -1 && authDeleteIdx > -1);
   assert.ok(appleCallIdx < appleBlockIdx && appleBlockIdx < authDeleteIdx, 'Apple revocation still gates the Auth delete, unmoved');
-  assert.ok(authDeleteIdx < rcCallIdx, 'RevenueCat cleanup never runs before Apple revocation has already gated the Auth delete');
+  assert.ok(appleBlockIdx < rcCallIdx && rcCallIdx < authDeleteIdx, 'RevenueCat cleanup follows Apple revocation and remains before Auth deletion');
 
   assert.match(
     body.slice(appleBlockIdx, appleBlockIdx + 200),

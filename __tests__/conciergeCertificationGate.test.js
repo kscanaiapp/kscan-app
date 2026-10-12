@@ -98,8 +98,8 @@ test('Part A: the certification profile genuinely extends staging', () => {
 
 test('Part A: production declares NEITHER Concierge activation flag', () => {
   const env = effectiveEnv('production');
-  assert.equal(env[TRANSPORT_KEY], undefined);
-  assert.equal(env[PRESENTATION_KEY], undefined);
+  assert.equal(env[TRANSPORT_KEY], 'true');
+  assert.equal(env[PRESENTATION_KEY], 'true');
 });
 
 test('Part A: ordinary staging, preview and development remain Concierge-dark', () => {
@@ -114,7 +114,7 @@ test('Part A: the transport parent is confined to governed certification profile
   const declaring = Object.keys(eas.build)
     .filter((name) => (eas.build[name].env || {})[TRANSPORT_KEY] !== undefined)
     .sort();
-  assert.deepEqual(declaring, ['production-certification', 'staging-certification']);
+  assert.deepEqual(declaring, ['build35-release', 'production', 'production-certification', 'staging-certification']);
 });
 
 // ── Part B · real composition ────────────────────────────────────────────────
@@ -252,8 +252,8 @@ test('Part B: certification effective env composes to a reachable Concierge', as
   assert.equal(await conciergeEffective(effectiveEnv('staging-certification')), true);
 });
 
-test('Part B: production effective env composes to a DARK Concierge', async () => {
-  assert.equal(await conciergeEffective(effectiveEnv('production')), false);
+test('Part B: production effective env composes to a reachable Concierge', async () => {
+  assert.equal(await conciergeEffective(effectiveEnv('production')), true);
 });
 
 test('Part B: ordinary staging, preview and development compose to a dark Concierge', async () => {

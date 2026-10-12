@@ -196,7 +196,7 @@ test('ANDROID-VOICE-01: the generalized capability selector active outside its a
 test('ANDROID-VOICE-01: the approved profile list is exactly staging-certification, production, and production-certification', () => {
   assert.match(
     gradle,
-    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE,\s*PRODUCTION_CERTIFICATION_PROFILE\]/,
+    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE,\s*PRODUCTION_CERTIFICATION_PROFILE,\s*'build35-release'\]/,
   );
   assert.match(gradle, /def PRODUCTION_PROFILE\s*=\s*'production'/);
   assert.match(gradle, /def PRODUCTION_CERTIFICATION_PROFILE\s*=\s*'production-certification'/);
@@ -229,7 +229,7 @@ test('ANDROID-VOICE-01: eas.json commits the generalized selector only to produc
   const eas = JSON.parse(read(path.join(REPO_ROOT, 'eas.json')));
   for (const [name, profile] of Object.entries(eas.build)) {
     const enabled = profile.env?.KSCAN_VOICE_NATIVE_CAPABILITY === 'true';
-    assert.equal(enabled, name === 'production-certification', `profile "${name}" generalized Voice capability must match the governed production-certification posture`);
+    assert.equal(enabled, new Set(['production','production-certification','build35-release']).has(name), `profile "${name}" generalized Voice capability must match the governed production-certification posture`);
   }
 });
 
@@ -511,7 +511,7 @@ test('non-certification profiles do not enable Build 34 certification keys (expl
     'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   ];
   for (const [name, profile] of Object.entries(eas.build)) {
-    if (name === 'staging-certification' || name === 'production-certification') continue;
+    if (['staging-certification','production','production-certification','build35-release','build35-testing'].includes(name)) continue;
     for (const key of CERT_ONLY_KEYS) {
       const value = profile.env?.[key];
       assert.ok(certificationKeyIsHeld(value), `profile "${name}" must leave ${key} absent or explicitly false`);

@@ -62,16 +62,16 @@ function voiceGuardViolation(easBuildProfile, voiceScanEnabled, kscanVoiceCertif
  * VOICE-PROD-001 — real production default
  * ------------------------------------------------------------------ */
 
-test('VOICE-PROD-001: real production default resolves to no violation and no Voice capability', () => {
+test('VOICE-PROD-001: real production default resolves to no violation and shipped Voice capability', () => {
   const eas = readJson('eas.json');
   const production = resolveEasBuildProfile(eas, PROD_PROFILE);
   const voiceScanEnabled = production.env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true';
   const kscanVoiceCertification = production.env?.KSCAN_VOICE_CERTIFICATION === 'true';
   const kscanVoiceNativeCapability = production.env?.KSCAN_VOICE_NATIVE_CAPABILITY === 'true';
 
-  assert.equal(voiceScanEnabled, false, 'production must not commit EXPO_PUBLIC_VOICESCAN_ENABLED=true');
+  assert.equal(voiceScanEnabled, true, 'Build 35 production commits EXPO_PUBLIC_VOICESCAN_ENABLED=true');
   assert.equal(kscanVoiceCertification, false, 'production must not commit KSCAN_VOICE_CERTIFICATION=true');
-  assert.equal(kscanVoiceNativeCapability, false, 'production must not commit KSCAN_VOICE_NATIVE_CAPABILITY=true');
+  assert.equal(kscanVoiceNativeCapability, true, 'Build 35 production commits KSCAN_VOICE_NATIVE_CAPABILITY=true');
   assert.equal(
     voiceGuardViolation(PROD_PROFILE, voiceScanEnabled, kscanVoiceCertification, kscanVoiceNativeCapability),
     null,
@@ -138,9 +138,8 @@ test('VOICE-PROD-003: a minimal-delta future-production fixture validates and ch
   const eas = readJson('eas.json');
   const realProduction = eas.build.production;
 
-  // Start with the REAL, committed production profile object (not a
-  // synthetic "production-like" stand-in), and inject ONLY the two Voice
-  // activation settings a release operator would supply out of band.
+  // Start with the REAL, committed production profile object and retain its
+  // already-approved Voice activation settings.
   const fixtureProduction = {
     ...realProduction,
     env: {
@@ -150,17 +149,12 @@ test('VOICE-PROD-003: a minimal-delta future-production fixture validates and ch
     },
   };
 
-  // Prove the delta really is minimal: every key that existed before is
-  // untouched, and the only new keys are the two Voice settings.
+  // Prove the fixture leaves every existing key untouched.
   for (const [key, value] of Object.entries(realProduction.env || {})) {
     assert.equal(fixtureProduction.env[key], value, `production env key "${key}" must be unchanged by the fixture`);
   }
   const newKeys = Object.keys(fixtureProduction.env).filter((key) => !(key in (realProduction.env || {})));
-  assert.deepEqual(
-    newKeys.sort(),
-    ['EXPO_PUBLIC_VOICESCAN_ENABLED', 'KSCAN_VOICE_NATIVE_CAPABILITY'],
-    'the fixture must add exactly the two Voice activation keys and nothing else',
-  );
+  assert.deepEqual(newKeys.sort(), [], 'the approved production profile already carries the two Voice activation keys');
   for (const key of Object.keys(realProduction)) {
     if (key === 'env') continue;
     assert.deepEqual(fixtureProduction[key], realProduction[key], `production field "${key}" must be unchanged by the fixture`);
@@ -185,7 +179,7 @@ test('VOICE-PROD-003: a minimal-delta future-production fixture validates and ch
   // this in-memory fixture (self-check that this test built a fixture and
   // did not accidentally assert against a already-activated production).
   const stillReal = readJson('eas.json');
-  assert.ok(!('KSCAN_VOICE_NATIVE_CAPABILITY' in (stillReal.build.production.env || {})));
+  assert.equal(stillReal.build.production.env.KSCAN_VOICE_NATIVE_CAPABILITY, 'true');
 });
 
 /* ------------------------------------------------------------------ *
