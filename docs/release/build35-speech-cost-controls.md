@@ -18,6 +18,14 @@ anonymous and authenticated clients have no table access or mutation RPC grants.
 Only the protected server uses the reservation/finalization RPCs. Existing auth,
 Storage policies, provider quota RPCs and entitlement grants are unchanged.
 
+The governed cross-path privilege inventory records Speech's service-role and
+RPC footprint explicitly. Its allowlist confines the credential to
+`stylist-speech/index.ts`, where the privileged client calls only
+`reserve_speech_request` and `finish_speech_request`. Content/account reads use
+the authenticated actor client; Speech has no direct table-write, Auth-admin or
+Storage authority. The inventory checks both the full deployed footprint and
+the exact privileged RPC pair.
+
 `enabled=false` and `daily_character_limit=0` are the migration defaults.
 The owner’s zero-allocation restriction remains in force. Enabling the operational
 control or assigning a nonzero character allocation requires a separately
