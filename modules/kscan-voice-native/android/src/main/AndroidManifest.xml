@@ -1,3 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="expo.modules.kscanvoicenative">
+    <!-- Android 11+ package visibility: on-device Voice Scan uses
+         SpeechRecognizer.createOnDeviceSpeechRecognizer(). This narrowly
+         declares visibility of speech recognition services only, without
+         adding a permission or allowing a cloud-recognition fallback. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 </manifest>
