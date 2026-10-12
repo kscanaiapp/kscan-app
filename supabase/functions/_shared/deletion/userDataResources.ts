@@ -61,6 +61,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'speech_request_reservations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'image_scan_verdicts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },

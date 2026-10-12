@@ -33,8 +33,14 @@ Deno.test('speech text safely bounds long copy with no sentence boundary and add
 });
 
 Deno.test('speech text handles URLs, empty input, and empty normalized output', () => {
+  assert.equal(buildSpeechText(''), '');
   assert.equal(buildSpeechText('Visit https://example.com/look for details.'), 'Visit https://example.com/look for details.');
   assert.equal(buildSpeechText('   '), '');
   assert.equal(buildSpeechText(null), '');
   assert.equal(buildSpeechText('<internal>secret</internal>'), '');
+});
+
+Deno.test('preserves multilingual text, emoji and Unicode punctuation while removing emphasis and code', () => {
+  const visible = '\u00c9l\u00e9gant \u2014 \u4f60\u597d\uff01 \u0645\u0631\u062d\u0628\u0627 \ud83d\udc57';
+  assert.equal(buildSpeechText(`**${visible}** \u0060\u0060\u0060internal\u0060\u0060\u0060`), visible);
 });

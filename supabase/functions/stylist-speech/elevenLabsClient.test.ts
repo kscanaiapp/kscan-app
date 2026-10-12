@@ -156,7 +156,7 @@ Deno.test('classifies provider failures into specific app-owned categories witho
     [403, JSON.stringify({ detail: { status: 'missing_permissions' } }), 'PROVIDER_AUTH_FAILED'],
     [404, JSON.stringify({ detail: { status: 'voice_not_found' } }), 'PROVIDER_VOICE_UNAVAILABLE'],
     [422, JSON.stringify({ detail: { status: 'model_not_found' } }), 'PROVIDER_MODEL_UNAVAILABLE'],
-    [429, JSON.stringify({ detail: { status: 'too_many_requests' } }), 'PROVIDER_QUOTA_EXCEEDED'],
+    [429, JSON.stringify({ detail: { status: 'too_many_requests' } }), 'PROVIDER_RATE_LIMIT'],
     [500, 'provider-secret-diagnostic', 'PROVIDER_UNAVAILABLE'],
   ] as const;
 
@@ -229,7 +229,7 @@ Deno.test('aborts a provider request at the configured timeout', async () => {
 });
 
 Deno.test('rejects malformed JSON and invalid audio', async () => {
-  for (const raw of ['not-json', providerPayload({ audio_base64: 'not base64' }), providerPayload({ audio_base64: '' })]) {
+  for (const raw of ['not-json', 'null', '[]', '42', providerPayload({ audio_base64: 'not base64' }), providerPayload({ audio_base64: '' })]) {
     await assert.rejects(
       requestElevenLabsSpeech({
         text: 'Hello.',
@@ -242,6 +242,95 @@ Deno.test('rejects malformed JSON and invalid audio', async () => {
       (error: unknown) =>
         error instanceof StylistSpeechError && error.code === 'PROVIDER_RESPONSE_INVALID',
     );
+  }
+});
+
+Deno.test('stops reading an oversized stream before consuming the rest of its body', async () => {
+  let cancelled = false;
+  let reads = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      reads += 1;
+      if (reads === 1) controller.enqueue(new Uint8Array(MAX_PROVIDER_RESPONSE_BYTES + 1));
+      else controller.error(new Error('body must not be fully consumed'));
+    },
+    cancel() { cancelled = true; },
+  }, { highWaterMark: 0 });
+  await assert.rejects(requestElevenLabsSpeech({
+    text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+    env: environment(), diagnosticsSink: () => {},
+    fetchImpl: (() => Promise.resolve(new Response(stream))) as typeof fetch,
+  }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'PROVIDER_RESPONSE_TOO_LARGE');
+  assert.equal(reads, 1);
+  assert.equal(cancelled, true);
+});
+
+Deno.test('classifies a response body stalled after headers as provider timeout', async () => {
+  const lines: string[] = [];
+  await assert.rejects(requestElevenLabsSpeech({
+    text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+    env: environment(), timeoutMs: 5, diagnosticsSink: (line) => lines.push(line),
+    fetchImpl: ((_url: unknown, init?: RequestInit) => Promise.resolve(new Response(
+      new ReadableStream({ start(controller) {
+        init?.signal?.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+      } }),
+    ))) as typeof fetch,
+  }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'PROVIDER_TIMEOUT');
+  assert.equal(JSON.parse(lines[0]).failureKind, 'timeout');
+});
+
+Deno.test('classifies body transport failure without exposing its content', async () => {
+  await assert.rejects(requestElevenLabsSpeech({
+    text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+    env: environment(), diagnosticsSink: () => {},
+    fetchImpl: (() => Promise.resolve(new Response(new ReadableStream({
+      start(controller) { controller.error(new Error('private provider body')); },
+    })))) as typeof fetch,
+  }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'PROVIDER_UNAVAILABLE' && !error.message.includes('private'));
+});
+
+Deno.test('bounds error-body reads and preserves sanitized HTTP rejection classification', async () => {
+  let reads = 0;
+  let cancelled = false;
+  await assert.rejects(requestElevenLabsSpeech({
+    text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+    env: environment(), diagnosticsSink: () => {},
+    fetchImpl: (() => Promise.resolve(new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        reads += 1;
+        if (reads === 1) controller.enqueue(new Uint8Array(4097));
+        else controller.error(new Error('must not read the rest'));
+      },
+      cancel() { cancelled = true; },
+    }, { highWaterMark: 0 }), { status: 401 }))) as typeof fetch,
+  }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'PROVIDER_AUTH_FAILED');
+  assert.equal(reads, 1);
+  assert.equal(cancelled, true);
+});
+
+Deno.test('body deadline works even when the response stream ignores the fetch abort signal', async () => {
+  let cancelled = false;
+  await assert.rejects(requestElevenLabsSpeech({
+    text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+    env: environment(), timeoutMs: 5, diagnosticsSink: () => {},
+    fetchImpl: (() => Promise.resolve(new Response(new ReadableStream({
+      cancel() { cancelled = true; },
+    })))) as typeof fetch,
+  }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'PROVIDER_TIMEOUT');
+  assert.equal(cancelled, true);
+});
+
+Deno.test('rejects non-MP3 server output configuration before provider dispatch', async () => {
+  for (const format of ['pcm_44100', 'ulaw_8000', 'opus_48000_128', 'mp3_invalid']) {
+    const values = new Map(BASE_ENV);
+    values.set('ELEVENLABS_OUTPUT_FORMAT', format);
+    let calls = 0;
+    await assert.rejects(requestElevenLabsSpeech({
+      text: 'Hello.', voiceProfile: 'feminine', voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+      env: environment(values), diagnosticsSink: () => {},
+      fetchImpl: (() => { calls += 1; return Promise.resolve(new Response(providerPayload())); }) as typeof fetch,
+    }), (error: unknown) => error instanceof StylistSpeechError && error.code === 'SERVER_CONFIGURATION');
+    assert.equal(calls, 0);
   }
 });
 

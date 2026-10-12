@@ -147,6 +147,12 @@
       "action": "auth_delete_cascade"
     },
     {
+      "table": "speech_request_reservations",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true
+    },
+    {
       "table": "elise_generation_operations",
       "column": "user_id",
       "action": "auth_delete_cascade",

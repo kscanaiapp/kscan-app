@@ -12,6 +12,7 @@ export type ProviderFailureCategory =
   | 'provider_voice_unavailable'
   | 'provider_model_unavailable'
   | 'provider_quota_exceeded'
+  | 'provider_rate_limited'
   | 'provider_invalid_request'
   | 'provider_unavailable';
 
@@ -45,6 +46,7 @@ const CATEGORY_TO_CODE: Record<ProviderFailureCategory, SpeechErrorCode> = {
   provider_voice_unavailable: 'PROVIDER_VOICE_UNAVAILABLE',
   provider_model_unavailable: 'PROVIDER_MODEL_UNAVAILABLE',
   provider_quota_exceeded: 'PROVIDER_QUOTA_EXCEEDED',
+  provider_rate_limited: 'PROVIDER_RATE_LIMIT',
   provider_invalid_request: 'PROVIDER_INVALID_REQUEST',
   provider_unavailable: 'PROVIDER_UNAVAILABLE',
 };
@@ -56,6 +58,7 @@ const CATEGORY_TO_MESSAGE: Record<ProviderFailureCategory, string> = {
   provider_voice_unavailable: 'Speech generation is unavailable.',
   provider_model_unavailable: 'Speech generation is unavailable.',
   provider_quota_exceeded: 'Speech generation is temporarily limited.',
+  provider_rate_limited: 'Speech generation is temporarily limited.',
   provider_invalid_request: 'Speech generation is unavailable.',
   provider_unavailable: 'Speech generation is unavailable.',
 };
@@ -68,6 +71,7 @@ const CATEGORY_TO_CLIENT_STATUS: Record<ProviderFailureCategory, number> = {
   provider_voice_unavailable: 502,
   provider_model_unavailable: 502,
   provider_quota_exceeded: 429,
+  provider_rate_limited: 429,
   provider_invalid_request: 502,
   provider_unavailable: 502,
 };
@@ -126,7 +130,8 @@ function refineByToken(
   const normalized = token.toLowerCase();
   if (/(voice)/.test(normalized)) return 'provider_voice_unavailable';
   if (/(model)/.test(normalized)) return 'provider_model_unavailable';
-  if (/(quota|exceeded|too_many|rate)/.test(normalized)) return 'provider_quota_exceeded';
+  if (/(quota|credit|billing)/.test(normalized)) return 'provider_quota_exceeded';
+  if (/(too_many|rate|concurrent)/.test(normalized)) return 'provider_rate_limited';
   if (/(api_key|apikey|unauthor|permission|forbidden|missing_permissions|invalid_key)/.test(normalized)) {
     return 'provider_auth_failed';
   }

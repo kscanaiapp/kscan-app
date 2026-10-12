@@ -141,6 +141,9 @@ jobs:
       - name: Run governed backend Deno suite
         run: node scripts/run-backend-tests.js
 
+      - name: Run Speech SQL control contracts
+        run: node scripts/speech/test-cost-controls.mjs
+
       - name: Run TypeScript typecheck
         run: npx tsc --noEmit -p tsconfig.json
 

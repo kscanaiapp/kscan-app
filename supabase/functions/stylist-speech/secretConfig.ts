@@ -16,8 +16,9 @@ const FORMAT: Record<SecretKind, RegExp> = {
   voiceId: /^[A-Za-z0-9]{16,40}$/,
   // Model IDs such as `eleven_flash_v2_5`.
   model: /^[A-Za-z0-9_.\-]{3,64}$/,
-  // Output formats such as `mp3_44100_128`.
-  outputFormat: /^[A-Za-z0-9_]{3,32}$/,
+  // The public MIME and local file contract is MP3, even though the provider
+  // also offers raw PCM, WAV, mu-law and Opus output.
+  outputFormat: /^mp3_\d{4,5}_\d{2,3}$/,
 };
 
 const PLACEHOLDER = /^(your|placeholder|changeme|change_me|todo|tbd|xxx+|<.*>|\.\.\.|example|dummy|test_key|replace|none|null|undefined)$/i;

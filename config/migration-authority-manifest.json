@@ -699,6 +699,12 @@
             "classification": "APPLIED_AND_CERTIFIED",
             "appliedConfirmedOn": "2026-09-07",
             "evidence": "RP-106. Previously declared GENUINELY_UNAPPLIED on 2026-09-03; that declaration went stale. As of 2026-09-07 supabase_migrations.schema_migrations carries version 20260902150000 (name vto_non_billable_attempt_release), public.release_vto_generation(uuid, text, text) exists, pg_get_functiondef is byte-identical to the source migration body and comment, and execute grants are postgres + service_role only (no anon/authenticated/public). Certified zero-spend on run kscan-vto-rp106-cert-01: 13/13 controls PASS, 0 provider submits, 0 paid requests, 0 residual test state. Production (wyyuqfdxucjksghsmhry) is NOT promoted -- see docs/audits/rp106-vto-attempt-release-promotion.md."
+          },
+          {
+            "localVersion": "20261011222213",
+            "logicalName": "build35_speech_operational_cost_controls",
+            "appliedConfirmedOn": "2026-10-12",
+            "evidence": "Staging migration-only run38257025966 succeeded from integration32b9c427. Live ledger version/name verified; all three Speech tables RLS enabled, client table/RPC access denied, service-only reserve/finish RPCs present. Controls disabled, daily budget zero, reservation and cost rows zero."
           }
         ]
       },
@@ -1425,6 +1431,13 @@
             "logicalName": "kplus_offer_code_redemption_authority",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "evidence": "Build 35 post-#499 source includes the offer-code authority, but the production-readiness ledger snapshot does not contain version 20261004184118. It remains non-executable unless separately approved through the controlled migration gate."
+          },
+          {
+            "localVersion": "20261011222213",
+            "logicalName": "build35_speech_operational_cost_controls",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Owner-authorized Build 35 Speech technical repair commit 52754726388db5279d94c8154901a0c6a112fbc8. Read-only inspection on 2026-10-11 confirms this ledger version and all three new public Speech control/reservation/cost tables absent from Staging and Production. Additive RLS/service-only migration defaults disabled with zero budget. Declaration records pending source, not deployment permission: requires exact single-version governed invocation and protected human approval for Production."
           }
         ],
         "remoteOnly": [
