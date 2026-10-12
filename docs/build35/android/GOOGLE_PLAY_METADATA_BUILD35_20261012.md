@@ -112,6 +112,17 @@ From `eas.json` and `scripts/check-build35-release-profile.js` at the source SHA
 | Complimentary K+ Early Access | OFF | Do not describe as available promotion |
 | Live VTO / demo or debug harness flags | OFF/unset | Do not advertise live AR or development features |
 
+## F.1 Live Android subscription verification (2026-10-12 UTC)
+
+Read-only RevenueCat validation for `com.kscanai.app` returned **VALID** Google Play service-account credentials, including subscription-purchase, in-app-product and monetization/catalog API checks. This resolves the previous *credential missing* claim.
+
+However, a fresh Play Store state read returned `store_status=not_found`, `base_plans={}`, no territory prices and no localizations for **both** active RevenueCat catalog mappings:
+
+- `kscan.kplus.monthly:monthly`
+- `kscan.kplus.annual:annual`
+
+**K+ Android purchase readiness is NOT certified.** `not_found` could mean the composite product/base-plan identifiers are not the actual Play entries or that the intended subscriptions have not been created/published correctly. Owner must inspect Google Play Console **Monetize → Products → Subscriptions**, confirm subscription ID, active base-plan ID, status, pricing/territory and test visibility, then reconcile RevenueCat mappings. Do not invent identifiers or publish a price not returned by Play.
+
 ## F. Actions that remain outside GitHub metadata
 
 1. In Play Console, update the **actual** Main Store Listing (title, short/full text, assets), release notes, App Content questionnaires, Data Safety and account-deletion URL. This GitHub document does **not** publish them.
