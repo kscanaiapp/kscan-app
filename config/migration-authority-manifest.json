@@ -1545,6 +1545,24 @@
             "logicalName": "build33_production_trigger_search_path_convergence",
             "classification": "PRODUCTION_ONLY_HISTORICAL",
             "evidence": "Ledger row present (1667 chars). No local file carries this logical name. Its effect is verified live: 0 SECURITY DEFINER routines and 0 trigger functions in public/internal carry an unpinned search_path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20261012203811",
+            "logicalName": "build35_reaction_counts_share_token_functional_parity",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 866c6c38e28f73dcbe1c5f16d8c48b5541748159aa3d827516218b9365f87c16. Live pg_get_functiondef confirms get_item_reaction_counts(uuid[],text) binds anonymous access to the specific active, unrevoked, unexpired room share token; the old uuid[] overload is absent. This is existing Production security history, not permission to replay SQL. See docs/audits/build35-production-security-history-20261013.md."
+          },
+          {
+            "remoteVersion": "20261012203929",
+            "logicalName": "build35_revoke_trigger_only_client_execute_grants",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 5fd592b94ba71a3b181f4a9e729e53f216ca47b264208f544ea4115102d5574f. Live has_function_privilege confirms set_provider_request_limits_updated_at() denies anon/authenticated EXECUTE; service_role retains its existing grant. No local migration has this ledger identity. Preserve this existing trigger-only containment; do not replay. See docs/audits/build35-production-security-history-20261013.md."
+          },
+          {
+            "remoteVersion": "20261012204354",
+            "logicalName": "build35_contain_unauthorized_kplus_early_access_grants",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 a3e8c3e25ba4d73b21abb019f62546ddcc554084ca24fec0cf8f26dd880eb519. Live has_function_privilege confirms grant_kplus_early_access(uuid) denies anon/authenticated/service_role EXECUTE. This is the owner-directed October 12 complimentary-campaign containment; paid RevenueCat entitlement authority is separate and unchanged. No local migration has this ledger identity. Do not replay or restore the revoked grants. See docs/audits/build35-production-security-history-20261013.md."
           }
         ],
         "genuinelyUnapplied": []

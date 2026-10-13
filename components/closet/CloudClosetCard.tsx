@@ -71,6 +71,8 @@ function CloudClosetStatusCard({ items, onRefresh, entitlement, active, resolvin
     outboundProven: hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync') });
   const check = async () => {
     if (requested || resolving) return;
+    // A retained button must not acquire or sync after its proof expires.
+    if (!hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync')) return;
     if (!active) { openUpgrade(); return; }
     const scope = captureActorScope();
     setRequested(true);

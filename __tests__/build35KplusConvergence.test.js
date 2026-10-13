@@ -72,6 +72,39 @@ for (const platformOS of ['ios', 'android']) {
     assert.equal(byTestId(tree, 'cloud-closet-check').length, 0);
   });
 
+  test(`${platformOS}: retained Cloud check revalidates proof before acquisition or sync`, () => {
+    const renderer = createRenderer();
+    let proven = true, active = false, upgrades = 0, syncCalls = 0;
+    const rel = 'components/closet/CloudClosetCard.tsx';
+    const { CloudClosetCard } = runModule(rel, modulesFor(rel, renderer, {
+      'react-native': createReactNativeStub({ platformOS }),
+      'expo-router': { useFocusEffect() {} },
+      '../../constants/featureFlags': { CLOSET_CLOUD_SYNC_V1: true, CLOSET_CROSS_DEVICE_RESTORE_V1: true, CLOSET_LEGACY_MIGRATION_V1: true },
+      '../../services/kplus/kplusCapabilityProof': { hasRuntimeCapabilityProof: () => proven },
+      '../../services/closet/closetCloudStatus': { projectCloudClosetStatus: () => 'not_synced' },
+      '../../services/closet/closetSyncEngine': { isClosetSyncRunning: () => false, runClosetSyncPass: () => { syncCalls++; } },
+      '../../services/closet/closetRestoreEngine': { isClosetRestoreRunning: () => false, runClosetRestorePass: () => { syncCalls++; } },
+      '../../services/closet/closetHistoricalMigrationEngine': { runClosetHistoricalMigrationPass: () => { syncCalls++; } },
+      '../luxury': { SecondaryButton: 'Button' },
+      '../kplus/KPlusGate': { KPlusGate: ({ children }) => children({ state: active ? 'active' : 'eligible', isActive: active, resolving: false, openUpgrade: () => upgrades++ }) },
+    }));
+    const tree = renderer.render(renderer.jsx(CloudClosetCard, { items: [], onRefresh() {} }));
+    const retained = byTestId(tree, 'cloud-closet-check')[0];
+    retained.props.onPress();
+    assert.equal(upgrades, 1, 'a currently proven free entry uses paid acquisition');
+    proven = false;
+    retained.props.onPress();
+    assert.equal(upgrades, 1, 'expiry cannot acquire from a retained button');
+    assert.equal(syncCalls, 0);
+    proven = true;
+    active = true;
+    const activeTree = renderer.render(renderer.jsx(CloudClosetCard, { items: [], onRefresh() {} }));
+    const activeButton = byTestId(activeTree, 'cloud-closet-check')[0];
+    proven = false;
+    activeButton.props.onPress();
+    assert.equal(syncCalls, 0, 'expiry cannot start sync for an active actor either');
+  });
+
   test(`${platformOS}: TextScan offers paid Voice acquisition with Early Access OFF and suppresses unresolved upsells`, () => {
     const renderer = createRenderer();
     let state = 'eligible', calls = 0;

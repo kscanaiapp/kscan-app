@@ -177,6 +177,7 @@ const ALLOWLIST = [
   // records (some cite exact pre-rename file/line locations, others cite
   // real historical git branch names). Rewriting them would misrepresent
   // what was true when they were written.
+  { file: 'docs/audits/build35-production-ledger-2026-10-13.json', token: '"name": "upsert_style_dna_profile_rpc"', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Exact immutable Production ledger migration name inspected read-only on October 13; only this name line is exempt, never product copy or the whole fixture.' },
   { file: 'docs/build34-trackb-b4-style-dna-ledger.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Named explicitly in the repair brief as a historical doc; filename and content retained.' },
   { file: 'docs/audits/final-prebuild-hostile-audit.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Dated, point-in-time audit report citing pre-rename file/line locations.' },
   { file: 'docs/audits/build34-packing-intelligence-deep-audit-20260902.md', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Dated, point-in-time audit report.' },
@@ -273,7 +274,9 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
   // is now classified by exact file/token above, without a blanket exemption.
   assert.equal(
     totalOccurrences,
-    111,
+    // 111 -> 112: the exact immutable name in the October 13 Production ledger
+    // snapshot, classified above. No new active product terminology is allowed.
+    112,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });
