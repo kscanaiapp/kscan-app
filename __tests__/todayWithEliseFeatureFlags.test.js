@@ -102,7 +102,7 @@ test('children activate only with parent', () => {
 // the card reactivates with its full authorized configuration the moment the
 // parent flips back on. Internal preview/development builds are unaffected:
 // only the production profile's parent flag changed.
-test('production leaves the Today parent OFF; preview/development and the child flags are unchanged', () => {
+test('Build 35 keeps the Today parent OFF in every effective profile; dormant child flags are unchanged', () => {
   const production = eas.build?.production;
   assert.ok(production, 'expected an eas.json production profile');
   assert.equal(
@@ -111,13 +111,14 @@ test('production leaves the Today parent OFF; preview/development and the child 
     'production must not render the redundant Today with Elise card',
   );
 
-  for (const profileName of ['preview', 'development']) {
+  const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
+  for (const profileName of Object.keys(eas.build)) {
     const profile = eas.build?.[profileName];
     if (!profile) continue;
-    const env = profile.env || {};
+    const env = resolveEasBuildProfile(eas, profileName).env;
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1,
-      'true',
+      'false',
       `${profileName} does not set TODAY_WITH_ELISE_V1`,
     );
   }

@@ -12,7 +12,7 @@
 //                        <- services/savedScanMedia.ts
 //   primary width 1440   <- services/closetLibrary.js IMAGE_WIDTH (and the
 //                           saved-scan cloud primary, which is also 1440)
-//   thumbnail width 160  <- services/closetLibrary.js THUMB_WIDTH
+//   thumbnail width 640  <- services/closetLibrary.js THUMB_WIDTH
 //
 // PATHS ARE FLAT, ONE LEVEL UNDER {userId}/closet, AND THAT IS LOAD-BEARING:
 // Supabase Storage list() is not recursive, and the account-deletion
@@ -25,7 +25,7 @@ export const CLOSET_MEDIA_CONTENT_TYPE = 'image/jpeg';
 
 /** Matches services/closetLibrary.js IMAGE_WIDTH / THUMB_WIDTH exactly. */
 export const CLOSET_MEDIA_PRIMARY_WIDTH = 1440;
-export const CLOSET_MEDIA_THUMBNAIL_WIDTH = 160;
+export const CLOSET_MEDIA_THUMBNAIL_WIDTH = 640;
 
 /** Same TTL services/savedScanMedia.ts uses for private object resolution. */
 export const CLOSET_MEDIA_SIGNED_URL_TTL_SECONDS = 60;
