@@ -1,0 +1,14 @@
+name: Android Production FCM JSON preflight
+# Manual pre-AAB check only. No native build, provider call or secret output.
+on:
+  workflow_dispatch:
+
+jobs:
+  verify_android_fcm:
+    name: Validate production Firebase JSON without disclosure
+    environment: production
+    runs_on: linux-medium
+    steps:
+      - uses: eas/checkout
+      - name: Validate materialized EAS Firebase file secret
+        run: node scripts/android-verify-production-fcm-json.js
