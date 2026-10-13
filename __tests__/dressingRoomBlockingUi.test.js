@@ -525,23 +525,30 @@ test('blocking migration grants schema USAGE so RLS predicates can run', () => {
   assert.match(blocking, /revoke all on schema internal from anon;/);
 });
 
-test('no repo migration other than the blocking one assumes the internal schema', () => {
-  // If another migration starts using internal.* it must create it too, or we
-  // are back to an unreplayable set.
+test('chronological migration replay establishes the internal schema before use', () => {
+  // Later migrations may reuse an earlier schema bootstrap. Require the
+  // bootstrap to precede every use rather than require repeated creation.
   const dir = path.join(ROOT, 'supabase/migrations');
-  const offenders = [];
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.sql'))) {
-    if (file === '20260806153233_dressing_room_user_blocking.sql') continue;
-    const sql = fs.readFileSync(path.join(dir, file), 'utf8');
-    if (/\binternal\.[a-z_]/i.test(sql) && !/create schema if not exists internal/i.test(sql)) {
-      offenders.push(file);
+  const migrations = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+  function replayOrder(withoutBootstrap = false) {
+    let schemaCreated = false;
+    const offenders = [];
+    for (const file of migrations) {
+      let sql = fs.readFileSync(path.join(dir, file), 'utf8').replace(/--[^\n]*/g, '');
+      if (withoutBootstrap) sql = sql.replace(/create schema if not exists internal\s*;/ig, '');
+      const bootstrap = sql.search(/create schema if not exists internal/i);
+      const firstUse = sql.search(/\binternal\.[a-z_]/i);
+      if (firstUse >= 0 && !schemaCreated && !(bootstrap >= 0 && bootstrap < firstUse)) offenders.push(file);
+      if (bootstrap >= 0) schemaCreated = true;
     }
+    return offenders;
   }
   assert.deepEqual(
-    offenders,
+    replayOrder(),
     [],
-    `these migrations use the internal schema without creating it: ${offenders.join(', ')}`,
+    'internal schema must be established before every chronological use',
   );
+  assert.ok(replayOrder(true).length > 0, 'removing the bootstrap must fail');
 });
 
 // ── pgTAP plan integrity ─────────────────────────────────────────────────

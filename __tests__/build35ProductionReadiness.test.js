@@ -8,7 +8,7 @@ test('Build 35 production ledger snapshot has no unexplained migration drift', a
   const { compareMigrations } = await import('../scripts/staging-deploy-preflight.mjs');
   const { listLocalMigrationVersions } = await import('../scripts/lib/staging-helpers.mjs');
   const { loadLedgerReconciliation } = await import('../scripts/lib/migration-reconciliation.mjs');
-  const snapshot = require('../docs/audits/build35-production-ledger-2026-10-04.json');
+  const snapshot = require('../docs/audits/build35-production-ledger-2026-10-13.json');
   const versions = snapshot.migrations.map(row => row.version);
   const authority = loadLedgerReconciliation(snapshot.projectRef);
   const report = compareMigrations(listLocalMigrationVersions(), versions, '', authority);

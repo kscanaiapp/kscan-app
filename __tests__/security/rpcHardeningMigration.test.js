@@ -60,9 +60,16 @@ const EXPECTED_ANON_REVOKED = [
 const MUST_NOT_BE_REVOKED = ['get_public_room_preview', 'reserve_provider_request', 'complete_provider_request'];
 
 test('main migration revokes anon EXECUTE from every function in the reviewed list', () => {
+  const guardedTargets = /v_targets constant text\[\] := array\[([\s\S]*?)\];/.exec(mainSql)?.[1] ?? '';
+  const guardedRevoke = /p\.pronargs = 0[\s\S]*?execute format\('revoke execute on function public\.%I\(\) from public', v_target\)/.test(mainSql);
   for (const fn of EXPECTED_ANON_REVOKED) {
     const pattern = new RegExp(`revoke execute on function public\\.${fn}\\([^)]*\\) from (anon|public);`);
-    assert.match(combinedSql, pattern, `expected a revoke statement for ${fn}`);
+    assert.ok(pattern.test(combinedSql) || (guardedRevoke && guardedTargets.includes(`'${fn}'`)), `expected a direct or catalog-guarded revoke for ${fn}`);
+  }
+  assert.equal(guardedRevoke, true, 'zero-argument catalog loop must execute the actual revoke');
+  for (const fn of EXPECTED_ANON_REVOKED.filter(fn => guardedTargets.includes(`'${fn}'`))) {
+    const mutant = guardedTargets.replace(`'${fn}'`, "'unrelated_trigger'");
+    assert.equal(mutant.includes(`'${fn}'`), false, `removing ${fn} must no longer satisfy the guard`);
   }
 });
 

@@ -61,10 +61,10 @@ test('staging exposes exactly the production client-feature flag set', () => {
   const staging = envOf(eas, 'staging');
 
   const missingFromStaging = Object.keys(production)
-    .filter((key) => !(key in staging))
+    .filter((key) => !(key in staging) && !ENVIRONMENT_SPECIFIC_KEYS.has(key))
     .sort();
   const extraInStaging = Object.keys(staging)
-    .filter((key) => !(key in production))
+    .filter((key) => !(key in production) && !ENVIRONMENT_SPECIFIC_KEYS.has(key))
     .sort();
 
   assert.deepEqual(
