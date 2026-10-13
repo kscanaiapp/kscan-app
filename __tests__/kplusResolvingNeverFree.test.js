@@ -254,7 +254,7 @@ test('the TextScan voice block claims neither "included" nor "upgrade" while unr
     .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.match(code, /resolving\s*\?\s*'Checking your K\+ status\.'/,
     'the body copy must not assert an entitlement nobody has read');
-  assert.match(code, /disabled=\{isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED\}/,
+  assert.match(code, /disabled=\{isActive \|\| resolving\}/,
     'the block must be inert while unresolved');
 });
 

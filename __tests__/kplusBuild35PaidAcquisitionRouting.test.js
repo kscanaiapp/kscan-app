@@ -27,11 +27,11 @@ test('Build 35 Voice Scan and onboarding K+ actions open paid membership, not re
 
 test('existing paid VTO, Packing, Watchlist and Closet upgrade paths are unchanged', () => {
   const { resolveKPlusAcquisitionSurface: resolve } = getAcquisitionResolver();
-  for (const source of ['vto', 'packing', 'watchlist', 'closet_intelligence']) {
+  for (const source of ['vto', 'packing', 'watchlist', 'closet_intelligence', 'account', 'wardrobe_concierge']) {
     assert.equal(resolve(source), 'membership', source);
   }
   // This narrow repair must not silently move unrelated legacy entry points.
-  for (const source of ['account', 'wardrobe_concierge', 'unknown']) {
+  for (const source of ['unknown']) {
     assert.equal(resolve(source), 'early_access', source);
   }
 });

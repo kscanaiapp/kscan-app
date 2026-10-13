@@ -58,7 +58,7 @@ test('Packing active state visibly identifies Included', () => {
 // ── Resolving truth ─────────────────────────────────────────────────────────
 
 test('resolving renders no marker on either entry (never false free, never false Included)', () => {
-  assert.match(homeCode, /\{!resolving && \(/, 'watchlist badge gated on !resolving');
+  assert.match(homeCode, /\{watchlistReady && !resolving && \(/, 'watchlist badge requires proof and a resolved entitlement');
   const chipBlock = sliceFn(homeCode, 'title="PACK FOR A TRIP"', 'FeatureChip>');
   assert.match(chipBlock, /!packingKPlusResolving && \(/, 'packing badge gated on !packingKPlusResolving');
   assert.match(homeCode, /isKPlusEntitlementUnresolved\(packingKPlusState\)/);
@@ -67,7 +67,7 @@ test('resolving renders no marker on either entry (never false free, never false
 // ── Behavior unchanged ──────────────────────────────────────────────────────
 
 test('existing Watchlist tap behavior is unchanged', () => {
-  assert.match(watchlistBlock, /disabled=\{resolving\}/);
+  assert.match(watchlistBlock, /disabled=\{watchlistReady && resolving\}/);
   assert.match(watchlistBlock, /if \(resolving\) return;/);
   assert.match(watchlistBlock, /if \(isActive\) router\.push\('\/watchlist'\);/);
   assert.match(watchlistBlock, /else openUpgrade\(\);/);

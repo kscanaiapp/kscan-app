@@ -42,9 +42,8 @@ import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
 import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
 import { SpeechSettingsSection } from '../components/settings/SpeechSettingsSection';
-import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
-import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
+import { KPlusMembershipSheet } from '../components/kplus/KPlusMembershipSheet';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { describeKPlusAccountStatus } from '../services/kplus/kplusAccountStatus';
 import {
@@ -317,14 +316,13 @@ export default function PrivacyScreen() {
   const kPlusStatus = describeKPlusAccountStatus(
     kPlusEntitlement.state,
     kPlusExpiryLabel,
-    KPLUS_EARLY_ACCESS_ENABLED,
   );
   const kPlusPillLabel = kPlusStatus.pillLabel;
   const kPlusPillVariant = kPlusStatus.pillVariant;
   const kPlusStatusSubtitle = kPlusStatus.subtitle;
   const kPlusActionLabel =
-    kPlusStatus.action === 'activate'
-      ? 'Activate'
+    kPlusStatus.action === 'membership'
+      ? 'Membership'
       : kPlusStatus.action === 'retry'
         ? 'Try Again'
         : undefined;
@@ -526,10 +524,9 @@ export default function PrivacyScreen() {
         backLabel="Back"
       />
 
-      <KPlusEarlyAccessSheet
+      <KPlusMembershipSheet
         visible={kPlusSheetVisible}
         onClose={() => setKPlusSheetVisible(false)}
-        source="account"
       />
 
       <Modal
@@ -667,7 +664,7 @@ export default function PrivacyScreen() {
                   actionLabel={kPlusActionLabel}
                   actionVariant="pill"
                   onAction={
-                    kPlusStatus.action === 'activate' && KPLUS_EARLY_ACCESS_ENABLED
+                    kPlusStatus.action === 'membership'
                       ? () => {
                           emitKPlusEvent('kplus_feature_gate_opened', {
                             source: 'account',

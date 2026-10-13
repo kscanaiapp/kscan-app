@@ -109,8 +109,9 @@ export const KPLUS_CAPABILITY_SERVER_ENABLEMENT: Readonly<
   wardrobe_concierge: Object.freeze({
     status: 'unconfirmed' as const,
     basis:
-      'The server-side switches Wardrobe Concierge needs were not enabled at the ' +
-      '2026-09-24 read-only audit, so it does nothing for an activated member.',
+      'Production Concierge and Closet retrieval/context switches were verified ON ' +
+      'on 2026-10-13. An authenticated premium workflow and its owned Closet context ' +
+      'still require current Production runtime verification before a paid benefit claim.',
   }),
   packing_intelligence: Object.freeze({
     status: 'confirmed' as const,

@@ -241,12 +241,12 @@ test('Voice Scan and Account recognize canonical active K+ while acquisition is 
   const voice = stripComments(read('components', 'text-scan', 'TextScanFeatureRow.tsx'));
   assert.match(voice, /if \(!VOICESCAN_ENABLED\)/);
   assert.doesNotMatch(voice, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
-  assert.match(voice, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.match(voice, /isActive \|\| resolving/);
   assert.match(voice, /isActive[\s\S]*'Included with K\+'/);
 
   const account = stripComments(read('app', 'privacy.tsx'));
   assert.match(account, /\{isAuthenticated \? \([\s\S]*title="K\+"/);
-  assert.match(account, /kPlusStatus\.action === 'activate' && KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.match(account, /kPlusStatus\.action === 'membership'/);
 });
 
 test('negative controls: re-gating reads, returned state, activation, or Step 6 is detected', async () => {

@@ -255,7 +255,7 @@ test('VTO entry point is sourced "vto", Watchlist entry points are sourced "watc
 
 test('Packing is sourced "packing" and the Account status row is sourced "account"', () => {
   assert.match(read('app/packing/index.tsx'), /<KPlusGate source="packing">/);
-  assert.match(read('app/privacy.tsx'), /<KPlusEarlyAccessSheet[\s\S]{0,200}source="account"/);
+  assert.match(read('app/privacy.tsx'), /<KPlusMembershipSheet[\s\S]{0,200}visible=\{kPlusSheetVisible\}/);
 });
 
 test('the permanent onboarding Microphone entry is sourced "onboarding"', () => {
@@ -351,8 +351,8 @@ test('Voice Scan pill disables its own press and never opens the sheet for an ac
   // BUILD34-KPLUS-RESOLVING-001 widened both guards from `isActive` to
   // `isActive || resolving`: an UNREAD entitlement must not open the sheet
   // either, so the block is inert for an active member AND while resolving.
-  assert.match(fn, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED \? undefined : openUpgrade/);
-  assert.match(fn, /disabled=\{isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED\}/);
+  assert.match(fn, /isActive \|\| resolving \? undefined : openUpgrade/);
+  assert.match(fn, /disabled=\{isActive \|\| resolving\}/);
 });
 
 test('Watchlist entry points route active members straight to the feature, never to openUpgrade', () => {

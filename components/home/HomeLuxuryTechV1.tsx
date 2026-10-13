@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
   Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -120,8 +121,12 @@ export default function HomeLuxuryTechV1() {
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
-  const packingEnabled = PACKING_INTELLIGENCE_V1 && hasRuntimeCapabilityProof('packing_intelligence', 'packing_generation_and_refinement');
-  const watchlistEnabled = SMART_WATCHLIST_V1 && hasRuntimeCapabilityProof('smart_watchlist', 'watch_tracking');
+  const packingEnabled = PACKING_INTELLIGENCE_V1;
+  const watchlistEnabled = SMART_WATCHLIST_V1;
+  // Discovery is truthful even while certification is pending. Proof still
+  // controls the usable entry and every premium benefit in the paid catalog.
+  const packingReady = hasRuntimeCapabilityProof('packing_intelligence', 'packing_generation_and_refinement');
+  const watchlistReady = hasRuntimeCapabilityProof('smart_watchlist', 'watch_tracking');
   React.useEffect(() => {
     if (packingEnabled) emitKPlusEvent('kplus_feature_exposed', { source: 'packing', feature: 'packing' });
   }, [packingEnabled]);
@@ -433,13 +438,19 @@ export default function HomeLuxuryTechV1() {
           <FeatureChip
             icon={<KScanIcon name="style" size={24} variant="standard" />}
             title="PACK FOR A TRIP"
-            body="Packed from what you already own."
-            onPress={() => router.push('/packing')}
+            body={packingReady ? 'Packed from what you already own.' : 'Currently unavailable.'}
+            onPress={() => {
+              if (!hasRuntimeCapabilityProof('packing_intelligence', 'packing_generation_and_refinement')) {
+                Alert.alert('Packing Intelligence is unavailable', 'Trip planning is not available in this version yet. Your local Closet stays available.');
+                return;
+              }
+              router.push('/packing');
+            }}
             testID="home-luxury-feature-packing"
             accessibilityLabel="Pack for a trip"
-            accessibilityHint="Build a packing plan from the clothes in your Closet"
+            accessibilityHint={packingReady ? 'Build a packing plan from the clothes in your Closet' : 'Currently unavailable. Opens availability information.'}
           >
-            {!packingKPlusResolving && (
+            {packingReady && !packingKPlusResolving && (
               <KPlusMarkerBadge
                 state={packingKPlusActive ? 'included' : 'locked'}
                 testID="home-luxury-packing-kplus-badge"
@@ -470,10 +481,9 @@ export default function HomeLuxuryTechV1() {
             style={styles.secondaryActionButton}
           />
         )}
-        {/* INT-KPLUS-005: availability first, entitlement second. K+ says the
-            user is ALLOWED to use Watchlist; SMART_WATCHLIST_V1 says it EXISTS
-            in this build/environment. Gating on entitlement alone rendered a
-            live tile pointing at a screen whose server seam is not deployed. */}
+        {/* Enabled discovery stays visible. Missing proof opens an unavailable
+            explanation before navigation or acquisition; a usable entry still
+            requires proof and a resolved canonical entitlement. */}
         {watchlistEnabled && (
           <KPlusGate source="watchlist">
             {({ isActive, resolving, openUpgrade }) => (
@@ -484,17 +494,21 @@ export default function HomeLuxuryTechV1() {
                   icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
                   // RESOLVING != FREE: until the entitlement answer is known, a
                   // tap must not route an entitled customer into the upsell.
-                  disabled={resolving}
+                  disabled={watchlistReady && resolving}
                   onPress={() => {
+                    if (!hasRuntimeCapabilityProof('smart_watchlist', 'watch_tracking')) {
+                      Alert.alert('Smart Watchlist is unavailable', 'Price tracking is not available in this version yet. You can still browse and save products.');
+                      return;
+                    }
                     if (resolving) return;
                     if (isActive) router.push('/watchlist');
                     else openUpgrade();
                   }}
-                  accessibilityLabel="Open Smart Watchlist"
-                  accessibilityHint={isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ membership options.'}
+                  accessibilityLabel={watchlistReady ? 'Open Smart Watchlist' : 'Smart Watchlist, currently unavailable'}
+                  accessibilityHint={!watchlistReady ? 'Opens availability information.' : isActive || resolving ? "Track prices on listings you're not ready to buy yet" : 'Available with K+. Opens K+ membership options.'}
                   style={styles.watchlistActionButton}
                 />
-                {!resolving && (
+                {watchlistReady && !resolving && (
                   <KPlusMarkerBadge
                     state={isActive ? 'included' : 'locked'}
                     testID="home-luxury-watchlist-kplus-badge"
