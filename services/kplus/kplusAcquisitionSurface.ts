@@ -32,6 +32,9 @@ export type KPlusAcquisitionSurface = 'membership' | 'early_access';
 /** Sources whose gate opens the paid membership surface. */
 export const KPLUS_MEMBERSHIP_ACQUISITION_SOURCES: readonly KPlusSource[] = Object.freeze([
   'vto', 'packing', 'watchlist', 'closet_intelligence',
+  // Build 35 paid acquisition: Voice Scan and onboarding permission CTAs
+  // must never route to the disabled complimentary Early Access sheet.
+  'voice_scan', 'onboarding',
 ]);
 
 export function resolveKPlusAcquisitionSurface(source: KPlusSource): KPlusAcquisitionSurface {
