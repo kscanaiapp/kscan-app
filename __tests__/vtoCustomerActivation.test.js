@@ -1904,17 +1904,18 @@ test('NC-FC-01: routing VTO back to KPlusEarlyAccessSheet is caught', async () =
 
 test('FC-01: Early Access is not globally retired -- unrelated K+ gates still open it', () => {
   const acquisition = runModule(ACQUISITION, {}, { jsx: false });
-  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto', 'packing', 'watchlist', 'closet_intelligence']);
+  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto', 'packing', 'watchlist', 'closet_intelligence', 'voice_scan', 'onboarding']);
   assert.equal(acquisition.resolveKPlusAcquisitionSurface('vto'), 'membership');
   const sources = runModule('types/kplusSource.ts', {}, { jsx: false }).KPLUS_SOURCES;
   for (const source of sources) {
-    if (['vto', 'packing', 'watchlist', 'closet_intelligence'].includes(source)) {
+    if (['vto', 'packing', 'watchlist', 'closet_intelligence', 'voice_scan', 'onboarding'].includes(source)) {
       assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'membership'); continue;
     }
     assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'early_access', `${source} is unchanged`);
   }
   assert.equal(acquisition.resolveKPlusAcquisitionSurface('not-a-source'), 'early_access', 'an unknown source is not upgraded by accident');
 
+  // Voice Scan and onboarding now use paid K+; only unrelated sources still use Early Access.
   // The gate mounts exactly one surface per source, and the legacy component
   // and its file are still there, untouched in purpose.
   const gate = stripComments(read(GATE));
