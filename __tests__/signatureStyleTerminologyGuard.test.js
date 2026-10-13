@@ -274,7 +274,9 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
   // is now classified by exact file/token above, without a blanket exemption.
   assert.equal(
     totalOccurrences,
-    111,
+    // 111 -> 112: the exact immutable name in the October 13 Production ledger
+    // snapshot, classified above. No new active product terminology is allowed.
+    112,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });
