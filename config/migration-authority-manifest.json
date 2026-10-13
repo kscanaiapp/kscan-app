@@ -683,84 +683,6 @@
             "evidence": "B34-SEC-001, PR #431 (draft; base release/kscan-pre-freeze-v1; head claude/relaxed-noether-zqp4rl @ ccb1dd0f), authored in commit 96d1c3a1 as supabase/migrations/20260916203000_reaction_counts_require_live_room_access.sql. Staging recorded it under ledger version 20260916204355 (2026-09-16T20:43:55Z), about three and a half minutes before that commit (20:47:28Z), and it lives in NO merged branch -- so the governed deploy preflight correctly reported it as undeclared remote-only drift and refused staging-controlled-deploy run 35154244943 for PR #432. EQUIVALENT rather than EXACT: staging's recorded statement is the source file's executable body without its comment text (2988 chars against a 7317-byte source file). With SQL line comments stripped and whitespace normalized, the source file and supabase_migrations.schema_migrations.statements are identical, both hashing to b630bcd353b9120f379b19aa83a9bce5 (2391 chars, 1 statement) -- the same normalization that reproduces the 23a939056a54927124b2eb3eaf42f01b proof recorded for 20260914120000. Behaviour re-read live on staging 2026-09-16: public.get_item_reaction_counts(uuid[]) is SECURITY DEFINER, owner postgres, search_path pg_catalog, public, returns TABLE(item_id uuid, reaction_type text, count integer), carries both the anonymous active-share branch and the shared_room_memberships gate for authenticated callers, and anon/authenticated retain EXECUTE. Production (wyyuqfdxucjksghsmhry) carries this migration under no version or name and still runs the B33-SEC-001 body, so the two environments now differ on this function. This entry records only that staging applied this content under 20260916204355; it does not review or approve PR #431, and the file is carried at its original authored version so the renumber stays provable. Nothing else from that branch is ported."
           }
         ],
-        "knownPending": [
-          {
-            "localVersion": "20261002010000",
-            "logicalName": "kplus_paid_lifetime_entitlement_foundation",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
-            "scannerOverrides": [
-              {
-                "findingId": "TRUNCATE",
-                "sha256": "0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528",
-                "reason": "Lexical match only: the word occurs as the string literal 'TRUNCATE' inside a has_table_privilege verification list asserting that clients lack that privilege. The migration executes no TRUNCATE statement. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
-              },
-              {
-                "findingId": "DESTRUCTIVE_ALTER",
-                "sha256": "0cf0484ea2a2c905e67268066ce4d4cccadc5d29b20997877f0173cc8a66a528",
-                "reason": "Governed DROP CONSTRAINT IF EXISTS / ADD CONSTRAINT replacements that widen or restate CHECK constraints on kplus_entitlement_grants, kplus_entitlement_transitions and kplus_entitlement_activations. No column, row or table is dropped, and the affected Staging tables were read-only verified at 0 rows. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
-              }
-            ]
-          },
-          {
-            "localVersion": "20261003195716",
-            "logicalName": "kplus_provider_pull_reconciliation",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261002010000"
-            ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
-            "scannerOverrides": [
-              {
-                "findingId": "TRUNCATE",
-                "sha256": "89b2bd32bb210d93c409f08bfa68f7241a0d2fa871d095fca129ebe5a7c3a9e3",
-                "reason": "Lexical match only: the word occurs as the string literal 'TRUNCATE' inside a has_table_privilege verification list asserting that clients lack that privilege. The migration executes no TRUNCATE statement. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
-              }
-            ]
-          },
-          {
-            "localVersion": "20261004184118",
-            "logicalName": "kplus_offer_code_redemption_authority",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261003195716"
-            ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
-          },
-          {
-            "localVersion": "20261004221500",
-            "logicalName": "closet_purchase_import_origin",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261004184118"
-            ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order.",
-            "scannerOverrides": [
-              {
-                "findingId": "DESTRUCTIVE_ALTER",
-                "sha256": "d0387a0ca6d5fc809268ff5c53ae2d4cf453bf33b84ead4ca2e5115751417f26",
-                "reason": "Governed DROP CONSTRAINT IF EXISTS / ADD CONSTRAINT replacement of user_closet_items_origin_enum that adds purchase_import to the accepted origins. No column, row or table is dropped, and user_closet_items was read-only verified at 0 rows on Staging. Production already executed the same SQL. Owner-approved 2026-10-07 for this version, this finding and this exact SQL (sha256-bound); any change to the SQL voids it."
-              }
-            ]
-          },
-          {
-            "localVersion": "20261004231628",
-            "logicalName": "fix_kplus_reconciliation_uuid_selection",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261004221500"
-            ],
-            "evidence": "Build 35 October migration set. Absent from Staging (live ledger, read-only on 2026-10-07: this version is not recorded) and present in Production under this exact version and name (live ledger, read-only on 2026-10-07). Declared so a deploy-only preflight treats it as legitimately pending instead of drift. This is documentation of reality, NOT permission to apply: execution needs APPROVED_MIGRATION_VERSION naming exactly this version, one version per invocation, and applyAfter fixes the campaign order."
-          },
-          {
-            "localVersion": "20261011222213",
-            "logicalName": "build35_speech_operational_cost_controls",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [],
-            "evidence": "Owner-authorized Build 35 Speech technical repair commit 52754726388db5279d94c8154901a0c6a112fbc8. Read-only inspection on 2026-10-11 confirms this ledger version and all three new public Speech control/reservation/cost tables absent from Staging and Production. Additive RLS/service-only migration defaults disabled with zero budget. Declaration records pending source, not deployment permission: requires exact single-version governed invocation and protected human approval for Production."
-          }
-        ],
         "genuinelyUnapplied": [],
         "remoteOnly": [
           {
@@ -777,6 +699,13 @@
             "classification": "APPLIED_AND_CERTIFIED",
             "appliedConfirmedOn": "2026-09-07",
             "evidence": "RP-106. Previously declared GENUINELY_UNAPPLIED on 2026-09-03; that declaration went stale. As of 2026-09-07 supabase_migrations.schema_migrations carries version 20260902150000 (name vto_non_billable_attempt_release), public.release_vto_generation(uuid, text, text) exists, pg_get_functiondef is byte-identical to the source migration body and comment, and execute grants are postgres + service_role only (no anon/authenticated/public). Certified zero-spend on run kscan-vto-rp106-cert-01: 13/13 controls PASS, 0 provider submits, 0 paid requests, 0 residual test state. Production (wyyuqfdxucjksghsmhry) is NOT promoted -- see docs/audits/rp106-vto-attempt-release-promotion.md."
+          },
+          {
+            "localVersion": "20261011222213",
+            "logicalName": "build35_speech_operational_cost_controls",
+            "classification": "APPLIED_AND_CERTIFIED",
+            "appliedConfirmedOn": "2026-10-12",
+            "evidence": "Staging migration-only run38257025966 succeeded from integration32b9c427. Live ledger version/name verified; all three Speech tables RLS enabled, client table/RPC access denied, service-only reserve/finish RPCs present. Controls disabled, daily budget zero, reservation and cost rows zero."
           }
         ]
       },
@@ -1009,15 +938,6 @@
             ],
             "classification": "EXACT_VERSION_APPLIED",
             "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
-          },
-          {
-            "localVersion": "20261004184118",
-            "logicalName": "kplus_offer_code_redemption_authority",
-            "remoteVersions": [
-              "20261004184118"
-            ],
-            "classification": "EXACT_VERSION_APPLIED",
-            "evidence": "Live Production ledger (wyyuqfdxucjksghsmhry), read-only on 2026-10-07, records this exact version and name as applied, alongside 20261002010000, 20261003195716, 20261004221500 and 20261004231628. The earlier KNOWN_FUTURE_UNAPPLIED declaration came from a readiness snapshot that predated it and is retired. This entry reconciles source inventory to the live ledger and authorizes no execution; Production migrations are never replayed from this tooling."
           },
           {
             "localVersion": "20261004221500",
@@ -1508,6 +1428,12 @@
             "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260917163000_b34_fk_delete_path_indexes.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
+            "localVersion": "20261004184118",
+            "logicalName": "kplus_offer_code_redemption_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Build 35 post-#499 source includes the offer-code authority, but the production-readiness ledger snapshot does not contain version 20261004184118. It remains non-executable unless separately approved through the controlled migration gate."
+          },
+          {
             "localVersion": "20261011222213",
             "logicalName": "build35_speech_operational_cost_controls",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
@@ -1545,6 +1471,24 @@
             "logicalName": "build33_production_trigger_search_path_convergence",
             "classification": "PRODUCTION_ONLY_HISTORICAL",
             "evidence": "Ledger row present (1667 chars). No local file carries this logical name. Its effect is verified live: 0 SECURITY DEFINER routines and 0 trigger functions in public/internal carry an unpinned search_path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20261012203811",
+            "logicalName": "build35_reaction_counts_share_token_functional_parity",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 866c6c38e28f73dcbe1c5f16d8c48b5541748159aa3d827516218b9365f87c16. Live pg_get_functiondef confirms get_item_reaction_counts(uuid[],text) binds anonymous access to the specific active, unrevoked, unexpired room share token; the old uuid[] overload is absent. This is existing Production security history, not permission to replay SQL. See docs/audits/build35-production-security-history-20261013.md."
+          },
+          {
+            "remoteVersion": "20261012203929",
+            "logicalName": "build35_revoke_trigger_only_client_execute_grants",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 5fd592b94ba71a3b181f4a9e729e53f216ca47b264208f544ea4115102d5574f. Live has_function_privilege confirms set_provider_request_limits_updated_at() denies anon/authenticated EXECUTE; service_role retains its existing grant. No local migration has this ledger identity. Preserve this existing trigger-only containment; do not replay. See docs/audits/build35-production-security-history-20261013.md."
+          },
+          {
+            "remoteVersion": "20261012204354",
+            "logicalName": "build35_contain_unauthorized_kplus_early_access_grants",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Production ledger SQL retrieved read-only on 2026-10-13; SHA256 a3e8c3e25ba4d73b21abb019f62546ddcc554084ca24fec0cf8f26dd880eb519. Live has_function_privilege confirms grant_kplus_early_access(uuid) denies anon/authenticated/service_role EXECUTE. This is the owner-directed October 12 complimentary-campaign containment; paid RevenueCat entitlement authority is separate and unchanged. No local migration has this ledger identity. Do not replay or restore the revoked grants. See docs/audits/build35-production-security-history-20261013.md."
           }
         ],
         "genuinelyUnapplied": []
