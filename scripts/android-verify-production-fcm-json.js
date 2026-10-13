@@ -23,16 +23,16 @@ function verify() {
 
   if (json?.project_info?.project_id !== expectedProjectId)
     return fail('Firebase project_id does not match the assigned FCM V1 credential project');
-  if (!/^\\d+$/.test(String(json?.project_info?.project_number || '')))
+  if (!/^\d+$/.test(String(json?.project_info?.project_number || '')))
     return fail('Firebase project_number is missing or invalid');
-  if (!/^https?:\\/\\//.test(String(json?.project_info?.firebase_url || '')) &&
+  if (!/^https?:\/\//.test(String(json?.project_info?.firebase_url || '')) &&
       json?.project_info?.firebase_url !== undefined)
     return fail('Firebase database URL, if present, must be HTTP(S)');
 
   const clients = (Array.isArray(json?.client) ? json.client : [])
     .filter(client => client?.client_info?.android_client_info?.package_name === expectedPackage);
   if (!clients.length) return fail('No Firebase Android client matches com.kscanai.app');
-  if (!clients.some(client => /^[^\\s:]+:[^\\s:]+:android:[^\\s:]+$/.test(String(client?.client_info?.mobilesdk_app_id || ''))))
+  if (!clients.some(client => /^[^\s:]+:[^\s:]+:android:[^\s:]+$/.test(String(client?.client_info?.mobilesdk_app_id || ''))))
     return fail('Matching Android client has no valid mobilesdk_app_id');
   if (!clients.some(client => Array.isArray(client.api_key) &&
       client.api_key.some(key => typeof key?.current_key === 'string' && key.current_key.trim().length > 0)))
