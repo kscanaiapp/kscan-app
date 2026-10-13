@@ -253,7 +253,7 @@ function assertResolvingIsNotFree(describe) {
   for (const state of ['loading', 'error']) {
     const status = describe(state, null);
     assert.notEqual(status.subtitle, OFFER_COPY, `${state} must not show the offer`);
-    assert.notEqual(status.action, 'activate', `${state} must not offer activation`);
+    assert.notEqual(status.action, 'membership', `${state} must not offer activation`);
     assert.equal(status.pillLabel, null, `${state} states no membership`);
   }
   assert.equal(describe('error', null).action, 'retry', 'an unreadable status can be re-checked');
@@ -268,20 +268,20 @@ test('POLISH-002: the resolved states keep their existing presentation', () => {
   const describe = accountStatus();
   assert.deepEqual(
     { ...describe('eligible', null) },
-    { subtitle: OFFER_COPY, pillLabel: 'Early Access available', pillVariant: 'neutral', action: 'activate' },
+    { subtitle: 'K+ is not active on this account.', pillLabel: 'K Scan AI Free', pillVariant: 'neutral', action: 'membership' },
   );
   const active = describe('active', 'March 1, 2027');
   assert.equal(active.subtitle, 'Active through March 1, 2027.');
   assert.equal(active.pillLabel, 'K+ Active');
   assert.equal(active.pillVariant, 'gold');
-  assert.equal(active.action, null);
+  assert.equal(active.action, 'membership');
 });
 
 test('Build 35: acquisition OFF keeps the resolved Free account state but removes complimentary offer copy', () => {
   const eligible = accountStatus(undefined, false)('eligible', null);
   assert.equal(eligible.subtitle, 'K+ is not active on this account.');
   assert.equal(eligible.pillLabel, 'K Scan AI Free');
-  assert.equal(eligible.action, null);
+  assert.equal(eligible.action, 'membership');
 });
 
 test('POLISH-002 NEGATIVE CONTROL: the pre-repair fallthrough (offer for every unknown state) is caught', () => {
@@ -296,14 +296,14 @@ test('POLISH-002 NEGATIVE CONTROL: the pre-repair fallthrough (offer for every u
 
 test('POLISH-008: the expired subtitle adds information instead of repeating the pill', () => {
   const expired = accountStatus()('expired', null);
-  assert.equal(expired.pillLabel, 'Complimentary access ended');
+  assert.equal(expired.pillLabel, 'K+ access ended');
   assert.notEqual(expired.subtitle.replace(/\.$/, ''), expired.pillLabel);
-  assert.match(expired.subtitle, /no charge and nothing to cancel/);
+  assert.match(expired.subtitle, /restore a purchase/);
 });
 
 test('POLISH-002: the Account screen renders the helper and wires retry to refresh', () => {
   const privacy = read('app/privacy.tsx');
-  assert.match(privacy, /describeKPlusAccountStatus\([\s\S]*kPlusEntitlement\.state,[\s\S]*KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.match(privacy, /describeKPlusAccountStatus\([\s\S]*kPlusEntitlement\.state,[\s\S]*kPlusExpiryLabel/);
   assert.match(privacy, /kPlusStatus\.action === 'retry'\s*\?\s*kPlusEntitlement\.refresh/);
   assert.ok(!privacy.includes(OFFER_COPY), 'the offer copy lives in one place, the helper');
 });

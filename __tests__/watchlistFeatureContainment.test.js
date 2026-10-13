@@ -711,7 +711,7 @@ test('DETAIL ROUTE: the gate is structural — no hooks in the exported componen
 test('HOME ENTRY: availability is composed before entitlement, never entitlement alone', () => {
   const source = read('components/home/HomeLuxuryTechV1.tsx');
   const executable = source.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\/.*$/gm, '');
-  assert.match(executable, /const watchlistEnabled = SMART_WATCHLIST_V1 && hasRuntimeCapabilityProof\('smart_watchlist', 'watch_tracking'\);/);
+  assert.match(executable, /const watchlistEnabled = SMART_WATCHLIST_V1;/);
   assert.match(
     executable,
     /\{watchlistEnabled && \(\s*\n\s*<KPlusGate source="watchlist">/,

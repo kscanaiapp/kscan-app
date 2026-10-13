@@ -19,9 +19,16 @@ export function CloudClosetCard({ items, onRefresh }: {
   items: readonly { id: string; updatedAt?: string }[];
   onRefresh: () => unknown;
 }) {
-  // Discovery cannot outrun proof. This does not stop the existing engines.
-  if (!CLOSET_CLOUD_SYNC_V1 || !CLOSET_CROSS_DEVICE_RESTORE_V1 || !CLOSET_LEGACY_MIGRATION_V1
-    || !hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync')) return null;
+  if (!CLOSET_CLOUD_SYNC_V1 || !CLOSET_CROSS_DEVICE_RESTORE_V1 || !CLOSET_LEGACY_MIGRATION_V1) return null;
+  // No paid claim, upgrade action or sync I/O without current runtime proof.
+  if (!hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync')) {
+    return (
+      <View style={styles.card} testID="cloud-closet-unavailable">
+        <Text style={styles.title}>CLOUD CLOSET</Text>
+        <Text style={styles.body}>Cloud backup is currently unavailable. Your Closet on this device stays free.</Text>
+      </View>
+    );
+  }
   return (
     <KPlusGate source="closet_intelligence">
       {({ state, isActive, resolving, openUpgrade }) => (

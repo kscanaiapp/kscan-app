@@ -1,7 +1,8 @@
 /**
  * What the Account screen's K+ row says for each entitlement state.
  *
- * Presentation only -- it never grants, checks, or extends access.
+ * Paid membership presentation only -- it never grants, checks, or extends
+ * access. Access status alone cannot establish charges or renewal terms.
  *
  * RESOLVING != FREE (POLISH-002). The row used to show the eligible offer
  * ("Complimentary for 6 months. No payment required.") for every state that
@@ -12,7 +13,7 @@
  */
 import type { KPlusResolvedState } from '../../types/entitlements';
 
-export type KPlusAccountAction = 'activate' | 'retry';
+export type KPlusAccountAction = 'membership' | 'retry';
 
 export interface KPlusAccountStatus {
   subtitle: string;
@@ -24,7 +25,6 @@ export interface KPlusAccountStatus {
 export function describeKPlusAccountStatus(
   state: KPlusResolvedState,
   expiryLabel: string | null,
-  complimentaryAcquisitionEnabled: boolean,
 ): KPlusAccountStatus {
   switch (state) {
     case 'active':
@@ -32,31 +32,21 @@ export function describeKPlusAccountStatus(
         subtitle: expiryLabel ? `Active through ${expiryLabel}.` : 'Your K+ access is active.',
         pillLabel: 'K+ Active',
         pillVariant: 'gold',
-        action: null,
+        action: 'membership',
       };
     case 'expired':
       return {
-        // POLISH-008: the pill already says the access ended; the subtitle
-        // answers the question that raises (is anything owed or renewing?).
-        subtitle: 'There is no charge and nothing to cancel.',
-        pillLabel: 'Complimentary access ended',
+        subtitle: 'Your K+ access has ended. View membership options or restore a purchase.',
+        pillLabel: 'K+ access ended',
         pillVariant: 'neutral',
-        action: null,
+        action: 'membership',
       };
     case 'eligible':
-      if (!complimentaryAcquisitionEnabled) {
-        return {
-          subtitle: 'K+ is not active on this account.',
-          pillLabel: 'K Scan AI Free',
-          pillVariant: 'neutral',
-          action: null,
-        };
-      }
       return {
-        subtitle: 'Complimentary for 6 months. No payment required.',
-        pillLabel: 'Early Access available',
+        subtitle: 'K+ is not active on this account.',
+        pillLabel: 'K Scan AI Free',
         pillVariant: 'neutral',
-        action: 'activate',
+        action: 'membership',
       };
     case 'loading':
       return {

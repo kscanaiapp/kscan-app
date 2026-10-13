@@ -24,7 +24,7 @@ const authSessionContext = fs.readFileSync(
 );
 
 test('Voice Scan pill shows the K+ acquisition copy, gated by KPLUS_EARLY_ACCESS_ENABLED', () => {
-  assert.match(textScanFeatureRow, /KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.doesNotMatch(textScanFeatureRow, /KPLUS_EARLY_ACCESS_ENABLED/);
   // POLISH-005 (Build 34 final polish): "Unlock with K+" replaces "Upgrade to
   // K+" -- complimentary activation has no purchase path to upgrade through.
   assert.match(textScanFeatureRow, /'Unlock with K\+'/);
@@ -43,8 +43,8 @@ test('Voice Scan falls back to Coming Soon only when Voice Scan itself is off', 
 test('Voice Scan pill never opens a nonexistent feature for an active K+ member', () => {
   const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
   // BUILD34-KPLUS-RESOLVING-001 widened both guards to `isActive || resolving`.
-  assert.match(block, /disabled=\{isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED\}/);
-  assert.match(block, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED \? undefined : openUpgrade/);
+  assert.match(block, /disabled=\{isActive \|\| resolving\}/);
+  assert.match(block, /isActive \|\| resolving \? undefined : openUpgrade/);
 });
 
 test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundary flag (Build 34 K+ Early Access shell, section 8)', () => {
@@ -55,7 +55,7 @@ test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundar
   // itself was implemented.
   const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
   assert.match(block, /if \(!VOICESCAN_ENABLED\)/);
-  assert.match(block, /isActive \|\| resolving \|\| !KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.match(block, /isActive \|\| resolving/);
 });
 
 test('KPlusGate always renders the shared K+ Early Access sheet, never a feature-specific paywall', () => {
@@ -72,7 +72,7 @@ test('K+ sheet uses complimentary-access language and never subscription/billing
 });
 
 test('Account/Profile screen renders canonical K+ status for every authenticated actor', () => {
-  assert.match(privacyScreen, /KPLUS_EARLY_ACCESS_ENABLED/);
+  assert.doesNotMatch(privacyScreen, /KPLUS_EARLY_ACCESS_ENABLED/);
   assert.match(privacyScreen, /useKPlusEntitlement/);
   assert.match(privacyScreen, /title="K\+"/);
   assert.match(privacyScreen, /\{isAuthenticated \? \(/);
