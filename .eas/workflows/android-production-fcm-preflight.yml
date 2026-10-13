@@ -1,7 +1,7 @@
 name: Android Production FCM JSON preflight
 # Manual pre-AAB check only. No native build, provider call or secret output.
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   verify_android_fcm:
