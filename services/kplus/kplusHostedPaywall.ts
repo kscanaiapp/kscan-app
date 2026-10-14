@@ -13,6 +13,11 @@ import { NativeModules, Platform } from 'react-native';
 export type HostedKPlusOutcome =
   | 'dismissed' | 'purchased' | 'restored' | 'unavailable';
 
+export function isHostedKPlusPaywallAvailable(): boolean {
+  return (Platform.OS === 'ios' || Platform.OS === 'android')
+    && Boolean(NativeModules.RNPurchases && NativeModules.RNPaywalls);
+}
+
 export function mapHostedPaywallResult(result: string): HostedKPlusOutcome {
   if (result === 'PURCHASED') return 'purchased';
   if (result === 'RESTORED') return 'restored';
@@ -26,7 +31,7 @@ export function mapHostedPaywallResult(result: string): HostedKPlusOutcome {
  */
 export async function presentHostedKPlusPaywall(actorId: string): Promise<HostedKPlusOutcome> {
   if (!actorId || (Platform.OS !== 'ios' && Platform.OS !== 'android')) return 'unavailable';
-  if (!NativeModules.RNPurchases || !NativeModules.RNPaywalls) return 'unavailable';
+  if (!isHostedKPlusPaywallAvailable()) return 'unavailable';
 
   try {
     // Import only after checking native linkage. Expo Go / previous signed
