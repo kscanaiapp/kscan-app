@@ -1,42 +1,18 @@
 /**
- * Which K+ surface a gate opens for an actor who does not hold K+.
- *
- * There are two, and they are not interchangeable:
- *
- *   'membership'    the paid K+ membership surface -- the same model, store
- *                   products, trial metadata, Restore and canonical-entitlement
- *                   handling as Welcome Step 6 (components/kplus/
- *                   KPlusMembershipStep.tsx), presented after onboarding by
- *                   components/kplus/KPlusMembershipSheet.tsx.
- *   'early_access'  the Build 34 complimentary Early Access status/activation
- *                   sheet (components/kplus/KPlusEarlyAccessSheet.tsx).
- *
- * WHY THIS IS A CLOSED, PER-SOURCE DECISION. Every K+ gate used to open the
- * Early Access sheet. Once Step 6 began selling Monthly and Lifetime, a gate
- * that still opened that sheet offered a Free actor something different from
- * what onboarding had just offered them. Each gate moves to the membership
- * surface deliberately, by acquiring an entry below -- not by a global switch,
- * which would change unrelated features' acquisition path. Virtual Try-On and
- * the Build35 premium-value surfaces share the paid membership authority.
- *
- * This decides WHICH SURFACE OPENS and nothing else. It carries no price, no
- * product, no trial and no entitlement rule: the membership surface reads all
- * of those from the existing K+ commerce authority, and who holds K+ is still
- * answered only by the canonical entitlement summary.
+ * All authenticated K+ acquisition routes now share the paid RevenueCat
+ * membership surface. Complimentary grants are evaluated by the canonical
+ * entitlement reader; they are NOT acquired through a client Early Access UI.
+ * Retained source taxonomy is bounded for telemetry only.
  */
-
 import type { KPlusSource } from '../../types/kplusSource';
 
-export type KPlusAcquisitionSurface = 'membership' | 'early_access';
+export type KPlusAcquisitionSurface = 'membership';
 
-/** Sources whose gate opens the paid membership surface. */
 export const KPLUS_MEMBERSHIP_ACQUISITION_SOURCES: readonly KPlusSource[] = Object.freeze([
   'vto', 'packing', 'watchlist', 'closet_intelligence',
-  // Build 35 paid acquisition: Voice Scan and onboarding permission CTAs
-  // must never route to the disabled complimentary Early Access sheet.
-  'voice_scan', 'onboarding', 'account', 'wardrobe_concierge',
+  'voice_scan', 'onboarding', 'account', 'wardrobe_concierge', 'unknown',
 ]);
 
-export function resolveKPlusAcquisitionSurface(source: KPlusSource): KPlusAcquisitionSurface {
-  return KPLUS_MEMBERSHIP_ACQUISITION_SOURCES.includes(source) ? 'membership' : 'early_access';
+export function resolveKPlusAcquisitionSurface(_source: KPlusSource): KPlusAcquisitionSurface {
+  return 'membership';
 }
