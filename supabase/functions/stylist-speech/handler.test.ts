@@ -149,6 +149,24 @@ Deno.test('unreadable K+ entitlement fails closed before provider reservation', 
   assert.equal(reservations, 0);
 });
 
+Deno.test('K+ lapse during owned-message lookup blocks paid reservation', async () => {
+  let checks = 0; let reservations = 0; let paidCalls = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      hasActiveKPlus: () => Promise.resolve(++checks === 1),
+      reserveSpeechRequest: () => { reservations++; throw new Error('reservation must not run'); },
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(checks, 2);
+  assert.equal(reservations, 0);
+  assert.equal(paidCalls, 0);
+});
+
 Deno.test('active K+ can reserve and generate authorized speech', async () => {
   let checks = 0; let reservations = 0; let paidCalls = 0;
   const handler = handlerFor({ kplusActive: true }, {
@@ -166,7 +184,7 @@ Deno.test('active K+ can reserve and generate authorized speech', async () => {
     },
   });
   assert.equal((await handler(speechRequest())).status, 200);
-  assert.equal(checks, 1);
+  assert.equal(checks, 2);
   assert.equal(reservations, 1);
   assert.equal(paidCalls, 1);
 });
