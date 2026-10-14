@@ -20,8 +20,8 @@ try {
     create table public.profiles (id uuid primary key references auth.users, account_status text);
     create table public.__speech_test_kplus (id uuid primary key);
     create function public.kplus_has_active_entitlement(p_user_id uuid, p_entitlement_key text)
-      returns boolean language sql stable as $ select p_entitlement_key = 'k_plus'
-        and exists (select 1 from public.__speech_test_kplus where id = p_user_id) $;
+      returns boolean language sql stable as $speech$ select p_entitlement_key = 'k_plus'
+        and exists (select 1 from public.__speech_test_kplus where id = p_user_id) $speech$;
     insert into auth.users values ('${a}'), ('${b}');
     insert into public.__speech_test_kplus values ('${a}'), ('${b}');
     insert into profiles values ('${a}', 'active'), ('${b}', 'active');
