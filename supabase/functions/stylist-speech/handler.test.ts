@@ -189,6 +189,22 @@ Deno.test('active K+ can reserve and generate authorized speech', async () => {
   assert.equal(paidCalls, 1);
 });
 
+
+Deno.test('reservation K+ revocation rejects before ElevenLabs even after preflight access succeeded', async () => {
+  let paidCalls = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      reserveSpeechRequest: () => Promise.resolve({ allowed: false, reason: 'entitlement_required' }),
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(paidCalls, 0);
+});
+
 Deno.test('unknown or unavailable account status cannot dispatch paid Speech', async () => {
   for (const accountStatus of [null, 'unknown', 'deactivated', 'purged']) {
     let calls = 0;
