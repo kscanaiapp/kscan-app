@@ -82,8 +82,6 @@ export interface StylistPreferenceRow {
 export interface StylistSpeechDataAccess {
   getAuthenticatedActor(): Promise<{ id: string; isAnonymous?: boolean } | null>;
   getAccountStatus(actorId: string): Promise<string | null>;
-  /** JWT-bound canonical k_plus entitlement. Unknown/error must fail closed. */
-  hasActiveKPlus(actorId: string): Promise<boolean>;
   reserveSpeechRequest(actorId: string, fingerprint: string, characters: number): Promise<{
     allowed: boolean; reservationId?: string; reason?: string;
   }>;
@@ -97,7 +95,6 @@ export type SpeechErrorCode =
   | 'INVALID_REQUEST'
   | 'NOT_AUTHENTICATED'
   | 'ACCOUNT_UNAVAILABLE'
-  | 'ENTITLEMENT_REQUIRED'
   | 'SPEECH_DISABLED'
   | 'SPEECH_COST_LIMIT'
   | 'SESSION_NOT_FOUND'
