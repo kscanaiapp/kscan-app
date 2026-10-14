@@ -707,6 +707,14 @@
             "appliedConfirmedOn": "2026-10-12",
             "evidence": "Staging migration-only run38257025966 succeeded from integration32b9c427. Live ledger version/name verified; all three Speech tables RLS enabled, client table/RPC access denied, service-only reserve/finish RPCs present. Controls disabled, daily budget zero, reservation and cost rows zero."
           }
+        ],
+        "knownPending": [
+          {
+            "localVersion": "20261014210000",
+            "logicalName": "stylist_speech_kplus_reservation_guard",
+            "disposition": "HOLD",
+            "evidence": "Read-only Supabase migration ledger inspection on 2026-10-14 verified 20261014210000 absent from Staging (yzqjvdfgefveprobvvyw); additive/replace-only reservation K+ guard is source-proposed on canonical backend PR #581. Database effect is absent. HOLD forbids selection or execution until its exact migration is approved via the governed single-version process after non-billing regression, staging migration replay, privilege/RLS inspection and source/current-ledger convergence. Provider billing remains disabled and its daily character budget remains zero."
+          }
         ]
       },
       "wyyuqfdxucjksghsmhry": {
@@ -1439,6 +1447,12 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Owner-authorized Build 35 Speech technical repair commit 52754726388db5279d94c8154901a0c6a112fbc8. Read-only inspection on 2026-10-11 confirms this ledger version and all three new public Speech control/reservation/cost tables absent from Staging and Production. Additive RLS/service-only migration defaults disabled with zero budget. Declaration records pending source, not deployment permission: requires exact single-version governed invocation and protected human approval for Production."
+          },
+          {
+            "localVersion": "20261014210000",
+            "logicalName": "stylist_speech_kplus_reservation_guard",
+            "disposition": "HOLD",
+            "evidence": "Read-only Supabase migration ledger inspection on 2026-10-14 verified 20261014210000 absent from Production (wyyuqfdxucjksghsmhry); additive/replace-only reservation K+ guard is source-proposed on canonical backend PR #581. Database effect is absent. HOLD forbids selection or execution until its exact migration is approved via the governed single-version process after non-billing regression, staging migration replay, privilege/RLS inspection and source/current-ledger convergence. Provider billing remains disabled and its daily character budget remains zero."
           }
         ],
         "remoteOnly": [
