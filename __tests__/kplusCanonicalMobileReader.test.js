@@ -484,17 +484,18 @@ test('SCOPE: no K+ gate learns purchase mechanics (store grants, RevenueCat SDK,
   assert.deepEqual(offenders, [], 'purchase complexity belongs in the entitlement/provider layer, not in a feature gate');
 });
 
-// Phase A pinned "the native purchase SDK is NOT added". Build 35 Phase B is the
-// phase that adds it (an explicit, later spec), so the pin now says what is true
-// after Phase B: exactly ONE purchases package, the official one, pinned exactly.
-// The checks that matter for Phase A still hold: no feature gate imports it
-// (previous test) and nothing else RevenueCat-shaped ships in the client.
-test('SCOPE: the native purchase SDK is the single, exactly-pinned Phase B dependency', () => {
+// Paywalls V2 adds RevenueCat's UI bridge beside the canonical purchases SDK.
+// Both are exact-version-pinned: no other RevenueCat/billing libraries can
+// become a second purchase authority or bypass existing entitlement checks.
+test('SCOPE: core RevenueCat purchases and native paywall UI are the only exactly matched dependencies', () => {
   const pkg = JSON.parse(read('package.json'));
+  const lock = JSON.parse(read('package-lock.json'));
   const all = { ...pkg.dependencies, ...pkg.devDependencies };
-  const purchaseish = Object.keys(all).filter((name) => /purchases|revenuecat/i.test(name));
-  assert.deepEqual(purchaseish, ['react-native-purchases']);
+  const purchaseish = Object.keys(all).filter((name) => /purchases|revenuecat/i.test(name)).sort();
+  assert.deepEqual(purchaseish, ['react-native-purchases', 'react-native-purchases-ui']);
   assert.match(all['react-native-purchases'], /^\d+\.\d+\.\d+$/, 'pinned exactly, no range');
+  assert.equal(all['react-native-purchases-ui'], all['react-native-purchases'], 'SDK and paywalls UI must match exactly');
+  assert.equal(lock.packages['node_modules/react-native-purchases-ui'].version, all['react-native-purchases']);
 });
 
 test('SCOPE: the hook still decides access only from the resolved state', () => {
