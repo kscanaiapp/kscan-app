@@ -56,7 +56,8 @@ test('PERM-KPLUS-001: Microphone is permanently OPTIONAL and uses the canonical 
   const microphone = cardBlock('Microphone', 'Notifications');
   assert.match(microphone, /badge="OPTIONAL"/);
   assert.match(permissionsStep, /<KPlusGate source="onboarding">/);
-  assert.match(kPlusGate, /KPlusEarlyAccessSheet/);
+  assert.match(kPlusGate, /KPlusMembershipSheet/);
+  assert.doesNotMatch(kPlusGate, /KPlusEarlyAccessSheet/);
   assert.match(kPlusSources, /'onboarding'/);
   assert.match(microphone, /canUseVoiceScan \? 'status' : 'button'/);
   assert.match(microphone, /UNLOCK WITH K\+/);

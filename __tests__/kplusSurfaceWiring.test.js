@@ -58,8 +58,9 @@ test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundar
   assert.match(block, /isActive \|\| resolving/);
 });
 
-test('KPlusGate always renders the shared K+ Early Access sheet, never a feature-specific paywall', () => {
-  assert.match(kPlusGate, /KPlusEarlyAccessSheet/);
+test('KPlusGate routes all feature acquisitions to the membership sheet, never Early Access', () => {
+  assert.match(kPlusGate, /KPlusMembershipSheet/);
+  assert.doesNotMatch(kPlusGate, /KPlusEarlyAccessSheet/);
 });
 
 test('K+ sheet uses complimentary-access language and never subscription/billing language', () => {

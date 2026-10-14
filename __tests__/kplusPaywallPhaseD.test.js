@@ -203,6 +203,7 @@ function mount(o = {}) {
     '../../services/kplus/kplusPaywallModel': m,
     '../icons/kscan': { KScanIcon: 'KScanIcon' },
   }, { mutate: o.mutateParts });
+  let key = o.actorKey ?? 'actor-a';
   const commerceService = {
     KPLUS_COMMERCE_RECHECK_DELAYS_MS: [2000, 5000, 10000, 20000],
     loadKPlusOfferings: async () => { env.calls.load += 1; return env.loadImpl(); },
@@ -215,6 +216,16 @@ function mount(o = {}) {
     'react-native': rn,
     '../../constants/theme': themeTokens,
     '../../constants/kplusPaywallTheme': theme,
+    '../../contexts/AuthSessionContext': {
+      useAuthSession: () => ({ user: { id: key }, isAuthenticated: true }),
+    },
+    '../../services/kplus/kplusHostedPaywall': {
+      isHostedKPlusPaywallAvailable: () => Boolean(o.hostedAvailable),
+      presentHostedKPlusPaywall: async () => 'unavailable',
+    },
+    '../../services/kplus/kplusEntitlementStore': {
+      refreshKPlusEntitlement: async () => { env.calls.refresh += 1; },
+    },
     '../../hooks/useKPlusEntitlement': {
       useKPlusEntitlement: () => ({
         ...env.entitlement,
@@ -251,7 +262,6 @@ function mount(o = {}) {
     onSkip: () => { env.calls.skip += 1; },
     ...(o.props ?? {}),
   };
-  let key = o.actorKey ?? 'actor-a';
   let tree = null;
 
   // `host: 'sheet'` renders the SAME step module through the post-onboarding

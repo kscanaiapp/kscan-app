@@ -23,6 +23,9 @@ import { AccessibilityInfo, ActivityIndicator, StyleSheet, Text, View } from 're
 import { LUXURY, SPACING } from '../../constants/theme';
 import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { isHostedKPlusPaywallAvailable, presentHostedKPlusPaywall } from '../../services/kplus/kplusHostedPaywall';
+import { refreshKPlusEntitlement } from '../../services/kplus/kplusEntitlementStore';
 import { useKPlusCommerceSnapshot } from '../../hooks/useKPlusCommerce';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
 import {
@@ -105,7 +108,10 @@ export function KPlusMembershipStep({
   context = 'onboarding',
 }: KPlusMembershipStepProps) {
   const entitlement = useKPlusEntitlement();
+  const { user, isAuthenticated } = useAuthSession();
   const commerce = useKPlusCommerceSnapshot();
+  const [hosted, setHosted] = useState<'idle' | 'opening' | 'fallback' | 'resolving'>('idle');
+  const hostedAttemptedRef = useRef(false);
   const [ui, setUi] = useState<KPlusPaywallUiState>(INITIAL_KPLUS_PAYWALL_UI);
   // The redemption surface is an in-step view, not a second sheet: it swaps
   // with the paywall body and hands back with Cancel / Done. It decides
@@ -275,6 +281,46 @@ export function KPlusMembershipStep({
     onContinue();
   }, [onContinue]);
 
+
+  // Paywalls V2 is hosted by the native RevenueCat SDK. We use the ordinary
+  // presentPaywall (NOT presentPaywallIfNeeded): RevenueCat is not authoritative
+  // for K Scan's time-bounded complimentary K+ grants.
+  // All authentication, canonical membership and benefit/readiness checks
+  // occur before any native purchase UI can be presented.
+  useEffect(() => {
+    if (hostedAttemptedRef.current || !isAuthenticated || !user?.id) return;
+    if (!isHostedKPlusPaywallAvailable()) return;
+    if (entitlement.state !== 'eligible' && entitlement.state !== 'expired') return;
+    if (!isAcquisitionEntry || nothingToSell || !liveSignalsSettled) return;
+    if (commerce.status !== 'READY' || !view.paywall) return;
+    if (commerce.catalog?.monthly.status !== 'available' && commerce.catalog?.annual.status !== 'available') return;
+
+    hostedAttemptedRef.current = true;
+    let disposed = false;
+    const actorId = user.id;
+    setHosted('opening');
+    // Defer presentation until the current onboarding/sheet transition settles.
+    // On iOS this avoids presenting a native paywall while a RN Modal animates.
+    const timer = setTimeout(() => {
+      void presentHostedKPlusPaywall(actorId).then(async (result) => {
+        if (disposed) return;
+        if (result === 'dismissed') {
+          onContinue(); // Close a feature gate, or continue onboarding as Free.
+        } else if (result === 'purchased' || result === 'restored') {
+          setHosted('resolving');
+          // Provider success never grants K+. Await the canonical server.
+          await refreshKPlusEntitlement();
+        } else {
+          // Old binaries, unpublished/offline paywall, or unavailable native
+          // module retain a truthful custom store-sourced Free/retry fallback.
+          setHosted('fallback');
+        }
+      }).catch(() => { if (!disposed) setHosted('fallback'); });
+    }, 350);
+    return () => { disposed = true; clearTimeout(timer); };
+  }, [commerce.status, commerce.catalog, entitlement.state, isAcquisitionEntry,
+      isAuthenticated, liveSignalsSettled, nothingToSell, onContinue, user?.id, Boolean(view.paywall)]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (view.screen === 'SIGNED_OUT') {
@@ -335,6 +381,31 @@ export function KPlusMembershipStep({
     );
   }
 
+
+  if (hosted === 'opening' && entitlement.state !== 'active') {
+    return (
+      <View style={[styles.root, styles.centered]} testID="kplus-hosted-paywall-opening" accessibilityState={{ busy: true }}>
+        <ActivityIndicator size="large" color={P.deepPlum} />
+        <Text style={styles.centeredBody}>Opening K+ membership options…</Text>
+      </View>
+    );
+  }
+  if (hosted === 'resolving' && entitlement.state !== 'active') {
+    return (
+      <View style={styles.root} testID="kplus-hosted-paywall-pending-entitlement">
+        <KPlusPaywallHeader compact />
+        <KPlusStatusPanel
+          testID="kplus-hosted-purchase-pending"
+          icon={<ActivityIndicator color={P.brushedGold} />}
+          title="Finishing your K+ setup"
+          body="Your store action was received. We’re checking your K+ access securely before unlocking premium features."
+        >
+          <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={entitlement.refresh} />
+          <KPlusTextAction testID="kplus-hosted-continue-later" label="Continue without unlocking K+" tone="graphite" onPress={onContinue} />
+        </KPlusStatusPanel>
+      </View>
+    );
+  }
   if (view.screen === 'ACTIVE_KPLUS') {
     return (
       <View style={styles.root} testID="kplus-membership-active">

@@ -2,19 +2,12 @@
 // render through this component rather than building a feature-specific
 // paywall/gate.
 //
-// WHICH SURFACE IT OPENS is decided per source by
-// services/kplus/kplusAcquisitionSurface.ts, not here and not by the caller:
-//   'membership'    KPlusMembershipSheet -- the paid K+ membership paywall, the
-//                   same orchestrator Welcome Step 6 renders;
-//   'early_access'  KPlusEarlyAccessSheet -- the shared K+ status and legacy
-//                   complimentary-acquisition surface.
-// Exactly one of the two is ever mounted for a given gate.
+// All acquisition entry points open the same paid membership sheet.
+// Canonical entitlement distinguishes paid, complimentary and Free actors.
 import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
-import { KPlusEarlyAccessSheet } from './KPlusEarlyAccessSheet';
 import { KPlusMembershipSheet } from './KPlusMembershipSheet';
-import { resolveKPlusAcquisitionSurface } from '../../services/kplus/kplusAcquisitionSurface';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import {
   isKPlusEntitlementUnresolved,
@@ -41,8 +34,7 @@ export interface KPlusGateRenderArgs {
    * __tests__/kplusResolvingNeverFree.test.js.
    */
   resolving: boolean;
-  /** Opens this gate's K+ surface: the membership paywall or the shared
-   *  status / legacy complimentary-acquisition sheet, by source. */
+  /** Opens the canonical K+ membership paywall or owned membership status. */
   openUpgrade: () => void;
   /** Presentation state only, so native feature modals can yield to this sheet. */
   acquisitionVisible: boolean;
@@ -60,7 +52,6 @@ export function KPlusGate({ children, source }: KPlusGateProps) {
   const { state, isActive } = useKPlusEntitlement();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetPresented, setSheetPresented] = useState(false);
-  const surface = resolveKPlusAcquisitionSurface(source);
 
   // Fires once per mount (i.e. once per real presentation of this gate),
   // never on a state/entitlement re-render -- section 17.
@@ -82,12 +73,8 @@ export function KPlusGate({ children, source }: KPlusGateProps) {
   return (
     <>
       {children({ state, isActive, resolving: isKPlusEntitlementUnresolved(state), openUpgrade,
-        acquisitionVisible: surface === 'membership' ? sheetVisible || sheetPresented : sheetVisible })}
-      {surface === 'membership' ? (
-        <KPlusMembershipSheet visible={sheetVisible} onClose={closeSheet} onDismiss={() => setSheetPresented(false)} />
-      ) : (
-        <KPlusEarlyAccessSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} source={source} />
-      )}
+        acquisitionVisible: sheetVisible || sheetPresented })}
+      <KPlusMembershipSheet visible={sheetVisible} onClose={closeSheet} onDismiss={() => setSheetPresented(false)} />
     </>
   );
 }
