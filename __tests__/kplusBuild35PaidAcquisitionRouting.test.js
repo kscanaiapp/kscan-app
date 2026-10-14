@@ -30,17 +30,15 @@ test('existing paid VTO, Packing, Watchlist and Closet upgrade paths are unchang
   for (const source of ['vto', 'packing', 'watchlist', 'closet_intelligence', 'account', 'wardrobe_concierge']) {
     assert.equal(resolve(source), 'membership', source);
   }
-  // This narrow repair must not silently move unrelated legacy entry points.
-  for (const source of ['unknown']) {
-    assert.equal(resolve(source), 'early_access', source);
-  }
+  // Unknown sources must never reactivate retired complimentary acquisition.
+  assert.equal(resolve('unknown'), 'membership');
 });
 
 test('the fixed mapping connects the actual welcome permission and Home Voice Scan entry points', () => {
   assert.match(read('components/account-home/PermissionsStepV1.tsx'), /<KPlusGate source="onboarding">/);
   assert.match(read('components/home/HomeVoiceScanPill.tsx'), /<KPlusGate source="voice_scan">/);
   const gate = read('components/kplus/KPlusGate.tsx');
-  assert.match(gate, /resolveKPlusAcquisitionSurface\(source\)/);
+  assert.doesNotMatch(gate, /KPlusEarlyAccessSheet/);
   assert.match(gate, /KPlusMembershipSheet/);
 });
 
