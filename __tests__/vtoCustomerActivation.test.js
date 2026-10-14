@@ -1885,43 +1885,42 @@ async function checkFreeUnlockReachesMembership(o = {}) {
 test('FC-01 T1/T2: a Free actor tapping Try It On reaches the paid K+ membership surface, not Early Access', () =>
   checkFreeUnlockReachesMembership());
 
-test('NC-FC-01: routing VTO back to KPlusEarlyAccessSheet is caught', async () => {
-  // The resolver sends the vto source to the legacy surface again.
+test('NC-FC-01: legacy acquisition fallback and invisible paid gate mutations are caught', async () => {
+  // The pure policy must reject a true legacy fallback; no missing source
+  // anchor may make the negative control vacuously pass.
+  await expectRed(async () => {
+    const mutated = runModule(ACQUISITION, {}, {
+      jsx: false,
+      mutate: mutateOpt(ACQUISITION, "return 'membership';", "return _source === 'vto' ? 'early_access' : 'membership';"),
+    });
+    assert.equal(mutated.resolveKPlusAcquisitionSurface('vto'), 'membership');
+  }, 'a vto source routed to retired Early Access must be caught');
+
+  // Hiding the real paid sheet must also fail the same rendered-user-flow test.
   await expectRed(
     () => checkFreeUnlockReachesMembership({
-      mutate: { [ACQUISITION]: mutateOpt(ACQUISITION, "Object.freeze(['vto'])", 'Object.freeze([])') },
+      mutate: { [GATE]: mutateOpt(GATE, 'KPlusMembershipSheet visible={sheetVisible}', 'KPlusMembershipSheet visible={false}') },
     }),
-    'resolver routes vto to Early Access',
-  );
-  // The gate ignores the resolver and always opens the legacy surface.
-  await expectRed(
-    () => checkFreeUnlockReachesMembership({
-      mutate: { [GATE]: mutateOpt(GATE, "{surface === 'membership' ? (", "{surface === 'no-such-surface' ? (") },
-    }),
-    'gate always opens Early Access',
+    'a paid gate that stays invisible is caught',
   );
 });
 
-test('FC-01: Early Access is not globally retired -- unrelated K+ gates still open it', () => {
+test('FC-01: all K+ acquisition sources use paid membership, never retired Early Access', () => {
   const acquisition = runModule(ACQUISITION, {}, { jsx: false });
-  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], ['vto', 'packing', 'watchlist', 'closet_intelligence', 'voice_scan', 'onboarding', 'account', 'wardrobe_concierge']);
-  assert.equal(acquisition.resolveKPlusAcquisitionSurface('vto'), 'membership');
   const sources = runModule('types/kplusSource.ts', {}, { jsx: false }).KPLUS_SOURCES;
+  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], [...sources]);
   for (const source of sources) {
-    if (['vto', 'packing', 'watchlist', 'closet_intelligence', 'voice_scan', 'onboarding', 'account', 'wardrobe_concierge'].includes(source)) {
-      assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'membership'); continue;
-    }
-    assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'early_access', `${source} is unchanged`);
+    assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'membership', source);
   }
-  assert.equal(acquisition.resolveKPlusAcquisitionSurface('not-a-source'), 'early_access', 'an unknown source is not upgraded by accident');
+  assert.equal(acquisition.resolveKPlusAcquisitionSurface('not-a-source'), 'membership',
+    'an unknown K+ source must not expose disabled Early Access activation');
 
-  // Voice Scan and onboarding now use paid K+; only unrelated sources still use Early Access.
-  // The gate mounts exactly one surface per source, and the legacy component
-  // and its file are still there, untouched in purpose.
+  // Exactly one paid membership sheet is the canonical acquisition route;
+  // the old component can remain in the tree historically, but is unmounted.
   const gate = stripComments(read(GATE));
-  assert.match(gate, /\{surface === 'membership' \? \(\s*<KPlusMembershipSheet visible=\{sheetVisible\} onClose=\{closeSheet\} onDismiss=\{\(\) => setSheetPresented\(false\)\} \/>\s*\) : \(\s*<KPlusEarlyAccessSheet visible=\{sheetVisible\} onClose=\{\(\) => setSheetVisible\(false\)\} source=\{source\} \/>\s*\)\}/);
+  assert.match(gate, /<KPlusMembershipSheet visible=\{sheetVisible\}/);
+  assert.doesNotMatch(gate, /KPlusEarlyAccessSheet/);
   assert.ok(fs.existsSync(path.join(ROOT, 'components/kplus/KPlusEarlyAccessSheet.tsx')));
-  // No other gate consumer was edited to pass anything new.
   for (const rel of [
     'components/home/HomeVoiceScanPill.tsx',
     'components/text-scan/VoiceScanButton.tsx',
