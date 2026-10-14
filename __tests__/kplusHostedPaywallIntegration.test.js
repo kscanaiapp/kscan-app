@@ -41,5 +41,5 @@ test('native dependency is pinned to core SDK and build has proper fallback befo
   assert.equal(pkg.dependencies['react-native-purchases-ui'], pkg.dependencies['react-native-purchases']);
   assert.equal(lock.packages[''].dependencies['react-native-purchases-ui'], pkg.dependencies['react-native-purchases-ui']);
   assert.equal(lock.packages['node_modules/react-native-purchases-ui'].version, pkg.dependencies['react-native-purchases-ui']);
-  assert.match(read('components/kplus/KPlusMembershipStep.tsx'), /hosted === 'fallback'/);
+  assert.match(read('components/kplus/KPlusMembershipStep.tsx'), /setHosted\('fallback'\)/);
 });
