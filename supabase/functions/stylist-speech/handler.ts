@@ -124,6 +124,14 @@ export function createStylistSpeechHandler(
         throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
       }
 
+      // Paid Speech is K+ only. Check the canonical JWT-scoped entitlement on
+      // every invocation, including cues, before a provider-cost reservation.
+      // Unknown/unreadable entitlement fails closed; it is never a Free trial.
+      const hasKPlus = await dataAccess.hasActiveKPlus().catch(() => false);
+      if (hasKPlus !== true) {
+        throw new StylistSpeechError(403, 'KPLUS_REQUIRED', 'An active K+ membership is required for spoken replies.');
+      }
+
       let rawBody: unknown;
       try {
         rawBody = await request.json();
