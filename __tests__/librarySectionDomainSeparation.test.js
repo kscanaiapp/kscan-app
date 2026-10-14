@@ -296,6 +296,20 @@ test('switching sections changes the visible identity', () => {
 
 // ── Data projection ──────────────────────────────────────────────────────────
 
+test('empty wardrobe utility points to adding an item, not saving an unowned discovery scan', () => {
+  const React = makeReact();
+  const mod = { exports: {} };
+  const requireShim = spec => {
+    if (spec === 'react') return React;
+    if (spec.endsWith('freeTierUtilityFlags')) return { FREE_TIER_UTILITY_ENABLED: true };
+    return new Proxy({}, { get: (_target, prop) => named(String(prop)) });
+  };
+  vm.runInThisContext(`(function(exports, module, require) { ${transpile('components/free-tier/EmptyClosetUtilityState.tsx')} })`)(mod.exports, mod, requireShim);
+  const text = allText(mod.exports.EmptyClosetUtilityState({}));
+  assert.match(text, /Add an item/);
+  assert.doesNotMatch(text, /Save a scan/);
+});
+
 for (const platform of ['android', 'ios']) {
 test(`${platform}: owned wardrobe utilities are reachable from Closet and receive only owned items`, () => {
   const { tree } = renderLibrary({ section: 'closet', scans: [RECENT_FIXTURE], closetItems: [CLOSET_FIXTURE], utilities: true, platform });

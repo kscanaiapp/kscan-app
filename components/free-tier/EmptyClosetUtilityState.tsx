@@ -25,7 +25,7 @@ export function EmptyClosetUtilityState(props: {
   return (
     <UtilityCard>
       <UtilityTitle kicker="Closet memory">
-        Save a scan to start building your closet memory
+        Add an item to start building your closet memory
       </UtilityTitle>
       <UtilityBody>{copy}</UtilityBody>
       <UtilityRow>
