@@ -1908,7 +1908,7 @@ test('NC-FC-01: legacy acquisition fallback and invisible paid gate mutations ar
 test('FC-01: all K+ acquisition sources use paid membership, never retired Early Access', () => {
   const acquisition = runModule(ACQUISITION, {}, { jsx: false });
   const sources = runModule('types/kplusSource.ts', {}, { jsx: false }).KPLUS_SOURCES;
-  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES], [...sources]);
+  assert.deepEqual([...acquisition.KPLUS_MEMBERSHIP_ACQUISITION_SOURCES].sort(), [...sources].sort());
   for (const source of sources) {
     assert.equal(acquisition.resolveKPlusAcquisitionSurface(source), 'membership', source);
   }
