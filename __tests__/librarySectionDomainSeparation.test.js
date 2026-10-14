@@ -148,7 +148,7 @@ const CLOSET_FIXTURE = {
   category: 'CLOSET_OWNED_CATEGORY',
 };
 
-function renderLibrary({ section, scans = [], closetItems = [], separation = true } = {}) {
+function renderLibrary({ section, scans = [], closetItems = [], separation = true, utilities = false, platform = 'android' } = {}) {
   const React = makeReact();
   const pushes = [];
   const setParamsCalls = [];
@@ -163,6 +163,8 @@ function renderLibrary({ section, scans = [], closetItems = [], separation = tru
   for (const n of LUXURY_NAMES) luxury[n] = named(n);
 
   const modules = {
+    '../constants/freeTierUtilityFlags': { FREE_TIER_UTILITY_ENABLED: utilities },
+    '../components/free-tier/FreeTierUtilitySection': { FreeTierUtilitySection: 'FreeTierUtilitySection' },
     react: React,
     'react-native': {
       __esModule: true,
@@ -175,7 +177,7 @@ function renderLibrary({ section, scans = [], closetItems = [], separation = tru
       Linking: { openURL: () => {}, openSettings: () => {} },
       StyleSheet: { create: (s) => s, flatten: (s) => s, hairlineWidth: 1 },
       Dimensions: { get: () => ({ width: 390, height: 844 }) },
-      Platform: { OS: 'android', select: (o) => o.android ?? o.default },
+      Platform: { OS: platform, select: (o) => o[platform] ?? o.default },
     },
     'expo-router': {
       __esModule: true,
@@ -293,6 +295,27 @@ test('switching sections changes the visible identity', () => {
 });
 
 // ── Data projection ──────────────────────────────────────────────────────────
+
+for (const platform of ['android', 'ios']) {
+test(`${platform}: owned wardrobe utilities are reachable from Closet and receive only owned items`, () => {
+  const { tree } = renderLibrary({ section: 'closet', scans: [RECENT_FIXTURE], closetItems: [CLOSET_FIXTURE], utilities: true, platform });
+  const sections = collect(tree, n => n.type === 'FreeTierUtilitySection');
+  assert.equal(sections.length, 1);
+  assert.deepEqual(sections[0].props.rawItems, [CLOSET_FIXTURE]);
+});
+
+test(`${platform}: Recent Scans does not offer wardrobe utilities using unowned discovery items`, () => {
+  const { tree } = renderLibrary({ section: 'recent', scans: [RECENT_FIXTURE], closetItems: [CLOSET_FIXTURE], utilities: true, platform });
+  assert.equal(collect(tree, n => n.type === 'FreeTierUtilitySection').length, 0);
+});
+
+test(`${platform}: legacy unsplit library retains utilities and the master rollout hold remains effective`, () => {
+  const legacy = renderLibrary({ separation: false, scans: [RECENT_FIXTURE], utilities: true, platform });
+  assert.deepEqual(collect(legacy.tree, n => n.type === 'FreeTierUtilitySection')[0].props.rawItems, [RECENT_FIXTURE]);
+  const held = renderLibrary({ section: 'closet', closetItems: [CLOSET_FIXTURE], utilities: false, platform });
+  assert.equal(collect(held.tree, n => n.type === 'FreeTierUtilitySection').length, 0);
+});
+}
 
 test('section=recent renders scan history and no committed Closet items', () => {
   const { tree } = renderLibrary({

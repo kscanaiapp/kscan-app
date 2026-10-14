@@ -871,6 +871,13 @@ export default function LibraryScreen() {
                 ))}
               </View>
             )}
+            {FREE_TIER_UTILITY_ENABLED ? (
+              <FreeTierUtilitySection
+                key={isAuthenticated ? user?.id ?? 'unresolved' : 'anonymous'}
+                rawItems={closet.items}
+                variant="library"
+              />
+            ) : null}
           </>
         ) : null}
 
@@ -962,8 +969,8 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {/* Free Tier Utility section (flag-guarded; renders null by default) */}
-        {FREE_TIER_UTILITY_ENABLED ? (
+        {/* Legacy unsplit Library only. Owned-wardrobe tools live in My Closet. */}
+        {FREE_TIER_UTILITY_ENABLED && !CLOSET_SEPARATION_V1 ? (
           <FreeTierUtilitySection rawItems={scans} variant="library" />
         ) : null}
 
