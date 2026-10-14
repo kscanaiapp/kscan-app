@@ -58,7 +58,7 @@ Exercise Voice Scan separately to check contextual permission prompts, denial an
 
 Account deletion: from Privacy > Delete Account. Submitting the request deactivates the account immediately and starts a 30-day restoration window during which the user can restore it. If it is not restored, the account and associated data are permanently deleted after that window, subject to required legal retention. A deactivated account is limited to Privacy controls and a clear sign-out path.
 
-Today with Elise is intentionally OFF and excluded from Build 35. Legacy complimentary K+ Early Access acquisition is OFF; paid K+ purchase/restore remains in scope. Elise Speech is a SHIP_TARGET with the exact owner-approved disclosure, but its store-profile flag remains OFF pending governed deployment and verification of server cost/kill-switch controls. Do not submit this draft as final review instructions until those pre-build requirements are resolved.
+Today with Elise is intentionally OFF and excluded from Build 35. Legacy complimentary K+ Early Access acquisition is OFF; paid K+ purchase/restore remains in scope. Elise Speech is an approved opt-in release feature and its store-profile flag is ON, with the exact owner-approved per-device disclosure. However, spoken playback is NOT operational while the independent Production provider kill switch is OFF and its character budget is zero. The new K+ enforcement migration and Edge handler must be separately promoted, approved daily character allocation must be set, and signed-device audio/consent/paid-plan verification must pass. Do not submit this draft as final review instructions until those backend and post-build requirements are resolved.
 ```
 
 ## Production Feature State (source of truth for the notes above)
@@ -69,7 +69,7 @@ literal string `'true'`), so "not declared" means "off".
 
 | Enabled in Build 35 store-profile source | OFF in current candidate source |
 |---|---|
-| Scanner, TextScan (+ backend), VoiceScan (`EXPO_PUBLIC_VOICESCAN_ENABLED=true`) | Elise Speech (`EXPO_PUBLIC_ELISE_SPEECH=false`, pending environment controls) |
+| Scanner, TextScan (+ backend), VoiceScan (`EXPO_PUBLIC_VOICESCAN_ENABLED=true`) | Elise Speech (`EXPO_PUBLIC_ELISE_SPEECH=true` in build; Production provider spending OFF pending approved limits and backend promotion) |
 | Retailer-neutral commerce discovery, Virtual Try-On (`EXPO_PUBLIC_VTO_UI_ENABLED=true`) | |
 | Closet, batch review, candidate staging, direct intake and Cloud Closet | K+ complimentary Early Access acquisition (`EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED=false`) |
 | Signature Style and Packing Intelligence (`EXPO_PUBLIC_PACKING_INTELLIGENCE_V1=true`) | |

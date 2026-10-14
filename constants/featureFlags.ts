@@ -119,8 +119,11 @@ export function resolveVoiceScanEnabled(
 
 export const VOICESCAN_ENABLED = resolveVoiceScanEnabled();
 
-/** Spoken stylist replies are a separate, uncertified capability from Voice
- * Scan. Preferences never override this build-time rollout hold. */
+/** Elise's spoken-reply UI is an approved opt-in release capability, distinct
+ * from Voice Scan. A true build flag NEVER turns on a paid provider: the
+ * Production speech_provider_control kill switch and distributed daily
+ * character budget remain independent server-side authorities. Explicit
+ * per-device privacy consent is required for every speech request. */
 export function resolveStylistSpeechEnabled(
   value: string | undefined = process.env.EXPO_PUBLIC_ELISE_SPEECH,
 ): boolean {

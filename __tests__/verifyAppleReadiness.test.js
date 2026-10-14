@@ -580,7 +580,7 @@ test('reviewer docs: approved Build 35 features match the store-profile source m
   }
   assert.equal(env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1, 'false');
   assert.equal(env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
-  assert.equal(env.EXPO_PUBLIC_ELISE_SPEECH, 'false', 'Speech still requires deployed cost controls');
+  assert.equal(env.EXPO_PUBLIC_ELISE_SPEECH, 'true', 'Owner-approved opt-in speech UI is built; provider budget remains separately disabled');
   assert.match(template, /PREBUILD_VERIFIED|pre-build/);
   assert.match(template, /POSTBUILD_REQUIRED|post-build/);
 });

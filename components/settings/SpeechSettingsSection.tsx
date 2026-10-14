@@ -57,6 +57,11 @@ export function SpeechSettingsSection({ actorId }: { actorId: string | null }) {
   };
   return <View style={styles.card} testID="settings-speech-consent-section">
     <SectionHeader title="Elise Speech" subtitle="Your choice for this account on this device" />
+    <Text style={styles.body} testID="settings-speech-kplus-disclosure">
+      Spoken replies require an active K+ membership. This privacy setting only
+      grants or withdraws permission to send reply text to ElevenLabs; it never
+      activates K+ or starts provider billing by itself.
+    </Text>
     <PrivacyToggle title="Spoken replies on this device" body="Allow ElevenLabs to generate Elise’s voice from reply text."
       value={enabled} busy={busy} onChange={change} />
     {error ? <Text accessibilityRole="alert" style={styles.body}>{error}</Text> : null}

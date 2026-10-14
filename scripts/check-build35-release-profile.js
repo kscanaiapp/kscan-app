@@ -14,7 +14,6 @@ const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const TODAY_OFF = Object.freeze(['EXPO_PUBLIC_TODAY_WITH_ELISE_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1', 'EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1']);
 const REQUIRED_OFF = Object.freeze([
   ...TODAY_OFF,
-  'EXPO_PUBLIC_ELISE_SPEECH', // source controls prepared; environment deployment still pending
   'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED', // complimentary offer, not paid K+ access
   'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER', // non-interactive design-only stub
 ]);
@@ -33,6 +32,7 @@ const REQUIRED_ON = Object.freeze([
   'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
   'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
   'EXPO_PUBLIC_ELISE_V10',
+  'EXPO_PUBLIC_ELISE_SPEECH', // speech UI and consent; paid provider remains governed separately
   'KSCAN_VOICE_NATIVE_CAPABILITY',
 ]);
 // Existing baseline policy leaves these selectors unconfigured. Do not add

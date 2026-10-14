@@ -26,7 +26,7 @@ function load(file, mocks = {}, extra = {}) {
   }, { filename: file });
   return mod.exports;
 }
-test('spoken replies default OFF and only exact true enables certification', () => {
+test('speech stays fail-closed when no flag exists and only exact true enables approved opt-in UI', () => {
   const flags = load('constants/featureFlags.ts');
   assert.equal(flags.STYLIST_SPEECH_ENABLED, false);
   for (const value of [undefined, '', 'false', 'TRUE', ' true ', '1']) assert.equal(flags.resolveStylistSpeechEnabled(value), false);
@@ -115,4 +115,21 @@ test('held message recovery hides retry even when a previous speech error exists
   }
   assert.equal(render(false), null);
   assert.equal(hasTestId(render(true), 'style-chat-voice-retry-button-message'), true);
+});
+
+test('Production and release iOS/Android builds compile opt-in Elise Speech while server billing remains independently held', () => {
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  for (const profile of ['staging', 'production', 'build35-release', 'production-certification']) {
+    assert.equal(eas.build[profile].env.EXPO_PUBLIC_ELISE_SPEECH, 'true', profile);
+  }
+  const speech = fs.readFileSync(path.join(ROOT, 'services/avatars/stylistSpeechClient.ts'), 'utf8');
+  const consent = fs.readFileSync(path.join(ROOT, 'services/avatars/speechConsent.ts'), 'utf8');
+  const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261011222213_build35_speech_operational_cost_controls.sql'), 'utf8');
+  assert.match(speech, /hasSpeechConsent\(request\.actorId\)/);
+  assert.match(consent, /SPEECH_DISCLOSURE_APPROVED = true/);
+  assert.match(sql, /enabled boolean not null default false/);
+  assert.match(sql, /daily_character_limit integer not null default 0/);
+  const releaseGuard = fs.readFileSync(path.join(ROOT, 'scripts/check-build35-release-profile.js'), 'utf8');
+  assert.match(releaseGuard, /'EXPO_PUBLIC_ELISE_SPEECH', \/\/ speech UI and consent/);
+  assert.doesNotMatch(releaseGuard.slice(releaseGuard.indexOf('const REQUIRED_OFF'), releaseGuard.indexOf('const REQUIRED_ON')), /'EXPO_PUBLIC_ELISE_SPEECH'/);
 });
