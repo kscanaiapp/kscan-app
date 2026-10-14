@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-12T19:09:41.246Z",
-    "generatedFromGitSha": "fdc6c4d4b7677b8249306c15e2966b2b407b412d"
+    "generatedAtUtc": "2026-10-14T16:54:43.935Z",
+    "generatedFromGitSha": "7d8442445b24c418e5516e8ad9259913cc541281"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -990,8 +990,8 @@
         ],
         "bundleFileCount": 11,
         "treeFileCount": 22,
-        "bundleHash": "4a695843482bbf8bbcf1608424c396d8252a5a24da4b63ee9be2827f28e61038",
-        "treeHash": "aae73fd551f73fbc08c7a940d78336148acd12d32571ce686a046f44284ec2e0",
+        "bundleHash": "c3cfbba63140aa6af779297bd513e3a3288224e3e31490dc63097cab4a724a7d",
+        "treeHash": "54b4d65f59691db617b1d5b18c8732be744fd2d55bf141a7576ae30f3b0f8348",
         "files": [
           {
             "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
@@ -1010,17 +1010,17 @@
           },
           {
             "path": "supabase/functions/stylist-speech/handler.test.ts",
-            "sha256": "556ae9b18731afe486da2a8bf02f278d0919b5ad7d5f0df7a76f65a5ac4b11bb",
+            "sha256": "88f66a0fbb79abf8bc1e08f0c557fd227dcbe0892676821bf30bafcc12ff7b5e",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/handler.ts",
-            "sha256": "c5da18b92bc46456d3f6a4af374303e6cac4de7f9c6a6c049da8f2878e6aaeb2",
+            "sha256": "68c8242adc5dbc395007192fbddef979154cc50f45acfa7b86fc01580153a66e",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/index.ts",
-            "sha256": "94c870ef03a10f90646cd56c8eefa7efe8116a1f468dd94914c6762504736c23",
+            "sha256": "94c14907feabf7b4e6adc23fa94e71ff46a70b2352ba40286e6d3be15d135dd8",
             "bundle": true
           },
           {
@@ -1090,7 +1090,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/types.ts",
-            "sha256": "5620330594863f61b4e46d288774bb2b67eb19496b18eba692cf422e3eab3d71",
+            "sha256": "7aa1b20ef92cc2bdfdbacc98b77bdbcfa05d6674b8c7d392a5dc1edfabf75ae8",
             "bundle": true
           },
           {
