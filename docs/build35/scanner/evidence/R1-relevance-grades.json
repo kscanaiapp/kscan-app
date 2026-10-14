@@ -1,0 +1,12 @@
+{
+  "run": "R1 live paired replay, workflow run 37950013905, 2026-10-09, Staging scan-identify v81 (backend authority e3982830, FAST_COMMERCE_DEADLINE_MS 3000)",
+  "rubric": "0 unrelated | 1 weak | 2 relevant | 3 strong; text-only; returned order; graded from the returned titles",
+  "garments": [
+    { "key": "O:turtleneck", "scores": [3,1,3,3,2], "note": "item 2 is a sleeveless sweater vest, a different form" },
+    { "key": "T:hoodie",     "scores": [2,2,2,2,2], "note": "recovered beyond the old 1.9 s wall (discoveryMs 2210)" },
+    { "key": "D:gown",       "scores": [3,3,2,1,1], "note": "all five Poshmark resale; the fastest provider closed the shelf (discoveryMs 272)" },
+    { "key": "X:hoodie_left","scores": [2,2,2,2,2] }
+  ],
+  "firstAttemptBefore": "P1: 4 of 15 garments (these four) returned no offers (errorType timeout, discoveryMs ~1900)",
+  "firstAttemptAfter": "R1: 4 of 4 return offers; 1 of 4 needed the extra window"
+}

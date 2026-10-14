@@ -1,0 +1,25 @@
+{
+  "run": "P1 live, workflow run 37944817914, 2026-10-09",
+  "rubric": "0 unrelated | 1 weak | 2 relevant | 3 strong; text-only (title, merchant, price); returned order; graded before any repair",
+  "notes": {
+    "scoringRule": "2 = correct category with consistent general form; 3 only where the title itself states a matching distinguishing attribute (colour/fit); 1 where the title signals a different form (cropped, high-waisted ankle, optical rather than sunglasses, laptop backpack); 0 = incompatible category",
+    "noOffers": "Garments whose commerce request timed out have no offers; they count as misses for hit@3 on the first attempt (that is what the customer sees)."
+  },
+  "garments": [
+    { "key": "O:jacket",        "scores": [2,2,3,2,2,2,1,2] },
+    { "key": "O:turtleneck",    "scores": [], "outcome": "commerce_timeout" },
+    { "key": "T:hoodie",        "scores": [], "outcome": "commerce_timeout" },
+    { "key": "T:dark_jeans",    "scores": [3,2,2,2,2,2,2,2] },
+    { "key": "D:gown",          "scores": [], "outcome": "commerce_timeout" },
+    { "key": "J:white_tee",     "scores": [2,2,2,1,2,2,2,2] },
+    { "key": "J:jeans",         "scores": [2,2,1] },
+    { "key": "J:white_sneakers","scores": [2,2,2,2,2,1] },
+    { "key": "F:red_sneaker",   "scores": [2,2,2] },
+    { "key": "A:backpack",      "scores": [2,2,2,2,1,1,1,1] },
+    { "key": "A:aviators",      "scores": [1,1,1], "why": "all three are optical eyeglasses (rectangle frames), not sunglasses; subtype was stripped by the quality gate" },
+    { "key": "X:hoodie_left",   "scores": [], "outcome": "commerce_timeout" },
+    { "key": "X:hoodie_right",  "scores": [3,2,2,2,2,2,2,2] },
+    { "key": "X:jeans_a",       "scores": [2,2,3,2,2,2,2,2] },
+    { "key": "X:jeans_b",       "scores": [2,2,2,2,2,2,2,2] }
+  ]
+}

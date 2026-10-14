@@ -1,0 +1,659 @@
+{
+  "schema": "scanner-live-certification-report-1",
+  "runMode": "STAGING_LIVE",
+  "generatedAt": "2026-10-09T15:13:58.873Z",
+  "phase": "R1",
+  "actor": "A",
+  "source": {
+    "sha": "ae832c98db8c1bb79ace5c7a92cddd592ecdfde7",
+    "ref": "test/build35-scanner-live-certification-v1",
+    "runId": "37950013905"
+  },
+  "thresholdsDigestSource": "security/release/scanner-live-certification/corpus.json",
+  "fixtures": {},
+  "budget": {
+    "priorSource": "ledger_and_explicit",
+    "limits": {
+      "imageModeTotal": 56,
+      "commerceOnlyTotal": 40,
+      "imageModePerActorPerUtcDay": 28
+    },
+    "prior": {
+      "imageMode": 27,
+      "commerceOnly": 17,
+      "imageModePerActorToday": {
+        "A": 27,
+        "B": 0
+      }
+    },
+    "usedThisRun": {
+      "imageMode": 0,
+      "commerceOnly": 4,
+      "byActorDay": {}
+    },
+    "remaining": {
+      "imageMode": 29,
+      "commerceOnly": 19
+    },
+    "refused": []
+  },
+  "quotaLedgerReconciliation": {
+    "ledgerImageModeDelta": 0,
+    "ledgerCommerceOnlyDelta": 4,
+    "harnessImageModeSent": 0,
+    "harnessCommerceOnlySent": 4,
+    "matches": true
+  },
+  "aborted": null,
+  "elapsedMs": 8833,
+  "summary": {
+    "requests": {
+      "total": 4,
+      "sent": 4,
+      "imageMode": 0,
+      "commerceOnly": 4,
+      "injectedFailures": 0,
+      "budgetRefused": 0,
+      "httpErrors": []
+    },
+    "latencyMs": {
+      "detection": {
+        "n": 0,
+        "min": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "selectedItem": {
+        "n": 0,
+        "min": null,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "commerce": {
+        "n": 4,
+        "min": 1205,
+        "p50": 1881,
+        "p95": 3113,
+        "max": 3113
+      }
+    },
+    "identification": {
+      "itemsScored": 0,
+      "primaryCategoryCorrect": null,
+      "subtypeAcceptable": null,
+      "primaryColorAcceptable": null,
+      "criticalMisidentifications": [],
+      "ungroundedBrandClaims": [],
+      "overconfidentWrong": [],
+      "requiredGarmentRecall": null,
+      "extraFalseCandidatesPerFashionPhoto": null,
+      "nonFashionFalseCandidates": 0,
+      "distractorAsGarment": 0,
+      "missedRequired": [],
+      "candidateIdentityDrift": []
+    },
+    "commerceFacts": {
+      "itemsWithCommerceRequest": 0,
+      "itemsWithOffers": 0,
+      "brokenDestinations": 0,
+      "insanePrices": 0,
+      "duplicateDestinations": 0,
+      "orderChanged": [],
+      "precheckIncompatibleTop3": [],
+      "retailerShareTop5": {}
+    },
+    "findings": []
+  },
+  "results": [
+    {
+      "label": "R1-commerce-replay",
+      "path": "commerce_replay",
+      "source": "recorded identification summaries",
+      "replayed": [
+        {
+          "key": "O:unbound",
+          "outcome": "success",
+          "errorType": null,
+          "offerCount": 5,
+          "latencyMs": 1881,
+          "discoveryMs": 253,
+          "deadlineMs": 2998,
+          "providers": [
+            "serper",
+            "poshmark"
+          ],
+          "recoveredBeyondOldWall": false,
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Everlane Ribbed Knit Turtleneck Sweater Wool‎ Blend Black size large",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$55.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac8cb05839f7a2d968a4276",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Jason Wu Black Sleeveless Turtleneck Sweater Vest",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$15.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ab9cb9219212548c3e297e9",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Women's Black Ribbed Turtleneck Sweater",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$32.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac8478bc6a0b3d7634ae51f",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Faherty Organic Cotton Cashmere Ribbed Turtleneck Sweater Black M Preppy Classic",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$64.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6abd28c0221dcbb77000d979",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Burberry Silk Black Rib-Shoulder Turtleneck Sweater",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$126.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6a9f2d0241ae66b721565016",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ]
+        },
+        {
+          "key": "T:hoodie",
+          "outcome": "success",
+          "errorType": null,
+          "offerCount": 8,
+          "latencyMs": 3113,
+          "discoveryMs": 2210,
+          "deadlineMs": 2998,
+          "providers": [
+            "serper",
+            "poshmark"
+          ],
+          "recoveredBeyondOldWall": true,
+          "offers": [
+            {
+              "rank": 1,
+              "title": "JERZEES Men's NuBlend Pullover Hooded Sweatshirt 996",
+              "retailer": "Epic Sports",
+              "provider": null,
+              "price": "$9.59",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+              "retailer": "Walmart - AKOEE Fashion Deals",
+              "provider": null,
+              "price": "$7.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Next Level Apparel Next Level Unisex Santa Cruz Pullover Hoodie",
+              "retailer": "Blankstyle.com",
+              "provider": null,
+              "price": "$12.93",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Adult Pullover Hoodie by Make Market",
+              "retailer": "Michaels Stores",
+              "provider": null,
+              "price": "$27.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Hanes Men's Ultimate Cotton Pullover Hoodie",
+              "retailer": "Hanes",
+              "provider": null,
+              "price": "$25.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Athletic Works Men's Shirts Athletic Works Hoodie",
+              "retailer": "Walmart",
+              "provider": null,
+              "price": "$14.98",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Bella + Canvas Unisex Jersey Long-Sleeve Hoodie Adult 3512",
+              "retailer": "Apparel.com",
+              "provider": null,
+              "price": "$16.53",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Gildan Men's Heavy Blend Hooded Sweatshirt",
+              "retailer": "BulkApparel.com",
+              "provider": null,
+              "price": "$10.94",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ]
+        },
+        {
+          "key": "D:gown",
+          "outcome": "success",
+          "errorType": null,
+          "offerCount": 5,
+          "latencyMs": 1205,
+          "discoveryMs": 272,
+          "deadlineMs": 2998,
+          "providers": [
+            "serper",
+            "poshmark"
+          ],
+          "recoveredBeyondOldWall": false,
+          "offers": [
+            {
+              "rank": 1,
+              "title": "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$80.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6a8f57187049a16b532aa0d1",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Pronovias White Satin A-Line Wedding Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$160.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ab2cc978091ef292fdae21e",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$56.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6a9b579b1921252844b84906",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Abercrombie White Bubble Hem Satin Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$70.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac0396d9c93e02fa2d0f0b3",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Retro White Lace Corset Micro Mini Short Dress 4 S Bridal Bachelorette Wedding",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$79.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac10a694985e8076e7f0520",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ]
+        },
+        {
+          "key": "X:hoodie_left",
+          "outcome": "success",
+          "errorType": null,
+          "offerCount": 8,
+          "latencyMs": 2109,
+          "discoveryMs": 1369,
+          "deadlineMs": 2998,
+          "providers": [
+            "serper",
+            "poshmark"
+          ],
+          "recoveredBeyondOldWall": false,
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Adult Pullover Hoodie by Make Market",
+              "retailer": "Michaels Stores",
+              "provider": null,
+              "price": "$27.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+              "retailer": "Walmart - AKOEE Fashion Deals",
+              "provider": null,
+              "price": "$7.49",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Hanes Men's EcoSmart Pullover Hooded Sweatshirt. P170",
+              "retailer": "BulkApparel.com",
+              "provider": null,
+              "price": "$10.91",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Men H&M Loose Fit Hoodie",
+              "retailer": "H&M",
+              "provider": null,
+              "price": "$19.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Dsg Men's Classic Fleece Hoodie",
+              "retailer": "DICK'S Sporting Goods",
+              "provider": null,
+              "price": "$45.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Cotton On Men's Box Fit Hoodie",
+              "retailer": "Nordstrom",
+              "provider": null,
+              "price": "$59.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Gildan Softstyle Midweight Hooded Sweatshirt",
+              "retailer": "Blankstyle.com",
+              "provider": null,
+              "price": "$10.08",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Gildan Men's Heavy Blend Hooded Sweatshirt",
+              "retailer": "Hobby Lobby",
+              "provider": null,
+              "price": "$15.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ]
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "requestLog": [
+    {
+      "seq": 1,
+      "phase": "R1",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-2-sweater-turtleneck-sweater",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 1948,
+      "latencyMs": 1881,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "7dd5e3ce80f8",
+      "offerCount": 5,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 2,
+      "phase": "R1",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-hoodie-pullover-hoodie",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 3831,
+      "latencyMs": 3113,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "982685558bab",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 3,
+      "phase": "R1",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-dress-wedding-dress",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 6944,
+      "latencyMs": 1205,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "ac79ee71aa81",
+      "offerCount": 5,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 4,
+      "phase": "R1",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "garment-1-top-hoodie",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 8149,
+      "latencyMs": 2109,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "f09c10c428aa",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    }
+  ]
+}

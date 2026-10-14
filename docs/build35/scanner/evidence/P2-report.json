@@ -1,0 +1,967 @@
+{
+  "schema": "scanner-live-certification-report-1",
+  "runMode": "STAGING_LIVE",
+  "generatedAt": "2026-10-09T14:51:56.884Z",
+  "phase": "P2",
+  "actor": "A",
+  "source": {
+    "sha": "5f29d06f8ec4d368ec38de950af818159bb5a919",
+    "ref": "test/build35-scanner-live-certification-v1",
+    "runId": "37947187094"
+  },
+  "thresholdsDigestSource": "security/release/scanner-live-certification/corpus.json",
+  "fixtures": {
+    "O": {
+      "uri": "file:///fixtures/outerwear.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 109893
+    },
+    "D": {
+      "uri": "file:///fixtures/dress.jpg",
+      "how": "imagemagick:convert",
+      "bytes": 22855
+    }
+  },
+  "budget": {
+    "priorSource": "ledger_and_explicit",
+    "limits": {
+      "imageModeTotal": 56,
+      "commerceOnlyTotal": 40,
+      "imageModePerActorPerUtcDay": 28
+    },
+    "prior": {
+      "imageMode": 23,
+      "commerceOnly": 15,
+      "imageModePerActorToday": {
+        "A": 23,
+        "B": 0
+      }
+    },
+    "usedThisRun": {
+      "imageMode": 4,
+      "commerceOnly": 2,
+      "byActorDay": {
+        "A|2026-10-09": 4
+      }
+    },
+    "remaining": {
+      "imageMode": 29,
+      "commerceOnly": 23
+    },
+    "refused": []
+  },
+  "quotaLedgerReconciliation": {
+    "ledgerImageModeDelta": 4,
+    "ledgerCommerceOnlyDelta": 2,
+    "harnessImageModeSent": 4,
+    "harnessCommerceOnlySent": 2,
+    "matches": true
+  },
+  "aborted": null,
+  "elapsedMs": 30609,
+  "summary": {
+    "requests": {
+      "total": 6,
+      "sent": 6,
+      "imageMode": 4,
+      "commerceOnly": 2,
+      "injectedFailures": 0,
+      "budgetRefused": 0,
+      "httpErrors": []
+    },
+    "latencyMs": {
+      "detection": {
+        "n": 2,
+        "min": 6456,
+        "p50": 6456,
+        "p95": 6942,
+        "max": 6942
+      },
+      "selectedItem": {
+        "n": 2,
+        "min": 6380,
+        "p50": 6380,
+        "p95": 7887,
+        "max": 7887
+      },
+      "commerce": {
+        "n": 2,
+        "min": 1308,
+        "p50": 1308,
+        "p95": 1950,
+        "max": 1950
+      }
+    },
+    "identification": {
+      "itemsScored": 2,
+      "primaryCategoryCorrect": 1,
+      "subtypeAcceptable": 1,
+      "primaryColorAcceptable": 1,
+      "criticalMisidentifications": [],
+      "ungroundedBrandClaims": [],
+      "overconfidentWrong": [],
+      "requiredGarmentRecall": 1,
+      "extraFalseCandidatesPerFashionPhoto": 0,
+      "nonFashionFalseCandidates": 0,
+      "distractorAsGarment": 0,
+      "missedRequired": [],
+      "candidateIdentityDrift": []
+    },
+    "commerceFacts": {
+      "itemsWithCommerceRequest": 2,
+      "itemsWithOffers": 2,
+      "brokenDestinations": 0,
+      "insanePrices": 0,
+      "duplicateDestinations": 7,
+      "orderChanged": [],
+      "precheckIncompatibleTop3": [],
+      "retailerShareTop5": {
+        "Poshmark": 0.5,
+        "Decrum": 0.1,
+        "NYC Leather Jackets": 0.1,
+        "Nordstrom": 0.1,
+        "Wilsons Leather": 0.1,
+        "COACH Outlet": 0.1
+      }
+    },
+    "findings": []
+  },
+  "results": [
+    {
+      "label": "P2-two-photo",
+      "ids": [
+        "O",
+        "D"
+      ],
+      "actor": "A",
+      "detection": {
+        "status": "result",
+        "error": null,
+        "elapsedMs": 6949,
+        "notice": null,
+        "perPhoto": [
+          {
+            "imageId": "O",
+            "entrySeq": 1,
+            "latencyMs": 6456,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-jacket-leather-jacket",
+                "label": "leather jacket",
+                "category": "jacket",
+                "subtype": "leather jacket",
+                "hasBounds": true,
+                "confidenceScore": 0.96
+              }
+            ],
+            "detectionScore": {
+              "imageId": "O",
+              "nonFashion": false,
+              "candidatesReturned": 1,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 0,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-jacket-leather-jacket",
+                  "garment": "jacket",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          },
+          {
+            "imageId": "D",
+            "entrySeq": 2,
+            "latencyMs": 6942,
+            "responseStatus": "completed",
+            "detected": [
+              {
+                "order": 0,
+                "candidateId": "garment-1-dress-wedding-dress",
+                "label": "wedding dress",
+                "category": "dress",
+                "subtype": "wedding dress",
+                "hasBounds": true,
+                "confidenceScore": 0.96
+              }
+            ],
+            "detectionScore": {
+              "imageId": "D",
+              "nonFashion": false,
+              "candidatesReturned": 1,
+              "required": 1,
+              "requiredDetected": 1,
+              "missedRequired": [],
+              "extraFalseCandidates": 0,
+              "distractorAsGarment": 0,
+              "nonFashionFalseCandidates": 0,
+              "assignments": [
+                {
+                  "candidateId": "garment-1-dress-wedding-dress",
+                  "garment": "gown",
+                  "categoryOk": true,
+                  "subtypeOk": true
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "commerceRequestsBeforeSelection": 0,
+      "candidates": [
+        {
+          "id": "fx-O:garment-1-jacket-leather-jacket",
+          "sourceImageId": "O",
+          "label": "leather jacket",
+          "category": "jacket",
+          "subtype": "leather jacket"
+        },
+        {
+          "id": "fx-D:garment-1-dress-wedding-dress",
+          "sourceImageId": "D",
+          "label": "wedding dress",
+          "category": "dress",
+          "subtype": "wedding dress"
+        }
+      ],
+      "items": [
+        {
+          "imageId": "O",
+          "itemId": "fx-O:garment-1-jacket-leather-jacket",
+          "serverCandidateId": "garment-1-jacket-leather-jacket",
+          "boundGarmentKey": "jacket",
+          "detectedCandidate": {
+            "label": "leather jacket",
+            "category": "jacket",
+            "subtype": "leather jacket"
+          },
+          "selected": {
+            "latencyMs": 7887,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "Racer Jacket Black Leather Leather Jacket",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "jacket",
+                "subtype": "leather jacket",
+                "primary_color": "black",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "leather",
+                "silhouette": "racer jacket",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.96,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "jacket",
+                "itemType": "leather jacket",
+                "colorPalette": [
+                  "black"
+                ],
+                "materialEstimate": "leather",
+                "pattern": "solid",
+                "confidenceScore": 0.96
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "Black Leather Jacket",
+            "result": "Black leather racer jacket featuring a stand collar with a snap tab, contrast seam stitching, front zip closure, and a zippered chest pocket.",
+            "category": "jacket",
+            "itemType": "leather jacket",
+            "color": "black",
+            "material": "leather",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.96
+          },
+          "identificationScore": {
+            "imageId": "O",
+            "garment": "jacket",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "outerwear",
+            "returnedFamily": "outerwear",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.96,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "outerwear",
+            "returnedFamily": "outerwear"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "attempts": [
+              {
+                "outcome": "ok",
+                "httpStatus": 200,
+                "latencyMs": 1950,
+                "errorType": null,
+                "offerCount": 8,
+                "discoveryMs": 1303
+              }
+            ],
+            "latencyMs": 1950,
+            "httpStatus": 200,
+            "echoedCandidateId": "fx-O:garment-1-jacket-leather-jacket",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "serper",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 1303,
+              "earlyExit": true,
+              "deadlineMs": 1899
+            },
+            "serverOfferCount": 8
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "Men's Cafe Racer Jacket Black Genuine Lambskin Leather",
+              "retailer": "Decrum",
+              "provider": null,
+              "price": "$199.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "NYC Leather Jackets Men Hung Black Leather Racer Jacket Men Leather Jackets",
+              "retailer": "NYC Leather Jackets",
+              "provider": null,
+              "price": "$190.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Levi's Women's Faux Leather Racer Jacket",
+              "retailer": "Nordstrom",
+              "provider": null,
+              "price": "$89.99",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Wilsons Leather Sean Vintage Leather Racer Jacket",
+              "retailer": "Wilsons Leather",
+              "provider": null,
+              "price": "$237.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Coach Outlet Leather Racer Jacket Men's",
+              "retailer": "COACH Outlet",
+              "provider": null,
+              "price": "$499.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 6,
+              "title": "Frye Men's Classic Racer Jacket",
+              "retailer": "Nordstrom Rack",
+              "provider": null,
+              "price": "$324.97",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 7,
+              "title": "Men's Quince Café Racer Jacket",
+              "retailer": "Quince",
+              "provider": null,
+              "price": "$250.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 8,
+              "title": "Polo Ralph Lauren Men's Cafe Racer Leather Jacket",
+              "retailer": "Ralph Lauren",
+              "provider": null,
+              "price": "$698.00",
+              "currency": null,
+              "destination": {
+                "host": "www.google.com",
+                "path": "/search",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 7
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 8,
+            "resultMatches": true
+          }
+        },
+        {
+          "imageId": "D",
+          "itemId": "fx-D:garment-1-dress-wedding-dress",
+          "serverCandidateId": "garment-1-dress-wedding-dress",
+          "boundGarmentKey": "gown",
+          "detectedCandidate": {
+            "label": "wedding dress",
+            "category": "dress",
+            "subtype": "wedding dress"
+          },
+          "selected": {
+            "latencyMs": 6380,
+            "httpStatus": 200,
+            "attempts": 1,
+            "response": {
+              "status": "completed",
+              "userMessage": "A-Line White Satin Wedding Dress",
+              "candidateIdEcho": null,
+              "commerceDeferred": true,
+              "detected": null,
+              "identification": {
+                "item_type": "dress",
+                "subtype": "wedding dress",
+                "primary_color": "white",
+                "secondary_colors": null,
+                "pattern": "solid",
+                "material_estimate": "satin",
+                "silhouette": "A-line",
+                "brand_guess": null,
+                "visible_brand_text": null,
+                "logo_detected": null,
+                "confidence_score": 0.95,
+                "non_fashion": false,
+                "scan_quality_note": null
+              },
+              "attributes": {
+                "category": "dress",
+                "itemType": "wedding dress",
+                "colorPalette": [
+                  "white"
+                ],
+                "materialEstimate": "satin",
+                "pattern": "solid",
+                "confidenceScore": 0.95
+              },
+              "offerCount": 0,
+              "offers": [],
+              "commerce": {
+                "provider": "deferred",
+                "errorType": null,
+                "available": null,
+                "retryable": null,
+                "count": 0,
+                "providersTried": []
+              },
+              "shoppingMeta": {
+                "provider": "deferred",
+                "count": 0,
+                "providersTried": [],
+                "reason": "deferred_to_commerce_only_request"
+              },
+              "funnelCacheHit": false,
+              "funnel": null
+            },
+            "sourceImageKeyMatches": true
+          },
+          "displayed": {
+            "title": "White Wedding Dress",
+            "result": "Strapless white floor-length A-line bridal gown with a wide champagne satin waist sash.",
+            "category": "dress",
+            "itemType": "wedding dress",
+            "color": "white",
+            "material": "satin",
+            "pattern": "solid",
+            "brand": null,
+            "brandConfidence": "low",
+            "confidenceScore": 0.95
+          },
+          "identificationScore": {
+            "imageId": "D",
+            "garment": "gown",
+            "categoryCorrect": true,
+            "subtypeAcceptable": true,
+            "colorAcceptable": true,
+            "materialPlausible": true,
+            "expectedFamily": "dress",
+            "returnedFamily": "dress",
+            "critical": false,
+            "ungroundedBrandClaims": [],
+            "confidence": 0.95,
+            "overconfidentWrong": false
+          },
+          "candidateIdentityDrift": {
+            "drift": false,
+            "detectedFamily": "dress",
+            "returnedFamily": "dress"
+          },
+          "commerce": {
+            "uiStatus": "success",
+            "requests": 1,
+            "okRequests": 1,
+            "attempts": [
+              {
+                "outcome": "ok",
+                "httpStatus": 200,
+                "latencyMs": 1308,
+                "errorType": null,
+                "offerCount": 5,
+                "discoveryMs": 230
+              }
+            ],
+            "latencyMs": 1308,
+            "httpStatus": 200,
+            "echoedCandidateId": "fx-D:garment-1-dress-wedding-dress",
+            "providers": [
+              "serper",
+              "poshmark"
+            ],
+            "provider": "poshmark",
+            "errorType": null,
+            "funnel": {
+              "version": "v127",
+              "discoveryMs": 230,
+              "earlyExit": true,
+              "deadlineMs": 1898
+            },
+            "serverOfferCount": 5
+          },
+          "offers": [
+            {
+              "rank": 1,
+              "title": "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$80.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6a8f57187049a16b532aa0d1",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 2,
+              "title": "Pronovias White Satin A-Line Wedding Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$160.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ab2cc978091ef292fdae21e",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 3,
+              "title": "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$56.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6a9b579b1921252844b84906",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 4,
+              "title": "Abercrombie White Bubble Hem Satin Dress",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$70.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac0396d9c93e02fa2d0f0b3",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            },
+            {
+              "rank": 5,
+              "title": "Retro White Lace Corset Micro Mini Short Dress 4 S Bridal Bachelorette Wedding",
+              "retailer": "Poshmark",
+              "provider": null,
+              "price": "$79.00",
+              "currency": null,
+              "destination": {
+                "host": "poshmark.com",
+                "path": "/listing/6ac10a694985e8076e7f0520",
+                "https": true
+              },
+              "matchScore": null,
+              "confidenceTier": null
+            }
+          ],
+          "offerOrderPreserved": true,
+          "offerPrecheck": [
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            },
+            {
+              "titleMatchesCategory": true,
+              "titleIncompatible": false
+            }
+          ],
+          "offerQuality": {
+            "destinationsValid": true,
+            "pricesSane": true,
+            "duplicateDestinations": 0
+          },
+          "itemState": "ready",
+          "detailStatus": "complete",
+          "saved": {
+            "saved": true,
+            "reopened": true,
+            "mediaIsOwnPhoto": true,
+            "sourceImageIdMatches": true,
+            "savedOfferCount": 5,
+            "resultMatches": true
+          }
+        }
+      ],
+      "findings": [],
+      "queue": {
+        "queueMs": 14272,
+        "notice": null,
+        "remaining": []
+      },
+      "save": {
+        "savedBeforeOffers": true,
+        "savedIdsBeforeOffers": 2,
+        "recordsForActor": 2,
+        "recordsForOtherActor": 0,
+        "distinctMediaFiles": 2,
+        "savedItemCount": 2,
+        "lateOffersAttached": true
+      },
+      "isolation": null,
+      "commerce": {
+        "settled": true,
+        "allTerminal": true,
+        "commerceMs": 7981,
+        "deferredItems": 2,
+        "requestsIssued": 2,
+        "retries": {
+          "attempted": [],
+          "selectedItemRequestsDuringRetry": 0
+        },
+        "arrival": [
+          {
+            "key": "fx-D:garment-1-dress-wedding-dress",
+            "at": 23630,
+            "phase": "received"
+          },
+          {
+            "key": "fx-O:garment-1-jacket-leather-jacket",
+            "at": 24271,
+            "phase": "received"
+          },
+          {
+            "key": "fx-D:garment-1-dress-wedding-dress",
+            "at": 29630,
+            "phase": "delivered"
+          },
+          {
+            "key": "fx-O:garment-1-jacket-leather-jacket",
+            "at": 30271,
+            "phase": "delivered"
+          }
+        ],
+        "switchedActor": false
+      },
+      "timings": {
+        "detectionMs": 6949,
+        "queueMs": 14272,
+        "commerceMs": 7981,
+        "endToEndMs": 30608
+      }
+    }
+  ],
+  "requestLog": [
+    {
+      "seq": 1,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "8a2a3c9cc1ea",
+      "sessionHash": "40eb090cbb4e",
+      "hasImage": true,
+      "imageChars": 146524,
+      "imageKey": "8a2a3c9cc1ea",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 2465,
+      "latencyMs": 6456,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "c582b28976a1",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 2,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "multi_item_detection",
+      "candidateKey": null,
+      "imageDigestPrefix": "a0c07bbf2edf",
+      "sessionHash": "afa55d75d208",
+      "hasImage": true,
+      "imageChars": 30476,
+      "imageKey": "a0c07bbf2edf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 2467,
+      "latencyMs": 6942,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "683d5030ff68",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 3,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-jacket-leather-jacket",
+      "imageDigestPrefix": "8a2a3c9cc1ea",
+      "sessionHash": "40eb090cbb4e",
+      "hasImage": true,
+      "imageChars": 146524,
+      "imageKey": "8a2a3c9cc1ea",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 9888,
+      "latencyMs": 7887,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "35f1ecd39d4e",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 4,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "image_mode",
+      "requestMode": "selected_item",
+      "candidateKey": "garment-1-dress-wedding-dress",
+      "imageDigestPrefix": "a0c07bbf2edf",
+      "sessionHash": "afa55d75d208",
+      "hasImage": true,
+      "imageChars": 30476,
+      "imageKey": "a0c07bbf2edf",
+      "localPrivacyFiltered": false,
+      "startedAtMs": 17776,
+      "latencyMs": 6380,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "34dff2703490",
+      "offerCount": 0,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 5,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "fx-D:garment-1-dress-wedding-dress",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 24159,
+      "latencyMs": 1308,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "3d13b6741f9b",
+      "offerCount": 5,
+      "responseStatus": "completed"
+    },
+    {
+      "seq": 6,
+      "phase": "P2",
+      "actor": "A",
+      "kind": "commerce_only",
+      "requestMode": "commerce_only",
+      "candidateKey": "fx-O:garment-1-jacket-leather-jacket",
+      "imageDigestPrefix": null,
+      "sessionHash": null,
+      "hasImage": false,
+      "imageChars": 0,
+      "imageKey": null,
+      "localPrivacyFiltered": false,
+      "startedAtMs": 24158,
+      "latencyMs": 1950,
+      "httpStatus": 200,
+      "outcome": "ok",
+      "requestHash": "02eff34a65f5",
+      "offerCount": 8,
+      "responseStatus": "completed"
+    }
+  ]
+}
