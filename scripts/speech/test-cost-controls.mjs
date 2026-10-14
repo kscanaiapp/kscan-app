@@ -18,11 +18,17 @@ try {
     create table auth.users (id uuid primary key);
     create function auth.role() returns text language sql as $$ select current_setting('request.jwt.claim.role', true) $$;
     create table public.profiles (id uuid primary key references auth.users, account_status text);
+    create table public.__speech_test_kplus (id uuid primary key);
+    create function public.kplus_has_active_entitlement(p_user_id uuid, p_entitlement_key text)
+      returns boolean language sql stable as $ select p_entitlement_key = 'k_plus'
+        and exists (select 1 from public.__speech_test_kplus where id = p_user_id) $;
     insert into auth.users values ('${a}'), ('${b}');
+    insert into public.__speech_test_kplus values ('${a}'), ('${b}');
     insert into profiles values ('${a}', 'active'), ('${b}', 'active');
     select set_config('request.jwt.claim.role','service_role',false);
   `);
   await db.exec(fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261011222213_build35_speech_operational_cost_controls.sql'), 'utf8'));
+  await db.exec(fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261014210000_stylist_speech_kplus_reservation_guard.sql'), 'utf8'));
   const reserve = async (actor = a, chars = 100, fingerprint = 'a'.repeat(64)) =>
     (await db.query('select public.reserve_speech_request($1,$2,$3) as result', [actor, fingerprint, chars])).rows[0].result;
   check((await reserve()).reason, 'disabled');
@@ -33,6 +39,11 @@ try {
   await db.exec(`update profiles set account_status=null where id='${a}'`);
   check((await reserve()).reason, 'account_unavailable');
   await db.exec(`update profiles set account_status='active' where id='${a}'`);
+  await db.exec(`delete from public.__speech_test_kplus where id='${a}'`);
+  check((await reserve()).reason, 'entitlement_required');
+  check((await db.query('select count(*)::int as n from speech_request_reservations')).rows[0].n, 0);
+  check((await db.query('select count(*)::int as n from speech_daily_cost')).rows[0].n, 0);
+  await db.exec(`insert into public.__speech_test_kplus values ('${a}')`);
   const first = await reserve(); check(first.allowed, true);
   check((await reserve(a, 1, 'b'.repeat(64))).reason, 'concurrent_request');
   check((await db.query('select public.finish_speech_request($1,$2,false) as result', [b, first.reservationId])).rows[0].result, false);
