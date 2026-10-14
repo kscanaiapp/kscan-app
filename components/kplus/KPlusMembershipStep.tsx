@@ -318,7 +318,7 @@ export function KPlusMembershipStep({
     }, 350);
     return () => { disposed = true; clearTimeout(timer); };
   }, [commerce.status, commerce.catalog, entitlement.state, isAcquisitionEntry,
-      isAuthenticated, liveSignalsSettled, nothingToSell, onContinue, user?.id, view.paywall]);
+      isAuthenticated, liveSignalsSettled, nothingToSell, onContinue, user?.id, Boolean(view.paywall)]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
