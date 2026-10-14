@@ -9,7 +9,6 @@ import {
   SPEECH_CONSENT_COPY, SPEECH_DISCLOSURE_APPROVED,
 } from '../../services/avatars/speechConsent';
 import { stopAvatarSpeechPlayback } from '../../services/avatarSpeech';
-import { KPlusGate } from '../kplus/KPlusGate';
 
 export function SpeechSettingsSection({ actorId }: { actorId: string | null }) {
   const [enabled, setEnabled] = useState(false);
@@ -58,30 +57,13 @@ export function SpeechSettingsSection({ actorId }: { actorId: string | null }) {
   };
   return <View style={styles.card} testID="settings-speech-consent-section">
     <SectionHeader title="Elise Speech" subtitle="Your choice for this account on this device" />
-    <KPlusGate source="wardrobe_concierge">
-      {({ isActive, resolving, openUpgrade }) => (
-        <>
-          {!isActive ? (
-            <Text style={styles.body} testID="settings-speech-kplus-status">
-              {resolving ? 'Checking K+ membership…'
-                : 'Spoken replies require K+. Elise’s written replies remain available to everyone.'}
-            </Text>
-          ) : null}
-          <PrivacyToggle
-            title="Spoken replies on this device"
-            body="Allow ElevenLabs to generate Elise’s voice from reply text."
-            value={enabled}
-            busy={busy || ((!isActive || resolving) && !enabled)}
-            onChange={(next) => {
-              if (next && !isActive) { if (!resolving) openUpgrade(); return; }
-              change(next);
-            }}
-          />
-          {!isActive && !resolving ?
-            <SecondaryButton title="Explore K+ membership" onPress={openUpgrade} /> : null}
-        </>
-      )}
-    </KPlusGate>
+    <Text style={styles.body} testID="settings-speech-kplus-disclosure">
+      Spoken replies require an active K+ membership. This privacy setting only
+      grants or withdraws permission to send reply text to ElevenLabs; it never
+      activates K+ or starts provider billing by itself.
+    </Text>
+    <PrivacyToggle title="Spoken replies on this device" body="Allow ElevenLabs to generate Elise’s voice from reply text."
+      value={enabled} busy={busy} onChange={change} />
     {error ? <Text accessibilityRole="alert" style={styles.body}>{error}</Text> : null}
     {error === SPEECH_CONSENT_COPY.withdrawalFailure ?
       <SecondaryButton title="Retry saving spoken replies off" disabled={busy} onPress={() => void save(false)} /> : null}
