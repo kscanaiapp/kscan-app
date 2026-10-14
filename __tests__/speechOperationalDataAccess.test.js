@@ -50,6 +50,18 @@ test('Speech rejects a locked profile even when its status is still active', asy
   }
 });
 
+test('Speech JWT-bound K+ lookup rejects missing, error and nonboolean entitlement', async () => {
+  const allowed = fixture({ summary: true });
+  assert.equal(await allowed.access.hasActiveKPlus('actor-a'), true);
+  assert.equal(allowed.calls.length, 1);
+  assert.equal(allowed.calls[0].boundary, 'actor');
+  assert.equal(allowed.calls[0].name, 'has_active_k_plus');
+  for (const summary of [null, false, { active: true }, 'true']) {
+    assert.equal(await fixture({ summary }).access.hasActiveKPlus('actor-a'), false);
+  }
+  assert.equal(await fixture({ summary: true, summaryError: new Error('db') }).access.hasActiveKPlus('actor-a'), false);
+});
+
 test('Speech cost mutations use only service client and verified server actor/reference cost arguments', async () => {
   const f = fixture();
   await f.access.reserveSpeechRequest('actor-a', 'a'.repeat(64), 25);
