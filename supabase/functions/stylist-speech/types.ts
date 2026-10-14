@@ -82,6 +82,7 @@ export interface StylistPreferenceRow {
 export interface StylistSpeechDataAccess {
   getAuthenticatedActor(): Promise<{ id: string; isAnonymous?: boolean } | null>;
   getAccountStatus(actorId: string): Promise<string | null>;
+  hasActiveKPlus(): Promise<boolean>;
   reserveSpeechRequest(actorId: string, fingerprint: string, characters: number): Promise<{
     allowed: boolean; reservationId?: string; reason?: string;
   }>;
@@ -95,6 +96,7 @@ export type SpeechErrorCode =
   | 'INVALID_REQUEST'
   | 'NOT_AUTHENTICATED'
   | 'ACCOUNT_UNAVAILABLE'
+  | 'KPLUS_REQUIRED'
   | 'SPEECH_DISABLED'
   | 'SPEECH_COST_LIMIT'
   | 'SESSION_NOT_FOUND'
