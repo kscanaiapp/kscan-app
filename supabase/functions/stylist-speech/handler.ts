@@ -124,6 +124,14 @@ export function createStylistSpeechHandler(
         throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
       }
 
+      // Paid Speech is K+ only. Check the canonical JWT-scoped entitlement on
+      // every invocation, including cues, before a provider-cost reservation.
+      // Unknown/unreadable entitlement fails closed; it is never a Free trial.
+      const hasKPlus = await dataAccess.hasActiveKPlus().catch(() => false);
+      if (hasKPlus !== true) {
+        throw new StylistSpeechError(403, 'KPLUS_REQUIRED', 'An active K+ membership is required for spoken replies.');
+      }
+
       let rawBody: unknown;
       try {
         rawBody = await request.json();
@@ -173,6 +181,13 @@ export function createStylistSpeechHandler(
       const persistedStylistId = preference?.avatar_id ?? 'elise_default';
       if (persistedStylistId !== body.stylistId) {
         throw new StylistSpeechError(403, 'STYLIST_MISMATCH', 'The selected stylist does not match this account.');
+      }
+
+      // Entitlement may have lapsed while loading the owned message or
+      // persisted stylist preference. Recheck immediately before provider spend.
+      const stillHasKPlus = await dataAccess.hasActiveKPlus().catch(() => false);
+      if (stillHasKPlus !== true) {
+        throw new StylistSpeechError(403, 'KPLUS_REQUIRED', 'An active K+ membership is required for spoken replies.');
       }
 
       const release = limiter.begin(actor.id, operationKey(actor.id, body), now());
