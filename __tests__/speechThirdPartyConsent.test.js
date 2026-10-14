@@ -173,6 +173,9 @@ test('speech opt-in and withdrawal are wired through canonical privacy and speec
   const service = fs.readFileSync(path.join(ROOT, 'services/avatarSpeech.ts'), 'utf8');
   assert.match(settings, /Alert\.alert\(SPEECH_CONSENT_COPY\.title/);
   assert.match(settings, /withdrawSpeechConsent\(actorId\)/);
+  assert.match(settings, /<KPlusGate source="wardrobe_concierge">/);
+  assert.match(settings, /if \(next && !isActive\)/);
+  assert.match(settings, /\(\(!isActive \|\| resolving\) && !enabled\)/);
   assert.match(settings, /await stopAvatarSpeechPlayback\(\)/);
   assert.ok(service.indexOf('await loadSpeechConsent(payload.actorId)') < service.indexOf('const key = operationKey(payload)'));
   assert.match(fs.readFileSync(path.join(ROOT, 'app/privacy.tsx'), 'utf8'), /<SpeechSettingsSection actorId=\{user\?\.id \?\? null\}/);
