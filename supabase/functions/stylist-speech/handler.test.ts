@@ -18,6 +18,7 @@ const DEFAULT_BODY = { sessionId: SESSION_ID, messageId: MESSAGE_ID, stylistId: 
 interface DataOverrides {
   actor?: { id: string } | null;
   accountStatus?: string | null;
+  activeKPlus?: boolean;
   session?: SpeechSessionRow | null;
   message?: SpeechMessageRow | null;
   preference?: StylistPreferenceRow | null;
@@ -27,6 +28,7 @@ function dataAccess(overrides: DataOverrides = {}): StylistSpeechDataAccess {
   const defaults = {
     actor: { id: ACTOR_ID },
     accountStatus: 'active',
+    activeKPlus: true,
     session: { id: SESSION_ID, user_id: ACTOR_ID },
     message: {
       id: MESSAGE_ID,
@@ -43,6 +45,7 @@ function dataAccess(overrides: DataOverrides = {}): StylistSpeechDataAccess {
   return {
     getAuthenticatedActor: () => Promise.resolve(values.actor),
     getAccountStatus: () => Promise.resolve(values.accountStatus),
+    hasActiveKPlus: () => Promise.resolve(values.activeKPlus),
     reserveSpeechRequest: () => Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' }),
     finishSpeechRequest: () => Promise.resolve(),
     getSession: () => Promise.resolve(values.session),
@@ -110,6 +113,42 @@ for (const [name, overrides, status] of [
     assert.equal(paidCalls, 0);
   });
 }
+
+Deno.test('Free, expired or revoked K+ actors never dispatch paid Speech', async () => {
+  for (const activeKPlus of [false]) {
+    for (const body of [DEFAULT_BODY, { cue: 'greeting', stylistId: DEFAULT_BODY.stylistId }]) {
+      let paidCalls = 0;
+      let reserved = 0;
+      const handler = handlerFor({ activeKPlus }, {
+        createDataAccess: () => ({
+          ...dataAccess({ activeKPlus }),
+          reserveSpeechRequest: () => { reserved++; throw new Error('unexpected reservation'); },
+        }),
+        generateSpeech: () => { paidCalls++; throw new Error('unexpected provider'); },
+      });
+      const response = await handler(speechRequest(body));
+      assert.equal(response.status, 403);
+      assert.equal((await responseBody(response)).code, 'ENTITLEMENT_REQUIRED');
+      assert.equal(reserved, 0);
+      assert.equal(paidCalls, 0);
+    }
+  }
+});
+
+Deno.test('reservation rejects K+ revocation between JWT check and dispatch', async () => {
+  let paidCalls = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      reserveSpeechRequest: () => Promise.resolve({ allowed: false, reason: 'entitlement_required' }),
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('paid'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'ENTITLEMENT_REQUIRED');
+  assert.equal(paidCalls, 0);
+});
 
 Deno.test('unknown or unavailable account status cannot dispatch paid Speech', async () => {
   for (const accountStatus of [null, 'unknown', 'deactivated', 'purged']) {
