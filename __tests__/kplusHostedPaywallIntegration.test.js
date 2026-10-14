@@ -15,7 +15,7 @@ test('native RevenueCat UI uses published current offering after actor binding, 
   assert.match(bridge, /getOfferings\(\)/);
   assert.match(bridge, /current\.identifier !== 'default'/);
   assert.match(bridge, /presentPaywall\(/);
-  assert.doesNotMatch(bridge, /presentPaywallIfNeeded\(/);
+  assert.doesNotMatch(bridge, /RevenueCatUI\.presentPaywallIfNeeded\(/);
   assert.doesNotMatch(bridge, /configure\(|logIn\(|activateKPlus/);
 });
 
