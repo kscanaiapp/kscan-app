@@ -204,6 +204,9 @@ export function createStylistSpeechHandler(
           if (reservation.reason === 'account_unavailable') {
             throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
           }
+          if (reservation.reason === 'entitlement_required') {
+            throw new StylistSpeechError(403, 'KPLUS_REQUIRED', 'An active K+ membership is required for spoken replies.');
+          }
           const disabled = reservation.reason === 'disabled';
           throw new StylistSpeechError(disabled ? 503 : 429,
             disabled ? 'SPEECH_DISABLED' : 'SPEECH_COST_LIMIT',
