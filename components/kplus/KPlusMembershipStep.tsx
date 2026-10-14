@@ -24,7 +24,7 @@ import { LUXURY, SPACING } from '../../constants/theme';
 import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { presentHostedKPlusPaywall } from '../../services/kplus/kplusHostedPaywall';
+import { isHostedKPlusPaywallAvailable, presentHostedKPlusPaywall } from '../../services/kplus/kplusHostedPaywall';
 import { refreshKPlusEntitlement } from '../../services/kplus/kplusEntitlementStore';
 import { useKPlusCommerceSnapshot } from '../../hooks/useKPlusCommerce';
 import { useKPlusLiveCapabilitySignals } from '../../hooks/useKPlusLiveCapabilitySignals';
@@ -289,6 +289,7 @@ export function KPlusMembershipStep({
   // occur before any native purchase UI can be presented.
   useEffect(() => {
     if (hostedAttemptedRef.current || !isAuthenticated || !user?.id) return;
+    if (!isHostedKPlusPaywallAvailable()) return;
     if (entitlement.state !== 'eligible' && entitlement.state !== 'expired') return;
     if (!isAcquisitionEntry || nothingToSell || !liveSignalsSettled) return;
     if (commerce.status !== 'READY' || !view.paywall) return;
