@@ -381,7 +381,7 @@ export function KPlusMembershipStep({
   }
 
 
-  if (hosted === 'opening') {
+  if (hosted === 'opening' && entitlement.state !== 'active') {
     return (
       <View style={[styles.root, styles.centered]} testID="kplus-hosted-paywall-opening" accessibilityState={{ busy: true }}>
         <ActivityIndicator size="large" color={P.deepPlum} />
