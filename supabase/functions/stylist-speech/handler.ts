@@ -123,13 +123,6 @@ export function createStylistSpeechHandler(
       if (accountStatus !== 'active') {
         throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
       }
-      // K+ authorization is separate from the personal-device speech consent.
-      // A Free, expired, revoked or unresolved actor must not dispatch a
-      // metered provider call. Reservation RPC independently rechecks this.
-      const isKPlus = await dataAccess.hasActiveKPlus(actor.id).catch(() => false);
-      if (!isKPlus) {
-        throw new StylistSpeechError(403, 'ENTITLEMENT_REQUIRED', 'An active K+ membership is required for spoken replies.');
-      }
 
       let rawBody: unknown;
       try {
@@ -195,9 +188,6 @@ export function createStylistSpeechHandler(
         if (!reservation.allowed || !reservation.reservationId || !UUID_RE.test(reservation.reservationId)) {
           if (reservation.reason === 'account_unavailable') {
             throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
-          }
-          if (reservation.reason === 'entitlement_required') {
-            throw new StylistSpeechError(403, 'ENTITLEMENT_REQUIRED', 'An active K+ membership is required for spoken replies.');
           }
           const disabled = reservation.reason === 'disabled';
           throw new StylistSpeechError(disabled ? 503 : 429,
