@@ -1446,6 +1446,13 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Read-only Supabase migration ledger inspection on 2026-10-14 verified 20261014210000 absent from Production (wyyuqfdxucjksghsmhry); additive/replace-only reservation K+ guard is source-proposed on canonical backend PR #581. Database effect is absent. Owner authorized the Elise repair execution on 2026-10-14 and approved a governed single-version migration request. This declaration makes the exact version selectable by governed CI; it is not a deployment approval or evidence that Staging SQL and security checks have passed. Staging migration and read-back, non-billing regression, current ledger/source reconciliation, and the protected Production environment review remain mandatory before execution. Provider billing must remain disabled and daily character budget zero."
+          },
+          {
+            "localVersion": "20261015224000",
+            "logicalName": "vto_paid_attempt_cas_safety",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Owner-authorized VTO-001..005 financial-safety repair PR #600 (2026-10-15); Production and Staging Photo generation disabled via existing operator kill switch before cutover. Canonical production migration ledger has no 20261015224000 row at declaration time; this is intentionally PENDING and non-executable unless a separate exact-version governed promotion is approved after full CI, Staging migration/read-back, matching service-only grants, function deployment, and one bounded synthetic paid Staging certification. No broad migration replay or paid Production calls allowed until controlled verification."
           }
         ],
         "remoteOnly": [
