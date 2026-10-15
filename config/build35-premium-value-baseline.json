@@ -93,7 +93,7 @@
     "supabase/functions/vto-generate/vtoEligibility.ts": "5cae828f0d91e22f6f1565b885c2935ad14ee35b2c0e334929755502526bfef1",
     "supabase/functions/vto-generate/vtoEntitlement.ts": "18abd5663bd5a938bf53a3cd2076fff8acd84486c872499a7a5f7c240028ff73",
     "supabase/functions/vto-generate/vtoFeatureControl.ts": "1d079ea050ebe13943729d0c1dfe9cae3d66d4142ed50526675fd682e0f9f177",
-    "supabase/functions/vto-generate/vtoHandler.ts": "d61346b255cde3858cd7aaad290360236c0f47e0a858b03e0007eab55ecafcae",
+    "supabase/functions/vto-generate/vtoHandler.ts": "cc32e0e71e98bcde60c76394cc18e5e03f3452792877edf07a30c9fe2a9076c8",
     "supabase/functions/vto-generate/vtoOwnedGarment.ts": "11fe1b90d06ff25bdac1b75024dc39dcf7044d5952c04ab0e2b9f2fb585d37b2",
     "supabase/functions/vto-generate/vtoReservation.ts": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
     "supabase/functions/vto-generate/vtoResultValidation.ts": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
