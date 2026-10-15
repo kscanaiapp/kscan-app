@@ -672,7 +672,7 @@ test('VTO-DUP-001: the intent sequence never walks backwards', async () => {
   for (const garment of [GARMENT_A, GARMENT_B, GARMENT_A, GARMENT_B]) {
     if (h.store.getVtoSnapshot().person) h.store.attachSessionPerson(garment, 'commerce_product');
     else h.store.setVtoPersonInput(PERSON, garment, 'commerce_product');
-    seen.push(Number(await generateOnce(h, garment)));
+    seen.push(Number((await generateOnce(h, garment)).split(':').at(-1)));
   }
   for (let i = 1; i < seen.length; i += 1) {
     assert.ok(seen[i] > seen[i - 1], `intent ${seen[i]} must exceed ${seen[i - 1]}`);
