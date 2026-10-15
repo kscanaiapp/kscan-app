@@ -13,12 +13,11 @@ function modulesFor(rel, renderer, overrides) {
 }
 
 for (const platformOS of ['ios', 'android']) {
-  test(`${platformOS}: enabled Home entries explain missing proof without a paid claim or navigation`, () => {
+  test(`${platformOS}: built-in Packing and Watchlist remain usable when marketing proof expires`, () => {
     const renderer = createRenderer();
     const native = createReactNativeStub({ platformOS });
-    const alerts = [], routes = [], upgrades = [];
-    native.Alert = { alert: (...args) => alerts.push(args) };
-    let currentProof = false;
+    const routes = [], upgrades = [];
+    let active = false, resolving = false, currentProof = false;
     const rel = 'components/home/HomeLuxuryTechV1.tsx';
     const Home = runModule(rel, modulesFor(rel, renderer, {
       'react-native': native,
@@ -29,32 +28,47 @@ for (const platformOS of ['ios', 'android']) {
       '../../hooks/useStylePicks': { useStylePicks: () => ({ picks: [], isLoading: false }) },
       '../../hooks/useStylistIdentity': { useStylistIdentity: () => ({ identity: null, isLoading: false }) },
       '../../hooks/useStyleChatSessions': { useStyleChatSessions: () => ({}) },
-      '../../hooks/useKPlusEntitlement': { useKPlusEntitlement: () => ({ state: 'eligible', isActive: false }) },
+      '../../hooks/useKPlusEntitlement': { useKPlusEntitlement: () => ({ state: resolving ? 'loading' : active ? 'active' : 'eligible', isActive: active }) },
+      '../../types/entitlements': { isKPlusEntitlementUnresolved: state => state === 'loading' },
       '../../services/kplus/kplusCapabilityProof': { hasRuntimeCapabilityProof: () => currentProof },
       '../../constants/featureFlags': { PACKING_INTELLIGENCE_V1: true, SMART_WATCHLIST_V1: true, TEXTSCAN_UI_ENABLED: true },
       '../luxury': { LuxuryScreen: 'Screen', KScanHeader: 'Header', PrimaryButton: 'Button', SecondaryButton: 'Button', SectionHeader: 'Section', PrivacyFooter: 'Footer', StatusPill: 'Pill' },
-      '../kplus/KPlusGate': { KPlusGate: ({ children }) => children({ isActive: false, resolving: false, openUpgrade: () => upgrades.push('upgrade') }) },
+      '../kplus/KPlusGate': { KPlusGate: ({ children }) => children({ isActive: active, resolving, openUpgrade: () => upgrades.push('upgrade') }) },
     })).default;
     const element = renderer.jsx(Home, {});
     let tree = renderer.render(element);
     byTestId(tree, 'home-luxury-feature-packing')[0].props.onPress();
     byTestId(tree, 'home-luxury-watchlist')[0].props.onPress();
-    assert.equal(alerts.length, 2);
-    assert.deepEqual(routes, []);
-    assert.deepEqual(upgrades, []);
-    assert.equal(byTestId(tree, 'home-luxury-packing-kplus-badge').length, 0);
-    assert.equal(byTestId(tree, 'home-luxury-watchlist-kplus-badge').length, 0);
+    assert.deepEqual(routes, ['/packing']);
+    assert.deepEqual(upgrades, ['upgrade']);
+    assert.equal(byTestId(tree, 'home-luxury-packing-kplus-badge').length, 1);
+    assert.equal(byTestId(tree, 'home-luxury-watchlist-kplus-badge').length, 1);
+
+    // A new proof must not change consumer routing, nor grant K+ by itself.
     currentProof = true;
     tree = renderer.render(element);
-    byTestId(tree, 'home-luxury-feature-packing')[0].props.onPress();
     byTestId(tree, 'home-luxury-watchlist')[0].props.onPress();
+    assert.equal(upgrades.length, 2);
     assert.deepEqual(routes, ['/packing']);
-    assert.equal(upgrades.length, 1);
-    // An entry retained on screen must recheck an expired proof before acting.
+
+    // Entitlement, not proof, is the authority for opening paid Watchlist.
+    active = true;
     currentProof = false;
+    tree = renderer.render(element);
     byTestId(tree, 'home-luxury-watchlist')[0].props.onPress();
-    assert.equal(upgrades.length, 1);
-    assert.equal(alerts.length, 3);
+    assert.deepEqual(routes, ['/packing', '/watchlist']);
+    assert.equal(upgrades.length, 2);
+
+    // An unresolved user may not be misclassified as free or active.
+    resolving = true;
+    tree = renderer.render(element);
+    const watch = byTestId(tree, 'home-luxury-watchlist')[0];
+    assert.equal(watch.props.disabled, true);
+    watch.props.onPress();
+    assert.equal(upgrades.length, 2);
+    assert.deepEqual(routes, ['/packing', '/watchlist']);
+    assert.equal(byTestId(tree, 'home-luxury-packing-kplus-badge').length, 0);
+    assert.equal(byTestId(tree, 'home-luxury-watchlist-kplus-badge').length, 0);
   });
 
   test(`${platformOS}: unproven Cloud Closet is visible without mounting a paid gate or engine`, () => {
