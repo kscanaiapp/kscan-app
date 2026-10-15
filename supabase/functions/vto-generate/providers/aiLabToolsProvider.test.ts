@@ -662,7 +662,7 @@ Deno.test('VTO-QUOTA-003: a gateway refusal before any job is non-billable', asy
   // 403 is the account's ACTUAL live state ("You are not subscribed to this
   // API."), so this is the failure real users would hit first if VTO were
   // enabled today -- and it must not cost them an attempt.
-  for (const status of [401, 403, 429, 500, 503]) {
+  for (const status of [401, 403, 429]) {
     const { fn } = scriptedFetch({
       submit: () => jsonResponse({ message: 'You are not subscribed to this API.' }, status),
     });
@@ -772,4 +772,61 @@ Deno.test('an undecodable inline garment never reaches the network and is non-bi
     }
   }
   assertEquals(calls.length, 0);
+});
+
+
+Deno.test('VTO-001: ambiguous submit network exception preserves paid quota', async () => {
+  const { fn } = scriptedFetch();
+  const provider = createAiLabToolsProvider({
+    apiKey: 'k',
+    fetchImpl: (url, init) => {
+      if (url.includes('/portrait/editing/try-on-clothes-pro')) throw new Error('connection reset AFTER POST');
+      return fn(url, init);
+    },
+  });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'network_failure');
+    assert(outcome.billable !== false, 'unknown acceptance must never release quota');
+  }
+});
+
+Deno.test('VTO-001: 5xx submission cannot prove no job was accepted', async () => {
+  for (const status of [500, 502, 503, 504]) {
+    const { fn } = scriptedFetch({ submit: () => jsonResponse({ error_code: 503 }, status) });
+    const outcome = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn })
+      .generate(TOP_INPUT, { signal: signal() });
+    assertEquals(outcome.ok, false);
+    if (!outcome.ok) assert(outcome.billable !== false, 'HTTP '+status+' is ambiguous');
+  }
+});
+
+Deno.test('VTO-001: accepted task polling 429/503 must not release paid quota', async () => {
+  for (const http of [429, 503]) {
+    const { fn } = scriptedFetch({
+      submit: () => jsonResponse({ error_code: 0, task_id: 'task-accepted-1' }),
+      poll: () => jsonResponse({ error_code: http, error_msg: 'vendor error' }, http),
+    });
+    let receipt = '';
+    const outcome = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 })
+      .generate(TOP_INPUT, { signal: signal(), onTaskAccepted: async id => {
+        receipt = id; return true;
+      } });
+    assertEquals(receipt, 'task-accepted-1');
+    assertEquals(outcome.ok, false);
+    if (!outcome.ok) assert(outcome.billable !== false, 'poll '+http+' is after task acceptance');
+  }
+});
+
+Deno.test('VTO-008: failed task receipt stops polling, preserving spent quota', async () => {
+  const { fn, calls } = scriptedFetch();
+  const outcome = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 })
+    .generate(TOP_INPUT, { signal: signal(), onTaskAccepted: async () => false });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.detail, 'provider_task_receipt_unavailable');
+    assert(outcome.billable !== false);
+  }
+  assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 0);
 });
