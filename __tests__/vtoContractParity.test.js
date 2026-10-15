@@ -268,3 +268,11 @@ test('the launch default is narrower than the slot map allows', () => {
   assert.ok(!supported.includes('skirt'));
   assert.equal(clientEligibility.resolveVtoGarmentSlot('pants'), 'bottom');
 });
+
+
+test('VTO-004: completed-but-lost result asks for an explicit, counted retry', () => {
+  const failure=clientFailures.toVtoFailure('result_unavailable');
+  assert.match(failure.message, /image is no longer available/i);
+  assert.match(failure.message, /another daily try-on attempt/i);
+  assert.equal(failure.retryable,true);
+});
