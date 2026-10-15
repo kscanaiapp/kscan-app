@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-14T16:54:43.935Z",
-    "generatedFromGitSha": "7d8442445b24c418e5516e8ad9259913cc541281"
+    "generatedAtUtc": "2026-10-15T03:07:51.260Z",
+    "generatedFromGitSha": "1c953b9b5d4d53aa41943bf5064e43ae7a0876b9"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -989,9 +989,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 11,
-        "treeFileCount": 22,
-        "bundleHash": "c3cfbba63140aa6af779297bd513e3a3288224e3e31490dc63097cab4a724a7d",
-        "treeHash": "54b4d65f59691db617b1d5b18c8732be744fd2d55bf141a7576ae30f3b0f8348",
+        "treeFileCount": 23,
+        "bundleHash": "15a98eb943d19dd4a8586d6f90de8c624f4f9af2cee45759d69808bf08384602",
+        "treeHash": "3ad35806efd60388099fb293a9aa74de50150cde18dbe9e97251553a6c51457f",
         "files": [
           {
             "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
@@ -1010,18 +1010,23 @@
           },
           {
             "path": "supabase/functions/stylist-speech/handler.test.ts",
-            "sha256": "88f66a0fbb79abf8bc1e08f0c557fd227dcbe0892676821bf30bafcc12ff7b5e",
+            "sha256": "6c3a44f50f05ec522d2bfbfcc19c6add469d5c028fd46be625547dcc884367e6",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/handler.ts",
-            "sha256": "68c8242adc5dbc395007192fbddef979154cc50f45acfa7b86fc01580153a66e",
+            "sha256": "9e43795f9b5250a68a5abb31e3d976058a92932c0bb5db5fc6abc371b7d0f3cf",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/index.ts",
             "sha256": "94c14907feabf7b4e6adc23fa94e71ff46a70b2352ba40286e6d3be15d135dd8",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/paidBoundary.test.ts",
+            "sha256": "3878ca257e50da3a4e7306cf27a5d93fa8bb55c8233a6da3a67550921c9597b4",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/providerDiagnostics.test.ts",
@@ -1065,7 +1070,7 @@
           },
           {
             "path": "supabase/functions/stylist-speech/speechCues.test.ts",
-            "sha256": "4c98763e7a7f86ceb9ad897756eeaff105271284c052a4f42bb9569f3f321236",
+            "sha256": "70b9eef89c400842ca31874721c8b82d1e62aec41a001219bfbd07ef462cdecf",
             "bundle": false
           },
           {
