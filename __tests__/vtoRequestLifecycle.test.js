@@ -565,8 +565,8 @@ test('the request payload carries no identity field for the server to trust', as
   // The attempt label must never become a channel for identity.
   assert.match(
     String(h.pending[0].args.requestGeneration),
-    /^\d+$/,
-    'requestGeneration must be a plain attempt counter, not an identifier',
+    /^[a-z0-9]+-[a-z0-9]+:\d+$/,
+    'requestGeneration must be a bounded launch-unique intent label, not an identity',
   );
 });
 
