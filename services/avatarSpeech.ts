@@ -200,19 +200,16 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 
   let requestFailure: unknown = null;
   try {
-    let speech;
-    try {
-      speech = await requestStylistSpeech({
-        actorId: payload.actorId,
-        sessionId: payload.sessionId,
-        messageId: payload.messageId,
-        stylistId: payload.stylistId,
-        signal: controller.signal,
-      });
-    } catch (error) {
+    const speech = await requestStylistSpeech({
+      actorId: payload.actorId,
+      sessionId: payload.sessionId,
+      messageId: payload.messageId,
+      stylistId: payload.stylistId,
+      signal: controller.signal,
+    }).catch((error: unknown) => {
       requestFailure = error;
       throw error;
-    }
+    });
     if (!isCurrent(requestGeneration)) return;
 
     const uri = await createTemporaryStylistSpeechFile({
