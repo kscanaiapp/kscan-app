@@ -78,8 +78,8 @@ function deps(overrides: Partial<VtoHandlerDeps> = {}): Partial<VtoHandlerDeps> 
     // the reservation's own behaviour (duplicate / quota / fail-closed) is
     // covered in vtoPaidBoundary.test.ts.
     reserveVtoGeneration: () =>
-      Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10 }),
-    completeVtoGeneration: () => Promise.resolve(),
+      Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10, attemptId: '11111111-2222-4333-8444-555555555555' }),
+    completeVtoGeneration: () => Promise.resolve(true),
     generationTimeoutMs: 1_000,
     devScenariosAllowed: () => false,
     ...overrides,
@@ -517,14 +517,14 @@ function settlementSpy() {
   return {
     settled,
     completeVtoGeneration: (
-      _u: string, _k: string, status: 'succeeded' | 'failed',
+      _u: string, _k: string, _attemptId: string, status: 'succeeded' | 'failed',
     ) => {
       settled.push({ how: 'complete', status });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
     releaseVtoGeneration: () => {
       settled.push({ how: 'release' });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
   };
 }
