@@ -354,7 +354,10 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
   return {
     id: AILABTOOLS_PROVIDER_ID,
-    async generate(input: VtoProviderInput, { signal }: { signal: AbortSignal }): Promise<VtoProviderOutcome> {
+    async generate(input: VtoProviderInput, { signal, onTaskAccepted }: {
+      signal: AbortSignal;
+      onTaskAccepted?: (taskId: string) => Promise<boolean>;
+    }): Promise<VtoProviderOutcome> {
       const unsupported = unsupportedSlotReason(input.slot);
       if (unsupported) {
         // Refused before any network call: nothing was bought.
@@ -437,9 +440,9 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
       // Record the accepted provider task before polling. Without an auditable
       // task identity, recovery must remain fail-closed and count the attempt.
-      if (options.onTaskAccepted) {
+      if (onTaskAccepted) {
         let persisted = false;
-        try { persisted = await options.onTaskAccepted(taskId); } catch { persisted = false; }
+        try { persisted = await onTaskAccepted(taskId); } catch { persisted = false; }
         if (!persisted) {
           return { ok: false, failure: 'generation_failed', detail: 'provider_task_receipt_unavailable',
             billable: true };
