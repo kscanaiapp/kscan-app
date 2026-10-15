@@ -7,6 +7,32 @@ import { hasSpeechConsent } from './speechConsent';
 const CLIENT_SPEECH_TIMEOUT_MS = 20_000;
 const MAX_AUDIO_BASE64_CHARACTERS = 2_500_000;
 
+/** Only transport/timeouts and HTTP 429/5xx qualify for manual retry. */
+export class StylistSpeechRequestFailure extends Error {
+  readonly retriable: boolean;
+
+  constructor(retriable: boolean) {
+    super('Speech is temporarily unavailable.');
+    this.name = 'StylistSpeechRequestFailure';
+    this.retriable = retriable;
+  }
+}
+
+export function isRetriableSpeechFailure(error: unknown): boolean {
+  return error instanceof StylistSpeechRequestFailure && error.retriable;
+}
+
+function isRetryableInvokeError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { name?: unknown; status?: unknown; context?: unknown };
+  const context = candidate.context && typeof candidate.context === 'object'
+    ? candidate.context as { status?: unknown }
+    : null;
+  const status = typeof candidate.status === 'number' ? candidate.status : context?.status;
+  if (status === 429 || (typeof status === 'number' && status >= 500 && status <= 599)) return true;
+  return candidate.name === 'FunctionsFetchError' || candidate.name === 'FunctionsRelayError';
+}
+
 export interface StylistSpeechClientRequest {
   actorId: string;
   sessionId: string;
@@ -106,17 +132,32 @@ export async function requestStylistSpeech(
     throw new Error('Speech references are required.');
   }
 
-  const { data, error } = await supabase.functions.invoke('stylist-speech', {
-    body: {
-      sessionId: request.sessionId,
-      messageId: request.messageId,
-      stylistId: request.stylistId,
-    },
-    signal: request.signal,
-    timeout: CLIENT_SPEECH_TIMEOUT_MS,
-  });
-  if (error) {
-    throw new Error('Speech is temporarily unavailable.');
+  try {
+    const { data, error } = await supabase.functions.invoke('stylist-speech', {
+      body: {
+        sessionId: request.sessionId,
+        messageId: request.messageId,
+        stylistId: request.stylistId,
+      },
+      signal: request.signal,
+      timeout: CLIENT_SPEECH_TIMEOUT_MS,
+    });
+    if (error) {
+      // An intentional actor/session cancellation must never re-arm greeting.
+      throw new StylistSpeechRequestFailure(
+        !request.signal?.aborted && isRetryableInvokeError(error),
+      );
+    }
+    return validateResponse(data, request);
+  } catch (error) {
+    if (error instanceof StylistSpeechRequestFailure) throw error;
+    if (request.signal?.aborted) throw new StylistSpeechRequestFailure(false);
+    if (error instanceof TypeError ||
+      (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))) {
+      throw new StylistSpeechRequestFailure(true);
+    }
+    // Invalid response shape, local eligibility, and unclassified errors are
+    // terminal for automatic greeting and remain available to manual recovery.
+    throw error;
   }
-  return validateResponse(data, request);
 }
