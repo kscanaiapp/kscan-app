@@ -65,6 +65,12 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/providers/mockProvider.test.ts',
   'supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts',
   'supabase/functions/stylechat-generate/index.ts',
+  // Owner-authorized 2026-10-15 paid safety VTO-001..005. Exact paths only;
+  // the live scope manifest independently records why each is necessary.
+  'supabase/functions/vto-generate/vtoReservation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.ts',
+  'supabase/functions/vto-generate/vtoHandler.test.ts',
+  'supabase/migrations/20261015224000_vto_paid_attempt_cas_safety.sql',
 ]);
 
 // ── The manifest parses, and every row carries its justification ────────────
@@ -246,7 +252,7 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only outside the exact Build 35 entitlement repair', (t) => {
+test('guard: generative backend changes only with exact owner-authorized paths', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
@@ -258,7 +264,7 @@ test('guard: generative backend stays read-only outside the exact Build 35 entit
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'only the exact Build 35 backend paths may change; all other supabase/** and app.json remain read-only',
+    'only exact Build 35 and 2026-10-15 paid-safety backend paths may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {
