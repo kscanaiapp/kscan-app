@@ -173,7 +173,7 @@ export type VtoProviderOutcome =
        *
        * `false` means the adapter can PROVE no generation was created -- it
        * never sent the submit, or the submit was refused by the gateway
-       * (401/403/429/5xx) before any job existed. The orchestrator gives the
+       * (known gateway 401/403/429) before any job existed. The orchestrator gives the
        * user's daily attempt back in that case, because charging someone for
        * an outage they did not cause is not a quota, it is a penalty.
        *
@@ -190,5 +190,9 @@ export type VtoProviderOutcome =
 
 export interface VtoProvider {
   readonly id: string;
-  generate(input: VtoProviderInput, options: { signal: AbortSignal }): Promise<VtoProviderOutcome>;
+  generate(input: VtoProviderInput, options: {
+    signal: AbortSignal;
+    /** Optional durable, actor/attempt-bound receipt on accepted async tasks. */
+    onTaskAccepted?: (providerTaskId: string) => Promise<boolean>;
+  }): Promise<VtoProviderOutcome>;
 }
