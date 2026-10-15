@@ -154,8 +154,8 @@ export async function getLatestStyleChatSession(): Promise<StyleChatSession | nu
 export async function createStyleChatSession(input: {
   title?: string;
   mode?: StyleChatMode;
-}): Promise<StyleChatSession> {
-  const userId = await requireUserId();
+}, expectedUserId?: string): Promise<StyleChatSession> {
+  const userId = await requireUserId(expectedUserId);
 
   const { data, error } = await supabase
     .from('style_chat_sessions')

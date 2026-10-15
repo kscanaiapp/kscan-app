@@ -353,10 +353,10 @@ test('an idle render does no work beyond advancing a counter', () => {
 
 test('the header disables the ticker while speaking and under Reduce Motion', () => {
   const header = fs.readFileSync(
-    path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'),
+    path.join(ROOT, 'hooks', 'useStylistAvatarVisual.ts'),
     'utf8',
   );
-  assert.match(header, /useAvatarIdlePresence\(\{\s*enabled:\s*!reducedMotion\s*&&\s*!isSpeaking\s*\}\)/);
+  assert.match(header, /useAvatarIdlePresence\(\{\s*enabled:\s*focused\s*&&\s*!reducedMotion\s*&&\s*!isSpeaking\s*\}\)/);
   // The tick must actually reach the memo, or the clock still would not move.
   const deps = header.match(/\}, \[[\s\S]*?idleTick,[\s\S]*?\]\);/);
   assert.ok(deps, 'idleTick must be a dependency of the engine frame memo');

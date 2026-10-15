@@ -359,7 +359,7 @@ test('the engine idle-presence channels reach the renderer', () => {
   assert.doesNotMatch(avatarSource, /mouth_overlay|scaleY|translateY/);
 
   const header = fs.readFileSync(
-    path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'),
+    path.join(ROOT, 'hooks', 'useStylistAvatarVisual.ts'),
     'utf8',
   );
   assert.match(header, /result\.frame\.headMotion\.rotateDeg/);

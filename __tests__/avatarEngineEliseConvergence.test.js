@@ -165,19 +165,24 @@ test('one-authority architecture: one compiler, one interpreter, one visible ren
   const components = walkFiles(path.join(ROOT, 'components'), '.tsx');
   const allSource = [...services, ...components].map((file) => fs.readFileSync(file, 'utf8')).join('\n');
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  const host = executableSource('hooks/useStylistAvatarVisual.ts');
+  const home = executableSource('components/home/HomeStylistCard.tsx');
+  assert.match(header, /useStylistAvatarVisual\(/);
+  assert.match(home, /useStylistAvatarVisual\(/);
+  assert.equal((home.match(/mouthState=\{visual\.mouthState\}/g) ?? []).length, 1);
   const runtime = executableSource('services/avatars/engine/runtime/AvatarRuntime.ts');
 
   assert.equal((allSource.match(/export function compileSpeechTimeline\s*\(/g) ?? []).length, 1);
   assert.equal((allSource.match(/export function normalizeAlignment\s*\(/g) ?? []).length, 1);
   assert.equal(/normalizeAlignment/.test(runtime), false, 'runtime must not interpret alignment before the compiler');
-  assert.equal((header.match(/useAvatarSpeechState\(\)/g) ?? []).length, 1);
-  assert.equal((header.match(/getAvatarEngineAdapter\(\)\.computeFrame/g) ?? []).length, 1);
+  assert.equal((host.match(/useAvatarSpeechState\(\)/g) ?? []).length, 1);
+  assert.equal((host.match(/getAvatarEngineAdapter\(\)\.computeFrame/g) ?? []).length, 1);
   // One visible mouth wiring. The binding may be destructured from a richer
   // engine result — the header also consumes headMotion/breathing from the
   // same frame — so the spelling is allowed to be `visual.mouthState`.
   assert.equal((header.match(/mouthState=\{(?:visual\.)?mouthState\}/g) ?? []).length, 1);
   // Exactly one frame is calculated per render and both channels come from it.
-  assert.equal((header.match(/result\.frame\.headMotion|result\.frame\.breathing/g) ?? []).length, 2);
+  assert.equal((host.match(/result\.frame\.headMotion|result\.frame\.breathing/g) ?? []).length, 2);
   assert.equal(/deriveAvatarMouthState|buildMouthStateTimeline|avatarShadowBridge/.test(header), false);
 
   const activeLegacyImports = allSource
