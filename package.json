@@ -3,6 +3,8 @@
   "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
+    "eas-build-post-install": "node scripts/repair-elise-mouth-alpha.cjs",
+    "repair:elise-mouth-alpha": "node scripts/repair-elise-mouth-alpha.cjs",
     "server": "node server.js",
     "test:all": "node scripts/run-all-tests.js",
     "test:privacy": "node --test __tests__/privacyPolicy.test.js __tests__/privacyPreferenceMerge.test.js",
