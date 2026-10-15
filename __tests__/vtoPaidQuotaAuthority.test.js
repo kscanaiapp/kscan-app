@@ -150,7 +150,7 @@ test('NEGATIVE CONTROL: the store passes its INTENT SEQUENCE as the attempt gene
   // monotonic intent sequence that advances only at genuine intent boundaries.
   assert.match(
     store,
-    /requestGeneration:\s*`\\$\\{intentEpoch\\}:\\$\\{intentSequence\\}`/,
+    /requestGeneration:\s*`\$\{intentEpoch\}:\$\{intentSequence\}`/,
     'vtoRequestStore must send a launch-unique, monotonic intent generation',
   );
   assert.doesNotMatch(
