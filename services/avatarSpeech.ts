@@ -18,7 +18,7 @@ import {
   createTemporaryStylistSpeechFile,
   deleteTemporaryStylistSpeechFile,
 } from './avatars/stylistSpeechFiles';
-import { requestStylistSpeech } from './avatars/stylistSpeechClient';
+import { isRetriableSpeechFailure, requestStylistSpeech } from './avatars/stylistSpeechClient';
 import {
   ensureSpeechAppStateListener,
   registerSpeechInterruptionHandler,
@@ -42,6 +42,8 @@ export interface SpeakAvatarMessagePayload {
   avatarId: string;
   source: AvatarSpeechSource;
   trigger?: AvatarSpeechTrigger;
+  /** Called only for a current-generation retriable request failure. */
+  onRetriableRequestFailure?: () => void;
 }
 
 export interface AvatarSpeechScope {
@@ -196,14 +198,21 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
   const controller = new AbortController();
   pendingController = controller;
 
+  let requestFailure: unknown = null;
   try {
-    const speech = await requestStylistSpeech({
-      actorId: payload.actorId,
-      sessionId: payload.sessionId,
-      messageId: payload.messageId,
-      stylistId: payload.stylistId,
-      signal: controller.signal,
-    });
+    let speech;
+    try {
+      speech = await requestStylistSpeech({
+        actorId: payload.actorId,
+        sessionId: payload.sessionId,
+        messageId: payload.messageId,
+        stylistId: payload.stylistId,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      requestFailure = error;
+      throw error;
+    }
     if (!isCurrent(requestGeneration)) return;
 
     const uri = await createTemporaryStylistSpeechFile({
@@ -250,7 +259,19 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
     }
     activePlayer = player;
   } catch {
-    if (isCurrent(requestGeneration)) await failCurrent(requestGeneration);
+    if (isCurrent(requestGeneration)) {
+      await failCurrent(requestGeneration);
+      // Speech remains the single authority for request failure classification.
+      // A callback cannot start audio or mutate the player. If a newer generation
+      // superseded us, it must not release the older greeting's one-shot claim.
+      if (isCurrent(requestGeneration) && requestFailure && isRetriableSpeechFailure(requestFailure)) {
+        try {
+          payload.onRetriableRequestFailure?.();
+        } catch {
+          // Best-effort notification must never escape into StyleChat.
+        }
+      }
+    }
   }
 }
 
