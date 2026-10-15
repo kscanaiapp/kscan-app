@@ -361,3 +361,68 @@ test('the header disables the ticker while speaking and under Reduce Motion', ()
   const deps = header.match(/\}, \[[\s\S]*?idleTick,[\s\S]*?\]\);/);
   assert.ok(deps, 'idleTick must be a dependency of the engine frame memo');
 });
+
+test('transient accessibility query failure recovers V10 without overriding Reduce Motion', async () => {
+  const file = path.join(ROOT, 'hooks', 'useReducedMotion.ts');
+  const { outputText } = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    fileName: file,
+  });
+  let queries = 0;
+  let retry;
+  let osChange;
+  let foregroundChange;
+  let snapshot;
+  let unsubscribe;
+  let clearCount = 0;
+  const react = {
+    useSyncExternalStore(subscribe, getSnapshot) {
+      snapshot = getSnapshot;
+      unsubscribe = subscribe(() => {});
+      return snapshot();
+    },
+  };
+  const native = {
+    AccessibilityInfo: {
+      addEventListener(_name, cb) {
+        osChange = cb;
+        return { remove() {} };
+      },
+      isReduceMotionEnabled() {
+        queries += 1;
+        if (queries === 1) return Promise.reject(new Error('native preference not yet initialized'));
+        return Promise.resolve(false);
+      },
+    },
+    AppState: {
+      addEventListener(_name, cb) {
+        foregroundChange = cb;
+        return { remove() {} };
+      },
+    },
+  };
+  const mod = { exports: {} };
+  new Function('require', 'module', 'exports', 'setTimeout', 'clearTimeout', outputText)(
+    (specifier) => specifier === 'react' ? react : native,
+    mod,
+    mod.exports,
+    (callback) => { retry = callback; return 1; },
+    () => { clearCount += 1; },
+  );
+  assert.equal(mod.exports.useReducedMotion(), true, 'unknown OS preference must fail closed');
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+  assert.equal(queries, 1);
+  assert.equal(typeof retry, 'function', 'a transient native rejection schedules one bounded retry');
+  retry();
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+  assert.equal(queries, 2);
+  assert.equal(snapshot(), false, 'OS confirmed motion allowed, Elise can animate');
+
+  osChange(true);
+  assert.equal(snapshot(), true, 'explicit OS Reduce Motion always disables animation');
+  foregroundChange('active');
+  for (let i = 0; i < 8; i += 1) await Promise.resolve();
+  assert.equal(snapshot(), false, 'foreground rechecks the authoritative OS preference');
+  unsubscribe();
+  assert.equal(clearCount, 0, 'settled queries do not leak retry timers');
+});

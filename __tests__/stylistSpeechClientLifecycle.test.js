@@ -588,3 +588,53 @@ test('Speech HTTP 429/5xx are retriable, HTTP 4xx is terminal', async () => {
       client.isRetriableSpeechFailure(err) === expected);
   }
 });
+
+test('audible advancing native position unlocks the speech store when playing flag lags', async () => {
+  let statusListener;
+  let starts = 0;
+  let errors = 0;
+  let removals = 0;
+  const progress = [];
+  const playback = load('services/avatars/stylistAudioPlayback.ts', {
+    'expo-audio': {
+      setAudioModeAsync: async () => {},
+      createAudioPlayer: () => ({
+        addListener: (_event, callback) => {
+          statusListener = callback;
+          return { remove() {} };
+        },
+        play() {},
+        pause() {},
+        remove() { removals += 1; },
+      }),
+    },
+  });
+  const handle = await playback.playStylistAudio('file://speech.mp3', {
+    onPlaybackStarted() { starts += 1; },
+    onPlaybackProgress(seconds) { progress.push(seconds); },
+    onPlaybackFinished() {},
+    onPlaybackError() { errors += 1; },
+  }, 500, 500);
+  const emit = (currentTime) => statusListener({
+    playing: false,
+    playbackState: 'readyToPlay',
+    currentTime,
+    didJustFinish: false,
+  });
+
+  emit(0);
+  assert.equal(starts, 0, 'initial zero position is not proof of audio');
+  emit(0.12);
+  assert.equal(starts, 1, 'native audio progress must activate V10 speaking state');
+  assert.deepEqual(progress, [0.12]);
+  emit(0.12);
+  assert.equal(starts, 1, 'duplicate frozen status never restarts speech');
+  assert.deepEqual(progress, [0.12]);
+  emit(0.24);
+  assert.deepEqual(progress, [0.12, 0.24], 'V10 receives the real native playback clock');
+  handle.stop();
+  emit(0.35);
+  assert.equal(starts, 1);
+  assert.equal(removals, 1);
+  assert.equal(errors, 0, 'intentional teardown is not a provider failure');
+});
