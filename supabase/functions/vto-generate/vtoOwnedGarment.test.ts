@@ -108,7 +108,7 @@ Deno.test('owned duplicate suppresses second paid job even when signed URL rotat
   const h = harness();
   assertEquals((await handleVtoRequest(request(), h.deps)).status, 200);
   const duplicate = await handleVtoRequest(request({ requestId: 'owned_2' }), h.deps);
-  assertEquals(duplicate.status, 429); assertEquals((await duplicate.json()).error.code, 'request_in_flight');
+  assertEquals(duplicate.status, 409); assertEquals((await duplicate.json()).error.code, 'result_unavailable');
   assertEquals(h.providerInputs.length, 1); assertEquals(h.keys.size, 1);
   assertEquals((await handleVtoRequest(request({ requestGeneration: 'intent_2' }), h.deps)).status, 200);
   assertEquals(h.providerInputs.length, 2); assertEquals(h.keys.size, 2);
