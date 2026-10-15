@@ -300,3 +300,35 @@ test('actor and session switches invalidate loading, greeting, and send state', 
   assert.match(source, /\}, \[actorId, sessionId\]\);/);
   assert.match(source, /ensureSessionGreeting\(actorId, sessionId, greetingText\)/);
 });
+
+test('retriable failure releases only the matching greeting claim without re-arming automatic replay', () => {
+  const greeting = loadGreeting(createMockRepository());
+  greeting.resetGreetingDedupeForTests();
+  greeting.noteInsertedGreetingForSpeech('actor-a', 'session-1', 'message-1');
+  assert.equal(greeting.claimGreetingSpeechAttempt('actor-a', 'session-1'), 'message-1');
+  assert.equal(greeting.releaseGreetingSpeechAttempt('actor-b', 'session-1', 'message-1'), false);
+  assert.equal(greeting.releaseGreetingSpeechAttempt('actor-a', 'session-2', 'message-1'), false);
+  assert.equal(greeting.releaseGreetingSpeechAttempt('actor-a', 'session-1', 'wrong-message'), false);
+  assert.equal(greeting.releaseGreetingSpeechAttempt('actor-a', 'session-1', 'message-1'), true);
+  assert.equal(greeting.releaseGreetingSpeechAttempt('actor-a', 'session-1', 'message-1'), false);
+  assert.equal(greeting.getPendingGreetingSpeechMessageId('actor-a', 'session-1'), null);
+  assert.equal(greeting.claimGreetingSpeechAttempt('actor-a', 'session-1'), null,
+    'a session remount must not automatically replay a failed welcome');
+});
+
+test('terminal greeting failures keep the one-shot claim consumed', () => {
+  const greeting = loadGreeting(createMockRepository());
+  greeting.resetGreetingDedupeForTests();
+  greeting.noteInsertedGreetingForSpeech('actor-a', 'session-1', 'message-1');
+  assert.equal(greeting.claimGreetingSpeechAttempt('actor-a', 'session-1'), 'message-1');
+  assert.equal(greeting.getPendingGreetingSpeechMessageId('actor-a', 'session-1'), null);
+  assert.equal(greeting.claimGreetingSpeechAttempt('actor-a', 'session-1'), null);
+});
+
+test('StyleChat exposes retriable greeting recovery through the existing voice retry control', () => {
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
+  const bubble = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'), 'utf8');
+  assert.match(hook, /onRetriableRequestFailure:\s*\(\)\s*=>/);
+  assert.match(hook, /releaseGreetingSpeechAttempt\(actorId!, sessionId, speechMessageId\)/);
+  assert.match(bubble, /<StyleChatVoiceRetry sessionId=\{message\.sessionId\} messageId=\{message\.id\}/);
+});
