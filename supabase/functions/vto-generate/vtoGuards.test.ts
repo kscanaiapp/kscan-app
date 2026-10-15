@@ -338,3 +338,34 @@ Deno.test('validation: makes no quality claim it cannot support', async () => {
     assert(!source.includes(`${claim}:`), `must not compute ${claim}`);
   }
 });
+
+
+Deno.test('VTO-005: corrupt or oversized PNG declared dimensions are refused', () => {
+  const source = MOCK_VTO_RESULT_DATA_URI.split(',')[1];
+  const original = Uint8Array.from(atob(source), c=>c.charCodeAt(0));
+  const mutate = (edit: (bytes: Uint8Array)=>void) => {
+    const bytes = new Uint8Array(original); edit(bytes);
+    return 'data:image/png;base64,'+btoa(String.fromCharCode(...bytes));
+  };
+  const huge = validateVtoResultMedia({
+    dataUri: mutate(b => { b[16]=0; b[17]=0; b[18]=0x20; b[19]=0; }),
+    mediaType:'image/png',width:null,height:null,
+  });
+  assertEquals(huge.ok,false);
+  if (!huge.ok) assertEquals(huge.detail,'invalid_image_structure');
+
+  const truncated = validateVtoResultMedia({
+    dataUri: mutate(b => { b.set([1,2,3,4,5,6,7,8], b.length-8); }),
+    mediaType:'image/png',width:null,height:null,
+  });
+  assertEquals(truncated.ok,false);
+  if (!truncated.ok) assertEquals(truncated.detail,'invalid_image_structure');
+});
+
+Deno.test('VTO-005: vendor-declared dimensions must agree with encoded image', () => {
+  const result=validateVtoResultMedia({
+    dataUri:MOCK_VTO_RESULT_DATA_URI,mediaType:'image/png',width:4096,height:4096,
+  });
+  assertEquals(result.ok,false);
+  if (!result.ok) assertEquals(result.detail,'dimension_mismatch');
+});
