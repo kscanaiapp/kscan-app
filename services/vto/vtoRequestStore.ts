@@ -95,6 +95,8 @@ let generation = 0;
  * only at the actor boundary, so it cannot walk backwards into a spent key.
  */
 let intentSequence = 0;
+/** Different launches must not resurrect the same server idempotency key. */
+const intentEpoch = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
 let activeController: AbortController | null = null;
 /** Cache derivatives owned by the operation currently in the store. Released
  *  whenever the store moves off them, so no person image outlives its use. */
@@ -392,7 +394,7 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
     // generation. See intentSequence above: neither the store token (changes
     // per tap) nor retryCount (resets with every garment context) draws the
     // boundary the server's idempotency identity needs.
-    requestGeneration: String(intentSequence),
+    requestGeneration: `${intentEpoch}:${intentSequence}`,
     devScenario: options.devScenario,
   }).catch(() => null);
 
