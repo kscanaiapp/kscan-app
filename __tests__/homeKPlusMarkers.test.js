@@ -4,7 +4,8 @@
 //
 // Build 34 final UI integration scope: visible K+ treatment on the two Home
 // entries that lacked one, reusing the Voice Scan pill badge language, with
-// entitlement/tap behavior byte-identical.
+// entitlement authority preserved. Expired evidence must not block a built-in
+// feature's route; certification remains required for K+ catalog claims.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -58,7 +59,7 @@ test('Packing active state visibly identifies Included', () => {
 // ── Resolving truth ─────────────────────────────────────────────────────────
 
 test('resolving renders no marker on either entry (never false free, never false Included)', () => {
-  assert.match(homeCode, /\{watchlistReady && !resolving && \(/, 'watchlist badge requires proof and a resolved entitlement');
+  assert.match(homeCode, /\{!resolving && \(/, 'watchlist badge requires a resolved entitlement');
   const chipBlock = sliceFn(homeCode, 'title="PACK FOR A TRIP"', 'FeatureChip>');
   assert.match(chipBlock, /!packingKPlusResolving && \(/, 'packing badge gated on !packingKPlusResolving');
   assert.match(homeCode, /isKPlusEntitlementUnresolved\(packingKPlusState\)/);
@@ -67,7 +68,7 @@ test('resolving renders no marker on either entry (never false free, never false
 // ── Behavior unchanged ──────────────────────────────────────────────────────
 
 test('existing Watchlist tap behavior is unchanged', () => {
-  assert.match(watchlistBlock, /disabled=\{watchlistReady && resolving\}/);
+  assert.match(watchlistBlock, /disabled=\{resolving\}/);
   assert.match(watchlistBlock, /if \(resolving\) return;/);
   assert.match(watchlistBlock, /if \(isActive\) router\.push\('\/watchlist'\);/);
   assert.match(watchlistBlock, /else openUpgrade\(\);/);
@@ -84,6 +85,33 @@ test('existing Packing tap behavior is unchanged (routes to the gated screen)', 
   // from the shared entitlement hook, not a second KPlusGate mount.
   const chipBlock = sliceFn(homeCode, 'title="PACK FOR A TRIP"', 'FeatureChip>');
   assert.doesNotMatch(chipBlock, /KPlusGate|openUpgrade/);
+});
+
+// ── Release activation: evidence must not be confused with availability ────
+
+test('enabled Packing route is reachable even when certification expires', () => {
+  const chip = sliceFn(homeCode, 'title="PACK FOR A TRIP"', 'FeatureChip>');
+  assert.match(homeCode, /\{packingEnabled && \(/, 'the build flag still controls exposure');
+  assert.match(chip, /onPress=\{\(\) => router\.push\('\/packing'\)\}/);
+  assert.doesNotMatch(chip, /hasRuntimeCapabilityProof|Alert\.alert|Currently unavailable/);
+  // The Packing screen, not the Home chip, owns the shared K+ user gate.
+  const screen = read('app', 'packing', 'index.tsx');
+  assert.match(screen, /<KPlusGate source="packing">/);
+});
+
+test('enabled Watchlist entry waits for entitlement and cannot silently disable', () => {
+  assert.match(homeCode, /\{watchlistEnabled && \(/, 'the build flag still controls exposure');
+  assert.match(homeCode, /<KPlusGate source="watchlist">/);
+  assert.match(watchlistBlock, /disabled=\{resolving\}/);
+  assert.match(watchlistBlock, /if \(resolving\) return;/);
+  assert.match(watchlistBlock, /if \(isActive\) router\.push\('\/watchlist'\);/);
+  assert.match(watchlistBlock, /else openUpgrade\(\);/);
+  assert.doesNotMatch(watchlistBlock, /hasRuntimeCapabilityProof|Alert\.alert|Smart Watchlist is unavailable/);
+  // The real client and backend still have the separate availability/entitlement guards.
+  const availability = read('services', 'watchlist', 'watchlistAvailability.ts');
+  assert.match(availability, /return smartWatchlistActive === true;/);
+  const worker = read('supabase', 'functions', 'commerce-watch-refresh', 'watchEntitlementGuard.ts');
+  assert.match(worker, /if \(active !== true\) return null;/);
 });
 
 // ── Shared visual language ──────────────────────────────────────────────────
