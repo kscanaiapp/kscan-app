@@ -87,9 +87,9 @@ function harness(options: { actor?: string; row?: Record<string, unknown>; entit
     reserveVtoGeneration: async (_actor, key) => {
       reservations++;
       if (keys.has(key)) return { outcome: 'duplicate', used: keys.size, dailyLimit: 10, priorStatus: 'succeeded' };
-      keys.add(key); return { outcome: 'reserved', used: keys.size, dailyLimit: 10 };
+      keys.add(key); return { outcome: 'reserved', used: keys.size, dailyLimit: 10, attemptId: '11111111-2222-4333-8444-555555555555' };
     },
-    completeVtoGeneration: async () => {}, releaseVtoGeneration: async () => {}, devScenariosAllowed: () => false,
+    completeVtoGeneration: async () => true, releaseVtoGeneration: async () => true, devScenariosAllowed: () => false,
   };
   return { deps, keys, providerInputs, get reservations() { return reservations; }, get signs() { return signCount; } };
 }
