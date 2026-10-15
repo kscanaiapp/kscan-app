@@ -115,6 +115,7 @@ const HTTP_STATUS_BY_FAILURE: Readonly<Record<VtoFailureCode, number>> = {
   rate_limited: 429,
   quota_exhausted: 429,
   request_in_flight: 429,
+  result_unavailable: 409,
   provider_busy: 503,
   generation_failed: 502,
   invalid_output: 502,
@@ -135,6 +136,7 @@ const RETRYABLE: ReadonlySet<VtoFailureCode> = new Set<VtoFailureCode>([
   'quota_exhausted',
   'generation_failed',
   'provider_busy',
+  'result_unavailable',
   'invalid_output',
   'network_failure',
   'invalid_person_input',
@@ -501,6 +503,14 @@ export async function handleVtoRequest(
       origin,
       priorStatus: reservation.priorStatus ?? 'unknown',
     });
+    if (reservation.priorStatus === 'succeeded') {
+      // Completed result is intentionally ephemeral: do not buy another job
+      // or pretend it is in flight. The client explains an EXPLICIT new
+      // attempt is needed if the user lost this preview.
+      return fail('result_unavailable', {
+        requestId, uid, origin, stage: 'completed_without_durable_image_receipt',
+      });
+    }
     return fail('request_in_flight', {
       requestId, uid, origin, stage: 'reservation_duplicate',
     });
