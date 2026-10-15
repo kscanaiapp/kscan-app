@@ -81,6 +81,7 @@ export const VTO_FAILURE_CODES = [
   'rate_limited',
   'quota_exhausted',
   'request_in_flight',
+  'result_unavailable',
   'provider_busy',
   'generation_failed',
   'invalid_output',
