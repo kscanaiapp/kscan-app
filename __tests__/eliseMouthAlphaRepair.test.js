@@ -59,3 +59,22 @@ for (const name of FILES) {
     assert.equal(repair(fixed.output).modified, false);
   });
 }
+
+test('corrected closed/open frames visibly differ where the mouth alpha is rendered', () => {
+  const closed = decodePng(repair(fs.readFileSync(path.join(ASSETS, FILES[0]))).output);
+  const open = decodePng(repair(fs.readFileSync(path.join(ASSETS, FILES[1]))).output);
+  assert.equal(closed.width, open.width);
+  assert.equal(closed.height, open.height);
+  const crop = bounds(MOUTH, closed.width, closed.height);
+  let visible = 0, difference = 0;
+  for (let y=crop.y0; y<crop.y1; y++) for (let x=crop.x0; x<crop.x1; x++) {
+    const i = (y * closed.width + x) * 4;
+    if (closed.pixels[i+3] < 64 || open.pixels[i+3] < 64) continue;
+    visible++;
+    for (let c=0; c<3; c++) difference += Math.abs(closed.pixels[i+c] - open.pixels[i+c]);
+  }
+  const area = (crop.x1 - crop.x0) * (crop.y1 - crop.y0);
+  assert.ok(visible >= area * 0.08, 'closed/open frames need overlapping, opaque mouth pixels');
+  assert.ok(difference / (visible * 3) > 15,
+    'mouth frames must change visible RGB, not merely differ behind transparent alpha');
+});
