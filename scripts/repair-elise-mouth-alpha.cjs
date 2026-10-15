@@ -135,8 +135,15 @@ function repair(buffer) {
   const image = decodePng(buffer);
   const target = bounds(MOUTH, image.width, image.height);
   const former = bounds(RETIRED, image.width, image.height);
-  if (target.x0 !== former.x0 || target.x1 !== former.x1 || target.y1-target.y0 !== former.y1-former.y0) {
-    throw new Error('Elise overlay: mouth and retired crop sizes must match');
+  const targetHeight = target.y1 - target.y0;
+  const formerHeight = former.y1 - former.y0;
+  // The two normalized 9%-high rectangles can round to DIFFERENT integer
+  // heights (e.g. at 1024px: 92 vs 93). Pixel-exact equality is wrong.
+  // Only accept <=1px rounding drift, preserving the same horizontal crop.
+  if (target.x0 !== former.x0 || target.x1 !== former.x1 ||
+      targetHeight < 1 || formerHeight < 1 ||
+      Math.abs(targetHeight - formerHeight) > 1) {
+    throw new Error('Elise overlay: unsafe mouth crop geometry');
   }
   const originalRgb = rgbDigest(image);
   const before = alphaCoverage(image, target);
@@ -145,8 +152,13 @@ function repair(buffer) {
     const sourceCoverage = alphaCoverage(image, former);
     if (sourceCoverage < 0.08) throw new Error('Elise overlay: missing approved old alpha mask; manual artwork repair required');
     for (let y = target.y0; y < target.y1; y++) for (let x = target.x0; x < target.x1; x++) {
+      // Deterministic nearest-neighbor mapping handles the maximum 1px
+      // rounding drift WITHOUT sampling outside the original approved mask.
+      const offsetY = y - target.y0;
+      const sourceY = former.y0 + Math.min(formerHeight - 1,
+        Math.floor(offsetY * formerHeight / targetHeight));
       const dest = (y * image.width + x) * 4 + 3;
-      const src = ((former.y0 + y - target.y0) * image.width + x) * 4 + 3;
+      const src = (sourceY * image.width + x) * 4 + 3;
       image.pixels[dest] = image.pixels[src];
     }
     modified = true;
