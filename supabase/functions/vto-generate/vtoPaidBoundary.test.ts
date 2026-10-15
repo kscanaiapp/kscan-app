@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveVtoEntitlement } from './vtoEntitlement.ts';
-import { buildVtoIdempotencyKey, reserveVtoGeneration } from './vtoReservation.ts';
+import { buildVtoIdempotencyKey, reserveVtoGeneration, completeVtoGeneration, releaseVtoGeneration, recordVtoProviderTask } from './vtoReservation.ts';
 import {
   assertSafeRemoteMediaUrl,
   isNonPublicHost,
@@ -305,4 +305,42 @@ test('SEC-KPLUS-007 stays closed: an unknown provider fails, it does not mock', 
   assert.match(providers, /return \{ ok: false, reason: 'provider_unavailable' \};/);
   const mockBranch = providers.indexOf('MOCK_VTO_PROVIDER_ID');
   assert.ok(mockBranch > 0, 'the mock must be reachable only by explicit id');
+});
+
+
+test('VTO-002: reservation without a server-issued attempt UUID fails closed', async () => {
+  const reserved = await reserveVtoGeneration(USER, 'k'.repeat(64), {
+    rpc: async () => jsonResponse([{ outcome:'reserved', used:1, daily_limit:10 }]),
+  });
+  assert.equal(reserved.outcome, 'unavailable');
+});
+
+test('VTO-002: completion and release require exact UUID attempt and v2 RPC', async () => {
+  const seen: Array<[string, Record<string,unknown>]>=[];
+  const attemptId='11111111-2222-4333-8444-555555555555';
+  const stub = async (fn: string, body: Record<string,unknown>) => {
+    seen.push([fn,body]); return jsonResponse(true);
+  };
+  assert.equal(await completeVtoGeneration(USER, 'k'.repeat(64), attemptId, 'succeeded', 'ailabtools', {rpc:stub}), true);
+  assert.equal(await releaseVtoGeneration(USER, 'k'.repeat(64), attemptId, 'ailabtools', {rpc:stub}), true);
+  assert.equal(await recordVtoProviderTask(USER, 'k'.repeat(64), attemptId, 'ailabtools', 'task-abc', {rpc:stub}), true);
+  assert.deepEqual(seen.map(x=>x[0]),[
+    'complete_vto_generation_v2','release_vto_generation_v2','record_vto_provider_task_v2',
+  ]);
+  for(const [, body] of seen) assert.equal(body.p_attempt_id, attemptId);
+  assert.equal(await completeVtoGeneration(USER,'k'.repeat(64),'stale-or-empty','failed',null,{rpc:stub}),false);
+  assert.equal(seen.length,3,'invalid attempt never hits a privileged RPC');
+});
+
+test('VTO-003: non-2xx, false or lost settlement is never reported as committed', async () => {
+  const attemptId='11111111-2222-4333-8444-555555555555';
+  for (const bad of [
+    async () => jsonResponse(false),
+    async () => jsonResponse(null),
+    async () => jsonResponse(true,false),
+    async () => { throw new Error('rpc offline'); },
+  ]) {
+    assert.equal(await completeVtoGeneration(USER,'k'.repeat(64),attemptId,'succeeded','ailabtools',{rpc:bad as never}),false);
+    assert.equal(await releaseVtoGeneration(USER,'k'.repeat(64),attemptId,'ailabtools',{rpc:bad as never}),false);
+  }
 });
