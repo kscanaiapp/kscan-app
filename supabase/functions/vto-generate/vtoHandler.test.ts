@@ -656,3 +656,29 @@ Deno.test('VTO-008: accepted task receipt is bound to the exact reservation atte
   assertEquals(accepted[0].attempt,USER_ID);
   assertEquals(accepted[0].task,'provider-task-123');
 });
+
+
+Deno.test('VTO-004: completed duplicate never rebuys and returns honest recovery state', async () => {
+  let providerCalled=false;
+  const response=await handleVtoRequest(post(requestBody()),deps({
+    reserveVtoGeneration:()=>Promise.resolve({
+      outcome:'duplicate' as const,used:1,dailyLimit:10,priorStatus:'succeeded',
+    }),
+    resolveVtoProvider:()=>({ok:true as const,provider:{
+      id:'not-invoked',
+      generate: async () => { providerCalled=true; throw new Error('must never purchase again'); },
+    }}),
+  }));
+  assertEquals(response.status,409);
+  assertEquals(await failureCode(response),'result_unavailable');
+  assertEquals(providerCalled,false);
+});
+
+Deno.test('VTO-004: pending duplicate returns request_in_flight instead of repurchasing', async () => {
+  const response=await handleVtoRequest(post(requestBody()),deps({
+    reserveVtoGeneration:()=>Promise.resolve({
+      outcome:'duplicate' as const,used:1,dailyLimit:10,priorStatus:'in_flight',
+    }),
+  }));
+  assertEquals(await failureCode(response),'request_in_flight');
+});
