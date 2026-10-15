@@ -89,7 +89,7 @@
     "supabase/functions/vto-generate/providers/index.ts": "38f551fd3eb86c79e454a3d205d6f2db43b82dff1a4e0bc537db8bb4cc68089a",
     "supabase/functions/vto-generate/providers/mockProvider.ts": "34ab35bba3c34387b55c919b2a695f2ec79ed2129e663b5fa4cdd0afb464cebc",
     "supabase/functions/vto-generate/providers/mockResultAsset.ts": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
-    "supabase/functions/vto-generate/vtoContract.ts": "deeb84365eee1882454f65fbc37900b33ef8dfec60babf8ec78fa585db22cef3",
+    "supabase/functions/vto-generate/vtoContract.ts": "9d569b5cd0f546442e239da02cf678b6dbf7c83f70ceed1785aab904635d2c31",
     "supabase/functions/vto-generate/vtoEligibility.ts": "5cae828f0d91e22f6f1565b885c2935ad14ee35b2c0e334929755502526bfef1",
     "supabase/functions/vto-generate/vtoEntitlement.ts": "18abd5663bd5a938bf53a3cd2076fff8acd84486c872499a7a5f7c240028ff73",
     "supabase/functions/vto-generate/vtoFeatureControl.ts": "1d079ea050ebe13943729d0c1dfe9cae3d66d4142ed50526675fd682e0f9f177",
