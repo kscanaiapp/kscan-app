@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -120,6 +120,38 @@ export function StyleChatHeader({
     // The ticker's only job: make this memo recompute so `Date.now()` above
     // moves while idle. The value itself is never read.
     idleTick,
+  ]);
+
+  // Diagnostic only: correlate each visible mouth transition to the native
+  // playback clock in a development device run. No actor/session identifiers,
+  // transcript or provider payload ever enter this trace.
+  const lastMotionTrace = useRef<string>('');
+  useEffect(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+    const key = [
+      speechState.generation,
+      speechState.phase,
+      speechScopeMatches,
+      reducedMotion,
+      visual.mouthState,
+    ].join(':');
+    if (key === lastMotionTrace.current) return;
+    lastMotionTrace.current = key;
+    console.info('[EliseV10 frame]', {
+      phase: speechState.phase,
+      scopeMatches: speechScopeMatches,
+      reduceMotion: reducedMotion,
+      generation: speechState.generation,
+      mouthState: visual.mouthState,
+      playbackSeconds: speechState.playbackSeconds,
+    });
+  }, [
+    speechState.generation,
+    speechState.phase,
+    speechState.playbackSeconds,
+    speechScopeMatches,
+    reducedMotion,
+    visual.mouthState,
   ]);
 
   const displayName = identity.displayName;
