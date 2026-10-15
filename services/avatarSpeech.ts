@@ -261,7 +261,8 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       // Speech remains the single authority for request failure classification.
       // A callback cannot start audio or mutate the player. If a newer generation
       // superseded us, it must not release the older greeting's one-shot claim.
-      if (isCurrent(requestGeneration) && requestFailure && isRetriableSpeechFailure(requestFailure)) {
+      if (isCurrent(requestGeneration) && requestFailure &&
+        typeof isRetriableSpeechFailure === 'function' && isRetriableSpeechFailure(requestFailure)) {
         try {
           payload.onRetriableRequestFailure?.();
         } catch {
