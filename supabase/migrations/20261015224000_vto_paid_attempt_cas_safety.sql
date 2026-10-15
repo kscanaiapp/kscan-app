@@ -37,6 +37,7 @@ declare
   v_limit integer := greatest(1, least(coalesce(p_daily_limit,10),1000));
   v_existing public.vto_generation_requests;
   v_used integer;
+  v_exists boolean;
   v_attempt uuid := gen_random_uuid();
 begin
   if p_user_id is null or char_length(v_key) not between 16 and 200 then
@@ -51,12 +52,13 @@ begin
      and g.updated_at < now()-interval '20 minutes';
   select * into v_existing from public.vto_generation_requests g
    where g.user_id=p_user_id and g.idempotency_key=v_key;
+  v_exists := found;
   select coalesce(sum(g.attempts),0)::integer into v_used
     from public.vto_generation_requests g
    where g.user_id=p_user_id and g.usage_date=current_date;
   -- One idempotency key is NEVER dispatched twice. Explicit user retries
   -- already create a different requestGeneration/idempotency key.
-  if found then
+  if v_exists then
     return query select 'duplicate'::text,v_used,v_limit,v_existing.status,
                         v_existing.current_attempt_id;
     return;
@@ -78,7 +80,7 @@ create or replace function public.record_vto_provider_task_v2(
 ) returns boolean language plpgsql security definer set search_path=public as $$
 declare
   v_task text := btrim(coalesce(p_task_id,''));
-  v_ok boolean;
+  v_count integer;
 begin
   if p_user_id is null or p_attempt_id is null or
     char_length(v_task) not between 1 and 200 or
@@ -89,8 +91,8 @@ begin
     where g.user_id=p_user_id and g.idempotency_key=p_idempotency_key
       and g.current_attempt_id=p_attempt_id and g.status='in_flight'
       and (g.provider_task_id is null or g.provider_task_id=v_task);
-  get diagnostics v_ok = row_count;
-  return v_ok;
+  get diagnostics v_count = row_count;
+  return v_count=1;
 end;
 $$;
 
@@ -98,7 +100,7 @@ create or replace function public.complete_vto_generation_v2(
   p_user_id uuid,p_idempotency_key text,p_attempt_id uuid,
   p_status text,p_provider text default null
 ) returns boolean language plpgsql security definer set search_path=public as $$
-declare v_ok boolean;
+declare v_count integer;
 begin
   if p_user_id is null or p_attempt_id is null or
     char_length(coalesce(p_idempotency_key,'')) not between 16 and 200 or
@@ -110,8 +112,8 @@ begin
         completed_at=now(),updated_at=now()
     where g.user_id=p_user_id and g.idempotency_key=p_idempotency_key
       and g.current_attempt_id=p_attempt_id and g.status='in_flight';
-  get diagnostics v_ok = row_count;
-  return v_ok;
+  get diagnostics v_count = row_count;
+  return v_count=1;
 end;
 $$;
 
