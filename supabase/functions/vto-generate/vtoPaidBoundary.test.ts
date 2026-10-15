@@ -210,7 +210,7 @@ test('an explicit user Retry is a NEW intent, not a suppressed replay', async ()
 
 test('a reservation maps every RPC outcome, and FAILS CLOSED when unreadable', async () => {
   const reserved = await reserveVtoGeneration(USER, 'k'.repeat(64), {
-    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10 }]),
+    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10, attempt_id: '11111111-2222-4333-8444-555555555555' }]),
   });
   assert.equal(reserved.outcome, 'reserved');
 
@@ -281,8 +281,8 @@ test('the reservation is settled on success AND on every failure path', () => {
     settlements.length >= 4,
     `expected settlement on throw, provider-failure, invalid-output and success; found ${settlements.length}`,
   );
-  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, 'succeeded'/);
-  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, 'failed'/);
+  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, attemptId, 'succeeded'/);
+  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, attemptId, 'failed'/);
 });
 
 test('the garment URL is validated before it can reach the provider', () => {
