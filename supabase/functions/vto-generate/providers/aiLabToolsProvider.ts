@@ -304,10 +304,9 @@ export function parseRetryAfterSeconds(
  *
  * 401/403 is RapidAPI's own auth/subscription refusal -- the empirical probe
  * that produced "You are not subscribed to this API." never created a task.
- * 429 is the gateway's rate limiter, and 5xx is an upstream outage. In none of
- * those does an AILabTools generation exist, so none of them may cost the user
- * an attempt. A 4xx that is NOT one of those means the vendor looked at the
- * request and rejected it, which is left billable.
+ * 429 is the known gateway rate limiter. A 5xx POST is AMBIGUOUS: an async
+ * task may have been accepted before the response failed, so keep it counted.
+ * A 4xx that is NOT a known gateway refusal is conservatively billable.
  */
 function mapSubmitFailure(
   httpStatus: number,
@@ -330,8 +329,10 @@ function mapSubmitFailure(
     };
   }
   if (httpStatus >= 500) {
+    // A failed POST response does not prove the async task was not accepted.
     return {
-      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
+      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}_uncertain`,
+      billable: true,
     };
   }
   const message =
