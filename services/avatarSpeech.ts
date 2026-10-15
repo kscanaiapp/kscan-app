@@ -199,6 +199,10 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
   pendingController = controller;
 
   let requestFailure: unknown = null;
+  // Privacy-safe local timing breakdown: no actor IDs, speech text, or audio.
+  const requestStartedAtMs = Date.now();
+  let providerCompletedAtMs = requestStartedAtMs;
+  let fileReadyAtMs = requestStartedAtMs;
   try {
     const speech = await requestStylistSpeech({
       actorId: payload.actorId,
@@ -210,6 +214,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       requestFailure = error;
       throw error;
     });
+    providerCompletedAtMs = Date.now();
     if (!isCurrent(requestGeneration)) return;
 
     const uri = await createTemporaryStylistSpeechFile({
@@ -225,6 +230,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       await deleteTemporaryStylistSpeechFile(uri);
       return;
     }
+    fileReadyAtMs = Date.now();
     activeFileUri = uri;
     markAvatarSpeechReady(requestGeneration, speech.alignment);
 
@@ -236,6 +242,15 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
         // this message from automatic speech.
         rememberSpoken(key);
         markAvatarSpeechPlaying(requestGeneration);
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          const nowMs = Date.now();
+          console.info('[EliseSpeech timing]', {
+            providerMs: Math.max(0, providerCompletedAtMs - requestStartedAtMs),
+            fileMs: Math.max(0, fileReadyAtMs - providerCompletedAtMs),
+            nativeStartMs: Math.max(0, nowMs - fileReadyAtMs),
+            totalToNativeStartMs: Math.max(0, nowMs - requestStartedAtMs),
+          });
+        }
       },
       onPlaybackProgress: (seconds) => {
         if (isCurrent(requestGeneration)) {
