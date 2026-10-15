@@ -182,6 +182,106 @@ test('ensureSessionGreeting deduplicates concurrent calls', async () => {
   assert.equal(repo._messages().length, 1);
 });
 
+test('two independent clients recover one database winner and only its inserter can auto-claim speech', async () => {
+  let initialReads = 0;
+  let releaseReads;
+  const bothReadEmpty = new Promise((resolve) => { releaseReads = resolve; });
+  let persisted = null;
+  let insertAttempts = 0;
+  const ownerReads = [];
+  const repo = {
+    listStyleChatMessages: async (sessionId, actorId) => {
+      ownerReads.push([sessionId, actorId]);
+      if (initialReads < 2) {
+        initialReads += 1;
+        if (initialReads === 2) releaseReads();
+        await bothReadEmpty;
+        return [];
+      }
+      return [persisted];
+    },
+    saveStyleChatMessage: async (input, actorId) => {
+      assert.equal(actorId, 'actor-1');
+      insertAttempts += 1;
+      if (persisted) throw Object.assign(new Error('greeting unique conflict'), { code: '23505' });
+      persisted = { id: 'database-winner', ...input };
+      return persisted;
+    },
+  };
+  // Each module has its own Map/Set, as two devices do. The read barrier forces
+  // both through the empty read before either reaches the database constraint.
+  const clients = [loadGreeting(repo), loadGreeting(repo)];
+  const results = await Promise.all(clients.map((client) =>
+    client.ensureSessionGreeting('actor-1', 'session-1', 'Synthetic welcome')));
+  assert.equal(insertAttempts, 2);
+  assert.deepEqual(results.map((result) => result.message.id), ['database-winner', 'database-winner']);
+  assert.equal(results.filter((result) => result.inserted).length, 1);
+  let claims = 0;
+  for (let index = 0; index < clients.length; index += 1) {
+    const result = results[index];
+    if (result.inserted) clients[index].noteInsertedGreetingForSpeech('actor-1', 'session-1', result.message.id);
+    if (clients[index].claimGreetingSpeechAttempt('actor-1', 'session-1')) claims += 1;
+  }
+  assert.equal(claims, 1, 'the unique-conflict loser must not create an automatic speech claim');
+  assert.ok(ownerReads.every(([sessionId, actorId]) => sessionId === 'session-1' && actorId === 'actor-1'));
+  const reopened = await clients[1].ensureSessionGreeting('actor-1', 'session-1', 'Do not replace history');
+  assert.equal(reopened.inserted, false);
+  assert.equal(insertAttempts, 2);
+});
+
+test('only SQLSTATE23505 can recover a greeting insert; other failures remain failures', async () => {
+  for (const error of [new Error('duplicate-looking network error'),
+    Object.assign(new Error('RLS denied'), { code: '42501' }),
+    Object.assign(new Error('missing session'), { code: '23503' })]) {
+    let reads = 0;
+    const client = loadGreeting({
+      listStyleChatMessages: async () => { reads += 1; return []; },
+      saveStyleChatMessage: async () => { throw error; },
+    });
+    await assert.rejects(client.ensureSessionGreeting('actor-1', 'session-1', 'Synthetic welcome'), (caught) => caught === error);
+    assert.equal(reads, 1, 'authorization/network failures must not be mistaken for a winner');
+  }
+});
+
+test('a conflict cannot recover another session or a normal assistant message', async () => {
+  const conflict = Object.assign(new Error('unrelated unique conflict'), { code: '23505' });
+  for (const candidate of [
+    { id: 'other-session', sessionId: 'session-2', sender: 'assistant', uiBlocks: [{ type: 'greeting' }] },
+    { id: 'normal-assistant', sessionId: 'session-1', sender: 'assistant', uiBlocks: [] },
+    { id: 'user-marker', sessionId: 'session-1', sender: 'user', uiBlocks: [{ type: 'greeting' }] },
+  ]) {
+    let reads = 0;
+    const client = loadGreeting({
+      listStyleChatMessages: async () => ++reads === 1 ? [] : [candidate],
+      saveStyleChatMessage: async () => { throw conflict; },
+    });
+    await assert.rejects(client.ensureSessionGreeting('actor-1', 'session-1', 'Synthetic welcome'), (caught) => caught === conflict);
+    assert.equal(client.claimGreetingSpeechAttempt('actor-1', 'session-1'), null);
+  }
+});
+
+test('actor change during conflict recovery is rejected and a later retry can load the winner', async () => {
+  let reads = 0;
+  const conflict = Object.assign(new Error('greeting unique conflict'), { code: '23505' });
+  const actorChanged = new Error('Authenticated user changed while accessing this conversation.');
+  const winner = { id: 'database-winner', sessionId: 'session-1', sender: 'assistant', uiBlocks: [{ type: 'greeting' }] };
+  const client = loadGreeting({
+    listStyleChatMessages: async (sessionId, actorId) => {
+      assert.equal(sessionId, 'session-1'); assert.equal(actorId, 'actor-1');
+      reads += 1;
+      if (reads === 1) return [];
+      if (reads === 2) throw actorChanged;
+      return [winner];
+    },
+    saveStyleChatMessage: async () => { throw conflict; },
+  });
+  await assert.rejects(client.ensureSessionGreeting('actor-1', 'session-1', 'Synthetic welcome'), (caught) => caught === actorChanged);
+  assert.equal(client.claimGreetingSpeechAttempt('actor-1', 'session-1'), null);
+  const retried = await client.ensureSessionGreeting('actor-1', 'session-1', 'Synthetic welcome');
+  assert.equal(retried.message.id, winner.id);
+  assert.equal(retried.inserted, false);
+});
+
 test('markSessionGreeted and isSessionGreeted track process-scoped greeting completion', () => {
   const { markSessionGreeted, isSessionGreeted, resetGreetingDedupeForTests } =
     loadGreeting(createMockRepository());
