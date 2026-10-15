@@ -575,3 +575,16 @@ test('typing, send, navigation, avatar, preference, actor, and sign-out interrup
   assert.match(auth, /onAuthStateChange[\s\S]*stopAvatarSpeechPlayback/);
   assert.match(auth, /const signOut[\s\S]*await stopAvatarSpeechPlayback/);
 });
+
+test('Speech HTTP 429/5xx are retriable, HTTP 4xx is terminal', async () => {
+  const input = { actorId: 'actor', sessionId: 'session-1', messageId: 'message-1', stylistId: 'stylist_portrait_05' };
+  for (const [status, expected] of [[429, true], [503, true], [403, false]]) {
+    const client = load('services/avatars/stylistSpeechClient.ts', {
+      '../supabaseClient': { supabase: { functions: { invoke: async () => ({
+        data: null, error: { name: 'FunctionsHttpError', context: { status } },
+      }) } } },
+    });
+    await assert.rejects(client.requestStylistSpeech(input), (err) =>
+      client.isRetriableSpeechFailure(err) === expected);
+  }
+});

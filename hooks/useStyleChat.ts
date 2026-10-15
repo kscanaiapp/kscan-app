@@ -47,6 +47,7 @@ import { speakAvatarMessage, stopAvatarSpeechPlayback } from '../services/avatar
 import { useVoiceResponsesPreference } from './useVoiceResponsesPreference';
 import {
   claimGreetingSpeechAttempt,
+  releaseGreetingSpeechAttempt,
   ensureSessionGreeting,
   getGreetingTextForUser,
   getPendingGreetingSpeechMessageId,
@@ -387,6 +388,14 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           stylistId: identity.avatarId,
           avatarId: identity.avatarId,
           source: 'greeting',
+          onRetriableRequestFailure: () => {
+            // Effect cleanup may run after the greeting is inserted; actor scope
+            // (not the cancelled render) is the authoritative async guard.
+            // Releasing the claim does NOT queue an automatic replay; the
+            // persisted greeting has the existing per-message voice retry UI.
+            if (!isActorScopeCurrent(scope)) return;
+            releaseGreetingSpeechAttempt(actorId!, sessionId, speechMessageId);
+          },
         });
       } catch {
         // Greeting persistence is best-effort here. A user send retries the same

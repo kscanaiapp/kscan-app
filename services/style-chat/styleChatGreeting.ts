@@ -18,7 +18,8 @@ const pendingInserts = new Map<string, Promise<SessionGreetingResult>>();
 const greetedSessions = new Set<string>();
 /** Process-scoped message IDs eligible for one welcome-speech attempt after insert. */
 const pendingGreetingSpeech = new Map<string, string>();
-const greetingSpeechStarted = new Set<string>();
+/** Claimed message ID per actor/session; records the exact one-shot ownership. */
+const greetingSpeechStarted = new Map<string, string>();
 
 function greetingScopeKey(actorId: string, sessionId: string): string {
   return `${actorId}:${sessionId}`;
@@ -166,9 +167,27 @@ export function claimGreetingSpeechAttempt(
   const messageId = getPendingGreetingSpeechMessageId(actorId, sessionId);
   if (!messageId) return null;
   const scopeKey = greetingScopeKey(actorId, sessionId);
-  greetingSpeechStarted.add(scopeKey);
+  greetingSpeechStarted.set(scopeKey, messageId);
   pendingGreetingSpeech.delete(scopeKey);
   return messageId;
+}
+
+/**
+ * Release only the matching actor/session/message claim on a retriable provider
+ * failure. Intentionally DO NOT re-arm pendingGreetingSpeech: doing so would
+ * automatically replay an old welcome when a session remounts. The persisted
+ * greeting remains user-retryable via its existing per-message voice control.
+ */
+export function releaseGreetingSpeechAttempt(
+  actorId: string,
+  sessionId: string,
+  messageId: string,
+): boolean {
+  if (!actorId || !sessionId || !messageId) return false;
+  const scopeKey = greetingScopeKey(actorId, sessionId);
+  if (greetingSpeechStarted.get(scopeKey) !== messageId) return false;
+  greetingSpeechStarted.delete(scopeKey);
+  return true;
 }
 
 /** Clear actor-scoped greeting work and playback dedupe at an auth boundary. */
