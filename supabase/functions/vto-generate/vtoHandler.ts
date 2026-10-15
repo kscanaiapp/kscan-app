@@ -114,6 +114,7 @@ const HTTP_STATUS_BY_FAILURE: Readonly<Record<VtoFailureCode, number>> = {
   rate_limited: 429,
   quota_exhausted: 429,
   request_in_flight: 429,
+  result_unavailable: 409,
   provider_busy: 503,
   generation_failed: 502,
   invalid_output: 502,
