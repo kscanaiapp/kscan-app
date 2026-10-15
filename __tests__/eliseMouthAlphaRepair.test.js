@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { decodePng, encodePng, repair, rgbDigest, alphaCoverage, bounds, MOUTH } =
+const { decodePng, encodePng, repair, rgbDigest, alphaCoverage, bounds, MOUTH, RETIRED } =
   require('../scripts/repair-elise-mouth-alpha.cjs');
 
 const FILES = ['avatar_stylist_01_mouth_closed.png', 'avatar_stylist_01_mouth_open.png'];
@@ -77,4 +77,23 @@ test('corrected closed/open frames visibly differ where the mouth alpha is rende
   assert.ok(visible >= area * 0.08, 'closed/open frames need overlapping, opaque mouth pixels');
   assert.ok(difference / (visible * 3) > 15,
     'mouth frames must change visible RGB, not merely differ behind transparent alpha');
+});
+
+test('1024px shipped geometry tolerates one-pixel height rounding', () => {
+  const width = 1024, height = 1024;
+  const pixels = Buffer.alloc(width * height * 4);
+  const prior = bounds(RETIRED, width, height);
+  const now = bounds(MOUTH, width, height);
+  assert.equal(Math.abs((prior.y1-prior.y0)-(now.y1-now.y0)), 1,
+    'fixture must reproduce historical crop-rounding regression');
+  for (let y=prior.y0; y<prior.y1; y++) for (let x=prior.x0; x<prior.x1; x++) {
+    const i=(y*width+x)*4; pixels[i]=120; pixels[i+1]=40; pixels[i+2]=70; pixels[i+3]=255;
+  }
+  const input = encodePng({ width, height, pixels });
+  const fixed = repair(input);
+  assert.equal(fixed.modified, true);
+  const after = decodePng(fixed.output);
+  assert.equal(rgbDigest(decodePng(input)), rgbDigest(after));
+  assert.ok(alphaCoverage(after, now) > 0.99);
+  assert.equal(repair(fixed.output).modified, false);
 });
