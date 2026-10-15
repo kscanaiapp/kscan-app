@@ -90,8 +90,6 @@ added to a list without a justification.
 | `supabase/functions/vto-generate/providers/mockProvider.ts` | Recover inline-source adapter contract used by deterministic source tests; this provides no real-provider proof. | Same Build 35 authority and source as above |
 | `supabase/functions/vto-generate/providers/mockProvider.test.ts` | Recover the existing adapter regression assertions for the inline source. | Same Build 35 authority and source as above |
 | `supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts` | Recover real-adapter source regressions for bounded inline media serialization; tests do not invoke the paid provider. | Same Build 35 authority and source as above |
-
-
 | `supabase/functions/vto-generate/vtoReservation.ts` | Exact paid-generation reservation seam must adopt attempt-scoped v2 CAS RPCs, checked settlement responses and provider task receipt; no unrelated backend surface. | Owner-authorized 2026-10-15 VTO-001/002/003/004 paid-safety remediation; read-only hostile audit Section M |
 | `supabase/functions/vto-generate/vtoResultValidation.ts` | Exact provider-result acceptance seam must validate actual encoded dimensions and structural completion before success; no quality score invention. | Owner-authorized 2026-10-15 VTO-005 image-integrity repair; read-only hostile audit Section M |
 | `supabase/functions/vto-generate/vtoHandler.test.ts` | Deterministic error-injection regression proving settlement failures cannot return generated success and accepted task receipts use the exact actor/attempt lease. | Owner-authorized 2026-10-15 VTO-002/003 paid-safety remediation; read-only hostile audit Section M |
