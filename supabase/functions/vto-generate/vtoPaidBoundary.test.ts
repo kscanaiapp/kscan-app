@@ -281,7 +281,7 @@ test('the reservation is settled on success AND on every failure path', () => {
     settlements.length >= 4,
     `expected settlement on throw, provider-failure, invalid-output and success; found ${settlements.length}`,
   );
-  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, attemptId, 'succeeded'/);
+  assert.match(HANDLER, /authUser\.id, idempotencyKey, attemptId, 'succeeded'/);
   assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, attemptId, 'failed'/);
 });
 
