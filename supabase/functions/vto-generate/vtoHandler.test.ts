@@ -622,3 +622,37 @@ Deno.test('VTO-QUOTA-003: an adapter that says nothing is treated as billable', 
   );
   assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }]);
 });
+
+
+Deno.test('VTO-003: generated image cannot return success if durable settlement failed', async () => {
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    completeVtoGeneration: () => Promise.resolve(false),
+  }));
+  assertEquals(response.status,502);
+  assertEquals(await failureCode(response),'generation_failed');
+});
+
+Deno.test('VTO-008: accepted task receipt is bound to the exact reservation attempt', async () => {
+  const accepted: Array<{ user:string; key:string; attempt:string; task:string }>=[];
+  const result=await handleVtoRequest(post(requestBody()), deps({
+    resolveVtoProvider:()=>({
+      ok:true as const,
+      provider:{
+        id:'task-provider',
+        generate: async (_input, options) => {
+          const acknowledged=await options.onTaskAccepted?.('provider-task-123');
+          assertEquals(acknowledged,true);
+          return {ok:false as const,failure:'provider_timeout' as const,billable:true};
+        },
+      },
+    }),
+    recordVtoProviderTask:async (user,key,attempt,_provider,task)=>{
+      accepted.push({user,key,attempt,task});return true;
+    },
+  }));
+  assertEquals(await failureCode(result),'provider_timeout');
+  assertEquals(accepted.length,1);
+  assertEquals(accepted[0].user,USER_ID);
+  assertEquals(accepted[0].attempt,USER_ID);
+  assertEquals(accepted[0].task,'provider-task-123');
+});
