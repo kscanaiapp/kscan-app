@@ -115,7 +115,15 @@ export async function playStylistAudio(
         callbacks.onPlaybackError();
         return;
       }
-      if (status.playing) {
+      // A real, advancing native playback position proves audio has started
+      // even when a platform reports `playing: false` during its initial
+      // status transition. Previously the speech store remained in `ready`
+      // while sound was audible, leaving V10's visible mouth motion disabled.
+      // Do not treat a frozen, paused or zero position as playback.
+      const positionAdvanced =
+        Number.isFinite(status.currentTime) &&
+        status.currentTime > Math.max(0, lastProgressSeconds);
+      if (status.playing || positionAdvanced) {
         if (!started) {
           started = true;
           if (startTimeout) {
@@ -125,10 +133,9 @@ export async function playStylistAudio(
           lastProgressSeconds = status.currentTime;
           armStallTimeout();
           callbacks.onPlaybackStarted();
-        } else if (status.currentTime > lastProgressSeconds) {
-          // Only an advancing position counts as progress. A native player that
-          // keeps reporting `playing` at a frozen position is stalled, so the
-          // watchdog must not be re-armed by the status event alone.
+        } else if (positionAdvanced) {
+          // Re-arm only on genuine native progress. Repeated identical
+          // callbacks (including a false `playing` flag) cannot defeat stalls.
           lastProgressSeconds = status.currentTime;
           armStallTimeout();
         }
