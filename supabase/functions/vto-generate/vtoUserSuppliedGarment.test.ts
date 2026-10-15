@@ -110,10 +110,10 @@ function harness(overrides: Partial<VtoHandlerDeps> = {}): { deps: Partial<VtoHa
     }),
     reserveVtoGeneration: (_userId, key) => {
       spy.reservationKeys.push(key);
-      return Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10 });
+      return Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10, attemptId: '11111111-2222-4333-8444-555555555555' });
     },
-    completeVtoGeneration: () => Promise.resolve(),
-    releaseVtoGeneration: () => Promise.resolve(),
+    completeVtoGeneration: () => Promise.resolve(true),
+    releaseVtoGeneration: () => Promise.resolve(true),
     generationTimeoutMs: 1_000,
     devScenariosAllowed: () => false,
     ...overrides,
