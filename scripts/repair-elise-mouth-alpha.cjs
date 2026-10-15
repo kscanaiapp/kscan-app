@@ -83,14 +83,33 @@ function chunk(type, data) {
   b.writeUInt32BE((crc ^ 0xffffffff) >>> 0, b.length - 4);
   return b;
 }
-function encodePng({ width, height, pixels }) {
+function encodePng({ width, height, pixels }, originalBuffer = null) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; ihdr[9] = 6; // 8-bit RGBA; filter 0; no interlace
   const stride = width * 4;
   const raw = Buffer.alloc((stride + 1) * height);
   for (let y = 0; y < height; y++) pixels.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
-  return Buffer.concat([PNG_SIG, chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+  const idat = chunk('IDAT', zlib.deflateSync(raw, { level: 9 }));
+  if (!originalBuffer) return Buffer.concat([PNG_SIG, chunk('IHDR', ihdr), idat, chunk('IEND', Buffer.alloc(0))]);
+  // Preserve original non-IDAT chunks verbatim, including sRGB/iCCP and
+  // gamma metadata. Only RGBA alpha and compressed IDAT may change.
+  const output = [PNG_SIG];
+  let offset = 8, inserted = false, ended = false;
+  while (offset + 12 <= originalBuffer.length) {
+    const length = originalBuffer.readUInt32BE(offset);
+    const end = offset + length + 12;
+    if (end > originalBuffer.length) throw new Error('Elise overlay: truncated PNG chunk');
+    const type = originalBuffer.toString('ascii', offset + 4, offset + 8);
+    if (type === 'IDAT') {
+      if (!inserted) { output.push(idat); inserted = true; }
+    } else if (type === 'IHDR') output.push(chunk('IHDR', ihdr));
+    else output.push(originalBuffer.subarray(offset, end));
+    offset = end;
+    if (type === 'IEND') { ended = true; break; }
+  }
+  if (!inserted || !ended) throw new Error('Elise overlay: missing original IDAT/IEND');
+  return Buffer.concat(output);
 }
 function bounds(region, width, height) {
   return { x0: Math.round(region.x * width), x1: Math.round((region.x+region.width) * width),
@@ -135,7 +154,7 @@ function repair(buffer) {
   const coverage = alphaCoverage(image, target);
   if (coverage < 0.08) throw new Error('Elise overlay: mouth is still invisible after alpha repair');
   if (rgbDigest(image) !== originalRgb) throw new Error('Elise overlay: RGB changed; refusing build');
-  const output = modified ? encodePng(image) : buffer;
+  const output = modified ? encodePng(image, buffer) : buffer;
   if (modified && rgbDigest(decodePng(output)) !== originalRgb) throw new Error('Elise overlay: PNG roundtrip modified RGB');
   if (modified && alphaCoverage(decodePng(output), target) < 0.08) throw new Error('Elise overlay: PNG roundtrip lost mouth alpha');
   return { output, modified, before, coverage, rgbSha256: originalRgb };
