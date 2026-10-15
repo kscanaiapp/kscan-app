@@ -1751,7 +1751,7 @@
         "bundleFileCount": 18,
         "treeFileCount": 25,
         "bundleHash": "c62c9b345dfad13d640316ab22260aa9cd7950f397116b4153b1d3da8ad54454",
-        "treeHash": "adfba158f775f93297ca582e6f1c47b5507e5273c98292e24ad65a374ecb03e6",
+        "treeHash": "64aa75bd770663f5c37d3f17fc35acf2a948a75185e531ce1a30eafdfaba4b92",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1840,7 +1840,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoOwnedGarment.test.ts",
-            "sha256": "d3a8ab0980aa1976faf81114f19e2aa6f2279aa583759d99b25c42b390f12120",
+            "sha256": "0c2250101c8a765ef7f7c6929906bdbc4c91fa9d46ee268155ce3b007848058b",
             "bundle": false
           },
           {
