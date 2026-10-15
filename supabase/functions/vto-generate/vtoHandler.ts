@@ -72,6 +72,7 @@ import {
   completeVtoGeneration,
   releaseVtoGeneration,
   reserveVtoGeneration,
+  recordVtoProviderTask,
 } from './vtoReservation.ts';
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { dimensionBucket, logVtoEvent, payloadBucket } from './vtoTelemetry.ts';
@@ -221,6 +222,7 @@ export interface VtoHandlerDeps {
   reserveVtoGeneration: typeof reserveVtoGeneration;
   completeVtoGeneration: typeof completeVtoGeneration;
   releaseVtoGeneration: typeof releaseVtoGeneration;
+  recordVtoProviderTask: typeof recordVtoProviderTask;
   generationTimeoutMs: number;
   devScenariosAllowed: () => boolean;
 }
@@ -236,6 +238,7 @@ export const defaultVtoHandlerDeps: VtoHandlerDeps = {
   reserveVtoGeneration,
   completeVtoGeneration,
   releaseVtoGeneration,
+  recordVtoProviderTask,
   generationTimeoutMs: GENERATION_TIMEOUT_MS,
   devScenariosAllowed: () => Deno.env.get('VTO_ALLOW_DEV_SCENARIOS') === 'true',
 };
@@ -503,6 +506,7 @@ export async function handleVtoRequest(
     });
   }
 
+  const attemptId = reservation.attemptId;
   logVtoEvent('vto_generate_start', {
     requestId,
     uid,
@@ -527,7 +531,12 @@ export async function handleVtoRequest(
         slot: eligibility.slot,
         canonicalCategory: eligibility.canonicalCategory,
       },
-      { signal: controller.signal },
+      {
+        signal: controller.signal,
+        onTaskAccepted: (taskId: string) => deps.recordVtoProviderTask(
+          authUser.id, idempotencyKey, attemptId, selection.provider.id, taskId,
+        ),
+      },
     );
   } catch (err) {
     const aborted = err instanceof DOMException && err.name === 'AbortError';
@@ -535,7 +544,8 @@ export async function handleVtoRequest(
     // longer influence. The attempt still counts against the daily cap: the
     // paid call was made, and counting only successes would let a failing
     // provider be retried without bound.
-    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    const settled = await deps.completeVtoGeneration(authUser.id, idempotencyKey, attemptId, 'failed', selection.provider.id);
+    if (!settled) logVtoEvent('vto_settlement_unconfirmed', { requestId, uid, origin, stage: 'generate_throw' });
     return fail(aborted ? 'provider_timeout' : 'generation_failed', {
       requestId,
       uid,
@@ -556,9 +566,11 @@ export async function handleVtoRequest(
     // counted, so a vendor that accepted the job is still paid for out of the
     // daily cap and the unbounded-retry hole VTO-QUOTA-001 closed stays closed.
     if (outcome.billable === false) {
-      await deps.releaseVtoGeneration(authUser.id, idempotencyKey, selection.provider.id);
+      const released = await deps.releaseVtoGeneration(authUser.id, idempotencyKey, attemptId, selection.provider.id);
+      if (!released) logVtoEvent('vto_settlement_unconfirmed', { requestId, uid, origin, stage: 'release' });
     } else {
-      await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+      const settled = await deps.completeVtoGeneration(authUser.id, idempotencyKey, attemptId, 'failed', selection.provider.id);
+      if (!settled) logVtoEvent('vto_settlement_unconfirmed', { requestId, uid, origin, stage: 'provider_failure' });
     }
     return fail(outcome.failure, {
       requestId,
@@ -577,7 +589,8 @@ export async function handleVtoRequest(
   // -- 10. A provider success is not yet a K Scan result ---------------------
   const validation = validateVtoResultMedia(outcome.media);
   if (!validation.ok) {
-    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    const settled = await deps.completeVtoGeneration(authUser.id, idempotencyKey, attemptId, 'failed', selection.provider.id);
+    if (!settled) logVtoEvent('vto_settlement_unconfirmed', { requestId, uid, origin, stage: 'invalid_output' });
     return fail('invalid_output', {
       requestId,
       uid,
@@ -589,7 +602,18 @@ export async function handleVtoRequest(
     });
   }
 
-  await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'succeeded', selection.provider.id);
+  // A generated image is NOT a settled success. Never return a success if the
+  // actor/attempt CAS failed or the database could not confirm the receipt.
+  const committed = await deps.completeVtoGeneration(
+    authUser.id, idempotencyKey, attemptId, 'succeeded', selection.provider.id,
+  );
+  if (!committed) {
+    logVtoEvent('vto_settlement_unconfirmed', { requestId, uid, origin, stage: 'success_commit' });
+    return fail('generation_failed', {
+      requestId, uid, origin, provider: selection.provider.id,
+      stage: 'settlement_unconfirmed', latencyMs,
+    });
+  }
 
   logVtoEvent('vto_generate_succeeded', {
     requestId,
