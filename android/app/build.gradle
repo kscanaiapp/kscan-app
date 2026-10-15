@@ -226,13 +226,27 @@ if (easBuildProfile == CERTIFICATION_PROFILE && !(voiceScanEnabled && kscanVoice
 // profile (staging, preview, development, or any future one) stays
 // unsupported and fails closed, exactly like the certification-only selector
 // leaking into any profile but its own.
-def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES = [CERTIFICATION_PROFILE, PRODUCTION_PROFILE, PRODUCTION_CERTIFICATION_PROFILE, 'build35-release']
+// build35-testing is the existing internal APK profile. Its Android-only/APK
+// contract is checked before EAS installs dependencies and again below at the
+// native artifact boundary; store-profile configuration is unchanged.
+def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES = [CERTIFICATION_PROFILE, PRODUCTION_PROFILE, PRODUCTION_CERTIFICATION_PROFILE, 'build35-release', 'build35-testing']
 if (easBuildProfile != null && kscanVoiceNativeCapability && !VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES.contains(easBuildProfile)) {
     throw new GradleException(
         "kscan: KSCAN_VOICE_NATIVE_CAPABILITY resolved true under EAS_BUILD_PROFILE=" +
         "${easBuildProfile}, which is not an approved Voice-capable profile " +
         "(${VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES.join(', ')}). Refusing to build."
     )
+}
+
+if (easBuildProfile == 'build35-testing') {
+    if (!voiceScanEnabled || !kscanVoiceNativeCapability || kscanVoiceCertification) {
+        throw new GradleException('kscan: internal APK requires the approved production Voice capability pair.')
+    }
+    gradle.taskGraph.whenReady { graph ->
+        if (graph.allTasks.any { it.project == project && it.name ==~ /bundle.*(Release|Debug)/ }) {
+            throw new GradleException('kscan: build35-testing is APK-only; Android App Bundle tasks are forbidden.')
+        }
+    }
 }
 
 /**

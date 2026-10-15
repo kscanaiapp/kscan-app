@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
+    "eas-build-pre-install": "node scripts/check-android-apk-profile.cjs",
     "eas-build-post-install": "node scripts/repair-elise-mouth-alpha.cjs",
     "repair:elise-mouth-alpha": "node scripts/repair-elise-mouth-alpha.cjs",
     "server": "node server.js",

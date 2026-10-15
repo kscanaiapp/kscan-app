@@ -193,10 +193,10 @@ test('ANDROID-VOICE-01: the generalized capability selector active outside its a
   );
 });
 
-test('ANDROID-VOICE-01: the approved profile list is exactly staging-certification, production, and production-certification', () => {
+test('ANDROID-VOICE-01: only governed store/certification profiles and the internal APK profile are approved', () => {
   assert.match(
     gradle,
-    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE,\s*PRODUCTION_CERTIFICATION_PROFILE,\s*'build35-release'\]/,
+    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE,\s*PRODUCTION_CERTIFICATION_PROFILE,\s*'build35-release',\s*'build35-testing'\]/,
   );
   assert.match(gradle, /def PRODUCTION_PROFILE\s*=\s*'production'/);
   assert.match(gradle, /def PRODUCTION_CERTIFICATION_PROFILE\s*=\s*'production-certification'/);
