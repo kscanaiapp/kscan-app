@@ -86,6 +86,9 @@ const GOVERNED = [
   'handle-user-deletion',
   'process-account-deletions',
   'stylechat-generate',
+  // Speech owns paid dispatch and entitlement guards; keep its provider-free
+  // tests in the default gate so dependency/authorization drift cannot hide.
+  'stylist-speech',
   'style-outfit-generate',
   'commerce-watch-refresh',
   'vto-generate',

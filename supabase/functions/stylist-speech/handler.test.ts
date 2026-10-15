@@ -189,6 +189,29 @@ Deno.test('active K+ can reserve and generate authorized speech', async () => {
   assert.equal(paidCalls, 1);
 });
 
+Deno.test('reservation-time K+ revocation preserves terminal membership denial without paid dispatch', async () => {
+  let paidCalls = 0;
+  let reservations = 0;
+  let completions = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      reserveSpeechRequest: () => {
+        reservations++;
+        return Promise.resolve({ allowed: false, reason: 'entitlement_required' });
+      },
+      finishSpeechRequest: () => { completions++; return Promise.resolve(); },
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(reservations, 1);
+  assert.equal(paidCalls, 0);
+  assert.equal(completions, 0);
+});
+
 Deno.test('unknown or unavailable account status cannot dispatch paid Speech', async () => {
   for (const accountStatus of [null, 'unknown', 'deactivated', 'purged']) {
     let calls = 0;

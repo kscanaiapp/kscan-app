@@ -201,6 +201,9 @@ export function createStylistSpeechHandler(
           .map((value) => value.toString(16).padStart(2, '0')).join('');
         const reservation = await dataAccess.reserveSpeechRequest(actor.id, fingerprint, speechText.length);
         if (!reservation.allowed || !reservation.reservationId || !UUID_RE.test(reservation.reservationId)) {
+          if (reservation.reason === 'entitlement_required') {
+            throw new StylistSpeechError(403, 'KPLUS_REQUIRED', 'An active K+ membership is required for spoken replies.');
+          }
           if (reservation.reason === 'account_unavailable') {
             throw new StylistSpeechError(403, 'ACCOUNT_UNAVAILABLE', 'Speech is unavailable for this account.');
           }
