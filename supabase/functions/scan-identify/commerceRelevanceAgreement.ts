@@ -36,6 +36,8 @@ export const PENALTY_COLOR_CONFLICT = -10;
 export const PENALTY_UNSUPPORTED_BRAND_ONLY_MATCH = -10;
 export const PENALTY_GENERIC_TITLE = -15;
 export const PENALTY_INVALID_URL = -30;
+/** A search/aggregator handoff is usable but ranks below a direct retailer page. */
+export const PENALTY_SEARCH_HANDOFF_DESTINATION = -10;
 export const PENALTY_MISSING_IMAGE = -15;
 export const PENALTY_INVALID_PRICE_FORMAT = -5;
 export const PENALTY_NEGATIVE_PRICE = -10;
@@ -161,7 +163,7 @@ function hasUsableImage(p: RecommendedProduct): boolean {
 
 function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
-  if (!normalizeUrl(url) || isAggregatorDestination(url)) return false;
+  if (!normalizeUrl(url)) return false;
   try {
     const u = new URL(url);
     if (u.username || u.password || !u.hostname) return false;
@@ -531,6 +533,7 @@ export function scoreProductAgreement(
     score += PENALTY_GENERIC_TITLE;
   }
   if (!hasValidPurchaseUrl(product)) score += PENALTY_INVALID_URL;
+  else if (isAggregatorDestination(typeof product.productUrl === 'string' ? product.productUrl : undefined)) score += PENALTY_SEARCH_HANDOFF_DESTINATION;
   if (!hasUsableImage(product)) score += PENALTY_MISSING_IMAGE;
 
   const priceInfo = parseNumericPrice(product.price);

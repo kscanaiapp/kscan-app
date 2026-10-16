@@ -374,7 +374,11 @@ export function hasUsableImage(p: RecommendedProduct): boolean {
 
 export function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
-  if (!normalizeUrl(url) || isAggregatorDestination(url)) return false;
+  // A search/aggregator handoff is still a usable (if weaker) destination;
+  // dropping it here emptied most shelves because the shopping provider's own
+  // links are largely Google Shopping pages. Ranking, not eligibility, prefers
+  // direct retailer links (see directDestinationBonus).
+  if (!normalizeUrl(url)) return false;
   try {
     const u = new URL(url);
     if (u.username || u.password || !u.hostname) return false;
@@ -488,6 +492,7 @@ function scoreProduct(p: RecommendedProduct, garment: Record<string, unknown>): 
   if (pat && pat !== 'solid' && text.includes(pat)) score += 1;
   if (hasUsableImage(p)) score += 2;
   if (hasValidPurchaseUrl(p)) score += 2;
+  if (hasValidPurchaseUrl(p) && !isAggregatorDestination(typeof p.productUrl === 'string' ? p.productUrl : undefined)) score += 2;
   if (p.price !== undefined && p.price !== null && p.price !== '' && !priceMalformedRequired(p)) score += 1;
   return score;
 }

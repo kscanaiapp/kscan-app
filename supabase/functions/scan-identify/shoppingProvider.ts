@@ -9,7 +9,7 @@
 // stable RecommendedProduct shape.
 
 import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
-import { isNonPublicHost } from '../_shared/net/safeRemoteMedia.ts';
+import { isNonPublicHost } from '../_shared/net/publicHost.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -459,6 +459,24 @@ export function isAggregatorDestination(url: string | undefined): boolean {
  * key can carry either one, so classifying the destination is the only check
  * that stays correct across providers and schema changes.
  */
+/**
+ * How actionable a destination is, by URL alone.
+ *   direct          a public https page on a host that is not a search middleman
+ *   search_handoff  a public https search/aggregator page (for example Google
+ *                   Shopping). It still lets the customer reach the offers, so it
+ *                   stays eligible, but it is ranked below direct retailer links,
+ *                   can never earn an Exact Match, and is never presented as a
+ *                   verified product page.
+ *   invalid         not a usable destination (non-https, private, credentialed)
+ * Retailer-neutral: no retailer is named here.
+ */
+export type DestinationKind = 'direct' | 'search_handoff' | 'invalid';
+export function classifyDestination(url: unknown): DestinationKind {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return 'invalid';
+  return isAggregatorDestination(normalized) ? 'search_handoff' : 'direct';
+}
+
 export function selectRetailerDestination(candidates: unknown[]): string | undefined {
   const normalized: string[] = [];
   for (const candidate of candidates) {
