@@ -40,7 +40,7 @@ becomes a different garment when VTO opens.
 | ID | Negative case | Entry | Status |
 |---|---|---|---|
 | N-01 | Launched garment differs from the row the customer tapped | visual_search, product_card | EXISTS (`vtoShippedSurfaceReach`: each row carries the garment for its own product); host-level equality assertion GAP |
-| N-02 | Multi-item result: selection changes while the sheet is opening or resolving; must not swap garment | visual_search | GAP |
+| N-02 | Multi-item result: the parent passes a different garment while the sheet is open; must not swap garment, Shop or Watch | visual_search, product_card, closet, elise (shared host) | NEW (`vtoLaunchIdentityPin`). Root cause and fix: the shared host now pins garment, title, Shop, Watch, size guide and loader at open, keyed by identity (product ref + source) |
 | N-03 | Several eligible attachments, no explicit focus: no offer; focus on an ineligible item promotes nothing | elise | EXISTS (`vtoEliseContextualOffer` P0-05..07, NC-ELVTO-04) |
 | N-04 | Stale binding: candidate deleted, expired, bytes changed, category changed, classification version changed | elise | EXISTS (P0-10..14, P1-15) |
 | N-05 | Invalid media: Closet item with no synced garment photo opens no generation surface | closet | EXISTS (`build35OwnedVtoScreen`) |
@@ -48,7 +48,7 @@ becomes a different garment when VTO opens.
 | N-07 | Invalid media: malformed base64, wrong type, hash mismatch, oversize garment | elise | EXISTS (P0-17..19, NC-ELVTO-08) |
 | N-08 | Unauthorized owned item: another account's Closet item id | closet | PARTIAL: client actor scope EXISTS; explicit foreign-id route test GAP; backend negative control against Staging GAP |
 | N-09 | Account switch mid-resolution (A to B) must not mount A's garment for B | closet EXISTS, elise EXISTS (P0-09), visual_search GAP, home_studio N/A | PARTIAL |
-| N-10 | Stale async result after close and reopen | all | GAP |
+| N-10 | Stale async result after close and reopen | all | PARTIAL: closing releases the pin and the next open uses the garment then shown (NEW, `vtoLaunchIdentityPin`); stale PERSON-photo and request results are handled by the existing request-store token (`vtoRequestLifecycle`, EXISTS) |
 | N-11 | Free or unknown K+ never reaches generation; resolving is never Free | all | EXISTS (`vtoCustomerActivation` J2, J5) |
 | N-12 | Operator OFF or remote unavailable leaves no actionable control | all | EXISTS (J9, P0-21) |
 | N-13 | `entry_point` is bounded, derived only from known labels, adds no media or identifiers | all | NEW (`vtoEntryPointTaxonomy`) |
