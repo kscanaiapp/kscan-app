@@ -2369,8 +2369,13 @@ test('P1-16 / P1-17 / P1-18: one VirtualTryOnSheet mount in the app, reached by 
   for (const rel of ['components/ProductShelf.tsx', 'components/scan-results/PurchaseOptionsPanel.tsx', 'app/closet/try-on.tsx']) {
     assert.match(read(rel), /<TryItOnEntry\b/, `${rel} still mounts the product control`);
   }
-  // And there is still no standalone VTO destination.
-  assert.equal(sourceFiles('app').some((rel) => /vto|try-?on/i.test(rel) && rel !== 'app/closet/try-on.tsx' && rel !== 'app/dev-n1-diagnostic.tsx'), false);
+  // And there is still no standalone VTO GENERATION destination. The one
+  // exception is the owner-directed Try-On Studio (app/try-on-studio.tsx): a
+  // permanent explainer that only navigates. It is excluded by exact path, and
+  // everything above still holds for it -- it mounts no sheet and uses no host
+  // (the mounts and hostUsers assertions would fail if it did).
+  const ALLOWED_VTO_NAMED_ROUTES = ['app/closet/try-on.tsx', 'app/dev-n1-diagnostic.tsx', 'app/try-on-studio.tsx'];
+  assert.equal(sourceFiles('app').some((rel) => /vto|try-?on/i.test(rel) && !ALLOWED_VTO_NAMED_ROUTES.includes(rel)), false);
 });
 
 test('P1-21: there is no second VTO provider, endpoint or eligibility system for Elise', () => {
