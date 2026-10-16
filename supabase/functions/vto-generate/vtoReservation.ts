@@ -72,7 +72,7 @@ export async function buildVtoIdempotencyKey(input: {
  */
 export type VtoReservationOutcome =
   | { outcome: 'reserved'; used: number; dailyLimit: number; attemptId: string }
-  | { outcome: 'duplicate'; used: number; dailyLimit: number; priorStatus: string | null; taskId: string | null }
+  | { outcome: 'duplicate'; used: number; dailyLimit: number; priorStatus: string | null; taskId: string | null; attemptId: string | null }
   | { outcome: 'quota_exceeded'; used: number; dailyLimit: number }
   | { outcome: 'unavailable' };
 
@@ -107,6 +107,7 @@ export async function reserveVtoGeneration(
       outcome: 'duplicate', used, dailyLimit,
       priorStatus: typeof row.prior_status === 'string' ? row.prior_status : null,
       taskId: typeof row.provider_task_id === 'string' ? row.provider_task_id : null,
+      attemptId: typeof row.attempt_id === 'string' ? row.attempt_id : null,
     };
     if (row.outcome === 'quota_exceeded') return { outcome: 'quota_exceeded', used, dailyLimit };
     return { outcome: 'unavailable' };
