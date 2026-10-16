@@ -239,7 +239,11 @@ function mount() {
     '../services/secondhand': { buildSecondhandSearchRequest: () => null, searchVintedSecondhand: async () => null },
     '../services/sneakers/index': { searchSneakers: async () => null, shouldEnrichSneakers: () => false },
     '../services/imageUtils': { compressForUpload: async (u) => u },
+    '../services/privacy/scannerImagePreparation': {
+      prepareScannerImageForDispatch: async (u) => ({ imageBase64: u, proof: { processingCompleted: true } }),
+    },
     '../services/privacyImageSanitizer': {
+      // Legacy non-Scanner adapter remains separate from Scanner's strict path.
       sanitizeImageBeforeUpload: async (u) => u,
       getPrivacySanitizerStatus: () => ({ faceBlurApplied: false, plateMaskApplied: false, mode: 'test', faceDetectionAvailable: false }),
     },

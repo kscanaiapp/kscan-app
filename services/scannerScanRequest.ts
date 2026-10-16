@@ -11,6 +11,7 @@
 
 import { identifyScanImage, type IdentifyScanOptions } from './scanIdentification';
 import { buildScannerVisualEvidence } from './scannerVisualEvidence';
+import { assertScannerImageReadyForDispatch } from './privacy/scannerDispatchGuard';
 import type { PrivacyProof } from './privacy/privacyProof';
 import type { ScanIdentifyResponse } from '../types/scanIdentification';
 import type {
@@ -116,13 +117,21 @@ function legacyOptionsFor(input: RunScannerIdentificationInput): IdentifyScanOpt
 export async function runScannerIdentification(
   input: RunScannerIdentificationInput,
 ): Promise<ScannerIdentificationOutcome> {
+  const protectedImage = input.evidence?.imageBase64;
+  if (!assertScannerImageReadyForDispatch(protectedImage, input.privacyProof)) {
+    return {
+      contractPath: input.sessionFlag?.enabled ? 'v2' : 'legacy',
+      response: { status: 'failed', recommendedProducts: [], userMessage: 'The selected image could not be prepared securely.' },
+      identificationV2: null, candidates: [], fallbackUsed: false,
+    };
+  }
   const send = input.transport ?? identifyScanImage;
   const legacyOptions = legacyOptionsFor(input);
 
   // Flag off → the legacy path, unchanged. The session-latched value is used,
   // never a fresh read, so an operation cannot switch contracts mid-flight.
   if (!input.sessionFlag?.enabled) {
-    const response = await send(input.evidence.imageBase64, legacyOptions);
+    const response = await send(protectedImage, legacyOptions);
     return { contractPath: 'legacy', response, identificationV2: null, candidates: [], fallbackUsed: false };
   }
 
@@ -159,7 +168,7 @@ export async function runScannerIdentification(
     };
   }
 
-  const response = await send(input.evidence.imageBase64, {
+  const response = await send(protectedImage, {
     ...legacyOptions,
     contractRequestV2: built.request as unknown as Record<string, unknown>,
   });
@@ -174,7 +183,7 @@ export async function runScannerIdentification(
     httpStatus: response.httpStatus ?? null,
     errorCode: response.contractErrorCode ?? null,
   })) {
-    const legacyResponse = await send(input.evidence.imageBase64, legacyOptions);
+    const legacyResponse = await send(protectedImage, legacyOptions);
     return {
       contractPath: 'legacy',
       response: legacyResponse,

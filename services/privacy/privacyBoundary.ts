@@ -59,6 +59,8 @@ export type PrivacyBoundaryResult =
       status: 'SANITIZED_AND_VERIFIED';
       sanitizedUri: string;
       proof: PrivacyProof;
+      width?: number;
+      height?: number;
       /** Removes the sanitized artifact. Idempotent; call in finally. */
       cleanup: () => Promise<void>;
     }
@@ -112,6 +114,7 @@ function blocked(
  */
 export async function prepareImageForDispatch(
   sourceUri: string,
+  options: { platePolicy?: 'block' | 'mask' } = {},
 ): Promise<PrivacyBoundaryResult> {
   // Cheapest checks first: a missing capability blocks before any file work.
   if (!isPlateDetectionSupported()) {
@@ -129,6 +132,7 @@ export async function prepareImageForDispatch(
 
   let materializedUri: string | null = null;
   let sanitizedUri: string | null = null;
+  let plateMaskedUri: string | null = null;
   try {
     try {
       const materialized = await materializeImageForPrivacy(sourceUri);
@@ -154,6 +158,17 @@ export async function prepareImageForDispatch(
     }
     sanitizedUri = faceResult.sanitizedUri;
 
+    // Scanner explicitly opts into verified masking. Existing Closet callers
+    // retain their block-on-plate policy. A partial/old native result cannot
+    // certify a Scanner payload merely by carrying a success-shaped URI.
+    if (options.platePolicy === 'mask' && (
+      !isVerifiedNativeOutput(faceResult, materializedUri) || sanitizedUri === sourceUri ||
+      !validMaskCounts(faceResult.facesDetected, faceResult.facesAccepted, faceResult.facesMasked) ||
+      (faceResult.status === 'no_faces' && faceResult.facesDetected !== 0)
+    )) {
+      return blocked('VERIFICATION_FAILED', 'Face output did not pass the Scanner verification contract.');
+    }
+
     // BUILD 34 PLATE POLICY: detect, never mask-and-continue.
     //
     // The plate screen is on-device text-region geometry (see
@@ -169,6 +184,7 @@ export async function prepareImageForDispatch(
     // It is discarded unconditionally — it must never become the returned
     // sanitizedUri, and must never be exposed to a caller as cloud-eligible.
     const plateResult = await detectPlates({ imageUri: sanitizedUri });
+    plateMaskedUri = plateResult.maskedUri ?? null;
     if (!plateResult.supported || !plateResult.performed || plateResult.failure) {
       return blocked(
         'PLATE_PROCESSING_FAILED',
@@ -176,15 +192,29 @@ export async function prepareImageForDispatch(
       );
     }
     if (plateResult.regionsAccepted > 0) {
-      if (plateResult.maskedUri) {
-        await cleanupNativeSanitizedImage(plateResult.maskedUri);
-        await deletePrivacyArtifact(plateResult.maskedUri);
+      if (options.platePolicy !== 'mask') {
+        return blocked(
+          'PLATE_DETECTED',
+          `A plate-shaped region was detected (${plateResult.regionsAccepted} accepted of ${plateResult.regionsDetected} candidates); this build blocks rather than masks.`,
+          PLATE_DETECTED_USER_MESSAGE,
+        );
       }
-      return blocked(
-        'PLATE_DETECTED',
-        `A plate-shaped region was detected (${plateResult.regionsAccepted} accepted of ${plateResult.regionsDetected} candidates); this build blocks rather than masks.`,
-        PLATE_DETECTED_USER_MESSAGE,
-      );
+      if (!plateMaskedUri || plateMaskedUri === sanitizedUri ||
+          plateMaskedUri === materializedUri || plateMaskedUri === sourceUri ||
+          !plateMaskedUri.startsWith('file://') || !plateResult.outputVerified ||
+          !validMaskCounts(plateResult.regionsDetected, plateResult.regionsAccepted, plateResult.regionsMasked)) {
+        return blocked('VERIFICATION_FAILED', 'Plate masking did not produce a separate verified artifact.');
+      }
+      const faceSanitizedUri = sanitizedUri;
+      sanitizedUri = plateMaskedUri;
+      plateMaskedUri = null;
+      await cleanupNativeSanitizedImage(faceSanitizedUri);
+      await deletePrivacyArtifact(faceSanitizedUri);
+    } else if (options.platePolicy === 'mask' && (
+      !validMaskCounts(plateResult.regionsDetected, plateResult.regionsAccepted, plateResult.regionsMasked) ||
+      plateResult.regionsDetected !== 0 || plateMaskedUri
+    )) {
+      return blocked('VERIFICATION_FAILED', 'An incomplete plate screen cannot certify a Scanner payload.');
     }
     // No plate-like region: the face-sanitized artifact stands unchanged.
     // Nothing to swap, nothing superseded to release.
@@ -200,6 +230,8 @@ export async function prepareImageForDispatch(
       status: 'SANITIZED_AND_VERIFIED',
       sanitizedUri: stableSanitizedUri,
       proof,
+      width: faceResult.outputWidth,
+      height: faceResult.outputHeight,
       cleanup: async () => {
         await cleanupNativeSanitizedImage(stableSanitizedUri);
         if (isOwnedPrivacyArtifactUri(stableSanitizedUri)) {
@@ -211,9 +243,30 @@ export async function prepareImageForDispatch(
     // The materialized original never outlives processing, and a sanitized
     // artifact from a failed run never survives either.
     await deletePrivacyArtifact(materializedUri);
-    if (sanitizedUri) {
+    if (plateMaskedUri && plateMaskedUri !== sanitizedUri && plateMaskedUri !== sourceUri) {
+      await cleanupNativeSanitizedImage(plateMaskedUri);
+      await deletePrivacyArtifact(plateMaskedUri);
+    }
+    if (sanitizedUri && sanitizedUri !== sourceUri) {
       await cleanupNativeSanitizedImage(sanitizedUri);
       await deletePrivacyArtifact(sanitizedUri);
     }
   }
+}
+
+function validMaskCounts(detected: number, accepted: number, masked: number): boolean {
+  return [detected, accepted, masked].every((value) => Number.isSafeInteger(value) && value >= 0) &&
+    accepted <= detected && masked === accepted && (detected === 0 || accepted > 0);
+}
+
+function isVerifiedNativeOutput(
+  result: { sanitizedUri?: string; outputWidth?: number; outputHeight?: number; outputChecksum?: string; verificationDurationMs?: number },
+  inputUri: string,
+): boolean {
+  return typeof result.sanitizedUri === 'string' && result.sanitizedUri.startsWith('file://') &&
+    result.sanitizedUri !== inputUri &&
+    Number.isSafeInteger(result.outputWidth) && (result.outputWidth ?? 0) > 0 &&
+    Number.isSafeInteger(result.outputHeight) && (result.outputHeight ?? 0) > 0 &&
+    typeof result.outputChecksum === 'string' && result.outputChecksum.length > 0 &&
+    typeof result.verificationDurationMs === 'number' && Number.isFinite(result.verificationDurationMs) && result.verificationDurationMs >= 0;
 }
