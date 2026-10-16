@@ -25,6 +25,7 @@ const B = garment('prod-B');
 function harness() {
   const r = createRenderer();
   const boundary = { epoch: 0 };
+  const renderVisibility = [];
   const calls = { watchA: 0, watchB: 0, shopA: 0, shopB: 0, completed: 0, initiated: 0 };
   const host = runModule('components/vto/VtoLaunchHost.tsx', {
     ...r.runtimeModules,
@@ -47,6 +48,8 @@ function harness() {
   let props = null;
   const Entry = () => {
     launch = host.useVtoLaunchHost({ origin: 'scan_result', onWatch: props.onWatch });
+    // Record the very first render, before useEffect can hide stale UI.
+    renderVisibility.push({ epoch: boundary.epoch, sheetVisible: launch.sheetVisible, minimized: launch.minimized });
     return r.jsx(host.VtoLaunchHost, { launch, origin: 'scan_result', ...props });
   };
   const forGarment = (g, tag) => ({
@@ -59,7 +62,7 @@ function harness() {
   const show = (next) => { props = next; return r.render(r.jsx(Entry, {})); };
   const sheet = (tree) => findAll(tree, (n) => n.type === 'VirtualTryOnSheet')[0] ?? null;
   const pill = (tree) => findAll(tree, (n) => n.type === 'VtoMinimizedPill')[0] ?? null;
-  return { show, sheet, pill, forGarment, calls, boundary, get launch() { return launch; }, host };
+  return { show, sheet, pill, forGarment, calls, boundary, renderVisibility, get launch() { return launch; }, host };
 }
 
 test('N-02: a different garment passed while the sheet is open does not replace the tapped one', () => {
@@ -156,7 +159,11 @@ test('N-09: an actor change closes an open sheet, minimized or not, so a previou
     assert.ok(h.sheet(h.show(h.forGarment(A, 'A'))), 'open');
     if (minimizeFirst) h.launch.minimize();
     h.boundary.epoch += 1; // resetVtoAtActorBoundary ran
-    h.show(h.forGarment(A, 'A'));
+    h.renderVisibility.length = 0;
+    const firstTree = h.show(h.forGarment(A, 'A'));
+    assert.equal(h.renderVisibility[0].sheetVisible, false, 'no previous-actor sheet even in the first render before the close effect');
+    assert.equal(h.renderVisibility[0].minimized, false, 'no previous-actor minimized pill before the close effect');
+    assert.equal(h.sheet(firstTree), null);
     const tree = h.show(h.forGarment(A, 'A'));
     assert.equal(h.sheet(tree), null, 'the sheet is gone after the actor boundary');
     assert.equal(h.pill(tree), null, 'and so is the pill');
