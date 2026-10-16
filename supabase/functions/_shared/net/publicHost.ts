@@ -1,7 +1,12 @@
 /**
- * Pure public-host test, kept in its own dependency-free module so the mobile
- * bundle and TypeScript graph can share the exact logic without pulling in the
- * rest of the server-side media fetcher. safeRemoteMedia re-exports it.
+ * Pure public-host test, in its own dependency-free module so the mobile bundle
+ * and TypeScript graph can use it without pulling in the server-side media
+ * fetcher.
+ *
+ * THIS IS A VERBATIM COPY of `isNonPublicHost` in safeRemoteMedia.ts, which is
+ * the paid-provider boundary for vto-generate and is deliberately left
+ * untouched. publicHost.test.ts pins both the behaviour and the source text of
+ * the two copies, so they cannot drift apart silently.
  */
 
 /**
