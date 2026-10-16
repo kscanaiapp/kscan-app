@@ -221,9 +221,10 @@ export function createLiveVtoSession(
   async function capture(
     kind: 'capturePersonFrame' | 'capturePreview',
   ): Promise<LiveVtoCapturedFrame | null> {
-    if (!nativeModule || typeof nativeModule[kind] !== 'function') return null;
+    if (disposed || !nativeModule || typeof nativeModule[kind] !== 'function') return null;
     try {
       const frame = await nativeModule[kind]();
+      if (disposed) return null;
       if (!frame || typeof frame !== 'object' || typeof frame.captureId !== 'string') return null;
       return frame;
     } catch {

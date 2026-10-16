@@ -317,3 +317,14 @@ test('the client timeout is longer than the server generation ceiling', () => {
     `client ${client.VTO_INVOKE_TIMEOUT_MS}ms must exceed server ${serverMs}ms`,
   );
 });
+
+test('Live advisory product URL never expands the paid Photo transport contract', async () => {
+  const client = loadClient();
+  let body;
+  await client.requestVtoGeneration(args({ garment: { ...GARMENT, productUrl: 'https://retailer.example/approved-live-piece' } }), {
+    invoke: async (_name, options) => { body = options.body; return { data: null, error: null }; },
+  });
+  assert.ok(body);
+  assert.equal(body.garment.productRef, GARMENT.productRef);
+  assert.equal(Object.prototype.hasOwnProperty.call(body.garment, 'productUrl'), false);
+});

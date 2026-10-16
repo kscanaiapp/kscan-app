@@ -918,6 +918,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
             "recoverable" to true,
           ),
         )
+        camera = false
       }
       else -> {}
     }

@@ -677,6 +677,7 @@ public final class LiveVtoRenderView: ExpoView {
         "state": state == .permissionDenied ? "CAMERA_PERMISSION_DENIED" : "RUNTIME_INITIALIZATION_FAILED",
         "recoverable": true,
       ])
+      camera = false
     default:
       break
     }

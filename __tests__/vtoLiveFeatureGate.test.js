@@ -87,11 +87,14 @@ test('flag: Live is a DIFFERENT switch from the generative VTO surface', () => {
 });
 
 test('flag: native Live is configured only in the approved Build 35 profiles; harness stays absent', () => {
-  const approved = new Set(['production', 'build35-release', 'build35-testing', 'production-certification', 'staging', 'staging-certification']);
+  const approved = new Set(['production', 'staging']);
+  const effective = new Set(['production', 'build35-release', 'build35-testing', 'production-certification', 'staging', 'staging-certification']);
+  const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
   for (const [name, profile] of Object.entries(easProfiles)) {
     const env = profile.env ?? {};
     assert.equal(env.EXPO_PUBLIC_LIVE_VTO_ENABLED, approved.has(name) ? 'true' : undefined, name);
     assert.ok(!('EXPO_PUBLIC_LIVE_VTO_HARNESS' in env), name + ' must not enable a simulated runtime');
+    assert.equal(resolveEasBuildProfile({ build: easProfiles }, name).env.EXPO_PUBLIC_LIVE_VTO_ENABLED, effective.has(name) ? 'true' : undefined, name + ' resolved');
   }
 });
 

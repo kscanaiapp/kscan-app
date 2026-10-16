@@ -148,10 +148,7 @@ class LiveVtoMediaPipePoseProvider(private val context: Context) : PerceptionPro
     val poses = result.landmarks()
     if (!loggedOnce) {
       loggedOnce = true
-      Log.d(TAG, "N1-E first detect() result: poses=" + poses.size +
-        if (poses.isNotEmpty()) " landmarksInPose0=" + poses[0].size +
-          " sample=" + poses[0].take(3).map { "(" + it.x() + "," + it.y() + ",vis=" + it.visibility().orElse(-1f) + ",pres=" + it.presence().orElse(-1f) + ")" }
-        else "")
+      Log.d(TAG, "first pose inference completed; detected=" + poses.isNotEmpty())
     }
     if (poses.isEmpty()) return PerceptionResult.NoPose("PoseLandmarkerResult.landmarks() was empty -- no pose detected")
     val landmarks = poses[0]

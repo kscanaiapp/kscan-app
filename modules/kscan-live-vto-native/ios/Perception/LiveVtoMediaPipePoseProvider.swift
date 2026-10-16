@@ -28,6 +28,7 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
   /// model asset fails closed rather than silently loading.
   static let approvedModelSha256 = "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
 
+  private let providerLock = NSLock()
   private var landmarker: PoseLandmarker?
   private var lastFailureReason: String?
 
@@ -40,6 +41,8 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
   }
 
   public func initialize() -> Bool {
+    providerLock.lock(); defer { providerLock.unlock() }
+    if landmarker != nil { return true }
     guard let modelPath = LiveVtoAssetBundle.shared
       .path(forResource: Self.modelResourceName, ofType: Self.modelResourceExtension, inDirectory: "models")
     else {
@@ -84,7 +87,8 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
   }
 
   public func getCapability() -> PerceptionCapability {
-    PerceptionCapability(
+    providerLock.lock(); defer { providerLock.unlock() }
+    return PerceptionCapability(
       moduleAvailable: true,
       perceptionReady: landmarker != nil,
       providerName: Self.providerName,
@@ -93,6 +97,7 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
   }
 
   public func processFrame(_ frame: PerceptionInputFrame) -> PerceptionResult {
+    providerLock.lock(); defer { providerLock.unlock() }
     guard let landmarker = landmarker else {
       return .failure(reason: "processFrame called before a successful initialize()")
     }
@@ -114,6 +119,7 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
   }
 
   public func dispose() {
+    providerLock.lock(); defer { providerLock.unlock() }
     landmarker = nil
   }
 

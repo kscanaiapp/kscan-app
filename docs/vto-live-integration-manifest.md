@@ -37,7 +37,6 @@ added to a list without a justification.
 | --- | --- | --- |
 | `app/try-on-studio.tsx` | Mount the approved real Live pilot product only inside the existing Live/K+ offer; reuse TryItOnEntry and its session. | Owner Build 35 Live completion sprint, Parts B/C, 2026-10-16 |
 | `docs/build35/vto/**` | Completion handoff, approved product provenance, device certification and Live-only rollback. | Owner Build 35 Live completion sprint, Part H |
-
 | `types/vtoLive.ts` | The promoted Live contract has to live somewhere the app can import; the research workspace is deliberately not an app dependency. | P3-C §29 (contract promotion), amendment §20 |
 | `types/vto.ts` | One additive union member (`VtoPersonInputSource`) so a clean Live capture can enter the existing generative contract without a parallel type. | P3-C §21, amendment §9 (additive extension) |
 | `services/vto/**` | The capability router, native adapter, Live garment rule, camera-permission read, harness, session reducer and Photoreal bridge are all VTO services. | Amendment §4 (authorized VTO mutation boundary) |

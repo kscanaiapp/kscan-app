@@ -199,8 +199,7 @@
         "KSCAN_VOICE_CERTIFICATION": "true",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
-        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
       }
     },
     "production": {
@@ -305,8 +304,7 @@
         "EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1": "true",
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
         "EXPO_PUBLIC_ELISE_V10": "true",
-        "KSCAN_VOICE_NATIVE_CAPABILITY": "true",
-        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
+        "KSCAN_VOICE_NATIVE_CAPABILITY": "true"
       }
     },
     "build35-testing": {
@@ -319,8 +317,7 @@
       "env": {
         "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
-        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
       }
     },
     "production-certification": {
@@ -351,8 +348,7 @@
         "EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1": "true",
         "EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1": "true",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
-        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
       },
       "environment": "production"
     }
