@@ -23,7 +23,7 @@ here as P4-P6 findings and are not repaired in this lane.
 ## Entries
 
 ### E-001 entry-point attribution for Elise offer events
-- Branch / PR / SHA: `feat/vto-entry-point-taxonomy`; PR and SHA recorded on merge.
+- Branch / PR / SHA: `feat/vto-entry-point-taxonomy`; PR #608; merged `75384a6`.
 - Files: `services/vto/vtoTelemetry.ts` (sink adds `entry_point`),
   `services/vto/vtoOrigins.ts` (new), and test expectations in
   `__tests__/vtoEliseContextualOffer.test.js`.
@@ -39,7 +39,7 @@ here as P4-P6 findings and are not repaired in this lane.
 - Outstanding defects: none.
 
 ### E-002 Studio navigation to Elise, and a route-inventory test update
-- Branch / PR / SHA: `feat/vto-try-on-studio`; PR #610, SHA recorded on merge.
+- Branch / PR / SHA: `feat/vto-try-on-studio`; PR #610; merged `c413daa`.
 - Files: `app/try-on-studio.tsx` (navigation only) and `__tests__/vtoEliseContextualOffer.test.js` (test only).
 - Contract: the Try-On Studio's "Ask Elise for styling help" action calls `router.push('/style-chat')`, the same route Home already uses. It passes no garment, no context and no params. It opens a normal conversation; it creates no offer, binding or message.
 - Test change: the route-inventory guard in `vtoEliseContextualOffer.test.js` asserted "no standalone VTO destination" by file-name pattern, which the new Studio route trips. It now excludes exactly `app/try-on-studio.tsx`. Its other assertions are untouched and still prove the sheet is mounted in exactly one place and that the Studio is not a launch-host user. A second VTO-named route still fails it (negative control run).
@@ -48,6 +48,29 @@ here as P4-P6 findings and are not repaired in this lane.
 - Speech / animation interaction: none. No Speech, avatar, memory, orchestration or rendering file touched.
 - Regression tests: `vtoEliseContextualOffer` 77/77; `vtoTryOnStudio` 30/30.
 - Outstanding defects: none.
+
+### E-003 shared launch host pins the tapped garment
+- Branch / PR / SHA: `feat/vto-launch-identity-pin`; PR #611; SHA recorded on merge.
+- Files: `components/vto/VtoLaunchHost.tsx` and `__tests__/vtoLaunchIdentityPin.test.js`.
+- Contract: `EliseVtoOffer` launches through `VtoLaunchHost` with `origin="elise"`. The host now captures the garment, title, Shop, Watch, size guide and inline-garment loader when the sheet opens, keyed by identity (product reference plus source: Closet item id or supplied-garment content hash). If the parent later passes a different identity while the sheet is open, the captured values stay until the sheet closes. An unchanged identity passes through.
+- Garment-context handoff: unchanged. Elise resolves and revalidates the garment at tap time (fingerprint, binding, actor) and hands the host one fixed garment; the pin only prevents a later in-place swap of that garment. Elise's inline loader is pinned together with its garment, so a supplied garment's bytes can never be read for a different garment's launch.
+- Return-to-conversation behavior: unchanged. Closing the sheet releases the pin.
+- Customer-facing behavior: none in normal use.
+- Authorization: unchanged (K+, consent, operator switch and quota are not touched).
+- Speech / animation interaction: none. No Speech, avatar, memory, orchestration or rendering file touched.
+- Regression tests: `vtoEliseContextualOffer` 77/77 and the full VTO set (805 tests, 1 pre-existing environmental failure identical on the untouched tip); `vtoLaunchIdentityPin` 8/8.
+- Outstanding defects: none.
+
+### E-004 Elise composer and mouth-transition repairs (no VTO interaction)
+- Branch / PR / SHA: `fix/elise-composer-and-mouth-transitions`; PR #614; merged `c7c6f8e6`.
+- Files: `app/style-chat/[sessionId].tsx`, `services/avatars/engine/runtime/AvatarRuntime.ts`, `services/avatars/engine/config.ts`, `hooks/useStylistAvatarVisual.ts`, `components/stylist/AnimatedStylistAvatar.tsx`, `components/home/HomeStylistCard.tsx`, `components/style-chat/StyleChatHeader.tsx`, plus `__tests__/eliseDeviceDefects.test.js` and one expectation in `__tests__/homeEliseWelcomeHost.test.js`.
+- Origin: Codex's uncommitted ELISE-010 (P2) and ELISE-011 (P3) repairs, recovered from `C:/src/elise-composer-viewport` after a verbatim snapshot (`snapshot/codex-elise-composer-viewport-20261016`, `1960da5d`).
+- Contract: the weather disclosure renders in the message-list footer; the avatar engine returns the previous mouth state as the transition `from`, and the renderer blends the approved images. No new clock; driven by the existing playback callbacks.
+- Elise to VTO to Elise journey: none. No offer, launcher, garment, binding or return-navigation code is touched, and the VTO offer is not rendered in the changed footer.
+- Authorization / consent / accounting: unchanged. No Speech, memory, orchestration or provider code touched.
+- Regression tests: Elise, avatar, speech, keyboard and Home-welcome suites 1,506/1,506 with a real dependency tree; `tsc --noEmit` exit 0; exact-head CI 18 pass, 0 fail.
+- Status: source-verified. **DEVICE VALIDATION PENDING** for both repairs; `transitionMs` 160 is a candidate, not a tuned value.
+- Outstanding defects: none known.
 
 ## Findings for the Elise lane (not repaired here)
 
