@@ -1,0 +1,4255 @@
+{
+  "schema": "scanner-archived-retailer-metadata-replay-1",
+  "executionMode": "OFFLINE_REPLAY_NO_PROVIDER_CALLS",
+  "productionSource": {
+    "head": null,
+    "modules": {
+      "supabase/functions/_shared/net/safeRemoteMedia.ts": "f9ff4812fac7aa886651c2001527d48676c697da37ca3cab1948bfbb414b29e5",
+      "supabase/functions/_shared/scanHelpers.ts": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+      "supabase/functions/scan-identify/brandEvidence.ts": "c78b9686331160c46fdaa020a911d7b8c24f40f4d7685e734d9a267358805c7a",
+      "supabase/functions/scan-identify/commerceRelevanceAgreement.ts": "804184a70de0381d776c1bd7aeba266f03fa01db7a912dafd38a1d6cd0992d36",
+      "supabase/functions/scan-identify/commerceRelevanceConfig.ts": "5415c9b9ce779a5121da64a7c30fdc3484cd0cc7769492d0297aa1f73c18ae17",
+      "supabase/functions/scan-identify/commerceRelevanceDiversity.ts": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6",
+      "supabase/functions/scan-identify/offerCurrency.ts": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+      "supabase/functions/scan-identify/qualityTuneNormalize.ts": "04e7ced94dd2d09f7de8b3a808411b24e58eed2a529368210cb5c1af26c30713",
+      "supabase/functions/scan-identify/scannerCategoryRoute.ts": "27fa543783719298c1bb10c799098ed349b131c8646814a30ba6a07e515eb7a0",
+      "supabase/functions/scan-identify/shoppingProvider.ts": "f467b35f7f1f3c48ca840f0f07f378601df85e8163212eeeddf2bad120528245"
+    },
+    "moduleMatchesHead": {
+      "supabase/functions/_shared/net/safeRemoteMedia.ts": null,
+      "supabase/functions/_shared/scanHelpers.ts": null,
+      "supabase/functions/scan-identify/brandEvidence.ts": null,
+      "supabase/functions/scan-identify/commerceRelevanceAgreement.ts": null,
+      "supabase/functions/scan-identify/commerceRelevanceConfig.ts": null,
+      "supabase/functions/scan-identify/commerceRelevanceDiversity.ts": null,
+      "supabase/functions/scan-identify/offerCurrency.ts": null,
+      "supabase/functions/scan-identify/qualityTuneNormalize.ts": null,
+      "supabase/functions/scan-identify/scannerCategoryRoute.ts": null,
+      "supabase/functions/scan-identify/shoppingProvider.ts": null
+    },
+    "closureDigest": "37ba244d90a07b9024dee086028f7d5e03d236ca13983e9e215266acc8256cbe",
+    "environmentRead": false,
+    "replayIdentityFlag": false
+  },
+  "thresholds": {
+    "source": "security/release/scanner-live-certification/corpus.json",
+    "changed": false,
+    "appliedForCertification": false
+  },
+  "archives": [
+    {
+      "phase": "P1",
+      "generatedAt": "2026-10-09T14:35:27.257Z",
+      "historicalRunMode": "STAGING_LIVE",
+      "harnessSource": {
+        "sha": "95568a60a7c8b4413278be26ef544d8c2532f471",
+        "ref": "test/build35-scanner-live-certification-v1",
+        "runId": "37944817914"
+      },
+      "configuredProvidersObserved": [
+        "serper",
+        "poshmark"
+      ],
+      "backendVersionInReport": null,
+      "historicalVersionNote": {
+        "source": "docs/build35/scanner/evidence/P1-relevance-grades.json",
+        "note": "P1 live, workflow run 37944817914, 2026-10-09",
+        "backendVersion": null
+      },
+      "backendBundleHashInReport": null,
+      "effectiveFlagsInReport": null,
+      "historicalLatencyMs": {
+        "detection": {
+          "n": 8,
+          "min": 4258,
+          "p50": 7603,
+          "p95": 9760,
+          "max": 9760
+        },
+        "selectedItem": {
+          "n": 15,
+          "min": 5208,
+          "p50": 6276,
+          "p95": 9328,
+          "max": 9328
+        },
+        "commerce": {
+          "n": 15,
+          "min": 1932,
+          "p50": 2359,
+          "p95": 2745,
+          "max": 2745
+        }
+      }
+    },
+    {
+      "phase": "P2",
+      "generatedAt": "2026-10-09T14:51:56.884Z",
+      "historicalRunMode": "STAGING_LIVE",
+      "harnessSource": {
+        "sha": "5f29d06f8ec4d368ec38de950af818159bb5a919",
+        "ref": "test/build35-scanner-live-certification-v1",
+        "runId": "37947187094"
+      },
+      "configuredProvidersObserved": [
+        "serper",
+        "poshmark"
+      ],
+      "backendVersionInReport": null,
+      "historicalVersionNote": {
+        "source": "docs/build35/scanner/evidence/P2-relevance-grades.json",
+        "note": "P2 live, workflow run 37947187094, 2026-10-09 (pre-repair backend, Staging scan-identify v80)",
+        "backendVersion": "v80"
+      },
+      "backendBundleHashInReport": null,
+      "effectiveFlagsInReport": null,
+      "historicalLatencyMs": {
+        "detection": {
+          "n": 2,
+          "min": 6456,
+          "p50": 6456,
+          "p95": 6942,
+          "max": 6942
+        },
+        "selectedItem": {
+          "n": 2,
+          "min": 6380,
+          "p50": 6380,
+          "p95": 7887,
+          "max": 7887
+        },
+        "commerce": {
+          "n": 2,
+          "min": 1308,
+          "p50": 1308,
+          "p95": 1950,
+          "max": 1950
+        }
+      }
+    },
+    {
+      "phase": "R1",
+      "generatedAt": "2026-10-09T15:13:58.873Z",
+      "historicalRunMode": "STAGING_LIVE",
+      "harnessSource": {
+        "sha": "ae832c98db8c1bb79ace5c7a92cddd592ecdfde7",
+        "ref": "test/build35-scanner-live-certification-v1",
+        "runId": "37950013905"
+      },
+      "configuredProvidersObserved": [
+        "serper",
+        "poshmark"
+      ],
+      "backendVersionInReport": null,
+      "historicalVersionNote": {
+        "source": "docs/build35/scanner/evidence/R1-relevance-grades.json",
+        "note": "R1 live paired replay, workflow run 37950013905, 2026-10-09, Staging scan-identify v81 (backend authority e3982830, FAST_COMMERCE_DEADLINE_MS 3000)",
+        "backendVersion": "v81"
+      },
+      "backendBundleHashInReport": null,
+      "effectiveFlagsInReport": null,
+      "historicalLatencyMs": {
+        "detection": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "max": null
+        },
+        "selectedItem": {
+          "n": 0,
+          "min": null,
+          "p50": null,
+          "p95": null,
+          "max": null
+        },
+        "commerce": {
+          "n": 4,
+          "min": 1205,
+          "p50": 1881,
+          "p95": 3113,
+          "max": 3113
+        }
+      }
+    }
+  ],
+  "summary": {
+    "queries": 21,
+    "offers": 110,
+    "emptyQueries": 4,
+    "currencyMissing": 110,
+    "before": {
+      "corpusBoundQueries": 17,
+      "queriesReturningAnyOffer": 14,
+      "topThreeOffersInspected": 42,
+      "titleCategoryMatchShareAmongReturnedTopThree": 0.8571428571428571,
+      "titleIncompatibilityShareAmongReturnedTopThree": 0,
+      "titleCategoryHitShareIncludingEmptyQueries": 0.7647058823529411,
+      "visualPrecisionAt3": null,
+      "certifiedHitAt3": null,
+      "wrongBrandTopThreeRate": null
+    },
+    "after": {
+      "corpusBoundQueries": 17,
+      "queriesReturningAnyOffer": 14,
+      "topThreeOffersInspected": 42,
+      "titleCategoryMatchShareAmongReturnedTopThree": 0.8571428571428571,
+      "titleIncompatibilityShareAmongReturnedTopThree": 0,
+      "titleCategoryHitShareIncludingEmptyQueries": 0.7647058823529411,
+      "visualPrecisionAt3": null,
+      "certifiedHitAt3": null,
+      "wrongBrandTopThreeRate": null
+    },
+    "destinations": {
+      "offers": 110,
+      "missingDestinationSummary": 0,
+      "summaryFailsExistingShapeCheck": 0,
+      "repeatedHostPathSummaries": 99,
+      "aggregatorSearchSummaries": 95,
+      "actualDuplicateListingRate": null,
+      "actualInvalidOrUnusableDestinationRate": null
+    },
+    "byPhase": {
+      "P1": {
+        "queries": 15,
+        "emptyQueries": 4,
+        "providerOrTimeoutErrors": [
+          {
+            "key": "O:unbound",
+            "errorType": "timeout"
+          },
+          {
+            "key": "T:hoodie",
+            "errorType": "timeout"
+          },
+          {
+            "key": "D:gown",
+            "errorType": "timeout"
+          },
+          {
+            "key": "X:hoodie_left",
+            "errorType": "timeout"
+          }
+        ],
+        "historicalCommerceLatencyMs": {
+          "n": 15,
+          "min": 1932,
+          "p50": 2359,
+          "p95": 2745,
+          "max": 2745
+        },
+        "before": {
+          "corpusBoundQueries": 12,
+          "queriesReturningAnyOffer": 9,
+          "topThreeOffersInspected": 27,
+          "titleCategoryMatchShareAmongReturnedTopThree": 0.7777777777777778,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 0.6666666666666666,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        },
+        "after": {
+          "corpusBoundQueries": 12,
+          "queriesReturningAnyOffer": 9,
+          "topThreeOffersInspected": 27,
+          "titleCategoryMatchShareAmongReturnedTopThree": 0.7777777777777778,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 0.6666666666666666,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        }
+      },
+      "P2": {
+        "queries": 2,
+        "emptyQueries": 0,
+        "providerOrTimeoutErrors": [],
+        "historicalCommerceLatencyMs": {
+          "n": 2,
+          "min": 1308,
+          "p50": 1308,
+          "p95": 1950,
+          "max": 1950
+        },
+        "before": {
+          "corpusBoundQueries": 2,
+          "queriesReturningAnyOffer": 2,
+          "topThreeOffersInspected": 6,
+          "titleCategoryMatchShareAmongReturnedTopThree": 1,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 1,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        },
+        "after": {
+          "corpusBoundQueries": 2,
+          "queriesReturningAnyOffer": 2,
+          "topThreeOffersInspected": 6,
+          "titleCategoryMatchShareAmongReturnedTopThree": 1,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 1,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        }
+      },
+      "R1": {
+        "queries": 4,
+        "emptyQueries": 0,
+        "providerOrTimeoutErrors": [],
+        "historicalCommerceLatencyMs": {
+          "n": 4,
+          "min": 1205,
+          "p50": 1881,
+          "p95": 3113,
+          "max": 3113
+        },
+        "before": {
+          "corpusBoundQueries": 3,
+          "queriesReturningAnyOffer": 3,
+          "topThreeOffersInspected": 9,
+          "titleCategoryMatchShareAmongReturnedTopThree": 1,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 1,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        },
+        "after": {
+          "corpusBoundQueries": 3,
+          "queriesReturningAnyOffer": 3,
+          "topThreeOffersInspected": 9,
+          "titleCategoryMatchShareAmongReturnedTopThree": 1,
+          "titleIncompatibilityShareAmongReturnedTopThree": 0,
+          "titleCategoryHitShareIncludingEmptyQueries": 1,
+          "visualPrecisionAt3": null,
+          "certifiedHitAt3": null,
+          "wrongBrandTopThreeRate": null
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Historical real Staging retailer responses only; no current provider retrieval or deployed end-to-end test.",
+    "Uses existing offerPrecheck category-word proxy, not visual or manually rubric-graded precision@3; pinned certification thresholds are unchanged and not certified.",
+    "The existing broad category-word proxy may accept optical glasses for sunglasses or a different same-category shape; it cannot establish subtype, material, model or visual similarity.",
+    "No archive has product images, provider-declared manufacturer brands, model authority or complete purchase URLs; currency is missing on the returned offers.",
+    "Full URLs, queries and redirects were scrubbed. Repeated host/path is not a proven duplicate listing; google.com/search is an aggregator summary, not proof that its original product destination was unusable.",
+    "Production agreement code sees missing image/URL fields and applies its normal missing-data penalties. Full candidate validation is not replayed; no fields are fabricated to pass it.",
+    "Original identifications are replayed unchanged, so historical category/subtype mistakes remain. This does not measure repaired vision accuracy.",
+    "Historical latency is reported separately. Offline scoring runtime is not a new scan latency, first-useful-result measurement or five-second certification.",
+    "No owner reference photograph, paid model/provider call, Staging mutation or device certification was used."
+  ],
+  "rows": [
+    {
+      "phase": "P1",
+      "key": "O:jacket",
+      "imageId": "O",
+      "boundGarmentKey": "jacket",
+      "identification": {
+        "item_type": "outerwear",
+        "subtype": "leather jacket",
+        "primary_color": "black",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "leather",
+        "silhouette": "moto jacket",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Coalition LA Black Vegan Leather Moto Jacket Womens",
+          "retailer": "Lulus",
+          "provider": null,
+          "price": "$79.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Levi's Women's Jackets & Coats Levi's Black Leather Jacket",
+          "retailer": "Nordstrom Rack",
+          "provider": null,
+          "price": "$49.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Milwaukee Leather Lkm1703 Men's Classic Black Premium Leather Motorcycle Biker Rider Jacket",
+          "retailer": "Milwaukee Motorcycle Clothing Co",
+          "provider": null,
+          "price": "$99.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "INC International Concepts Women's Faux-Leather Moto Jacket",
+          "retailer": "Macy's",
+          "provider": null,
+          "price": "$69.65",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Women's Loft Pebbled Faux Leather Moto Jacket",
+          "retailer": "LOFT",
+          "provider": null,
+          "price": "$80.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Sam Edelman Leather Moto Jacket",
+          "retailer": "Nordstrom Rack",
+          "provider": null,
+          "price": "$159.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Woman Zara Cropped Faux Leather Biker Jacket",
+          "retailer": "Zara USA",
+          "provider": null,
+          "price": "$79.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "BILT Alder 2 Leather Jacket",
+          "retailer": "Cycle Gear",
+          "provider": null,
+          "price": "$229.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2260,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "O:jacket",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Coalition LA Black Vegan Leather Moto Jacket Womens",
+          "Levi's Women's Jackets & Coats Levi's Black Leather Jacket",
+          "Milwaukee Leather Lkm1703 Men's Classic Black Premium Leather Motorcycle Biker Rider Jacket"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "O:unbound",
+      "imageId": "O",
+      "boundGarmentKey": null,
+      "identification": {
+        "item_type": "sweater",
+        "subtype": "turtleneck sweater",
+        "primary_color": "black",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "ribbed knit",
+        "silhouette": "fitted",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.88,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [],
+      "latencyMs": 2696,
+      "errorType": "timeout",
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "error",
+      "expectedCorpusKey": null,
+      "before": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "after": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "archiveFacts": {
+        "offers": 0,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [],
+        "scored": [],
+        "rerankedTitleSample": []
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 0,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "T:hoodie",
+      "imageId": "T",
+      "boundGarmentKey": "hoodie",
+      "identification": {
+        "item_type": "hoodie",
+        "subtype": "pullover hoodie",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "graphic print",
+        "material_estimate": "cotton blend",
+        "silhouette": "pullover",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [],
+      "latencyMs": 2599,
+      "errorType": "timeout",
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "error",
+      "expectedCorpusKey": "T:hoodie",
+      "before": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "after": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "archiveFacts": {
+        "offers": 0,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [],
+        "scored": [],
+        "rerankedTitleSample": []
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 0,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "T:dark_jeans_edge",
+      "imageId": "T",
+      "boundGarmentKey": "dark_jeans_edge",
+      "identification": {
+        "item_type": "pants",
+        "subtype": "jeans",
+        "primary_color": "Navy",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "denim",
+        "silhouette": "straight",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.88,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "UNIQLO Men's Slim Straight Jeans | Selvedge | Tall, Navy, 27 inch",
+          "retailer": "Uniqlo",
+          "provider": null,
+          "price": "$59.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Old Navy Men's Slim Built-In Flex Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$24.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Women's MUJI Stretch Denim Slim Pants",
+          "retailer": "Muji Usa Online Store",
+          "provider": null,
+          "price": "$49.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "PAIGE Men's Federal Slim Straight Jeans",
+          "retailer": "PAIGE",
+          "provider": null,
+          "price": "$209.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "UNIQLO Men's Slim Straight Jeans",
+          "retailer": "Uniqlo",
+          "provider": null,
+          "price": "$59.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Man Zara Slim Fit Jeans",
+          "retailer": "Zara USA",
+          "provider": null,
+          "price": "$49.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Men H&M Blue Slim Jeans",
+          "retailer": "H&M",
+          "provider": null,
+          "price": "$41.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "AE Patched Slim Straight Jean Men's",
+          "retailer": "American Eagle Outfitters",
+          "provider": null,
+          "price": "$35.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2465,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "T:dark_jeans_edge",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "UNIQLO Men's Slim Straight Jeans | Selvedge | Tall, Navy, 27 inch",
+          "Old Navy Men's Slim Built-In Flex Jeans",
+          "Women's MUJI Stretch Denim Slim Pants"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "D:gown",
+      "imageId": "D",
+      "boundGarmentKey": "gown",
+      "identification": {
+        "item_type": "dress",
+        "subtype": "wedding dress",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "satin",
+        "silhouette": "A-line",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [],
+      "latencyMs": 2745,
+      "errorType": "timeout",
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "error",
+      "expectedCorpusKey": "D:gown",
+      "before": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "after": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "archiveFacts": {
+        "offers": 0,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [],
+        "scored": [],
+        "rerankedTitleSample": []
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 0,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "J:white_tee",
+      "imageId": "J",
+      "boundGarmentKey": "white_tee",
+      "identification": {
+        "item_type": "tops",
+        "subtype": "T-Shirt",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "cotton",
+        "silhouette": "regular fit",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Men H&M Regular Fit T-Shirt",
+          "retailer": "H&M",
+          "provider": null,
+          "price": "$6.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Men's Signature Midweight Cotton T-Shirt",
+          "retailer": "Banana Republic Factory",
+          "provider": null,
+          "price": "$17.50",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Men's Sonoma Goods For Life Classic-Fit Supersoft Crewneck Tee",
+          "retailer": "Kohl's",
+          "provider": null,
+          "price": "$7.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "T-Shirt Gap Logo Gap",
+          "retailer": "Gap Factory",
+          "provider": null,
+          "price": "$9.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "George Men's Crew T-Shirts",
+          "retailer": "Walmart",
+          "provider": null,
+          "price": "$16.98",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Men's Hollister Relaxed Everyday Tee",
+          "retailer": "Hollister Co - Official",
+          "provider": null,
+          "price": "$11.21",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Men's J.Crew Essential Crewneck T-Shirt",
+          "retailer": "J.Crew Factory",
+          "provider": null,
+          "price": "$24.50",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Old Navy Men's Crew-Neck T-Shirt",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$8.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1932,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "J:white_tee",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Men H&M Regular Fit T-Shirt",
+          "Men's Signature Midweight Cotton T-Shirt",
+          "Men's Sonoma Goods For Life Classic-Fit Supersoft Crewneck Tee"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "J:jeans",
+      "imageId": "J",
+      "boundGarmentKey": "jeans",
+      "identification": {
+        "item_type": "pants",
+        "subtype": "jeans",
+        "primary_color": "blue",
+        "secondary_colors": null,
+        "pattern": "faded",
+        "material_estimate": "denim",
+        "silhouette": "straight leg",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Lee Women's Legendary Straight Leg Jeans",
+          "retailer": "Kohl's",
+          "provider": null,
+          "price": "$29.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Gap Womens Mid Rise Classic Straight Jeans Jeans",
+          "retailer": "Gap Factory",
+          "provider": null,
+          "price": "$29.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$22.19",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2022,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "J:jeans",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 3,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 2,
+        "aggregatorSearchSummaries": 3,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Lee Women's Legendary Straight Leg Jeans",
+          "Gap Womens Mid Rise Classic Straight Jeans Jeans",
+          "Old Navy Women's High-Waisted Wow Straight Ankle Jeans"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 3,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "J:white_sneakers",
+      "imageId": "J",
+      "boundGarmentKey": "white_sneakers",
+      "identification": {
+        "item_type": "footwear",
+        "subtype": "sneakers",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "canvas",
+        "silhouette": "low-top",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "H&M Women's Twill Sneakers",
+          "retailer": "H&M",
+          "provider": null,
+          "price": "$27.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Veja Wata II Low Sneakers",
+          "retailer": "VEJA",
+          "provider": null,
+          "price": "$81.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Men's Goodfellow & Co Billy Lace Up Sneakers",
+          "retailer": "Target",
+          "provider": null,
+          "price": "$30.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Old Navy Men's Prep Sneakers",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$17.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Keds Women's Champion",
+          "retailer": "Keds.com",
+          "provider": null,
+          "price": "$27.29",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Blowfish Martina Women's",
+          "retailer": "Famous Footwear",
+          "provider": null,
+          "price": "$44.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2669,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "J:white_sneakers",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 6,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 5,
+        "aggregatorSearchSummaries": 6,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "H&M Women's Twill Sneakers",
+          "Veja Wata II Low Sneakers",
+          "Men's Goodfellow & Co Billy Lace Up Sneakers"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 6,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "F:red_sneaker",
+      "imageId": "F",
+      "boundGarmentKey": "red_sneaker",
+      "identification": {
+        "item_type": "footwear",
+        "subtype": "sneakers",
+        "primary_color": "red",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "synthetic",
+        "silhouette": "low-top sneaker",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "adidas Women's Vl Court 3.0 Sneaker",
+          "retailer": "Famous Footwear",
+          "provider": null,
+          "price": "$79.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "adidas Women's Samba Jane",
+          "retailer": "Foot Locker",
+          "provider": null,
+          "price": "$100.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Puma Men's Speedcat OG",
+          "retailer": "PUMA",
+          "provider": null,
+          "price": "$100.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1959,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "F:red_sneaker",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 1,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 1,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 3,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 2,
+        "aggregatorSearchSummaries": 3,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "adidas Women's Vl Court 3.0 Sneaker",
+          "adidas Women's Samba Jane",
+          "Puma Men's Speedcat OG"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 3,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "A:satchel",
+      "imageId": "A",
+      "boundGarmentKey": "satchel",
+      "identification": {
+        "item_type": "bags",
+        "subtype": "backpack",
+        "primary_color": "blue",
+        "secondary_colors": null,
+        "pattern": "striped",
+        "material_estimate": "canvas",
+        "silhouette": "flap backpack",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Alilang Canvas Flap Backpack with Drawstring Closure Side Pockets and Adjustable Shoulder Straps",
+          "retailer": "Target",
+          "provider": null,
+          "price": "$43.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "RIMOWA Never Still Canvas Flap Backpack Large",
+          "retailer": "rimowa.com/us/en",
+          "provider": null,
+          "price": "$1,850.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Men's Large Vintage Canvas Backpack",
+          "retailer": "More than a Backpack",
+          "provider": null,
+          "price": "$71.83",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Canvas Backpack — Winter Project Artist",
+          "retailer": "WPA Winter Project Artist",
+          "provider": null,
+          "price": "$250.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "TSD BRAND TSD Atona Backpack",
+          "retailer": "Macy's",
+          "provider": null,
+          "price": "$63.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Vintage Denim Backpack with Magnetic Flap Casual Daypack Shoulder Bag Rucksack",
+          "retailer": "Walmart - YIRUIKE BAG",
+          "provider": null,
+          "price": "$29.98",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Alilang Large Laptop Backpack with Front Flap Pocket Buckle Straps Side Pockets and Padded Shoulder Straps",
+          "retailer": "Target",
+          "provider": null,
+          "price": "$63.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Jansport Right Pack",
+          "retailer": "DICK'S Sporting Goods",
+          "provider": null,
+          "price": "$75.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2359,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "A:satchel",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Alilang Canvas Flap Backpack with Drawstring Closure Side Pockets and Adjustable Shoulder Straps",
+          "RIMOWA Never Still Canvas Flap Backpack Large",
+          "Men's Large Vintage Canvas Backpack"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "A:aviators",
+      "imageId": "A",
+      "boundGarmentKey": "aviators",
+      "identification": {
+        "item_type": "eyewear",
+        "subtype": null,
+        "primary_color": "gold",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": null,
+        "silhouette": "aviator",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Firmoo Women Glasses Medium Joy013 Rose Gold Metal Rectangle Frame",
+          "retailer": "Firmoo Optical",
+          "provider": null,
+          "price": "$28.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "DIFF Prescription Modern Gold Frame Gold Rx Lens",
+          "retailer": "DIFF Eyewear",
+          "provider": null,
+          "price": "$159.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Vooglam Rectangle Gold Eyeglasses",
+          "retailer": "Vooglam",
+          "provider": null,
+          "price": "$39.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2154,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "A:aviators",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 2,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 2,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 3,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 2,
+        "aggregatorSearchSummaries": 3,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Firmoo Women Glasses Medium Joy013 Rose Gold Metal Rectangle Frame",
+          "DIFF Prescription Modern Gold Frame Gold Rx Lens",
+          "Vooglam Rectangle Gold Eyeglasses"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 3,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "X:hoodie_left",
+      "imageId": "X",
+      "boundGarmentKey": "hoodie_left",
+      "identification": {
+        "item_type": "top",
+        "subtype": "hoodie",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "graphic print",
+        "material_estimate": "cotton blend",
+        "silhouette": "pullover hoodie",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [],
+      "latencyMs": 2448,
+      "errorType": "timeout",
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "error",
+      "expectedCorpusKey": "X:hoodie_left",
+      "before": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "after": {
+        "scored": true,
+        "denominator": 0,
+        "matching": 0,
+        "incompatible": 0,
+        "hit": false
+      },
+      "archiveFacts": {
+        "offers": 0,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [],
+        "scored": [],
+        "rerankedTitleSample": []
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 0,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "X:hoodie_right",
+      "imageId": "X",
+      "boundGarmentKey": "hoodie_right",
+      "identification": {
+        "item_type": "top",
+        "subtype": "hoodie",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "graphic print",
+        "material_estimate": "cotton blend",
+        "silhouette": "pullover hoodie",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "H&M Loose Fit Hoodie in White at Nordstrom",
+          "retailer": "Nordstrom",
+          "provider": null,
+          "price": "$24.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Adult Pullover Hoodie by Make Market",
+          "retailer": "Michaels Stores",
+          "provider": null,
+          "price": "$27.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Men H&M Loose Fit Hoodie",
+          "retailer": "H&M",
+          "provider": null,
+          "price": "$19.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "AE Relaxed Fit Lived-In Hoodie Men's",
+          "retailer": "American Eagle Outfitters",
+          "provider": null,
+          "price": "$37.47",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Dsg Men's Classic Fleece Hoodie",
+          "retailer": "DICK'S Sporting Goods",
+          "provider": null,
+          "price": "$45.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Cotton On Men's Box Fit Hoodie",
+          "retailer": "Cotton On",
+          "provider": null,
+          "price": "$59.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Men's Abercrombie & Fitch Essential Popover 2.0 Hoodie",
+          "retailer": "Abercrombie & Fitch",
+          "provider": null,
+          "price": "$60.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Women's Quince Everyday Fleece Hoodie",
+          "retailer": "Quince",
+          "provider": null,
+          "price": "$44.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2299,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "X:hoodie_right",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "H&M Loose Fit Hoodie in White at Nordstrom",
+          "Adult Pullover Hoodie by Make Market",
+          "Men H&M Loose Fit Hoodie"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "X:unbound",
+      "imageId": "X",
+      "boundGarmentKey": null,
+      "identification": {
+        "item_type": "pants",
+        "subtype": "jeans",
+        "primary_color": "Navy",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "denim",
+        "silhouette": "straight-leg",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.92,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Old Navy Women's Extra High-Waisted Straight Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$22.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$22.19",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Zara - Trf Mid-Rise Straight Fit Jeans - Navy Blue - 32 (Us 14) - Woman",
+          "retailer": "Zara USA",
+          "provider": null,
+          "price": "$49.90",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Rustler Men's Jeans Wrangler Rustler Regular Fit Jeans",
+          "retailer": "Walmart",
+          "provider": null,
+          "price": "$14.98",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Quince Women's Bella Stretch Straight Jeans",
+          "retailer": "Quince",
+          "provider": null,
+          "price": "$50.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Gap Factory Women's Low Slung Relaxed Straight Jeans",
+          "retailer": "Gap Factory",
+          "provider": null,
+          "price": "$31.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Levi's Women's 724 High Rise Straight Jeans",
+          "retailer": "Levi's",
+          "provider": null,
+          "price": "$44.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "AE Stretch High-Waisted Straight Jean Women's",
+          "retailer": "American Eagle Outfitters",
+          "provider": null,
+          "price": "$24.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2126,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": null,
+      "before": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "after": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          2,
+          1,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+          "Old Navy Women's Extra High-Waisted Straight Jeans",
+          "Zara - Trf Mid-Rise Straight Fit Jeans - Navy Blue - 32 (Us 14) - Woman"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P1",
+      "key": "X:unbound",
+      "imageId": "X",
+      "boundGarmentKey": null,
+      "identification": {
+        "item_type": "pants",
+        "subtype": "jeans",
+        "primary_color": "Navy",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "denim",
+        "silhouette": "straight",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.9,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Old Navy Women's Extra High-Waisted Straight Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$22.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$22.19",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Old Navy Women's Mid-Rise Straight Leg Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$26.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Wrangler Men's Relaxed Fit Straight Jeans",
+          "retailer": "Target",
+          "provider": null,
+          "price": "$29.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Levi's Women's Classic Mid Rise Straight-Leg Jeans",
+          "retailer": "Kohl's",
+          "provider": null,
+          "price": "$38.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Quince Women's Bella Stretch Straight Jeans",
+          "retailer": "Quince",
+          "provider": null,
+          "price": "$50.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "AE Stretch High-Waisted Straight Jean Women's",
+          "retailer": "American Eagle Outfitters",
+          "provider": null,
+          "price": "$24.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Old Navy Women's High-Waisted Og Straight Ankle Jeans",
+          "retailer": "Old Navy",
+          "provider": null,
+          "price": "$29.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2584,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": null,
+      "before": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "after": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          2,
+          1,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Old Navy Women's High-Waisted Wow Straight Ankle Jeans",
+          "Old Navy Women's Extra High-Waisted Straight Jeans",
+          "Old Navy Women's Mid-Rise Straight Leg Jeans"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P2",
+      "key": "O:jacket",
+      "imageId": "O",
+      "boundGarmentKey": "jacket",
+      "identification": {
+        "item_type": "jacket",
+        "subtype": "leather jacket",
+        "primary_color": "black",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "leather",
+        "silhouette": "racer jacket",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.96,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Men's Cafe Racer Jacket Black Genuine Lambskin Leather",
+          "retailer": "Decrum",
+          "provider": null,
+          "price": "$199.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "NYC Leather Jackets Men Hung Black Leather Racer Jacket Men Leather Jackets",
+          "retailer": "NYC Leather Jackets",
+          "provider": null,
+          "price": "$190.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Levi's Women's Faux Leather Racer Jacket",
+          "retailer": "Nordstrom",
+          "provider": null,
+          "price": "$89.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Wilsons Leather Sean Vintage Leather Racer Jacket",
+          "retailer": "Wilsons Leather",
+          "provider": null,
+          "price": "$237.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Coach Outlet Leather Racer Jacket Men's",
+          "retailer": "COACH Outlet",
+          "provider": null,
+          "price": "$499.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Frye Men's Classic Racer Jacket",
+          "retailer": "Nordstrom Rack",
+          "provider": null,
+          "price": "$324.97",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Men's Quince Café Racer Jacket",
+          "retailer": "Quince",
+          "provider": null,
+          "price": "$250.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Polo Ralph Lauren Men's Cafe Racer Leather Jacket",
+          "retailer": "Ralph Lauren",
+          "provider": null,
+          "price": "$698.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1950,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "O:jacket",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 30,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Men's Cafe Racer Jacket Black Genuine Lambskin Leather",
+          "NYC Leather Jackets Men Hung Black Leather Racer Jacket Men Leather Jackets",
+          "Levi's Women's Faux Leather Racer Jacket"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "P2",
+      "key": "D:gown",
+      "imageId": "D",
+      "boundGarmentKey": "gown",
+      "identification": {
+        "item_type": "dress",
+        "subtype": "wedding dress",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "satin",
+        "silhouette": "A-line",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.95,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$80.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6a8f57187049a16b532aa0d1",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Pronovias White Satin A-Line Wedding Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$160.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ab2cc978091ef292fdae21e",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$56.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6a9b579b1921252844b84906",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Abercrombie White Bubble Hem Satin Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$70.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac0396d9c93e02fa2d0f0b3",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Retro White Lace Corset Micro Mini Short Dress 4 S Bridal Bachelorette Wedding",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$79.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac10a694985e8076e7f0520",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1308,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "D:gown",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 5,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+          "Pronovias White Satin A-Line Wedding Dress",
+          "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 5,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "R1",
+      "key": "O:unbound",
+      "imageId": "O",
+      "boundGarmentKey": null,
+      "identification": {
+        "item_type": "sweater",
+        "subtype": "turtleneck sweater",
+        "primary_color": "black",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "ribbed knit",
+        "silhouette": "fitted",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.88,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Everlane Ribbed Knit Turtleneck Sweater Wool‎ Blend Black size large",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$55.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac8cb05839f7a2d968a4276",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Jason Wu Black Sleeveless Turtleneck Sweater Vest",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$15.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ab9cb9219212548c3e297e9",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Women's Black Ribbed Turtleneck Sweater",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$32.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac8478bc6a0b3d7634ae51f",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Faherty Organic Cotton Cashmere Ribbed Turtleneck Sweater Black M Preppy Classic",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$64.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6abd28c0221dcbb77000d979",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Burberry Silk Black Rib-Shoulder Turtleneck Sweater",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$126.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6a9f2d0241ae66b721565016",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1881,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": null,
+      "before": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "after": {
+        "scored": false,
+        "denominator": 0,
+        "matching": null,
+        "incompatible": null,
+        "hit": null
+      },
+      "archiveFacts": {
+        "offers": 5,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Everlane Ribbed Knit Turtleneck Sweater Wool‎ Blend Black size large",
+          "Jason Wu Black Sleeveless Turtleneck Sweater Vest",
+          "Women's Black Ribbed Turtleneck Sweater"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 5,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "R1",
+      "key": "T:hoodie",
+      "imageId": "T",
+      "boundGarmentKey": "hoodie",
+      "identification": {
+        "item_type": "hoodie",
+        "subtype": "pullover hoodie",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "graphic print",
+        "material_estimate": "cotton blend",
+        "silhouette": "pullover",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "JERZEES Men's NuBlend Pullover Hooded Sweatshirt 996",
+          "retailer": "Epic Sports",
+          "provider": null,
+          "price": "$9.59",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+          "retailer": "Walmart - AKOEE Fashion Deals",
+          "provider": null,
+          "price": "$7.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Next Level Apparel Next Level Unisex Santa Cruz Pullover Hoodie",
+          "retailer": "Blankstyle.com",
+          "provider": null,
+          "price": "$12.93",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Adult Pullover Hoodie by Make Market",
+          "retailer": "Michaels Stores",
+          "provider": null,
+          "price": "$27.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Hanes Men's Ultimate Cotton Pullover Hoodie",
+          "retailer": "Hanes",
+          "provider": null,
+          "price": "$25.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Athletic Works Men's Shirts Athletic Works Hoodie",
+          "retailer": "Walmart",
+          "provider": null,
+          "price": "$14.98",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Bella + Canvas Unisex Jersey Long-Sleeve Hoodie Adult 3512",
+          "retailer": "Apparel.com",
+          "provider": null,
+          "price": "$16.53",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Gildan Men's Heavy Blend Hooded Sweatshirt",
+          "retailer": "BulkApparel.com",
+          "provider": null,
+          "price": "$10.94",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 3113,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "T:hoodie",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          2,
+          1,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+          "JERZEES Men's NuBlend Pullover Hooded Sweatshirt 996",
+          "Next Level Apparel Next Level Unisex Santa Cruz Pullover Hoodie"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "R1",
+      "key": "D:gown",
+      "imageId": "D",
+      "boundGarmentKey": "gown",
+      "identification": {
+        "item_type": "dress",
+        "subtype": "wedding dress",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "solid",
+        "material_estimate": "satin",
+        "silhouette": "A-line",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$80.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6a8f57187049a16b532aa0d1",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "Pronovias White Satin A-Line Wedding Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$160.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ab2cc978091ef292fdae21e",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$56.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6a9b579b1921252844b84906",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Abercrombie White Bubble Hem Satin Dress",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$70.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac0396d9c93e02fa2d0f0b3",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Retro White Lace Corset Micro Mini Short Dress 4 S Bridal Bachelorette Wedding",
+          "retailer": "Poshmark",
+          "provider": null,
+          "price": "$79.00",
+          "currency": null,
+          "destination": {
+            "host": "poshmark.com",
+            "path": "/listing/6ac10a694985e8076e7f0520",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 1205,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "D:gown",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 5,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 0,
+        "aggregatorSearchSummaries": 0,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 45,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 35,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 25,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "ALFRED SUNG White Satin A-Line Wedding Cocktail Dress",
+          "Pronovias White Satin A-Line Wedding Dress",
+          "Lulus Winslet White Satin Sheer Hem Strapless Maxi Dress Size Small New with Tag"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 5,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    },
+    {
+      "phase": "R1",
+      "key": "X:hoodie_left",
+      "imageId": "X",
+      "boundGarmentKey": "hoodie_left",
+      "identification": {
+        "item_type": "top",
+        "subtype": "hoodie",
+        "primary_color": "white",
+        "secondary_colors": null,
+        "pattern": "graphic print",
+        "material_estimate": "cotton blend",
+        "silhouette": "pullover hoodie",
+        "brand_guess": null,
+        "visible_brand_text": null,
+        "logo_detected": null,
+        "confidence_score": 0.98,
+        "non_fashion": false,
+        "scan_quality_note": null
+      },
+      "offers": [
+        {
+          "rank": 1,
+          "title": "Adult Pullover Hoodie by Make Market",
+          "retailer": "Michaels Stores",
+          "provider": null,
+          "price": "$27.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 2,
+          "title": "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+          "retailer": "Walmart - AKOEE Fashion Deals",
+          "provider": null,
+          "price": "$7.49",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 3,
+          "title": "Hanes Men's EcoSmart Pullover Hooded Sweatshirt. P170",
+          "retailer": "BulkApparel.com",
+          "provider": null,
+          "price": "$10.91",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 4,
+          "title": "Men H&M Loose Fit Hoodie",
+          "retailer": "H&M",
+          "provider": null,
+          "price": "$19.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 5,
+          "title": "Dsg Men's Classic Fleece Hoodie",
+          "retailer": "DICK'S Sporting Goods",
+          "provider": null,
+          "price": "$45.00",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 6,
+          "title": "Cotton On Men's Box Fit Hoodie",
+          "retailer": "Nordstrom",
+          "provider": null,
+          "price": "$59.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 7,
+          "title": "Gildan Softstyle Midweight Hooded Sweatshirt",
+          "retailer": "Blankstyle.com",
+          "provider": null,
+          "price": "$10.08",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        },
+        {
+          "rank": 8,
+          "title": "Gildan Men's Heavy Blend Hooded Sweatshirt",
+          "retailer": "Hobby Lobby",
+          "provider": null,
+          "price": "$15.99",
+          "currency": null,
+          "destination": {
+            "host": "www.google.com",
+            "path": "/search",
+            "https": true
+          },
+          "matchScore": null,
+          "confidenceTier": null
+        }
+      ],
+      "latencyMs": 2109,
+      "errorType": null,
+      "providers": [
+        "serper",
+        "poshmark"
+      ],
+      "outcome": "success",
+      "expectedCorpusKey": "X:hoodie_left",
+      "before": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "after": {
+        "scored": true,
+        "denominator": 3,
+        "matching": 3,
+        "incompatible": 0,
+        "hit": true
+      },
+      "archiveFacts": {
+        "offers": 8,
+        "missingDestinationSummary": 0,
+        "summaryFailsExistingShapeCheck": 0,
+        "repeatedHostPathSummaries": 7,
+        "aggregatorSearchSummaries": 8,
+        "actualDuplicateListingRate": null,
+        "actualInvalidOrUnusableDestinationRate": null
+      },
+      "replay": {
+        "mode": "metadata_only_production_agreement_coverage_and_diversity",
+        "returnedArchiveRanks": [
+          1,
+          2,
+          3
+        ],
+        "scored": [
+          {
+            "archiveRank": 1,
+            "score": 20,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 2,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 3,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 4,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 5,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 6,
+            "score": 10,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 7,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          },
+          {
+            "archiveRank": 8,
+            "score": 0,
+            "band": "weak",
+            "categoryConflict": false
+          }
+        ],
+        "rerankedTitleSample": [
+          "Adult Pullover Hoodie by Make Market",
+          "AKOEE Mens Plain Hoodie Pullover Long Sleeve Casual Front Pocket Hooded Sweatshirts Solid Color Fall Winter Tops",
+          "Hanes Men's EcoSmart Pullover Hooded Sweatshirt. P170"
+        ]
+      },
+      "observability": {
+        "imagesAvailable": 0,
+        "fullDestinationsAvailable": 0,
+        "providerBrandsAvailable": 0,
+        "currencyMissing": 8,
+        "modelsIndependentlyKnown": 0,
+        "wrongBrandRate": null,
+        "wrongModelFamilyRate": null
+      }
+    }
+  ]
+}

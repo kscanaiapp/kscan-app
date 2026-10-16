@@ -228,8 +228,8 @@ test('ResultCardViewModel has title, subtitle, badges, matchCount, confidenceLab
   assert.equal(card.confidenceLabel, 'high');
   assert.equal(card.primaryMatch.id, 'p1');
   assert.equal(card.privacyCaption, 'Saved as style metadata, not a raw photo.');
-  assert.equal(card.resultType, 'exact');
-  assert.equal(card.matchQualityLabel, 'Exact match candidate');
+  assert.equal(card.resultType, 'close');
+  assert.equal(card.matchQualityLabel, 'Strong style match');
   assert.equal(card.subtitle, 'Matched on category, color, material, and silhouette.');
   assert.ok(card.primaryReason.includes('Matched on category'));
   assert.ok(card.signalsFound.some((signal) => signal.label === 'Category' && signal.value === 'Jacket'));
@@ -384,3 +384,29 @@ test('result card never claims exact match without strong evidence', () => {
   assert.notEqual(card.matchQualityLabel, 'Exact match candidate');
   assert.ok(card.missingSignals.includes('brand'));
 });
+
+// High recognition confidence and a usable listing do not establish that the
+// listing is the photographed product or its compatible variant.
+for (const candidate of [
+  { brand: 'Nike', name: 'Nike Burgundy Running Sneaker' },
+  { brand: 'New Balance', name: 'New Balance 574 Burgundy Sneaker' },
+  { brand: 'New Balance', name: 'New Balance Burgundy Sneaker', confidenceTier: 'exact_candidate', matchScore: 1 },
+]) {
+  test(`recognition confidence cannot certify product identity: ${candidate.name}`, () => {
+    const input = strongScan();
+    input.identification = {
+      item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy',
+      brand_guess: 'New Balance', visible_brand_text: 'New Balance',
+      logo_detected: true, confidence_score: 0.99,
+    };
+    input.recommendedProducts = [{
+      id: 'listing', imageUrl: 'https://cdn.example.com/shoe.jpg',
+      productUrl: 'https://shop.example.com/shoe', ...candidate,
+    }];
+    const card = sro.createResultCardViewModel(sro.createScanResultObject(input));
+    assert.equal(card.resultType, 'close');
+    assert.doesNotMatch(card.matchQualityLabel, /exact/i);
+    assert.ok(card.secondaryReasons.some((reason) => /Exact product identity is still learning/.test(reason)));
+    assert.equal(card.primaryMatch.name, candidate.name, 'candidate data remains intact');
+  });
+}

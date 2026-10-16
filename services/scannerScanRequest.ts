@@ -10,6 +10,8 @@
 // transport, no Supabase client and no mocking.
 
 import { identifyScanImage, type IdentifyScanOptions } from './scanIdentification';
+import { buildScannerVisualEvidence } from './scannerVisualEvidence';
+import type { PrivacyProof } from './privacy/privacyProof';
 import type { ScanIdentifyResponse } from '../types/scanIdentification';
 import type {
   FashionIdentificationResultV2,
@@ -61,6 +63,7 @@ export type RunScannerIdentificationInput = {
   /** Server-issued correlation the deployed handler still requires. */
   legacyCorrelation?: ScannerLegacyCorrelation;
   localPrivacyFiltered?: boolean;
+  privacyProof?: PrivacyProof;
   signal?: AbortSignal;
   /** Injected in tests. Defaults to the real transport. */
   transport?: (image: string, options: IdentifyScanOptions) => Promise<ScanIdentifyResponse>;
@@ -76,9 +79,18 @@ export type RunScannerIdentificationInput = {
  */
 function legacyOptionsFor(input: RunScannerIdentificationInput): IdentifyScanOptions {
   const isSelected = input.mode === 'identify_selected_item';
+  const proof = input.privacyProof;
+  const sanitized = proof?.processingCompleted === true && proof.outputVerified === true &&
+    proof.metadataStripped === true && proof.faceDetectionPerformed === true && proof.plateDetectionPerformed === true;
+  const scannerVisualEvidence = buildScannerVisualEvidence({
+    sourceImageDigest: input.legacyCorrelation?.imageDigestPrefix ?? '',
+    ...(isSelected && input.selectedCandidate ? { selectedCandidate: input.selectedCandidate } : {}),
+    privacy: { state: sanitized ? 'sanitized' : 'unknown', metadataRemoved: proof?.metadataStripped === true },
+  });
   return {
     source: input.evidence.source === 'gallery' ? 'upload' : 'camera',
     localPrivacyFiltered: input.localPrivacyFiltered === true,
+    ...(scannerVisualEvidence ? { scannerVisualEvidence } : {}),
     multiItemDetection: true,
     requestMode: isSelected ? 'selected_item' : 'multi_item_detection',
     ...(input.legacyCorrelation?.scanSessionId
