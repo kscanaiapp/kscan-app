@@ -91,7 +91,7 @@ async function callReserveRpc(runSql, userId, idempotencyKey) {
 export const REQ = Object.freeze({
   SEEDED_IN_FLIGHT: 'reservation is in_flight before the HTTP request',
   HTTP_429: 'HTTP 429',
-  CODE_RATE_LIMITED: 'error.code = rate_limited',
+  CODE_REQUEST_IN_FLIGHT: 'error.code = request_in_flight',
   NO_PROVIDER_RESULT: 'suppressed response carries no provider result',
   RESERVATION_SURVIVES: 'the prior reservation survives the suppression',
   SINGLE_ROW: 'exactly one reservation row for the identity',
@@ -205,7 +205,7 @@ export async function runDuplicateSuppressionControl({
     }
   }
 
-  // (5) HTTP 429 + rate_limited, on a proven in_flight prerequisite. Every
+  // (5) HTTP 429 + request_in_flight (the V2 duplicate code; a quota rejection is\n  // rate_limited and would NOT satisfy this), on a proven in_flight prerequisite. Every
   // requirement is named and evaluated INDIVIDUALLY rather than collapsed
   // into one boolean, so a failing run says which one was not met — and so
   // a requirement silently disappearing from this control is itself
@@ -214,7 +214,7 @@ export async function runDuplicateSuppressionControl({
   const met = {
     [REQ.SEEDED_IN_FLIGHT]: seededStatus === 'in_flight',
     [REQ.HTTP_429]: httpStatus === 429,
-    [REQ.CODE_RATE_LIMITED]: httpCode === 'rate_limited',
+    [REQ.CODE_REQUEST_IN_FLIGHT]: httpCode === 'request_in_flight',
     [REQ.NO_PROVIDER_RESULT]: carriedProviderResult === false,
     [REQ.RESERVATION_SURVIVES]: statusAfterHttp === 'in_flight',
     [REQ.SINGLE_ROW]: rowsAfterHttp === 1,
