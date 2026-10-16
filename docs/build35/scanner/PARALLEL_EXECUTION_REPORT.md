@@ -260,3 +260,39 @@ File-list correction: `__tests__/scanIdentification.test.js` ultimately remains
 unchanged; its legacy positive fixture was restored to preserve non-Scanner
 coverage. New Scanner-specific assertions live in `scannerBrandEvidenceRegression`.
 No asserted threshold or test-failure baseline was changed.
+
+## 2026-10-16 — committed PR handoff
+
+| Proposal | Code commit | Review |
+|---|---|---|
+| Mobile `repair/scanner-intelligence-commerce-20261016` | `31c345bfd85717e9ff0a452b0d03ee65ed641813` | Draft [PR #621](https://github.com/kscanaiapp/kscan-app/pull/621), base `integration/build35-v1-convergence` |
+| Backend `repair/scanner-backend-intelligence-20261016` | `e4d4eb05373ef1639bb29b4cd03b76cca3ac5b0f` | Draft [PR #622](https://github.com/kscanaiapp/kscan-app/pull/622), base `rebuild/backend-authority-v2` |
+
+All 12 backend source/test files copied into the authority-derived branch were
+SHA-256 byte-identical to the tested combined worktree. Temporary backend test
+copies were then removed from the mobile worktree, leaving both proposals clean
+and independent. No shared branch was reset. Mobile-only edge parity and cross-path
+parity now PASS; the backend proposal still requires coordinator-authorized
+manifest updates. The original adapter/mapper suite also passed 64/64 unchanged.
+
+GitHub CI was automatically triggered by the normal push/PR events. Initial exact
+code-commit readback showed queued/running Project checks, successful release
+holds/dependency/VTO contract checks where completed, and paid VTO certification
+jobs SKIPPED. No workflow was manually dispatched or rerun. Pending checks are
+not certification, and no combined release candidate was certified.
+
+Final read-only Supabase inventory still reports Staging scan-identify v81 and
+Production v173 on the original identical bundle
+`79678f229c9fa8adcebaef238ee28d0b2cc4751bca0dd8c748de9df9d152d5fb`.
+The repaired code is deployed to neither environment. Latest observed shared
+integration remains `2d76650e37b6c3bd9635e1fdaefb5711b069d459`; authority remains
+`c74c99c1ee74d71486347e27a744ad0dd22c8e1a`.
+
+This report-only handoff commit may advance each PR head beyond its code commit.
+Read the PR head and its matching checks live before any future integration;
+earlier code-commit CI is historical evidence, never certification of a newer SHA.
+
+**Final verdict: independent source repair package implemented and locally
+regression-tested; Fixed Not Deployed. Draft PRs are Blocked on controlled shared
+integration/metadata and live privacy, image, quality, latency and device gates.
+No Production promotion or new binary is authorized or certified.**
