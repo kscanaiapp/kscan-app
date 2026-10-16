@@ -11,6 +11,7 @@ import {
   normalizeSilhouette,
 } from '../_shared/scanHelpers.ts';
 import { isGenericFashionLabel } from './qualityTuneNormalize.ts';
+import { resolveScannerBrandEvidence } from './brandEvidence.ts';
 import {
   type IdentityConfidence,
   type IdentityGrade,
@@ -96,6 +97,8 @@ export type CommerceIdentityEvidence = {
 export type ScannerQualityGateOptions = {
   /** v124: compute and return graded commerce identity evidence. */
   commerceIdentityEnabled?: boolean;
+  /** Request scope only: false preserves pre-repair Elise/TextScan brand behavior. */
+  useClassifiedBrandEvidence?: boolean;
 };
 
 /** Static O(1) subtype families accepted per catalog category — module-load init. */
@@ -181,6 +184,8 @@ const SPECULATIVE_MATERIAL_RE =
   /\b(possibly|appears to be|looks like|maybe|probably|designer-looking|luxury|lambskin|vintage-inspired|inspired)\b/i;
 
 const SPECULATIVE_BRAND_RE =
+  /\b(style|inspired|looking|esque|-like|designer|luxury)\b/i;
+const LEGACY_SPECULATIVE_BRAND_RE =
   /\b(style|inspired|looking|esque|-like|designer|luxury|miumiu|miu\s*miu)\b/i;
 
 const LUXURY_FILLER_RE =
@@ -207,12 +212,12 @@ export function detailLevelFromBand(band: QualityScoreBand): CommerceQueryDetail
   return 'broad';
 }
 
-function hasBrandEvidence(id: Record<string, unknown>): boolean {
-  if (id.logo_detected === true) return true;
-  if (typeof id.visible_brand_text === 'string' && collapseSpaces(id.visible_brand_text).length > 0) {
-    return true;
+function hasBrandEvidence(id: Record<string, unknown>, useClassifiedBrandEvidence: boolean): boolean {
+  if (!useClassifiedBrandEvidence) {
+    return id.logo_detected === true ||
+      (typeof id.visible_brand_text === 'string' && collapseSpaces(id.visible_brand_text).length > 0);
   }
-  return false;
+  return resolveScannerBrandEvidence(id).verified;
 }
 
 /**
@@ -250,24 +255,30 @@ function extractDistinctiveFeatures(id: Record<string, unknown>): string[] {
   return out;
 }
 
-function gradeCommerceIdentity(id: Record<string, unknown>): CommerceIdentityEvidence {
+function gradeCommerceIdentity(id: Record<string, unknown>, useClassifiedBrandEvidence: boolean): CommerceIdentityEvidence {
+  const evidence = resolveScannerBrandEvidence(id);
+  const speculativeBrand = useClassifiedBrandEvidence ? SPECULATIVE_BRAND_RE : LEGACY_SPECULATIVE_BRAND_RE;
   const logoDetected = id.logo_detected === true;
-  const visibleBrandText = usableIdentityValue(id.visible_brand_text);
-  const directEvidence = logoDetected || !!visibleBrandText;
+  const visibleBrandText = useClassifiedBrandEvidence
+    ? evidence.source === 'wordmark' ? evidence.brand : null
+    : usableIdentityValue(id.visible_brand_text);
+  const directEvidence = useClassifiedBrandEvidence ? evidence.verified : logoDetected || !!visibleBrandText;
 
   const distinctiveFeatures = extractDistinctiveFeatures(id);
 
   // ── Exact item hypothesis ────────────────────────────────────────────────
   const hypothesisRaw = usableIdentityValue(id.exact_item_hypothesis);
-  const hypothesisValid = hypothesisRaw && !SPECULATIVE_BRAND_RE.test(hypothesisRaw)
+  const hypothesisValid = hypothesisRaw && !speculativeBrand.test(hypothesisRaw)
     ? hypothesisRaw
     : null;
   const declaredExact = normalizeIdentityConfidence(id.exact_match_confidence);
 
   // ── Brand hypothesis ─────────────────────────────────────────────────────
-  const brandRaw = usableIdentityValue(id.brand_guess) ?? visibleBrandText;
+  const brandRaw = useClassifiedBrandEvidence
+    ? evidence.conflict ? null : evidence.brand ?? usableIdentityValue(id.brand_guess)
+    : usableIdentityValue(id.brand_guess) ?? visibleBrandText;
   const brandSpeculative = !!brandRaw &&
-    (SPECULATIVE_BRAND_RE.test(brandRaw) || /style$/i.test(brandRaw));
+    (speculativeBrand.test(brandRaw) || /style$/i.test(brandRaw));
   const declaredBrand = normalizeIdentityConfidence(id.brand_confidence);
 
   let brand: string | null = null;
@@ -496,12 +507,14 @@ export function applyScannerQualityGate(
   const attributes: Record<string, unknown> | undefined = attributesIn && typeof attributesIn === 'object'
     ? { ...attributesIn }
     : undefined;
+  const useClassifiedBrandEvidence = options?.useClassifiedBrandEvidence !== false;
+  const speculativeBrand = useClassifiedBrandEvidence ? SPECULATIVE_BRAND_RE : LEGACY_SPECULATIVE_BRAND_RE;
 
   // v124: grade commercial identity from the *pre-suppression* identification.
   // The suppression below is intentionally left untouched, so the quality
   // score, result label, and commerce query construction are all unchanged.
   const commerceIdentity: CommerceIdentityEvidence | undefined =
-    options?.commerceIdentityEnabled ? gradeCommerceIdentity(identification) : undefined;
+    options?.commerceIdentityEnabled ? gradeCommerceIdentity(identification, useClassifiedBrandEvidence) : undefined;
 
   const conflicts: ConsistencyConflict[] = [];
   const suppressed: string[] = [];
@@ -556,12 +569,31 @@ export function applyScannerQualityGate(
   }
 
   // Brand without evidence
+  const observedBrand = useClassifiedBrandEvidence ? resolveScannerBrandEvidence(identification) : null;
+  if (observedBrand?.conflict) {
+    // Preserve the conflict, not a newly verified logo after wordmark removal.
+    identification.brand_evidence_conflict = true;
+    identification.brand_guess = null;
+    identification.logo_brand = null;
+    identification.logo_confidence = null;
+    brandSuppressed = true;
+    suppressed.push('brand_guess');
+    conflicts.push({ code: 'unsupported_brand', field: 'brand_guess' });
+  }
+  if (observedBrand?.verified) {
+    // Canonicalize the supported identity before any display/retrieval projection.
+    // The raw observation fields remain separate from the rejected hypothesis.
+    identification.brand_guess = observedBrand.brand;
+    identification.brand_confidence = 'high';
+  } else if (useClassifiedBrandEvidence && identification.visible_brand_text) {
+    identification.visible_brand_text = null;
+  }
   const brandGuess = typeof identification.brand_guess === 'string'
     ? collapseSpaces(identification.brand_guess)
     : '';
   if (brandGuess) {
-    const evidence = hasBrandEvidence(identification);
-    const speculative = SPECULATIVE_BRAND_RE.test(brandGuess) || /style$/i.test(brandGuess);
+    const evidence = hasBrandEvidence(identification, useClassifiedBrandEvidence);
+    const speculative = speculativeBrand.test(brandGuess) || /style$/i.test(brandGuess);
     if (!evidence || speculative) {
       identification.brand_guess = null;
       brandSuppressed = true;
@@ -657,7 +689,7 @@ export function applyScannerQualityGate(
 
   // Tiered attribute suppression for commerce-facing fields (keep category)
   if (qualityBand === 'low') {
-    if (!hasBrandEvidence(identification) && identification.brand_guess) {
+    if (!hasBrandEvidence(identification, useClassifiedBrandEvidence) && identification.brand_guess) {
       identification.brand_guess = null;
       brandSuppressed = true;
       if (!suppressed.includes('brand_guess')) suppressed.push('brand_guess');
@@ -673,7 +705,7 @@ export function applyScannerQualityGate(
       suppressed.push('fit');
     }
   } else if (qualityBand === 'moderate') {
-    if (!hasBrandEvidence(identification) && identification.brand_guess) {
+    if (!hasBrandEvidence(identification, useClassifiedBrandEvidence) && identification.brand_guess) {
       identification.brand_guess = null;
       brandSuppressed = true;
       if (!suppressed.includes('brand_guess')) suppressed.push('brand_guess');

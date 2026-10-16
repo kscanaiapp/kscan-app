@@ -10,7 +10,7 @@
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
-        "sha256": "ac9626d050fdcc1d91e37744014ad0739b37228c41753c5043821ad519b15e7f"
+        "sha256": "582664257538573ee4e721a17608e9a762faf10416d15094759f1453507d7fd2"
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",
@@ -76,7 +76,7 @@
       },
       {
         "path": "services/scannerScanRequest.ts",
-        "sha256": "bf5c16cbca15448f2da8639822c4fc1c382b4c7de039eb1826902229c065cd32"
+        "sha256": "5f796c5f19c94873d61d666fafe9e669d9d72f9adee3eb9b2632d5fc212387db"
       }
     ],
     "sharedCore": [

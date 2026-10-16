@@ -140,7 +140,7 @@ Deno.test('quality gate: VERIFIED / PLAUSIBLE / WEAK / INVALID grading', () => {
   assertEquals(verified.commerceIdentity?.brandConfidence, 'high');
 
   // VERIFIED via logo, no readable text.
-  const logo = gate(motoGarment({ logo_detected: true }));
+  const logo = gate(motoGarment({ logo_detected: true, logo_brand: 'Saint Laurent', logo_confidence: 'high' }));
   assertEquals(logo.commerceIdentity?.brandGrade, 'verified');
 
   // PLAUSIBLE — declared medium, supported by distinctive construction.
@@ -549,7 +549,8 @@ Deno.test('FLAG OFF: identity fields are dropped from the sanitized identificati
   assert(index.includes('if (allowCommerceIdentity) {'));
   assert(index.includes('allowCommerceIdentity = false'));
   // The v124 schema and prompt are selected only when the flag is on.
-  assert(index.includes('responseSchema: commerceIdentityEnabled'));
+  assert(index.includes('commerceIdentityEnabled ? SELECTED_ITEM_RESPONSE_SCHEMA_V124 : SELECTED_ITEM_RESPONSE_SCHEMA'));
+  assert(index.includes('responseSchema: scopeScannerBrandSchema('));
   assert(index.includes('SELECTED_ITEM_RESPONSE_SCHEMA_V124'));
   assert(index.includes('buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled)'));
   // Identity requires the relevance layer, matching the v121→v123 chain.
