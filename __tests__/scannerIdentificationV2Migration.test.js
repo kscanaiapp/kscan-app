@@ -16,6 +16,8 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
+const { loadScannerDispatchGuard, fixtureInput } = require('./helpers/scannerPrivacyFixture');
+const dispatchGuard = loadScannerDispatchGuard(ROOT);
 
 function loadTsModule(relativePath, requireMap = {}) {
   const filename = path.join(ROOT, relativePath);
@@ -104,13 +106,15 @@ function loadAdapter(flagEnabled) {
 const adapter = loadAdapter(false);
 
 function loadRunner(transport, flagEnabled = false) {
-  return loadTsModule('services/scannerScanRequest.ts', {
+  const runner = loadTsModule('services/scannerScanRequest.ts', {
+    './privacy/scannerDispatchGuard': dispatchGuard,
     './scanIdentification': { identifyScanImage: transport },
     '../types/scanIdentification': {},
     '../types/fashionIdentificationV2': contractTypes,
     './scannerEvidenceGateway': evidenceGateway,
     './scannerIdentificationV2': loadAdapter(flagEnabled),
   });
+  return { ...runner, runScannerIdentification: (input) => runner.runScannerIdentification(fixtureInput(dispatchGuard, input)) };
 }
 
 // ── Fixtures ────────────────────────────────────────────────────────────────

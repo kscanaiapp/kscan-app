@@ -20,11 +20,7 @@ import {
   searchVintedSecondhand,
 } from '../services/secondhand';
 import { searchSneakers, shouldEnrichSneakers } from '../services/sneakers/index';
-import { compressForUpload } from '../services/imageUtils';
-import {
-  getPrivacySanitizerStatus,
-  sanitizeImageBeforeUpload,
-} from '../services/privacyImageSanitizer';
+import { prepareScannerImageForDispatch } from '../services/privacy/scannerImagePreparation';
 import {
   errorPulse,
   softImpact,
@@ -68,6 +64,7 @@ function createScanSession(sourceImageUri) {
     preparedImageUri: null,
     imageDigestPrefix: null,
     localPrivacyFiltered: false,
+    privacyProof: null,
     // One session is one prepared image, so it is exactly one piece of
     // evidence (Phase 2B.2). Minting the id here gives the lifecycle for free:
     // the id survives detection → selection for an unchanged image, and a new
@@ -701,6 +698,7 @@ export function useKScan() {
             imageDigestPrefix: session.imageDigestPrefix,
           },
           localPrivacyFiltered,
+          privacyProof: session.privacyProof,
           signal,
         });
         if (outcome.v2ValidationFailure || outcome.rejection) {
@@ -730,9 +728,8 @@ export function useKScan() {
           const attemptSignal = activeAbortControllerRef.current?.signal;
           const preparedEntries = [];
 
-          // Privacy preparation is deliberately sequential because the current
-          // sanitizer exposes a last-operation status read. Detection can fan out
-          // afterward without risking cross-image privacy attestation.
+          // Each image owns its exact protected derivative and request-local proof.
+          // Native masking precedes resizing; detection and selection reuse bytes.
           for (const image of imagesForAttempt) {
             if (!isOperationValid(operationId) || !isActorRequestCurrent(batchActorRequest)) return;
             let session = multiImageSessionsRef.current.get(image.id);
@@ -744,23 +741,22 @@ export function useKScan() {
               session.sourceUriHash = await digestPrefix(image.uri);
             }
 
-            const compressed = session.preparedImageUri ?? await compressForUpload(image.uri);
-            const sanitizedImage = session.preparedImageUri
-              ?? await sanitizeImageBeforeUpload(compressed);
+            if (!session.preparedImageUri) {
+              const prepared = await prepareScannerImageForDispatch(image.uri);
+              session.preparedImageUri = prepared.imageBase64;
+              session.privacyProof = prepared.proof;
+            }
+            const sanitizedImage = session.preparedImageUri;
             if (!sanitizedImage || typeof sanitizedImage !== 'string') {
               throw userSafeError(
                 'prepared image unavailable',
                 'One of the selected images could not be prepared. Please review the batch and try again.',
               );
             }
-            if (!session.preparedImageUri) {
-              session.preparedImageUri = sanitizedImage;
+            if (!session.imageDigestPrefix) {
               session.imageDigestPrefix = await digestPrefix(rawImageBase64(sanitizedImage));
             }
-            const sanitizerStatus = getPrivacySanitizerStatus();
-            session.localPrivacyFiltered =
-              sanitizerStatus.faceBlurApplied === true &&
-              sanitizerStatus.plateMaskApplied === true;
+            session.localPrivacyFiltered = session.privacyProof?.processingCompleted === true;
 
             const evidenceSource = image.source === 'upload' ? 'gallery' : 'camera';
             const evidence = prepareScannerEvidence({
@@ -923,40 +919,22 @@ export function useKScan() {
           session.sourceUriHash = await digestPrefix(photo.uri);
         }
 
-        if (__DEV__) console.log('[DEBUG] BEFORE_COMPRESS');
-        if (__DEV__ && photo.qaFixtureName) {
-          console.log('[K-SCAN QA] Fixture selected: ' + photo.qaFixtureName);
-          console.log('[K-SCAN QA] Using compressImage utility: true');
-          console.log('[K-SCAN QA] Sending fixture through scan-identify');
+        if (!session.preparedImageUri) {
+          const prepared = await prepareScannerImageForDispatch(photo.uri);
+          session.preparedImageUri = prepared.imageBase64;
+          session.privacyProof = prepared.proof;
         }
-        const compressed = session.preparedImageUri ?? await compressForUpload(photo.uri);
-        if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
-
-        sanitized = session.preparedImageUri ?? await sanitizeImageBeforeUpload(compressed);
+        sanitized = session.preparedImageUri;
         if (!sanitized || typeof sanitized !== 'string') {
           throw userSafeError(
             'prepared image unavailable',
             'The selected outfit image could not be prepared. Please choose it again.',
           );
         }
-        if (!session.preparedImageUri) {
-          session.preparedImageUri = sanitized;
+        if (!session.imageDigestPrefix) {
           session.imageDigestPrefix = await digestPrefix(rawImageBase64(sanitized));
         }
-        const sanitizerStatus = getPrivacySanitizerStatus();
-        session.localPrivacyFiltered =
-          sanitizerStatus.faceBlurApplied === true &&
-          sanitizerStatus.plateMaskApplied === true;
-        if (__DEV__) {
-          console.warn(
-            '[K-SCAN PRIVACY] Pre-upload sanitizer status mode=' +
-            sanitizerStatus.mode +
-            ' faceDetectionAvailable=' +
-            sanitizerStatus.faceDetectionAvailable +
-            ' faceBlurApplied=' +
-            sanitizerStatus.faceBlurApplied
-          );
-        }
+        session.localPrivacyFiltered = session.privacyProof?.processingCompleted === true;
 
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
         // Production camera scan path (KS-REL-008C): always route through the
@@ -1211,6 +1189,7 @@ export function useKScan() {
               imageDigestPrefix: session.imageDigestPrefix,
             },
             localPrivacyFiltered: session.localPrivacyFiltered,
+            privacyProof: session.privacyProof,
             signal: activeAbortControllerRef.current?.signal,
           });
 
@@ -1408,6 +1387,7 @@ export function useKScan() {
           imageDigestPrefix: session.imageDigestPrefix,
         },
         localPrivacyFiltered: session.localPrivacyFiltered,
+        privacyProof: session.privacyProof,
         signal: activeAbortControllerRef.current?.signal,
       });
       if (outcome.v2ValidationFailure || outcome.rejection) {
