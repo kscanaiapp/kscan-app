@@ -80,6 +80,7 @@ function deps(overrides: Partial<VtoHandlerDeps> = {}): Partial<VtoHandlerDeps> 
     reserveVtoGeneration: () =>
       Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10, attemptId: '33333333-4444-4555-8666-777777777777' }),
     completeVtoGeneration: () => Promise.resolve(true),
+    releaseVtoGeneration: () => Promise.resolve(true),
     generationTimeoutMs: 1_000,
     devScenariosAllowed: () => false,
     ...overrides,
