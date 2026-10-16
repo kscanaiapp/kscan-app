@@ -87,6 +87,10 @@ export const VTO_EVENT_PROPERTIES = [
   'mode',
   /** Why an Elise offer could not launch. One of a closed set, see below. */
   'reasonCode',
+  /** Which entry point the funnel step belongs to: one of VTO_ENTRY_POINTS in
+   *  vtoOrigins.ts. Derived from origin/surface at emit time when the caller
+   *  did not supply it, so every step of one funnel carries the same value. */
+  'entry_point',
 ] as const;
 
 export type VtoEventProperty = (typeof VTO_EVENT_PROPERTIES)[number];
@@ -114,6 +118,9 @@ const SAFE_STRING = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const VTO_BOUNDED_PROPERTY_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   surface: Object.freeze(['kplus_step6', 'home', 'coachmark', 'product', 'scan_result', 'commerce']),
   actor_kplus_state: Object.freeze(['free', 'active', 'complimentary', 'resolving']),
+  // Mirrors VTO_ENTRY_POINTS in services/vto/vtoOrigins.ts; pinned equal by
+  // __tests__/vtoEntryPointTaxonomy.test.js.
+  entry_point: Object.freeze(['home_studio', 'elise', 'visual_search', 'closet', 'product_card']),
   // Mirrors EliseVtoUnavailableReason plus the two decisions the offer makes
   // itself. A reason outside this set is dropped like any unknown value.
   reasonCode: Object.freeze([
@@ -125,6 +132,26 @@ export const VTO_BOUNDED_PROPERTY_VALUES: Readonly<Record<string, readonly strin
     'not_available',
   ]),
 });
+
+/**
+ * Mirror of resolveVtoEntryPoint in services/vto/vtoOrigins.ts, which is the
+ * canonical, documented mapping. Written out here, not imported, for the same
+ * reason as the sets above; __tests__/vtoEntryPointTaxonomy.test.js runs both
+ * over every origin x surface combination and fails on any difference.
+ */
+function deriveEntryPoint(origin: unknown, surface: unknown): string | null {
+  const o = typeof origin === 'string' ? origin : null;
+  const s = typeof surface === 'string' ? surface : null;
+  if (o === 'elise') return 'elise';
+  if (o === 'closet_item') return 'closet';
+  if (o === 'scan_result') return 'visual_search';
+  if (o === 'commerce_product') return s === 'scan_result' ? 'visual_search' : 'product_card';
+  if (o !== null) return null;
+  if (s === 'home') return 'home_studio';
+  if (s === 'scan_result') return 'visual_search';
+  if (s === 'product' || s === 'commerce') return 'product_card';
+  return null;
+}
 
 function scrub(value: unknown): string | number | boolean | null | undefined {
   if (value === null) return null;
@@ -175,6 +202,13 @@ export function emitVtoEvent(event: string, payload: Record<string, unknown> = {
       const bounded = VTO_BOUNDED_PROPERTY_VALUES[key];
       if (bounded && !(typeof scrubbed === 'string' && bounded.includes(scrubbed))) continue;
       (safe as Record<string, unknown>)[key] = scrubbed;
+    }
+    // One entry-point identity for the whole funnel. A supplied, bounded value
+    // wins; otherwise it is derived from origin/surface. Unattributable events
+    // simply carry none -- an entry point is never guessed.
+    if (safe.entry_point === undefined) {
+      const entryPoint = deriveEntryPoint(payload?.origin, payload?.surface);
+      if (entryPoint !== null) safe.entry_point = entryPoint;
     }
     sink(event as VtoEvent, safe);
   } catch {

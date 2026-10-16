@@ -213,7 +213,7 @@ export function PurchaseOptionsPanel({
                     <TryItOnEntry
                       garment={option.vtoGarment}
                       garmentTitle={option.title ?? option.retailer}
-                      origin="commerce_product"
+                      origin="scan_result"
                       surface="scan_result"
                       firstUseEducation
                       onShop={destination ? () => Linking.openURL(destination) : undefined}

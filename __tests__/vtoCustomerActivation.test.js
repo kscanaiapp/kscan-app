@@ -700,7 +700,7 @@ test('J10: the Home card shows, is dismissed, and stays dismissed', async () => 
   assert.equal(home.current.state, 'NEVER_ENGAGED');
   assert.equal(home.current.visible, true);
   assert.deepEqual(world.eventsNamed('vto_awareness_impression'), [
-    { event: 'vto_awareness_impression', surface: 'home', actor_kplus_state: 'active' },
+    { event: 'vto_awareness_impression', surface: 'home', actor_kplus_state: 'active', entry_point: 'home_studio' },
   ]);
 
   home.current.dismiss();
@@ -709,7 +709,7 @@ test('J10: the Home card shows, is dismissed, and stays dismissed', async () => 
   assert.equal(home.current.state, 'HOME_CARD_DISMISSED');
   assert.equal(world.storedRecord().homeCardDismissed, true, 'the dismissal is persisted');
   assert.deepEqual(world.eventsNamed('vto_awareness_dismissed'), [
-    { event: 'vto_awareness_dismissed', surface: 'home', actor_kplus_state: 'active' },
+    { event: 'vto_awareness_dismissed', surface: 'home', actor_kplus_state: 'active', entry_point: 'home_studio' },
   ]);
 
   // A relaunch -- new modules, same device -- keeps it dismissed.
@@ -1350,7 +1350,7 @@ test('J3: active K+ opens the existing try-on sheet -- and nothing else happens'
   assert.equal(ui.world.env.calls.functionInvocations, 0, 'opening the sheet starts no generation');
   assert.equal(ui.world.awareness.readVtoAwareness().initiated, true, 'which retires the Home card');
   assert.deepEqual(ui.world.eventsNamed('vto_awareness_tap'), [
-    { event: 'vto_awareness_tap', surface: 'scan_result', actor_kplus_state: 'active' },
+    { event: 'vto_awareness_tap', surface: 'scan_result', actor_kplus_state: 'active', entry_point: 'visual_search' },
   ]);
 });
 
@@ -1368,7 +1368,7 @@ test('J2: a Free actor reaches the ONE shared K+ surface -- no sheet, no generat
   assert.equal(ui.world.env.calls.functionInvocations, 0);
   assert.equal(ui.world.awareness.readVtoAwareness()?.initiated ?? false, false, 'asking about K+ is not using try-on');
   assert.deepEqual(ui.world.eventsNamed('vto_awareness_tap'), [
-    { event: 'vto_awareness_tap', surface: 'product', actor_kplus_state: 'free' },
+    { event: 'vto_awareness_tap', surface: 'product', actor_kplus_state: 'free', entry_point: 'product_card' },
   ]);
 });
 
@@ -1417,7 +1417,7 @@ test('product impressions are counted once per surface per session, not once per
     ui.world.awareness.emitVtoAwarenessImpression({ surface: 'scan_result', kplus: 'active' });
   }
   assert.deepEqual(ui.world.eventsNamed('vto_awareness_impression'), [
-    { event: 'vto_awareness_impression', surface: 'scan_result', actor_kplus_state: 'active' },
+    { event: 'vto_awareness_impression', surface: 'scan_result', actor_kplus_state: 'active', entry_point: 'visual_search' },
   ]);
 });
 
@@ -1601,14 +1601,14 @@ function checkTelemetryIsBounded(o = {}) {
   // The property vocabulary is closed and names no content. Adding a
   // dimension is a deliberate edit to this list as well as to the sink.
   assert.deepEqual([...telemetry.VTO_EVENT_PROPERTIES].sort(), [
-    'actor_kplus_state', 'category', 'eligibility', 'failureCode', 'inputBucket', 'latencyMs', 'mode',
+    'actor_kplus_state', 'category', 'eligibility', 'entry_point', 'failureCode', 'inputBucket', 'latencyMs', 'mode',
     // 'reasonCode': why an Elise contextual offer could not launch. Bounded to a
     // closed set in VTO_BOUNDED_PROPERTY_VALUES, like surface and K+ state.
     'origin', 'outputBucket', 'provider', 'reasonCode', 'retryCount', 'slot', 'surface',
   ]);
 
   telemetry.emitVtoEvent('vto_awareness_impression', { surface: 'home', actor_kplus_state: 'free' });
-  assert.deepEqual(env.events.at(-1), { event: 'vto_awareness_impression', surface: 'home', actor_kplus_state: 'free' });
+  assert.deepEqual(env.events.at(-1), { event: 'vto_awareness_impression', surface: 'home', actor_kplus_state: 'free', entry_point: 'home_studio' });
 
   const hostile = {
     surface: 'data:image/jpeg;base64,/9j/4AAQSkZJRg',

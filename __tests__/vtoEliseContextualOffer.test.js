@@ -1333,7 +1333,7 @@ test('P0-04: an authorized offer renders the invitation and TRY IT ON together, 
   assert.equal(cta[0].props.accessibilityLabel, 'Try this on');
   assert.equal(ui.ofType('VirtualTryOnSheet').length, 0, 'nothing opens until asked');
   assert.deepEqual(world.eventsNamed('elise_vto_offer_rendered'), [
-    { event: 'elise_vto_offer_rendered', origin: 'elise', actor_kplus_state: 'active' },
+    { event: 'elise_vto_offer_rendered', origin: 'elise', actor_kplus_state: 'active', entry_point: 'elise' },
   ]);
   // The words come from one frozen object, and name no fit, size or body claim.
   assert.equal(world.offer.ELISE_VTO_OFFER_COPY.invitation, 'Would you like to try that on?');
@@ -1421,7 +1421,7 @@ test('P0-22 / P0-29: a Free customer\'s tap opens the ONE shared K+ gate -- no s
     assert.equal(world.env.calls.fileReads, 0);
     assert.equal(world.env.calls.initiated, 0, 'asking about K+ is not using try-on');
     assert.deepEqual(world.eventsNamed('elise_vto_offer_kplus_gate'), [
-      { event: 'elise_vto_offer_kplus_gate', origin: 'elise', actor_kplus_state: 'free' },
+      { event: 'elise_vto_offer_kplus_gate', origin: 'elise', actor_kplus_state: 'free', entry_point: 'elise' },
     ]);
     assert.equal(world.eventsNamed('elise_vto_offer_launched').length, 0);
     assert.equal(ui.text(), 'Would you like to try that on? TRY IT ON', 'the action is not lost at the gate');
@@ -1471,7 +1471,7 @@ test('P1-06 / §32: Free -> K+ acquisition -> the SAME offer launches VTO on the
   assert.ok(world.env.calls.candidateReads > candidateReadsBefore, 'the local garment was revalidated on that tap');
   assert.equal(world.env.candidates.length, 1, 'no re-upload');
   assert.deepEqual(world.eventsNamed('elise_vto_offer_launched'), [
-    { event: 'elise_vto_offer_launched', origin: 'elise', actor_kplus_state: 'active' },
+    { event: 'elise_vto_offer_launched', origin: 'elise', actor_kplus_state: 'active', entry_point: 'elise' },
   ]);
 });
 
@@ -1538,7 +1538,7 @@ test('P0-10..P0-14 / P1-15 (on screen): a stale tap ends in the bounded line, an
       // A dead offer never invites an upgrade either.
       assert.equal(world.env.calls.openUpgrade, 0, `${label}/${kplus}: no K+ prompt for a garment that cannot be tried on`);
       assert.deepEqual(world.eventsNamed('elise_vto_offer_unavailable'), [
-        { event: 'elise_vto_offer_unavailable', origin: 'elise', reasonCode: scenario.reason },
+        { event: 'elise_vto_offer_unavailable', origin: 'elise', reasonCode: scenario.reason, entry_point: 'elise' },
       ]);
       assert.equal(world.eventsNamed('elise_vto_offer_launched').length, 0);
     }
@@ -1578,7 +1578,7 @@ test('P2-05: the offer funnel is bounded and content-free', async () => {
   ]);
   for (const entry of world.env.events) {
     const keys = Object.keys(entry).filter((key) => key !== 'event');
-    assert.deepEqual(keys.filter((key) => !['origin', 'actor_kplus_state', 'reasonCode'].includes(key)), [], entry.event);
+    assert.deepEqual(keys.filter((key) => !['origin', 'actor_kplus_state', 'reasonCode', 'entry_point'].includes(key)), [], entry.event);
     const flat = JSON.stringify(entry);
     for (const secret of [block.localBindingId, candidate.candidateId, candidate.contentHash, candidate.candidateImageUri, 'dress', 'Silk']) {
       assert.equal(flat.includes(secret), false, `${entry.event} leaks ${secret}`);
@@ -1593,7 +1593,7 @@ test('P2-05: the offer funnel is bounded and content-free', async () => {
     contentHash: candidate.contentHash,
     category: 'a silk slip dress the customer described',
   });
-  assert.deepEqual(world.env.events, [{ event: 'elise_vto_offer_unavailable', origin: 'elise' }]);
+  assert.deepEqual(world.env.events, [{ event: 'elise_vto_offer_unavailable', origin: 'elise', entry_point: 'elise' }]);
   assert.deepEqual([...world.telemetry.VTO_BOUNDED_PROPERTY_VALUES.reasonCode].sort(), [
     'account_changed', 'binding_missing', 'candidate_missing', 'fingerprint_changed', 'media_missing', 'not_available',
   ]);

@@ -89,7 +89,7 @@ test('telemetry drops every media reference it is handed', () => {
     rawProviderResponse: '{"image":"..."}',
   });
   assert.equal(captured.length, 1);
-  assert.deepEqual(plain(captured[0].payload), { origin: 'commerce_product' });
+  assert.deepEqual(plain(captured[0].payload), { origin: 'commerce_product', entry_point: 'product_card' });
 });
 
 test('telemetry drops a free-form value even under an allowlisted key', () => {
@@ -117,7 +117,7 @@ test('telemetry never carries a raw user identifier', () => {
     userId: '11111111-2222-4333-8444-555555555555',
     email: 'someone@example.com',
   });
-  assert.deepEqual(plain(captured[0].payload), { origin: 'commerce_product' });
+  assert.deepEqual(plain(captured[0].payload), { origin: 'commerce_product', entry_point: 'product_card' });
 });
 
 test('dimension telemetry is bucketed, not exact', () => {
