@@ -166,7 +166,7 @@ export function resolveLiveGarment(input: LiveGarmentEligibilityInput): LiveGarm
     return { status: 'INELIGIBLE', reason: 'missing_garment_image', productRef };
   }
 
-  const asset = findGovernedLiveAssetByProductRef(productRef, registry);
+  const asset = findGovernedLiveAssetByProductRef(productRef, registry, garment.productUrl, garment.imageUrl);
   if (!asset) {
     // NOT THE SAME AS unsupported_category. The category/image ARE fine;
     // there is simply no governed .ksgarment for this specific product yet
