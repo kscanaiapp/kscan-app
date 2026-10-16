@@ -850,3 +850,13 @@ Deno.test('VTO-001: submission 429 is uncertain, not proof of zero provider char
     assertEquals(outcome.billable, true);
   }
 });
+
+Deno.test('VTO-004: recovering accepted task polls by identity and never POSTs', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  assertEquals(typeof provider.recover, 'function');
+  const result = await provider.recover!('t1', { signal: signal() });
+  assertEquals(result.ok, true);
+  assertEquals(callsTo(calls, '/portrait/editing/try-on-clothes-pro').length, 0);
+  assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 1);
+});
