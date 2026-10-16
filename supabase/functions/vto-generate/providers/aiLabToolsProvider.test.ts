@@ -662,7 +662,7 @@ Deno.test('VTO-QUOTA-003: a gateway refusal before any job is non-billable', asy
   // 403 is the account's ACTUAL live state ("You are not subscribed to this
   // API."), so this is the failure real users would hit first if VTO were
   // enabled today -- and it must not cost them an attempt.
-  for (const status of [401, 403, 429, 500, 503]) {
+  for (const status of [401, 403, 429]) {
     const { fn } = scriptedFetch({
       submit: () => jsonResponse({ message: 'You are not subscribed to this API.' }, status),
     });
@@ -772,4 +772,36 @@ Deno.test('an undecodable inline garment never reaches the network and is non-bi
     }
   }
   assertEquals(calls.length, 0);
+});
+
+Deno.test('VTO-001: ambiguous submitted POST exception retains billable attempt', async () => {
+  const { fn } = scriptedFetch({ submit: () => { throw new TypeError('socket reset after upload'); } });
+  const result = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn })
+    .generate(TOP_INPUT, { signal: signal() });
+  assertEquals(result.ok, false);
+  if (!result.ok) {
+    assertEquals(result.failure, 'network_failure');
+    assertEquals(result.billable, true);
+  }
+});
+
+Deno.test('VTO-001: ambiguous HTTP 500 submission is potentially billable', async () => {
+  const { fn } = scriptedFetch({ submit: () => jsonResponse({ message: 'gateway upstream error' }, 500) });
+  const result = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn })
+    .generate(TOP_INPUT, { signal: signal() });
+  assertEquals(result.ok, false);
+  if (!result.ok) assertEquals(result.billable, true);
+});
+
+Deno.test('VTO-001: accepted task poll HTTP 429 or 500 cannot release quota', async () => {
+  for (const status of [429, 500]) {
+    const { fn } = scriptedFetch({
+      poll: () => jsonResponse({ error_code: 123, error_msg: 'provider busy' }, status),
+    });
+    const result = await createAiLabToolsProvider({
+      apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 1,
+    }).generate(TOP_INPUT, { signal: signal() });
+    assertEquals(result.ok, false);
+    if (!result.ok) assertEquals(result.billable, true, 'accepted task HTTP ' + status);
+  }
 });
