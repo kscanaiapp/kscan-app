@@ -662,7 +662,7 @@ Deno.test('VTO-QUOTA-003: a gateway refusal before any job is non-billable', asy
   // 403 is the account's ACTUAL live state ("You are not subscribed to this
   // API."), so this is the failure real users would hit first if VTO were
   // enabled today -- and it must not cost them an attempt.
-  for (const status of [401, 403, 429]) {
+  for (const status of [401, 403]) {
     const { fn } = scriptedFetch({
       submit: () => jsonResponse({ message: 'You are not subscribed to this API.' }, status),
     });
@@ -838,4 +838,15 @@ Deno.test('VTO-003: receipt persistence failure blocks polling and retains quota
     assertEquals(outcome.billable, true);
   }
   assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 0);
+});
+
+Deno.test('VTO-001: submission 429 is uncertain, not proof of zero provider charge', async () => {
+  const { fn } = scriptedFetch({ submit: () => jsonResponse({ message: 'busy' }, 429) });
+  const outcome = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn })
+    .generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'rate_limited');
+    assertEquals(outcome.billable, true);
+  }
 });
