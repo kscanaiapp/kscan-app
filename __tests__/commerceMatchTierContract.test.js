@@ -52,14 +52,18 @@ test('real normalize/map/save/reopen preserves the authoritative tier and row id
     const row = surface.mapRawProductToPurchaseOption(reopened[0]);
     assert.equal(row.id, product.id);
     assert.equal(tier.commerceMatchLabel(row.matchMetadata, row), exact ? 'Exact Match' : 'Same Brand Alternatives');
-    assert.equal(row.vtoGarment.productUrl, product.productUrl);
+    assert.ok(row.vtoGarment.productRef, 'a saved row still carries a VTO garment reference (listing id, else purchase URL)');
+    assert.equal(surface.mapRawProductToPurchaseOption(JSON.parse(JSON.stringify(reopened[0]))).vtoGarment.productRef, row.vtoGarment.productRef, 'the reference is stable across reopen and never depends on the tier');
+    assert.equal(row.productUrl, product.productUrl, 'the purchase destination is carried by the option, not the garment');
     assert.equal(surface.canWatchPurchaseOption(row), false, 'saved capability is revalidated live, never frozen');
   }
 });
 test('live rows retain their own VTO garment, launcher identity, and server-authored Watch semantics', () => {
   const surface = loader()('components/scan-results/types.ts');
   const row = surface.mapRawProductToPurchaseOption(classified());
-  assert.equal(row.vtoGarment.productUrl, product.productUrl);
+  assert.equal(row.vtoGarment.productRef, product.id);
+  assert.equal(row.productUrl, product.productUrl);
+  assert.equal(Object.prototype.hasOwnProperty.call(row.vtoGarment, 'productUrl'), false, 'VTO garment contract has no productUrl');
   assert.equal(row.watchCandidate.productUrl, product.productUrl);
   assert.equal(surface.canWatchPurchaseOption(row), true);
   const panel = fs.readFileSync(path.join(root, 'components/scan-results/PurchaseOptionsPanel.tsx'), 'utf8');
