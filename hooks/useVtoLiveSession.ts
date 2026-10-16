@@ -33,6 +33,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { acquireCameraLease, type CameraLease } from '../services/cameraOwnership';
 import { getLiveVtoNativeModule } from '../services/vto/liveVtoNativeModule';
 import { ensureLiveCameraPermission } from '../services/vto/vtoLiveCameraPermission';
 import { getLiveVtoHarnessState } from '../services/vto/vtoLiveHarness';
@@ -94,6 +95,13 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const [photorealFailure, setPhotorealFailure] = useState<PhotorealFailureOutcome | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const controllerRef = useRef<LiveVtoSessionController | null>(null);
+  /** Live's claim on the device camera (services/cameraOwnership.ts). Held from
+   *  just before the runtime starts until the session is disposed. */
+  const cameraLeaseRef = useRef<CameraLease | null>(null);
+  const releaseCameraLease = useCallback(() => {
+    cameraLeaseRef.current?.release();
+    cameraLeaseRef.current = null;
+  }, []);
   /** Set synchronously, BEFORE the permission await, so a second tap during the
    *  dialog cannot create a second controller and orphan the first. */
   const enteringRef = useRef(false);
@@ -117,6 +125,8 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     return () => {
       controllerRef.current?.dispose();
       controllerRef.current = null;
+      cameraLeaseRef.current?.release();
+      cameraLeaseRef.current = null;
     };
   }, []);
 
@@ -144,6 +154,20 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
         return;
       }
 
+      // THE SCANNER'S CAMERA IS NEVER TAKEN. The Scanner and Live share one
+      // process-wide CameraX provider and each unbinds everything on it, so
+      // starting Live under a mounted Scanner camera would silently switch that
+      // camera off. Refused here, as a bounded non-fatal state: AI Photo stays on offer.
+      const lease = getLiveVtoHarnessState()
+        ? null
+        : acquireCameraLease('live_vto', () => exitLiveRef.current());
+      if (!getLiveVtoHarnessState() && !lease) {
+        setEntered(true);
+        setSnapshot((current) => markLiveVtoError(current, 'CAMERA_UNAVAILABLE'));
+        return;
+      }
+      cameraLeaseRef.current = lease;
+
       const controller = createLiveVtoSession(getLiveVtoNativeModule());
       controllerRef.current = controller;
       controller.subscribe(setSnapshot);
@@ -161,6 +185,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const exitLive = useCallback(() => {
     controllerRef.current?.dispose();
     controllerRef.current = null;
+    releaseCameraLease();
     setEntered(false);
     setPhotorealIntent(returnToLive());
     setPhotorealFailure(null);
@@ -172,7 +197,10 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     loadedRef.current = null;
     photorealInFlightRef.current = false;
     setPhotorealPending(false);
-  }, []);
+  }, [releaseCameraLease]);
+  /** Read by the preemption callback, which can fire after `exitLive` was re-created. */
+  const exitLiveRef = useRef(exitLive);
+  exitLiveRef.current = exitLive;
 
   // A garment change while Live is running is a switch, never a restart: the
   // runtime keeps the camera and swaps the asset, and the product identity

@@ -152,8 +152,11 @@ function scenario(options = {}) {
     return controller;
   };
 
+  // The REAL ownership record, one fresh instance per scenario.
+  const ownership = loadOwnership();
   const deps = {
     react: null, // filled per-render
+    '../services/cameraOwnership': ownership,
     '../services/vto/liveVtoNativeModule': { getLiveVtoNativeModule: () => ({}) },
     '../services/vto/vtoLiveCameraPermission': {
       ensureLiveCameraPermission: async () => {
@@ -178,7 +181,16 @@ function scenario(options = {}) {
     '../types/vtoLive': loadVtoLive(),
     '../types/vto': {},
   };
-  return { calls, controllers, deps };
+  return { calls, controllers, deps, ownership };
+}
+
+function loadOwnership() {
+  const output = ts.transpileModule(read('services/cameraOwnership.ts'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const mod = { exports: {} };
+  vm.runInNewContext(output, { module: mod, exports: mod.exports });
+  return mod.exports;
 }
 
 function loadVtoLive() {
@@ -244,6 +256,51 @@ test('a denied permission leaves no session and does not re-prompt on the next t
   // The camera module owns "ask once"; this asserts the hook keeps letting it
   // decide rather than short-circuiting into a loop of its own.
   assert.equal(after.entered, true, 'the surface stays on a bounded state, not a blank one');
+  view.unmount();
+});
+
+// ── Camera ownership ────────────────────────────────────────────────────────
+
+test('Live is refused, with a bounded state and no runtime, while the Scanner camera is mounted', async () => {
+  const sc = scenario();
+  const scanner = sc.ownership.acquireCameraLease('scanner');
+  const view = mount(sc, D1, () => {});
+  await view.result.enterLive();
+  const after = view.settle();
+  assert.equal(sc.calls.controllers, 0, 'no runtime may start under a mounted Scanner camera');
+  assert.equal(after.session.state, 'ERROR');
+  assert.equal(after.session.error.state, 'CAMERA_UNAVAILABLE');
+  assert.equal(sc.ownership.currentCameraOwner(), 'scanner', 'the Scanner keeps its camera');
+  scanner.release();
+  view.unmount();
+});
+
+test('Live takes the camera lease before starting and gives it back on exit and on unmount', async () => {
+  const sc = scenario();
+  const view = mount(sc, D1, () => {});
+  await view.result.enterLive();
+  view.settle();
+  assert.equal(sc.ownership.currentCameraOwner(), 'live_vto');
+  view.result.exitLive();
+  assert.equal(sc.ownership.currentCameraOwner(), null);
+  await view.result.enterLive();
+  view.settle();
+  assert.equal(sc.ownership.currentCameraOwner(), 'live_vto');
+  view.unmount();
+  assert.equal(sc.ownership.currentCameraOwner(), null, 'an unmounted sheet cannot keep the camera claim');
+});
+
+test('a Scanner camera mounting while Live runs ends the Live session', async () => {
+  const sc = scenario();
+  const view = mount(sc, D1, () => {});
+  await view.result.enterLive();
+  view.settle();
+  const scanner = sc.ownership.acquireCameraLease('scanner');
+  const after = view.settle();
+  assert.equal(sc.ownership.currentCameraOwner(), 'scanner');
+  assert.equal(sc.controllers[0].disposed, true, 'the preempted Live runtime is disposed');
+  assert.equal(after.entered, false);
+  scanner.release();
   view.unmount();
 });
 

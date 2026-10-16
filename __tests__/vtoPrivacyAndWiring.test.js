@@ -859,8 +859,12 @@ const VTO_ALLOWED_IMPORTS = {
     '../services/vto/vtoLiveGarment', '../services/vto/vtoLiveHarness',
     '../types/vto', 'react', 'react-native',
   ],
+  // `../services/cameraOwnership` is a deliberate new dependency: a pure
+  // in-memory record of which surface (Scanner or Live) holds the device camera,
+  // so Live never starts under a mounted Scanner camera and a Scanner camera
+  // mounting ends Live. It opens no camera, stores nothing and reaches no network.
   'hooks/useVtoLiveSession.ts': [
-    '../services/vto/liveVtoNativeModule', '../services/vto/vtoLiveCameraPermission',
+    '../services/cameraOwnership', '../services/vto/liveVtoNativeModule', '../services/vto/vtoLiveCameraPermission',
     '../services/vto/vtoLiveHarness', '../services/vto/vtoLiveSession',
     '../services/vto/vtoPhotorealHandoff', '../types/vto', '../types/vtoLive',
     'react',
@@ -871,8 +875,17 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'components/vto/VtoLivePanel.tsx': [
     '../../constants/theme', '../../services/vto/vtoLiveSession',
-    '../../types/vtoLive', '../luxury', 'react', 'react-native',
+    '../../types/vtoLive', './VtoLiveNativeView', '../luxury', 'react', 'react-native',
   ],
+  // Mounts the EXISTING Live native view and nothing else: no data props, no
+  // per-frame callback, no network, storage or ownership. It resolves the view
+  // lazily through expo-modules-core's own optional lookup, exactly as the
+  // module adapter does for the module.
+  'components/vto/VtoLiveNativeView.tsx': [
+    '../../constants/featureFlags', 'react', 'react-native',
+  ],
+  // PURE bookkeeping, no imports at all. Enrolled so the forbidden-call scan covers it.
+  'services/cameraOwnership.ts': [],
   'components/vto/VtoLiveErrorBoundary.tsx': [
     'react',
   ],
@@ -891,6 +904,9 @@ const VTO_ALLOWED_IMPORTS = {
 const VTO_ALLOWED_LAZY_REQUIRES = {
   'services/vto/liveVtoNativeModule.ts': ['expo-modules-core'],
   'services/vto/vtoLiveCameraPermission.ts': ['expo-camera'],
+  // The Live native VIEW lookup, lazy for the same reason as the module lookup
+  // above: importing the panel must not touch native code.
+  'components/vto/VtoLiveNativeView.tsx': ['expo-modules-core'],
 };
 
 /**

@@ -255,15 +255,20 @@ export function VirtualTryOnSheet({
   //      false, and without this the runtime would outlive the decision that
   //      withdrew it.
   //   3. The Live panel CRASHED and the boundary fell back to AI Photo.
-  //
-  // Merely switching to AI Photo is deliberately NOT in that list: a Photoreal
-  // generation is supposed to leave the session alive so the customer can
-  // return to Live afterwards.
+  //   4. The customer SWITCHED to AI Photo. This used to be deliberately left
+  //      out, so a Photoreal generation could leave the session alive for a
+  //      return to Live. That held while no native view existed. The native
+  //      view is now owned by the Live panel (VtoLiveNativeView) and detaches
+  //      with it, taking the session with it; and a native pause stops the
+  //      producer loop but NOT the camera, so a "kept alive" session behind the
+  //      AI Photo screen would hold the camera invisibly. The Photoreal handoff
+  //      has already captured and sanitized its person frame before the mode
+  //      changes, so nothing it needs is lost.
   //
   // Tearing down rather than pausing, because this is a privacy question and
   // not a battery one. Re-entering Live costs one tap.
   const liveEntered = live.entered;
-  const liveSurfaceWithdrawn = !visible || !liveOffered || liveCrashed;
+  const liveSurfaceWithdrawn = !visible || !liveVisible;
   useEffect(() => {
     if (liveSurfaceWithdrawn && liveEntered) live.exitLive();
   }, [liveSurfaceWithdrawn, liveEntered, live]);

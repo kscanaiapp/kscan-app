@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { ScannerCameraLease } from './components/scan-room/ScannerCameraLease';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -1250,6 +1251,7 @@ export default function App() {
   const renderCameraScreen = () => (
     <View style={styles.cameraScreen}>
       <View style={styles.cameraStage}>
+        <ScannerCameraLease />
         <CameraView
           style={styles.camera}
           ref={cameraRef}

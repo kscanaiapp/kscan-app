@@ -315,26 +315,37 @@ test('the error boundary reads nothing off the caught error', () => {
 
 test('nothing invisible keeps the camera running', () => {
   const sheet = code('components/vto/VirtualTryOnSheet.tsx');
-  // Three ways the Live surface leaves the screen while its runtime is alive.
-  // All three must tear it down; missing any one leaves a camera running
-  // behind something the customer cannot see.
+  // Every way the Live surface leaves the screen while its runtime is alive must
+  // tear it down: minimize, the sheet closing, a withdrawn capability, a crashed
+  // panel, and the customer choosing AI Photo. All four of the last three reduce
+  // to "the Live panel is not what is showing" (liveVisible), because the native
+  // view is owned by that panel and a native pause does not release the camera.
   assert.ok(
-    /const liveSurfaceWithdrawn = !visible \|\| !liveOffered \|\| liveCrashed;/.test(sheet),
-    'minimize, a withdrawn capability, and a crashed panel must all tear down',
+    /const liveSurfaceWithdrawn = !visible \|\| !liveVisible;/.test(sheet),
+    'minimize, a closed sheet, a withdrawn capability, a crashed panel and an AI Photo switch must all tear down',
   );
   assert.ok(
     /if \(liveSurfaceWithdrawn && liveEntered\) live\.exitLive\(\);/.test(sheet),
   );
+  const visibleDef = sheet.match(/const liveVisible = [^;]+;/)[0];
+  for (const part of ['liveOffered', "mode === 'live'", '!liveCrashed']) {
+    assert.ok(visibleDef.includes(part), `liveVisible must still depend on ${part}`);
+  }
 });
 
-test('switching to AI Photo does NOT tear the Live session down', () => {
-  // A Photoreal generation is supposed to leave Live alive so the customer can
-  // return to it, so a plain mode switch must not appear in the teardown
-  // condition -- only surface withdrawal does.
+test('switching to AI Photo DOES end the Live session, because the panel owns the native view', () => {
+  // Amends the earlier rule that a plain mode switch left Live alive for a
+  // Photoreal round trip. That held while no native view was mounted. The view
+  // is now owned by the Live panel and detaches (disposing its native session)
+  // when the panel leaves; a native pause stops the producer loop but not the
+  // camera, so a kept-alive session behind the AI Photo screen would hold the
+  // camera invisibly. The Photoreal person frame is captured and sanitized
+  // before the mode changes, so the handoff does not need the session.
   const sheet = code('components/vto/VirtualTryOnSheet.tsx');
   const condition = sheet.match(/const liveSurfaceWithdrawn = [^;]+;/)[0];
-  assert.ok(!condition.includes('mode'), 'a mode switch is not a withdrawal');
-  assert.ok(!condition.includes('liveVisible'), 'liveVisible is false in AI Photo mode too');
+  assert.ok(condition.includes('liveVisible'), 'liveVisible is false in AI Photo mode, which ends the session');
+  const panel = code('components/vto/VtoLivePanel.tsx');
+  assert.ok(panel.includes('VtoLiveNativeView'), 'the panel is what owns the native view');
 });
 
 test('the capture-preview control has a visible result', () => {
