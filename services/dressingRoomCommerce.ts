@@ -4,6 +4,7 @@
  */
 
 import type { CanonicalPurchaseOption } from '../types/canonicalDressingRoomItem';
+import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 
 const MAX_OPTIONS = 24;
 const MAX_TEXT = 200;
@@ -255,6 +256,9 @@ export function normalizePurchaseOptions(raw: unknown): CanonicalPurchaseOption[
         cleanText(record.external_product_id, 128) ||
         cleanText(record.externalProductId, 128),
     };
+
+    const matchMetadata = normalizeCommerceMatchMetadata(record.matchMetadata, record);
+    if (matchMetadata) option.matchMetadata = matchMetadata;
 
     const key = optionFingerprint(option);
     if (seen.has(key)) continue;

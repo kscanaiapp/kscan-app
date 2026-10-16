@@ -4,6 +4,8 @@
  * Persistence prefers existing snapshot_payload; signed URLs are never identity.
  */
 
+import type { CommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
+
 export const CANONICAL_DRESSING_ROOM_ITEM_SCHEMA_VERSION = 1 as const;
 
 export type CanonicalItemSourceKind =
@@ -24,6 +26,7 @@ export type CanonicalItemSourceKind =
   | 'upload_inspiration';
 
 export type CanonicalPurchaseOption = {
+  matchMetadata?: CommerceMatchMetadata;
   title: string | null;
   retailer: string | null;
   price: string | null;

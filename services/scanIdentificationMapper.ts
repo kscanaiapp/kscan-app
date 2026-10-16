@@ -73,6 +73,7 @@ export type MappedFashionAnalysis = {
    * `metadata`, because `metadata` has already lost them.
    */
   identificationSnapshot?: PersistedIdentificationSnapshotV1 | null;
+  scannerVisualEvidence?: Record<string, unknown>;
   /**
    * Durable fashion-identification-v2 envelope (Phase 2B.2).
    *
@@ -361,6 +362,7 @@ export function mapScanIdentifyToAnalysis(
       // dedupe and ranking. V2 identity never reinterprets a commerce match,
       // and a commerce match never implies an identity.
       purchaseOptions,
+      ...(resp.scannerVisualEvidence ? { scannerVisualEvidence: resp.scannerVisualEvidence } : {}),
       displayResult: resp.displayResult,
     };
     // v127: carry the deferral marker onto the analysis so the scan-result

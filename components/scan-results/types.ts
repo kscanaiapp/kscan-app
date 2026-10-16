@@ -4,8 +4,10 @@ import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import type { OutfitConfirmationCandidate } from '../../services/outfitConfirmation/outfitDetectionBridge';
 import { buildVtoGarmentFromCommerceRecord } from '../../services/vto/vtoCommerceGarment';
 import type { VtoGarmentInput } from '../../types/vto';
+import type { CommerceMatchMetadata } from '../../supabase/functions/scan-identify/matchTier';
 
 export type ProductMatch = {
+  matchMetadata?: CommerceMatchMetadata;
   id: string;
   title: string;
   brand?: string;
@@ -48,6 +50,7 @@ export type WatchCandidate = {
 };
 
 export type PurchaseOption = {
+  matchMetadata?: CommerceMatchMetadata;
   id: string;
   retailer: string;
   title?: string;
@@ -308,10 +311,11 @@ export function mapRawProductToPurchaseOption(
       : 'Retailer';
 
   return {
-    id: String(raw.id ?? `purchase-${index}`),
+    id: String(raw.id ?? raw.productId ?? `purchase-${index}`),
     retailer,
     title: titleOf(raw),
     priceLabel: formatPriceLabel(raw.price, typeof raw.currency === 'string' ? raw.currency : undefined),
+    ...(raw.matchMetadata ? { matchMetadata: raw.matchMetadata as CommerceMatchMetadata } : {}),
     availabilityLabel: availabilityLabel(raw.availability),
     productUrl,
     // DEF-WL-07: derived here, from the SAME canonical record this row is
@@ -373,6 +377,7 @@ export function mapLegacyToV2(
         const product = p as Record<string, unknown>;
         return {
           id: String(product.id ?? `similar-${index}`),
+          ...(product.matchMetadata ? { matchMetadata: product.matchMetadata as CommerceMatchMetadata } : {}),
           title: titleOf(product),
           brand: typeof product.brand === 'string' ? product.brand : undefined,
           retailer: typeof product.retailer === 'string'

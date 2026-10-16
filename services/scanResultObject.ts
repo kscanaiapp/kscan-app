@@ -17,6 +17,7 @@
  * of raw/local image keys is never read. See docs/scan-result-style-memory.md.
  */
 
+import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 import type {
   RankedScanProduct,
   DetailedIdentification,
@@ -456,6 +457,7 @@ function deriveResultType(
   confidence: ScanConfidenceLabel,
   matches: RankedScanProduct[],
 ): ScanResultType {
+  if (matches.some(product => normalizeCommerceMatchMetadata(product.matchMetadata, product)?.tier === 'exact')) return 'exact';
   // This result object carries visual attributes and candidate listings, not a
   // verified product identity and compatible variant. Recognition confidence,
   // brand evidence, a listing URL or an `exact_candidate` score cannot supply
@@ -468,7 +470,7 @@ function deriveResultType(
 
 function buildMatchQualityLabel(resultType: ScanResultType, matchCount: number): string {
   if (matchCount === 0) return 'Style analysis ready';
-  if (resultType === 'exact') return 'Exact match candidate';
+  if (resultType === 'exact') return 'Exact Match';
   if (resultType === 'close') return 'Strong style match';
   if (resultType === 'style') return 'Close style match';
   return 'Style direction found';

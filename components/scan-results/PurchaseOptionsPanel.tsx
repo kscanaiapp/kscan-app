@@ -27,6 +27,7 @@ import { TryItOnEntry } from '../vto/TryItOnEntry';
 // Customer activation: this is the surface the one-time Try It On cue teaches
 // from, so it declares its own modal -- the cue never appears while it is up.
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
+import { commerceMatchLabel, normalizeCommerceMatchMetadata } from '../../supabase/functions/scan-identify/matchTier';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -70,7 +71,7 @@ export function resolvePurchaseOptionsPanelMode(
  */
 export function PurchaseOptionsPanel({
   purchaseOptions,
-  title = 'SIMILAR STYLES',
+  title = 'PRODUCT OPTIONS',
   testID,
   commerceStatus = 'idle',
   onRetry,
@@ -93,6 +94,9 @@ export function PurchaseOptionsPanel({
 
       {mode === 'data' ? (
         <View style={styles.list}>
+          {!purchaseOptions!.some(option => normalizeCommerceMatchMetadata(option.matchMetadata, option)?.tier === 'exact') ? (
+            <Text style={styles.productTitle}>No verified exact matches. Explore alternatives below.</Text>
+          ) : null}
           {purchaseOptions!.map((option, index) => {
             // Validated rather than merely present: an unsafe or malformed URL
             // must not surface an action that cannot lead anywhere.
@@ -111,6 +115,7 @@ export function PurchaseOptionsPanel({
                 ]}
               >
                 <View style={styles.rowLeft}>
+                  <Text style={styles.retailer}>{commerceMatchLabel(option.matchMetadata, option)}</Text>
                   <Text style={styles.retailer}>{option.retailer}</Text>
                   {option.title ? (
                     <Text style={styles.productTitle} numberOfLines={1}>
