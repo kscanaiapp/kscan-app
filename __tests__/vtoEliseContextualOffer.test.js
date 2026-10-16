@@ -1412,7 +1412,7 @@ test('P0-22 / P0-29: a Free customer\'s tap opens the ONE shared K+ gate -- no s
     world.env.kplus = kplus;
     const ui = renderOffer(world, { localBindingId: block.localBindingId });
     await ui.render();
-    assert.equal(ui.text(), 'Would you like to try that on? TRY IT ON', 'a Free customer sees the same offer');
+    assert.equal(ui.text(), 'Would you like to try that on? TRY IT ON · K+', 'a Free customer reads the K+ requirement before tapping');
     assert.equal(world.env.gateSource, 'vto', 'the shared gate, with the bounded vto source');
 
     await ui.press('elise-vto-offer-cta');
@@ -1424,8 +1424,43 @@ test('P0-22 / P0-29: a Free customer\'s tap opens the ONE shared K+ gate -- no s
       { event: 'elise_vto_offer_kplus_gate', origin: 'elise', actor_kplus_state: 'free', entry_point: 'elise' },
     ]);
     assert.equal(world.eventsNamed('elise_vto_offer_launched').length, 0);
-    assert.equal(ui.text(), 'Would you like to try that on? TRY IT ON', 'the action is not lost at the gate');
+    assert.equal(ui.text(), 'Would you like to try that on? TRY IT ON · K+', 'the action is not lost at the gate');
   }
+});
+
+test('K+ pre-tap: a Free customer is told about K+ on the offer BEFORE tapping, in text and for assistive tech; a member is not', async () => {
+  const copy = (await offeredWorld()).world.offer.ELISE_VTO_OFFER_COPY;
+  for (const kplus of ['eligible', 'expired']) {
+    const { world, block } = await offeredWorld();
+    world.env.kplus = kplus;
+    const ui = renderOffer(world, { localBindingId: block.localBindingId });
+    await ui.render();
+    const [cta] = ui.host('elise-vto-offer-cta');
+    assert.match(ui.text(), /K\+/, `${kplus}: the requirement is visible text, not colour alone`);
+    assert.equal(cta.props.accessibilityLabel, copy.unlockAccessibilityLabel);
+    assert.equal(cta.props.accessibilityHint, copy.unlockAccessibilityHint);
+    assert.match(cta.props.accessibilityLabel, /K\+/);
+    assert.equal(world.env.calls.openUpgrade, 0, 'reading is not asking: nothing opened');
+    assert.equal(ui.ofType('VirtualTryOnSheet').length, 0);
+  }
+  const { world, block } = await offeredWorld();
+  world.env.kplus = 'active';
+  const ui = renderOffer(world, { localBindingId: block.localBindingId });
+  await ui.render();
+  const [memberCta] = ui.host('elise-vto-offer-cta');
+  assert.doesNotMatch(ui.text(), /K\+/, 'a member is not shown a membership requirement');
+  assert.equal(memberCta.props.accessibilityLabel, copy.ctaAccessibilityLabel);
+  assert.equal(memberCta.props.accessibilityHint, copy.ctaAccessibilityHint);
+});
+
+test('K+ pre-tap copy is the product control\'s own words, pinned equal so Elise cannot drift from it', async () => {
+  const copy = (await offeredWorld()).world.offer.ELISE_VTO_OFFER_COPY;
+  const discovery = read('services/vto/vtoDiscovery.ts');
+  assert.equal(discovery.match(/productUnlockLabel:\s*'([^']+)'/)[1], copy.unlockCta);
+  const entry = read('components/vto/TryItOnEntry.tsx');
+  assert.ok(entry.includes(`accessibilityLabel="${copy.unlockAccessibilityLabel}"`));
+  assert.ok(entry.includes(`accessibilityHint="${copy.unlockAccessibilityHint}"`));
+  assert.doesNotMatch(Object.values(copy).join(' '), /\$|free trial|per month|discount|unlimited/i, 'no price or promotion');
 });
 
 test('P0-23: an unknown or unreadable K+ answer invents no access and opens nothing', async () => {
