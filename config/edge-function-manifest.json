@@ -1751,7 +1751,7 @@
         "bundleFileCount": 18,
         "treeFileCount": 26,
         "bundleHash": "08e0840b7cae244fa47423894f08010b1b45299ecb37d042792d631777f521f9",
-        "treeHash": "dd0d24f73a8159ce194812dd4549b71c61dea98d27523394b8942cc6b41bd12e",
+        "treeHash": "d8c53885eae6e068ce2f3c175fce48c9d67419f25aa664838ff7ed036c005114",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1775,7 +1775,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "74866c500353f7c2112253af22348d162a4b910263646c15e8007a834d733a7e",
+            "sha256": "d165e37fba89518d28519bc1d7de8e57505d28402acf8c1827a56b95e47e1244",
             "bundle": false
           },
           {
@@ -1830,7 +1830,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.test.ts",
-            "sha256": "af7dca31aa7c3bdffed2d7957083aec8b79a26cafdeb2a7f0ff630823a303b24",
+            "sha256": "827184d98e1c847f8bc129a07a5a6ff8ec6277de063f1c68d8522eeb8e603f08",
             "bundle": false
           },
           {
@@ -1850,7 +1850,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoPaidBoundary.test.ts",
-            "sha256": "d88db0e2f1c5a5df94b8127d41e03853e246a3cdd89ea06c77241fa754f739b6",
+            "sha256": "ebe4dab638197e8643edc27fb5372045a8cc5b40eb568ced5b92f757791fbac2",
             "bundle": false
           },
           {
