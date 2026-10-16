@@ -331,7 +331,7 @@ function mapSubmitFailure(
   }
   if (httpStatus >= 500) {
     return {
-      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
+      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}_acceptance_unknown`, billable: true,
     };
   }
   const message =
