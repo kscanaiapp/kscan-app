@@ -14,6 +14,8 @@ import {
   type StylistSpeechConfiguration,
 } from '../../constants/stylistIdentity';
 import type { AvatarMouthState } from '../../services/avatarSpeechMotion';
+import type { AvatarMouthTransition } from '../../services/avatars/engine/contract';
+import type { AvatarMouthState as EngineMouthState } from '../../services/avatars/engine/types';
 import { StylistAvatar } from './StylistAvatar';
 
 export type AnimatedStylistAvatarState = 'idle' | 'thinking' | 'speaking' | 'static';
@@ -36,6 +38,7 @@ export interface AnimatedStylistAvatarProps {
   size?: number;
   state?: AnimatedStylistAvatarState;
   mouthState?: AvatarMouthState;
+  mouthTransition?: AvatarMouthTransition | null;
   motion?: AnimatedStylistAvatarMotion;
   reducedMotion?: boolean;
   accessibilityLabel?: string;
@@ -78,11 +81,11 @@ function useLoopAnimation(
 
 function resolveMouthStateSource(
   sources: NonNullable<StylistSpeechConfiguration['mouthStateSources']>,
-  target: AvatarMouthState,
+  target: EngineMouthState,
 ): number | null {
   if (target === 'closed') return sources.closed ?? null;
   if (target === 'halfOpen') return sources.halfOpen ?? sources.closed ?? null;
-  if (target === 'open') return sources.open ?? sources.halfOpen ?? sources.closed ?? null;
+  if (target === 'open' || target === 'wide') return sources.open ?? sources.halfOpen ?? sources.closed ?? null;
   if (target === 'round') {
     return sources.round ?? sources.open ?? sources.halfOpen ?? sources.closed ?? null;
   }
@@ -99,10 +102,12 @@ function MouthStateLayer({
   source,
   size,
   mouthRegion,
+  opacity = 1,
 }: {
   source: number;
   size: number;
   mouthRegion: { x: number; y: number; width: number; height: number };
+  opacity?: number;
 }) {
   const left = mouthRegion.x * size;
   const top = mouthRegion.y * size;
@@ -114,13 +119,14 @@ function MouthStateLayer({
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ position: 'absolute', left, top, width, height, overflow: 'hidden' }}
+      style={{ position: 'absolute', left, top, width, height, overflow: 'hidden', opacity }}
     >
       <Image
         source={source}
         style={{ position: 'absolute', width: size, height: size, left: -left, top: -top }}
         resizeMode="cover"
         resizeMethod="resize"
+        fadeDuration={0}
       />
     </View>
   );
@@ -131,6 +137,7 @@ export function AnimatedStylistAvatar({
   size = DEFAULT_SIZE,
   state = 'idle',
   mouthState = 'closed',
+  mouthTransition = null,
   motion,
   reducedMotion = false,
   accessibilityLabel,
@@ -171,6 +178,17 @@ export function AnimatedStylistAvatar({
     mouthCapable && effectiveState === 'speaking'
       ? resolveMouthStateSource(speechConfig!.mouthStateSources!, mouthState)
       : null;
+  const candidateBlend = mouthSource != null && mouthTransition &&
+    Number.isFinite(mouthTransition.progress) && mouthTransition.progress >= 0 && mouthTransition.progress < 1
+    ? mouthTransition : null;
+  const proposedFrom = candidateBlend
+    ? resolveMouthStateSource(speechConfig!.mouthStateSources!, candidateBlend.from) : null;
+  const proposedTo = candidateBlend
+    ? resolveMouthStateSource(speechConfig!.mouthStateSources!, candidateBlend.to) : null;
+  const blend = candidateBlend && proposedFrom != null && proposedTo === mouthSource
+    ? candidateBlend : null;
+  const fromSource = blend ? proposedFrom : mouthSource;
+  const toSource = blend ? proposedTo : null;
 
   // Engine idle presence. Static numbers rather than an Animated.Value, so the
   // natively driven ambient loop above is never mixed with a JS-driven node in
@@ -202,9 +220,19 @@ export function AnimatedStylistAvatar({
         />
         {mouthSource != null ? (
           <MouthStateLayer
-            source={mouthSource}
+            source={fromSource!}
             size={size}
             mouthRegion={speechConfig!.mouthRegion!}
+          />
+        ) : null}
+        {mouthSource != null && blend && toSource !== fromSource ? (
+          <MouthStateLayer
+            source={toSource!}
+            size={size}
+            mouthRegion={speechConfig!.mouthRegion!}
+            // Keep the old opaque crop underneath: fading both layers would
+            // leak the neutral base through the middle of a transition.
+            opacity={blend.progress}
           />
         ) : null}
         {isThinking ? <View style={[styles.thinkingRing, { borderRadius: size / 2 }]} /> : null}

@@ -77,6 +77,7 @@ export class AvatarRuntime {
   private readonly cursor = new TimelineCursor();
 
   private previousMouth: AvatarMouthState = 'closed';
+  private transitionFromMouth: AvatarMouthState = 'closed';
   /** Playback position at which the current mouth state was entered. */
   private mouthChangedAtPlaybackSeconds: number | null = null;
   /** Host wall-clock at which the current mouth state was entered, for the transition curve. */
@@ -284,7 +285,9 @@ export class AvatarRuntime {
 
     mouthState = this.applyAttack(mouthState, playbackSeconds, speaking);
     this.recordFirstMouth(mouthState, playbackSeconds, generationAccepted);
-    const mouthTransition = this.deriveTransition(mouthState, hostNowMs, snapshot.motionEnabled);
+    const mouthTransition = this.deriveTransition(
+      mouthState, hostNowMs, snapshot.motionEnabled && speaking && generationAccepted,
+    );
 
     // KNOWN DEFERRED ENGINE ISSUE — see `blinkDuringSpeech` in config.ts.
     const blinkEnabled =
@@ -439,19 +442,34 @@ export class AvatarRuntime {
   ): AvatarMouthTransition | null {
     if (!motionEnabled || this.config.transitionMs <= 0) {
       this.markMouth(target, hostNowMs);
+      this.transitionFromMouth = target;
       return null;
     }
     if (target !== this.previousMouth) {
       const from = this.previousMouth;
+      const elapsed = this.mouthChangedAtHostMs === null
+        ? this.config.transitionMs : Math.max(0, hostNowMs - this.mouthChangedAtHostMs);
+      // On a quick two-state reversal, the current blend is already partway
+      // toward the new target. Reverse that same curve without an opacity jump.
+      const reversing = target === this.transitionFromMouth && elapsed < this.config.transitionMs;
+      const raw = Math.min(1, elapsed / this.config.transitionMs);
+      const priorProgress = raw < 0.5 ? 4 * raw ** 3 : 1 - (-2 * raw + 2) ** 3 / 2;
+      const progress = reversing ? 1 - priorProgress : 0;
       this.markMouth(target, hostNowMs);
-      return { from, to: target, progress: 0, durationMs: this.config.transitionMs };
+      this.transitionFromMouth = from;
+      if (reversing) {
+        const inverse = progress < 0.5
+          ? Math.cbrt(progress / 4) : 1 - Math.cbrt((1 - progress) / 4);
+        this.mouthChangedAtHostMs = hostNowMs - inverse * this.config.transitionMs;
+      }
+      return { from, to: target, progress, durationMs: this.config.transitionMs };
     }
     if (this.mouthChangedAtHostMs === null) return null;
     const elapsed = Math.max(0, hostNowMs - this.mouthChangedAtHostMs);
     const raw = Math.min(1, elapsed / this.config.transitionMs);
     if (raw >= 1) return null;
     const progress = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
-    return { from: target, to: target, progress, durationMs: this.config.transitionMs };
+    return { from: this.transitionFromMouth, to: target, progress, durationMs: this.config.transitionMs };
   }
 
   private markMouth(target: AvatarMouthState, hostNowMs: number): void {
@@ -463,6 +481,7 @@ export class AvatarRuntime {
   private resetSpeechCursor(): void {
     this.cursor.reset();
     this.previousMouth = 'closed';
+    this.transitionFromMouth = 'closed';
     this.mouthChangedAtPlaybackSeconds = null;
     this.mouthChangedAtHostMs = null;
     this.heldPlaybackSeconds = 0;
@@ -483,6 +502,8 @@ export class AvatarRuntime {
     // legitimate frame starts from closed instead of transitioning out of
     // whatever shape was on screen when the interruption happened.
     this.previousMouth = 'closed';
+    this.transitionFromMouth = 'closed';
+    this.mouthChangedAtHostMs = null;
     this.mouthChangedAtPlaybackSeconds = null;
     const composite = neutralComposite();
     return {

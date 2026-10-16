@@ -1,14 +1,14 @@
 import type { AvatarEngineConfig } from './types';
 
 /**
- * Defaults are inherited from the V9 candidate so shadow-mode comparisons
- * measure the integration, not a simultaneous retune. The one deliberate
- * change is that anti-pop attack is now expressed in PLAYBACK milliseconds
- * (`speechAttackPlaybackMs`) rather than wall-clock milliseconds.
+ * Defaults retain V9 candidate behavior except playback-clock attack and a
+ * 160ms mouth transition. The existing 80ms playback callbacks expose an
+ * intermediate blend without another animation clock.
  */
 export const DEFAULT_AVATAR_ENGINE_CONFIG: Readonly<AvatarEngineConfig> = Object.freeze({
   speechAttackPlaybackMs: 50,
-  transitionMs: 90,
+  // Two 80ms playback callbacks expose an actual midpoint without a new clock.
+  transitionMs: 160,
   pauseThresholdMs: 160,
   microGapMergeMs: 24,
   noiseIntervalMs: 28,

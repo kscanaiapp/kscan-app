@@ -54,7 +54,7 @@ test('unfocused/background Home or Chat host cannot touch the singleton engine/e
     const h = hostVisual(props);
     assert.equal(h.frames, 0);
     assert.equal(h.epochs, 0);
-    assert.deepEqual(h.result.visual, { mouthState: 'closed', motion: { headRotateDeg: 0, breathingScale: 1 } });
+    assert.deepEqual(h.result.visual, { mouthState: 'closed', mouthTransition: null, motion: { headRotateDeg: 0, breathingScale: 1 } });
     assert.equal(h.result.isSpeaking, false);
   }
 });

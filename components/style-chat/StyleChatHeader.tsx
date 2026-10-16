@@ -86,6 +86,7 @@ export function StyleChatHeader({
             size={67}
             state={avatarState}
             mouthState={visual.mouthState}
+            mouthTransition={visual.mouthTransition}
             motion={visual.motion}
             reducedMotion={reducedMotion}
             accessibilityLabel={`${displayName} avatar`}

@@ -89,6 +89,7 @@ export function HomeStylistCard({
               size={compact ? 75 : 90}
               state={isSpeaking ? 'speaking' : 'idle'}
               mouthState={visual.mouthState}
+              mouthTransition={visual.mouthTransition}
               motion={visual.motion}
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}

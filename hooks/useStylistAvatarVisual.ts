@@ -53,7 +53,8 @@ export function useStylistAvatarVisual({ actorId, sessionId, messageId, avatarId
   const visual = useMemo(() => {
     // A hidden stacked route must not reset the process engine or motion epoch.
     if (!focused || !foreground) return {
-      mouthState: 'closed' as const, motion: { headRotateDeg: 0, breathingScale: 1 },
+      mouthState: 'closed' as const, mouthTransition: null,
+      motion: { headRotateDeg: 0, breathingScale: 1 },
     };
     const result = getAvatarEngineAdapter().computeFrame({
       avatarId: visualAvatarId,
@@ -72,6 +73,7 @@ export function useStylistAvatarVisual({ actorId, sessionId, messageId, avatarId
     });
     return {
       mouthState: result.mouthState,
+      mouthTransition: result.applied && isSpeaking ? result.frame.mouthTransition : null,
       motion: {
         headRotateDeg: result.frame.headMotion.rotateDeg,
         breathingScale: result.frame.breathing.scale,
@@ -87,6 +89,7 @@ export function useStylistAvatarVisual({ actorId, sessionId, messageId, avatarId
     actorId,
     sessionId,
     isThinking,
+    isSpeaking,
     // The ticker's only job: make this memo recompute so `Date.now()` above
     // moves while idle. The value itself is never read.
     idleTick,
