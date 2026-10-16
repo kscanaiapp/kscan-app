@@ -118,10 +118,24 @@ export function useVtoLaunchHost({
     if (sheetVisible && session.status === 'success') markVtoCompleted();
   }, [session.status, sheetVisible]);
 
-  // While this entry's own sheet is up, no first-use cue appears anywhere.
-  useVtoAwarenessBlocker(sheetVisible && !minimized);
+  // Suppress the prior actor's garment during render, not after paint.
+  // The effect above clears the stored local state; this immediate visibility
+  // boundary prevents even a transient previous-account sheet or pill frame.
+  const visibleForActor = sheetVisible && boundaryEpoch === openedEpoch.current;
 
-  return { sheetVisible, minimized, session, open, close, minimize, restore, watchFromTryOn };
+  // While this entry's own sheet is up, no first-use cue appears anywhere.
+  useVtoAwarenessBlocker(visibleForActor && !minimized);
+
+  return {
+    sheetVisible: visibleForActor,
+    minimized: visibleForActor && minimized,
+    session,
+    open,
+    close,
+    minimize,
+    restore,
+    watchFromTryOn,
+  };
 }
 
 /**
