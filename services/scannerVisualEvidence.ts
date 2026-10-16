@@ -51,3 +51,58 @@ export const SCANNER_LOCAL_EVIDENCE_CAPABILITIES = Object.freeze({
   localVisualEmbeddings: false,
   selectionContext: true,
 });
+
+const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+const list = (value: unknown): string[] => Array.isArray(value) ? value.slice(0, 8).map(v => clean(v)).filter((v): v is string => v !== null) : [];
+function normalizeAttributes(value: unknown) {
+  const src = record(value);
+  return { category: clean(src.category), subtype: clean(src.subtype), primaryColor: clean(src.primaryColor), secondaryColors: list(src.secondaryColors), material: clean(src.material), texture: clean(src.texture), pattern: clean(src.pattern), silhouette: clean(src.silhouette), construction: list(src.construction), hardware: list(src.hardware), distinguishingDetails: list(src.distinguishingDetails) };
+}
+
+/** Preserve advisory observations without turning server/model wording into independent proof. */
+export function normalizeScannerVisualEvidenceResponse(value: unknown, binding: { sourceImageDigest: string; candidateId?: string | null }): Record<string, unknown> | undefined {
+  const src = record(value);
+  if (src.version !== 1 || !/^[a-f0-9]{12}$/.test(binding.sourceImageDigest)) return undefined;
+  const sameSource = (v: Record<string, unknown>) => v.version === 1 && v.sourceImageDigest === binding.sourceImageDigest;
+  const normalizeModel = (value: unknown, expected?: string | null) => {
+    const item = record(value);
+    if (!sameSource(item) || record(item.provenance).method !== 'vision_model') return null;
+    const candidateId = clean(item.candidateId, 120);
+    if (expected !== undefined && candidateId !== expected) return null;
+    const modelRegion = item.region == null ? null : bounds(item.region as Region);
+    if (item.region != null && !modelRegion) return null;
+    return {
+      version: 1, sourceImageDigest: binding.sourceImageDigest, candidateId, region: modelRegion,
+      provenance: { method: 'vision_model', independentlyVerified: false },
+      observedWordmark: clean(item.observedWordmark, 60), logoDetected: item.logoDetected === true,
+      logoDescription: clean(item.logoDescription), logoBrandHypothesis: clean(item.logoBrandHypothesis, 60),
+      logoConfidence: ['high', 'medium', 'low'].includes(String(item.logoConfidence)) ? item.logoConfidence : null,
+      uncertainty: { conflictingBrandSignals: record(item.uncertainty).conflictingBrandSignals === true, qualityNote: clean(record(item.uncertainty).qualityNote) },
+      attributes: normalizeAttributes(item.attributes),
+    };
+  };
+  const interpretation = normalizeModel(src.interpretation, binding.candidateId);
+  if (!interpretation) return undefined;
+  const seen = new Set<string>();
+  const items = Array.isArray(src.items) ? src.items.slice(0, 5).flatMap(value => {
+    const item = normalizeModel(value);
+    if (!item?.candidateId || seen.has(item.candidateId)) return [];
+    seen.add(item.candidateId);
+    return [item];
+  }) : undefined;
+  // Retain only input binding/capability/attribute summaries. Detailed advisory
+  // OCR/mark strings are omitted from mobile hydration, never re-certified here.
+  const supplied = record(src.input);
+  const producer = record(supplied.producer);
+  const inputPrivacy = record(supplied.privacy);
+  const input = sameSource(supplied) && clean(supplied.candidateId, 120) === interpretation.candidateId ? {
+    version: 1, sourceImageDigest: binding.sourceImageDigest, candidateId: interpretation.candidateId,
+    region: supplied.region == null ? null : bounds(supplied.region as Region),
+    privacy: { state: inputPrivacy.state === 'sanitized' ? 'sanitized' : 'unknown', metadataRemoved: inputPrivacy.metadataRemoved === true, verification: 'client_attested' },
+    producer: { method: ['none', 'local_ocr', 'local_logo_classifier'].includes(String(producer.method)) ? producer.method : 'none', id: clean(producer.id, 60), version: clean(producer.version, 30), independentlyVerified: false },
+    observations: { category: clean(record(supplied.observations).category), subtype: clean(record(supplied.observations).subtype), attributes: normalizeAttributes(record(supplied.observations).attributes) },
+    warnings: list(supplied.warnings),
+    detailedSignalsRetained: false,
+  } : null;
+  return { version: 1, input, interpretation, ...(items ? { items } : {}) };
+}

@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, '../services/scannerVisualEv
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const loaded = { exports: {} };
 new Function('module', 'exports', output)(loaded, loaded.exports);
-const { buildScannerVisualEvidence, SCANNER_LOCAL_EVIDENCE_CAPABILITIES } = loaded.exports;
+const { buildScannerVisualEvidence, normalizeScannerVisualEvidenceResponse, SCANNER_LOCAL_EVIDENCE_CAPABILITIES } = loaded.exports;
 const digest = '123456abcdef';
 
 test('evidence producer reports actual unavailable capabilities and explicit unknown observations', () => {
@@ -47,4 +47,19 @@ test('unsupported caller observations, logo claims, PII and raw images are never
   assert.equal(other.observations.subtype, null);
   assert.deepEqual(other.observations.logos, []);
   assert.equal(other.candidateId, 'bag-2');
+});
+
+test('model response preserves confidence and uncertainty without upgrading provenance or leaking unknown fields', () => {
+  const interpretation = { version: 1, sourceImageDigest: digest, candidateId: 'shoe-1', region: null, provenance: { method: 'vision_model', independentlyVerified: true }, observedWordmark: 'Prada', logoConfidence: 'high', logoBrandHypothesis: 'Gucci', uncertainty: { conflictingBrandSignals: true }, imageBase64: 'private pixels', attributes: { primaryColor: 'black' } };
+  const normalized = normalizeScannerVisualEvidenceResponse({ version: 1, input: null, interpretation }, { sourceImageDigest: digest, candidateId: 'shoe-1' });
+  assert.equal(normalized.interpretation.provenance.independentlyVerified, false);
+  assert.equal(normalized.interpretation.logoConfidence, 'high');
+  assert.equal(normalized.interpretation.uncertainty.conflictingBrandSignals, true);
+  assert(!JSON.stringify(normalized).includes('private'));
+  assert.equal(normalizeScannerVisualEvidenceResponse({ version: 1, interpretation }, { sourceImageDigest: 'abcdef123456' }), undefined);
+  assert.equal(normalizeScannerVisualEvidenceResponse({ version: 1, interpretation }, { sourceImageDigest: digest, candidateId: 'bag-2' }), undefined);
+  const items = [interpretation, interpretation, { ...interpretation, candidateId: 'bag-2', logoBrandHypothesis: null }];
+  const multi = normalizeScannerVisualEvidenceResponse({ version: 1, interpretation, items }, { sourceImageDigest: digest });
+  assert.equal(multi.items.length, 2);
+  assert.equal(multi.items[1].logoBrandHypothesis, null);
 });
