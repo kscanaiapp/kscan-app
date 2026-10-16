@@ -55,6 +55,7 @@ function loadEdgeModule(relativePath, cache = new Map()) {
     require: (id) => {
       if (id.startsWith('node:')) return require(id);
       if (id.startsWith('./')) return loadEdgeModule(id.slice(2), cache);
+      if (id === '../_shared/net/publicHost.ts') return require('./helpers/commerceMatchContract').loadPortable('supabase/functions/_shared/net/publicHost.ts');
       throw new Error(`Unexpected require: ${id}`);
     },
   };

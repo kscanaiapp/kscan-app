@@ -63,6 +63,9 @@ function loadUseKScanWithMocks({
     throw new Error('analyzeImage should not be called');
   },
   compressForUpload = async () => 'data:image/jpeg;base64,test-payload',
+  // Default models PASSTHROUGH preparation: nothing was screened, so nothing may be attested.
+  preparationProof = { processingCompleted: false, outputVerified: false, metadataStripped: false,
+    faceDetectionPerformed: false, plateDetectionPerformed: false },
   imagePickerResult = { canceled: false, assets: [{ uri: 'file://gallery.jpg' }] },
   launchImageLibraryAsync,
   attemptTimeoutMs = 50,
@@ -242,6 +245,12 @@ function loadUseKScanWithMocks({
     }),
     mapScanIdentifyToAnalysis: (response) => response,
     compressForUpload,
+    // The Scanner prepares through the local privacy pipeline now; this harness keeps
+    // its compress-then-identity behaviour and supplies the proof the request carries.
+    prepareScannerImageForDispatch: async (uri) => ({
+      imageBase64: await compressForUpload(uri),
+      proof: preparationProof,
+    }),
     sanitizeImageBeforeUpload: async (image) => image,
     getPrivacySanitizerStatus: () => ({
       mode: 'test',
@@ -992,4 +1001,21 @@ test('no stale result overwrites a newer state', async () => {
   await hook2.runAnalysis();
   assert.equal(hook2.status, 'result');
   assert.equal(hook2.analysis?.attributes?.category, 'Fresh');
+});
+
+test('a completed local privacy proof IS attested on the call it prepared', async () => {
+  let sentOptions = null;
+  const proof = { processingCompleted: true, outputVerified: true, metadataStripped: true,
+    faceDetectionPerformed: true, plateDetectionPerformed: true };
+  const hook = loadUseKScanWithMocks({
+    scanIdentifyBackendEnabled: true,
+    preparationProof: proof,
+    identifyScanImage: async (_image, options) => {
+      sentOptions = options;
+      return { type: 'fashion', recommendedProducts: [], metadata: { category: 'Outfit' }, products: [] };
+    },
+  });
+  await hook.runAnalysis();
+  assert.ok(sentOptions, 'the identification call was made');
+  assert.equal(sentOptions.localPrivacyFiltered, true, 'a verified local pipeline result is what justifies the attestation');
 });
