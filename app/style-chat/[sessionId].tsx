@@ -649,7 +649,20 @@ export default function StyleChatSessionScreen() {
         renderItem={renderMessage}
         ListEmptyComponent={ListEmpty}
         ListHeaderComponent={ContextPreviewHeader}
-        ListFooterComponent={ThinkingIndicator}
+        // Full disclosure belongs to scroll content: with IME + large text its
+        // height must not displace the fixed composer below the viewport.
+        ListFooterComponent={
+          <>
+            {ThinkingIndicator}
+            {weather.enabled && weather.promptVisible ? (
+              <StyleChatWeatherPrompt
+                onUseWeather={() => { void weather.acceptWeather(); }}
+                onNotNow={() => { void weather.dismissPrompt(); }}
+                requesting={weather.requesting}
+              />
+            ) : null}
+          </>
+        }
         style={[styles.messageList, isLandscape ? styles.messageListLandscape : null]}
         contentContainerStyle={[
           messages.length === 0 ? styles.listContentEmpty : styles.listContent,
@@ -665,14 +678,8 @@ export default function StyleChatSessionScreen() {
           }
         }}
       />
-      {weather.enabled ? (
-        weather.promptVisible ? (
-          <StyleChatWeatherPrompt
-            onUseWeather={() => { void weather.acceptWeather(); }}
-            onNotNow={() => { void weather.dismissPrompt(); }}
-            requesting={weather.requesting}
-          />
-        ) : weather.chipState === 'active' ? (
+      {weather.enabled && !weather.promptVisible ? (
+        weather.chipState === 'active' ? (
           <StyleChatWeatherChip label={WEATHER_COPY.active} />
         ) : weather.chipState === 'denied' ? (
           <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
