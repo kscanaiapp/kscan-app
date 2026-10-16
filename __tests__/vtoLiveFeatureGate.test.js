@@ -87,7 +87,7 @@ test('flag: Live is a DIFFERENT switch from the generative VTO surface', () => {
 });
 
 test('flag: native Live is configured only in the approved Build 35 profiles; harness stays absent', () => {
-  const approved = new Set(['production', 'staging']);
+  const approved = new Set(['production', 'staging', 'build35-release']);
   const effective = new Set(['production', 'build35-release', 'build35-testing', 'production-certification', 'staging', 'staging-certification']);
   const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
   for (const [name, profile] of Object.entries(easProfiles)) {

@@ -65,6 +65,11 @@ public enum LiveVtoRasterRenderer {
     // the alpha mask's own coverage (already baked into `image` by
     // `combineTextureAndAlpha`, so this draw call alone carries both the
     // garment silhouette and its texture).
+    // Mesh and UVs use top-left coordinates. CGImage drawing uses bottom-left
+    // source coordinates, so flip the image inside texture space exactly once.
+    // Never flip the destination mesh or compensate for camera mirroring here.
+    context.translateBy(x: 0, y: CGFloat(image.height))
+    context.scaleBy(x: 1, y: -1)
     context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
     context.restoreGState()
   }

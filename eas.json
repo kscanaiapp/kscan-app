@@ -304,7 +304,8 @@
         "EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1": "true",
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
         "EXPO_PUBLIC_ELISE_V10": "true",
-        "KSCAN_VOICE_NATIVE_CAPABILITY": "true"
+        "KSCAN_VOICE_NATIVE_CAPABILITY": "true",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "build35-testing": {

@@ -20,6 +20,7 @@ final class LiveVtoRasterIntegrationTests: XCTestCase {
     let expected = try makeContext()
     expected.draw(image, in: CGRect(x: 0, y: 0, width: 40, height: 60))
     let actual = try makeContext()
+    actual.translateBy(x: 0, y: 60); actual.scaleBy(x: 1, y: -1) // UIKit top-left CTM
     LiveVtoRasterRenderer.drawMesh(actual, image: image, meshCellsWide: 1, meshCellsHigh: 1,
       verts: [0, 0, 40, 0, 0, 60, 40, 60], textureWidth: 40, textureHeight: 60)
     let wanted = try XCTUnwrap(expected.data).assumingMemoryBound(to: UInt8.self)
@@ -56,6 +57,7 @@ final class LiveVtoRasterIntegrationTests: XCTestCase {
       let context = try XCTUnwrap(CGContext(data: nil, width: 720, height: 960, bitsPerComponent: 8, bytesPerRow: 720 * 4,
         space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
       let empty = Data(bytes: try XCTUnwrap(context.data), count: 720 * 960 * 4)
+      context.translateBy(x: 0, y: 960); context.scaleBy(x: 1, y: -1) // same CTM as UIView/capture
       LiveVtoRasterRenderer.drawMesh(context, image: texture, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight,
         verts: vertices, textureWidth: w, textureHeight: h)
       let pixels = Data(bytes: try XCTUnwrap(context.data), count: 720 * 960 * 4)

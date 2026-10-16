@@ -318,3 +318,27 @@ class PerceptionSessionTest {
     assertEquals(ReplayState.DISPOSED, session.currentState())
   }
 }
+
+/** Controlled provider sequence through the production perception/geometry slots. */
+class LiveVtoTrackingRecoveryTest {
+  @Test fun lostPoseClearsTheOldGarmentAndARecoveredPoseCanRenderAgain() {
+    var present = true
+    var lossSignals = 0
+    val provider = FakePerceptionProvider({ if (present) neutralRawFrame() else null })
+    val session = LiveVtoPerceptionSession(provider, 720f, 960f, onPoseUnavailable = { lossSignals++ })
+    val (manifest, dims) = GoldenBodyFrames.fixture("ascolour-5001-black-v1")
+    assertTrue(session.load(manifest, dims.first, dims.second))
+    assertTrue(session.start())
+    for (visible in listOf(true, false, true)) {
+      present = visible
+      assertTrue(session.submitFrame(FakeInputFrame()))
+      assertTrue(session.runOneInferenceStep())
+      assertEquals(visible, session.geometrySlot.peek()?.meshVertices != null)
+    }
+    assertEquals(1, lossSignals)
+    assertTrue(session.stop())
+    assertNull(session.geometrySlot.peek())
+    assertTrue(session.dispose())
+    assertTrue(provider.disposed)
+  }
+}
