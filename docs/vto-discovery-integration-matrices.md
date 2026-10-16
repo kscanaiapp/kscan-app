@@ -53,7 +53,7 @@ becomes a different garment when VTO opens.
 | N-12 | Operator OFF or remote unavailable leaves no actionable control | all | EXISTS (J9, P0-21) |
 | N-13 | `entry_point` is bounded, derived only from known labels, adds no media or identifiers | all | NEW (`vtoEntryPointTaxonomy`) |
 | N-14 | Dressing Room resume of a deleted or foreign look | dressing_room | N/A (resume not built) |
-| N-15 | Studio never opens a generation request without a garment | home_studio | N/A (Studio not built) |
+| N-15 | Studio never opens a generation request without a garment | home_studio | NEW (`vtoTryOnStudio`: no Studio file imports the request store, client, sheet, launcher, camera, picker, storage or network; every action only navigates) |
 
 ## 3. Try-On Studio state matrix
 
@@ -69,11 +69,13 @@ navigates to a place where a real garment is chosen.
 | S2 | K+ or availability still resolving | Neutral placeholder | none | A K+ marker (resolving is not Free) |
 | S3 | Free, Photo available | AI Photo explainer, K+ marker before any tap | Scan a garment, Closet, Ask Elise (ordinary navigation) | A new paywall, free allowance or price |
 | S4 | Active or complimentary, no saved looks | AI Photo explainer | Scan, choose from Closet, Ask Elise | Live unless the capability router allows it |
-| S5 | Active, has saved looks | Small Recent Looks from the existing authorized saved-look store, plus actions | Open look, scan, Closet, Elise | Transient images, fabricated entries, unrelated Dressing Room records, a second image store |
-| S6 | A minimized, resumable session exists | Resume row | Resume (existing pill/restore) | Resuming another account's session |
+| S5 | Active, has saved looks | NOT BUILT (owner decision needed). A saved try-on is stored as an ordinary Dressing Room `inspiration_item`; the `vto_try_on` variant only changes modal copy and nothing VTO-specific persists, so Recent Looks could only show unrelated Dressing Room records or need a second store. Returning members get a Dressing Rooms navigation action instead | Dressing Rooms, scan, Closet, Elise | Transient images, fabricated entries, unrelated Dressing Room records, a second image store |
+| S6 | A minimized, resumable session exists | NOT BUILT. A minimized try-on belongs to the entry that launched it (`VtoLaunchHost` state is per entry by design), so the Studio cannot restore another screen's sheet; a Resume button would do nothing | n/a | A control that does nothing |
 | S7 | Live capability router says supported | Live and AI Photo difference, both selectable at launch | as above | Live "coming soon" shown as ready |
 | S8 | Live unsupported or native module absent | AI Photo only; no Live line | as above | A simulated or harness Live |
 | S9 | Account switch | State recomputed for the new actor; nothing carried over | n/a | Prior account's looks or session |
-| S10 | Closet has no eligible item | "Choose from Closet" omitted or explained | Scan, Elise | A dead end |
+| S10 | Closet has no eligible item | BUILT AS: the Closet action always navigates to the Closet, where eligible items carry their own Try It On; the Studio does not read the Closet | Scan, Closet, Elise | A fake affordance |
 
 Copy rule: nothing claims fit, size or quality accuracy.
+
+Built in the Studio PR: S0-S4, S7-S9 (`vtoTryOnStudio.test.js` covers every row, plus a 4,608-input invariant grid). S5, S6 and S10 differ from the plan above for the reasons shown in their rows.
