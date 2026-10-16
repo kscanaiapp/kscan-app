@@ -4,7 +4,7 @@
 state and CI result below against GitHub before acting. Nothing here is a
 standing fact; it is what was proven at the time stamped below.
 
-Last updated: 2026-10-16 (session 1, checkpoint 4).
+Last updated: 2026-10-16 (session 1, checkpoint 5).
 
 ## Standing restrictions (unchanged)
 
@@ -18,7 +18,7 @@ it; the owner decides.
 
 | Line | Branch | SHA |
 |---|---|---|
-| Mobile | `integration/build35-v1-convergence` | `1d2ec4a7d675a1646f931c7956d4c771a755855e` |
+| Mobile | `integration/build35-v1-convergence` | `bf5214b57d7c7ef465de93c12b7491d56dc3987a` (functional source unchanged since `1d2ec4a7`; later commits are docs only) |
 | Backend | `rebuild/backend-authority-v2` | `c74c99c1ee74d71486347e27a744ad0dd22c8e1a` |
 
 ## Exact-source verification of the mobile tip `1d2ec4a7`
@@ -73,7 +73,8 @@ matters.
 
 | Item | State |
 |---|---|
-| #613 `docs/overnight-campaign-state` | This document; docs only. |
+| #619 `fix/vto-sheet-closes-on-actor-boundary` | N-09 follow-up to #611: an open try-on sheet (or its pill) now closes when the actor changes, instead of lingering with the previous actor's garment. Shared launcher contract: **implemented and tested, NOT merged by the agent; owner decides.** Head `8c2a5ce6`: 34 pass, 20 skipped, 0 fail, mergeable CLEAN; canonical runner 11,128 tests, 0 fail, 99 skipped; mutation check (removing the close effect fails N-09). First CI run failed on the logout guard (`ForActor` in a function name); fixed by renaming, guard untouched. Not device-validated. |
+| #620 merged (`bf5214b5`) | `docs/vto-elise-device-validation-runbook.md`: the exact device checks still owed. Docs only. |
 | Local, never delete | `snapshot/codex-elise-composer-viewport-20261016` (`1960da5d`): verbatim copy of Codex's uncommitted Elise work. The Codex worktree `C:/src/elise-composer-viewport` was never altered. |
 
 ## Native Live: evidence by tier (current Build 35 source)
