@@ -805,3 +805,37 @@ Deno.test('VTO-001: accepted task poll HTTP 429 or 500 cannot release quota', as
     if (!result.ok) assertEquals(result.billable, true, 'accepted task HTTP ' + status);
   }
 });
+
+
+Deno.test('VTO-002: provider task identity is durably accepted before any poll', async () => {
+  const { fn, calls } = scriptedFetch();
+  let captured = '';
+  const outcome = await createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0,
+  }).generate(TOP_INPUT, {
+    signal: signal(),
+    onTaskAccepted: async (taskId: string) => {
+      captured = taskId;
+      assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 0);
+      return true;
+    },
+  });
+  assertEquals(outcome.ok, true);
+  assertEquals(typeof captured, 'string');
+  assertEquals(captured.length > 0, true);
+});
+
+Deno.test('VTO-003: receipt persistence failure blocks polling and retains quota', async () => {
+  const { fn, calls } = scriptedFetch();
+  const outcome = await createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0,
+  }).generate(TOP_INPUT, {
+    signal: signal(), onTaskAccepted: async () => false,
+  });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'generation_failed');
+    assertEquals(outcome.billable, true);
+  }
+  assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 0);
+});
