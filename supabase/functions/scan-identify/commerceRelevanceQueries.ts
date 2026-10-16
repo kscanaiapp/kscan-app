@@ -32,6 +32,7 @@ import {
 } from './commerceRelevanceColorMaterial.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { isGenericFashionLabel } from './qualityTuneNormalize.ts';
+import { resolveScannerBrandEvidence } from './brandEvidence.ts';
 
 export type RelevanceQueryInput = {
   identification: Record<string, unknown>;
@@ -91,22 +92,22 @@ function usable(v: unknown): string {
   return t;
 }
 
-function meaningfulWords(s: string): string[] {
+function meaningfulWords(s: string, preserveFillers = false): string[] {
   return collapseSpaces(s).split(' ').filter((w) => {
     if (!w) return false;
     const lw = w.toLowerCase();
-    if (FILLER.has(lw)) return false;
+    if (!preserveFillers && FILLER.has(lw)) return false;
     return true;
   });
 }
 
-function dedupeTokens(raw: string): string {
+function dedupeTokens(raw: string, preserveFillers = false): string {
   const words = collapseSpaces(raw).split(' ');
   const kept: string[] = [];
   const seen = new Set<string>();
   for (const w of words) {
     const lw = w.toLowerCase();
-    if (!lw || FILLER.has(lw) || seen.has(lw)) continue;
+    if (!lw || (!preserveFillers && FILLER.has(lw)) || seen.has(lw)) continue;
     seen.add(lw);
     kept.push(w);
   }
@@ -118,15 +119,18 @@ function dedupeTokens(raw: string): string {
  * Drops lower-priority trailing attribute phrases first — never truncates
  * mid-phrase (e.g. keeps "faux leather", "square toe").
  */
-function finalizeQuery(parts: string[], maxTerms = TARGET_QUERY_KEY_TERMS_MAX): string {
+function finalizeQuery(parts: string[], maxTerms = TARGET_QUERY_KEY_TERMS_MAX, brand = ''): string {
   const phrases: string[] = [];
   const seen = new Set<string>();
   for (const part of parts) {
-    const p = dedupeTokens(part);
+    // A confirmed brand such as "On" is identity, even when its spelling is
+    // otherwise a stopword. Preserve only this complete brand phrase.
+    const isBrand = !!brand && collapseSpaces(part).toLowerCase() === brand.toLowerCase();
+    const p = dedupeTokens(part, isBrand);
     if (!p) continue;
     const key = p.toLowerCase();
     if (seen.has(key)) continue;
-    const tokens = meaningfulWords(p);
+    const tokens = meaningfulWords(p, isBrand);
     // Cross-phrase dedup. A full-overlap phrase (every token already seen,
     // e.g. a repeated material) is dropped entirely. A phrase that only
     // partially overlaps an earlier one — a brand repeated inside its own
@@ -144,7 +148,7 @@ function finalizeQuery(parts: string[], maxTerms = TARGET_QUERY_KEY_TERMS_MAX): 
   const selected: string[] = [];
   let wordCount = 0;
   for (const phrase of phrases) {
-    const wc = meaningfulWords(phrase).length;
+    const wc = phrase.split(' ').length;
     if (selected.length >= maxTerms) break;
     if (wordCount + wc > ABSOLUTE_QUERY_MEANINGFUL_WORDS && selected.length > 0) break;
     selected.push(phrase);
@@ -221,14 +225,8 @@ function extractBagShape(id: Record<string, unknown>): string {
 
 function brandIfAllowed(id: Record<string, unknown>, brandAllowed?: boolean): string {
   if (brandAllowed === false) return '';
-  const logo = id.logo_detected === true;
-  const visible = usable(id.visible_brand_text);
-  if (!logo && !visible) return '';
-  // Direct evidence governs over a hypothesis: text actually legible on the
-  // garment must win the query's brand term over a conflicting brand_guess.
-  // brand_guess remains the fallback when a logo was detected but no text
-  // was legible — a named guess for that logo is still useful.
-  return visible || usable(id.brand_guess);
+  const evidence = resolveScannerBrandEvidence(id);
+  return evidence.verified ? usable(evidence.brand) : '';
 }
 
 // ── v125 confidence-aware identity enrichment ────────────────────────────────
@@ -450,6 +448,7 @@ export function buildCategoryCommerceQueries(input: RelevanceQueryInput): Releva
   // ── v125 confidence-aware override (omitted → exact v124 construction) ─────
   let strategy: CommerceQueryStrategy | undefined;
   let identityTerms: RelevanceQueries['identityTerms'];
+  let primaryBrand = brand;
   if (input.commerceIdentity) {
     const garmentTerm = subtype || category;
     const resolved = resolveQueryStrategy(
@@ -458,6 +457,7 @@ export function buildCategoryCommerceQueries(input: RelevanceQueryInput): Releva
       category || subtype,
     );
     strategy = resolved.strategy;
+    primaryBrand = resolved.brand;
 
     const discriminatingPattern = patternForQuery(pattern);
     // A discriminating pattern is itself a construction signal. Spending budget
@@ -513,7 +513,7 @@ export function buildCategoryCommerceQueries(input: RelevanceQueryInput): Releva
     primaryParts = [brand, ...primaryParts];
   }
 
-  let primary = finalizeQuery(primaryParts, TARGET_QUERY_KEY_TERMS_MAX);
+  let primary = finalizeQuery(primaryParts, TARGET_QUERY_KEY_TERMS_MAX, primaryBrand);
   if (!primary) {
     primary = finalizeQuery([
       ...colorTerms,

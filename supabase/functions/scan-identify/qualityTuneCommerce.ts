@@ -19,9 +19,10 @@ import {
 import type { RecommendedProduct } from './shoppingProvider.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
-import { scoreProductAgreement } from './commerceRelevanceAgreement.ts';
+import { AGREEMENT_USABLE_THRESHOLD, normalizeCommerceCategoryText, parseNumericPrice, scoreProductAgreement } from './commerceRelevanceAgreement.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
+import { resolveScannerBrandEvidence } from './brandEvidence.ts';
 import {
   applySoftDiversityRerank,
   selectByAgreementCoverage,
@@ -85,6 +86,14 @@ function collapseSpaces(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
 }
 
+function phraseKey(value: string): string {
+  return collapseSpaces(value.toLowerCase().replace(/[^a-z0-9 ]+/g, ' '));
+}
+
+function containsPhrase(text: string, phrase: string): boolean {
+  return !!phraseKey(phrase) && ` ${phraseKey(text)} `.includes(` ${phraseKey(phrase)} `);
+}
+
 function usable(v: unknown): string {
   if (typeof v !== 'string') return '';
   const t = collapseSpaces(v);
@@ -95,14 +104,21 @@ function usable(v: unknown): string {
   return t;
 }
 
-function dedupeTokens(raw: string, maxLen = 200): string {
+function brandPrefixLength(raw: string, brand: string): number {
+  const text = collapseSpaces(raw).toLowerCase();
+  const prefix = collapseSpaces(brand).toLowerCase();
+  return prefix && (text === prefix || text.startsWith(`${prefix} `)) ? prefix.split(' ').length : 0;
+}
+
+function dedupeTokens(raw: string, maxLen = 200, brand = ''): string {
   const words = collapseSpaces(raw).split(' ');
+  const protectedCount = brandPrefixLength(raw, brand);
   const kept: string[] = [];
   const seen = new Set<string>();
-  for (const w of words) {
+  for (const [index, w] of words.entries()) {
     const lw = w.toLowerCase();
     if (!lw) continue;
-    if (FILLER.has(lw)) continue;
+    if (index >= protectedCount && FILLER.has(lw)) continue;
     if (seen.has(lw)) continue;
     seen.add(lw);
     kept.push(w);
@@ -114,9 +130,11 @@ export type CommerceQueryDetailLevel = 'specific' | 'moderate' | 'broad';
 
 const MAX_QUERY_MEANINGFUL_WORDS = 8;
 
-function meaningfulWords(s: string): string[] {
-  return collapseSpaces(s).split(' ').filter((w) => {
+function meaningfulWords(s: string, brand = ''): string[] {
+  const protectedCount = brandPrefixLength(s, brand);
+  return collapseSpaces(s).split(' ').filter((w, index) => {
     if (!w) return false;
+    if (index < protectedCount) return true;
     const lw = w.toLowerCase();
     if (FILLER.has(lw)) return false;
     if (/^(and|the|a|an|of|with|in|for|to|on)$/i.test(lw)) return false;
@@ -125,14 +143,14 @@ function meaningfulWords(s: string): string[] {
 }
 
 /** Cap to ≤8 meaningful words without truncating mid-phrase tokens. */
-function capMeaningfulWords(raw: string, max = MAX_QUERY_MEANINGFUL_WORDS): string {
-  const cleaned = dedupeTokens(raw);
-  const words = meaningfulWords(cleaned);
+function capMeaningfulWords(raw: string, max = MAX_QUERY_MEANINGFUL_WORDS, brand = ''): string {
+  const cleaned = dedupeTokens(raw, 200, brand);
+  const words = meaningfulWords(cleaned, brand);
   if (words.length <= max) return words.join(' ');
   // Prefer color/leading descriptors + trailing garment phrase
   const head = words.slice(0, Math.min(3, max - 2));
   const tail = words.slice(-(max - head.length));
-  return dedupeTokens([...head, ...tail].join(' '));
+  return dedupeTokens([...head, ...tail].join(' '), 200, brand);
 }
 
 /**
@@ -184,11 +202,9 @@ export function buildWeightedCommerceQueries(input: {
     return { primary: q.primary, fallback: q.fallback, strategy: q.strategy };
   }
 
-  const logo = id.logo_detected === true;
-  const visible = usable(id.visible_brand_text);
-  const brandVerified = logo || !!visible;
-  const brand = brandVerified && input.brandAllowed !== false
-    ? (usable(id.brand_guess) || visible)
+  const brandEvidence = resolveScannerBrandEvidence(id);
+  const brand = brandEvidence.verified && input.brandAllowed !== false
+    ? usable(brandEvidence.brand)
     : '';
 
   const category = usable(id.item_type) || usable(attrs.category);
@@ -228,7 +244,7 @@ export function buildWeightedCommerceQueries(input: {
         capMeaningfulWords([category, subtype].filter(Boolean).join(' '));
     }
     if (brand && input.brandAllowed) {
-      primary = capMeaningfulWords([brand, primary].join(' '));
+      primary = capMeaningfulWords([brand, primary].join(' '), MAX_QUERY_MEANINGFUL_WORDS, brand);
     }
     const garment = subtype || category;
     const fallback = capMeaningfulWords([color, category || garment].filter(Boolean).join(' ')) ||
@@ -244,8 +260,13 @@ export function buildWeightedCommerceQueries(input: {
     ? (id.search_queries as unknown[])
     : [];
   const firstQ = typeof searchQueries[0] === 'string' ? dedupeTokens(searchQueries[0]) : '';
+  const guess = usable(id.brand_guess);
+  const rejectedGuess = guess && (!brand || guess.toLowerCase() !== brand.toLowerCase());
   const firstQWeak = !firstQ || firstQ.split(' ').length > 12 ||
-    /\b(luxury|designer|vintage-inspired|boyfriend)\b/i.test(firstQ);
+    /\b(luxury|designer|vintage-inspired|boyfriend)\b/i.test(firstQ) ||
+    (!!brand && !containsPhrase(firstQ, brand)) ||
+    (!!rejectedGuess && containsPhrase(firstQ, guess)) ||
+    (input.brandAllowed === false && !!brandEvidence.brand && containsPhrase(firstQ, brandEvidence.brand));
 
   const required = [category, subtype].filter(Boolean);
   const highValue = [color, silhouette, material].filter(Boolean);
@@ -255,7 +276,7 @@ export function buildWeightedCommerceQueries(input: {
   if (!firstQWeak && firstQ) {
     primary = firstQ;
   } else {
-    primary = dedupeTokens([brand, ...required, ...highValue, ...optional.slice(0, 1)].filter(Boolean).join(' '));
+    primary = dedupeTokens([brand, ...required, ...highValue, ...optional.slice(0, 1)].filter(Boolean).join(' '), 200, brand);
   }
   if (!primary) {
     primary = dedupeTokens([color, category || subtype, material].filter(Boolean).join(' ')) ||
@@ -356,6 +377,7 @@ export function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   if (!/^https?:\/\//i.test(url)) return false;
   try {
     const u = new URL(url);
+    if (u.username || u.password || !u.hostname) return false;
     if (DEMO_HOST_HINTS.some((h) => u.hostname.includes(h))) return false;
     return true;
   } catch {
@@ -374,14 +396,8 @@ function isDemoOrTestProduct(p: RecommendedProduct): boolean {
 
 function priceMalformedRequired(p: RecommendedProduct): boolean {
   // Price is optional for client contract — only drop when present but malformed
-  if (p.price === undefined || p.price === null || p.price === '') return false;
-  if (typeof p.price === 'number') return !Number.isFinite(p.price);
-  if (typeof p.price !== 'string') return true;
-  const t = p.price.trim();
-  if (!t) return false;
-  if (t === 'NaN' || t === 'null' || t === 'undefined') return true;
-  if (/[a-zA-Z]{8,}/.test(t) && !/[€$£¥]/.test(t) && !/\d/.test(t)) return true;
-  return false;
+  const { kind } = parseNumericPrice(p.price);
+  return kind === 'invalid' || kind === 'negative';
 }
 
 function productCategoryText(p: RecommendedProduct): string {
@@ -394,13 +410,50 @@ function productCategoryText(p: RecommendedProduct): string {
   ].join(' ').toLowerCase();
 }
 
+/**
+ * Confirmed brand alternatives precede other styles even when the optional
+ * commerce-identity envelope is off. Preserve the existing order within each
+ * group, including its model relevance and retailer diversity decisions.
+ */
+function preferRelevantSameBrand(
+  products: RecommendedProduct[],
+  garment: Record<string, unknown>,
+): RecommendedProduct[] {
+  const evidence = resolveScannerBrandEvidence(garment);
+  if (!evidence.verified || !evidence.brand) return products;
+  const category = normalizeCategory(usable(garment.item_type));
+  const subtype = usable(garment.subtype);
+  if (!category || !subtype) return products;
+  // Both plural and singular product nouns describe the same subtype. Require
+  // every supplied subtype token so a brand-only boot cannot displace a sneaker.
+  const subtypeTokens = phraseKey(subtype).split(' ').map((token) => token.replace(/s$/, ''));
+  if (!subtypeTokens.length) return products;
+  const brand = phraseKey(evidence.brand);
+  const sameBrand: RecommendedProduct[] = [];
+  const otherStyles: RecommendedProduct[] = [];
+  for (const product of products) {
+    const declaredBrand = usable(product.brand);
+    const brandAgrees = declaredBrand
+      ? phraseKey(declaredBrand) === brand
+      : containsPhrase(product.title, evidence.brand);
+    const text = productCategoryText(product);
+    const productTokens = new Set(phraseKey(text).split(' ').map((token) => token.replace(/s$/, '')));
+    const subtypeAgrees = subtypeTokens.every((token) => productTokens.has(token));
+    const agreement = scoreProductAgreement(product, garment);
+    const relevant = normalizeCommerceCategoryText(text) === category && subtypeAgrees &&
+      !agreement.clearCategoryConflict && agreement.score >= AGREEMENT_USABLE_THRESHOLD;
+    (brandAgrees && relevant ? sameBrand : otherStyles).push(product);
+  }
+  return [...sameBrand, ...otherStyles];
+}
+
 function isCategoryMismatch(p: RecommendedProduct, garmentCategory: string): boolean {
   const canon = normalizeCategory(garmentCategory);
   if (!canon || canon === 'NON_FASHION' || canon === 'unknown') return false;
   const text = productCategoryText(p);
   if (!text.trim()) return false;
 
-  const productCat = normalizeCategory(text);
+  const productCat = normalizeCommerceCategoryText(text);
   if (!productCat || productCat === canon) return false;
 
   // Obvious mismatches only (conservative)
@@ -427,7 +480,7 @@ function scoreProduct(p: RecommendedProduct, garment: Record<string, unknown>): 
   const sil = normalizeSilhouette(typeof garment.silhouette === 'string' ? garment.silhouette : '');
   const pat = typeof garment.pattern === 'string' ? garment.pattern.toLowerCase() : '';
 
-  if (cat && (text.includes(cat) || normalizeCategory(text) === cat)) score += 8;
+  if (cat && normalizeCommerceCategoryText(text) === cat) score += 8;
   if (sub && text.includes(sub.toLowerCase())) score += 6;
   if (color && text.includes(color.split('/')[0])) score += 4;
   if (mat && text.includes(mat.split('/')[0])) score += 3;
@@ -550,7 +603,7 @@ export function filterAndDedupeProducts(
     }
 
     const diversified = applySoftDiversityRerank(dedupedScored);
-    for (const p of diversified) deduped.push(p);
+    for (const p of preferRelevantSameBrand(diversified, garmentIdentification)) deduped.push(p);
 
     if (deduped.length === 0 && productsBeforeFilter > 0) {
       failureReasonHints.push(FAILURE_REASON_PRODUCT_FILTER_EMPTY);

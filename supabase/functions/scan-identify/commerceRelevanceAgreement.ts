@@ -15,6 +15,7 @@ import {
 } from './qualityTuneNormalize.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
+import { resolveScannerBrandEvidence } from './brandEvidence.ts';
 
 // ── Positive weights ─────────────────────────────────────────────────────────
 
@@ -142,6 +143,16 @@ function productText(p: RecommendedProduct): string {
   ].join(' ').toLowerCase();
 }
 
+/** Scanner-local interpretation of shoe collar height, not an apparel top. */
+export function normalizeCommerceCategoryText(text: string): string {
+  const normalizedText = /\b(sneakers?|shoes?|trainers?)\b/i.test(text)
+    ? text.replace(/\b(low|mid|high)[\s-]+tops?\b/gi, ' ')
+    : text;
+  // Standalone apparel nouns and provider category fields remain intact; a
+  // contradictory "top" metadata value must not be erased by this adapter.
+  return normalizeCategory(normalizedText);
+}
+
 function hasUsableImage(p: RecommendedProduct): boolean {
   const url = typeof p.imageUrl === 'string' ? p.imageUrl.trim() : '';
   return !!url && /^https?:\/\//i.test(url);
@@ -152,6 +163,7 @@ function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   if (!url || !/^https?:\/\//i.test(url)) return false;
   try {
     const u = new URL(url);
+    if (u.username || u.password || !u.hostname) return false;
     if (DEMO_HOST_HINTS.some((h) => u.hostname.includes(h))) return false;
     return true;
   } catch {
@@ -180,12 +192,6 @@ function parseNumericPrice(price: unknown): { kind: 'missing' | 'valid' | 'inval
   if (n < 0) return { kind: 'negative', value: n };
   if (n === 0) return { kind: 'missing', value: null };
   return { kind: 'valid', value: n };
-}
-
-function hasVerifiedBrandEvidence(garment: Record<string, unknown>): boolean {
-  return garment.logo_detected === true ||
-    (typeof garment.visible_brand_text === 'string' &&
-      collapseSpaces(garment.visible_brand_text).length > 0);
 }
 
 function subtypeCompatible(category: string, subtype: string): boolean {
@@ -231,10 +237,11 @@ const GENERIC_IDENTITY_TOKENS: ReadonlySet<string> = new Set([
   'pants', 'trousers', 'jeans', 'shorts', 'bag', 'handbag', 'tote', 'clutch',
   'backpack', 'shoe', 'shoes', 'sneaker', 'sneakers', 'boot', 'boots', 'pump',
   'pumps', 'heel', 'heels', 'loafer', 'loafers', 'sandal', 'sandals', 'flat',
-  'flats', 'belt', 'scarf', 'hat', 'watch',
+  'flats', 'belt', 'scarf', 'hat', 'watch', 'sunglasses', 'eyeglasses',
   'leather', 'suede', 'denim', 'wool', 'cotton', 'silk', 'satin', 'linen',
   'black', 'white', 'red', 'blue', 'navy', 'green', 'brown', 'pink', 'grey',
-  'gray', 'beige', 'cream', 'tan',
+  'gray', 'beige', 'cream', 'tan', 'burgundy', 'maroon', 'orange', 'purple',
+  'yellow', 'silver', 'gold',
   'small', 'medium', 'large', 'mini', 'midi', 'maxi', 'high', 'low', 'mid',
   'classic', 'new', 'women', 'womens', 'men', 'mens', 'unisex',
 ]);
@@ -269,7 +276,14 @@ function providerBrandKey(product: RecommendedProduct): string {
 
 function brandKeysAgree(a: string, b: string): boolean {
   if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+  return a === b;
+}
+
+/** Whole normalized phrases prevent short brands and model codes matching substrings. */
+function containsIdentityPhrase(text: string, phrase: string): boolean {
+  const normalized = normalizeBrandKey(text);
+  const target = normalizeBrandKey(phrase);
+  return !!target && ` ${normalized} `.includes(` ${target} `);
 }
 
 function identityWeightForGrade(
@@ -311,8 +325,10 @@ export function scoreCommercialIdentity(
   let brandMismatched = false;
 
   if (identityBrand && identity.brandGrade !== 'invalid') {
-    const titleHasBrand = text.includes(identityBrand);
-    if (brandKeysAgree(providerBrand, identityBrand) || titleHasBrand) {
+    const titleHasBrand = containsIdentityPhrase(product.title, identityBrand);
+    // Provider-declared contradictions cannot be erased by a title mentioning
+    // a competing brand (for example "alternative to New Balance").
+    if (providerBrand ? brandKeysAgree(providerBrand, identityBrand) : titleHasBrand) {
       brandMatched = true;
       delta += identityWeightForGrade(
         identity.brandGrade,
@@ -338,22 +354,20 @@ export function scoreCommercialIdentity(
   const hypothesis = typeof identity.exactItemHypothesis === 'string'
     ? identity.exactItemHypothesis
     : '';
-  if (hypothesis && identity.exactMatchGrade !== 'invalid') {
+  if (hypothesis && identity.exactMatchGrade !== 'invalid' && !brandMismatched) {
     const full = identityWeightForGrade(
       identity.exactMatchGrade,
       IDENTITY_EXACT_MATCH_VERIFIED,
       IDENTITY_EXACT_MATCH_PLAUSIBLE,
       IDENTITY_EXACT_MATCH_WEAK,
     );
-    const tokens = identityTokens(hypothesis);
-    if (tokens.length === 0) {
-      // No discriminating token — fall back to whole-phrase containment.
-      if (text.includes(hypothesis.toLowerCase())) {
-        exactMatchCoverage = 1;
-        delta += full;
-      }
-    } else {
-      const hits = tokens.filter((t) => text.includes(t)).length;
+    // Brand agreement is scored separately; repeating the brand cannot earn
+    // partial model credit when the actual model identifier contradicts it.
+    const brandTokens = new Set(normalizeBrandKey(identity.brand).split(' '));
+    const tokens = identityTokens(hypothesis).filter((token) => !brandTokens.has(token));
+    // Generic category/colour phrases do not establish product identity.
+    if (tokens.length > 0) {
+      const hits = tokens.filter((t) => containsIdentityPhrase(text, t)).length;
       exactMatchCoverage = hits / tokens.length;
       if (exactMatchCoverage >= 1) {
         delta += full;
@@ -368,7 +382,7 @@ export function scoreCommercialIdentity(
   for (const feature of identity.distinctiveFeatures) {
     const tokens = identityTokens(feature);
     if (!tokens.length) continue;
-    if (tokens.some((t) => text.includes(t))) distinctiveMatches += 1;
+    if (tokens.some((t) => containsIdentityPhrase(text, t))) distinctiveMatches += 1;
   }
   if (distinctiveMatches > 0) {
     delta += Math.min(
@@ -422,12 +436,12 @@ export function scoreProductAgreement(
     ? garment.pattern.toLowerCase()
     : '';
 
-  const productCat = normalizeCategory(text);
+  const productCat = normalizeCommerceCategoryText(text);
   let clearCategoryConflict = false;
 
   // Category agreement / conflict
   if (garmentCat && garmentCat !== 'NON_FASHION' && garmentCat !== 'unknown') {
-    if (productCat === garmentCat || (productCat && text.includes(garmentCat))) {
+    if (productCat === garmentCat) {
       score += AGREEMENT_EXACT_CATEGORY;
     } else if (productCat) {
       const conflicts = CATEGORY_CONFLICTS[garmentCat] || [];
@@ -492,19 +506,17 @@ export function scoreProductAgreement(
   }
 
   // Verified brand only
-  if (hasVerifiedBrandEvidence(garment)) {
-    const brand = typeof garment.visible_brand_text === 'string'
-      ? garment.visible_brand_text.toLowerCase()
-      : typeof garment.brand_guess === 'string'
-      ? garment.brand_guess.toLowerCase()
-      : '';
-    if (brand && text.includes(brand)) {
+  const brandEvidence = resolveScannerBrandEvidence(garment);
+  if (brandEvidence.verified) {
+    const brand = normalizeBrandKey(brandEvidence.brand);
+    const providerBrand = providerBrandKey(product);
+    if (brand && (providerBrand ? brandKeysAgree(providerBrand, brand) : containsIdentityPhrase(product.title, brand))) {
       score += AGREEMENT_VERIFIED_BRAND;
     }
   } else {
     // Speculative brand-only match in title without garment evidence
     const guess = typeof garment.brand_guess === 'string' ? garment.brand_guess.toLowerCase() : '';
-    if (guess && text.includes(guess) && !hasVerifiedBrandEvidence(garment)) {
+    if (guess && containsIdentityPhrase(product.title, guess)) {
       // Only penalize when brand appears to be the sole signal (no category match)
       if (score < AGREEMENT_EXACT_CATEGORY) {
         score += PENALTY_UNSUPPORTED_BRAND_ONLY_MATCH;
