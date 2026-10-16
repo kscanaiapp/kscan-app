@@ -275,7 +275,7 @@ function gradeCommerceIdentity(id: Record<string, unknown>, useClassifiedBrandEv
 
   // ── Brand hypothesis ─────────────────────────────────────────────────────
   const brandRaw = useClassifiedBrandEvidence
-    ? evidence.brand ?? usableIdentityValue(id.brand_guess)
+    ? evidence.conflict ? null : evidence.brand ?? usableIdentityValue(id.brand_guess)
     : usableIdentityValue(id.brand_guess) ?? visibleBrandText;
   const brandSpeculative = !!brandRaw &&
     (speculativeBrand.test(brandRaw) || /style$/i.test(brandRaw));
@@ -570,6 +570,16 @@ export function applyScannerQualityGate(
 
   // Brand without evidence
   const observedBrand = useClassifiedBrandEvidence ? resolveScannerBrandEvidence(identification) : null;
+  if (observedBrand?.conflict) {
+    // Preserve the conflict, not a newly verified logo after wordmark removal.
+    identification.brand_evidence_conflict = true;
+    identification.brand_guess = null;
+    identification.logo_brand = null;
+    identification.logo_confidence = null;
+    brandSuppressed = true;
+    suppressed.push('brand_guess');
+    conflicts.push({ code: 'unsupported_brand', field: 'brand_guess' });
+  }
   if (observedBrand?.verified) {
     // Canonicalize the supported identity before any display/retrieval projection.
     // The raw observation fields remain separate from the rejected hypothesis.

@@ -45,6 +45,7 @@ import {
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
 import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence } from './brandEvidence.ts';
+import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
@@ -1635,6 +1636,7 @@ function sanitizeIdentification(
   // visual_observation gets a longer cap
   const vo = safeVisualObservation(src.visual_observation);
   if (vo) out.visual_observation = vo;
+  if (src.brand_evidence_conflict === true) out.brand_evidence_conflict = true;
 
   return Object.keys(out).length ? out : undefined;
 }
@@ -1875,6 +1877,7 @@ Deno.serve(async (req) => {
     appPlatform?: unknown;
     appVersion?: unknown;
     localPrivacyFiltered?: unknown;
+    scannerVisualEvidence?: unknown;
     clientTimestamp?: unknown;
     multiItemDetection?: unknown;
     requestMode?: unknown;
@@ -2815,9 +2818,20 @@ Deno.serve(async (req) => {
     : 'general';
 
   const scannerBrandEvidenceEnabled = shouldUseScannerBrandEvidence(mode, internalRequest.entryPath, source);
+  // Binding uses the digest of the actual transported derivative. Client hints
+  // do not authorize transmission or certify local privacy/recognizer behavior.
+  const scannerEvidenceBinding = {
+    sourceImageDigest: imageDigestPrefix,
+    candidateId: selectedCandidate?.candidateId ?? null,
+    region: selectedCandidate?.bounds ?? null,
+  };
+  const scannerVisualEvidence = scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider
+    ? validateScannerVisualEvidence(body.scannerVisualEvidence, scannerEvidenceBinding)
+    : null;
   const withQualityAndRoute = (base: string): string => {
     let prompt = base;
     if (scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider) prompt = `${prompt}\n${SCANNER_BRAND_PROMPT}`;
+    if (scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider) prompt += scannerVisualEvidencePrompt(scannerVisualEvidence);
     if (qualityTuneEnabled) prompt = `${prompt}${QUALITY_TUNE_PROMPT_ADDENDUM}`;
     if (intelligenceEnabled) prompt = buildRoutedIdentifyPrompt(prompt, categoryRoute);
     return prompt;
@@ -3172,6 +3186,15 @@ Deno.serve(async (req) => {
     let qualityInvalidPairsResolved = 0;
     let intelligenceGate: QualityGateResult | null = null;
     const brandEvidenceBeforeGate = summarizeScannerBrandEvidence(identification ?? {});
+    // Keep model observations separate from canonical hypotheses suppressed below.
+    const scannerModelInterpretation = scannerBrandEvidenceEnabled
+      ? buildScannerModelEvidence({ ...identification, brand_evidence_conflict: resolveScannerBrandEvidence(identification ?? {}).conflict === true }, scannerEvidenceBinding)
+      : null;
+    const scannerItemInterpretations = scannerBrandEvidenceEnabled && useMultiItemDetectionProvider
+      ? detectedGarments.map(garment => buildScannerModelEvidence({ ...garment.identification, brand_evidence_conflict: resolveScannerBrandEvidence(garment.identification).conflict === true }, {
+        sourceImageDigest: imageDigestPrefix, candidateId: garment.candidateId, region: garment.bounds ?? null,
+      }))
+      : [];
     if (qualityTuneEnabled && rawStatus === 'completed') {
       if (useMultiItemDetectionProvider && detectedGarments.length > 0) {
         for (let i = 0; i < detectedGarments.length; i++) {
@@ -4122,6 +4145,14 @@ Deno.serve(async (req) => {
     const legacyFinalResponse = withSafeImageArrays(
       {
         ...completedResponseWithAttributes,
+        ...(scannerBrandEvidenceEnabled ? {
+          scannerVisualEvidence: {
+            version: 1,
+            input: scannerVisualEvidence,
+            interpretation: scannerModelInterpretation,
+            ...(useMultiItemDetectionProvider ? { items: scannerItemInterpretations } : {}),
+          },
+        } : {}),
         ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
         ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
         ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
