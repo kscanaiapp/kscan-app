@@ -27,6 +27,7 @@ import {
   unsupportedSlotReason,
 } from './aiLabToolsProvider.ts';
 import { validateVtoResultMedia } from '../vtoResultValidation.ts';
+import { MOCK_VTO_RESULT_BASE64 } from './mockResultAsset.ts';
 import type { VtoProviderInput } from '../vtoContract.ts';
 
 const GARMENT_URL = 'https://cdn.example.com/coat.jpg';
@@ -51,16 +52,9 @@ const PNG_1x1 = Uint8Array.from(
   (c) => c.charCodeAt(0),
 );
 
-/** A larger (~2.4KB) real PNG, above the orchestrator's 1024-byte result-size
- *  floor, for the one test that runs the fetched result through the SHARED
- *  validateVtoResultMedia -- the 1x1 fixture above is realistic for every
- *  other test but too small to pass that floor on its own. */
-const PNG_LARGER = Uint8Array.from(
-  atob(
-    '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',
-  ),
-  (c) => c.charCodeAt(0),
-);
+// Use the canonical 256x320 approved synthetic PNG: the 28x28 legacy fixture
+// deliberately fails the VTO-005 minimum 64px image-integrity gate.
+const PNG_LARGER = Uint8Array.from(atob(MOCK_VTO_RESULT_BASE64), (c) => c.charCodeAt(0));
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
