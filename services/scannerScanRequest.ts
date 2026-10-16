@@ -10,6 +10,9 @@
 // transport, no Supabase client and no mocking.
 
 import { identifyScanImage, type IdentifyScanOptions } from './scanIdentification';
+import { buildScannerVisualEvidence } from './scannerVisualEvidence';
+import { assertScannerImageReadyForDispatch } from './privacy/scannerDispatchGuard';
+import type { PrivacyProof } from './privacy/privacyProof';
 import type { ScanIdentifyResponse } from '../types/scanIdentification';
 import type {
   FashionIdentificationResultV2,
@@ -61,6 +64,7 @@ export type RunScannerIdentificationInput = {
   /** Server-issued correlation the deployed handler still requires. */
   legacyCorrelation?: ScannerLegacyCorrelation;
   localPrivacyFiltered?: boolean;
+  privacyProof?: PrivacyProof;
   signal?: AbortSignal;
   /** Injected in tests. Defaults to the real transport. */
   transport?: (image: string, options: IdentifyScanOptions) => Promise<ScanIdentifyResponse>;
@@ -76,9 +80,18 @@ export type RunScannerIdentificationInput = {
  */
 function legacyOptionsFor(input: RunScannerIdentificationInput): IdentifyScanOptions {
   const isSelected = input.mode === 'identify_selected_item';
+  const proof = input.privacyProof;
+  const sanitized = proof?.processingCompleted === true && proof.outputVerified === true &&
+    proof.metadataStripped === true && proof.faceDetectionPerformed === true && proof.plateDetectionPerformed === true;
+  const scannerVisualEvidence = buildScannerVisualEvidence({
+    sourceImageDigest: input.legacyCorrelation?.imageDigestPrefix ?? '',
+    ...(isSelected && input.selectedCandidate ? { selectedCandidate: input.selectedCandidate } : {}),
+    privacy: { state: sanitized ? 'sanitized' : 'unknown', metadataRemoved: proof?.metadataStripped === true },
+  });
   return {
     source: input.evidence.source === 'gallery' ? 'upload' : 'camera',
     localPrivacyFiltered: input.localPrivacyFiltered === true,
+    ...(scannerVisualEvidence ? { scannerVisualEvidence } : {}),
     multiItemDetection: true,
     requestMode: isSelected ? 'selected_item' : 'multi_item_detection',
     ...(input.legacyCorrelation?.scanSessionId
@@ -104,13 +117,21 @@ function legacyOptionsFor(input: RunScannerIdentificationInput): IdentifyScanOpt
 export async function runScannerIdentification(
   input: RunScannerIdentificationInput,
 ): Promise<ScannerIdentificationOutcome> {
+  const protectedImage = input.evidence?.imageBase64;
+  if (!assertScannerImageReadyForDispatch(protectedImage, input.privacyProof)) {
+    return {
+      contractPath: input.sessionFlag?.enabled ? 'v2' : 'legacy',
+      response: { status: 'failed', recommendedProducts: [], userMessage: 'The selected image could not be prepared securely.' },
+      identificationV2: null, candidates: [], fallbackUsed: false,
+    };
+  }
   const send = input.transport ?? identifyScanImage;
   const legacyOptions = legacyOptionsFor(input);
 
   // Flag off → the legacy path, unchanged. The session-latched value is used,
   // never a fresh read, so an operation cannot switch contracts mid-flight.
   if (!input.sessionFlag?.enabled) {
-    const response = await send(input.evidence.imageBase64, legacyOptions);
+    const response = await send(protectedImage, legacyOptions);
     return { contractPath: 'legacy', response, identificationV2: null, candidates: [], fallbackUsed: false };
   }
 
@@ -147,7 +168,7 @@ export async function runScannerIdentification(
     };
   }
 
-  const response = await send(input.evidence.imageBase64, {
+  const response = await send(protectedImage, {
     ...legacyOptions,
     contractRequestV2: built.request as unknown as Record<string, unknown>,
   });
@@ -162,7 +183,7 @@ export async function runScannerIdentification(
     httpStatus: response.httpStatus ?? null,
     errorCode: response.contractErrorCode ?? null,
   })) {
-    const legacyResponse = await send(input.evidence.imageBase64, legacyOptions);
+    const legacyResponse = await send(protectedImage, legacyOptions);
     return {
       contractPath: 'legacy',
       response: legacyResponse,

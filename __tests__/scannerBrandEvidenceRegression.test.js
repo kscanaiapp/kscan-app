@@ -41,9 +41,9 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function loadTsModule(relativePath, requireMap = {}) {
+function loadTsModule(relativePath, requireMap = {}, sourceOverride) {
   const filename = path.join(ROOT, relativePath);
-  const source = fs.readFileSync(filename, 'utf8');
+  const source = sourceOverride ?? fs.readFileSync(filename, 'utf8');
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -69,6 +69,8 @@ function loadTsModule(relativePath, requireMap = {}) {
     JSON,
     require: (id) => {
       if (id in requireMap) return requireMap[id];
+      const commerceContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(id);
+      if (commerceContract) return commerceContract;
       if (id.startsWith('node:')) return require(id);
       throw new Error(`Unexpected require: ${id}`);
     },
@@ -82,7 +84,7 @@ const scanTitleBuilderModule = loadTsModule('services/scanTitleBuilder.ts');
 // iOS-only dependency (Android's mapper does not import this): stub for real,
 // matching the harness in scanIdentification.test.js.
 const outfitDetectionBridgeModule = loadTsModule('services/outfitConfirmation/outfitDetectionBridge.ts');
-const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
+const mapperModule = loadTsModule('services/scanIdentificationMapper.ts', {
   './scanResultObject': scanResultObjectModule,
   './scanTitleBuilder': scanTitleBuilderModule,
   './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
@@ -90,6 +92,9 @@ const mapper = loadTsModule('services/scanIdentificationMapper.ts', {
   './outfitConfirmation/outfitDetectionBridge': outfitDetectionBridgeModule,
   '../constants/build': { SCAN_IDENTITY_DEBUG: false },
 });
+const mapper = {
+  mapScanIdentifyToAnalysis: (response, options = {}) => mapperModule.mapScanIdentifyToAnalysis(response, { source: 'camera', ...options }),
+};
 
 // -- CASE A: strong / direct visible brand evidence --------------------------
 
@@ -263,4 +268,101 @@ test('POLO CATEGORY: no subtype falls back to item_type exactly as before (no re
   });
 
   assert.equal(out.title, 'Navy Blazer');
+});
+
+function evidenceAdapter() {
+  // Optional historical source replay exercises the same regressions against
+  // the pinned parent without changing the working implementation.
+  let baseline;
+  if (process.env.SCANNER_ADAPTER_BASELINE) {
+    const bytes = fs.readFileSync(process.env.SCANNER_ADAPTER_BASELINE);
+    baseline = bytes.subarray(0, 2).equals(Buffer.from([0xff, 0xfe]))
+      ? bytes.toString('utf16le').replace(/^\uFEFF/, '') : bytes.toString('utf8');
+  }
+  return loadTsModule('services/scanIdentification.ts', {
+    './supabaseClient': { supabase: {} },
+    '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
+  }, baseline);
+}
+
+test('New Balance: adapter retains classified logo and confidence through deferred commerce mapping', () => {
+  const response = evidenceAdapter().normalizeScanIdentifyResponse({
+    status: 'completed', attributes: { category: 'footwear' }, recommendedProducts: [],
+    commerce: { deferred: true },
+    identification: {
+      item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy',
+      brand_guess: 'New Balance', brand_confidence: 'high', logo_detected: true,
+      logo_brand: 'New Balance', logo_confidence: 'high',
+      logo_description: 'slanted block N with contrast outline on side panel', confidence_score: 0.92,
+    },
+  });
+  const out = mapper.mapScanIdentifyToAnalysis(response);
+  assert.equal(out.metadata.brand, 'New Balance');
+  assert.equal(out.commerceEvidence.identification.logo_brand, 'New Balance');
+  assert.equal(out.commerceEvidence.identification.logo_confidence, 'high');
+  assert.equal(out.commerceEvidence.identification.brand_confidence, 'high');
+  assert.match(out.title, /New Balance/);
+  assert.equal(out.commerceEvidence.identification.exact_item_hypothesis, undefined);
+  assert.equal(out.identificationSnapshot.brand.value, 'New Balance');
+});
+
+test('evidence transport: uncertain hypotheses retain their confidence without inventing logo support', () => {
+  const response = evidenceAdapter().normalizeScanIdentifyResponse({
+    status: 'completed', attributes: { category: 'footwear' }, recommendedProducts: [],
+    commerce: { deferred: true }, identification: {
+      item_type: 'footwear', subtype: 'sneaker', brand_guess: 'New Balance',
+      brand_confidence: 'low', logo_detected: false,
+      exact_item_hypothesis: '574', exact_match_confidence: 'low',
+    },
+  });
+  const out = mapper.mapScanIdentifyToAnalysis(response);
+  assert.equal(out.commerceEvidence.identification.brand_confidence, 'low');
+  assert.equal(out.commerceEvidence.identification.exact_match_confidence, 'low');
+  assert.equal(out.commerceEvidence.identification.exact_item_hypothesis, '574');
+  assert.equal(out.commerceEvidence.identification.logo_brand, undefined);
+  assert.notEqual(out.metadata.brandConfidence, 'high');
+});
+
+test('negative control: an unnamed logo cannot elevate an arbitrary brand guess in the mobile title', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({ status: 'completed', recommendedProducts: [], identification: {
+    item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy',
+    brand_guess: 'New Balance', logo_detected: true, confidence_score: 0.9,
+  } });
+  assert.notEqual(out.metadata.brandConfidence, 'high');
+  assert.doesNotMatch(out.title, /New Balance/i);
+});
+
+test('commerce enrichment cannot invent or increase the selected garment brand identity', () => {
+  for (const brand_guess of [undefined, 'New Balance']) {
+    const identification = { item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy', brand_guess, confidence_score: 0.9 };
+    const before = mapper.mapScanIdentifyToAnalysis({ status: 'completed', recommendedProducts: [], identification });
+    const after = mapper.mapScanIdentifyToAnalysis({ status: 'completed', identification,
+      recommendedProducts: ['A', 'B', 'C'].map(retailer => ({ brand: 'New Balance', retailer })),
+    });
+    assert.equal(after.metadata.brand, before.metadata.brand);
+    assert.equal(after.metadata.brandConfidence, before.metadata.brandConfidence);
+    assert.equal(after.title, before.title);
+  }
+});
+
+test('classified logo without a redundant guess survives the frozen snapshot contract and serialization', () => {
+  const out = mapper.mapScanIdentifyToAnalysis({ status: 'completed', recommendedProducts: [], identification: {
+    item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy',
+    logo_detected: true, logo_brand: 'New Balance', logo_confidence: 'high', confidence_score: 0.92,
+  } });
+  assert.equal(out.metadata.brand, 'New Balance');
+  const savedSnapshot = JSON.parse(JSON.stringify(out.identificationSnapshot));
+  assert.equal(savedSnapshot.brand.value, 'New Balance');
+});
+
+test('non-Scanner callers retain their existing mapper behavior during the parallel window', () => {
+  const response = { status: 'completed', identification: { item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy' },
+    recommendedProducts: ['A', 'B', 'C'].map(retailer => ({ brand: 'New Balance', retailer })),
+  };
+  const legacy = mapperModule.mapScanIdentifyToAnalysis(response);
+  assert.equal(legacy.metadata.brand, 'New Balance');
+  assert.equal(legacy.metadata.brandConfidence, 'high');
+  const scanner = mapper.mapScanIdentifyToAnalysis(response);
+  assert.equal(scanner.metadata.brand, null);
+  assert.notEqual(scanner.metadata.brandConfidence, 'high');
 });

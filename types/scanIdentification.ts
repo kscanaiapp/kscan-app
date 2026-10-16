@@ -11,6 +11,8 @@
  * when the backend has no usable matches.
  */
 
+import type { CommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
+
 export type FashionIdentificationStatus =
   | 'completed'
   | 'non_fashion'
@@ -46,6 +48,7 @@ export type ScanIdentifyRequest = {
   scanSessionId?: string;
   imageDigestPrefix?: string;
   selectedCandidate?: SelectedGarmentTarget;
+  scannerVisualEvidence?: Record<string, unknown>;
   clientTimestamp: string;
 };
 
@@ -112,12 +115,15 @@ export type DetectedGarmentCandidate = {
   confidenceScore?: number;
   attributes?: FashionAttributes;
   identification?: DetailedIdentification;
+  scannerVisualEvidence?: Record<string, unknown>;
 };
 
 export type ScanIdentifyResponse = {
   scanId?: string;
   scanSessionId?: string;
   imageDigestPrefix?: string;
+  /** Bounded, digest-bound advisory visual evidence. Model-origin entries are never independent proof. */
+  scannerVisualEvidence?: Record<string, unknown>;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
@@ -181,6 +187,7 @@ export type NormalizedIdentification = Partial<DetailedIdentification> & {
 };
 
 export type RankedScanProduct = Record<string, unknown> & {
+  matchMetadata?: CommerceMatchMetadata;
   id?: string;
   name?: string;
   title?: string;

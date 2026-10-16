@@ -44,6 +44,10 @@ import {
   type NormalizedIdentification,
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
+import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence } from './brandEvidence.ts';
+import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
+import { classifyCommerceMatch } from './matchTier.ts';
+import { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
@@ -256,6 +260,9 @@ const IDENTIFICATION_STRING_KEYS = [
   'closure',
   'visible_brand_text',
   'brand_guess',
+  'logo_brand',
+  'logo_description',
+  'logo_confidence',
   'scan_quality_note',
 ] as const;
 const IDENTIFICATION_ARRAY_KEYS = [
@@ -802,6 +809,12 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
         material_estimate: { type: 'STRING' },
         silhouette: { type: 'STRING' },
         fit: { type: 'STRING' },
+        visible_brand_text: { type: 'STRING' },
+        logo_detected: { type: 'BOOLEAN' },
+        brand_guess: { type: 'STRING' },
+        logo_brand: { type: 'STRING' },
+        logo_description: { type: 'STRING' },
+        logo_confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
         confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
         non_fashion: { type: 'BOOLEAN' },
       },
@@ -1625,6 +1638,7 @@ function sanitizeIdentification(
   // visual_observation gets a longer cap
   const vo = safeVisualObservation(src.visual_observation);
   if (vo) out.visual_observation = vo;
+  if (src.brand_evidence_conflict === true) out.brand_evidence_conflict = true;
 
   return Object.keys(out).length ? out : undefined;
 }
@@ -1865,6 +1879,7 @@ Deno.serve(async (req) => {
     appPlatform?: unknown;
     appVersion?: unknown;
     localPrivacyFiltered?: unknown;
+    scannerVisualEvidence?: unknown;
     clientTimestamp?: unknown;
     multiItemDetection?: unknown;
     requestMode?: unknown;
@@ -2266,6 +2281,9 @@ Deno.serve(async (req) => {
     // plus one — never a filter, and never allowed to change what Recent
     // Scans persists (see watchlistCapability.ts).
     products = attachWatchCapability(products);
+    if (shouldUseScannerBrandEvidence('image', internalRequest.entryPath, body.source)) {
+      products = annotateScannerMatchMetadata(products, gated.identification);
+    }
     const canonical = buildCanonicalCommerce(products);
 
     console.log(
@@ -2804,8 +2822,21 @@ Deno.serve(async (req) => {
     })
     : 'general';
 
+  const scannerBrandEvidenceEnabled = shouldUseScannerBrandEvidence(mode, internalRequest.entryPath, source);
+  // Binding uses the digest of the actual transported derivative. Client hints
+  // do not authorize transmission or certify local privacy/recognizer behavior.
+  const scannerEvidenceBinding = {
+    sourceImageDigest: imageDigestPrefix,
+    candidateId: selectedCandidate?.candidateId ?? null,
+    region: selectedCandidate?.bounds ?? null,
+  };
+  const scannerVisualEvidence = scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider
+    ? validateScannerVisualEvidence(body.scannerVisualEvidence, scannerEvidenceBinding)
+    : null;
   const withQualityAndRoute = (base: string): string => {
     let prompt = base;
+    if (scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider) prompt = `${prompt}\n${SCANNER_BRAND_PROMPT}`;
+    if (scannerBrandEvidenceEnabled && !useMultiItemDetectionProvider) prompt += scannerVisualEvidencePrompt(scannerVisualEvidence);
     if (qualityTuneEnabled) prompt = `${prompt}${QUALITY_TUNE_PROMPT_ADDENDUM}`;
     if (intelligenceEnabled) prompt = buildRoutedIdentifyPrompt(prompt, categoryRoute);
     return prompt;
@@ -2859,9 +2890,10 @@ Deno.serve(async (req) => {
             ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
             : useSelectedItemProvider
             ? {
-              responseSchema: commerceIdentityEnabled
-                ? SELECTED_ITEM_RESPONSE_SCHEMA_V124
-                : SELECTED_ITEM_RESPONSE_SCHEMA,
+              responseSchema: scopeScannerBrandSchema(
+                commerceIdentityEnabled ? SELECTED_ITEM_RESPONSE_SCHEMA_V124 : SELECTED_ITEM_RESPONSE_SCHEMA,
+                scannerBrandEvidenceEnabled, commerceIdentityEnabled,
+              ),
             }
             : {}),
         },
@@ -3158,6 +3190,16 @@ Deno.serve(async (req) => {
     let qualityGenericLabelOccurrence = 0;
     let qualityInvalidPairsResolved = 0;
     let intelligenceGate: QualityGateResult | null = null;
+    const brandEvidenceBeforeGate = summarizeScannerBrandEvidence(identification ?? {});
+    // Keep model observations separate from canonical hypotheses suppressed below.
+    const scannerModelInterpretation = scannerBrandEvidenceEnabled
+      ? buildScannerModelEvidence({ ...identification, brand_evidence_conflict: resolveScannerBrandEvidence(identification ?? {}).conflict === true }, scannerEvidenceBinding)
+      : null;
+    const scannerItemInterpretations = scannerBrandEvidenceEnabled && useMultiItemDetectionProvider
+      ? detectedGarments.map(garment => buildScannerModelEvidence({ ...garment.identification, brand_evidence_conflict: resolveScannerBrandEvidence(garment.identification).conflict === true }, {
+        sourceImageDigest: imageDigestPrefix, candidateId: garment.candidateId, region: garment.bounds ?? null,
+      }))
+      : [];
     if (qualityTuneEnabled && rawStatus === 'completed') {
       if (useMultiItemDetectionProvider && detectedGarments.length > 0) {
         for (let i = 0; i < detectedGarments.length; i++) {
@@ -3174,6 +3216,7 @@ Deno.serve(async (req) => {
           if (intelligenceEnabled) {
             const gated = applyScannerQualityGate(tuned.identification, tuned.attributes, {
               commerceIdentityEnabled,
+              useClassifiedBrandEvidence: scannerBrandEvidenceEnabled,
             });
             tuned = {
               ...tuned,
@@ -3217,6 +3260,7 @@ Deno.serve(async (req) => {
         if (intelligenceEnabled) {
           intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes, {
             commerceIdentityEnabled,
+            useClassifiedBrandEvidence: scannerBrandEvidenceEnabled,
           });
           tuned = {
             ...tuned,
@@ -3231,6 +3275,16 @@ Deno.serve(async (req) => {
         qualityNormRuleIds = tuned.ruleIds;
         qualityGenericLabelOccurrence = tuned.genericLabelOccurrence;
         qualityInvalidPairsResolved = tuned.invalidPairResolved;
+      }
+    }
+
+    // Scanner-owned projection protects the frozen V1/V2 identity contracts
+    // even when optional quality/intelligence layers are disabled. Grade raw
+    // hypotheses above before making the customer-facing projection safe.
+    if (scannerBrandEvidenceEnabled) {
+      if (identification) identification = projectScannerBrandIdentity(identification);
+      for (const garment of detectedGarments) {
+        garment.identification = projectScannerBrandIdentity(garment.identification);
       }
     }
 
@@ -3444,6 +3498,16 @@ Deno.serve(async (req) => {
       elapsedMs,
     );
 
+    if (scannerBrandEvidenceEnabled) {
+      console.log('[scan-identify] evidence_summary %s', JSON.stringify({
+        scanSessionId, requestMode: requestModeForRoute, model: servedModel, attempts: attempt,
+        imageBase64Length: imageBase64.length,
+        before: brandEvidenceBeforeGate,
+        after: summarizeScannerBrandEvidence(identification ?? {}),
+        brandSuppressed: intelligenceGate?.brandSuppressed ?? false,
+        qualityBand: intelligenceGate?.qualityBand ?? null,
+      }));
+    }
     const completedResponse = normalized('completed', userMessage, attributes, identification);
     const completedResponseWithAttributes = ensureLegacyAttributes(completedResponse);
     const completedNormalizedId = normalizeIdentification(
@@ -4082,10 +4146,22 @@ Deno.serve(async (req) => {
     // see watchlistCapability.ts. Never a filter; never seen by ranking,
     // dedupe, or the Recent Scans persistence decision.
     finalRecommendedProducts = attachWatchCapability(finalRecommendedProducts);
+    if (scannerBrandEvidenceEnabled) {
+      finalRecommendedProducts = annotateScannerMatchMetadata(finalRecommendedProducts, completedNormalizedId ?? {});
+      finalSimilarityMatches = annotateScannerMatchMetadata(finalSimilarityMatches, completedNormalizedId ?? {});
+    }
 
     const legacyFinalResponse = withSafeImageArrays(
       {
         ...completedResponseWithAttributes,
+        ...(scannerBrandEvidenceEnabled ? {
+          scannerVisualEvidence: {
+            version: 1,
+            input: scannerVisualEvidence,
+            interpretation: scannerModelInterpretation,
+            ...(useMultiItemDetectionProvider ? { items: scannerItemInterpretations } : {}),
+          },
+        } : {}),
         ...(mode === 'image' ? { scanId, scanSessionId, imageDigestPrefix } : {}),
         ...(mode === 'text' && shoppingMeta ? { shopping: shoppingMeta } : {}),
         ...(mode === 'image' && shoppingMeta ? { commerce: shoppingMeta } : {}),
@@ -4394,9 +4470,25 @@ function hasBrandEvidenceForCommerce(
   identification: Record<string, unknown> | null | undefined,
 ): boolean {
   if (!identification || typeof identification !== 'object') return false;
-  if (identification.logo_detected === true) return true;
-  return typeof identification.visible_brand_text === 'string' &&
-    identification.visible_brand_text.trim().length > 0;
+  return resolveScannerBrandEvidence(identification).verified;
+}
+
+/** Versioned listing-bound labels; no model/variant verification is invented here. */
+function annotateScannerMatchMetadata<T>(products: T[], identification: Record<string, unknown>): T[] {
+  const brandEvidence = resolveScannerBrandEvidence(identification);
+  const category = normalizeCommerceCategoryText(String(identification.item_type ?? ''));
+  const subtype = String(identification.subtype ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(token => token.replace(/s$/, ''));
+  return products.map(product => {
+    const record = product as Record<string, unknown>;
+    const productText = [record.title, record.name, record.category, record.item_type].filter(value => typeof value === 'string').join(' ');
+    const tokens = new Set(productText.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(token => token.replace(/s$/, '')));
+    const matchMetadata = classifyCommerceMatch(record, {
+      brandEvidence,
+      categoryCompatible: !!category && normalizeCommerceCategoryText(productText) === category,
+      subtypeCompatible: subtype.length > 0 && subtype.every(token => tokens.has(token)),
+    });
+    return { ...product, ...(matchMetadata ? { matchMetadata } : {}) };
+  });
 }
 
 function safeStringMessage(value: unknown): string | undefined {

@@ -17,6 +17,7 @@
  * of raw/local image keys is never read. See docs/scan-result-style-memory.md.
  */
 
+import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 import type {
   RankedScanProduct,
   DetailedIdentification,
@@ -206,10 +207,6 @@ function getProductTitle(product: RankedScanProduct | null | undefined): string 
     cleanText(record.name) ||
     cleanText(record.product_name)
   );
-}
-
-function hasSafeProductUrl(product: RankedScanProduct | null | undefined): boolean {
-  return !!resolveSafeProductUrl(product);
 }
 
 // ── field resolution ──────────────────────────────────────────────────────────
@@ -455,26 +452,16 @@ function buildSignalsFound(item: ScanItemAttributes): Array<{ label: string; val
   return signals;
 }
 
-function hasExactProductEvidence(
-  input: CreateScanResultInput,
-  primaryMatch: RankedScanProduct | null | undefined,
-  confidence: ScanConfidenceLabel,
-): boolean {
-  if (confidence !== 'high' || !primaryMatch) return false;
-  if (!hasBrandIdentity(input)) return false;
-  if (!getProductTitle(primaryMatch)) return false;
-  if (!resolveSafeProductImage(primaryMatch) || !hasSafeProductUrl(primaryMatch)) return false;
-  return true;
-}
-
 function deriveResultType(
   item: ScanItemAttributes,
   confidence: ScanConfidenceLabel,
   matches: RankedScanProduct[],
-  input: CreateScanResultInput,
 ): ScanResultType {
-  const primary = matches[0] ?? null;
-  if (hasExactProductEvidence(input, primary, confidence)) return 'exact';
+  if (matches.some(product => normalizeCommerceMatchMetadata(product.matchMetadata, product)?.tier === 'exact')) return 'exact';
+  // This result object carries visual attributes and candidate listings, not a
+  // verified product identity and compatible variant. Recognition confidence,
+  // brand evidence, a listing URL or an `exact_candidate` score cannot supply
+  // that missing authority. Preserve style matches without asserting exactness.
   if (matches.length > 0 && (confidence === 'high' || confidence === 'medium')) return 'close';
   if (matches.length > 0) return 'style';
   if (item.category || item.color || item.material || item.styleTags.length) return 'exploratory';
@@ -483,7 +470,7 @@ function deriveResultType(
 
 function buildMatchQualityLabel(resultType: ScanResultType, matchCount: number): string {
   if (matchCount === 0) return 'Style analysis ready';
-  if (resultType === 'exact') return 'Exact match candidate';
+  if (resultType === 'exact') return 'Exact Match';
   if (resultType === 'close') return 'Strong style match';
   if (resultType === 'style') return 'Close style match';
   return 'Style direction found';
@@ -630,17 +617,10 @@ export function createResultCardViewModel(
   const missingSignals = Array.isArray(sro.explainability.missingSignals)
     ? sro.explainability.missingSignals
     : [];
-  const inferredInput: CreateScanResultInput = {
-    identification: {
-      brand_guess: missingSignals.includes('brand') ? null : 'visible brand signal',
-      logo_detected: !missingSignals.includes('brand'),
-    },
-  };
   const resultType = deriveResultType(
     sro.item,
     sro.explainability.confidenceLabel,
     matches,
-    inferredInput,
   );
   const signalsFound = buildSignalsFound(sro.item);
   return {

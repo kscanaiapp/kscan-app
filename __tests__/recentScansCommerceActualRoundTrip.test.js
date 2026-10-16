@@ -193,6 +193,30 @@ test('real saveScan/loadLibrary survives a fresh module cache with distinct comm
   );
 });
 
+test('New Balance logo identity survives real Scanner save/reopen independently of other-brand commerce', async () => {
+  const load = createLoader(ROOT, { './supabaseClient': { supabase: {} } });
+  const { normalizeScanIdentifyResponse } = load('services/scanIdentification.ts');
+  const { mapScanIdentifyToAnalysis } = load('services/scanIdentificationMapper.ts');
+  const response = normalizeScanIdentifyResponse({
+    status: 'completed', attributes: { category: 'footwear' }, similarityMatches: [],
+    identification: {
+      item_type: 'footwear', subtype: 'sneaker', primary_color: 'burgundy',
+      logo_detected: true, logo_brand: 'New Balance', logo_confidence: 'high', confidence_score: 0.92,
+    },
+    recommendedProducts: [offer('other-brand', 'Retailer', 60, { brand: 'Nike' })],
+  });
+  const analysis = mapScanIdentifyToAnalysis(response, { source: 'camera' });
+  assert.equal(analysis.metadata.brand, 'New Balance');
+  const storage = createMemoryStorage();
+  const saved = await loadLibrary(storage).saveScan({ photoUri: 'memory://capture.jpg', analysis, source: 'camera' });
+  const [reopened] = await loadLibrary(storage).loadLibrary();
+  assert.equal(reopened.id, saved.id);
+  assert.equal(reopened.identificationSnapshot.brand.value, 'New Balance');
+  assert.equal(reopened.identificationSnapshot.subtype, 'sneaker');
+  assert.equal(reopened.identificationSnapshot.colors.primary, 'burgundy');
+  assert.equal(reopened.purchaseOptions.length, 1);
+});
+
 test('real storage round trip handles zero, one, and the bounded maximum options', async () => {
   const storage = createMemoryStorage();
   const library = loadLibrary(storage);

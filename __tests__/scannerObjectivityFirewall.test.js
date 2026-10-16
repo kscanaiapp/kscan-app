@@ -98,7 +98,7 @@ test('NC-004: the request the client sends carries no personalization field', ()
   const ALLOWED = [
     'imageBase64', 'source', 'localPrivacyFiltered', 'multiItemDetection',
     'requestMode', 'scanSessionId', 'imageDigestPrefix', 'selectedCandidate',
-    'clientTimestamp',
+    'scannerVisualEvidence', 'clientTimestamp',
   ];
   const keys = [...body.matchAll(/^\s*(?:\.\.\.\([^)]*\?\s*\{\s*)?([a-zA-Z][a-zA-Z0-9_]*)\s*:/gm)]
     .map((m) => m[1]);
@@ -107,6 +107,37 @@ test('NC-004: the request the client sends carries no personalization field', ()
       `the scan request carries an unexpected field "${key}" — every field in this body is sent ` +
       'with the image, so anything not on the allowlist is a new disclosure');
   }
+});
+
+test('NC-004: scannerVisualEvidence is bounded to objective, image-bound fields and carries no personalization', () => {
+  // The envelope may only describe THIS image and the selected garment. Pinned
+  // by building a real envelope and walking every key it can ever contain.
+  const { loadPortable } = require('./helpers/commerceMatchContract');
+  const evidence = loadPortable('services/scannerVisualEvidence.ts');
+  const envelope = evidence.buildScannerVisualEvidence({
+    sourceImageDigest: 'abcdef012345',
+    selectedCandidate: { candidateId: 'c1', category: 'footwear', subtype: 'sneaker', bounds: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 } },
+    privacy: { state: 'sanitized', metadataRemoved: true },
+  });
+  const keys = new Set();
+  (function walk(value) {
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) { keys.add(k); walk(v); }
+    }
+  })(envelope);
+  const ALLOWED_NESTED = new Set([
+    'version', 'sourceImageDigest', 'candidateId', 'region', 'x', 'y', 'width', 'height', 'privacy', 'state',
+    'metadataRemoved', 'verification', 'producer', 'method', 'id', 'independentlyVerified', 'observations',
+    'category', 'subtype', 'wordmarks', 'logos', 'attributes', 'primaryColor', 'secondaryColors', 'material',
+    'texture', 'pattern', 'silhouette', 'construction', 'hardware', 'distinguishingDetails', 'warnings',
+  ]);
+  for (const key of keys) {
+    assert.ok(ALLOWED_NESTED.has(key), `scannerVisualEvidence gained an unreviewed field "${key}"`);
+  }
+  assert.ok(!/user|account|email|name|location|history|preference|closet|brand_guess/i.test([...keys].join(' ')), 'no personalization or identity field');
+  assert.equal(envelope.producer.method, 'none', 'no local recognizer is claimed');
+  assert.equal(envelope.producer.independentlyVerified, false);
 });
 
 /**

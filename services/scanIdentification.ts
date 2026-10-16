@@ -19,6 +19,8 @@
 
 import { supabase } from './supabaseClient';
 import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
+import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
+import { normalizeScannerVisualEvidenceResponse } from './scannerVisualEvidence';
 import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
@@ -76,6 +78,8 @@ export type IdentifyScanOptions = {
   scanSessionId?: string;
   imageDigestPrefix?: string;
   selectedCandidate?: SelectedGarmentTarget;
+  /** Scanner-only advisory observations. Never inferred for other attachment callers. */
+  scannerVisualEvidence?: Record<string, unknown>;
   /**
    * Scanner-only fashion-identification-v2 envelope (Phase 2B.2).
    *
@@ -169,6 +173,14 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
     const v = src[key];
     if (typeof v === 'string' && v.trim()) (out as Record<string, unknown>)[key] = v.trim();
   }
+  // Scanner-owned additive evidence: retain through deferred commerce and saved
+  // results without changing the shared garment-identity type or VTO payload.
+  for (const key of ['logo_brand', 'logo_description', 'logo_confidence', 'brand_confidence', 'exact_item_hypothesis', 'exact_match_confidence']) {
+    const value = src[key];
+    if (typeof value === 'string' && value.trim()) {
+      (out as Record<string, unknown>)[key] = value.trim().slice(0, key === 'logo_description' ? 120 : 60);
+    }
+  }
   for (const key of arrayKeys) {
     const v = src[key];
     if (Array.isArray(v)) {
@@ -192,6 +204,9 @@ function normalizeRecommendedProducts(raw: unknown): RankedScanProduct[] {
     .map((p) => {
       const out: RankedScanProduct = { ...p };
       if (typeof p.id !== 'string') delete (out as Record<string, unknown>).id;
+      const matchMetadata = normalizeCommerceMatchMetadata(p.matchMetadata, p);
+      delete out.matchMetadata;
+      if (matchMetadata) out.matchMetadata = matchMetadata;
       return out;
     });
 }
@@ -493,6 +508,10 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
     }
     const detectedGarments = normalizeDetectedGarments(src.detectedGarments);
     if (detectedGarments) out.detectedGarments = detectedGarments;
+    const visualEvidence = normalizeScannerVisualEvidenceResponse(src.scannerVisualEvidence, {
+      sourceImageDigest: out.imageDigestPrefix ?? '',
+    });
+    if (visualEvidence) out.scannerVisualEvidence = visualEvidence;
     return withTransitionalV2(out, src);
   }
 
@@ -549,6 +568,7 @@ export async function identifyScanImage(
     ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
     ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
     ...(options.selectedCandidate ? { selectedCandidate: options.selectedCandidate } : {}),
+    ...(options.scannerVisualEvidence ? { scannerVisualEvidence: options.scannerVisualEvidence } : {}),
     clientTimestamp: new Date().toISOString(),
   };
 
@@ -562,6 +582,7 @@ export async function identifyScanImage(
       ...options.contractRequestV2,
       ...(options.scanSessionId ? { scanSessionId: options.scanSessionId } : {}),
       ...(options.imageDigestPrefix ? { imageDigestPrefix: options.imageDigestPrefix } : {}),
+      ...(options.scannerVisualEvidence ? { scannerVisualEvidence: options.scannerVisualEvidence } : {}),
     }
     : (legacyRequestBody as unknown as Record<string, unknown>);
 

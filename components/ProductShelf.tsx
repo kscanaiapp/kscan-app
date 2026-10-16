@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { commerceMatchLabel, type CommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 import {
   View,
   Text,
@@ -89,6 +90,7 @@ export interface Product {
   affiliateUrl?: string | null;
   availability?: string | null;
   matchScore?: number;
+  matchMetadata?: CommerceMatchMetadata;
   similarityPercentage?: number;
   /** K5-C1, server-authored. Only 'refreshable_listing' may be watched. */
   watchCapability?: 'refreshable_listing' | 'unsupported';
@@ -515,6 +517,7 @@ export function ProductShelf({
               </TouchableOpacity>
 
               <View style={styles.cardBody}>
+                <Text style={styles.retailer}>{commerceMatchLabel(p.matchMetadata, p as unknown as Record<string, unknown>)}</Text>
                 {retailer ? (
                   <Text style={styles.retailer} numberOfLines={1}>
                     {retailer.toUpperCase()}

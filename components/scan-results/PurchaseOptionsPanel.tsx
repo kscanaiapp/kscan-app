@@ -27,6 +27,18 @@ import { TryItOnEntry } from '../vto/TryItOnEntry';
 // Customer activation: this is the surface the one-time Try It On cue teaches
 // from, so it declares its own modal -- the cue never appears while it is up.
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
+import { commerceMatchLabel, normalizeCommerceMatchMetadata } from '../../supabase/functions/scan-identify/matchTier';
+
+const TIER_ORDER = ['exact', 'same_brand', 'similar'] as const;
+export function orderByMatchTier(options: PurchaseOption[] | undefined) {
+  return (Array.isArray(options) ? options : [])
+    .map((option, position) => ({
+      option,
+      position,
+      tier: normalizeCommerceMatchMetadata(option.matchMetadata, option)?.tier ?? ('similar' as const),
+    }))
+    .sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || a.position - b.position);
+}
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -70,12 +82,17 @@ export function resolvePurchaseOptionsPanelMode(
  */
 export function PurchaseOptionsPanel({
   purchaseOptions,
-  title = 'MATCHING PRODUCTS',
+  title = 'PRODUCT OPTIONS',
   testID,
   commerceStatus = 'idle',
   onRetry,
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
+  // ONE authoritative classification per listing, read from the validated
+  // metadata and never re-derived from a score. Rows keep their relative order
+  // inside a tier and keep their stable ids as keys (so a try-on opened from a
+  // row stays anchored to that listing when the shelf re-renders).
+  const ordered = orderByMatchTier(purchaseOptions);
   const mode = resolvePurchaseOptionsPanelMode(hasData, commerceStatus);
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
@@ -93,7 +110,12 @@ export function PurchaseOptionsPanel({
 
       {mode === 'data' ? (
         <View style={styles.list}>
-          {purchaseOptions!.map((option, index) => {
+          {!ordered.some(entry => entry.tier === 'exact') ? (
+            <Text style={styles.tierNote} testID="purchase-options-exact-unconfirmed">
+              Exact product not confirmed. The closest options are below.
+            </Text>
+          ) : null}
+          {ordered.map(({ option, tier }, index) => {
             // Validated rather than merely present: an unsafe or malformed URL
             // must not surface an action that cannot lead anywhere.
             const destination = selectCommerceDestination([option.productUrl]);
@@ -102,12 +124,23 @@ export function PurchaseOptionsPanel({
             // DEF-WL-07: server-authored eligibility, read not re-derived.
             const canWatch = canWatchPurchaseOption(option);
 
+            const startsTier = index === 0 || ordered[index - 1].tier !== tier;
+
             return (
+              <React.Fragment key={option.id}>
+              {startsTier ? (
+                <Text
+                  style={styles.tierHeading}
+                  accessibilityRole="header"
+                  testID={`purchase-tier-${tier}`}
+                >
+                  {commerceMatchLabel(option.matchMetadata, option)}
+                </Text>
+              ) : null}
               <View
-                key={option.id}
                 style={[
                   styles.row,
-                  index > 0 && styles.rowBorder,
+                  index > 0 && !startsTier && styles.rowBorder,
                 ]}
               >
                 <View style={styles.rowLeft}>
@@ -225,6 +258,7 @@ export function PurchaseOptionsPanel({
                   ) : null}
                 </View>
               </View>
+              </React.Fragment>
             );
           })}
         </View>
@@ -245,7 +279,7 @@ export function PurchaseOptionsPanel({
         />
       ) : (
         <EmptyStateCard
-          title="Matching products will appear here for shoppable looks."
+          title="No shopping options found."
           // POLISH-009: the scan is kept in Recent Scans automatically, and the
           // Closet is owned wardrobe, so the old subtitle told people to put a
           // scanned (not owned) look into their wardrobe to keep it.
@@ -299,6 +333,22 @@ const styles = StyleSheet.create({
   rowRight: {
     alignItems: 'flex-end',
     gap: SPACING.xs,
+  },
+  tierHeading: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  tierNote: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
   },
   retailer: {
     ...LUXURY.typography.caption,

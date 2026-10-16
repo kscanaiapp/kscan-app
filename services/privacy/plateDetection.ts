@@ -68,6 +68,8 @@ export interface PlateDetectionResult {
    * a new output; absent on `no_plates` (nothing to change) and on failure.
    */
   maskedUri?: string;
+  /** True only after native persistence/re-decode verification of masked pixels. */
+  outputVerified?: boolean;
   failure?: PlateDetectionFailure;
 }
 
@@ -181,6 +183,11 @@ export async function detectPlates(input: { imageUri: string }): Promise<PlateDe
     return failed('Plate masking reported success without a verified output.', durationMs);
   }
 
+  // A malformed bridge value is a failed screen, never an empty result.
+  if (!['success', 'no_plates'].includes(native.status)) {
+    return failed('Plate screening returned an unexpected status.', durationMs);
+  }
+
   return {
     supported: true,
     performed: true,
@@ -193,5 +200,12 @@ export async function detectPlates(input: { imageUri: string }): Promise<PlateDe
     boundingBoxes: [],
     durationMs,
     maskedUri: native.status === 'success' ? native.sanitizedUri : undefined,
+    outputVerified: native.status === 'success' &&
+      typeof native.outputChecksum === 'string' && native.outputChecksum.length > 0 &&
+      typeof native.verificationDurationMs === 'number' && Number.isFinite(native.verificationDurationMs) && native.verificationDurationMs >= 0 &&
+      native.outputWidth === native.inputWidth && native.outputHeight === native.inputHeight &&
+      Number.isSafeInteger(native.outputWidth) && (native.outputWidth ?? 0) > 0 &&
+      Number.isSafeInteger(native.outputHeight) && (native.outputHeight ?? 0) > 0 &&
+      native.recognizedTextConsumed === false,
   };
 }

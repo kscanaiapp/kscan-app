@@ -49,6 +49,8 @@ const {
 } = require('./fixtures/phase2b4CrossPathFixtures.js');
 
 const ROOT = path.resolve(__dirname, '..');
+const { loadScannerDispatchGuard, fixtureInput } = require('./helpers/scannerPrivacyFixture');
+const dispatchGuard = loadScannerDispatchGuard(ROOT);
 
 function loadTsModule(relativePath, requireMap = {}) {
   const filename = path.join(ROOT, relativePath);
@@ -72,6 +74,8 @@ function loadTsModule(relativePath, requireMap = {}) {
       // The allowlist is load-bearing: an Elise module that reached for a
       // commerce, retailer or persistence module would throw HERE rather than
       // silently acquiring it.
+      const commerceContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(id);
+      if (commerceContract) return commerceContract;
       throw new Error(`Unexpected import ${id} from ${relativePath}`);
     },
   });
@@ -118,12 +122,15 @@ const eliseAdapter = loadTsModule('services/style-chat/eliseIdentificationV2.ts'
 const transportStub = { identifyScanImage: null };
 
 const scannerRequest = loadTsModule('services/scannerScanRequest.ts', {
+  './privacy/scannerDispatchGuard': dispatchGuard,
   './scanIdentification': {
     get identifyScanImage() { return transportStub.identifyScanImage; },
   },
   './scannerEvidenceGateway': scannerGateway,
   './scannerIdentificationV2': scannerAdapter,
 });
+const runProtocolFixture = scannerRequest.runScannerIdentification;
+scannerRequest.runScannerIdentification = (input) => runProtocolFixture(fixtureInput(dispatchGuard, input));
 
 const eliseIdentify = loadTsModule('services/style-chat/eliseIdentifyForStyle.ts', {
   '../scanIdentification': {
