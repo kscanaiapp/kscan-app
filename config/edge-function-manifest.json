@@ -1750,8 +1750,8 @@
         ],
         "bundleFileCount": 18,
         "treeFileCount": 26,
-        "bundleHash": "e9b7ef5065c61a17727de2155c2fb79c167eb93829542a02047efde1c3284bc7",
-        "treeHash": "26b2d7c12c11e49c16c703b482fbf6fcd5f9638c3fdd5942021291149458a19f",
+        "bundleHash": "40058b7b1c20dc6628a7d4c55cbb2a107468205887b7acdebdbf100020522946",
+        "treeHash": "ee04ebb64885293bea43df46966a4ed13dc1d641afba5d41967d83c05eecc643",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1775,7 +1775,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "408460e40260ccd4790c43eb41e37a0b792f35918d58dbee2415137a71c4476d",
+            "sha256": "f1b9e23941ab3a560cc211e675a498c03b8dcbbe490656eddc21b9100e72b160",
             "bundle": false
           },
           {
@@ -1805,7 +1805,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "6ebef25e05e9b65d2fc2b4149030decc0f49a24ff0f061975a137e8c282bf8ac",
+            "sha256": "8e8215ec05d169ace0c6ccc71e71c166db35f6b55dbfac3b3b5e12f683901a0e",
             "bundle": true
           },
           {
@@ -1835,7 +1835,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "61ea083f90786e05d2107660c1adaeeeed54dfafa1c6abe30476f2e6f1e0e717",
+            "sha256": "a74d664fe3982f4e4aba3b5510844da6524042b908240870e3dac27cf76abaf6",
             "bundle": true
           },
           {
@@ -1850,7 +1850,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoPaidBoundary.test.ts",
-            "sha256": "a7d85787e10d2b8f07b5b3cd725c8872c75eb920c79a0708729057fcf4ca1041",
+            "sha256": "d88db0e2f1c5a5df94b8127d41e03853e246a3cdd89ea06c77241fa754f739b6",
             "bundle": false
           },
           {
