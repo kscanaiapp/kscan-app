@@ -353,7 +353,10 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
   return {
     id: AILABTOOLS_PROVIDER_ID,
-    async generate(input: VtoProviderInput, { signal }: { signal: AbortSignal }): Promise<VtoProviderOutcome> {
+    async generate(input: VtoProviderInput,
+      { signal, onTaskAccepted }: {
+        signal: AbortSignal; onTaskAccepted?: (taskId: string) => Promise<boolean>;
+      }): Promise<VtoProviderOutcome> {
       const unsupported = unsupportedSlotReason(input.slot);
       if (unsupported) {
         // Refused before any network call: nothing was bought.
@@ -435,6 +438,16 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         return { ok: false, failure: 'invalid_output', detail: 'submit_missing_task_id' };
       }
 
+      // The provider accepted a task. Commit its identity before polling so
+      // a crash, timeout or failed settlement never causes a blind resubmit.
+      if (onTaskAccepted) {
+        let durable = false;
+        try { durable = await onTaskAccepted(taskId); } catch { durable = false; }
+        if (!durable) return {
+          ok: false, failure: 'generation_failed',
+          detail: 'accepted_task_record_unavailable', billable: true,
+        };
+      }
       for (let attempt = 0; attempt < pollMaxAttempts; attempt++) {
         if (signal.aborted) return { ok: false, failure: 'cancelled', detail: 'poll_aborted' };
         await new Promise<void>((resolve, reject) => {
