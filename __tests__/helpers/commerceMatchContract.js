@@ -13,7 +13,7 @@ function loadPortable(relativePath) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const localRequire = id => {
-    if (id === '../_shared/net/safeRemoteMedia.ts') return loadPortable('supabase/functions/_shared/net/safeRemoteMedia.ts');
+    if (id === '../_shared/net/publicHost.ts') return loadPortable('supabase/functions/_shared/net/publicHost.ts');
     throw new Error(`Unexpected portable contract import: ${id}`);
   };
   Function('module', 'exports', 'require', 'URL', 'URLSearchParams', source)(module, module.exports, localRequire, URL, URLSearchParams);

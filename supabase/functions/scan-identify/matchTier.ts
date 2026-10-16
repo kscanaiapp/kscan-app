@@ -1,5 +1,5 @@
 /** Portable Scanner commerce evidence contract. No server, model, or provider dependencies. */
-import { isNonPublicHost } from '../_shared/net/safeRemoteMedia.ts';
+import { isNonPublicHost } from '../_shared/net/publicHost.ts';
 export const COMMERCE_MATCH_VERSION = 1 as const;
 export type CommerceMatchTier = 'exact' | 'same_brand' | 'similar';
 export type CommerceMatchMetadata = {
