@@ -251,8 +251,12 @@ function OfferBody({
           pressed && (unlock ? styles.buttonUnlockPressed : styles.buttonTryOnPressed),
         ]}
         accessibilityRole="button"
-        accessibilityLabel={ELISE_VTO_OFFER_COPY.ctaAccessibilityLabel}
-        accessibilityHint={ELISE_VTO_OFFER_COPY.ctaAccessibilityHint}
+        accessibilityLabel={unlock
+          ? ELISE_VTO_OFFER_COPY.unlockAccessibilityLabel
+          : ELISE_VTO_OFFER_COPY.ctaAccessibilityLabel}
+        accessibilityHint={unlock
+          ? ELISE_VTO_OFFER_COPY.unlockAccessibilityHint
+          : ELISE_VTO_OFFER_COPY.ctaAccessibilityHint}
         accessibilityState={{ busy }}
         testID={`${testID}-cta`}
       >
@@ -270,7 +274,7 @@ function OfferBody({
             accentColor={unlock ? LUXURY.colors.gold : LUXURY.colors.goldLight}
           />
           <Text style={[styles.label, unlock ? styles.labelUnlock : styles.labelTryOn]} numberOfLines={1}>
-            {ELISE_VTO_OFFER_COPY.cta}
+            {unlock ? ELISE_VTO_OFFER_COPY.unlockCta : ELISE_VTO_OFFER_COPY.cta}
           </Text>
         </View>
       </Pressable>

@@ -129,7 +129,7 @@ An offer requires: an authenticated actor, one deterministically correlated
 garment, a canonical category the existing VTO authority accepts, usable local
 candidate media, a live candidate, a build that carries VTO, and a readable,
 enabled remote control. It does **not** require K+: a Free customer sees the
-offer, and it is their way into the existing K+ acquisition flow.
+offer, and it is their way into the existing K+ acquisition flow. The Free variant states the requirement before the tap ("TRY IT ON · K+", the product control's own wording, with matching accessibility label and hint); it opens the shared K+ gate and nothing else.
 
 ### Partial identifications (P1-05)
 

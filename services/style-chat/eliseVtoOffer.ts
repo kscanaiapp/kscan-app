@@ -45,6 +45,13 @@ export const ELISE_VTO_OFFER_COPY = Object.freeze({
   cta: 'TRY IT ON',
   ctaAccessibilityLabel: 'Try this on',
   ctaAccessibilityHint: 'Opens virtual try-on with a photo you choose',
+  // The Free variant. These are the product control's own words (pinned equal
+  // to VTO_DISCOVERY_COPY.productUnlockLabel and to TryItOnEntry's unlock
+  // accessibility strings by __tests__/vtoEliseContextualOffer.test.js), so the
+  // K+ requirement is stated BEFORE the tap and Elise cannot drift from it.
+  unlockCta: 'TRY IT ON · K+',
+  unlockAccessibilityLabel: 'Try It On is available with K+',
+  unlockAccessibilityHint: 'Opens K+ membership options',
   unavailable: "Try It On isn't available for this upload anymore.",
   garmentTitleFallback: 'Your photo',
 });
