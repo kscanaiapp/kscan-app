@@ -35,6 +35,7 @@ import { KScanIcon } from '../icons/kscan';
 import { HomeStylistCard } from './HomeStylistCard';
 import { HomeVoiceScanPill } from './HomeVoiceScanPill';
 import { HomeVtoDiscoveryCard } from './HomeVtoDiscoveryCard';
+import { TryOnStudioEntry } from './TryOnStudioEntry';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -397,6 +398,13 @@ export default function HomeLuxuryTechV1() {
       */}
       <HomeVtoDiscoveryCard style={styles.vtoDiscoveryCard} />
 
+      {/*
+        Permanent Try-On Studio entry. Unlike the card above it does not retire:
+        it stays after the introduction is dismissed and after the first try-on,
+        and only opens the Studio screen. See components/home/TryOnStudioEntry.tsx.
+      */}
+      <TryOnStudioEntry style={styles.vtoStudioEntry} />
+
       {/* Feature explanation row */}
       {/* Static product education content — no backend integration required. */}
       <View style={styles.featuresRow}>
@@ -670,6 +678,9 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   vtoDiscoveryCard: {
+    marginBottom: SPACING.xxl,
+  },
+  vtoStudioEntry: {
     marginBottom: SPACING.xxl,
   },
   featuresRow: {
