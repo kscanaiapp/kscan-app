@@ -115,6 +115,7 @@ const HTTP_STATUS_BY_FAILURE: Readonly<Record<VtoFailureCode, number>> = {
   rate_limited: 429,
   quota_exhausted: 429,
   request_in_flight: 429,
+  result_unavailable: 409,
   provider_busy: 503,
   generation_failed: 502,
   invalid_output: 502,
@@ -134,6 +135,7 @@ const RETRYABLE: ReadonlySet<VtoFailureCode> = new Set<VtoFailureCode>([
   'rate_limited',
   'quota_exhausted',
   'generation_failed',
+  'result_unavailable',
   'provider_busy',
   'invalid_output',
   'network_failure',
@@ -504,7 +506,7 @@ export async function handleVtoRequest(
     // A succeeded attempt is never dispatched twice. Results are ephemeral:
     // report that the prior receipt cannot be replayed, requiring a deliberate
     // new requestGeneration rather than a misleading endless in-flight UI.
-    return fail(reservation.priorStatus === 'succeeded' ? 'generation_failed' : 'request_in_flight', {
+    return fail(reservation.priorStatus === 'succeeded' ? 'result_unavailable' : 'request_in_flight', {
       requestId, uid, origin,
       stage: reservation.priorStatus === 'succeeded'
         ? 'prior_success_result_not_replayable' : 'reservation_duplicate',
