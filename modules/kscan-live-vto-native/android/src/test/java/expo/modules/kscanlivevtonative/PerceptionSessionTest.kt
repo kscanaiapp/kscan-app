@@ -99,6 +99,32 @@ class PerceptionSessionTest {
   }
 
   @Test
+  fun aRunningSessionCanSwapToAnotherGovernedGarmentOnlyThroughStopLoadStart() {
+    val provider = FakePerceptionProvider({ neutralRawFrame() })
+    val events = mutableListOf<ReplayEvent>()
+    val session = LiveVtoPerceptionSession(provider, CANVAS_W, CANVAS_H, onEvent = { events.add(it) })
+    val (first, firstDims) = GoldenBodyFrames.fixture("n1b-fixture")
+    val (second, secondDims) = GoldenBodyFrames.fixture("n1c-asym-fixture")
+    assertTrue(first.productId != second.productId)
+
+    assertTrue(session.load(first, firstDims.first, firstDims.second))
+    assertTrue(session.start())
+    // The view relies on this: a load while PLAYING is refused, so the swap has to stop first.
+    assertFalse(session.load(second, secondDims.first, secondDims.second))
+    assertEquals(first.productId, events.last().fixtureId)
+
+    assertTrue(session.stop())
+    assertTrue(session.load(second, secondDims.first, secondDims.second))
+    assertTrue(session.start())
+    assertEquals(ReplayState.PLAYING, session.currentState())
+    assertEquals("the session now reports the swapped-in garment", second.productId, events.last().fixtureId)
+
+    session.submitFrame(FakeInputFrame())
+    assertTrue(session.runOneInferenceStep())
+    assertTrue("geometry is produced for the new garment", session.consumeForRender() != null)
+  }
+
+  @Test
   fun aProviderThatFailsToInitializeFailsClosedIntoError() {
     val provider = FakePerceptionProvider({ neutralRawFrame() }, failInitialize = true)
     val session = LiveVtoPerceptionSession(provider, CANVAS_W, CANVAS_H)

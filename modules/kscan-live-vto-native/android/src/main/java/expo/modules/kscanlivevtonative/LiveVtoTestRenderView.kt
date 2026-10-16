@@ -988,13 +988,31 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     sessionState = loadingState
     val myGeneration = sessionGeneration.get()
     try {
-      val (manifest, bitmap, _) = loadFixture(descriptor.assetKey)
+      val (manifest, bitmap, dims) = loadFixture(descriptor.assetKey)
       if (!assetIdentityMatches(manifest, descriptor)) {
         throw LiveVtoGarmentValidationException(
           "asset version mismatch for ${descriptor.assetKey}: requested ${descriptor.assetVersion}, manifest reports ${manifest.assetVersion}"
         )
       }
       if (sessionGeneration.get() != myGeneration) return true // superseded by a stop/dispose/newer load; drop silently
+      // THE RENDERED GARMENT MUST BE THE LOADED GARMENT. The live camera path
+      // used to draw the bundled n1b fixture whatever the descriptor asked for
+      // (`sessionGarmentBitmap` below was never read), so a session for the other
+      // governed garment rendered the wrong one. Swap the running pipeline onto
+      // the loaded manifest: stop, reload with its geometry, start, and draw its
+      // bitmap. Everything here runs on the main thread (session commands and the
+      // camera callbacks both do), and the perception session refuses a load while
+      // PLAYING/PAUSED, hence the stop first. A failed swap throws into the same
+      // closed GARMENT_UNSUPPORTED path as any other load failure.
+      cameraPerceptionSession?.let { perception ->
+        val wasRunning = perception.currentState() == ReplayState.PLAYING || perception.currentState() == ReplayState.PAUSED
+        if (wasRunning) perception.stop()
+        if (!perception.load(manifest, dims.first, dims.second)) {
+          throw LiveVtoGarmentValidationException("perception refused the garment swap for ${descriptor.assetKey}: ${perception.currentState()}")
+        }
+        cameraBitmap = bitmap
+        if (wasRunning) perception.start()
+      }
       sessionGarmentBitmap = bitmap
       loadedGarment = descriptor
       sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.GARMENT_LOADED, resumeTo).next
