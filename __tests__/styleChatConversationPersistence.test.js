@@ -228,6 +228,18 @@ function loadRepository(client) {
   });
 }
 
+test('message insert errors retain SQLSTATE for strict greeting-conflict recovery', async () => {
+  const repository = loadRepository({
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'actor-1' } } } }) },
+    from: () => ({ insert: () => ({ select: () => ({ single: async () => ({
+      data: null, error: { code: '23505', message: 'greeting unique conflict' },
+    }) }) }) }),
+  });
+  await assert.rejects(repository.saveStyleChatMessage({
+    sessionId: 'session-1', sender: 'assistant', content: 'Synthetic welcome', uiBlocks: [{ type: 'greeting' }],
+  }, 'actor-1'), (error) => error.name === 'Error' && error.code === '23505');
+});
+
 function loadGreeting(client, repository) {
   return loadTsModule('services/style-chat/styleChatGreeting.ts', {
     '@supabase/supabase-js': {},

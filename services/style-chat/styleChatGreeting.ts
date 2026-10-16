@@ -54,7 +54,8 @@ export function getGreetingTextForUser(
  * - If the session already has other messages but no greeting, message is null
  *   so pre-existing conversations are not modified.
  * - If the session is empty, a single assistant greeting is persisted.
- * - Concurrent calls for the same session are deduplicated to a single insert.
+ * - Same-process calls are deduplicated; the database unique index arbitrates
+ *   other devices. A conflict loser reuses the winner without speech eligibility.
  */
 export async function ensureSessionGreeting(
   actorId: string,
@@ -78,15 +79,25 @@ export async function ensureSessionGreeting(
       // Pre-existing conversation without a greeting marker: do not seed retroactively.
       if (existing.length > 0) return { message: null, inserted: false };
 
-      const saved = await saveStyleChatMessage({
-        sessionId,
-        sender: 'assistant',
-        content: greetingText,
-        uiBlocks: [GREETING_UI_BLOCK],
-        provider: 'greeting',
-        tokenEstimate: 0,
-      }, actorId);
-      return { message: saved, inserted: true };
+      try {
+        const saved = await saveStyleChatMessage({
+          sessionId,
+          sender: 'assistant',
+          content: greetingText,
+          uiBlocks: [GREETING_UI_BLOCK],
+          provider: 'greeting',
+          tokenEstimate: 0,
+        }, actorId);
+        return { message: saved, inserted: true };
+      } catch (error) {
+        if (!error || typeof error !== 'object' || !('code' in error) || error.code !== '23505') throw error;
+        // Another device may have won after our empty read. Keep the explicit
+        // actor/session read boundary and never arm new-greeting speech here.
+        const persisted = await listStyleChatMessages(sessionId, actorId);
+        const winner = persisted.find((message) => message.sessionId === sessionId && isGreetingMessage(message));
+        if (!winner) throw error;
+        return { message: winner, inserted: false };
+      }
     } finally {
       pendingInserts.delete(scopeKey);
     }

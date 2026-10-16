@@ -306,7 +306,7 @@ export async function saveStyleChatMessage(input: {
         .maybeSingle();
       if (!existingError && existing) return toMessage(existing as MessageRow);
     }
-    throw new Error(error.message);
+    throw Object.assign(new Error(error.message), { code: error.code });
   }
 
   // Best-effort session timestamp bump; fire-and-forget
