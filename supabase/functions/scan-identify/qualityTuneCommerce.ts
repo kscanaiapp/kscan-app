@@ -17,6 +17,7 @@ import {
   normalizeSilhouette,
 } from './qualityTuneNormalize.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import { normalizeUrl, isAggregatorDestination } from './shoppingProvider.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
 import { AGREEMENT_USABLE_THRESHOLD, normalizeCommerceCategoryText, parseNumericPrice, scoreProductAgreement } from './commerceRelevanceAgreement.ts';
@@ -373,8 +374,7 @@ export function hasUsableImage(p: RecommendedProduct): boolean {
 
 export function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
-  if (!url) return false;
-  if (!/^https?:\/\//i.test(url)) return false;
+  if (!normalizeUrl(url) || isAggregatorDestination(url)) return false;
   try {
     const u = new URL(url);
     if (u.username || u.password || !u.hostname) return false;

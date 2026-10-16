@@ -46,6 +46,8 @@ import {
 } from '../_shared/scanHelpers.ts';
 import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence } from './brandEvidence.ts';
 import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
+import { classifyCommerceMatch } from './matchTier.ts';
+import { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
@@ -2279,6 +2281,9 @@ Deno.serve(async (req) => {
     // plus one — never a filter, and never allowed to change what Recent
     // Scans persists (see watchlistCapability.ts).
     products = attachWatchCapability(products);
+    if (shouldUseScannerBrandEvidence('image', internalRequest.entryPath, body.source)) {
+      products = annotateScannerMatchMetadata(products, gated.identification);
+    }
     const canonical = buildCanonicalCommerce(products);
 
     console.log(
@@ -4141,6 +4146,10 @@ Deno.serve(async (req) => {
     // see watchlistCapability.ts. Never a filter; never seen by ranking,
     // dedupe, or the Recent Scans persistence decision.
     finalRecommendedProducts = attachWatchCapability(finalRecommendedProducts);
+    if (scannerBrandEvidenceEnabled) {
+      finalRecommendedProducts = annotateScannerMatchMetadata(finalRecommendedProducts, completedNormalizedId ?? {});
+      finalSimilarityMatches = annotateScannerMatchMetadata(finalSimilarityMatches, completedNormalizedId ?? {});
+    }
 
     const legacyFinalResponse = withSafeImageArrays(
       {
@@ -4462,6 +4471,24 @@ function hasBrandEvidenceForCommerce(
 ): boolean {
   if (!identification || typeof identification !== 'object') return false;
   return resolveScannerBrandEvidence(identification).verified;
+}
+
+/** Versioned listing-bound labels; no model/variant verification is invented here. */
+function annotateScannerMatchMetadata<T>(products: T[], identification: Record<string, unknown>): T[] {
+  const brandEvidence = resolveScannerBrandEvidence(identification);
+  const category = normalizeCommerceCategoryText(String(identification.item_type ?? ''));
+  const subtype = String(identification.subtype ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(token => token.replace(/s$/, ''));
+  return products.map(product => {
+    const record = product as Record<string, unknown>;
+    const productText = [record.title, record.name, record.category, record.item_type].filter(value => typeof value === 'string').join(' ');
+    const tokens = new Set(productText.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(token => token.replace(/s$/, '')));
+    const matchMetadata = classifyCommerceMatch(record, {
+      brandEvidence,
+      categoryCompatible: !!category && normalizeCommerceCategoryText(productText) === category,
+      subtypeCompatible: subtype.length > 0 && subtype.every(token => tokens.has(token)),
+    });
+    return { ...product, ...(matchMetadata ? { matchMetadata } : {}) };
+  });
 }
 
 function safeStringMessage(value: unknown): string | undefined {

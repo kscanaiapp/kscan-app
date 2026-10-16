@@ -9,6 +9,7 @@
 // stable RecommendedProduct shape.
 
 import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+import { isNonPublicHost } from '../_shared/net/safeRemoteMedia.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,12 +110,7 @@ const AGGREGATOR_HOSTS = [
  * as hostile rather than merely useless.
  */
 function isPrivateHost(host: string): boolean {
-  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;
-  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
-  // Link-local, including the cloud metadata endpoint.
-  if (/^169\.254\./.test(host)) return true;
-  return false;
+  return isNonPublicHost(host);
 }
 
 // ── Env access (Deno) ────────────────────────────────────────────────────────
