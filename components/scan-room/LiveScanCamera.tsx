@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { ScannerCameraLease } from './ScannerCameraLease';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -144,6 +145,7 @@ export function LiveScanCamera({
       {/* Viewfinder */}
       <View style={[styles.viewfinderWrap, { width: viewfinderWidth, height: viewfinderHeight }]}>
         <View style={[styles.cameraContainer, { width: viewfinderWidth, height: viewfinderHeight }]}>
+          <ScannerCameraLease />
           <CameraView
             style={styles.camera}
             ref={cameraRef}

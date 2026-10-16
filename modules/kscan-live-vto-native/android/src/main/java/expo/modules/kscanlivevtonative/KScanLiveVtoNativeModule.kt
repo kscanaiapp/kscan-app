@@ -33,11 +33,28 @@ class KScanLiveVtoNativeModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("KScanLiveVto")
 
+    // Static prerequisites only, reported as separate stages, behind a closed
+    // certification gate. See LiveVtoCapabilityStages for why nothing here may
+    // read as "the camera works" and why frames/perception/rendering are not
+    // (and cannot be) reported before a session starts.
     Function("getCapability") {
-      mapOf(
-        "capable" to false,
-        "runtimeReady" to false,
-        "runtimeVersion" to RUNTIME_VERSION
+      val context = appContext.reactContext
+      val modelPresent = try {
+        context?.assets?.open(LiveVtoMediaPipePoseProvider.MODEL_ASSET_PATH)?.close() != null
+      } catch (t: Throwable) {
+        false
+      }
+      LiveVtoCapabilityStages.evaluate(
+        LiveVtoCapabilityStages.Inputs(
+          sdkInt = android.os.Build.VERSION.SDK_INT,
+          frontCameraPresent = context?.packageManager
+            ?.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_FRONT) == true,
+          modelAssetPresent = modelPresent,
+          cameraPermissionGranted = context != null &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED,
+        ),
+        RUNTIME_VERSION,
       )
     }
 

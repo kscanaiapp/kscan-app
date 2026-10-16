@@ -59,6 +59,15 @@ class LiveVtoCameraController(
   private var cameraProvider: ProcessCameraProvider? = null
   private var analysisExecutor: ExecutorService? = null
 
+  /** The use cases THIS controller bound, and the only ones it may ever unbind. */
+  private var ownedUseCases: List<androidx.camera.core.UseCase> = emptyList()
+
+  private fun unbindOwned(provider: ProcessCameraProvider) {
+    val owned = ownedUseCases
+    ownedUseCases = emptyList()
+    if (owned.isNotEmpty()) provider.unbind(*owned.toTypedArray())
+  }
+
   /**
    * `ProcessCameraProvider.getInstance(context)` is asynchronous, but
    * `start()`/`stop()` are ordinary synchronous calls from an Expo `Prop`
@@ -98,17 +107,17 @@ class LiveVtoCameraController(
   }
 
   private fun bind(provider: ProcessCameraProvider, myGeneration: Int) {
-    // N1-F binds its OWN use cases exclusively -- `unbindAll()` releases
-    // whatever a previous Live VTO session left bound (safe: this class is
-    // the only owner of camera use cases across `start`/`stop`/`dispose`
-    // per mission section 15's "exactly one session owns the camera").
-    // Known, documented, prototype-scope constraint: `ProcessCameraProvider`
-    // is process-wide, so this WOULD also unbind a concurrently-active
-    // camera use case from an unrelated feature (e.g. the main Scan
-    // camera) if both were bound at once. Not exercised in normal
-    // navigation (Live VTO and Scan are different screens) and out of
-    // scope to solve here per mission section 5's scope fence.
-    provider.unbindAll()
+    // CAMERA OWNERSHIP. `ProcessCameraProvider` is a PROCESS-WIDE singleton and
+    // expo-camera (the Scanner) shares it: expo-camera 17.0.10 calls
+    // `unbindAll()` when it binds and again when its view detaches or is
+    // destroyed. This controller therefore releases only the use cases IT bound
+    // (`unbindOwned`), never `unbindAll()`: a Live teardown can no longer
+    // switch off a Scanner camera that another surface acquired meanwhile, and
+    // a restart here cannot disturb one either. The reverse direction (another
+    // surface's `unbindAll()` removing Live) cannot be fixed from this module;
+    // it is prevented by never letting both surfaces own a camera at once (see
+    // services/cameraOwnership.ts).
+    unbindOwned(provider)
 
     val preview = androidx.camera.core.Preview.Builder().build().also {
       it.setSurfaceProvider(previewView.surfaceProvider)
@@ -137,6 +146,7 @@ class LiveVtoCameraController(
 
     try {
       provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis)
+      ownedUseCases = listOf(preview, analysis)
       transition(CameraControllerState.RUNNING, null)
     } catch (t: Throwable) {
       Log.e(TAG, "bindToLifecycle failed", t)
@@ -151,9 +161,9 @@ class LiveVtoCameraController(
     if (state == CameraControllerState.IDLE || state == CameraControllerState.STOPPED) return
     generation.incrementAndGet() // invalidate any in-flight start() future before touching anything else
     try {
-      cameraProvider?.unbindAll()
+      cameraProvider?.let { unbindOwned(it) }
     } catch (t: Throwable) {
-      Log.e(TAG, "unbindAll on stop threw (ignored, stopping anyway)", t)
+      Log.e(TAG, "unbind of Live's own use cases threw (ignored, stopping anyway)", t)
     }
     cameraProvider = null
     analysisExecutor?.shutdown()

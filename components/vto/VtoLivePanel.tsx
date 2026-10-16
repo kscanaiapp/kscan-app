@@ -7,12 +7,17 @@
  * no video control -- those belong to a later phase and speculative chrome for
  * them would be a promise this lane has no runtime to keep.
  *
- * NO CAMERA VIEW IS MOUNTED HERE. The native runtime owns camera acquisition,
- * inference and rendering behind its own view; this component speaks only the
- * high-level command/event contract. That is why nothing in this file imports
- * a camera, and why there is no frame, mask, landmark or pose value anywhere
- * in it to render. Until the native view exists, the panel shows the session's
- * state honestly rather than faking a viewfinder.
+ * THE NATIVE VIEW IS MOUNTED HERE, AND ONLY HERE. The native runtime owns
+ * camera acquisition, inference and rendering behind its own view, and every
+ * session command addresses "the one mounted Live view". This panel mounts it
+ * (components/vto/VtoLiveNativeView.tsx) behind the status text, before Start
+ * Live can be tapped, so the commands always have something to address and the
+ * camera is released with the panel. This file still imports no camera and
+ * handles no frame, mask, landmark or pose value: it speaks only the high-level
+ * command/event contract and the view carries no data props. Where no native
+ * view exists (a build without the module, the dev harness) nothing is mounted
+ * and the panel shows the session's state honestly rather than faking a
+ * viewfinder.
  *
  * ERRORS ARE BOUNDED. Every message shown comes from the K Scan copy table in
  * types/vtoLive.ts. A provider-native or ML-native string cannot reach this
@@ -23,7 +28,7 @@
  * and dismissible, and the Live controls stay exactly where they were.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { InlineNotice, PrimaryButton, SecondaryButton, TertiaryButton } from '../luxury';
@@ -34,6 +39,7 @@ import {
   type PhotorealFailureOutcome,
 } from '../../types/vtoLive';
 import type { LiveVtoSessionSnapshot } from '../../services/vto/vtoLiveSession';
+import { resolveLiveVtoNativeView, VtoLiveNativeView } from './VtoLiveNativeView';
 
 export interface VtoLivePanelProps {
   session: LiveVtoSessionSnapshot;
@@ -89,6 +95,14 @@ export function VtoLivePanel({
   onDismissPhotorealFailure,
   testID,
 }: VtoLivePanelProps) {
+  const hasNativeView = React.useMemo(() => resolveLiveVtoNativeView() !== null, []);
+  // Start is offered only once the native view is attached and addressable.
+  // Without a native view at all (harness / module absent) it is not gated.
+  const [viewReady, setViewReady] = useState(false);
+  const startReady = !hasNativeView || viewReady;
+  const nativeView = hasNativeView ? (
+    <VtoLiveNativeView style={StyleSheet.absoluteFill} onMounted={() => setViewReady(true)} />
+  ) : null;
   const busy = BUSY_STATES.has(session.state);
   const errored = session.state === 'ERROR';
   // Photoreal and preview are only honest offers while a session is actually
@@ -99,12 +113,13 @@ export function VtoLivePanel({
     return (
       <View style={styles.root} testID={testID ?? 'vto-live-panel'}>
         <View style={styles.stage}>
+          {nativeView}
           <Text style={styles.stageText}>Live uses your camera to show the piece on you.</Text>
         </View>
         {/* The camera prompt happens on THIS tap and nowhere earlier. */}
         <Text style={styles.privacy}>{LIVE_VTO_PROCESSING_NOTE}</Text>
         <View style={styles.actions}>
-          <PrimaryButton title="Start Live" onPress={onEnter} testID="vto-live-enter" />
+          <PrimaryButton title="Start Live" onPress={onEnter} disabled={!startReady} testID="vto-live-enter" />
           <SecondaryButton
             title="Use AI Photo instead"
             onPress={onSwitchToAiPhoto}
@@ -124,6 +139,7 @@ export function VtoLivePanel({
         accessibilityLabel={STATE_COPY[session.state]}
         testID="vto-live-stage"
       >
+        {nativeView}
         {busy ? <ActivityIndicator size="large" color={LUXURY.colors.plum} /> : null}
         <Text style={styles.stageText}>{STATE_COPY[session.state]}</Text>
       </View>
@@ -214,6 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.champagne,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
+    overflow: 'hidden',
   },
   stageText: {
     ...LUXURY.typography.body,
