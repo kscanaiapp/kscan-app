@@ -26,7 +26,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
-import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
+import { useVtoActorBoundaryEpoch, useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
 import { selectionTick } from '../../services/haptics';
 import { markVtoCompleted, markVtoInitiated } from '../../services/vto/vtoAwareness';
 import type { VtoCapability } from '../../services/vto/vtoLiveCapability';
@@ -69,13 +69,19 @@ export function useVtoLaunchHost({
   // Read-only: observing the running generation must not claim authority over
   // it. See hooks/useVtoSessionStatus.ts.
   const session = useVtoSessionStatus();
+  // The actor this sheet was opened under. A change of actor clears the store
+  // (photo, result) but cannot reach component state, so without this an open
+  // sheet would keep showing the previous actor's garment, title and Shop/Watch.
+  const boundaryEpoch = useVtoActorBoundaryEpoch();
+  const openedEpoch = useRef(boundaryEpoch);
 
   const open = useCallback(() => {
     // Opening the try-on surface is what retires the Home introduction.
     markVtoInitiated();
+    openedEpoch.current = boundaryEpoch;
     setMinimized(false);
     setSheetVisible(true);
-  }, []);
+  }, [boundaryEpoch]);
 
   const close = useCallback(() => {
     setMinimized(false);
@@ -99,6 +105,13 @@ export function useVtoLaunchHost({
     setMinimized(true);
     onWatch();
   }, [onWatch]);
+
+  useEffect(() => {
+    if (sheetVisible && boundaryEpoch !== openedEpoch.current) {
+      setMinimized(false);
+      setSheetVisible(false);
+    }
+  }, [boundaryEpoch, sheetVisible]);
 
   // A result on screen is the "completed" half of the awareness history.
   useEffect(() => {

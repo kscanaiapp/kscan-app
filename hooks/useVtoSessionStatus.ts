@@ -16,6 +16,7 @@
 import { useSyncExternalStore } from 'react';
 
 import {
+  getVtoActorBoundaryEpoch,
   getVtoSnapshot,
   subscribeToVto,
   type VtoSnapshot,
@@ -23,4 +24,12 @@ import {
 
 export function useVtoSessionStatus(): VtoSnapshot {
   return useSyncExternalStore(subscribeToVto, getVtoSnapshot, getVtoSnapshot);
+}
+
+/**
+ * Advances when the ACTOR changes (sign-out, account switch), never for the
+ * customer's own "start over". Read-only, same as the hook above.
+ */
+export function useVtoActorBoundaryEpoch(): number {
+  return useSyncExternalStore(subscribeToVto, getVtoActorBoundaryEpoch, getVtoActorBoundaryEpoch);
 }

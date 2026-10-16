@@ -24,11 +24,15 @@ const B = garment('prod-B');
 
 function harness() {
   const r = createRenderer();
+  const boundary = { epoch: 0 };
   const calls = { watchA: 0, watchB: 0, shopA: 0, shopB: 0, completed: 0, initiated: 0 };
   const host = runModule('components/vto/VtoLaunchHost.tsx', {
     ...r.runtimeModules,
     '../../hooks/useVtoAwareness': { useVtoAwarenessBlocker: () => {} },
-    '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: 'idle' }) },
+    '../../hooks/useVtoSessionStatus': {
+      useVtoSessionStatus: () => ({ status: 'idle' }),
+      useVtoActorBoundaryEpoch: () => boundary.epoch,
+    },
     '../../services/haptics': { selectionTick: () => {} },
     '../../services/vto/vtoAwareness': {
       markVtoCompleted: () => { calls.completed += 1; },
@@ -55,7 +59,7 @@ function harness() {
   const show = (next) => { props = next; return r.render(r.jsx(Entry, {})); };
   const sheet = (tree) => findAll(tree, (n) => n.type === 'VirtualTryOnSheet')[0] ?? null;
   const pill = (tree) => findAll(tree, (n) => n.type === 'VtoMinimizedPill')[0] ?? null;
-  return { show, sheet, pill, forGarment, calls, get launch() { return launch; }, host };
+  return { show, sheet, pill, forGarment, calls, boundary, get launch() { return launch; }, host };
 }
 
 test('N-02: a different garment passed while the sheet is open does not replace the tapped one', () => {
@@ -144,6 +148,41 @@ test('nothing is pinned or rendered before an explicit open', () => {
   assert.equal(h.sheet(h.show(h.forGarment(B, 'B'))).props.garment.productRef, 'prod-B', 'opened for B, so B');
 });
 
+test('N-09: an actor change closes an open sheet, minimized or not, so a previous actor garment never lingers', () => {
+  for (const minimizeFirst of [false, true]) {
+    const h = harness();
+    h.show(h.forGarment(A, 'A'));
+    h.launch.open();
+    assert.ok(h.sheet(h.show(h.forGarment(A, 'A'))), 'open');
+    if (minimizeFirst) h.launch.minimize();
+    h.boundary.epoch += 1; // resetVtoForActorBoundary ran
+    h.show(h.forGarment(A, 'A'));
+    const tree = h.show(h.forGarment(A, 'A'));
+    assert.equal(h.sheet(tree), null, 'the sheet is gone after the actor boundary');
+    assert.equal(h.pill(tree), null, 'and so is the pill');
+    h.launch.open();
+    assert.ok(h.sheet(h.show(h.forGarment(B, 'B'))), 'the next actor can open a fresh try-on');
+    assert.equal(h.sheet(h.show(h.forGarment(B, 'B'))).props.garment.productRef, 'prod-B');
+  }
+});
+
+test('N-09: a sheet opened AFTER the boundary is not closed by an earlier one', () => {
+  const h = harness();
+  h.boundary.epoch = 3;
+  h.show(h.forGarment(A, 'A'));
+  h.launch.open();
+  assert.ok(h.sheet(h.show(h.forGarment(A, 'A'))));
+  assert.ok(h.sheet(h.show(h.forGarment(A, 'A'))), 'still open: no boundary since it opened');
+});
+
+test('N-09: a customer own "start over" is not an actor boundary', () => {
+  const store = fs.readFileSync(path.join(ROOT, 'services/vto/vtoRequestStore.ts'), 'utf8');
+  const clear = store.slice(store.indexOf('export function resetVtoRequestState'));
+  assert.ok(!clear.slice(0, clear.indexOf('\n}\n')).includes('actorBoundaryEpoch'), 'clearPerson must not close the sheet');
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks/useVirtualTryOn.ts'), 'utf8');
+  assert.ok(hook.includes('resetVtoRequestState();') && !hook.includes('resetVtoForActorBoundary'));
+});
+
 test('NEGATIVE CONTROL: without the pin the open sheet would follow the parent to another garment', () => {
   const source = fs.readFileSync(path.join(ROOT, 'components/vto/VtoLaunchHost.tsx'), 'utf8');
   const mutant = source.replace(
@@ -155,7 +194,7 @@ test('NEGATIVE CONTROL: without the pin the open sheet would follow the parent t
   const host = runModule('components/vto/VtoLaunchHost.tsx', {
     ...r.runtimeModules,
     '../../hooks/useVtoAwareness': { useVtoAwarenessBlocker: () => {} },
-    '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: 'idle' }) },
+    '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: 'idle' }), useVtoActorBoundaryEpoch: () => 0 },
     '../../services/haptics': { selectionTick: () => {} },
     '../../services/vto/vtoAwareness': { markVtoCompleted: () => {}, markVtoInitiated: () => {} },
     '../../services/vto/vtoLiveCapability': {},
