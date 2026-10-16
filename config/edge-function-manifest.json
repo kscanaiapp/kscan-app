@@ -1751,7 +1751,7 @@
         "bundleFileCount": 18,
         "treeFileCount": 26,
         "bundleHash": "08e0840b7cae244fa47423894f08010b1b45299ecb37d042792d631777f521f9",
-        "treeHash": "c521c65517e6e1b7a40500ef4abc2367f39032547d0fca9de5192fcbc7a2f70d",
+        "treeHash": "dd0d24f73a8159ce194812dd4549b71c61dea98d27523394b8942cc6b41bd12e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1840,7 +1840,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoOwnedGarment.test.ts",
-            "sha256": "8c3fe78386de66eafae4d9d92792af8546232caeeef81543a5c5bb5cb843427b",
+            "sha256": "3d6c71ba971d9d4b3561a100707894dc14fbd36a50ed4149ce0fa51efe7dc827",
             "bundle": false
           },
           {
@@ -1875,7 +1875,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoUserSuppliedGarment.test.ts",
-            "sha256": "6362b3f913270576d6ce34e8309c4f1804995fa0c18a6ab41529c2f491e49790",
+            "sha256": "c3f7e1f5d4803869cd741366f4072841a0cdc2d56008907b7e85a51ae1e81d1d",
             "bundle": false
           },
           {
