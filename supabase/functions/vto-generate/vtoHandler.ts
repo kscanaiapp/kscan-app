@@ -503,6 +503,63 @@ export async function handleVtoRequest(
       origin,
       priorStatus: reservation.priorStatus ?? 'unknown',
     });
+    // A prior accepted task may still be retrievable without a second paid
+    // POST. Recover by provider task ID only, never by submitting the images
+    // again. Terminal rows require no second settlement; an in-flight success
+    // must atomically settle exactly its original attempt UUID.
+    if (reservation.taskId && typeof selection.provider.recover === 'function') {
+      const recoverController = new AbortController();
+      const recoverTimer = setTimeout(() => recoverController.abort(), 12_000);
+      let recovered;
+      try {
+        recovered = await selection.provider.recover(
+          reservation.taskId, { signal: recoverController.signal },
+        );
+      } catch {
+        recovered = null;
+      } finally {
+        clearTimeout(recoverTimer);
+      }
+      if (recovered?.ok) {
+        const checked = validateVtoResultMedia(recovered.media);
+        if (checked.ok) {
+          if (reservation.priorStatus === 'in_flight') {
+            if (!reservation.attemptId ||
+                !await deps.completeVtoGeneration(
+                  authUser.id, idempotencyKey, 'succeeded',
+                  selection.provider.id, reservation.attemptId,
+                )) {
+              return fail('authorization_failed', {
+                requestId, uid, origin, stage: 'recovered_settlement_unverified',
+              });
+            }
+          }
+          if (reservation.priorStatus === 'succeeded' ||
+              reservation.priorStatus === 'in_flight') {
+            logVtoEvent('vto_generate_succeeded', {
+              requestId, uid, origin, provider: selection.provider.id,
+              slot: eligibility.slot, category: eligibility.canonicalCategory,
+              latencyMs: 0, inputBucket: payloadBucket(personDataUri.length),
+              outputBucket: dimensionBucket(checked.media.width, checked.media.height),
+              outputBytes: checked.byteLength,
+              billedUnits: checked.media.billedUnits ?? undefined,
+            });
+            return json({
+              requestId, status: 'success',
+              ...(ownedGarment ? { garmentSource: ownedGarment.source } : {}),
+              ...(suppliedGarment ? { garmentSource: suppliedGarment.source } : {}),
+              provider: selection.provider.id,
+              result: {
+                dataUri: checked.media.dataUri, mediaType: checked.media.mediaType,
+                width: checked.media.width, height: checked.media.height,
+                isAiVisualization: true, latencyMs: 0,
+              },
+            });
+          }
+        }
+      }
+    }
+
     // A succeeded attempt is never dispatched twice. Results are ephemeral:
     // report that the prior receipt cannot be replayed, requiring a deliberate
     // new requestGeneration rather than a misleading endless in-flight UI.
