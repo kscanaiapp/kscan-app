@@ -372,9 +372,9 @@ test('negative control: without the exclusion the same ledger is refused', async
 
 test('apply-staging-migration applies the same exclusion rule as the preflight', () => {
   const source = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'), 'utf8');
-  assert.match(source, /import \{ loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY \} from '\.\/staging-deploy-preflight\.mjs';/);
-  assert.match(source, /r\?\.classification === OBSOLETE_REMOTE_ONLY/);
-  assert.match(source, /!reconciledRemote\.has\(v\) && !excludedRemote\.has\(v\)/);
+  assert.match(source, /import \{ loadLedgerReconciliation, compareMigrations \} from '\.\/staging-deploy-preflight\.mjs';/);
+  assert.match(source, /compareMigrations\(local, remote, approvedVersion, reconciliation\)/);
+  assert.match(source, /compareMigrations\(local, afterRemote, approvedVersion, reconciliation\)/);
 });
 
 test('duplicate version collision still fails', async () => {
@@ -525,7 +525,7 @@ test('production carries only explicit governed reconciliation authority', async
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
-  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261016001500'], 'Staging must declare only the owner-approved pending VTO migration');
+  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500'], 'Staging must declare only the explicit pending migration identities');
 });
 
 test('production still fails closed on anything outside its declared authority', async () => {

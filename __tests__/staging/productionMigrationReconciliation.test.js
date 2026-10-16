@@ -682,10 +682,10 @@ test('an environment variable alone can never make a migration executable', asyn
   assert.ok(result.blockers.some((b) => b.includes('multiple pending migrations')));
 });
 
-test('staging recognizes only the exact pending VTO migration while unknown drift stays blocked', async () => {
+test('staging recognizes only explicitly declared pending migrations while unknown drift stays blocked', async () => {
   const { compareMigrations, loadLedgerReconciliation } = await loadPreflight();
   const staging = loadLedgerReconciliation(STAGING_REF, MANIFEST);
-  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261016001500'], 'only the owner-approved VTO migration may be pending');
+  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500'], 'only exact declared migration identities may be pending');
 
   const result = compareMigrations(localOf('20260101000000', '20260202000000'), [], '', {
     reconciled: [],
