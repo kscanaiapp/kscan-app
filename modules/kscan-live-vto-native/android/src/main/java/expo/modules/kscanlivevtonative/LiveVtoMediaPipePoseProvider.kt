@@ -70,6 +70,7 @@ class LiveVtoMediaPipePoseProvider(private val context: Context) : PerceptionPro
   private fun readModelBuffer(): ByteBuffer {
     context.assets.open(MODEL_ASSET_PATH).use { input ->
       val bytes = input.readBytes()
+      check(LiveVtoModelIntegrity.isApproved(bytes)) { "MODEL_INTEGRITY_FAILED" }
       val buffer = ByteBuffer.allocateDirect(bytes.size)
       buffer.put(bytes)
       buffer.rewind()

@@ -31,6 +31,7 @@ class RuntimeBoundaryTest {
   @Test
   fun theGeometryAndReplayStackHasNoAndroidDependencies() {
     val androidBoundaryFiles = setOf(
+      "LiveVtoRasterRenderer.kt", // software rasterizer, covered by native pixel tests
       "LiveVtoTestRenderView.kt",   // owns Canvas / Bitmap / ExpoView
       "KScanLiveVtoNativeModule.kt", // owns the Expo module definition
       "LiveVtoReplayDriver.kt",      // owns the executor; logs via android.util.Log

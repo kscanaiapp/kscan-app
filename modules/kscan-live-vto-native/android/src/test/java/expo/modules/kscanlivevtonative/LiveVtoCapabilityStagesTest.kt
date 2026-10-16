@@ -7,7 +7,7 @@ import org.junit.Test
 
 class LiveVtoCapabilityStagesTest {
   private val allGood = LiveVtoCapabilityStages.Inputs(
-    sdkInt = 34, frontCameraPresent = true, modelAssetPresent = true, cameraPermissionGranted = true,
+    sdkInt = 34, frontCameraPresent = true, modelAssetPresent = true, cameraPermissionGranted = true, modelIntegrityValid = true, rendererAvailable = true,
   )
 
   @Suppress("UNCHECKED_CAST")
@@ -19,10 +19,10 @@ class LiveVtoCapabilityStagesTest {
   }
 
   @Test
-  fun registrationAndEveryStageTrueStillAdvertisesNothingWhileUncertified() {
+  fun uncertifiedRuntimeCanAttemptARealSession() {
     val result = LiveVtoCapabilityStages.evaluate(allGood, "n1-a")
-    assertEquals(false, result["capable"])
-    assertEquals(false, result["runtimeReady"])
+    assertEquals(true, result["capable"])
+    assertEquals(true, result["runtimeReady"])
     val s = stages(result)
     assertEquals(true, s["moduleRegistered"])
     assertEquals(true, s["platformSupported"])
@@ -52,10 +52,10 @@ class LiveVtoCapabilityStagesTest {
     assertEquals(true, ok["runtimeReady"])
     // No model: capable hardware, but the runtime's resources are not ready.
     val noModel = LiveVtoCapabilityStages.evaluate(allGood.copy(modelAssetPresent = false), "v", certified = true)
-    assertEquals(true, noModel["capable"])
+    assertEquals(false, noModel["capable"])
     assertEquals(false, noModel["runtimeReady"])
     // No front camera, old OS: not capable, therefore not ready.
-    for (bad in listOf(allGood.copy(frontCameraPresent = false), allGood.copy(sdkInt = 23))) {
+    for (bad in listOf(allGood.copy(frontCameraPresent = false), allGood.copy(sdkInt = 23), allGood.copy(modelIntegrityValid = false), allGood.copy(rendererAvailable = false))) {
       val r = LiveVtoCapabilityStages.evaluate(bad, "v", certified = true)
       assertEquals(false, r["capable"])
       assertEquals(false, r["runtimeReady"])

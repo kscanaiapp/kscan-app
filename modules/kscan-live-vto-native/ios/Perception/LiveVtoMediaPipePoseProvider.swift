@@ -33,6 +33,12 @@ public final class LiveVtoMediaPipePoseProvider: PerceptionProvider {
 
   public init() {}
 
+  static func modelIntegrityValid() -> Bool {
+    guard let path = LiveVtoAssetBundle.shared.path(forResource: modelResourceName, ofType: modelResourceExtension, inDirectory: "models"),
+          let data = FileManager.default.contents(atPath: path) else { return false }
+    return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() == approvedModelSha256
+  }
+
   public func initialize() -> Bool {
     guard let modelPath = LiveVtoAssetBundle.shared
       .path(forResource: Self.modelResourceName, ofType: Self.modelResourceExtension, inDirectory: "models")

@@ -38,14 +38,17 @@ public final class LiveVtoCameraController: NSObject {
   public private(set) var state: CameraControllerState = .idle
   private let onStateChanged: (CameraControllerState, String?) -> Void
 
+  private weak var previewLayer: AVCaptureVideoPreviewLayer?
   private let session = AVCaptureSession()
   private let sessionQueue = DispatchQueue(label: "kscan-live-vto-camera-session")
   private let analysisQueue = DispatchQueue(label: "kscan-live-vto-camera-analysis")
 
   public init(previewLayer: AVCaptureVideoPreviewLayer, onStateChanged: @escaping (CameraControllerState, String?) -> Void = { _, _ in }) {
     self.onStateChanged = onStateChanged
+    self.previewLayer = previewLayer
     super.init()
     previewLayer.session = session
+    previewLayer.videoGravity = .resizeAspect
   }
 
   public func start() {
@@ -97,27 +100,49 @@ public final class LiveVtoCameraController: NSObject {
       // rather than read dynamically: this lane does not support landscape
       // device rotation for the Live VTO camera screen.
       connection.videoOrientation = .portrait
+      if connection.isVideoMirroringSupported {
+        connection.automaticallyAdjustsVideoMirroring = false
+        connection.isVideoMirrored = false // converter mirrors once
+      }
     }
 
-    session.startRunning()
-    finishOnMain(.running, nil)
+    // commitConfiguration must precede startRunning (AVFoundation precondition).
+    sessionQueue.async { [weak self] in
+      guard let self = self, self.state == .starting else { return }
+      self.session.startRunning()
+      self.finishOnMain(.running, nil)
+    }
   }
 
   private func finishOnMain(_ next: CameraControllerState, _ reason: String?) {
-    DispatchQueue.main.async { [weak self] in self?.transition(next, reason) }
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, self.state != .stopped else { return }
+      if next == .running, let connection = self.previewLayer?.connection {
+        if connection.isVideoOrientationSupported { connection.videoOrientation = .portrait }
+        if connection.isVideoMirroringSupported {
+          connection.automaticallyAdjustsVideoMirroring = false
+          connection.isVideoMirrored = true
+        }
+      }
+      self.transition(next, reason)
+    }
   }
 
   public func stop() {
     guard state != .idle, state != .stopped else { return }
+    transition(.stopped, nil)
     frameSlot.clear()
+    captureSlot.clear()
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       if self.session.isRunning { self.session.stopRunning() }
-      self.finishOnMain(.stopped, nil)
+      self.frameSlot.clear()
+      self.captureSlot.clear()
     }
   }
 
   /// Called by the perception producer tick. Never blocks; never invents a frame when none has arrived.
+  public let captureSlot = LatestStateSlot<PerceptionInputFrame>()
   public func latestFrame() -> PerceptionInputFrame? { frameSlot.consume() }
 
   /// Always invoked on the main thread -- either directly (start/stop are
@@ -135,6 +160,8 @@ extension LiveVtoCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
       os_log("camera frame conversion failed", log: cameraLog, type: .error)
       return
     }
-    frameSlot.publish(LiveVtoStaticImageFrame(image: image))
+    let frame = LiveVtoStaticImageFrame(image: image)
+    captureSlot.publish(frame)
+    frameSlot.publish(frame)
   }
 }

@@ -10,7 +10,7 @@ final class LiveVtoSessionStateTests: XCTestCase {
   private let allowedFrom: [LiveVtoSessionState: Set<LiveVtoSessionCommand>] = [
     .created: [.start, .loadGarment, .stop, .dispose],
     .garmentLoading: [.stop, .dispose],
-    .ready: [.loadGarment, .switchGarment, .stop, .dispose],
+    .ready: [.start, .loadGarment, .switchGarment, .stop, .dispose],
     .starting: [.loadGarment, .stop, .dispose],
     .running: [.switchGarment, .pause, .stop, .capture, .dispose],
     .paused: [.switchGarment, .resume, .stop, .capture, .dispose],

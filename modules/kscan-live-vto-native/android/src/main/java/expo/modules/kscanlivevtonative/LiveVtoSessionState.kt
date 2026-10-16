@@ -106,7 +106,7 @@ object LiveVtoSessionMachine {
   fun apply(current: LiveVtoSessionState, command: LiveVtoSessionCommand): LiveVtoSessionCommandResult {
     val next = when (command) {
       LiveVtoSessionCommand.START -> when (current) {
-        LiveVtoSessionState.CREATED, LiveVtoSessionState.STOPPED, LiveVtoSessionState.ERROR -> LiveVtoSessionState.STARTING
+        LiveVtoSessionState.CREATED, LiveVtoSessionState.READY, LiveVtoSessionState.STOPPED, LiveVtoSessionState.ERROR -> LiveVtoSessionState.STARTING
         else -> null
       }
       LiveVtoSessionCommand.LOAD_GARMENT -> when (current) {
@@ -224,7 +224,7 @@ data class LiveVtoGarmentDescriptor(
      *  file's re-declared TS contract. Cross-checked mechanically against
      *  the TS side by __tests__/vtoLiveGarmentRegistryParity.test.js and,
      *  from this side, by LiveVtoGarmentDescriptorTest.kt. */
-    val SUPPORTED_ASSET_KEYS = setOf("n1b-fixture", "n1c-asym-fixture")
+    val SUPPORTED_ASSET_KEYS = setOf("n1b-fixture", "n1c-asym-fixture", "ascolour-5001-black-v1")
 
     /** Parses and validates an Expo-bridged `Map<String, Any?>` command
      *  argument. Returns null for anything malformed -- never throws, so a

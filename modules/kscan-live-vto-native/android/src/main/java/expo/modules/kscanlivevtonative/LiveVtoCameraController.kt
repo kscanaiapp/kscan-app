@@ -132,7 +132,10 @@ class LiveVtoCameraController(
     analysis.setAnalyzer(executor) { imageProxy ->
       try {
         val bitmap = LiveVtoCameraFrameConverter.toBitmap(imageProxy, mirror = true)
-        frameSlot.publish(BitmapPerceptionInputFrame(bitmap))
+        if (generation.get() != myGeneration) return@setAnalyzer
+        val frame = BitmapPerceptionInputFrame(bitmap)
+        captureFrame = frame
+        frameSlot.publish(frame)
       } catch (t: Throwable) {
         Log.e(TAG, "camera frame conversion failed", t)
       } finally {
@@ -155,6 +158,9 @@ class LiveVtoCameraController(
   }
 
   /** Called by the perception producer tick. Never blocks; never invents a frame when none has arrived. */
+  @Volatile var captureFrame: PerceptionInputFrame? = null
+    private set
+
   fun latestFrame(): PerceptionInputFrame? = frameSlot.consume()
 
   fun stop() {
@@ -169,6 +175,7 @@ class LiveVtoCameraController(
     analysisExecutor?.shutdown()
     analysisExecutor = null
     frameSlot.clear()
+    captureFrame = null
     transition(CameraControllerState.STOPPED, null)
   }
 

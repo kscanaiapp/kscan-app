@@ -26,7 +26,7 @@ class LiveVtoSessionStateTest {
   private val allowedFrom: Map<LiveVtoSessionState, Set<LiveVtoSessionCommand>> = mapOf(
     LiveVtoSessionState.CREATED to setOf(LiveVtoSessionCommand.START, LiveVtoSessionCommand.LOAD_GARMENT, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.DISPOSE),
     LiveVtoSessionState.GARMENT_LOADING to setOf(LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.DISPOSE),
-    LiveVtoSessionState.READY to setOf(LiveVtoSessionCommand.LOAD_GARMENT, LiveVtoSessionCommand.SWITCH_GARMENT, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.DISPOSE),
+    LiveVtoSessionState.READY to setOf(LiveVtoSessionCommand.START, LiveVtoSessionCommand.LOAD_GARMENT, LiveVtoSessionCommand.SWITCH_GARMENT, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.DISPOSE),
     LiveVtoSessionState.STARTING to setOf(LiveVtoSessionCommand.LOAD_GARMENT, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.DISPOSE),
     LiveVtoSessionState.RUNNING to setOf(LiveVtoSessionCommand.SWITCH_GARMENT, LiveVtoSessionCommand.PAUSE, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.CAPTURE, LiveVtoSessionCommand.DISPOSE),
     LiveVtoSessionState.PAUSED to setOf(LiveVtoSessionCommand.SWITCH_GARMENT, LiveVtoSessionCommand.RESUME, LiveVtoSessionCommand.STOP, LiveVtoSessionCommand.CAPTURE, LiveVtoSessionCommand.DISPOSE),

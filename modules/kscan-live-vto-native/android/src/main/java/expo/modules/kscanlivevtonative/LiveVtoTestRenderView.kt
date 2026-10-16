@@ -112,11 +112,14 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
 
   private fun loadFixture(name: String): Triple<KsgarmentManifest, Bitmap, Pair<Int, Int>> {
     val assets = context.assets
-    val manifest = KsgarmentManifest.parseAssetManifest(
-      assets.open("$name/manifest.json").use { it.readBytes() }.toString(Charsets.UTF_8)
-    )
-    val texture = assets.open("$name/${manifest.texture}").use { android.graphics.BitmapFactory.decodeStream(it) }
-    val alpha = assets.open("$name/${manifest.alphaMask}").use { android.graphics.BitmapFactory.decodeStream(it) }
+    fun checked(file: String): ByteArray {
+      val bytes = assets.open("$name/$file").use { it.readBytes() }
+      check(LiveVtoBundledAssetIntegrity.validate(name, file, bytes)) { "GARMENT_INTEGRITY_FAILED" }
+      return bytes
+    }
+    val manifest = KsgarmentManifest.parseAssetManifest(checked("manifest.json").toString(Charsets.UTF_8))
+    val texture = checked(manifest.texture).let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }
+    val alpha = checked(manifest.alphaMask).let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }
     val combined = replayBitmaps.getOrPut(name) { combineTextureAndAlpha(texture, alpha) }
     return Triple(manifest, combined, Pair(texture.width, texture.height))
   }
@@ -268,6 +271,10 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   private var cameraPerceptionSession: LiveVtoPerceptionSession? = null
   private var cameraPerceptionDriver: LiveVtoPerceptionDriver? = null
   private var cameraBitmap: Bitmap? = null
+  private var cameraManifestProductId: String? = null
+  private var cameraSnapshot: GeometrySnapshot? = null
+  private var cameraSnapshotAt: Long = 0
+  private var trackingVisible = false
   private var previewView: PreviewView? = null
   @Volatile private var cameraControllerState: CameraControllerState = CameraControllerState.IDLE
   @Volatile private var cameraControllerError: String? = null
@@ -295,11 +302,13 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     val lifecycleOwner = activity as? LifecycleOwner
     if (lifecycleOwner == null) {
       loadError = "camera start refused: current Activity is not a LifecycleOwner"
+      handleCameraControllerStateForSession(CameraControllerState.ERROR)
       return
     }
     try {
-      val (manifest, bitmap, dims) = loadFixture("n1b-fixture")
+      val (manifest, bitmap, dims) = loadFixture(loadedGarment?.assetKey ?: "n1b-fixture")
       cameraBitmap = bitmap
+      cameraManifestProductId = manifest.productId
 
       val pv = PreviewView(context).apply {
         // N1-F device certification (2026-09-06): PreviewView's default
@@ -317,6 +326,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
         // a software-layer parent -- CameraX's own documented reason this
         // mode exists.
         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        scaleType = PreviewView.ScaleType.FIT_CENTER
       }
       previewView = pv
       addView(pv, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -335,6 +345,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       )
       cameraController = controller
 
+      val myGeneration = sessionGeneration.get()
       val provider = LiveVtoMediaPipePoseProvider(context)
       val session = LiveVtoPerceptionSession(
         provider, RENDER_CANVAS_W, RENDER_CANVAS_H,
@@ -342,9 +353,22 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
           perceptionEvent = event
           postInvalidate()
         },
+        onSnapshotComputed = { snapshot -> post {
+          if (sessionGeneration.get() == myGeneration && (loadedGarment == null || cameraManifestProductId == snapshot.activeAssetId)) {
+            cameraSnapshot = snapshot
+            cameraSnapshotAt = android.os.SystemClock.elapsedRealtime()
+            invalidate()
+          }
+        } },
+        onPoseUnavailable = { post {
+          if (sessionGeneration.get() == myGeneration) { cameraSnapshot = null; invalidate() }
+        } },
       )
       if (!session.load(manifest, dims.first, dims.second)) {
         loadError = "camera perception load refused: ${session.currentState()}"
+        session.dispose()
+        handleCameraControllerStateForSession(CameraControllerState.ERROR)
+        stopCamera()
         return
       }
       session.start()
@@ -372,6 +396,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     } catch (t: Throwable) {
       loadError = t.message ?: t.toString()
       Log.e(TAG, "N1-F camera start failed", t)
+      handleCameraControllerStateForSession(CameraControllerState.ERROR)
+      stopCamera()
     }
   }
 
@@ -383,6 +409,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     cameraController?.stop()
     cameraController = null
     cameraBitmap = null
+    cameraSnapshot = null
+    trackingVisible = false
     previewView?.let { removeView(it) }
     previewView = null
   }
@@ -416,25 +444,25 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     val session = cameraPerceptionSession
     val bitmap = cameraBitmap
     if (session == null || bitmap == null) return
-    val snapshot = session.consumeForRender() ?: session.geometrySlot.peek()
+    session.consumeForRender()
+    val snapshot = cameraSnapshot?.takeIf { android.os.SystemClock.elapsedRealtime() - cameraSnapshotAt < 800 }
     val verts = snapshot?.meshVertices
+    val visible = verts != null && sessionState == LiveVtoSessionState.RUNNING
+    if (sessionState == LiveVtoSessionState.RUNNING && visible != trackingVisible) {
+      trackingVisible = visible
+      emitSessionEvent(if (visible) "trackingAcquired" else "trackingLost")
+    }
     canvas.save()
-    val fitScale = min(width / RENDER_CANVAS_W, height / RENDER_CANVAS_H)
-    canvas.scale(fitScale, fitScale)
+    val person = (cameraController?.captureFrame as? BitmapPerceptionInputFrame)?.bitmap
+    val frameW = person?.width?.toFloat() ?: RENDER_CANVAS_W
+    val frameH = person?.height?.toFloat() ?: RENDER_CANVAS_H
+    val fitScale = min(width / frameW, height / frameH)
+    canvas.translate((width - frameW * fitScale) / 2, (height - frameH * fitScale) / 2)
+    canvas.scale(frameW * fitScale / RENDER_CANVAS_W, frameH * fitScale / RENDER_CANVAS_H)
     if (verts != null) {
-      canvas.drawBitmapMesh(bitmap, snapshot.meshWidth, snapshot.meshHeight, verts, 0, null, 0, Paint().apply { isAntiAlias = true })
+      LiveVtoRasterRenderer.draw(canvas, bitmap, snapshot)
     }
     canvas.restore()
-    canvas.drawText(
-      "camera=" + cameraControllerState.name + " " + (session.stats().let { "produced=" + it.produced + " inferred=" + it.inferred + " rendered=" + it.rendered + " refused=" + it.refused }),
-      20f, 30f, Paint().apply { color = Color.CYAN; textSize = 18f },
-    )
-    if (verts == null) {
-      canvas.drawText(
-        "no mesh: gatePassed=" + snapshot?.gatePassed + " findings=" + snapshot?.gateFindings,
-        20f, 55f, Paint().apply { color = Color.RED; textSize = 16f },
-      )
-    }
     if (session.currentState() == ReplayState.PLAYING) postInvalidateOnAnimation()
   }
 
@@ -535,24 +563,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
    * documented simplification, revisit if a future fixture's alpha looks
    * wrong.
    */
-  private fun combineTextureAndAlpha(texture: Bitmap, alpha: Bitmap): Bitmap {
-    val w = texture.width; val h = texture.height
-    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val texPixels = IntArray(w * h); texture.getPixels(texPixels, 0, w, 0, 0, w, h)
-    val alphaScaled = if (alpha.width == w && alpha.height == h) alpha else Bitmap.createScaledBitmap(alpha, w, h, true)
-    val alphaPixels = IntArray(w * h); alphaScaled.getPixels(alphaPixels, 0, w, 0, 0, w, h)
-    val outPixels = IntArray(w * h)
-    for (i in 0 until w * h) {
-      val tp = texPixels[i]
-      val ap = alphaPixels[i]
-      val alphaChannel = Color.alpha(ap)
-      val luminance = (Color.red(ap) * 3 + Color.green(ap) * 6 + Color.blue(ap)) / 10
-      val coverage = max(alphaChannel, luminance)
-      outPixels[i] = Color.argb(coverage, Color.red(tp), Color.green(tp), Color.blue(tp))
-    }
-    out.setPixels(outPixels, 0, w, 0, 0, w, h)
-    return out
-  }
+  private fun combineTextureAndAlpha(texture: Bitmap, alpha: Bitmap): Bitmap =
+    LiveVtoRasterRenderer.combineTextureAndAlpha(texture, alpha)
 
   /**
    * The replay draw path. Reads the freshest published snapshot and draws
@@ -737,7 +749,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     if (!beginCaptureIfSessionActive()) return null
     try {
       val source: Bitmap = when {
-        camera -> (cameraController?.frameSlot?.peek() as? BitmapPerceptionInputFrame)?.bitmap
+        camera -> (cameraController?.captureFrame as? BitmapPerceptionInputFrame)?.bitmap
         perception -> perceptionSourceBitmap
         else -> null
       } ?: return null
@@ -762,7 +774,16 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     try {
       if (width <= 0 || height <= 0) return null
       val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-      draw(Canvas(bmp))
+      val canvas = Canvas(bmp)
+      if (camera) {
+        val person = (cameraController?.captureFrame as? BitmapPerceptionInputFrame)?.bitmap ?: return null
+        canvas.drawColor(Color.BLACK)
+        val scale = min(width.toFloat() / person.width, height.toFloat() / person.height)
+        val left = (width - person.width * scale) / 2
+        val top = (height - person.height * scale) / 2
+        canvas.drawBitmap(person, null, android.graphics.RectF(left, top, left + person.width * scale, top + person.height * scale), null)
+        drawCameraOverlay(canvas)
+      } else draw(canvas)
       return saveCapturedBitmap(bmp, "PREVIEW")
     } finally {
       endCaptureIfSessionActive()
@@ -881,14 +902,15 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
    * layer above it).
    */
   private fun handleCameraControllerStateForSession(state: CameraControllerState) {
-    if (sessionState != LiveVtoSessionState.STARTING) return
+    if (sessionState !in setOf(LiveVtoSessionState.STARTING, LiveVtoSessionState.RUNNING, LiveVtoSessionState.PAUSED)) return
     when (state) {
       CameraControllerState.RUNNING -> {
+        if (sessionState != LiveVtoSessionState.STARTING) return
         sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.RUNTIME_READY).next
         emitSessionEvent("ready")
       }
       CameraControllerState.ERROR, CameraControllerState.PERMISSION_DENIED -> {
-        sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.RUNTIME_FAILED).next
+        sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.FATAL).next
         emitSessionEvent(
           "fatalError",
           mapOf(
@@ -906,7 +928,17 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     if (!result.accepted) return false
     sessionState = result.next
     sessionGeneration.incrementAndGet()
-    startCamera()
+    camera = false // restart after a recoverable failure releases the old pipeline
+    camera = true
+    val epoch = sessionGeneration.get()
+    postDelayed({
+      if (sessionGeneration.get() == epoch && (sessionState == LiveVtoSessionState.STARTING || sessionState == LiveVtoSessionState.RUNNING) &&
+        (cameraController?.frameSlot?.publishedCount ?: 0) == 0L) {
+        sessionState = LiveVtoSessionState.ERROR
+        emitSessionEvent("fatalError", mapOf("state" to "RUNTIME_INITIALIZATION_FAILED", "recoverable" to true))
+        camera = false
+      }
+    }, 10_000L)
     return true
   }
 
@@ -917,7 +949,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     sessionState = result.next
     if (before == LiveVtoSessionState.CREATED || before == LiveVtoSessionState.STOPPED) return true // idempotent no-op
     sessionGeneration.incrementAndGet() // invalidate any in-flight start/garment-load for the prior epoch
-    stopCamera()
+    camera = false
     sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.STOPPED).next
     return true
   }
@@ -944,7 +976,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   fun disposeSession(): Boolean {
     val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.DISPOSE)
     sessionGeneration.incrementAndGet()
-    stopCamera()
+    camera = false
     sessionState = result.next
     loadedGarment = null
     sessionEventSink = null
@@ -989,7 +1021,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     val myGeneration = sessionGeneration.get()
     try {
       val (manifest, bitmap, dims) = loadFixture(descriptor.assetKey)
-      if (!assetIdentityMatches(manifest, descriptor)) {
+      if (!assetIdentityMatches(manifest, descriptor) || !LiveVtoBundledAssetIntegrity.identityMatches(descriptor.assetKey, descriptor.assetId)) {
         throw LiveVtoGarmentValidationException(
           "asset version mismatch for ${descriptor.assetKey}: requested ${descriptor.assetVersion}, manifest reports ${manifest.assetVersion}"
         )
@@ -1004,6 +1036,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       // camera callbacks both do), and the perception session refuses a load while
       // PLAYING/PAUSED, hence the stop first. A failed swap throws into the same
       // closed GARMENT_UNSUPPORTED path as any other load failure.
+      cameraSnapshot = null
+      cameraManifestProductId = manifest.productId
       cameraPerceptionSession?.let { perception ->
         val wasRunning = perception.currentState() == ReplayState.PLAYING || perception.currentState() == ReplayState.PAUSED
         if (wasRunning) perception.stop()
@@ -1016,6 +1050,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       sessionGarmentBitmap = bitmap
       loadedGarment = descriptor
       sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.GARMENT_LOADED, resumeTo).next
+      trackingVisible = false
       emitSessionEvent("garmentLoaded", mapOf("productRef" to descriptor.productRef, "assetVersion" to manifest.assetVersion))
       return true
     } catch (t: Throwable) {

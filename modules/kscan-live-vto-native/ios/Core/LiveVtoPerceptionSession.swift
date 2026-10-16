@@ -45,6 +45,7 @@ public final class LiveVtoPerceptionSession {
   /// gate passed). Never used to leak data across the JS bridge --
   /// native-side logging only.
   private let onSnapshotComputed: (GeometrySnapshot) -> Void
+  private let onPoseUnavailable: () -> Void
 
   private let lock = NSLock()
   private var state: ReplayState = .idle
@@ -65,13 +66,15 @@ public final class LiveVtoPerceptionSession {
   public init(
     provider: PerceptionProvider, canvasWidth: Float, canvasHeight: Float,
     onEvent: @escaping (ReplayEvent) -> Void = { _ in },
-    onSnapshotComputed: @escaping (GeometrySnapshot) -> Void = { _ in }
+    onSnapshotComputed: @escaping (GeometrySnapshot) -> Void = { _ in },
+    onPoseUnavailable: @escaping () -> Void = {}
   ) {
     self.provider = provider
     self.canvasWidth = canvasWidth
     self.canvasHeight = canvasHeight
     self.onEvent = onEvent
     self.onSnapshotComputed = onSnapshotComputed
+    self.onPoseUnavailable = onPoseUnavailable
   }
 
   public func currentState() -> ReplayState { lock.lock(); defer { lock.unlock() }; return state }
@@ -214,9 +217,11 @@ public final class LiveVtoPerceptionSession {
         lock.unlock()
       case .noUsablePose, .invalidProviderOutput:
         lock.lock(); refusedCount += 1; lock.unlock()
+        geometrySlot.clear(); onPoseUnavailable()
       }
     case .noPose, .failure:
       lock.lock(); refusedCount += 1; lock.unlock()
+      geometrySlot.clear(); onPoseUnavailable()
     }
     return true
   }
