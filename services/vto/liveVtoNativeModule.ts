@@ -193,6 +193,73 @@ export function describeLiveVtoNativeCapability(
   };
 }
 
+// ─── Readiness stages (diagnostic, additive) ─────────────────────────────────
+
+/**
+ * The static prerequisites the native module can report BEFORE a session
+ * exists, one stage at a time. This is DIAGNOSTIC: nothing routes on it, and
+ * `capable` / `runtimeReady` above remain the only affirmations the router
+ * reads. It exists so "why is Live unavailable?" has a specific, truthful
+ * answer instead of a single boolean.
+ *
+ * What is deliberately NOT here: camera session initialized, frames delivered,
+ * frames consumed, perception functioning, renderer producing output. Those are
+ * unknowable until `start()` and are reported by the session's bounded runtime
+ * events, never inferred from a static check.
+ */
+export interface LiveVtoReadinessStages {
+  moduleRegistered: boolean;
+  platformSupported: boolean | null;
+  frontCameraPresent: boolean | null;
+  modelAssetPresent: boolean | null;
+  cameraPermission: 'granted' | 'not_granted' | null;
+  physicalCertification: 'approved' | 'not_approved' | null;
+}
+
+const READINESS_BOOLEAN_STAGES = ['platformSupported', 'frontCameraPresent', 'modelAssetPresent'] as const;
+
+/**
+ * Reads the native module's stage report, bounded: only the known keys, only
+ * booleans or the two allowed enum strings, anything else becomes null. Returns
+ * null when there is no module or it reports no stages (an older build), and
+ * never throws.
+ */
+export function describeLiveVtoReadinessStages(
+  deps?: { module?: LiveVtoNativeModule | null; platformOS?: string },
+): LiveVtoReadinessStages | null {
+  const platformOS = deps?.platformOS ?? Platform.OS;
+  if (!LIVE_VTO_SUPPORTED_PLATFORMS.includes(platformOS)) return null;
+  const nativeModule = deps?.module !== undefined ? deps.module : getLiveVtoNativeModule();
+  if (!nativeModule || typeof nativeModule.getCapability !== 'function') return null;
+  let raw: unknown;
+  try {
+    raw = nativeModule.getCapability();
+  } catch {
+    return null;
+  }
+  const stages = raw && typeof raw === 'object' ? (raw as { stages?: unknown }).stages : undefined;
+  if (!stages || typeof stages !== 'object' || Array.isArray(stages)) return null;
+  const source = stages as Record<string, unknown>;
+  const out: LiveVtoReadinessStages = {
+    moduleRegistered: source.moduleRegistered === true,
+    platformSupported: null,
+    frontCameraPresent: null,
+    modelAssetPresent: null,
+    cameraPermission: null,
+    physicalCertification: null,
+  };
+  for (const key of READINESS_BOOLEAN_STAGES) {
+    if (typeof source[key] === 'boolean') out[key] = source[key] as boolean;
+  }
+  if (source.cameraPermission === 'granted' || source.cameraPermission === 'not_granted') {
+    out.cameraPermission = source.cameraPermission;
+  }
+  if (source.physicalCertification === 'approved' || source.physicalCertification === 'not_approved') {
+    out.physicalCertification = source.physicalCertification;
+  }
+  return out;
+}
+
 /** The single predicate the router asks. Both halves required -- see the
  *  module header on why registration alone is not capability. */
 export function isLiveVtoNativeCapable(capability: LiveVtoNativeCapability): boolean {
