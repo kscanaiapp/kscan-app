@@ -18,6 +18,9 @@ const STRING_IDENTIFICATION_KEYS = [
   'closure',
   'visible_brand_text',
   'brand_guess',
+  'logo_brand',
+  'logo_description',
+  'logo_confidence',
   'scan_quality_note',
 ] as const;
 

@@ -197,6 +197,8 @@ Deno.test('category queries: a detected logo with no legible text still falls ba
       subtype: 'polo shirt',
       primary_color: 'yellow',
       logo_detected: true,
+      logo_brand: 'Prada',
+      logo_confidence: 'high',
       visible_brand_text: null,
       brand_guess: 'Prada',
     },
