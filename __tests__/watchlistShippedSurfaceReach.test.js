@@ -55,6 +55,8 @@ function loadTsModule(relativePath, requireMap = {}) {
     module: mod,
     require: (specifier) => {
       if (specifier in requireMap) return requireMap[specifier];
+      const commerceContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(specifier);
+      if (commerceContract) return commerceContract;
       throw new Error(`Unexpected import in ${relativePath}: ${specifier}`);
     },
   };
