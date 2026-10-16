@@ -719,12 +719,30 @@ public final class LiveVtoRenderView: ExpoView {
     sessionState = loadingState
     let myGeneration = sessionGeneration
     do {
-      let (manifest, image, _) = try loadFixture(descriptor.assetKey)
+      let (manifest, image, dims) = try loadFixture(descriptor.assetKey)
       guard assetIdentityMatches(manifest, descriptor) else {
         throw LiveVtoGarmentValidationError(
           "asset version mismatch for \(descriptor.assetKey): requested \(descriptor.assetVersion), manifest reports \(manifest.assetVersion)")
       }
       guard sessionGeneration == myGeneration else { return true } // superseded; drop silently
+      // THE RENDERED GARMENT MUST BE THE LOADED GARMENT. The live camera path
+      // used to draw the bundled n1b fixture whatever the descriptor asked for
+      // (`sessionGarmentImage` below was never read). Swap the running pipeline
+      // onto the loaded manifest: stop, reload with its geometry, start, and
+      // draw its image. The perception session refuses a load while playing or
+      // paused, hence the stop first. A failed swap fails closed through the
+      // same garmentLoadFailed path as any other load failure.
+      if let perception = cameraPerceptionSession {
+        let before = perception.currentState()
+        let wasRunning = before == .playing || before == .paused
+        if wasRunning { _ = perception.stop() }
+        guard perception.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
+          throw LiveVtoGarmentValidationError(
+            "perception refused the garment swap for \(descriptor.assetKey): \(perception.currentState().rawValue)")
+        }
+        cameraImage = image
+        if wasRunning { _ = perception.start() }
+      }
       sessionGarmentImage = image
       loadedGarment = descriptor
       sessionState = LiveVtoSessionMachine.complete(sessionState, .garmentLoaded, resumeTo: resumeTo).next
