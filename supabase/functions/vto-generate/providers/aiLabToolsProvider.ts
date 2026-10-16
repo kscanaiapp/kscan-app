@@ -413,12 +413,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         });
       } catch (err) {
         const aborted = err instanceof DOMException && err.name === 'AbortError';
-        // The submit request itself threw: the vendor never received a job.
+        // Submit transport failure leaves provider acceptance unknown. This is potentially billable.
         return {
           ok: false,
           failure: aborted ? 'cancelled' : 'network_failure',
-          detail: aborted ? 'submit_aborted' : 'submit_fetch_threw',
-          billable: false,
+          detail: aborted ? 'submit_aborted_outcome_unknown' : 'submit_fetch_threw_outcome_unknown',
+          billable: true,
         };
       }
 
@@ -471,12 +471,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         // retrying within the poll budget.
         if (!pollResponse.ok) {
           if (pollBody && typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-            return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
+            return { ...mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers), billable: true };
           }
           continue;
         }
         if (typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-          return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
+          return { ...mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers), billable: true };
         }
 
         const taskStatus = (pollBody as Record<string, unknown> | null)?.task_status;
