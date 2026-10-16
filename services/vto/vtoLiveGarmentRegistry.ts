@@ -1,53 +1,10 @@
-/**
- * The governed Live-VTO asset registry -- the narrow, explicit answer to
- * "which productRef values currently address a real, governed `.ksgarment`
- * asset the native Live runtime can load".
- *
- * WHY THIS EXISTS. Before this file, `loadGarment`/`switchGarment` resolved
- * EVERY descriptor to the SAME bundled native fixture regardless of the
- * requested `productRef` (documented as a deliberate, bounded placeholder in
- * docs/vto-live-bridge-contract.md §13.5). There is no live product-catalog
- * network resolver anywhere in this codebase, and building one is explicitly
- * out of this mission's scope (see the mission's NETWORK BOUNDARY / CACHE
- * sections) -- `vto-phase4-pipeline/` is an offline batch tool, not a
- * runtime dependency. What DOES already exist, real and governed, is the
- * small set of Phase-4-produced `.ksgarment` manifests that are bundled as
- * native fixtures (`modules/kscan-live-vto-native/{android/src/main/assets,
- * ios/Assets}/{n1b-fixture,n1c-asym-fixture}/manifest.json`). This registry
- * is the narrowest existing authority: it indexes those REAL manifests by
- * the one field they already carry for exactly this purpose --
- * `productIdentity.productRef` -- rather than inventing a second asset
- * format or a second product-id system.
- *
- * WHY THE ENTRIES ARE HAND-DECLARED, NOT READ OFF DISK AT RUNTIME. The real
- * manifest.json files live under the native module's asset directories,
- * which are compiled into the Android APK / iOS bundle, not the Metro JS
- * bundle -- there is no `fs` access to them from application JS at runtime.
- * Re-declaring the identity fields here (not the full manifest -- assetKey/
- * assetId/assetVersion/productRef/category/eligibility only) mirrors the
- * EXISTING, established pattern in this codebase for the `.ksgarment`
- * contract itself (see vto-phase4-pipeline/src/garmentContract.ts's header,
- * and LiveVtoGarment.kt/.swift's): re-declare a small, cited surface rather
- * than cross-import a package this runtime does not depend on.
- *
- * DRIFT IS CAUGHT MECHANICALLY, NOT BY HAND. Unlike a comment asking a human
- * to keep two files in sync, __tests__/vtoLiveGarmentRegistryParity.test.js
- * reads the ACTUAL bundled manifest.json/texture.png/alpha.png files off
- * disk (both platforms) with Node's `fs`/`crypto` and asserts every field
- * declared below, and the platform parity of the underlying asset bytes,
- * match reality. A future asset added to the registry without updating (or
- * breaking) that test has not really been added.
- *
- * MOST REAL productRef VALUES WILL NOT BE IN THIS LIST. That is success, not
- * a bug: Commerce's `productRef` (services/vto/vtoCommerceGarment.ts) is a
- * correlation handle for an ephemeral per-scan result, not a stable catalog
- * SKU, and the Phase 4 asset factory has only ever been run against a
- * synthetic/research corpus and a bounded real-catalog benchmark (project
- * memory: Gate E found 3/220 real products LIVE2D_ELIGIBLE). A resolver
- * that returned ELIGIBLE for arbitrary real productRefs would be lying.
+/** Governed bundled Live assets. Scanner product IDs remain unchanged.
+ * Research fixtures resolve only by their explicit IDs. The real pilot also
+ * resolves by an approved retailer URL AND matching source image identity.
+ * Parity and integrity tests bind each entry to the Android/iOS bundle bytes.
  */
 
-export const LIVE_VTO_ASSET_KEY_ALLOWLIST = ['n1b-fixture', 'n1c-asym-fixture'] as const;
+export const LIVE_VTO_ASSET_KEY_ALLOWLIST = ['n1b-fixture', 'n1c-asym-fixture', 'ascolour-5001-black-v1'] as const;
 export type LiveVtoAssetKey = (typeof LIVE_VTO_ASSET_KEY_ALLOWLIST)[number];
 
 const ASSET_KEY_SET: ReadonlySet<string> = new Set(LIVE_VTO_ASSET_KEY_ALLOWLIST);
@@ -87,6 +44,9 @@ export interface LiveVtoGovernedAssetEntry {
   qaPassed: boolean;
   /** manifest.source.sha256 -- provenance identity, not a rendering input. */
   sourceSha256: string;
+  /** Approved retailer URL and exact image identity; variant mismatches fail closed. */
+  productUrl?: string;
+  sourceImageUrl?: string;
 }
 
 export const KSGARMENT_SCHEMA_VERSION = '1.0';
@@ -127,6 +87,15 @@ export const LIVE_VTO_GOVERNED_ASSETS: readonly LiveVtoGovernedAssetEntry[] = [
     qaPassed: true,
     sourceSha256: '5deca90a677b8ab31f01108b865641eccafb2f3f8f3c21083944acc9adec4393',
   },
+  {
+    assetKey: 'ascolour-5001-black-v1', assetId: '524ab66a3f16bda5c3d7f9fe', assetVersion: '1',
+    ksgarmentSchemaVersion: '1.0', productRef: 'https://ascolour.com/staple-tee-5001/?Colour=Black',
+    canonicalCategory: 'top', templateFamily: 'simple-top', eligible: true, ineligibleReason: null,
+    qaPassed: true, sourceSha256: '59003a90b1987d5e09b3c86d8f8e29ee0feb07670e73dcb8dc005da35137ce49',
+    productUrl: 'https://ascolour.com/staple-tee-5001/?Colour=Black',
+    sourceImageUrl: 'https://cdn11.bigcommerce.com/s-hsi95a83fz/images/stencil/850w/products/182/10681/5001_STAPLE_TEE_BLACK__80682.1774216143.jpg',
+  },
+
 ];
 
 /** Exact-match lookup by commerce productRef. Returns null (NOT_FOUND, not a
@@ -135,6 +104,36 @@ export const LIVE_VTO_GOVERNED_ASSETS: readonly LiveVtoGovernedAssetEntry[] = [
 export function findGovernedLiveAssetByProductRef(
   productRef: string,
   registry: readonly LiveVtoGovernedAssetEntry[] = LIVE_VTO_GOVERNED_ASSETS,
+  productUrl?: string,
+  imageUrl?: string,
 ): LiveVtoGovernedAssetEntry | null {
-  return registry.find((entry) => entry.productRef === productRef) ?? null;
+  return registry.find((entry) => (!entry.productUrl && entry.productRef === productRef) || (
+    !!entry.productUrl && !!entry.sourceImageUrl &&
+    normalizedPilotProduct(productUrl ?? productRef) === normalizedPilotProduct(entry.productUrl) &&
+    normalizedPilotImage(imageUrl) === normalizedPilotImage(entry.sourceImageUrl)
+  )) ?? null;
+}
+
+// Narrow pilot URL matching, not a replacement for Scanner's deterministic ID.
+// The colour remains significant; tracking query parameters do not select a variant.
+function normalizedPilotProduct(value?: string): string | null {
+  try {
+    const url = new URL(value ?? '');
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hostname !== 'ascolour.com') return null;
+    if (url.pathname.replace(/\/$/, '') !== '/staple-tee-5001') return null;
+    for (const key of url.searchParams.keys()) {
+      if (key !== 'Colour' && !key.startsWith('utm_') && !['gclid', 'srsltid'].includes(key)) return null;
+    }
+    const colours = url.searchParams.getAll('Colour');
+    if (colours.length !== 1 || colours[0].toLowerCase() !== 'black') return null;
+    return 'ascolour:5001:black';
+  } catch { return null; }
+}
+function normalizedPilotImage(value?: string): string | null {
+  try {
+    const url = new URL(value ?? '');
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hostname !== 'cdn11.bigcommerce.com') return null;
+    const path = url.pathname.replace(/\/stencil\/[^/]+\//, '/');
+    return path.endsWith('/5001_STAPLE_TEE_BLACK__80682.1774216143.jpg') ? path : null;
+  } catch { return null; }
 }
