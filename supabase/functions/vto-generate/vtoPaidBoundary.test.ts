@@ -210,7 +210,7 @@ test('an explicit user Retry is a NEW intent, not a suppressed replay', async ()
 
 test('a reservation maps every RPC outcome, and FAILS CLOSED when unreadable', async () => {
   const reserved = await reserveVtoGeneration(USER, 'k'.repeat(64), {
-    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10 }]),
+    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10, attempt_id: '33333333-4444-4555-8666-777777777777' }]),
   });
   assert.equal(reserved.outcome, 'reserved');
 
@@ -281,8 +281,8 @@ test('the reservation is settled on success AND on every failure path', () => {
     settlements.length >= 4,
     `expected settlement on throw, provider-failure, invalid-output and success; found ${settlements.length}`,
   );
-  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, 'succeeded'/);
-  assert.match(HANDLER, /completeVtoGeneration\(authUser\.id, idempotencyKey, 'failed'/);
+  assert.match(HANDLER, /completeVtoGeneration\(\s*authUser\.id, idempotencyKey, 'succeeded'/);
+  assert.match(HANDLER, /completeVtoGeneration\(\s*authUser\.id, idempotencyKey, 'failed'/);
 });
 
 test('the garment URL is validated before it can reach the provider', () => {
@@ -305,4 +305,11 @@ test('SEC-KPLUS-007 stays closed: an unknown provider fails, it does not mock', 
   assert.match(providers, /return \{ ok: false, reason: 'provider_unavailable' \};/);
   const mockBranch = providers.indexOf('MOCK_VTO_PROVIDER_ID');
   assert.ok(mockBranch > 0, 'the mock must be reachable only by explicit id');
+});
+
+test('VTO-002/003: handler requires attempt token and verified success settlement', () => {
+  assert.match(HANDLER, /const attemptId = reservation\.attemptId/);
+  assert.match(HANDLER, /recordVtoProviderTask\(/);
+  assert.match(HANDLER, /if \(!completed\) return fail\('authorization_failed'/);
+  assert.match(HANDLER, /settlement_unverified_success/);
 });
