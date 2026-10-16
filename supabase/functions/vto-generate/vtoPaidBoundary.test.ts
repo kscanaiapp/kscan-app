@@ -210,7 +210,7 @@ test('an explicit user Retry is a NEW intent, not a suppressed replay', async ()
 
 test('a reservation maps every RPC outcome, and FAILS CLOSED when unreadable', async () => {
   const reserved = await reserveVtoGeneration(USER, 'k'.repeat(64), {
-    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10 }]),
+    rpc: async () => jsonResponse([{ outcome: 'reserved', used: 1, daily_limit: 10, attempt_id: '33333333-4444-4555-8666-777777777777' }]),
   });
   assert.equal(reserved.outcome, 'reserved');
 
