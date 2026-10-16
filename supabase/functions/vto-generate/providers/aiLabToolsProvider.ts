@@ -325,7 +325,9 @@ function mapSubmitFailure(
       ok: false,
       failure: 'rate_limited',
       detail: 'submit_http_429',
-      billable: false,
+      // Rate limiting can occur at an upstream hop after a submission was
+      // forwarded. A 429 alone does not prove absence of a provider task.
+      billable: true,
       retryAfterSeconds: parseRetryAfterSeconds(headers?.get('retry-after'), nowMs) ?? undefined,
     };
   }
