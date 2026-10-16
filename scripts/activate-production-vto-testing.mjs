@@ -88,9 +88,12 @@ function safeConfigSummary(state) {
 }
 
 function requireContainment(state) {
+  // VTO activation must not require changing an independently governed Watchlist
+  // worker. Build 35 may have it enabled; require a valid explicit state, then
+  // verify that the VTO-only mutation leaves that entire config row unchanged.
   const watchlist = state.get('watchlist_worker_enabled');
-  if (!watchlist || !disabled(watchlist)) {
-    fail('watchlist_worker_enabled must exist and remain enabled=false during Build 34 live testing');
+  if (!watchlist || typeof watchlist !== 'object' || typeof watchlist.enabled !== 'boolean') {
+    fail('watchlist_worker_enabled must have an explicit boolean enabled state');
   }
 
   const deletion = state.get('account_deletion_worker_enabled');
@@ -171,6 +174,19 @@ function main() {
 
   const after = readConfigState();
   requireContainment(after);
+  // This workflow is authorized to mutate vto_generation only, never the
+  // Watchlist or account-deletion operational settings. Detect external drift
+  // during this approval window rather than silently certifying it.
+  for (const key of [
+    'watchlist_worker_enabled',
+    'account_deletion_worker_enabled',
+    'account_deletion_worker_dry_run',
+    'orphan_media_destructive_mode',
+  ]) {
+    if (JSON.stringify(before.get(key) ?? null) !== JSON.stringify(after.get(key) ?? null)) {
+      fail('Unrelated production control changed during VTO activation: ' + key);
+    }
+  }
 
   const vtoAfter = after.get('vto_generation');
   if (

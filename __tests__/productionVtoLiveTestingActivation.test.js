@@ -42,7 +42,13 @@ test('VTO activation is config-only and leaves migrations/functions/schedulers a
 
 test('VTO activation keeps the dangerous background controls contained', () => {
   assert.match(SCRIPT, /watchlist_worker_enabled/);
-  assert.match(SCRIPT, /watchlist_worker_enabled must exist and remain enabled=false/);
+  assert.match(SCRIPT, /watchlist_worker_enabled must have an explicit boolean enabled state/);
+  // An existing enabled Watchlist worker is not a reason to reject VTO;
+  // this activation is prohibited from changing it in either direction.
+  assert.doesNotMatch(SCRIPT, /watchlist_worker_enabled must exist and remain enabled=false/);
+  assert.match(SCRIPT, /Unrelated production control changed during VTO activation/);
+  assert.ok(SCRIPT.includes('JSON.stringify(before.get(key) ?? null)'));
+  assert.ok(SCRIPT.includes('JSON.stringify(after.get(key) ?? null)'));
   assert.match(SCRIPT, /account_deletion_worker_enabled/);
   assert.match(SCRIPT, /account_deletion_worker_enabled must exist and remain enabled=false/);
   assert.match(SCRIPT, /orphan_media_destructive_mode/);
