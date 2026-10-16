@@ -72,6 +72,15 @@ here as P4-P6 findings and are not repaired in this lane.
 - Status: source-verified. **DEVICE VALIDATION PENDING** for both repairs; `transitionMs` 160 is a candidate, not a tuned value.
 - Outstanding defects: none known.
 
+### E-005 Elise offer states the K+ requirement to a Free customer before the tap
+- Branch / PR / SHA: `fix/elise-offer-kplus-label`; PR #615; merged `d62d9dea` (merged by the owner).
+- Files: `components/style-chat/EliseVtoOffer.tsx`, `services/style-chat/eliseVtoOffer.ts`, `docs/vto-elise-contextual-offer.md`, `__tests__/vtoEliseContextualOffer.test.js`.
+- Contract: for a Free customer the offer's text, accessibility label and hint are the product control's own (`TRY IT ON · K+`, `Try It On is available with K+`, `Opens K+ membership options`), pinned equal to `VTO_DISCOVERY_COPY.productUnlockLabel` and to `TryItOnEntry`'s strings by tests. Members see the offer exactly as before. Same shared K+ gate and bounded source; no price, promotion, allowance or entitlement-semantics change.
+- Elise to VTO to Elise journey: the offer presentation for Free customers changes; the garment-context handoff, launcher invocation and return-to-conversation behavior are unchanged.
+- Test change: two assertions that pinned "a Free customer sees the same offer" now pin the K+ text. This was a policy alignment with the owner's pre-tap K+ transparency requirement, decided by the owner's merge.
+- Speech / animation interaction: none.
+- Outstanding defects: none known.
+
 ## Findings for the Elise lane (not repaired here)
 
 None recorded yet.
