@@ -47,8 +47,8 @@ test('VTO activation keeps the dangerous background controls contained', () => {
   // this activation is prohibited from changing it in either direction.
   assert.doesNotMatch(SCRIPT, /watchlist_worker_enabled must exist and remain enabled=false/);
   assert.match(SCRIPT, /Unrelated production control changed during VTO activation/);
-  assert.match(SCRIPT, /JSON\\.stringify\\(before\\.get\\(key\\)/);
-  assert.match(SCRIPT, /JSON\\.stringify\\(after\\.get\\(key\\)/);
+  assert.ok(SCRIPT.includes('JSON.stringify(before.get(key) ?? null)'));
+  assert.ok(SCRIPT.includes('JSON.stringify(after.get(key) ?? null)'));
   assert.match(SCRIPT, /account_deletion_worker_enabled/);
   assert.match(SCRIPT, /account_deletion_worker_enabled must exist and remain enabled=false/);
   assert.match(SCRIPT, /orphan_media_destructive_mode/);
