@@ -169,6 +169,14 @@ function normalizeIdentification(raw: unknown): DetailedIdentification | undefin
     const v = src[key];
     if (typeof v === 'string' && v.trim()) (out as Record<string, unknown>)[key] = v.trim();
   }
+  // Scanner-owned additive evidence: retain through deferred commerce and saved
+  // results without changing the shared garment-identity type or VTO payload.
+  for (const key of ['logo_brand', 'logo_description', 'logo_confidence', 'brand_confidence', 'exact_item_hypothesis', 'exact_match_confidence']) {
+    const value = src[key];
+    if (typeof value === 'string' && value.trim()) {
+      (out as Record<string, unknown>)[key] = value.trim().slice(0, key === 'logo_description' ? 120 : 60);
+    }
+  }
   for (const key of arrayKeys) {
     const v = src[key];
     if (Array.isArray(v)) {

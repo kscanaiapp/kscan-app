@@ -70,7 +70,7 @@ export function resolvePurchaseOptionsPanelMode(
  */
 export function PurchaseOptionsPanel({
   purchaseOptions,
-  title = 'MATCHING PRODUCTS',
+  title = 'SIMILAR STYLES',
   testID,
   commerceStatus = 'idle',
   onRetry,
@@ -245,7 +245,7 @@ export function PurchaseOptionsPanel({
         />
       ) : (
         <EmptyStateCard
-          title="Matching products will appear here for shoppable looks."
+          title="No shopping options found."
           // POLISH-009: the scan is kept in Recent Scans automatically, and the
           // Closet is owned wardrobe, so the old subtitle told people to put a
           // scanned (not owned) look into their wardrobe to keep it.

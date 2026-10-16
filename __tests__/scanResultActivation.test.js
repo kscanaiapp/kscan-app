@@ -245,8 +245,8 @@ test('createResultCardViewModel derives title/subtitle/badges/matchCount', () =>
   assert.equal(vm.matchCount, 2);
   assert.equal(vm.primaryMatch.id, 'p1');
   assert.equal(vm.confidenceLabel, 'high');
-  assert.equal(vm.resultType, 'exact');
-  assert.equal(vm.matchQualityLabel, 'Exact match candidate');
+  assert.equal(vm.resultType, 'close');
+  assert.equal(vm.matchQualityLabel, 'Strong style match');
   assert.ok(vm.signalsFound.some((signal) => signal.label === 'Category'));
   assert.ok(vm.primaryReason.includes('Matched on category'));
   assert.equal(vm.privacyCaption, 'Saved as style metadata, not a raw photo.');

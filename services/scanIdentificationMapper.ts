@@ -287,12 +287,28 @@ export function mapScanIdentifyToAnalysis(
     // same response (e.g. a guess drawn from silhouette/style resemblance
     // while a different brand's tag was actually read). When both are
     // present and disagree, the directly-read text is authoritative.
-    const geminiBrand = resp.identification?.visible_brand_text || resp.identification?.brand_guess || null;
+    // Scanner already supplies camera/gallery source on every hook call. Elise
+    // callers omit it and retain their existing mapping behavior during overlap.
+    const scannerBrandEvidenceEnabled = options.source === 'camera' || options.source === 'gallery';
+    const brandFields = (resp.identification ?? {}) as Record<string, unknown>;
+    const observedName = (value: unknown): string | null => {
+      if (typeof value !== 'string') return null;
+      const name = value.trim();
+      return name.length >= 2 && name.length <= 60 && !/^(unknown|none|null|undefined|n\/a|logo|monogram|unbranded)$/i.test(name)
+        ? name : null;
+    };
+    const visibleBrandText = scannerBrandEvidenceEnabled
+      ? observedName(brandFields.visible_brand_text) : resp.identification?.visible_brand_text;
+    const logoBrand = brandFields.logo_detected === true && brandFields.logo_confidence === 'high'
+      ? observedName(brandFields.logo_brand) : null;
+    const geminiBrand = visibleBrandText || (scannerBrandEvidenceEnabled ? logoBrand : null) || resp.identification?.brand_guess || null;
     const { brand, confidence: brandConfidence } = deriveBrandConfidence(
       geminiBrand,
-      resp.identification?.logo_detected,
-      resp.identification?.visible_brand_text,
-      recommendedProducts,
+      scannerBrandEvidenceEnabled ? !!logoBrand : resp.identification?.logo_detected,
+      visibleBrandText,
+      // Retrieved listings are consequences of this identity, not independent
+      // evidence about the photographed garment. They cannot change its brand.
+      scannerBrandEvidenceEnabled ? [] : recommendedProducts,
     );
     metadata.brand = brand;
     metadata.brandConfidence = brandConfidence;
@@ -365,7 +381,14 @@ export function mapScanIdentifyToAnalysis(
     // keeps the fields `metadata` drops. Wrapped for the same reason as below:
     // an enrichment failure must never break the existing analysis contract.
     try {
-      analysis.identificationSnapshot = buildIdentificationSnapshot(resp);
+      analysis.identificationSnapshot = buildIdentificationSnapshot(scannerBrandEvidenceEnabled ? {
+        ...resp,
+        identification: {
+          ...resp.identification,
+          brand_guess: brandConfidence === 'high' ? brand : null,
+          visible_brand_text: visibleBrandText,
+        },
+      } : resp);
     } catch {
       analysis.identificationSnapshot = null;
     }
