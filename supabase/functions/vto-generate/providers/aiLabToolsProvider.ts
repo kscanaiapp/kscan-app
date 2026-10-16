@@ -355,6 +355,38 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
   return {
     id: AILABTOOLS_PROVIDER_ID,
+    // VTO-003/004: strictly a poll of a recorded task. No POST is reachable.
+    async recover(taskId: string, { signal }: { signal: AbortSignal }): Promise<VtoProviderOutcome> {
+      if (!/^[A-Za-z0-9_.:-]{1,256}$/.test(taskId)) return {
+        ok: false, failure: 'generation_failed', detail: 'invalid_task_receipt', billable: true,
+      };
+      let response: Response;
+      try {
+        response = await doFetch(`${POLL_URL}?task_id=${encodeURIComponent(taskId)}`, {
+          method: 'GET',
+          headers: { 'x-rapidapi-host': RAPIDAPI_HOST, 'x-rapidapi-key': options.apiKey },
+          signal,
+        });
+      } catch {
+        return { ok: false, failure: 'network_failure', detail: 'receipt_poll_unavailable', billable: true };
+      }
+      const body = await response.json().catch(() => null) as Record<string, unknown> | null;
+      const errorCode = body?.error_code;
+      if (!response.ok || typeof errorCode === 'number' && errorCode !== 0) {
+        return { ...mapSubmitFailure(response.status, body, response.headers), billable: true };
+      }
+      if (body?.task_status !== 2) return {
+        ok: false, failure: 'provider_busy',
+        detail: 'accepted_task_still_processing', billable: true,
+      };
+      const imageUrl = (body?.output as Record<string, unknown> | undefined)?.image_url;
+      if (typeof imageUrl !== 'string' || !imageUrl) return {
+        ok: false, failure: 'invalid_output', detail: 'receipt_missing_image_url', billable: true,
+      };
+      const usage = body?.usage as Record<string, unknown> | undefined;
+      const billedUnits = typeof usage?.image_count === 'number' ? usage.image_count : null;
+      return await fetchResultAsMedia(imageUrl, signal, doFetch, billedUnits);
+    },
     async generate(input: VtoProviderInput,
       { signal, onTaskAccepted }: {
         signal: AbortSignal; onTaskAccepted?: (taskId: string) => Promise<boolean>;
