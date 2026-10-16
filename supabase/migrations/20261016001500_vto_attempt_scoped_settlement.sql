@@ -210,5 +210,5 @@ revoke all on function public.settle_vto_generation_v2(uuid,text,uuid,text,text,
 revoke all on function public.claim_vto_reconciliation_v2(integer) from public,anon,authenticated;
 grant execute on function public.reserve_vto_generation_v2(uuid,text,integer) to service_role;
 grant execute on function public.record_vto_task_v2(uuid,text,uuid,text,text) to service_role;
-grant execute on function public.settle_vto_generation_v2(uuid,text,uuid,text,text) to service_role;
+grant execute on function public.settle_vto_generation_v2(uuid,text,uuid,text,text,text) to service_role;
 grant execute on function public.claim_vto_reconciliation_v2(integer) to service_role;
