@@ -1,0 +1,14 @@
+# Build outputs
+build/
+*.class
+*.dex
+*.aar
+*.apk
+
+# iOS
+*.xcframework
+*.xcworkspace
+DerivedData/
+
+# Node
+node_modules/
