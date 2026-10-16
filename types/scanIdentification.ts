@@ -122,6 +122,8 @@ export type ScanIdentifyResponse = {
   scanId?: string;
   scanSessionId?: string;
   imageDigestPrefix?: string;
+  /** Bounded, digest-bound advisory visual evidence. Model-origin entries are never independent proof. */
+  scannerVisualEvidence?: Record<string, unknown>;
   status: FashionIdentificationStatus;
   attributes?: FashionAttributes;
   /** Rich identification fields (Day-1 prompt upgrade). Optional for backward compat. */
