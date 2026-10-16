@@ -190,5 +190,5 @@ export type VtoProviderOutcome =
 
 export interface VtoProvider {
   readonly id: string;
-  generate(input: VtoProviderInput, options: { signal: AbortSignal }): Promise<VtoProviderOutcome>;
+  generate(input: VtoProviderInput, options: { signal: AbortSignal; onTaskAccepted?: (taskId: string) => Promise<boolean> }): Promise<VtoProviderOutcome>;
 }
