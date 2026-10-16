@@ -23,6 +23,13 @@ const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
 const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
+  // October 15 owner-authorized Photo VTO paid transaction repair (VTO-001–005).
+  // Exact files only; do not permit unrelated backend changes or app.json.
+  'supabase/functions/vto-generate/vtoHandler.test.ts',
+  'supabase/functions/vto-generate/vtoReservation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.test.ts',
+  'supabase/migrations/20261016001500_vto_attempt_scoped_settlement.sql',
   'supabase/functions/vto-generate/vtoEntitlement.ts',
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
@@ -246,7 +253,7 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
-test('guard: generative backend stays read-only outside the exact Build 35 entitlement repair', (t) => {
+test('guard: generative backend stays read-only outside exact owner-approved paths', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
@@ -258,7 +265,7 @@ test('guard: generative backend stays read-only outside the exact Build 35 entit
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'only the exact Build 35 backend paths may change; all other supabase/** and app.json remain read-only',
+    'only the exact owner-approved backend paths may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {
