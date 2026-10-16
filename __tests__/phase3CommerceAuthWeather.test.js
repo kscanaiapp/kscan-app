@@ -45,6 +45,7 @@ function run(rel, requireMap = {}, extraGlobals = {}, cache = new Map()) {
         const sibling = path.posix.join(path.posix.dirname(rel), id.slice(2));
         return run(sibling, requireMap, extraGlobals, cache);
       }
+      if (id === '../_shared/net/publicHost.ts') return require('./helpers/commerceMatchContract').loadPortable('supabase/functions/_shared/net/publicHost.ts');
       throw new Error('Unexpected require: ' + id);
     },
     ...extraGlobals,
