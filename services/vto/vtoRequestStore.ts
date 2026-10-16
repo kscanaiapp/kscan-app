@@ -178,7 +178,7 @@ export function getVtoActorBoundaryEpoch(): number {
  * "start over"), so an open try-on sheet still showing the previous actor's
  * garment closes instead of lingering over the next actor's session.
  */
-export function resetVtoForActorBoundary(): void {
+export function resetVtoAtActorBoundary(): void {
   actorBoundaryEpoch += 1;
   resetVtoRequestState();
 }

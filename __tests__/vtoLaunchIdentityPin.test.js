@@ -155,7 +155,7 @@ test('N-09: an actor change closes an open sheet, minimized or not, so a previou
     h.launch.open();
     assert.ok(h.sheet(h.show(h.forGarment(A, 'A'))), 'open');
     if (minimizeFirst) h.launch.minimize();
-    h.boundary.epoch += 1; // resetVtoForActorBoundary ran
+    h.boundary.epoch += 1; // resetVtoAtActorBoundary ran
     h.show(h.forGarment(A, 'A'));
     const tree = h.show(h.forGarment(A, 'A'));
     assert.equal(h.sheet(tree), null, 'the sheet is gone after the actor boundary');
@@ -180,7 +180,7 @@ test('N-09: a customer own "start over" is not an actor boundary', () => {
   const clear = store.slice(store.indexOf('export function resetVtoRequestState'));
   assert.ok(!clear.slice(0, clear.indexOf('\n}\n')).includes('actorBoundaryEpoch'), 'clearPerson must not close the sheet');
   const hook = fs.readFileSync(path.join(ROOT, 'hooks/useVirtualTryOn.ts'), 'utf8');
-  assert.ok(hook.includes('resetVtoRequestState();') && !hook.includes('resetVtoForActorBoundary'));
+  assert.ok(hook.includes('resetVtoRequestState();') && !hook.includes('resetVtoAtActorBoundary'));
 });
 
 test('NEGATIVE CONTROL: without the pin the open sheet would follow the parent to another garment', () => {
