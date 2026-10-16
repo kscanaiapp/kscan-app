@@ -95,6 +95,9 @@ let generation = 0;
  * only at the actor boundary, so it cannot walk backwards into a spent key.
  */
 let intentSequence = 0;
+/** Counts actor-boundary resets only (sign-out, account change). Surfaces that
+ *  hold a garment belonging to the previous actor close when it advances. */
+let actorBoundaryEpoch = 0;
 /** Different launches must not resurrect the same server idempotency key. */
 const intentEpoch = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
 let activeController: AbortController | null = null;
@@ -163,6 +166,21 @@ export function resetVtoRequestState(): void {
   advanceIntent();
   releaseOwnedMedia();
   setSnapshot(IDLE_VTO_SNAPSHOT);
+}
+
+export function getVtoActorBoundaryEpoch(): number {
+  return actorBoundaryEpoch;
+}
+
+/**
+ * The actor-boundary form of {@link resetVtoRequestState}. Identical clearing,
+ * plus a signal that this was a change of ACTOR (not the customer choosing
+ * "start over"), so an open try-on sheet still showing the previous actor's
+ * garment closes instead of lingering over the next actor's session.
+ */
+export function resetVtoAtActorBoundary(): void {
+  actorBoundaryEpoch += 1;
+  resetVtoRequestState();
 }
 
 /** Records an explicitly chosen person image, replacing (and deleting) any

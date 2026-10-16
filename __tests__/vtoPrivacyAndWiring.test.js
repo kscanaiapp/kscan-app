@@ -393,12 +393,15 @@ test('no VTO client module carries a provider credential or endpoint', () => {
 
 test('the actor boundary resets VTO state', () => {
   const context = read('contexts/AuthSessionContext.tsx');
-  assert.ok(context.includes("import { resetVtoRequestState } from '../services/vto/vtoRequestStore'"));
+  assert.ok(context.includes("import { resetVtoAtActorBoundary } from '../services/vto/vtoRequestStore'"));
   const resetFn = context.slice(
     context.indexOf('function resetActorScopedRuntimeState'),
     context.indexOf('export function AuthSessionProvider'),
   );
-  assert.ok(resetFn.includes('resetVtoRequestState();'), 'must run inside the actor reset');
+  assert.ok(resetFn.includes('resetVtoAtActorBoundary();'), 'must run inside the actor reset');
+  const store = read('services/vto/vtoRequestStore.ts');
+  const boundary = store.slice(store.indexOf('export function resetVtoAtActorBoundary'));
+  assert.ok(boundary.slice(0, boundary.indexOf('\n}\n')).includes('resetVtoRequestState();'), 'the boundary reset must still do the full clear');
 });
 
 test('the Edge Function requires a verified JWT at the platform gate', () => {

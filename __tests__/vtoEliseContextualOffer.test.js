@@ -430,7 +430,7 @@ function renderOffer(world, props) {
     {
       ...renderer.runtimeModules,
       '../../hooks/useVtoAwareness': awarenessHooks,
-      '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: env.vtoStatus }) },
+      '../../hooks/useVtoSessionStatus': { useVtoSessionStatus: () => ({ status: env.vtoStatus }), useVtoActorBoundaryEpoch: () => 0 },
       '../../services/haptics': haptics,
       '../../services/vto/vtoAwareness': {
         markVtoInitiated: () => { env.calls.initiated += 1; },

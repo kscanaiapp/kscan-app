@@ -23,7 +23,7 @@ import { resetAttachmentStore } from '../services/style-chat/styleChatAttachment
 import { clearStyleChatDrafts } from '../services/style-chat/styleChatDraftPersistence';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
 import { cleanupSanitizedImage } from '../services/privacyImageUpload';
-import { resetVtoRequestState } from '../services/vto/vtoRequestStore';
+import { resetVtoAtActorBoundary } from '../services/vto/vtoRequestStore';
 import {
   createAuthBootstrapGenerationGuard,
   createAuthActorBoundaryGuard,
@@ -129,7 +129,7 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // here, and the cache derivatives backing them are deleted -- an in-flight
   // generation started by the previous actor also loses presentation
   // authority at this line, before any of it can reach the next actor.
-  resetVtoRequestState();
+  resetVtoAtActorBoundary();
   // Defense in depth: the store already refuses to return a reading whose
   // actorId does not match the caller, so this cannot be the only thing keeping
   // weather from crossing accounts — it just stops the previous actor's reading
