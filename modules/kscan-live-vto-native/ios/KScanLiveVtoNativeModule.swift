@@ -1,3 +1,4 @@
+import AVFoundation
 import ExpoModulesCore
 
 /// iOS catch-up counterpart to Android's `KScanLiveVtoNativeModule.kt`.
@@ -35,12 +36,28 @@ public class KScanLiveVtoNativeModule: Module {
   public func definition() -> ModuleDefinition {
     Name("KScanLiveVto")
 
+    // Static prerequisites only, as separate stages, behind a closed
+    // certification gate. See LiveVtoCapabilityStages for why none of these may
+    // read as "the camera works" and why frames/perception/rendering are not
+    // reported before a session starts.
     Function("getCapability") { () -> [String: Any?] in
-      [
-        "capable": false,
-        "runtimeReady": false,
-        "runtimeVersion": Self.runtimeVersion,
-      ]
+      var platformSupported = false
+      if #available(iOS 15.1, *) { platformSupported = true }
+      let frontCameraPresent = AVCaptureDevice.default(
+        .builtInWideAngleCamera, for: .video, position: .front
+      ) != nil
+      let modelAssetPresent = LiveVtoAssetBundle.shared.path(
+        forResource: "pose_landmarker_lite", ofType: "task", inDirectory: "models"
+      ) != nil
+      return LiveVtoCapabilityStages.evaluate(
+        LiveVtoCapabilityStages.Inputs(
+          platformSupported: platformSupported,
+          frontCameraPresent: frontCameraPresent,
+          modelAssetPresent: modelAssetPresent,
+          cameraPermissionGranted: AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+        ),
+        runtimeVersion: Self.runtimeVersion
+      )
     }
 
     // N1-G: capturePersonFrame()/capturePreview() -- the two ALREADY-GOVERNED
