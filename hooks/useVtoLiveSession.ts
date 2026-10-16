@@ -56,6 +56,7 @@ import {
 import type { VtoPersonInput } from '../types/vto';
 
 export interface UseVtoLiveSessionArgs {
+  active?: boolean;
   descriptor: LiveVtoGarmentDescriptor | null;
   /** Called with the clean person input once a Photoreal capture succeeds.
    *  The caller drives the ORDINARY generative flow with it -- this hook never
@@ -65,6 +66,9 @@ export interface UseVtoLiveSessionArgs {
 
 export interface UseVtoLiveSessionResult {
   session: LiveVtoSessionSnapshot;
+  paused: boolean;
+  togglePause: () => void;
+  restart: () => Promise<void>;
   photorealIntent: PhotorealIntentState;
   photorealFailure: PhotorealFailureOutcome | null;
   entered: boolean;
@@ -116,6 +120,10 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const onPhotorealPersonRef = useRef(args.onPhotorealPerson);
   onPhotorealPersonRef.current = args.onPhotorealPerson;
 
+  const [paused, setPaused] = useState(false);
+  const epochRef = useRef(0);
+  const activeRef = useRef(true);
+  activeRef.current = args.active !== false;
   const descriptor = args.descriptor;
 
   // Unmount disposes the runtime. A Live session is bound to its surface: it
@@ -123,6 +131,8 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   // performance question, it is a privacy one.
   useEffect(() => {
     return () => {
+      epochRef.current += 1;
+      activeRef.current = false;
       controllerRef.current?.dispose();
       controllerRef.current = null;
       cameraLeaseRef.current?.release();
@@ -133,13 +143,15 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const enterLive = useCallback(async () => {
     // `controllerRef` alone was not enough: it is only assigned AFTER the
     // permission await below, so two taps both passed it. See VTO-HA-002.
-    if (!descriptor || controllerRef.current || enteringRef.current) return;
+    if (!activeRef.current || !descriptor || controllerRef.current || enteringRef.current) return;
+    const epoch = epochRef.current;
     enteringRef.current = true;
     try {
       const harness = getLiveVtoHarnessState();
       const permission = harness
         ? { state: harness.cameraPermission, prompted: false }
         : await ensureLiveCameraPermission();
+      if (epochRef.current !== epoch || !activeRef.current) return;
 
       if (permission.state !== 'granted') {
         // Bounded, non-fatal: the caller keeps AI Photo on offer and we do not
@@ -183,6 +195,8 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   }, [descriptor]);
 
   const exitLive = useCallback(() => {
+    epochRef.current += 1;
+    setPaused(false);
     controllerRef.current?.dispose();
     controllerRef.current = null;
     releaseCameraLease();
@@ -240,6 +254,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
 
   const runPhotorealCapture = useCallback(async () => {
     const controller = controllerRef.current;
+    const epoch = epochRef.current;
     setPhotorealFailure(null);
 
     const harness = getLiveVtoHarnessState();
@@ -261,6 +276,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     if (consent.ok) setPhotorealIntent(consent.to);
 
     const frame = await controller.capturePersonFrame();
+    if (epochRef.current !== epoch || controllerRef.current !== controller || !activeRef.current) return;
     if (!frame) {
       setPhotorealFailure(handlePhotorealFailure('no_usable_still'));
       setPhotorealIntent(returnToLive());
@@ -268,6 +284,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     }
 
     const outcome = await buildPhotorealPersonInput(frame);
+    if (epochRef.current !== epoch || controllerRef.current !== controller || !activeRef.current) return;
     if (outcome.ok === false) {
       setPhotorealFailure(outcome.failure);
       setPhotorealIntent(outcome.failure.resultingState);
@@ -279,11 +296,29 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   }, []);
 
   const capturePreview = useCallback(async () => {
-    const frame = await controllerRef.current?.capturePreview();
+    const controller = controllerRef.current;
+    const epoch = epochRef.current;
+    const frame = await controller?.capturePreview();
+    if (epochRef.current !== epoch || controllerRef.current !== controller || !activeRef.current) return null;
     const uri = frame?.localUri ?? null;
     setPreviewUri(uri);
     return uri;
   }, []);
+
+  const togglePause = useCallback(() => {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    const ok = paused ? controller.resume() : controller.pause();
+    if (ok) setPaused(!paused);
+  }, [paused]);
+  const restart = useCallback(async () => {
+    const controller = controllerRef.current;
+    if (controller && descriptor) {
+      controller.stop();
+      setPaused(false);
+      controller.start(descriptor);
+    } else await enterLive();
+  }, [exitLive, enterLive]);
 
   const dismissPhotorealFailure = useCallback(() => {
     setPhotorealFailure(null);
@@ -293,6 +328,9 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   return useMemo(
     () => ({
       session: snapshot,
+      paused,
+      togglePause,
+      restart,
       photorealIntent,
       photorealFailure,
       entered,
@@ -306,6 +344,9 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     }),
     [
       snapshot,
+      paused,
+      togglePause,
+      restart,
       photorealIntent,
       photorealFailure,
       entered,

@@ -722,9 +722,7 @@ function assertSheetGated(sheetSource) {
   // Everything else -- every button, every handler -- must go through the gate.
   let rest = code;
   for (const body of Object.values(gates)) rest = rest.replace(body, '');
-  const liveHandoff = /vto\.adoptPerson\(person\);\s*vto\.generate\(\);/;
-  assert.match(rest, liveHandoff, 'the Live handoff literal is pinned by vtoLivePhotorealHandoff.test.js');
-  rest = rest.replace(liveHandoff, '');
+  assert.match(rest, /vto\.adoptPerson\(person\);\s*setMode\('ai_photo'\);/, 'Live must hand a clean frame to Photo review without generating');
   const stray = rest.match(/vto\.(?:generate|retry)\b/g);
   assert.equal(
     stray,

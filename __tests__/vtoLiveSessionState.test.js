@@ -325,7 +325,7 @@ test('nothing invisible keeps the camera running', () => {
     'minimize, a closed sheet, a withdrawn capability, a crashed panel and an AI Photo switch must all tear down',
   );
   assert.ok(
-    /if \(liveSurfaceWithdrawn && liveEntered\) live\.exitLive\(\);/.test(sheet),
+    /if \(liveSurfaceWithdrawn\) live\.exitLive\(\);/.test(sheet),
   );
   const visibleDef = sheet.match(/const liveVisible = [^;]+;/)[0];
   for (const part of ['liveOffered', "mode === 'live'", '!liveCrashed']) {

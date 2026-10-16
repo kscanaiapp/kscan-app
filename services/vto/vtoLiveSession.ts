@@ -162,8 +162,8 @@ export interface LiveVtoSessionController {
   subscribe(listener: (snapshot: LiveVtoSessionSnapshot) => void): () => void;
   start(descriptor: LiveVtoGarmentDescriptor): void;
   switchGarment(descriptor: LiveVtoGarmentDescriptor): void;
-  pause(): void;
-  resume(): void;
+  pause(): boolean;
+  resume(): boolean;
   stop(): void;
   /** The ONLY capture that may feed the generative path. */
   capturePersonFrame(): Promise<LiveVtoCapturedFrame | null>;
@@ -246,8 +246,8 @@ export function createLiveVtoSession(
       }
       emit(markGarmentLoading(snapshot));
       const started = sendLiveVtoCommand(nativeModule, (target) => {
-        target.start();
         target.loadGarment(descriptor);
+        target.start();
       });
       if (!started) emit(markLiveVtoError(snapshot, 'RUNTIME_INITIALIZATION_FAILED'));
     },
@@ -258,10 +258,10 @@ export function createLiveVtoSession(
       if (!switched) emit(markLiveVtoError(snapshot, 'GARMENT_UNSUPPORTED'));
     },
     pause() {
-      sendLiveVtoCommand(nativeModule, (target) => target.pause());
+      return !disposed && sendLiveVtoCommand(nativeModule, (target) => target.pause());
     },
     resume() {
-      sendLiveVtoCommand(nativeModule, (target) => target.resume());
+      return !disposed && sendLiveVtoCommand(nativeModule, (target) => target.resume());
     },
     stop() {
       sendLiveVtoCommand(nativeModule, (target) => target.stop());

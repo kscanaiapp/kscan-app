@@ -310,7 +310,9 @@ test('governance: Live reaches the cloud only through the existing store action'
   );
   const sheet = code('components/vto/VirtualTryOnSheet.tsx');
   assert.ok(sheet.includes('vto.adoptPerson(person)'));
-  assert.ok(sheet.includes('vto.generate()'));
+  const handoff = sheet.slice(sheet.indexOf('onPhotorealPerson: (person)'), sheet.indexOf('const liveSurfaceWithdrawn'));
+  assert.ok(!handoff.includes('vto.generate()'), 'Live hands off to review, never an automatic paid generation');
+  assert.ok(handoff.includes("setMode('ai_photo')"));
 });
 
 test('governance: no VTO client or Edge Function file was modified by this lane', () => {
