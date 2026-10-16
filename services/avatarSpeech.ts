@@ -49,13 +49,14 @@ export interface SpeakAvatarMessagePayload {
 export interface AvatarSpeechScope {
   actorId?: string;
   sessionId?: string;
+  messageId?: string;
   avatarId?: string;
 }
 
 const MAX_SPOKEN_MESSAGE_KEYS = 200;
 
 let generation = 0;
-const consentWaits = new Set<{ payload: SpeakAvatarMessagePayload; generation: number }>();
+const consentWaits = new Set<{ payload: SpeakAvatarMessagePayload; generation: number; cancelled: boolean }>();
 let pendingController: AbortController | null = null;
 let activePlayer: StylistAudioPlaybackHandle | null = null;
 let activeFileUri: string | null = null;
@@ -117,6 +118,7 @@ function matchesScope(payload: SpeakAvatarMessagePayload, scope?: AvatarSpeechSc
   if (!scope) return true;
   if (scope.actorId && payload.actorId !== scope.actorId) return false;
   if (scope.sessionId && payload.sessionId !== scope.sessionId) return false;
+  if (scope.messageId && payload.messageId !== scope.messageId) return false;
   if (scope.avatarId && payload.avatarId !== scope.avatarId) return false;
   return true;
 }
@@ -169,7 +171,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 
   // A scoped interruption must also cancel a request waiting for device
   // consent, before it owns a player/controller or has changed store state.
-  const consentWait = { payload, generation };
+  const consentWait = { payload, generation, cancelled: false };
   consentWaits.add(consentWait);
   let consent = false;
   try {
@@ -177,7 +179,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
   } finally {
     consentWaits.delete(consentWait);
   }
-  if (!consent || !isCurrent(consentWait.generation)) return;
+  if (!consent || consentWait.cancelled || !isCurrent(consentWait.generation)) return;
 
   ensureSpeechLifecycleBound();
   const key = operationKey(payload);
@@ -189,11 +191,13 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
   if ((payload.trigger ?? 'auto') === 'auto' && spokenKeys.has(key)) return;
 
   const requestGeneration = nextGeneration();
+  // Publish ownership before asynchronous teardown. Blur/withdrawal during
+  // file cleanup must be able to cancel this operation before any paid call.
+  currentScope = payload;
   await releaseResources();
   if (!isCurrent(requestGeneration)) return;
 
   inFlightKey = key;
-  currentScope = payload;
   beginAvatarSpeech({ ...payload, generation: requestGeneration });
   const controller = new AbortController();
   pendingController = controller;
@@ -292,14 +296,21 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 export async function stopAvatarSpeechPlayback(scope?: AvatarSpeechScope): Promise<void> {
   const store = getAvatarSpeechState();
   const pendingMatches = currentScope ? matchesScope(currentScope, scope) : false;
-  const consentMatches = [...consentWaits].some(({ payload }) => matchesScope(payload, scope));
-  const storeMatches = !scope || (
+  // Cancel only matching consent waiters. A stale waiter must not give an old
+  // screen authority to tear down a newer, differently scoped active player.
+  for (const wait of consentWaits) {
+    if (matchesScope(wait.payload, scope)) wait.cancelled = true;
+  }
+  // Once a newer operation owns the manager, old store identifiers waiting to
+  // be replaced cannot authorize stopping that newer operation.
+  const storeMatches = !scope || ((!currentScope || pendingMatches) &&
     store.phase !== 'idle' &&
     (!scope.actorId || store.actorId === scope.actorId) &&
     (!scope.sessionId || store.sessionId === scope.sessionId) &&
+    (!scope.messageId || store.messageId === scope.messageId) &&
     (!scope.avatarId || store.avatarId === scope.avatarId)
   );
-  if (scope && !pendingMatches && !storeMatches && !consentMatches) return;
+  if (scope && !pendingMatches && !storeMatches) return;
 
   const stoppedGeneration = nextGeneration();
   const priorGeneration = store.generation;

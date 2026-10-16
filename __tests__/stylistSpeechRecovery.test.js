@@ -315,10 +315,12 @@ test('StyleChat wiring speaks only persisted new messages and scopes the header 
   assert.match(hook, /result\.inserted && result\.message && canSpeakNewMessages/);
   assert.match(hook, /messageId: savedAssistant\.id/);
   assert.match(hook, /voicePreference\.enabled/);
-  assert.match(header, /speechState\.phase === 'playing'/);
-  assert.match(header, /speechState\.actorId === actorId/);
-  assert.match(header, /speechState\.sessionId === sessionId/);
-  assert.match(header, /speechState\.stylistId === identity\.avatarId/);
+  const host = fs.readFileSync(path.join(ROOT, 'hooks', 'useStylistAvatarVisual.ts'), 'utf8');
+  assert.match(header, /useStylistAvatarVisual\(/);
+  assert.match(host, /speechState\.phase === 'playing'/);
+  assert.match(host, /speechState\.actorId === actorId/);
+  assert.match(host, /speechState\.sessionId === sessionId/);
+  assert.match(host, /speechState\.stylistId === avatarId/);
 });
 
 test('accepted Home and greeting architecture remains delegated and replay-free', () => {

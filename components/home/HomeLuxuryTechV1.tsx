@@ -42,6 +42,7 @@ import { PACKING_INTELLIGENCE_V1, SMART_WATCHLIST_V1, TEXTSCAN_UI_ENABLED } from
 import { KPlusGate } from '../kplus/KPlusGate';
 import { KPlusMarkerBadge } from '../kplus/KPlusMarkerBadge';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
+import { useHomeEliseWelcome } from '../../hooks/useHomeEliseWelcome';
 import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 
@@ -136,6 +137,11 @@ export default function HomeLuxuryTechV1() {
   // no marker is rendered at all.
   const { state: packingKPlusState, isActive: packingKPlusActive } = useKPlusEntitlement();
   const packingKPlusResolving = isKPlusEntitlementUnresolved(packingKPlusState);
+  const welcome = useHomeEliseWelcome({
+    identity,
+    ready: styleChatEnabled && !identityLoading && !authLoading,
+    entitlement: packingKPlusState,
+  });
 
   const preferredName = resolvePreferredName(user);
 
@@ -316,6 +322,8 @@ export default function HomeLuxuryTechV1() {
       {styleChatEnabled && (
         <HomeStylistCard
           identity={identity}
+          welcomeText={welcome.text}
+          welcomeBinding={welcome.binding}
           onStartConversation={handleStartConversation}
           onOpenConversations={handleOpenStyleChat}
           onPersonalize={handlePersonalize}

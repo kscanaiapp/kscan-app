@@ -433,18 +433,23 @@ test('the shadow report grows bounded and leaks no text', () => {
 // -- Host wiring --------------------------------------------------------------
 
 test('the header renders the V10 frame and has no legacy speaking path', () => {
-  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  const header = executableSource('hooks/useStylistAvatarVisual.ts');
 
   // The claim is that the mouth prop is fed from the engine result, not that
   // the intermediate binding is spelled `mouthState`. The header now reads the
   // idle-presence channels off the same frame, so the result is an object.
-  assert.match(header, /mouthState=\{(?:visual\.)?mouthState\}/);
+  for (const surface of ['components/style-chat/StyleChatHeader.tsx', 'components/home/HomeStylistCard.tsx']) {
+    const source = executableSource(surface);
+    assert.match(source, /useStylistAvatarVisual\(/);
+    assert.match(source, /mouthState=\{visual\.mouthState\}/);
+    assert.match(source, /motion=\{visual\.motion\}/);
+  }
   assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
   assert.equal(/deriveAvatarMouthState|observeAvatarShadowFrame/.test(header), false);
 });
 
 test('the visible V10 frame is memoized from the authoritative store snapshot', () => {
-  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  const header = executableSource('hooks/useStylistAvatarVisual.ts');
   assert.match(header, /useMemo\(\(\)\s*=>/);
   assert.match(header, /speech:\s*speechState/);
   assert.match(header, /scopeMatches:\s*speechScopeMatches/);
@@ -452,7 +457,7 @@ test('the visible V10 frame is memoized from the authoritative store snapshot', 
 });
 
 test('visible convergence adds no second subscription and no duplicate speech state', () => {
-  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  const header = executableSource('hooks/useStylistAvatarVisual.ts');
 
   // Exactly one speech-state subscription, the pre-existing one.
   const subscriptions = header.match(/useAvatarSpeechState\(\)/g) ?? [];
@@ -463,7 +468,7 @@ test('visible convergence adds no second subscription and no duplicate speech st
 });
 
 test('no visual-mode environment branch can resurrect the legacy renderer', () => {
-  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  const header = executableSource('hooks/useStylistAvatarVisual.ts');
   assert.equal(/EXPO_PUBLIC_AVATAR_VISUAL_MODE|engineActive|LEGACY|V10_SHADOW/.test(header), false);
   assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
 });

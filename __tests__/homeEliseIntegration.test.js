@@ -320,7 +320,9 @@ test('no runtime Home surface references the stale generic stylist card', () => 
   // And the canonical card renders the animated portrait rather than an
   // initial-letter placeholder, which is what the regression showed.
   assert.match(homeStylistCard, /<AnimatedStylistAvatar/);
-  assert.match(homeStylistCard, /avatarId=\{identity\.avatarId\}/);
+  assert.match(homeStylistCard, /useStylistAvatarVisual\(/);
+  assert.match(homeStylistCard, /avatarId=\{visualAvatarId\}/);
+  assert.match(homeStylistCard, /avatarId: identity\.avatarId/);
 
   // The detector is proven to detect. A comment-stripper that ate too much
   // would pass over a real reintroduction and report nothing, which is

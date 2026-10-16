@@ -6,7 +6,9 @@ import {
   type StylistIdentity,
 } from '../../constants/stylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useStylistAvatarVisual } from '../../hooks/useStylistAvatarVisual';
+import { useAuthSession } from '../../contexts/AuthSessionContext';
+import type { HomeWelcomeBinding } from '../../services/homeEliseWelcome';
 import { PrimaryButton } from '../luxury';
 
 const DEFAULT_SUGGESTIONS = [
@@ -17,6 +19,8 @@ const DEFAULT_SUGGESTIONS = [
 
 interface HomeStylistCardProps {
   identity: StylistIdentity;
+  welcomeText: string;
+  welcomeBinding?: HomeWelcomeBinding | null;
   onStartConversation: () => void;
   onOpenConversations: () => void;
   onPersonalize: () => void;
@@ -27,6 +31,8 @@ interface HomeStylistCardProps {
 
 export function HomeStylistCard({
   identity,
+  welcomeText,
+  welcomeBinding,
   onStartConversation,
   onOpenConversations,
   onPersonalize,
@@ -35,7 +41,13 @@ export function HomeStylistCard({
   startError = null,
 }: HomeStylistCardProps) {
   const displayName = identity.displayName || DEFAULT_STYLIST_IDENTITY.displayName;
-  const reducedMotion = useReducedMotion();
+  const { user } = useAuthSession();
+  const { visualAvatarId, reducedMotion, isSpeaking, visual } = useStylistAvatarVisual({
+    actorId: user?.id ?? null,
+    sessionId: welcomeBinding?.sessionId,
+    messageId: welcomeBinding?.messageId,
+    avatarId: identity.avatarId,
+  });
   const { width } = useWindowDimensions();
   const compact = width < 430;
 
@@ -73,9 +85,11 @@ export function HomeStylistCard({
         <View style={[styles.cardLeft, { width: compact ? 96 : 108 }]}>
           <View style={styles.avatarWrap}>
             <AnimatedStylistAvatar
-              avatarId={identity.avatarId}
+              avatarId={visualAvatarId}
               size={compact ? 75 : 90}
-              state="idle"
+              state={isSpeaking ? 'speaking' : 'idle'}
+              mouthState={visual.mouthState}
+              motion={visual.motion}
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}
             />
@@ -102,8 +116,8 @@ export function HomeStylistCard({
           <Text style={styles.cardTitle} accessibilityRole="header" numberOfLines={1}>
             Ask {displayName}
           </Text>
-          <Text testID="home-stylist-invitation" style={styles.cardGreeting} numberOfLines={2}>
-            Start a conversation about what to wear, how to style it, or what to shop next.
+          <Text testID="home-stylist-invitation" style={styles.cardGreeting}>
+            {welcomeText}
           </Text>
           <PrimaryButton
             title="Start Chat"
