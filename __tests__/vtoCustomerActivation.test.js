@@ -178,7 +178,9 @@ function createWorld(o = {}) {
   const telemetry = runModule(TELEMETRY, {}, { jsx: false, mutate: mutate(TELEMETRY) });
   telemetry.setVtoAnalyticsSink((event, payload) => env.events.push({ event, ...payload }));
   const eligibility = runModule(ELIGIBILITY, {}, { jsx: false, mutate: mutate(ELIGIBILITY) });
-  const liveGarment = runModule(LIVE_GARMENT, { './vtoEligibility': eligibility }, { jsx: false });
+  // The governed Live asset registry is import-free data, so the real one is supplied.
+  const liveGarmentRegistry = runModule('services/vto/vtoLiveGarmentRegistry.ts', {}, { jsx: false });
+  const liveGarment = runModule(LIVE_GARMENT, { './vtoEligibility': eligibility, './vtoLiveGarmentRegistry': liveGarmentRegistry }, { jsx: false });
   const featureControl = runModule(
     FEATURE_CONTROL,
     {

@@ -84,6 +84,7 @@ const garment = loadTsModule('services/vto/vtoLiveGarment.ts', {
   './vtoEligibility': loadTsModule('services/vto/vtoEligibility.ts', {
     '../../types/vto': {},
   }),
+  './vtoLiveGarmentRegistry': loadTsModule('services/vto/vtoLiveGarmentRegistry.ts'),
 });
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
@@ -243,7 +244,35 @@ test('garment: Live supports fewer categories than AI Photo, and says which', ()
   );
 });
 
-test('garment: a supported top yields a descriptor carrying the SAME productRef', () => {
+// A self-contained test asset registry -- NOT the production registry
+// (services/vto/vtoLiveGarmentRegistry.ts), deliberately, so this router
+// test is not coupled to whichever real productRefs the shipping registry
+// happens to carry today. `assetKey` must still be a real allowlisted
+// bundled-fixture directory name (resolveLiveGarment's own structural check
+// requires it), but the identity fields are this test's own.
+const TEST_ASSET_REGISTRY = [
+  {
+    assetKey: 'n1b-fixture',
+    assetId: 'router-test-asset',
+    assetVersion: '1',
+    ksgarmentSchemaVersion: '1.0',
+    productRef: 'prod-123',
+    canonicalCategory: 'top',
+    templateFamily: 'simple-top',
+    eligible: true,
+    ineligibleReason: null,
+    qaPassed: true,
+    sourceSha256: 'router-test-sha',
+  },
+];
+
+test('garment: a supported, GOVERNED top yields a descriptor carrying the SAME productRef and its resolved asset identity', () => {
+  // Governed-asset resolution added alongside the Live asset resolver
+  // (services/vto/vtoLiveGarment.ts's resolveLiveGarment): category
+  // eligibility alone is no longer sufficient -- see the mission this
+  // module's own header cites. A registry is injected here rather than
+  // relying on the shipping default so this stays a router/category test,
+  // not an assertion about the production registry's current contents.
   const result = garment.evaluateLiveGarmentEligibility({
     garment: {
       productRef: 'prod-123',
@@ -252,6 +281,7 @@ test('garment: a supported top yields a descriptor carrying the SAME productRef'
       brand: null,
       commerceSource: null,
     },
+    registry: TEST_ASSET_REGISTRY,
   });
   assert.equal(result.eligible, true);
   // One product identity, two visualization modes -- there is no second
@@ -259,6 +289,28 @@ test('garment: a supported top yields a descriptor carrying the SAME productRef'
   assert.equal(result.descriptor.productRef, 'prod-123');
   assert.equal(result.descriptor.canonicalCategory, 'top');
   assert.equal(result.descriptor.templateFamily, 'simple-top');
+  // The new, closed-gap fields: a real governed asset identity, not a
+  // placeholder that would resolve to the bundled fixture regardless of
+  // which product was requested.
+  assert.equal(result.descriptor.assetKey, 'n1b-fixture');
+  assert.equal(result.descriptor.assetId, 'router-test-asset');
+  assert.equal(result.descriptor.assetVersion, '1');
+});
+
+test('garment: a supported category with NO governed asset is refused (asset_not_found), not defaulted to a fixture', () => {
+  const result = garment.evaluateLiveGarmentEligibility({
+    garment: {
+      productRef: 'not-in-any-registry',
+      imageUrl: 'https://cdn.example.com/tee.jpg',
+      category: 'T-Shirts',
+      brand: null,
+      commerceSource: null,
+    },
+    registry: TEST_ASSET_REGISTRY,
+  });
+  assert.equal(result.eligible, false);
+  assert.equal(result.reason, 'asset_not_found');
+  assert.equal(result.descriptor, undefined);
 });
 
 test('garment: unsupported categories are refused rather than pretended', () => {
@@ -285,6 +337,12 @@ test('garment: a missing product reference or image is refused', () => {
 
 // ── The customer state matrix (A-H) ─────────────────────────────────────────
 
+// `productRef: 'prod-1'` is deliberately IN TEST_ASSET_REGISTRY's SIBLING
+// registry below (MATRIX_ASSET_REGISTRY) -- these matrix rows are about the
+// ROUTER's state machine (A-H), not about asset resolution, so they use a
+// governed productRef precisely so `garmentLiveEligible` reflects the same
+// true/false a real caller would see for an actually-resolvable product,
+// without coupling this file to the shipping default registry's contents.
 const eligibleTop = {
   productRef: 'prod-1',
   imageUrl: 'https://cdn.example.com/tee.jpg',
@@ -293,6 +351,21 @@ const eligibleTop = {
   commerceSource: null,
 };
 const liveIneligibleDress = { ...eligibleTop, category: 'Dress' };
+const MATRIX_ASSET_REGISTRY = [
+  {
+    assetKey: 'n1b-fixture',
+    assetId: 'matrix-test-asset',
+    assetVersion: '1',
+    ksgarmentSchemaVersion: '1.0',
+    productRef: 'prod-1',
+    canonicalCategory: 'top',
+    templateFamily: 'simple-top',
+    eligible: true,
+    ineligibleReason: null,
+    qaPassed: true,
+    sourceSha256: 'matrix-test-sha',
+  },
+];
 
 /** One matrix row, resolved through the real router and the real garment rule. */
 function matrixCase(input) {
@@ -301,7 +374,7 @@ function matrixCase(input) {
     liveFeatureEnabled: input.liveFeatureEnabled,
     liveRemoteEnabled: input.liveRemoteEnabled ?? input.liveFeatureEnabled,
     nativeCapability: input.nativeCapability,
-    garmentLiveEligible: garment.isLiveGarmentEligible(input.garment),
+    garmentLiveEligible: garment.isLiveGarmentEligible(input.garment, undefined, MATRIX_ASSET_REGISTRY),
     cameraPermission: input.cameraPermission,
     platformOS: 'ios',
   });
