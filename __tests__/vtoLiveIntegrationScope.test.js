@@ -38,6 +38,32 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/_shared/deletion/userDataResources.ts',
   'supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql',
   'supabase/config.toml',
+  // Scanner Phase 2 + Live VTO joint repair (owner brief 2026-10-16: the Scanner/VTO
+  // shared surfaces are unfrozen for ONE joint campaign). Exact paths only, and the
+  // list is the complete diff of that change under supabase/**: this is not a
+  // `scan-identify/**` grant. The paid-provider boundary file
+  // `_shared/net/safeRemoteMedia.ts` is deliberately NOT here: publicHost.ts is a
+  // pinned verbatim copy of its host check (publicHostParity.test.js).
+  'supabase/functions/_shared/net/publicHost.ts',
+  'supabase/functions/_shared/net/publicHost.test.ts',
+  'supabase/functions/scan-identify/brandEvidence.ts',
+  'supabase/functions/scan-identify/brandEvidence.test.ts',
+  'supabase/functions/scan-identify/commerceBrandProvenance.test.ts',
+  'supabase/functions/scan-identify/commerceDestinationBoundary.test.ts',
+  'supabase/functions/scan-identify/commerceIdentity.v124.test.ts',
+  'supabase/functions/scan-identify/commerceRelevance.test.ts',
+  'supabase/functions/scan-identify/commerceRelevanceAgreement.ts',
+  'supabase/functions/scan-identify/commerceRelevanceQueries.ts',
+  'supabase/functions/scan-identify/index.ts',
+  'supabase/functions/scan-identify/matchTier.ts',
+  'supabase/functions/scan-identify/matchTier.test.ts',
+  'supabase/functions/scan-identify/multiItemGarments.ts',
+  'supabase/functions/scan-identify/qualityTuneCommerce.ts',
+  'supabase/functions/scan-identify/scannerBrandIsolation.test.ts',
+  'supabase/functions/scan-identify/scannerQualityGate.ts',
+  'supabase/functions/scan-identify/scannerVisualEvidence.ts',
+  'supabase/functions/scan-identify/scannerVisualEvidence.test.ts',
+  'supabase/functions/scan-identify/shoppingProvider.ts',
   // Build35 Premium Value owner brief + P1-WATCH-LAPSE: re-read canonical
   // K+ at the existing worker's provider boundary. This exact inventory does
   // not authorize provider adapters, push delivery, migrations or deployment.
@@ -194,6 +220,7 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
     'supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts',
     'supabase/functions/commerce-watch-refresh/pushDelivery.ts',
     'supabase/migrations/unapproved_watch_change.sql',
+    'supabase/functions/_shared/net/safeRemoteMedia.ts',
   ]) assert.equal(BUILD35_AUTHORIZED_BACKEND_PATHS.has(file), false, file);
 });
 
