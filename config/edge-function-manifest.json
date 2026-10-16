@@ -1745,8 +1745,8 @@
         ],
         "bundleFileCount": 18,
         "treeFileCount": 25,
-        "bundleHash": "cfac5d6fd1359b4ad83b3a516ee9d6d983be9d9970e59395da17df2d980e64e4",
-        "treeHash": "9f827cb973aef5bca101578131ef1b6a0a00e1436bacaeb2cf5bf5050e4389a7",
+        "bundleHash": "48dc42568f00f6bfcc69634f62e39636b834b51e1b934b047aae1bed92e68a84",
+        "treeHash": "dcb351ee2998fba75c19f718b78ebf933b06d10001ae4c71a7ef51977834604d",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1800,7 +1800,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "deeb84365eee1882454f65fbc37900b33ef8dfec60babf8ec78fa585db22cef3",
+            "sha256": "9d569b5cd0f546442e239da02cf678b6dbf7c83f70ceed1785aab904635d2c31",
             "bundle": true
           },
           {
@@ -1830,7 +1830,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "d61346b255cde3858cd7aaad290360236c0f47e0a858b03e0007eab55ecafcae",
+            "sha256": "cc32e0e71e98bcde60c76394cc18e5e03f3452792877edf07a30c9fe2a9076c8",
             "bundle": true
           },
           {

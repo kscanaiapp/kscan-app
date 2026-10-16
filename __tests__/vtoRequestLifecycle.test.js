@@ -565,8 +565,8 @@ test('the request payload carries no identity field for the server to trust', as
   // The attempt label must never become a channel for identity.
   assert.match(
     String(h.pending[0].args.requestGeneration),
-    /^\d+$/,
-    'requestGeneration must be a plain attempt counter, not an identifier',
+    /^[a-z0-9]+-[a-z0-9]+:\d+$/,
+    'requestGeneration must be a bounded launch-unique intent label, not an identity',
   );
 });
 
@@ -672,7 +672,7 @@ test('VTO-DUP-001: the intent sequence never walks backwards', async () => {
   for (const garment of [GARMENT_A, GARMENT_B, GARMENT_A, GARMENT_B]) {
     if (h.store.getVtoSnapshot().person) h.store.attachSessionPerson(garment, 'commerce_product');
     else h.store.setVtoPersonInput(PERSON, garment, 'commerce_product');
-    seen.push(Number(await generateOnce(h, garment)));
+    seen.push(Number((await generateOnce(h, garment)).split(':').at(-1)));
   }
   for (let i = 1; i < seen.length; i += 1) {
     assert.ok(seen[i] > seen[i - 1], `intent ${seen[i]} must exceed ${seen[i - 1]}`);
