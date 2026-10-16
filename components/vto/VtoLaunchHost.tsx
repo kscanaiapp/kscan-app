@@ -23,7 +23,7 @@
  * store in services/vto/vtoRequestStore.ts.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
 import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
@@ -111,6 +111,19 @@ export function useVtoLaunchHost({
   return { sheetVisible, minimized, session, open, close, minimize, restore, watchFromTryOn };
 }
 
+/**
+ * The identity of the garment a try-on was opened for: the product reference
+ * AND what the source says it is (an owned Closet item, or a user-supplied
+ * garment by content hash). Two garments with different identities are never
+ * the same try-on, whatever the parent passes next.
+ */
+export function vtoGarmentLaunchIdentity(garment: VtoGarmentInput): string {
+  const source = garment.source;
+  if (!source) return `ref:${garment.productRef}`;
+  if (source.type === 'closet_item') return `closet:${source.closetItemId}|${garment.productRef}`;
+  return `supplied:${source.contentHash}|${garment.productRef}`;
+}
+
 export interface VtoLaunchHostProps {
   launch: VtoLaunchState;
   garment: VtoGarmentInput;
@@ -145,6 +158,47 @@ export function VtoLaunchHost({
   const { sheetVisible, minimized, session, close: closeSheet, restore: restoreSheet } = launch;
   const { minimize, watchFromTryOn } = launch;
 
+  // PIN THE GARMENT THE CUSTOMER TAPPED. The sheet follows whatever `garment`
+  // it is handed (useVirtualTryOn re-attaches the session photo when the
+  // product reference changes), so a parent that re-renders this entry with a
+  // different garment while a try-on is open would silently turn it into a
+  // different garment -- and its Shop and Watch actions with it. The garment,
+  // its title and its actions are therefore captured when the sheet opens, and
+  // if the identity later differs they stay as captured until the sheet closes.
+  // An unchanged identity passes through untouched (a refreshed image URL for
+  // the same garment still arrives).
+  const openedFor = useRef<{
+    identity: string;
+    garment: VtoGarmentInput;
+    garmentTitle: string;
+    onShop?: () => void;
+    onWatch?: () => void;
+    sizeGuideUrl?: string | null;
+    loadInlineGarment?: VtoInlineGarmentLoader;
+  } | null>(null);
+  const identity = vtoGarmentLaunchIdentity(garment);
+  if (!sheetVisible) {
+    openedFor.current = null;
+  } else if (openedFor.current === null) {
+    openedFor.current = { identity, garment, garmentTitle, onShop, onWatch, sizeGuideUrl, loadInlineGarment };
+  }
+  const pinned = sheetVisible && openedFor.current !== null && openedFor.current.identity !== identity
+    ? openedFor.current
+    : null;
+  const shownGarment = pinned ? pinned.garment : garment;
+  const shownTitle = pinned ? pinned.garmentTitle : garmentTitle;
+  const shownShop = pinned ? pinned.onShop : onShop;
+  const shownWatch = pinned ? pinned.onWatch : onWatch;
+  const shownSizeGuide = pinned ? pinned.sizeGuideUrl : sizeGuideUrl;
+  const shownLoader = pinned ? pinned.loadInlineGarment : loadInlineGarment;
+  // The launch state's own Watch handler was built from the CURRENT entry's
+  // onWatch; while pinned, route to the pinned garment's instead.
+  const shownWatchFromTryOn = !shownWatch
+    ? undefined
+    : pinned
+      ? () => { minimize(); shownWatch(); }
+      : watchFromTryOn;
+
   return (
     <>
       {/*
@@ -159,14 +213,14 @@ export function VtoLaunchHost({
           visible={!minimized}
           onClose={closeSheet}
           onMinimize={minimize}
-          garment={garment}
-          garmentTitle={garmentTitle}
+          garment={shownGarment}
+          garmentTitle={shownTitle}
           origin={origin}
-          onShop={onShop}
-          onWatch={onWatch ? watchFromTryOn : undefined}
-          sizeGuideUrl={sizeGuideUrl}
+          onShop={shownShop}
+          onWatch={shownWatchFromTryOn}
+          sizeGuideUrl={shownSizeGuide}
           devScenario={devScenario}
-          loadInlineGarment={loadInlineGarment}
+          loadInlineGarment={shownLoader}
           capability={capability}
         />
       ) : null}
