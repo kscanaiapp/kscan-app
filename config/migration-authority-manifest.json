@@ -707,6 +707,15 @@
             "appliedConfirmedOn": "2026-10-12",
             "evidence": "Staging migration-only run38257025966 succeeded from integration32b9c427. Live ledger version/name verified; all three Speech tables RLS enabled, client table/RPC access denied, service-only reserve/finish RPCs present. Controls disabled, daily budget zero, reservation and cost rows zero."
           }
+        ],
+        "knownPending": [
+          {
+            "localVersion": "20261016001500",
+            "logicalName": "vto_attempt_scoped_settlement",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Read-only Staging migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
+          }
         ]
       },
       "wyyuqfdxucjksghsmhry": {
@@ -1453,6 +1462,13 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Elise issue #592 / backend PR #596 proposes this new additive partial unique index. Read-only Production inspection on 2026-10-15 confirmed the greeting index absent and zero duplicate greeting groups; the captured 2026-10-13 production ledger snapshot predates this migration and remains unchanged. The effect is genuinely pending. This declaration documents unapplied source, not approval to deploy. The exact single-version governed Staging migration, read-back, two-independent-session provider-free concurrency certification, and protected Production approval remain mandatory. Existing conversation history, grants, RLS and provider controls must be preserved; no provider enablement or paid request is authorized by this entry."
+          },
+          {
+            "localVersion": "20261016001500",
+            "logicalName": "vto_attempt_scoped_settlement",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Read-only Production migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
           }
         ],
         "remoteOnly": [

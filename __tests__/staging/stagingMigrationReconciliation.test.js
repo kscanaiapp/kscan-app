@@ -525,11 +525,7 @@ test('production carries only explicit governed reconciliation authority', async
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
-  assert.deepEqual(
-    staging.knownPending,
-    [],
-    'staging declares no knownPending, so its one-pending-migration rule is unchanged',
-  );
+  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261016001500'], 'Staging must declare only the owner-approved pending VTO migration');
 });
 
 test('production still fails closed on anything outside its declared authority', async () => {

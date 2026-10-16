@@ -1749,9 +1749,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 18,
-        "treeFileCount": 25,
-        "bundleHash": "cfac5d6fd1359b4ad83b3a516ee9d6d983be9d9970e59395da17df2d980e64e4",
-        "treeHash": "9f827cb973aef5bca101578131ef1b6a0a00e1436bacaeb2cf5bf5050e4389a7",
+        "treeFileCount": 26,
+        "bundleHash": "08e0840b7cae244fa47423894f08010b1b45299ecb37d042792d631777f521f9",
+        "treeHash": "d8c53885eae6e068ce2f3c175fce48c9d67419f25aa664838ff7ed036c005114",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1775,12 +1775,12 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "837e1732b31150709b83cb0c5989d5383be90873959766316b966e7341ee9ddd",
+            "sha256": "d165e37fba89518d28519bc1d7de8e57505d28402acf8c1827a56b95e47e1244",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "8c6d78cf81dbc277f21cd6d862735be38bf3abfbb40780d988fa0a6d6632fd84",
+            "sha256": "4368b41c9b27f4d34bce1af7fad2ce0366a9b212c52f42434d0d47c455b95c61",
             "bundle": true
           },
           {
@@ -1805,7 +1805,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "deeb84365eee1882454f65fbc37900b33ef8dfec60babf8ec78fa585db22cef3",
+            "sha256": "207fb573dfaa5dcfb1dd10fadd1ea5b7a8f10e9649e627c56d26f65009641202",
             "bundle": true
           },
           {
@@ -1830,17 +1830,17 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.test.ts",
-            "sha256": "5e463e5a830ba5132d6f5a5a9e6174041b09c439eeef9c8ade2fc956258f9db2",
+            "sha256": "827184d98e1c847f8bc129a07a5a6ff8ec6277de063f1c68d8522eeb8e603f08",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "d61346b255cde3858cd7aaad290360236c0f47e0a858b03e0007eab55ecafcae",
+            "sha256": "0baf4700f7a74b8c78e283a557881378c5dd71b292a83b84910eb05da408a025",
             "bundle": true
           },
           {
             "path": "supabase/functions/vto-generate/vtoOwnedGarment.test.ts",
-            "sha256": "8c3fe78386de66eafae4d9d92792af8546232caeeef81543a5c5bb5cb843427b",
+            "sha256": "3d6c71ba971d9d4b3561a100707894dc14fbd36a50ed4149ce0fa51efe7dc827",
             "bundle": false
           },
           {
@@ -1850,17 +1850,22 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoPaidBoundary.test.ts",
-            "sha256": "a7d85787e10d2b8f07b5b3cd725c8872c75eb920c79a0708729057fcf4ca1041",
+            "sha256": "ebe4dab638197e8643edc27fb5372045a8cc5b40eb568ced5b92f757791fbac2",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoReservation.ts",
-            "sha256": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
+            "sha256": "aa2e36024d410310a008c758f03aa1ae8c1101b47923afcf6968ce6f0a9102ce",
             "bundle": true
           },
           {
+            "path": "supabase/functions/vto-generate/vtoResultValidation.test.ts",
+            "sha256": "efd0b71e4db9d81db89a9c5cedf3b872a4fce9d3b3881d0f11c7696e2fd7ed31",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/vto-generate/vtoResultValidation.ts",
-            "sha256": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
+            "sha256": "81895acbbe484a1ce2c7365901aba9f854bf8548d410c528d2f20de8c1c84c64",
             "bundle": true
           },
           {
@@ -1870,7 +1875,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoUserSuppliedGarment.test.ts",
-            "sha256": "6362b3f913270576d6ce34e8309c4f1804995fa0c18a6ab41529c2f491e49790",
+            "sha256": "c3f7e1f5d4803869cd741366f4072841a0cdc2d56008907b7e85a51ae1e81d1d",
             "bundle": false
           },
           {

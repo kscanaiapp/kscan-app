@@ -59,6 +59,10 @@ const COPY: Readonly<Record<VtoFailureCode, CopyEntry>> = {
     message: 'This try-on is already running. Give it a moment.',
     retryable: false,
   },
+  result_unavailable: {
+    message: 'Your last try-on finished, but its image is no longer available. Choose Try again to create a new one.',
+    retryable: true,
+  },
   provider_busy: {
     message: 'Photo try-on is temporarily busy. Try again shortly.',
     retryable: true,
