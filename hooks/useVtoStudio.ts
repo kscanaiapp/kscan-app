@@ -16,7 +16,7 @@
  * "returning": the Dressing Rooms action is added only once it is known true.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { LIVE_VTO_ENABLED, VTO_UI_ENABLED } from '../constants/featureFlags';
@@ -65,11 +65,24 @@ export function useVtoStudio(): VtoStudioDecision {
 
   // Live is offered only on a verified NATIVE capability. The development
   // harness is a test double and never counts as customer-facing Live.
+  //
+  // THE NATIVE PROBE IS THE LAST GATE, NOT THE FIRST. describeLiveVtoNativeCapability
+  // calls the native module's getCapability() whenever a module is present, so
+  // it is asked only when the build flag, the remote switch and the platform
+  // already agree -- the same cheap-gates-first order useVtoLiveCapability uses
+  // for its permission read. With Live disabled (every shipped profile today),
+  // Home never touches native Live code, and the answer is cached rather than
+  // re-probed on every render.
   const harness = getLiveVtoHarnessState();
-  const liveNativeCapable =
-    harness === null
-    && LIVE_VTO_SUPPORTED_PLATFORMS.includes(Platform.OS)
-    && isLiveVtoNativeCapable(describeLiveVtoNativeCapability());
+  const liveGatesOpen =
+    LIVE_VTO_ENABLED
+    && remote?.enabled === true
+    && remote.liveEnabled === true
+    && LIVE_VTO_SUPPORTED_PLATFORMS.includes(Platform.OS);
+  const liveNativeCapable = useMemo(
+    () => liveGatesOpen && harness === null && isLiveVtoNativeCapable(describeLiveVtoNativeCapability()),
+    [liveGatesOpen, harness],
+  );
 
   return resolveVtoStudio({
     uiEnabled: VTO_UI_ENABLED,

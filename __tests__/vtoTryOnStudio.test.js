@@ -318,6 +318,7 @@ function hookHarness(opts = {}) {
     harness: opts.harness ?? null,
     capable: opts.capable ?? false,
     loads: 0,
+    probes: 0,
     listeners: new Set(),
   };
   let out = null;
@@ -329,7 +330,7 @@ function hookHarness(opts = {}) {
     './useVtoAwareness': { useVtoActorKPlusState: () => state.kplus },
     '../services/vto/vtoFeatureControl': { getVtoRemoteConfig: () => (state.configGate ? state.configGate.promise : Promise.resolve(state.config)) },
     '../services/vto/liveVtoNativeModule': {
-      describeLiveVtoNativeCapability: () => ({ capable: state.capable }),
+      describeLiveVtoNativeCapability: () => { state.probes += 1; return { capable: state.capable }; },
       isLiveVtoNativeCapable: (c) => c.capable === true,
       LIVE_VTO_SUPPORTED_PLATFORMS: ['ios', 'android'],
     },
@@ -401,6 +402,32 @@ test('Hook: Live is offered only on a NATIVE capability, never from the developm
   buildOff.state.config = { enabled: true, liveEnabled: true };
   buildOff.render(); await settle(3); buildOff.render();
   assert.equal(buildOff.out.live, 'hidden', 'with the build flag off (every shipped profile) Live is never shown');
+});
+
+test('Hook: the native Live probe is the LAST gate: never asked while any cheaper gate is closed, and not re-asked per render', async () => {
+  const allOpen = { liveBuild: true, capable: true, os: 'android' };
+  const closed = [
+    ['build flag off', { ...allOpen, liveBuild: false }, { enabled: true, liveEnabled: true }],
+    ['remote Live switch off', allOpen, { enabled: true, liveEnabled: false }],
+    ['operator off', allOpen, { enabled: false, liveEnabled: true }],
+    ['unsupported platform', { ...allOpen, os: 'web' }, { enabled: true, liveEnabled: true }],
+  ];
+  for (const [label, opts, config] of closed) {
+    const h = hookHarness(opts); h.state.config = config;
+    h.render(); await settle(3); h.render(); h.render();
+    assert.equal(h.state.probes, 0, `${label}: Home must not touch native Live code`);
+    assert.equal(h.out.live, 'hidden', label);
+  }
+  // While the remote row is still unread, nothing is probed either.
+  const unread = hookHarness(allOpen);
+  unread.render();
+  assert.equal(unread.state.probes, 0, 'unread remote row: no probe');
+
+  // All gates open: asked, and cached across re-renders.
+  const open = hookHarness(allOpen); open.state.config = { enabled: true, liveEnabled: true };
+  open.render(); await settle(3); open.render(); open.render(); open.render();
+  assert.equal(open.out.live, 'offered');
+  assert.equal(open.state.probes, 1, 'probed once, not on every render');
 });
 
 // ── Wiring ───────────────────────────────────────────────────────────────────
