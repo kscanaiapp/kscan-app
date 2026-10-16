@@ -280,7 +280,9 @@ function mountUseKScan(options = {}) {
     'services/privacy/scannerImagePreparation': {
       prepareScannerImageForDispatch: async (uri) => {
         if (preparedFailures[uri]) throw new Error('Local image preparation failed');
-        const imageBase64 = encodeImage(uri);
+        const fixtureBytes = options.preparedBytes?.get(uri);
+        if (options.preparedBytes && !fixtureBytes) throw new Error(`no prepared fixture bytes for ${uri}`);
+        const imageBase64 = fixtureBytes ?? encodeImage(uri);
         const proof = { processingCompleted: true, outputVerified: true, metadataStripped: true,
           faceDetectionPerformed: true, plateDetectionPerformed: true };
         graph.load('services/privacy/scannerDispatchGuard.ts').registerScannerImageForDispatch(imageBase64, proof);

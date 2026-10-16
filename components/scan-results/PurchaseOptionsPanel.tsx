@@ -29,6 +29,17 @@ import { TryItOnEntry } from '../vto/TryItOnEntry';
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
 import { commerceMatchLabel, normalizeCommerceMatchMetadata } from '../../supabase/functions/scan-identify/matchTier';
 
+const TIER_ORDER = ['exact', 'same_brand', 'similar'] as const;
+export function orderByMatchTier(options: PurchaseOption[] | undefined) {
+  return (Array.isArray(options) ? options : [])
+    .map((option, position) => ({
+      option,
+      position,
+      tier: normalizeCommerceMatchMetadata(option.matchMetadata, option)?.tier ?? ('similar' as const),
+    }))
+    .sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier) || a.position - b.position);
+}
+
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
   /** Section heading. Defaults to the single-item shelf's existing title. */
@@ -77,6 +88,11 @@ export function PurchaseOptionsPanel({
   onRetry,
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
+  // ONE authoritative classification per listing, read from the validated
+  // metadata and never re-derived from a score. Rows keep their relative order
+  // inside a tier and keep their stable ids as keys (so a try-on opened from a
+  // row stays anchored to that listing when the shelf re-renders).
+  const ordered = orderByMatchTier(purchaseOptions);
   const mode = resolvePurchaseOptionsPanelMode(hasData, commerceStatus);
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
@@ -94,10 +110,12 @@ export function PurchaseOptionsPanel({
 
       {mode === 'data' ? (
         <View style={styles.list}>
-          {!purchaseOptions!.some(option => normalizeCommerceMatchMetadata(option.matchMetadata, option)?.tier === 'exact') ? (
-            <Text style={styles.productTitle}>No verified exact matches. Explore alternatives below.</Text>
+          {!ordered.some(entry => entry.tier === 'exact') ? (
+            <Text style={styles.tierNote} testID="purchase-options-exact-unconfirmed">
+              Exact product not confirmed. The closest options are below.
+            </Text>
           ) : null}
-          {purchaseOptions!.map((option, index) => {
+          {ordered.map(({ option, tier }, index) => {
             // Validated rather than merely present: an unsafe or malformed URL
             // must not surface an action that cannot lead anywhere.
             const destination = selectCommerceDestination([option.productUrl]);
@@ -106,16 +124,26 @@ export function PurchaseOptionsPanel({
             // DEF-WL-07: server-authored eligibility, read not re-derived.
             const canWatch = canWatchPurchaseOption(option);
 
+            const startsTier = index === 0 || ordered[index - 1].tier !== tier;
+
             return (
+              <React.Fragment key={option.id}>
+              {startsTier ? (
+                <Text
+                  style={styles.tierHeading}
+                  accessibilityRole="header"
+                  testID={`purchase-tier-${tier}`}
+                >
+                  {commerceMatchLabel(option.matchMetadata, option)}
+                </Text>
+              ) : null}
               <View
-                key={option.id}
                 style={[
                   styles.row,
-                  index > 0 && styles.rowBorder,
+                  index > 0 && !startsTier && styles.rowBorder,
                 ]}
               >
                 <View style={styles.rowLeft}>
-                  <Text style={styles.retailer}>{commerceMatchLabel(option.matchMetadata, option)}</Text>
                   <Text style={styles.retailer}>{option.retailer}</Text>
                   {option.title ? (
                     <Text style={styles.productTitle} numberOfLines={1}>
@@ -230,6 +258,7 @@ export function PurchaseOptionsPanel({
                   ) : null}
                 </View>
               </View>
+              </React.Fragment>
             );
           })}
         </View>
@@ -304,6 +333,22 @@ const styles = StyleSheet.create({
   rowRight: {
     alignItems: 'flex-end',
     gap: SPACING.xs,
+  },
+  tierHeading: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: LUXURY.colors.stone,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
+  tierNote: {
+    ...LUXURY.typography.bodyStrong,
+    fontSize: 13,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
   },
   retailer: {
     ...LUXURY.typography.caption,

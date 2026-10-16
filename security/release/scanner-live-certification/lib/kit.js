@@ -153,6 +153,11 @@ function mountLive({ edge, prepared, actorId = 'actor-a', flags = {} }) {
   const m = mountUseKScan({
     actorId,
     flags,
+    // The Scanner prepares through the local privacy pipeline and dispatches only a
+    // proof-bound derivative. This harness runs synthetic fixture images off-device, so the
+    // shared hook harness registers these fixture bytes through the real dispatch guard.
+    // It does not certify native masking.
+    preparedBytes: prepared,
     stubs: {
       'services/supabaseClient': { supabase: edge.supabase },
       'services/imageUtils': {

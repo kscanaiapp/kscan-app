@@ -18,7 +18,12 @@ function load(file, map = {}) {
   vm.runInNewContext(output, {
     module, exports: module.exports, __DEV__: false, console,
     Date, Math, Number, Object, Array, JSON, String, Boolean, Promise, Set, WeakMap, Error,
-    require(id) { if (id in map) return map[id]; throw new Error(`Unexpected import ${id}`); },
+    require(id) {
+      if (id in map) return map[id];
+      const evidence = require('./helpers/commerceMatchContract').resolveCommerceContractImport(id);
+      if (evidence) return evidence;
+      throw new Error(`Unexpected import ${id}`);
+    },
   }, { filename });
   return module.exports;
 }
