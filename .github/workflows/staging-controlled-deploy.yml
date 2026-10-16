@@ -1,5 +1,6 @@
 # Controlled staging deployment pipeline.
-# Deploys exactly one allow-listed Edge Function (and optionally one approved migration)
+# Deploys exactly one allow-listed Edge Function (and optionally one approved migration),
+# or applies exactly one approved migration with function_name=none.
 # to K Scan AI Staging (yzqjvdfgefveprobvvyw). Production is never targeted.
 
 name: K Scan Staging Controlled Deploy
@@ -8,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       function_name:
-        description: Exactly one Edge Function to deploy
+        description: Exactly one Edge Function to deploy, or none for an approved migration only
         required: true
         default: staging-health
         type: string
@@ -56,6 +57,7 @@ jobs:
       function_name: ${{ steps.scope.outputs.function_name }}
       verify_jwt: ${{ steps.scope.outputs.verify_jwt }}
       migration_version: ${{ steps.scope.outputs.migration_version }}
+      migration_only: ${{ steps.scope.outputs.migration_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,16 +96,22 @@ jobs:
 
       - name: Record deployment scope
         id: scope
+        env:
+          FUNCTION_NAME: ${{ inputs.function_name }}
+          VERIFY_JWT: ${{ inputs.verify_jwt }}
+          APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
+          APPROVE_MIGRATION: ${{ inputs.approve_migration }}
         run: |
           set -euo pipefail
-          FN="${{ inputs.function_name }}"
-          if [ -z "$FN" ] || [ "$FN" = "all" ]; then
-            echo "Invalid function_name"
-            exit 1
-          fi
-          echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
-          echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
-          echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
+          node scripts/staging-deploy-scope.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Require current governed tip for migration-only execution
+        if: steps.scope.outputs.migration_only == 'true'
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = 'rebuild/backend-authority-v2'
+          git fetch origin rebuild/backend-authority-v2 --quiet
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/rebuild/backend-authority-v2)"
 
       - name: Run staging preflight
         env:
@@ -111,7 +119,7 @@ jobs:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF || 'yzqjvdfgefveprobvvyw' }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
-          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          DEPLOY_FUNCTIONS: ${{ steps.scope.outputs.deploy_functions }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
@@ -178,6 +186,10 @@ jobs:
           APPROVE_STAGING_MIGRATION: YES
         run: |
           set -euo pipefail
+          # Recheck source immediately before the write, including queued jobs.
+          test "${GITHUB_REF_NAME}" = 'rebuild/backend-authority-v2'
+          git fetch origin rebuild/backend-authority-v2 --quiet
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/rebuild/backend-authority-v2)"
           node scripts/apply-staging-migration.mjs | tee migration-result.json
 
       - name: Upload migration artifact
@@ -202,6 +214,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
     steps:
       - name: Checkout
@@ -245,6 +258,7 @@ jobs:
     if: |
       always() &&
       needs.preflight.result == 'success' &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.source-validation.result == 'success'
     environment: staging
     outputs:
@@ -456,6 +470,7 @@ jobs:
     timeout-minutes: 5
     needs:
       - preflight
+      - approved-single-migration
       - deploy-one-function
       - health-check
       - synthetic-tests
@@ -477,6 +492,16 @@ jobs:
             echo "| Rollback | ${{ needs.rollback-on-failure.result }} |"
             echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.preflight.outputs.migration_only }}" = 'true' ]; then
+            test "${{ needs.preflight.result }}" = 'success'
+            test "${{ needs.approved-single-migration.result }}" = 'success'
+            test "${{ needs.deploy-one-function.result }}" = 'skipped'
+            test "${{ needs.health-check.result }}" = 'skipped'
+            test "${{ needs.synthetic-tests.result }}" = 'skipped'
+            test "${{ needs.rollback-on-failure.result }}" = 'skipped'
+            echo 'Approved migration applied; no function deployed or rolled back.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
             echo "Deploy failed"
             exit 1

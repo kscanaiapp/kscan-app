@@ -710,6 +710,13 @@
         ],
         "knownPending": [
           {
+            "localVersion": "20261015214749",
+            "logicalName": "style_chat_greeting_actor_session_unique",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Elise issue #592 / backend PR #596 proposes this additive partial unique index. Read-only Staging inspection on 2026-10-15 confirmed the index absent and zero duplicate greeting groups. This is genuinely unapplied source, not deployment approval: exact-version governed execution and read-back plus a two-independent-session provider-free concurrency test remain required. Other pending migrations remain unapplied and provider controls remain OFF/0."
+          },
+          {
             "localVersion": "20261016001500",
             "logicalName": "vto_attempt_scoped_settlement",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",

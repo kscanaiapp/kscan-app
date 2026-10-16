@@ -37,7 +37,7 @@ import {
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
-import { loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY } from './staging-deploy-preflight.mjs';
+import { loadLedgerReconciliation, compareMigrations } from './staging-deploy-preflight.mjs';
 
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
@@ -46,6 +46,9 @@ function requireApproval() {
 }
 
 function resolveMigrationFile(version, explicitPath) {
+  const matches = listLocalMigrationVersions().filter((m) => m.version === version);
+  if (matches.length !== 1) fail(`Expected exactly one governed migration file for version ${version}`);
+  const governed = matches[0];
   if (explicitPath) {
     const abs = path.resolve(explicitPath);
     if (!fs.existsSync(abs)) fail(`Migration file not found: ${abs}`);
@@ -54,13 +57,11 @@ function resolveMigrationFile(version, explicitPath) {
     if (parsed.version !== version) {
       fail(`Filename version ${parsed.version} does not equal MIGRATION_VERSION ${version}`);
     }
-    return { ...parsed, path: abs };
+    if (fs.realpathSync(abs) !== fs.realpathSync(governed.path)) {
+      fail('MIGRATION_FILE must resolve to the governed local migration');
+    }
   }
-
-  const local = listLocalMigrationVersions();
-  const match = local.find((m) => m.version === version);
-  if (!match) fail(`No local migration file for version ${version}`);
-  return match;
+  return governed;
 }
 
 // Both of these read the SAME inventory, so they can never disagree about what
@@ -86,6 +87,27 @@ function pendingVersions(local, remote) {
   const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
   const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
   return local.filter((m) => !remoteSet.has(m.version) && !reconciledLocal.has(m.version));
+}
+
+/** Use the same reconciliation/approval policy as preflight and Production. */
+function selectApprovedMigration({ local, remote, approvedVersion, reconciliation }) {
+  const report = compareMigrations(local, remote, approvedVersion, reconciliation);
+  const blockers = [...report.blockers];
+  if (!String(approvedVersion || '').trim()) blockers.push('No approved migration supplied');
+  if (report.approvedAlreadyApplied) blockers.push('Approved migration is already recorded; refusing re-apply');
+  const selected = report.approvedPending;
+  if (!selected || selected.version !== approvedVersion) blockers.push('Exactly the approved pending migration must be selected');
+  return { selected: blockers.length === 0 ? selected : null, pending: report.localOnly, blockers };
+}
+
+function verifyAppliedMigration({ local, beforeRemote, afterRemote, approvedVersion, reconciliation }) {
+  const report = compareMigrations(local, afterRemote, approvedVersion, reconciliation);
+  const unexpectedLedgerAdditions = afterRemote.filter((v) => v !== approvedVersion && !beforeRemote.includes(v));
+  const unexpectedLedgerRemovals = beforeRemote.filter((v) => !afterRemote.includes(v));
+  const blockers = [...report.blockers];
+  if (report.approvedAlreadyApplied !== approvedVersion) blockers.push('Approved migration was not recorded after apply');
+  if (unexpectedLedgerAdditions.length || unexpectedLedgerRemovals.length) blockers.push('Ledger changed beyond exactly the approved migration');
+  return { report, unexpectedLedgerAdditions, unexpectedLedgerRemovals, blockers };
 }
 
 function main() {
@@ -125,17 +147,10 @@ function main() {
     fail(err.message);
   }
 
-  if (remoteHasVersion(version, remote)) {
-    fail(`Version ${version} is already recorded on staging — refusing re-apply`);
-  }
-
   const local = listLocalMigrationVersions();
-  const pending = pendingVersions(local, remote);
-  if (pending.length !== 1 || pending[0].version !== version) {
-    fail(
-      `Expected exactly one approved pending migration ${version}; pending=[${pending.map((p) => p.version).join(', ')}]`,
-    );
-  }
+  const selection = selectApprovedMigration({ local, remote, approvedVersion: version,
+    reconciliation: loadLedgerReconciliation(STAGING_PROJECT_REF) });
+  if (!selection.selected || selection.blockers.length) fail(`Refusing migration: ${selection.blockers.join('; ')}`);
 
   console.log(JSON.stringify({
     phase: 'pre-apply',
@@ -145,6 +160,9 @@ function main() {
     path: migration.path,
     sha256: hash,
     findings,
+    approvedPendingCount: 1,
+    otherKnownPending: selection.pending.map((m) => m.version).filter((v) => v !== version),
+    otherMigrationsSelectedForExecution: 0,
   }, null, 2));
 
   try {
@@ -166,21 +184,8 @@ function main() {
 
   const afterRemote = listRemoteVersions();
   const afterLocalMigrations = listLocalMigrationVersions();
-  const afterLocal = afterLocalMigrations.map((m) => m.version);
-  const { reconciled, remoteOnly: remoteOnlyDeclarations } = loadLedgerReconciliation(STAGING_PROJECT_REF);
-  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
-  const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
-  // Declared OBSOLETE_REMOTE_ONLY rows (validated by the preflight that gates this
-  // job) are accounted for, not drift -- the same rule the preflight applies.
-  const excludedRemote = new Set(
-    remoteOnlyDeclarations
-      .filter((r) => r?.classification === OBSOLETE_REMOTE_ONLY && !afterLocal.includes(r.remoteVersion))
-      .map((r) => r.remoteVersion),
-  );
-  const remoteOnly = afterRemote.filter(
-    (v) => !afterLocal.includes(v) && !reconciledRemote.has(v) && !excludedRemote.has(v),
-  );
-  const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
+  const after = verifyAppliedMigration({ local: afterLocalMigrations, beforeRemote: remote,
+    afterRemote, approvedVersion: version, reconciliation: loadLedgerReconciliation(STAGING_PROJECT_REF) });
 
   const artifact = {
     timestamp: new Date().toISOString(),
@@ -190,20 +195,24 @@ function main() {
     name: migration.name,
     sha256: hash,
     path: migration.path,
-    localCount: afterLocal.length,
+    localCount: afterLocalMigrations.length,
     remoteCount: afterRemote.length,
-    remoteOnly,
-    localOnly,
-    outcome: remoteOnly.length === 0 && localOnly.length === 0 ? 'ALIGNED' : 'ALIGNED_WITH_PENDING',
+    remoteOnly: after.report.unexplainedRemote,
+    localOnly: after.report.unexplainedLocal.map((m) => m.version),
+    knownPendingRemaining: after.report.knownPending.map((m) => m.version),
+    unexpectedLedgerAdditions: after.unexpectedLedgerAdditions,
+    unexpectedLedgerRemovals: after.unexpectedLedgerRemovals,
+    outcome: after.blockers.length === 0 ? 'ALIGNED' : 'DRIFT',
+    blockers: after.blockers,
   };
 
   const dir = ensureArtifactsDir('staging-migrations');
   const artifactPath = path.join(dir, `${version}-${migration.name}.json`);
   writeJsonArtifact(artifactPath, artifact);
 
-  console.log(JSON.stringify({ ok: true, artifact: artifactPath, ...artifact }, null, 2));
+  console.log(JSON.stringify({ ok: after.blockers.length === 0, artifact: artifactPath, ...artifact }, null, 2));
 
-  if (remoteOnly.length > 0) process.exit(1);
+  if (after.blockers.length > 0) process.exit(1);
 }
 
 // Only run when invoked as a script; importing must not apply anything.
@@ -211,4 +220,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main();
 }
 
-export { pendingVersions, remoteHasVersion };
+export { pendingVersions, remoteHasVersion, selectApprovedMigration, verifyAppliedMigration, resolveMigrationFile };
