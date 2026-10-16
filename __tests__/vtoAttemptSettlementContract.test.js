@@ -47,6 +47,24 @@ test('VTO-002/003: approved service role owns paid RPCs', () => {
   }
 });
 
+test('VTO-002/003: every REVOKE/GRANT names the exact created argument signature', () => {
+  // A GRANT/REVOKE with a different arity fails live with 42883 and aborts the whole migration.
+  const argTypes = (list) => list.split(',').map((arg) => arg.trim().split(/\s+/))
+    .map((parts) => (parts.length === 1 ? parts[0] : parts[1])).join(',');
+  for (const rpc of ['reserve_vto_generation_v2','record_vto_task_v2',
+    'settle_vto_generation_v2','claim_vto_reconciliation_v2']) {
+    const created = migration.match(new RegExp(
+      'create or replace function public\\.' + rpc + '\\(([^)]*)\\)'));
+    assert.ok(created, rpc + ' must be created');
+    const expected = argTypes(created[1].replace(/\s+default\s+[^,]+/gi, ''));
+    for (const verb of ['revoke all on function', 'grant execute on function']) {
+      const stmt = migration.match(new RegExp(verb + ' public\\.' + rpc + '\\(([^)]*)\\)'));
+      assert.ok(stmt, verb + ' ' + rpc + ' must exist');
+      assert.equal(stmt[1], expected, verb + ' ' + rpc + ' signature must match its definition');
+    }
+  }
+});
+
 test('VTO-003: reconciliation is bounded and never triggers provider dispatch', () => {
   assert.match(migration, /reconciliation_attempts<6/);
   assert.match(migration, /least\(coalesce\(p_limit,20\),50\)/);
