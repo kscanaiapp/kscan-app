@@ -133,7 +133,7 @@ function boot(disk, spy = createProviderSpy()) {
   const commerceModule = fs.existsSync(path.join(ROOT, 'services/purchaseOptions.ts'))
     ? 'services/purchaseOptions.ts'
     : 'services/dressingRoomCommerce.ts';
-  const purchaseOptions = runModule(commerceModule, () => ({}));
+  const purchaseOptions = runModule(commerceModule, (spec) => require('./helpers/commerceMatchContract').resolveCommerceContractImport(spec) ?? {});
   // The REAL hydrator. It returns { records, corruptedCount } and isolates each
   // record, and a stub returning a bare array silently empties the history.
   const identificationSnapshot = runModule('services/identificationSnapshot.ts', () => ({}));

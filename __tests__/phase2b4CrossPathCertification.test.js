@@ -74,6 +74,8 @@ function loadTsModule(relativePath, requireMap = {}) {
       // The allowlist is load-bearing: an Elise module that reached for a
       // commerce, retailer or persistence module would throw HERE rather than
       // silently acquiring it.
+      const commerceContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(id);
+      if (commerceContract) return commerceContract;
       throw new Error(`Unexpected import ${id} from ${relativePath}`);
     },
   });

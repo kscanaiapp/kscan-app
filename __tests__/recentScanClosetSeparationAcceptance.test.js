@@ -104,7 +104,7 @@ function boot(disk) {
   const commerceModule = exists('services/purchaseOptions.ts')
     ? 'services/purchaseOptions.ts'
     : 'services/dressingRoomCommerce.ts';
-  const purchaseOptions = runModule(commerceModule, () => ({}));
+  const purchaseOptions = runModule(commerceModule, (spec) => require('./helpers/commerceMatchContract').resolveCommerceContractImport(spec) ?? {});
   const identificationSnapshot = runModule('services/identificationSnapshot.ts', () => ({}));
   const cloudSpy = { calls: [] };
 

@@ -46,6 +46,8 @@ function loadTsModule(relativePath, requireMap = {}) {
     require: (id) => {
       if (id in requireMap) return requireMap[id];
       if (id.startsWith('node:')) return require(id);
+      const commerceContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(id);
+      if (commerceContract) return commerceContract;
       throw new Error(`Unexpected require: ${id}`);
     },
   };
