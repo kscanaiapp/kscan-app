@@ -18,6 +18,13 @@ test('VTO activation is manual-only and protected by the production Environment'
   assert.match(WORKFLOW, /Governed branch advanced while approval was pending/);
 });
 
+test('VTO activation pins the Supabase CLI instead of resolving "latest" at setup time', () => {
+  // "latest" resolves through the GitHub releases API and can fail on a rate limit
+  // before any activation step runs. Same pin as the other governed workflows.
+  assert.match(WORKFLOW, /supabase\/setup-cli@v1\s+with:[\s\S]*?version:\s*2\.109\.1/);
+  assert.doesNotMatch(WORKFLOW, /version:\s*latest/);
+});
+
 test('VTO activation targets only the canonical production project', () => {
   assert.match(WORKFLOW, /EXPECTED_PRODUCTION_REF:\s*wyyuqfdxucjksghsmhry/);
   assert.doesNotMatch(WORKFLOW, /yzqjvdfgefveprobvvyw/);

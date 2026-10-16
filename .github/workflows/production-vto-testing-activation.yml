@@ -99,7 +99,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (same version as the other governed deploy workflows). "latest"
+          # makes setup call the GitHub releases API to resolve a version, which
+          # can fail with a rate-limit error before any step runs (run 38859068438).
+          version: 2.109.1
 
       - name: Validate production variables
         env:
