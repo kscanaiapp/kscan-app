@@ -171,7 +171,8 @@
         "EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED": "false",
         "EXPO_PUBLIC_FREE_TIER_UTILITY_ENABLED": "true",
         "EXPO_PUBLIC_FREE_TIER_WISHLIST_INTENT_ENABLED": "true",
-        "EXPO_PUBLIC_FREE_TIER_OUTFIT_GENERATOR_ENABLED": "true"
+        "EXPO_PUBLIC_FREE_TIER_OUTFIT_GENERATOR_ENABLED": "true",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "staging-certification": {
@@ -198,7 +199,8 @@
         "KSCAN_VOICE_CERTIFICATION": "true",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "production": {
@@ -268,7 +270,8 @@
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
         "EXPO_PUBLIC_ELISE_V10": "true",
         "KSCAN_VOICE_NATIVE_CAPABILITY": "true",
-        "EXPO_PUBLIC_ELISE_SPEECH": "true"
+        "EXPO_PUBLIC_ELISE_SPEECH": "true",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "build35-release": {
@@ -302,7 +305,8 @@
         "EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1": "true",
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
         "EXPO_PUBLIC_ELISE_V10": "true",
-        "KSCAN_VOICE_NATIVE_CAPABILITY": "true"
+        "KSCAN_VOICE_NATIVE_CAPABILITY": "true",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "build35-testing": {
@@ -315,7 +319,8 @@
       "env": {
         "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       }
     },
     "production-certification": {
@@ -346,7 +351,8 @@
         "EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1": "true",
         "EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1": "true",
         "EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1": "false",
-        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false"
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1": "false",
+        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
       },
       "environment": "production"
     }

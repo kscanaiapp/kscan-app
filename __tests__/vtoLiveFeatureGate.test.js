@@ -86,16 +86,12 @@ test('flag: Live is a DIFFERENT switch from the generative VTO surface', () => {
   assert.ok(!vtoResolver.includes('EXPO_PUBLIC_LIVE_VTO_ENABLED'));
 });
 
-test('flag: no EAS profile sets it -- production and staging included', () => {
-  const forbidden = ['EXPO_PUBLIC_LIVE_VTO_ENABLED', 'EXPO_PUBLIC_LIVE_VTO_HARNESS'];
+test('flag: native Live is configured only in the approved Build 35 profiles; harness stays absent', () => {
+  const approved = new Set(['production', 'build35-release', 'build35-testing', 'production-certification', 'staging', 'staging-certification']);
   for (const [name, profile] of Object.entries(easProfiles)) {
     const env = profile.env ?? {};
-    for (const key of forbidden) {
-      assert.ok(
-        !(key in env),
-        `${name} must not define ${key} -- Live is not enabled anywhere by this lane`,
-      );
-    }
+    assert.equal(env.EXPO_PUBLIC_LIVE_VTO_ENABLED, approved.has(name) ? 'true' : undefined, name);
+    assert.ok(!('EXPO_PUBLIC_LIVE_VTO_HARNESS' in env), name + ' must not enable a simulated runtime');
   }
 });
 

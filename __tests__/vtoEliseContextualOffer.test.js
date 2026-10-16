@@ -2458,11 +2458,10 @@ test('HIDDEN_CLOSET_MUTATION=NO: the offer path reads the candidate store and wr
   assert.equal([...bridge.matchAll(/closetCandidateLibrary/g)].length, 1);
 });
 
-test('P1-22: Live VTO is untouched -- no EAS profile enables it, and the offer hands the sheet no capability', () => {
+test('P1-22: the contextual offer still hands the sheet no Live capability and no profile enables a harness', () => {
   const eas = JSON.parse(read('eas.json'));
   for (const [name, profile] of Object.entries(eas.build ?? {})) {
     const env = profile?.env ?? {};
-    assert.equal('EXPO_PUBLIC_LIVE_VTO_ENABLED' in env, false, `profile ${name} sets the Live VTO flag`);
     assert.equal('EXPO_PUBLIC_LIVE_VTO_HARNESS' in env, false, `profile ${name} sets the Live harness flag`);
   }
   const component = stripComments(read(COMPONENT));
