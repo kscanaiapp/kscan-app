@@ -622,3 +622,29 @@ Deno.test('VTO-QUOTA-003: an adapter that says nothing is treated as billable', 
   );
   assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }]);
 });
+
+Deno.test('VTO-003: unverified success settlement never returns an image', async () => {
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    completeVtoGeneration: () => Promise.resolve(false),
+  }));
+  assertEquals(await failureCode(response), 'authorization_failed');
+});
+
+Deno.test('VTO-003: missing reservation attempt identity prevents provider work', async () => {
+  let providerCallCount = 0;
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    reserveVtoGeneration: () =>
+      Promise.resolve({ outcome: 'unavailable' as const }),
+    resolveVtoProvider: () => ({
+      ok: true as const, provider: {
+        id: 'mock',
+        generate: async () => {
+          providerCallCount++;
+          return { ok: false as const, failure: 'generation_failed' as const };
+        },
+      },
+    }),
+  }));
+  assertEquals(providerCallCount, 0);
+  assertEquals(await failureCode(response), 'authorization_failed');
+});
