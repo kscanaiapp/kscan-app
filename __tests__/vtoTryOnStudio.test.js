@@ -224,6 +224,7 @@ function screenHarness(decision, kplus = 'active') {
   const r = createRenderer();
   const log = { push: [], taps: [], backs: 0 };
   const module = runModule('app/try-on-studio.tsx', {
+    '../components/vto/LiveVtoPilotProduct': { LiveVtoPilotProduct: 'LiveVtoPilotProduct' },
     ...r.runtimeModules,
     'react-native': RN,
     'expo-router': { router: { push: (target) => log.push.push(target) } },

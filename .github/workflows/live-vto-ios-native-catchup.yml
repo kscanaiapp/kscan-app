@@ -43,6 +43,45 @@ permissions:
   contents: read
 
 jobs:
+  live-contracts:
+    name: Live source, commerce and release contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: node --test __tests__/vto*.test.js __tests__/build35ReleaseProfile.test.js __tests__/nativeConfigParityGate.test.js
+      - run: node scripts/check-build35-release-profile.js
+
+  android-native:
+    name: Android native compilation and pixel tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Compile and test native runtime (no app release artifact)
+        working-directory: android
+        run: bash gradlew :kscan-live-vto-native:testDebugUnitTest :kscan-live-vto-native:compileDebugKotlin --max-workers=2 --console=plain
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-vto-android-native-evidence
+          path: |
+            modules/kscan-live-vto-native/android/build/test-results/
+            modules/kscan-live-vto-native/build/render-evidence/
+
   swift-test:
     name: SwiftPM host tests (LiveVtoCore)
     runs-on: macos-14
@@ -57,6 +96,12 @@ jobs:
 
       - name: swift test
         run: swift test --enable-code-coverage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-vto-ios-render-evidence
+          path: modules/kscan-live-vto-native/build/render-evidence-ios/
 
       - name: Summarize LiveVtoCore coverage
         if: always()

@@ -105,3 +105,23 @@ test('the native view is mounted from the Live panel only', () => {
   const found = offenders.filter((f) => walkDirs.some((d) => f.startsWith(`${d}/`)) || f === 'app.js');
   assert.deepEqual(found, [], 'exactly one surface may mount the single Live view');
 });
+
+test('customer Live controls invoke actions and paused capture is disabled', () => {
+  const { r, panel, props } = load({ viewManager: NATIVE });
+  const called = [];
+  const p = { ...props(true), session: { state: 'TRACKING', error: null }, garmentTitle: 'Staple Tee 5001 - Black', garmentImageUrl: 'https://example.com/black.jpg',
+    onTogglePause: () => called.push('pause'), onReturnToShopping: () => called.push('shopping') };
+  let tree = r.render(r.jsx(panel.VtoLivePanel, p));
+  const byId = (id) => findAll(tree, (n) => n.props?.testID === id)[0];
+  assert.ok(byId('vto-live-selected-garment'));
+  byId('vto-live-pause-resume').props.onPress();
+  byId('vto-live-return-shopping').props.onPress();
+  assert.deepEqual(called, ['pause', 'shopping']);
+  assert.equal(byId('vto-live-capture-preview').props.disabled, false);
+  tree = r.render(r.jsx(panel.VtoLivePanel, { ...p, paused: true }));
+  assert.equal(byId('vto-live-capture-preview').props.disabled, true);
+  assert.equal(byId('vto-live-pause-resume').props.title, 'Resume Live');
+  tree = r.render(r.jsx(panel.VtoLivePanel, { ...p, session: { state: 'ERROR', error: null }, onRestart: () => called.push('restart') }));
+  byId('vto-live-restart').props.onPress();
+  assert.equal(called.at(-1), 'restart');
+});

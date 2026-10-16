@@ -84,3 +84,27 @@ test('unsupported products remain intact for Photo VTO; no garment is substitute
   assert.equal(garment.productRef, 'unsupported');
   assert.equal(garment.imageUrl, 'https://retailer.example/other.png');
 });
+
+test('the customer Studio pilot selects the real product through the shared Try It On entry', () => {
+  const { createRenderer, findAll, deepStub } = require('./helpers/componentRenderer');
+  const catalog = runModule('services/vto/vtoLivePilotCatalog.ts', { './vtoLiveGarmentRegistry': registry });
+  const r = createRenderer();
+  const opened = [];
+  const ui = runModule('components/vto/LiveVtoPilotProduct.tsx', {
+    ...r.runtimeModules,
+    'react-native': { View: 'View', Text: 'Text', Image: 'Image', StyleSheet: { create: (v) => v }, Linking: { openURL: (url) => opened.push(url) } },
+    '../luxury': { SecondaryButton: 'SecondaryButton' },
+    '../../constants/theme': { LUXURY: deepStub(), RADIUS: deepStub(), SPACING: deepStub() },
+    '../../services/dressingRoomCommerce': { openPersistedCommerceUrl: (url, open) => open(url) },
+    '../../services/vto/vtoCommerceGarment': commerce,
+    '../../services/vto/vtoLivePilotCatalog': catalog,
+    './TryItOnEntry': { TryItOnEntry: 'TryItOnEntry' },
+  });
+  const tree = r.render(r.jsx(ui.LiveVtoPilotProduct, {}));
+  const entry = findAll(tree, (n) => n.type === 'TryItOnEntry')[0];
+  assert.ok(entry, 'the same customer entry owns the session');
+  assert.equal(entry.props.garment.productRef, asset.productUrl);
+  assert.equal(garments.resolveLiveGarment({ garment: entry.props.garment }).descriptor.assetKey, asset.assetKey);
+  entry.props.onShop();
+  assert.deepEqual(opened, [asset.productUrl]);
+});
