@@ -94,14 +94,17 @@ test('Packing dates: restored ISO is displayed and reversed ranges are rejected'
   );
 });
 
-test('Packing form: both platforms share MM/DD/YYYY input while submit stays canonical', () => {
+test('Packing form: both platforms share a calendar while submit stays canonical', () => {
   const form = read('components/packing/PackingTripForm.tsx');
-  assert.equal((form.match(/placeholder="MM\/DD\/YYYY"/g) ?? []).length, 2);
-  assert.match(form, /formatPackingCanonicalDate\(initial\?\.startDate \?\? ''\)/);
-  assert.match(form, /formatPackingCanonicalDate\(initial\?\.endDate \?\? ''\)/);
-  assert.match(form, /startDate: dates\.startDate/);
-  assert.match(form, /endDate: dates\.endDate/);
-  assert.match(form, /month slash day slash year/g);
+  assert.match(form, /<PackingDateRangePicker/);
+  assert.match(form, /openCalendar\('start'\)/);
+  assert.match(form, /openCalendar\('end'\)/);
+  assert.match(form, /useState\(initial\?\.startDate \?\? ''\)/);
+  assert.match(form, /useState\(initial\?\.endDate \?\? ''\)/);
+  assert.match(form, /formatPackingTripDate\(startDate\)/);
+  assert.match(form, /formatPackingTripDate\(endDate\)/);
+  assert.match(form, /DD-MM-YYYY/);
+  assert.match(form, /Open calendar/);
   assert.doesNotMatch(form, /keyboardType="(?:number-pad|numeric|decimal-pad)"/);
   assert.doesNotMatch(form, /Platform\.OS/);
 });

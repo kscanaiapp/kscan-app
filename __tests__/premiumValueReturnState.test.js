@@ -36,6 +36,7 @@ test('P1-01: Free → membership → resolving → K+ → generate preserves tri
     '../luxury': { PrimaryButton: 'PrimaryButton' },
     '../../types/packing': packingTypes,
     './packingDates': dates,
+    './PackingDateRangePicker': { PackingDateRangePicker: 'PackingDateRangePicker' },
   }));
   const requests = [];
   const packing = { status: 'idle', plan: null, trip: null, generate: async draft => requests.push(draft) };
@@ -53,8 +54,8 @@ test('P1-01: Free → membership → resolving → K+ → generate preserves tri
   const render = () => renderer.render(element);
   const node = id => byTestId(render(), id)[0];
   node('packing-destination').props.onChangeText('Synthetic City');
-  node('packing-start-date').props.onChangeText('10/20/2026');
-  node('packing-end-date').props.onChangeText('10/23/2026');
+  node('packing-start-date').props.onPress();
+  findAll(render(), n => n.type === 'PackingDateRangePicker')[0].props.onConfirm('2026-10-20', '2026-10-23');
   node('packing-note').props.onChangeText('Synthetic trip note');
   // Chip ids are the real form's bounded vocabulary.
   const activity = byTestId(render(), 'packing-activity-dinner')[0];

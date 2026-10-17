@@ -10,9 +10,10 @@
 // for everything the chips cannot say, and is treated as data end to end.
 
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PrimaryButton } from '../luxury';
+import { PackingDateRangePicker } from './PackingDateRangePicker';
 import {
   PACKING_ACTIVITIES,
   PACKING_ACTIVITY_LABELS,
@@ -23,9 +24,8 @@ import {
   type PackingTripType,
 } from '../../types/packing';
 import {
-  formatPackingCanonicalDate,
+  formatPackingTripDate,
   isValidCanonicalPackingDate,
-  normalizePackingDateRange,
   packingTripNights,
 } from './packingDates';
 
@@ -56,15 +56,13 @@ export function PackingTripForm({
   submitTitle?: string;
 }) {
   const [destination, setDestination] = useState(initial?.destination ?? '');
-  const [startDate, setStartDate] = useState(
-    formatPackingCanonicalDate(initial?.startDate ?? ''),
-  );
-  const [endDate, setEndDate] = useState(
-    formatPackingCanonicalDate(initial?.endDate ?? ''),
-  );
+  const [startDate, setStartDate] = useState(initial?.startDate ?? '');
+  const [endDate, setEndDate] = useState(initial?.endDate ?? '');
   const [tripType, setTripType] = useState<PackingTripType>(initial?.tripType ?? 'leisure');
   const [activities, setActivities] = useState<PackingActivity[]>(initial?.activities ?? []);
   const [note, setNote] = useState(initial?.note ?? '');
+  const [calendarField, setCalendarField] = useState<'start' | 'end' | null>(null);
+  const openCalendar = (field: 'start' | 'end') => { Keyboard.dismiss(); setCalendarField(field); };
   const [error, setError] = useState<string | null>(null);
 
   const toggleActivity = (activity: PackingActivity) => {
@@ -78,15 +76,10 @@ export function PackingTripForm({
   };
 
   const submit = () => {
-    const dates = normalizePackingDateRange(startDate, endDate, MAX_NIGHTS);
-    if (dates.ok === false) {
-      setError(dates.message);
-      return;
-    }
     const draft: PackingTripDraft = {
       destination,
-      startDate: dates.startDate,
-      endDate: dates.endDate,
+      startDate,
+      endDate,
       tripType,
       activities,
       note,
@@ -98,6 +91,21 @@ export function PackingTripForm({
 
   return (
     <View testID="packing-trip-form">
+      {calendarField ? (
+        <PackingDateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          initialField={calendarField}
+          maxNights={MAX_NIGHTS}
+          onCancel={() => setCalendarField(null)}
+          onConfirm={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+            setCalendarField(null);
+            setError(null);
+          }}
+        />
+      ) : null}
       <Text style={styles.label}>DESTINATION</Text>
       <TextInput
         value={destination}
@@ -113,31 +121,29 @@ export function PackingTripForm({
       <View style={styles.dateRow}>
         <View style={styles.dateField}>
           <Text style={styles.label}>LEAVING</Text>
-          <TextInput
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholder="MM/DD/YYYY"
-            placeholderTextColor={LUXURY.colors.stone}
+          <Pressable
+            onPress={() => openCalendar('start')}
             style={styles.input}
-            maxLength={10}
-            autoCapitalize="none"
-            accessibilityLabel="Departure date, month slash day slash year"
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={`Departure date ${formatPackingTripDate(startDate) || 'not selected'}, DD-MM-YYYY. Open calendar`}
             testID="packing-start-date"
-          />
+          >
+            <Text style={styles.dateText}>{formatPackingTripDate(startDate) || 'DD-MM-YYYY'}</Text>
+          </Pressable>
         </View>
         <View style={styles.dateField}>
           <Text style={styles.label}>RETURNING</Text>
-          <TextInput
-            value={endDate}
-            onChangeText={setEndDate}
-            placeholder="MM/DD/YYYY"
-            placeholderTextColor={LUXURY.colors.stone}
+          <Pressable
+            onPress={() => openCalendar('end')}
             style={styles.input}
-            maxLength={10}
-            autoCapitalize="none"
-            accessibilityLabel="Return date, month slash day slash year"
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={`Return date ${formatPackingTripDate(endDate) || 'not selected'}, DD-MM-YYYY. Open calendar`}
             testID="packing-end-date"
-          />
+          >
+            <Text style={styles.dateText}>{formatPackingTripDate(endDate) || 'DD-MM-YYYY'}</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -241,6 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     minHeight: 48,
   },
+  dateText: { ...LUXURY.typography.body, color: LUXURY.colors.ink },
   noteInput: {
     minHeight: 88,
     textAlignVertical: 'top',
