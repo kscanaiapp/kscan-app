@@ -49,7 +49,7 @@ export function PackingDateRangePicker({ startDate, endDate, initialField, maxNi
                 accessibilityState={{ selected: field === key, disabled: key === 'end' && !start }} disabled={key === 'end' && !start}
                 onPress={() => { setField(key); const date = key === 'start' ? start : end || start; if (date) setMonth(packingCalendarMonth(date)); }}>
                 <Text style={styles.label}>{key === 'start' ? 'LEAVING' : 'RETURNING'}</Text>
-                <Text style={styles.value}>{formatPackingTripDate(key === 'start' ? start : end) || 'DD-MM-YYYY'}</Text>
+                <Text style={styles.value}>{formatPackingTripDate(key === 'start' ? start : end) || 'MM-DD-YYYY'}</Text>
               </Pressable>
             ))}
           </View>
