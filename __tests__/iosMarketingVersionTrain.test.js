@@ -113,3 +113,16 @@ test('the readiness gate reports the marketing-version check as passing', () => 
   assert.ok(versionCheck, 'the readiness gate must check the iOS marketing version');
   assert.equal(versionCheck.ok, true);
 });
+
+test('Apple listing accurately names and bounds the production Live Camera VTO pilot', () => {
+  const appMetadata = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'store.config.json'), 'utf8'));
+  const production = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'eas.json'), 'utf8')).build.production.env;
+  const info = appMetadata.apple.info['en-US'];
+
+  assert.equal(production.EXPO_PUBLIC_LIVE_VTO_ENABLED, 'true');
+  assert.match(info.description, /Live Camera Virtual Try-On/);
+  assert.match(info.description, /supported pilot top on compatible devices/);
+  assert.match(info.description, /do not assess garment fit/);
+  assert.match(info.releaseNotes, /Live Camera Virtual Try-On for a supported pilot top/);
+  assert.doesNotMatch(info.description, /every garment|all retailers|perfect fit|guaranteed fit/i);
+});
