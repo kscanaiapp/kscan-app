@@ -402,6 +402,7 @@ function createReactNativeStub({ platformOS = 'ios', announcements = [] } = {}) 
       },
     },
     Keyboard: { dismiss() {} },
+    AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) },
     LayoutAnimation: { configureNext() {}, Presets: { easeInEaseOut: {} } },
     UIManager: {},
   };

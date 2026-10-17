@@ -54,7 +54,7 @@
     "components/kplus/KPlusEarlyAccessSheet.tsx": "b1abbdf25bf76ff8e363bb49fb493267eda816bdd177e30eed6d591a575aaa8f",
     "hooks/useTodayWithElise.ts": "65d6846a35e9080097d944921e7058b00cbb743477d83a1cc9e45077f60f8600",
     "services/kplus/kplusClient.ts": "1e64d38a84baf65698c1521c814057ea05a4b7574681817f6b702c47f57cfb3d",
-    "services/kplus/kplusCommerceService.ts": "ab6e014ce4932d65bfc2bd32720a150de3204ab110f08ba7601206f9287ebe67",
+    "services/kplus/kplusCommerceService.ts": "693a1cf42a0e98d427829c9075bc56b89f5be02bf8cdf75b7b8a2553f3453b52",
     "services/kplus/kplusEntitlementReader.ts": "3af5f75b0ed4d1e420939169362b751fdc3df43a2b209fbcb15f07486dc83ff2",
     "services/kplus/kplusEntitlementStore.ts": "607d6f15285e4d4eda56ab0c9967bcc94b0f23bd8bf87ae68cd34b4ee5b7ae71",
     "services/kplus/revenueCatConfig.ts": "d066df0a9e2755382be70e611778b33a079191bcd79cf18620e1623c745ef465",
