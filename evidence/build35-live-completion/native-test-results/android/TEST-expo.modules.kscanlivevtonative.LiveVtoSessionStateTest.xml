@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:05:35.489Z" hostname="runnervm8k3b6" time="0.014">
+  <properties/>
+  <testcase name="failedGarmentLoadCannotLeaveSessionPretendingReady" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.002"/>
+  <testcase name="captureCannotOutliveADisposedSession" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="garmentSwitchDuringStartIsRefusedNotQueued" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.001"/>
+  <testcase name="stopDuringGarmentLoadIsAccepted" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="noDuplicateStart" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="resumeOnlyFromPaused" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="everyStateXCommandPairMatchesTheDeclaredAllowlistExactly" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.004"/>
+  <testcase name="captureResumesToTheStateItInterrupted" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="stopWhileStartingIsAcceptedAndTerminates" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="switchGarmentCannotAttachToAStaleSession" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="disposeDuringCaptureInvalidatesTheCapture" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.001"/>
+  <testcase name="stopAndDisposeAreIdempotent" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.001"/>
+  <testcase name="pauseOnlyFromRunning" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="noStartAfterDispose" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="rapidGarmentSwitchAThenBThenCLandsOnC" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.0"/>
+  <testcase name="captureIsSingleFlight" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.003"/>
+  <testcase name="disposeWhileStartingTerminatesRegardlessOfLateCompletion" classname="expo.modules.kscanlivevtonative.LiveVtoSessionStateTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,45 @@
+{
+  "recordedAt": "2026-10-17T00:02:51.342Z",
+  "key": "vto_generation",
+  "staging": {
+    "project": "yzqjvdfgefveprobvvyw",
+    "value": {
+      "live": {
+        "enabled": true,
+        "supportedCategories": [
+          "top"
+        ]
+      },
+      "enabled": true,
+      "provider": "ailabtools_tryon_clothes_pro",
+      "updatedAt": "2026-08-31T13:51:01Z",
+      "mockScenario": "success",
+      "mockLatencyMs": 6000,
+      "schemaVersion": 1,
+      "supportedCategories": [
+        "top",
+        "outerwear",
+        "blazer",
+        "dress"
+      ]
+    }
+  },
+  "production": {
+    "project": "wyyuqfdxucjksghsmhry",
+    "value": {
+      "enabled": true,
+      "provider": "ailabtools_tryon_clothes_pro",
+      "updatedAt": "2026-10-16T06:26:26Z",
+      "mockScenario": "success",
+      "mockLatencyMs": 6000,
+      "schemaVersion": 1,
+      "supportedCategories": [
+        "top",
+        "outerwear",
+        "blazer",
+        "dress"
+      ]
+    }
+  },
+  "writeStatus": "NOT_EXECUTED_PENDING_FINAL_NATIVE_CI"
+}

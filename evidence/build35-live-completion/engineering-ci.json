@@ -1,0 +1,667 @@
+{
+  "recordedAt": "2026-10-17T00:09:53.355Z",
+  "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2",
+  "checks": [
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117254061077",
+      "name": "Security summary",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117253971558",
+      "name": "Security summary",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252329005",
+      "name": "npm audit",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328846",
+      "name": "Trivy filesystem",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283501",
+      "name": "Trivy filesystem",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283583",
+      "name": "Project checks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252484303",
+      "name": "iOS app build (expo prebuild + pod install + xcodebuild)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328844",
+      "name": "Semgrep Community Edition",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252447655",
+      "name": "Staging security gate",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328859",
+      "name": "Project checks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328637",
+      "name": "Gitleaks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328763",
+      "name": "OSV-Scanner",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283489",
+      "name": "npm audit",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283231",
+      "name": "OSV-Scanner",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252397209",
+      "name": "Staging health checks",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252396919",
+      "name": "Deploy staging candidate",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252397331",
+      "name": "Synthetic auth tests",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283421",
+      "name": "Semgrep Community Edition",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311192/job/117252283431",
+      "name": "Gitleaks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252184368",
+      "name": "Migration validation",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252115339",
+      "name": "VTO E2E — contract",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252184271",
+      "name": "Contract tests",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252115101",
+      "name": "VTO scope guard (enforced)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252115040",
+      "name": "SwiftPM host tests (LiveVtoCore)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316169/job/117252115070",
+      "name": "Apple source and native-contract checks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316133/job/117252114979",
+      "name": "ZAP Baseline (staging)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316096/job/117252114789",
+      "name": "ZAP API staging",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252134586",
+      "name": "VTO E2E — staging dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252114803",
+      "name": "Live source, commerce and release contracts",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316127/job/117252114548",
+      "name": "Build 35 release holds and identity",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252114902",
+      "name": "Android native compilation and pixel tests",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316162/job/117252114770",
+      "name": "Security promotion gate",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316100/job/117252114714",
+      "name": "Dependency reachability gate",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252116701",
+      "name": "VTO E2E — staging full certification (paid)",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252116940",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252116606",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252116595",
+      "name": "VTO E2E — cleanup",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252117003",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316154/job/117252116646",
+      "name": "VTO E2E — staging dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252099816",
+      "name": "VTO E2E — contract",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311105/job/117252099595",
+      "name": "Security promotion gate",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311182/job/117252100146",
+      "name": "Classify changed surfaces",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311229/job/117252100083",
+      "name": "Dependency reachability gate",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311206/job/117252100265",
+      "name": "ZAP API staging",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311176/job/117252101698",
+      "name": "ZAP Baseline (staging)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311130/job/117252100098",
+      "name": "Build 35 release holds and identity",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101232",
+      "name": "VTO E2E — cleanup",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101162",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101289",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101150",
+      "name": "VTO E2E — staging full certification (paid)",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101091",
+      "name": "VTO scope guard (enforced)",
+      "state": "SKIPPED"
+    },
+    {
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984311142/job/117252101069",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "state": "SKIPPED"
+    }
+  ],
+  "native": {
+    "conclusion": "success",
+    "jobs": [
+      {
+        "completedAt": "2026-10-17T00:01:57Z",
+        "conclusion": "success",
+        "databaseId": 117252114803,
+        "name": "Live source, commerce and release contracts",
+        "startedAt": "2026-10-17T00:00:35Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T00:00:36Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-17T00:00:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:41Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-17T00:00:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:42Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-17T00:00:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:10Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 4,
+            "startedAt": "2026-10-17T00:00:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:34Z",
+            "conclusion": "success",
+            "name": "Run npx tsc --noEmit",
+            "number": 5,
+            "startedAt": "2026-10-17T00:01:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Run node --test __tests__/vto*.test.js __tests__/build35ReleaseProfile.test.js __tests__/nativeConfigParityGate.test.js",
+            "number": 6,
+            "startedAt": "2026-10-17T00:01:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Run node scripts/check-build35-release-profile.js",
+            "number": 7,
+            "startedAt": "2026-10-17T00:01:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 13,
+            "startedAt": "2026-10-17T00:01:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 14,
+            "startedAt": "2026-10-17T00:01:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-10-17T00:01:54Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252114803"
+      },
+      {
+        "completedAt": "2026-10-17T00:05:40Z",
+        "conclusion": "success",
+        "databaseId": 117252114902,
+        "name": "Android native compilation and pixel tests",
+        "startedAt": "2026-10-17T00:00:35Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T00:00:37Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-17T00:00:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:41Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-17T00:00:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:46Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-17T00:00:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:47Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-java@v4",
+            "number": 4,
+            "startedAt": "2026-10-17T00:00:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:00:58Z",
+            "conclusion": "success",
+            "name": "Run android-actions/setup-android@v3",
+            "number": 5,
+            "startedAt": "2026-10-17T00:00:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:21Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 6,
+            "startedAt": "2026-10-17T00:00:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:37Z",
+            "conclusion": "success",
+            "name": "Compile and test native runtime (no app release artifact)",
+            "number": 7,
+            "startedAt": "2026-10-17T00:01:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:38Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 8,
+            "startedAt": "2026-10-17T00:05:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:38Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-java@v4",
+            "number": 14,
+            "startedAt": "2026-10-17T00:05:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:38Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 15,
+            "startedAt": "2026-10-17T00:05:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:38Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 16,
+            "startedAt": "2026-10-17T00:05:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:38Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "startedAt": "2026-10-17T00:05:38Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252114902"
+      },
+      {
+        "completedAt": "2026-10-17T00:01:56Z",
+        "conclusion": "success",
+        "databaseId": 117252115040,
+        "name": "SwiftPM host tests (LiveVtoCore)",
+        "startedAt": "2026-10-17T00:00:56Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T00:00:58Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-17T00:00:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:05Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-17T00:00:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:08Z",
+            "conclusion": "success",
+            "name": "Swift toolchain version",
+            "number": 3,
+            "startedAt": "2026-10-17T00:01:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:49Z",
+            "conclusion": "success",
+            "name": "swift test",
+            "number": 4,
+            "startedAt": "2026-10-17T00:01:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:51Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 5,
+            "startedAt": "2026-10-17T00:01:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:52Z",
+            "conclusion": "success",
+            "name": "Summarize LiveVtoCore coverage",
+            "number": 6,
+            "startedAt": "2026-10-17T00:01:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:52Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 12,
+            "startedAt": "2026-10-17T00:01:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:01:54Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 13,
+            "startedAt": "2026-10-17T00:01:52Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252115040"
+      },
+      {
+        "completedAt": "2026-10-17T00:07:29Z",
+        "conclusion": "success",
+        "databaseId": 117252484303,
+        "name": "iOS app build (expo prebuild + pod install + xcodebuild)",
+        "startedAt": "2026-10-17T00:02:21Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-17T00:02:23Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-17T00:02:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:02:37Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-17T00:02:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:02:43Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-17T00:02:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:03:20Z",
+            "conclusion": "success",
+            "name": "npm ci",
+            "number": 4,
+            "startedAt": "2026-10-17T00:02:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:03:26Z",
+            "conclusion": "success",
+            "name": "CocoaPods / Xcode versions",
+            "number": 5,
+            "startedAt": "2026-10-17T00:03:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:03:31Z",
+            "conclusion": "success",
+            "name": "expo prebuild --platform ios",
+            "number": 6,
+            "startedAt": "2026-10-17T00:03:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:03Z",
+            "conclusion": "success",
+            "name": "pod install",
+            "number": 7,
+            "startedAt": "2026-10-17T00:03:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:03Z",
+            "conclusion": "success",
+            "name": "Confirm the new module and its dependency are actually linked",
+            "number": 8,
+            "startedAt": "2026-10-17T00:05:03Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:05:08Z",
+            "conclusion": "success",
+            "name": "Discover workspace and scheme",
+            "number": 9,
+            "startedAt": "2026-10-17T00:05:03Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:07:22Z",
+            "conclusion": "success",
+            "name": "xcodebuild (simulator, Debug, no codesign)",
+            "number": 10,
+            "startedAt": "2026-10-17T00:05:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:07:23Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 19,
+            "startedAt": "2026-10-17T00:07:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:07:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 20,
+            "startedAt": "2026-10-17T00:07:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-17T00:07:27Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 21,
+            "startedAt": "2026-10-17T00:07:24Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316111/job/117252484303"
+      }
+    ],
+    "status": "completed"
+  },
+  "fullRepository": {
+    "tests": 11221,
+    "passed": 11125,
+    "failed": 0,
+    "skipped": 96,
+    "job": "https://github.com/kscanaiapp/kscan-app/actions/runs/38984316112/job/117252328859"
+  }
+}

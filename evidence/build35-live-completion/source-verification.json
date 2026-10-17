@@ -1,8 +1,8 @@
 {
-  "recordedAt": "2026-10-16T22:30:04.287Z",
+  "recordedAt": "2026-10-17T00:00:11.718Z",
   "evidenceClass": "CONTROLLED_NATIVE_TEST_NOT_DEVICE_CERTIFICATION",
   "android": {
-    "tests": 96,
+    "tests": 97,
     "failures": 0,
     "skipped": 0,
     "compile": "passed",
@@ -11,11 +11,14 @@
       "n1b-fixture",
       "n1c-asym-fixture",
       "ascolour-5001-black-v1"
-    ]
+    ],
+    "ciRun": 38984316111,
+    "ciJob": 117252114902,
+    "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2"
   },
   "js": {
-    "tests": 951,
-    "passed": 947,
+    "tests": 979,
+    "passed": 975,
     "failures": 0,
     "skipped": 4
   },
@@ -156,5 +159,34 @@
       "androidBundled": true,
       "iosBundled": true
     }
-  ]
+  ],
+  "ios": {
+    "tests": 86,
+    "status": "SwiftPM passed",
+    "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2",
+    "ciRun": 38984316111,
+    "ciJob": 117252115040,
+    "deviceCertified": false,
+    "simulatorCompile": "passed",
+    "simulatorJob": 117252484303
+  },
+  "renderArtifacts": {
+    "android": {
+      "ascolour-5001-black-v1.png": "801f98b85a2aa8359f4e79205aec8ce7d90defc95f8f63ec6fc89bd16b488680",
+      "empty.png": "0cbf985498305e13cee66c38760ec406f4e33ec5fa0f769b77bd2501ab7cae4a",
+      "n1b-fixture.png": "3458aad0f4cc7554f9e8471b63fbc1aaa8f76a67bdcec7b6e0cf293fefd4311a",
+      "n1c-asym-fixture.png": "ec6b713d43c3087ee64509918fa10721931a1ddfe73a7bfedd3a761efe55f32f"
+    },
+    "ios": {
+      "ascolour-5001-black-v1.png": "c590d96b2cfb5db0c5935d6ad50f39565dbeeb0d571e9adfce8624d7a3326cd9",
+      "n1b-fixture.png": "f231398710fcef6e105fc0243ce0c9a666f814112b211ac355269e3b19ae0aad",
+      "n1c-asym-fixture.png": "db73e46d5e08f09d9f66c13b83d113c1e6259e2391b981bd4a74ce646cbd77ba"
+    }
+  },
+  "fullRepository": {
+    "tests": 11221,
+    "passed": 11125,
+    "failed": 0,
+    "skipped": 96
+  }
 }

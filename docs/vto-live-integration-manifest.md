@@ -8,6 +8,22 @@ description.
 
 ---
 
+## Build 35 completion authority (2026-10-16)
+
+The owner explicitly authorized completing native Live capability, garment authoring,
+customer UI, direct Scanner/commerce and K+ boundaries, Live-only source/operator
+activation, native/integration tests, commits, PRs and governed merges. The historical
+P3-C launch restrictions below describe the original lane; this completion authority
+permits Live ON in the approved Build 35 profiles and a guarded nested Live operator
+change after source readiness. It does not permit an EAS build, submission, unrelated
+feature work, Photo provider change or backend authority mutation.
+
+Completion base: integration/build35-v1-convergence at
+1e5918852c948759d2dbdd954daea0b44b475d1f. Backend read-only authority:
+rebuild/backend-authority-v2 at 54e9c27d9e39df99b167126382fe8ed9f5f01edb.
+Branch: build35/live-vto-completion-20261016. PR #626 records exact-head CI and merge
+state; docs/build35/vto/BUILD35_LIVE_VTO_COMPLETION_HANDOFF.md records the final evidence.
+
 ## Base authority
 
 ```

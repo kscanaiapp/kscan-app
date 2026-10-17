@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.kscanlivevtonative.PerceptionSessionTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:05:35.511Z" hostname="runnervm8k3b6" time="0.53">
+  <properties/>
+  <testcase name="perceptionDriverRunsBothClocksOffTheCallingThread" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.155"/>
+  <testcase name="disposeIsIdempotentAndSafeFromAnyState" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <testcase name="frameDropsAndInferenceOutcomesAreCountedSeparately" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.305"/>
+  <testcase name="aRunningSessionCanSwapToAnotherGovernedGarmentOnlyThroughStopLoadStart" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <testcase name="nonFiniteProviderOutputNeverProducesRenderableGeometry" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <testcase name="aProviderExceptionDuringInferenceIsCaughtAndCountedNotThrown" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <testcase name="aSuccessfulInferenceProducesRenderableGeometry" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <testcase name="aNoPoseResultIsCountedAsRefusedNeverAsRenderedGeometry" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.0"/>
+  <testcase name="disposeDuringActiveDriverOperationIsSafe" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.063"/>
+  <testcase name="aProviderThatFailsToInitializeFailsClosedIntoError" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.0"/>
+  <testcase name="lifecycleFollowsTheDeclaredStateMachine" classname="expo.modules.kscanlivevtonative.PerceptionSessionTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Exception in thread "pool-5-thread-1" java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at expo.modules.kscanlivevtonative.PerceptionSessionTest.frameDropsAndInferenceOutcomesAreCountedSeparately$lambda$10(PerceptionSessionTest.kt:243)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+]]></system-err>
+</testsuite>

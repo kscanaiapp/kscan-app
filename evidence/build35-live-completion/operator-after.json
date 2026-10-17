@@ -1,0 +1,53 @@
+{
+  "recordedAt": "2026-10-17T00:09:53.347Z",
+  "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2",
+  "method": "Production Live-only compare-and-set, one row returned; both projects re-read",
+  "production": {
+    "project": "wyyuqfdxucjksghsmhry",
+    "value": {
+      "enabled": true,
+      "provider": "ailabtools_tryon_clothes_pro",
+      "updatedAt": "2026-10-16T06:26:26Z",
+      "mockScenario": "success",
+      "mockLatencyMs": 6000,
+      "schemaVersion": 1,
+      "supportedCategories": [
+        "top",
+        "outerwear",
+        "blazer",
+        "dress"
+      ],
+      "live": {
+        "enabled": true,
+        "supportedCategories": [
+          "top"
+        ]
+      }
+    }
+  },
+  "staging": {
+    "project": "yzqjvdfgefveprobvvyw",
+    "value": {
+      "live": {
+        "enabled": true,
+        "supportedCategories": [
+          "top"
+        ]
+      },
+      "enabled": true,
+      "provider": "ailabtools_tryon_clothes_pro",
+      "updatedAt": "2026-08-31T13:51:01Z",
+      "mockScenario": "success",
+      "mockLatencyMs": 6000,
+      "schemaVersion": 1,
+      "supportedCategories": [
+        "top",
+        "outerwear",
+        "blazer",
+        "dress"
+      ]
+    }
+  },
+  "photoFieldsPreserved": true,
+  "rollbackFile": "operator-rollback.sql"
+}
