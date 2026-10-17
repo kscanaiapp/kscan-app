@@ -75,9 +75,9 @@ export function normalizePackingDateRange(
   return { ok: true, startDate, endDate };
 }
 
-/** Travel-date fields use the owner's DD-MM-YYYY convention. API dates stay canonical. */
+/** Travel-date fields use the owner's MM-DD-YYYY convention. API dates stay canonical. */
 export function formatPackingTripDate(value: string): string {
   const parts = canonicalParts(value);
   if (!parts) return '';
-  return `${String(parts.day).padStart(2, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.year).padStart(4, '0')}`;
+  return `${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}-${String(parts.year).padStart(4, '0')}`;
 }

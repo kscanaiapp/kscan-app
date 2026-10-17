@@ -8,14 +8,14 @@ Freshly fetched mobile baseline: integration/build35-v1-convergence at 4080a494a
 
 New isolated worktree C:/pack1017, branch codex/packing-calendar-repair-20261017, initially clean. No master or old snapshot was used. Related source/routing PRs and open repair branches were inspected in the KPLUS-001 lane; there was no open calendar repair. K+ changes are in their own PR.
 
-The owner clarified that dates must display DD-MM-YYYY and that the calendar should be an in-app popup. The final implementation uses React Native Modal/Pressable controls inside K Scan. It never opens a calendar app, connects a calendar account or requests calendar permission. No dependency or native integration was added; package.json and package-lock.json remain unchanged.
+The owner confirmed the final display requirement is MM-DD-YYYY and that the calendar should be an in-app popup. The final implementation uses React Native Modal/Pressable controls inside K Scan. It never opens a calendar app, connects a calendar account or requests calendar permission. No dependency or native integration was added; package.json and package-lock.json remain unchanged.
 
 ## Changed files and behavior
 
 - components/packing/PackingTripForm.tsx: Leaving and Returning are accessible tap controls. Keyboard is dismissed before opening the picker; editing the calendar does not submit the form. Canonical date-only strings remain in form state. Confirmation updates both dates together; cancellation changes neither.
-- components/packing/PackingDateRangePicker.tsx: native in-app modal containing a month grid, month/year navigation, a local Today marker, separate Leaving/Returning selection, highlighted endpoints and continuous range. Opens at saved dates when editing; otherwise opens at the current local month, so the customer can tap a weekday such as next Friday. The form/selection summaries use DD-MM-YYYY.
+- components/packing/PackingDateRangePicker.tsx: native in-app modal containing a month grid, month/year navigation, a local Today marker, separate Leaving/Returning selection, highlighted endpoints and continuous range. Opens at saved dates when editing; otherwise opens at the current local month, so the customer can tap a weekday such as next Friday. The form/selection summaries use MM-DD-YYYY.
 - components/packing/packingCalendar.ts: pure Gregorian grid/month navigation, localized spoken/month labels, date-only comparisons, local Today and return eligibility. UTC is only an arithmetic/formatting axis; selected date strings never become midnight-UTC payload timestamps.
-- components/packing/packingDates.ts: adds formatPackingTripDate for DD-MM-YYYY; existing historical date helpers remain available.
+- components/packing/packingDates.ts: adds formatPackingTripDate for MM-DD-YYYY; existing historical date helpers remain available.
 - __tests__/packingCalendar.test.js: executed iOS/Android component surfaces and date arithmetic tests.
 - __tests__/build34FinalSmokeRepair.test.js and premiumValueReturnState.test.js: update old text-input assertions to exercise the new calendar/preserve the existing K+ return-state behavior.
 
