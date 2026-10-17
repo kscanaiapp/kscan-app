@@ -30,7 +30,7 @@
       "en-US": {
         "title": "K Scan AI",
         "subtitle": "AI fashion discovery",
-        "description": "K Scan AI helps you turn photos of outfits and clothing into AI-assisted fashion analysis and retailer-neutral discovery.\n\nScan one or more images to explore garment and style details, organize your saved fashion items in a Cloud Closet, and restore supported Closet content across devices. Use Packing Intelligence to plan looks for trips and other occasions.\n\nK+ is an optional auto-renewable subscription for premium features. Depending on feature and service availability, K+ experiences include Smart Watchlist, Voice Scan, and AI Photo Virtual Try-On. Monthly and annual options are offered through Apple's in-app purchase system, with purchase restoration available in the app.\n\nSign in using Apple, Google, or email. Manage privacy preferences and request account deletion in the app.\n\nK Scan AI is not a retailer or marketplace. It does not authenticate products or guarantee product availability, pricing, exact matches, or AI results.",
+        "description": "K Scan AI helps you turn photos of outfits and clothing into AI-assisted fashion analysis and retailer-neutral discovery.\n\nScan one or more images to explore garment and style details, organize your saved fashion items in a Cloud Closet, and restore supported Closet content across devices. Use Packing Intelligence to plan looks for trips and other occasions.\n\nK+ is an optional auto-renewable subscription for premium features. Depending on feature and service availability, K+ experiences include Smart Watchlist, Voice Scan, AI Photo Virtual Try-On, and Live Camera Virtual Try-On for a supported pilot top on compatible devices. Live previews are illustrative and do not assess garment fit. Monthly and annual options are offered through Apple's in-app purchase system, with purchase restoration available in the app.\n\nSign in using Apple, Google, or email. Manage privacy preferences and request account deletion in the app.\n\nK Scan AI is not a retailer or marketplace. It does not authenticate products or guarantee product availability, pricing, exact matches, or AI results.",
         "keywords": [
           "fashion",
           "style",
@@ -42,7 +42,7 @@
           "scan",
           "AI"
         ],
-        "releaseNotes": "New in this update: multi-image fashion scanning, Cloud Closet sync and cross-device restore, Packing Intelligence, Smart Watchlist, Voice Scan, and AI Photo Virtual Try-On. K+ monthly and annual subscriptions are available through in-app purchase, with Restore Purchases and account privacy controls.",
+        "releaseNotes": "New in this update: multi-image fashion scanning, Cloud Closet sync and cross-device restore, Packing Intelligence, Smart Watchlist, Voice Scan, AI Photo Virtual Try-On, and Live Camera Virtual Try-On for a supported pilot top. K+ monthly and annual subscriptions are available through in-app purchase, with Restore Purchases and account privacy controls.",
         "promoText": "Scan a look and turn fashion inspiration into AI-assisted discovery.",
         "marketingUrl": "https://kscan.app/",
         "supportUrl": "https://kscan.app/support",
