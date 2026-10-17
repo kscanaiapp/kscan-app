@@ -741,10 +741,11 @@ test('V/W: after an actor change the new actor can transact normally (the stale 
   await flush();
   switchActor(r, ACTOR_B);
   r.port.purchaseImpl = async () => ({ status: 'ok' });
-  const fresh = plain(await r.svc.purchaseLifetime());
-  assert.deepEqual(fresh, { outcome: 'ENTITLEMENT_RESOLVING' });
+  assert.deepEqual(plain(await r.svc.purchaseLifetime()), { outcome: 'BUSY' }, 'an unresolved old store operation retains the native flight');
   gate.resolve();
   await stale;
+  const fresh = plain(await r.svc.purchaseLifetime());
+  assert.deepEqual(fresh, { outcome: 'ENTITLEMENT_RESOLVING' });
   assert.equal(r.svc.getSnapshot().status, 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING', 'the stale completion did not overwrite B');
   assert.equal(r.svc.getSnapshot().pendingKind, 'LIFETIME');
 });
@@ -1296,4 +1297,43 @@ test('Build35: commercial EAS profiles use platform public keys and disable comp
     assert.equal(env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
   }
   assert.equal(config.build['production-certification'].env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED, 'false');
+});
+
+for (const platformOS of ['ios', 'android']) {
+  test(`${platformOS}: hosted lease excludes a second hosted UI, purchase and restore until actual completion`, async () => {
+    const r = rigWithMocks({ platform: platformOS });
+    await r.svc.loadOfferings();
+    const lease = r.svc.beginHostedPresentation(ACTOR_A);
+    assert.ok(lease);
+    assert.equal(r.svc.beginHostedPresentation(ACTOR_A), null);
+    assert.deepEqual(plain(await r.svc.purchaseMonthly()), { outcome: 'BUSY' });
+    assert.deepEqual(plain(await r.svc.restorePurchases()), { outcome: 'BUSY' });
+    switchActor(r, ACTOR_B);
+    await flush();
+    assert.equal(lease.isCurrent(), false);
+    assert.equal(r.port.calls.logOut, 0, 'cannot rebind the SDK beneath a visible old paywall');
+    assert.equal(r.svc.isNativeOperationInFlight(), true);
+    const nextOfferings = r.svc.loadOfferings();
+    await flush();
+    assert.equal(r.port.sdkId, ACTOR_A);
+    lease.release();
+    lease.release(); // Idempotent cleanup cannot unlock a future flight.
+    await nextOfferings;
+    assert.equal(r.port.sdkId, ACTOR_B);
+    assert.equal(r.svc.isNativeOperationInFlight(), false);
+    assert.ok(r.svc.beginHostedPresentation(ACTOR_B));
+  });
+}
+for (const outcome of ['purchased', 'restored']) test(`hosted ${outcome}, including a late completion, blocks checkout until canonical access resolves`, async () => {
+  const r = rigWithMocks();
+  await r.svc.loadOfferings();
+  const lease = r.svc.beginHostedPresentation(ACTOR_A);
+  lease.reconcile(outcome);
+  lease.release();
+  await flush();
+  assert.match(r.svc.getSnapshot().status, /ENTITLEMENT_RESOLVING$/);
+  assert.deepEqual(plain(await r.svc.purchaseMonthly()), { outcome: 'BUSY' });
+  assert.equal(r.state.canonicalActive, false);
+  assert.equal(r.state.refreshCount, 1);
+  assert.equal(r.port.calls.purchase.length, 0);
 });

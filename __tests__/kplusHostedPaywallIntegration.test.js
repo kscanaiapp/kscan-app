@@ -24,8 +24,8 @@ test('onboarding and contextual K+ gates share hosted UI, and preserve existing 
   const gate = read('components/kplus/KPlusGate.tsx');
   const routing = read('services/kplus/kplusAcquisitionSurface.ts');
   assert.match(read('app/onboarding/index.tsx'), /<KPlusMembershipStep/);
-  assert.match(step, /presentHostedKPlusPaywall\(actorId\)/);
-  assert.match(step, /entitlement\.state !== 'eligible' && entitlement\.state !== 'expired'/);
+  assert.match(step, /presentHostedKPlusPaywall\(actorId,/);
+  assert.match(step, /entitlement\.state === 'eligible' \|\| entitlement\.state === 'expired'/);
   assert.match(step, /refreshKPlusEntitlement\(\)/);
   assert.match(step, /EXISTING_COMPLIMENTARY_KPLUS/);
   assert.match(read('components/kplus/KPlusMembershipSheet.tsx'), /<KPlusMembershipStep/);
@@ -41,5 +41,5 @@ test('native dependency is pinned to core SDK and build has proper fallback befo
   assert.equal(pkg.dependencies['react-native-purchases-ui'], pkg.dependencies['react-native-purchases']);
   assert.equal(lock.packages[''].dependencies['react-native-purchases-ui'], pkg.dependencies['react-native-purchases-ui']);
   assert.equal(lock.packages['node_modules/react-native-purchases-ui'].version, pkg.dependencies['react-native-purchases-ui']);
-  assert.match(read('components/kplus/KPlusMembershipStep.tsx'), /setHosted\('fallback'\)/);
+  assert.match(read('components/kplus/KPlusMembershipStep.tsx'), /setHosted\('failed'\)/);
 });

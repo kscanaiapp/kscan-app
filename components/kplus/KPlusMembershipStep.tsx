@@ -19,7 +19,7 @@
  * complimentary grants are acknowledged, never altered.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { KPLUS_PAYWALL_COLORS as P } from '../../constants/kplusPaywallTheme';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
@@ -35,6 +35,8 @@ import {
 import {
   KPLUS_COMMERCE_RECHECK_DELAYS_MS,
   loadKPlusOfferings,
+  isKPlusNativeOperationInFlight,
+  subscribeToKPlusCommerce,
   purchaseKPlusAnnual,
   purchaseKPlusMonthly,
   restoreKPlusPurchases,
@@ -99,6 +101,7 @@ export interface KPlusMembershipStepProps {
    * membership sheet. Defaults to onboarding.
    */
   context?: 'onboarding' | 'sheet';
+  presentationReady?: boolean;
 }
 
 export function KPlusMembershipStep({
@@ -106,12 +109,43 @@ export function KPlusMembershipStep({
   onSkip,
   redeemOfferCode,
   context = 'onboarding',
+  presentationReady = true,
 }: KPlusMembershipStepProps) {
   const entitlement = useKPlusEntitlement();
   const { user, isAuthenticated } = useAuthSession();
   const commerce = useKPlusCommerceSnapshot();
-  const [hosted, setHosted] = useState<'idle' | 'opening' | 'fallback' | 'resolving'>('idle');
-  const hostedAttemptedRef = useRef(false);
+  const [hosted, setHosted] = useState<'idle' | 'preparing' | 'presenting' | 'failed' | 'purchased' | 'restored' | 'dismissed'>('idle');
+  const [retry, setRetry] = useState(0);
+  const [nativeBusy, setNativeBusy] = useState(isKPlusNativeOperationInFlight);
+  const [loadingExpired, setLoadingExpired] = useState(false);
+  const [nativeStalled, setNativeStalled] = useState(false);
+  const [foreground, setForeground] = useState(AppState.currentState === 'active');
+  const actorRef = useRef(user?.id);
+  actorRef.current = user?.id;
+  const continueRef = useRef(onContinue);
+  continueRef.current = onContinue;
+  const hostedAttemptRef = useRef<{ attempted: boolean; cancel?: () => void }>({ attempted: false });
+  useEffect(() => {
+    const update = () => setNativeBusy(isKPlusNativeOperationInFlight());
+    const unsubscribe = subscribeToKPlusCommerce(update);
+    update();
+    return unsubscribe;
+  }, []);
+  useEffect(() => {
+    if (!nativeBusy) { setNativeStalled(false); return; }
+    const timer = setTimeout(() => setNativeStalled(true), 60_000);
+    return () => clearTimeout(timer);
+  }, [nativeBusy]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', next => setForeground(next === 'active'));
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    const attempt = { attempted: false } as { attempted: boolean; cancel?: () => void };
+    hostedAttemptRef.current = attempt;
+    setHosted('idle');
+    return () => attempt.cancel?.();
+  }, [user?.id]);
   const [ui, setUi] = useState<KPlusPaywallUiState>(INITIAL_KPLUS_PAYWALL_UI);
   // The redemption surface is an in-step view, not a second sheet: it swaps
   // with the paywall body and hands back with Cancel / Done. It decides
@@ -248,6 +282,7 @@ export function KPlusMembershipStep({
   const handlePurchase = useCallback(async () => {
     const paywall = view.paywall;
     if (!paywall || !paywall.cta.enabled || operationLockRef.current) return;
+    if (isKPlusNativeOperationInFlight()) return;
     operationLockRef.current = true;
     const kind = paywall.selectedKind;
     dispatch({ type: 'PURCHASE_STARTED', kind });
@@ -260,7 +295,7 @@ export function KPlusMembershipStep({
   }, [dispatch, view.paywall]);
 
   const handleRestore = useCallback(async () => {
-    if (!view.paywall?.restoreEnabled || operationLockRef.current) return;
+    if ((!view.paywall?.restoreEnabled && view.screen !== 'PRODUCTS_UNAVAILABLE') || operationLockRef.current || isKPlusNativeOperationInFlight()) return;
     operationLockRef.current = true;
     dispatch({ type: 'RESTORE_STARTED' });
     try {
@@ -269,7 +304,7 @@ export function KPlusMembershipStep({
     } finally {
       operationLockRef.current = false;
     }
-  }, [dispatch, view.paywall?.restoreEnabled]);
+  }, [dispatch, view.paywall?.restoreEnabled, view.screen]);
 
   const handleCheckAgain = useCallback(() => {
     dispatch({ type: 'RECHECK_REQUESTED' });
@@ -282,44 +317,71 @@ export function KPlusMembershipStep({
   }, [onContinue]);
 
 
-  // Paywalls V2 is hosted by the native RevenueCat SDK. We use the ordinary
-  // presentPaywall (NOT presentPaywallIfNeeded): RevenueCat is not authoritative
-  // for K Scan's time-bounded complimentary K+ grants.
-  // All authentication, canonical membership and benefit/readiness checks
-  // occur before any native purchase UI can be presented.
+  // Only primitive readiness changes schedule an attempt. Callback/catalog
+  // identity changes cannot cancel an accepted native operation.
+  const hostedReady = presentationReady && foreground && isAuthenticated && Boolean(user?.id)
+    && (entitlement.state === 'eligible' || entitlement.state === 'expired')
+    && isAcquisitionEntry && !nothingToSell && liveSignalsSettled
+    && commerce.status === 'READY' && Boolean(view.paywall)
+    && (commerce.catalog?.monthly.status === 'available' || commerce.catalog?.annual.status === 'available');
+  const readinessRef = useRef(hostedReady);
+  readinessRef.current = hostedReady;
   useEffect(() => {
-    if (hostedAttemptedRef.current || !isAuthenticated || !user?.id) return;
-    if (!isHostedKPlusPaywallAvailable()) return;
-    if (entitlement.state !== 'eligible' && entitlement.state !== 'expired') return;
-    if (!isAcquisitionEntry || nothingToSell || !liveSignalsSettled) return;
-    if (commerce.status !== 'READY' || !view.paywall) return;
-    if (commerce.catalog?.monthly.status !== 'available' && commerce.catalog?.annual.status !== 'available') return;
-
-    hostedAttemptedRef.current = true;
-    let disposed = false;
-    const actorId = user.id;
-    setHosted('opening');
-    // Defer presentation until the current onboarding/sheet transition settles.
-    // On iOS this avoids presenting a native paywall while a RN Modal animates.
+    const attempt = hostedAttemptRef.current;
+    if (!hostedReady || attempt.attempted || !isHostedKPlusPaywallAvailable()) return;
+    attempt.attempted = true;
+    const actorId = user!.id;
+    let cancelled = false;
+    let expired = false;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    setHosted('preparing');
+    const current = () => !cancelled && actorRef.current === actorId;
     const timer = setTimeout(() => {
-      void presentHostedKPlusPaywall(actorId).then(async (result) => {
-        if (disposed) return;
+      if (!current()) return;
+      if (!readinessRef.current) {
+        attempt.attempted = false;
+        setHosted('idle');
+        return;
+      }
+      setHosted('presenting');
+      deadline = setTimeout(() => {
+        expired = true;
+        if (current()) setHosted('failed');
+      }, 60_000);
+      void presentHostedKPlusPaywall(actorId, () => !current() || expired || !readinessRef.current).then(result => {
+        if (!current() || expired) return;
         if (result === 'dismissed') {
-          onContinue(); // Close a feature gate, or continue onboarding as Free.
+          setHosted('dismissed');
+          continueRef.current();
         } else if (result === 'purchased' || result === 'restored') {
-          setHosted('resolving');
+          setHosted(result);
           // Provider success never grants K+. Await the canonical server.
-          await refreshKPlusEntitlement();
+          void refreshKPlusEntitlement().catch(() => undefined);
         } else {
-          // Old binaries, unpublished/offline paywall, or unavailable native
-          // module retain a truthful custom store-sourced Free/retry fallback.
-          setHosted('fallback');
+          setHosted('failed');
         }
-      }).catch(() => { if (!disposed) setHosted('fallback'); });
+      }).catch(() => { if (current() && !expired) setHosted('failed'); })
+        .finally(() => { if (deadline) clearTimeout(deadline); });
     }, 350);
-    return () => { disposed = true; clearTimeout(timer); };
-  }, [commerce.status, commerce.catalog, entitlement.state, isAcquisitionEntry,
-      isAuthenticated, liveSignalsSettled, nothingToSell, onContinue, user?.id, Boolean(view.paywall)]);
+    // Owned by the actor/mount lifecycle, not by changing effect dependencies.
+    attempt.cancel = () => { cancelled = true; clearTimeout(timer); if (deadline) clearTimeout(deadline); };
+  }, [hostedReady, user?.id, retry]);
+
+  const loading = view.screen === 'CHECKING_MEMBERSHIP' || view.screen === 'LOADING_PRODUCTS';
+  useEffect(() => {
+    if (!loading) { setLoadingExpired(false); return; }
+    const timer = setTimeout(() => setLoadingExpired(true), 20_000);
+    return () => clearTimeout(timer);
+  }, [loading, retry]);
+  const retryHosted = () => {
+    if (isKPlusNativeOperationInFlight()) return;
+    hostedAttemptRef.current.cancel?.();
+    hostedAttemptRef.current.attempted = false;
+    setHosted('idle');
+    setLoadingExpired(false);
+    setRetry(value => value + 1);
+    if (loading) { entitlement.refresh(); void requestOfferings(); }
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -345,6 +407,18 @@ export function KPlusMembershipStep({
           />
         </KPlusStatusPanel>
         <KPlusLegalFooter />
+      </View>
+    );
+  }
+
+  if (loading && loadingExpired) {
+    return (
+      <View style={styles.root} testID="kplus-loading-timeout">
+        <KPlusPaywallHeader compact />
+        <KPlusStatusPanel testID="kplus-loading-recovery" icon={null} title="Membership options are taking longer than expected" body="Check your connection and try again. You can continue while membership is unavailable.">
+          <KPlusPrimaryCta testID="kplus-loading-retry" label="Retry" enabled={!nativeBusy} onPress={retryHosted} />
+          <KPlusTextAction testID="kplus-loading-continue" label="Continue and check later" onPress={onContinue} />
+        </KPlusStatusPanel>
       </View>
     );
   }
@@ -382,15 +456,16 @@ export function KPlusMembershipStep({
   }
 
 
-  if (hosted === 'opening' && entitlement.state !== 'active') {
+  if ((hosted === 'preparing' || hosted === 'presenting') && entitlement.state !== 'active') {
     return (
       <View style={[styles.root, styles.centered]} testID="kplus-hosted-paywall-opening" accessibilityState={{ busy: true }}>
         <ActivityIndicator size="large" color={P.deepPlum} />
         <Text style={styles.centeredBody}>Opening K+ membership options…</Text>
+        <KPlusFreePath onPress={onContinue} />
       </View>
     );
   }
-  if (hosted === 'resolving' && entitlement.state !== 'active') {
+  if ((hosted === 'purchased' || hosted === 'restored') && entitlement.state !== 'active') {
     return (
       <View style={styles.root} testID="kplus-hosted-paywall-pending-entitlement">
         <KPlusPaywallHeader compact />
@@ -402,6 +477,16 @@ export function KPlusMembershipStep({
         >
           <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={entitlement.refresh} />
           <KPlusTextAction testID="kplus-hosted-continue-later" label="Continue without unlocking K+" tone="graphite" onPress={onContinue} />
+        </KPlusStatusPanel>
+      </View>
+    );
+  }
+  if (nativeBusy && entitlement.state !== 'active' && hosted !== 'purchased' && hosted !== 'restored' && (nativeStalled || (commerce.status !== 'PURCHASING' && commerce.status !== 'RESTORING'))) {
+    return (
+      <View style={styles.root} testID="kplus-native-operation-pending">
+        <KPlusPaywallHeader compact />
+        <KPlusStatusPanel testID="kplus-native-recovery" icon={null} title="The store is still responding" body="A previous membership window has not finished. Close that store window if it is visible. A pending store action may still complete. Check your membership when you return.">
+          <KPlusFreePath onPress={onContinue} />
         </KPlusStatusPanel>
       </View>
     );
@@ -501,6 +586,8 @@ export function KPlusMembershipStep({
           title={COPY.unavailableTitle}
           body={COPY.unavailableBody}
         >
+          <KPlusTextAction testID="kplus-hosted-retry" label="Retry membership options" onPress={retryHosted} />
+          <KPlusTextAction testID="kplus-products-restore" label={COPY.restore} disabled={nativeBusy} onPress={() => void handleRestore()} />
           <KPlusPrimaryCta testID="kplus-products-retry" label={COPY.tryAgain} enabled onPress={() => void requestOfferings()} />
         </KPlusStatusPanel>
         <KPlusFreePath onPress={handleFree} />
@@ -564,6 +651,7 @@ export function KPlusMembershipStep({
 
   return (
     <View style={[styles.root, S.overlayHost]} testID={`kplus-membership-${view.screen.toLowerCase().replace(/_/g, '-')}`}>
+      {(hosted === 'failed' || hosted === 'dismissed') ? <KPlusTextAction testID="kplus-hosted-retry" label="Retry membership options" onPress={retryHosted} /> : null}
       {restoring ? (
         <>
           <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden style={styles.dimmed}>

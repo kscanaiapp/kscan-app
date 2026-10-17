@@ -92,6 +92,8 @@ export interface KPlusCommerceService {
   restorePurchases(): Promise<KPlusRestoreOutcome>;
   /** Synchronous. Called on every actor boundary (sign-out, actor change). */
   reset(): void;
+  isNativeOperationInFlight(): boolean;
+  beginHostedPresentation(actorId: string): { isCurrent: () => boolean; reconcile: (outcome: 'purchased' | 'restored') => void; release: () => void } | null;
 }
 
 export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommerceService {
@@ -105,7 +107,9 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   /** The actor the SDK has been confirmed to be acting as. Null = nobody. */
   let boundActorId: string | null = null;
   let catalogActorId: string | null = null;
-  let inFlight: 'purchase' | 'restore' | null = null;
+  let inFlight: 'purchase' | 'restore' | 'hosted' | null = null;
+  let operationDone: Promise<void> = Promise.resolve();
+  let finishOperation: (() => void) | null = null;
   let unsubscribeProvider: (() => void) | null = null;
   let identityQueue: Promise<unknown> = Promise.resolve();
   let recheckRun = 0;
@@ -127,6 +131,19 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
 
   function setUnavailable(reason: KPlusUnavailableReason) {
     setSnapshot({ status: 'UNAVAILABLE', unavailableReason: reason, pendingKind: null });
+  }
+
+  function beginOperation(kind: 'purchase' | 'restore' | 'hosted') {
+    inFlight = kind;
+    operationDone = new Promise<void>((resolve) => { finishOperation = resolve; });
+    emit();
+  }
+
+  function releaseOperation() {
+    inFlight = null;
+    finishOperation?.();
+    finishOperation = null;
+    emit();
   }
 
   /** Serialises SDK identity changes so a login can never interleave with a logout. */
@@ -338,9 +355,8 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   }
 
   async function purchase(kind: KPlusProductKind): Promise<KPlusPurchaseOutcome> {
-    if (inFlight !== null) return { outcome: 'BUSY' };
-    inFlight = 'purchase';
-    const startGen = generation;
+    if (inFlight !== null || isResolvingStatus()) return { outcome: 'BUSY' };
+    beginOperation('purchase');
     try {
       const prepared = await prepare();
       if (prepared.state === 'discarded') return { outcome: 'DISCARDED_ACTOR_CHANGED' };
@@ -401,14 +417,13 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
       if (settled === 'DISCARDED') return { outcome: 'DISCARDED_ACTOR_CHANGED' };
       return settled === 'CONFIRMED' ? { outcome: 'ENTITLEMENT_CONFIRMED' } : { outcome: 'ENTITLEMENT_RESOLVING' };
     } finally {
-      if (startGen === generation) inFlight = null;
+      releaseOperation();
     }
   }
 
   async function restorePurchases(): Promise<KPlusRestoreOutcome> {
     if (inFlight !== null) return { outcome: 'BUSY' };
-    inFlight = 'restore';
-    const startGen = generation;
+    beginOperation('restore');
     try {
       const prepared = await prepare();
       if (prepared.state === 'discarded') return { outcome: 'DISCARDED_ACTOR_CHANGED' };
@@ -445,7 +460,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
       if (!result.providerOwnership) return { outcome: 'NOTHING_RESTORED' };
       return settled === 'CONFIRMED' ? { outcome: 'ENTITLEMENT_CONFIRMED' } : { outcome: 'RESTORE_COMPLETED_ENTITLEMENT_RESOLVING' };
     } finally {
-      if (startGen === generation) inFlight = null;
+      releaseOperation();
     }
   }
 
@@ -454,7 +469,9 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     recheckRun += 1;
     boundActorId = null;
     catalogActorId = null;
-    inFlight = null;
+    // A reset invalidates results, not native work. Keep the flight and SDK
+    // identity until the store UI really completes, even after a UI timeout.
+    const previousOperation = operationDone;
     if (unsubscribeProvider) {
       try {
         unsubscribeProvider();
@@ -466,7 +483,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     snapshot = INITIAL_KPLUS_COMMERCE_SNAPSHOT;
     // Detach the SDK from the previous actor, serialised behind any login in flight.
     if (port.isConfigured()) {
-      void enqueue(() => port.logOut()).catch(() => undefined);
+      void enqueue(async () => { await previousOperation; await port.logOut(); }).catch(() => undefined);
     }
     emit();
   }
@@ -484,6 +501,27 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     purchaseLifetime: () => purchase('LIFETIME'),
     restorePurchases,
     reset,
+    isNativeOperationInFlight: () => inFlight !== null,
+    beginHostedPresentation(actorId) {
+      if (inFlight !== null || boundActorId !== actorId || snapshot.status !== 'READY'
+        || canonicalIsActive()) return null;
+      const gen = generation;
+      beginOperation('hosted');
+      let released = false;
+      return {
+        isCurrent: () => !released && gen === generation && boundActorId === actorId,
+        reconcile: (outcome) => {
+          if (released || gen !== generation || boundActorId !== actorId) return;
+          // Record provider success even if the presentation caller timed out.
+          // Otherwise a late success could expose another checkout before the
+          // canonical server has finished reconciling the first transaction.
+          void settleAfterProviderSuccess(gen, actorId, outcome === 'purchased'
+            ? 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING'
+            : 'RESTORE_COMPLETED_ENTITLEMENT_RESOLVING').catch(() => undefined);
+        },
+        release: () => { if (!released) { released = true; releaseOperation(); } },
+      };
+    },
   };
 }
 
@@ -521,3 +559,5 @@ export const purchaseKPlusLifetime = kplusCommerce.purchaseLifetime;
 export const restoreKPlusPurchases = kplusCommerce.restorePurchases;
 /** Wired into resetActorScopedRuntimeState (contexts/AuthSessionContext.tsx). */
 export const resetKPlusCommerce = kplusCommerce.reset;
+export const beginKPlusHostedPresentation = kplusCommerce.beginHostedPresentation;
+export const isKPlusNativeOperationInFlight = kplusCommerce.isNativeOperationInFlight;

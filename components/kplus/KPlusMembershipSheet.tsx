@@ -21,7 +21,7 @@
  * requested when a customer actually asks and its UI state starts fresh each
  * time. It is keyed by account, exactly as Step 6 is.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -50,6 +50,8 @@ export interface KPlusMembershipSheetProps {
 }
 
 export function KPlusMembershipSheet({ visible, onClose, onDismiss, redeemOfferCode }: KPlusMembershipSheetProps) {
+  const [presented, setPresented] = useState(false);
+  useEffect(() => { if (!visible) setPresented(false); }, [visible]);
   const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   const { user } = useAuthSession();
@@ -60,6 +62,7 @@ export function KPlusMembershipSheet({ visible, onClose, onDismiss, redeemOfferC
   // be dismissed right now, never anything about a purchase.
   const close = useCallback(() => {
     if (locked) return;
+    setPresented(false);
     onClose();
   }, [locked, onClose]);
 
@@ -68,7 +71,8 @@ export function KPlusMembershipSheet({ visible, onClose, onDismiss, redeemOfferC
       visible={visible}
       animationType={reducedMotion ? 'none' : 'slide'}
       onRequestClose={close}
-      onDismiss={onDismiss}
+      onShow={() => setPresented(true)}
+      onDismiss={() => { setPresented(false); onDismiss?.(); }}
       testID="kplus-paywall-sheet"
     >
       {visible ? (
@@ -104,6 +108,7 @@ export function KPlusMembershipSheet({ visible, onClose, onDismiss, redeemOfferC
             <KPlusMembershipStep
               key={user?.id ?? 'signed-out'}
               context="sheet"
+              presentationReady={presented}
               onContinue={onClose}
               onSkip={onClose}
               redeemOfferCode={redeemOfferCode}

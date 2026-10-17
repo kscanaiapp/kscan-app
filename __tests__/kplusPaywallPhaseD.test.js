@@ -205,6 +205,8 @@ function mount(o = {}) {
   }, { mutate: o.mutateParts });
   let key = o.actorKey ?? 'actor-a';
   const commerceService = {
+    isKPlusNativeOperationInFlight: () => false,
+    subscribeToKPlusCommerce: () => () => {},
     KPLUS_COMMERCE_RECHECK_DELAYS_MS: [2000, 5000, 10000, 20000],
     loadKPlusOfferings: async () => { env.calls.load += 1; return env.loadImpl(); },
     purchaseKPlusMonthly: async () => { env.calls.monthly += 1; return env.purchaseImpl('MONTHLY'); },
