@@ -9,10 +9,11 @@ function rig(os, initial = {}) {
   let submitted = [], keyboardDismissals = 0;
   const rn = { ...createReactNativeStub({ platformOS: os }), findNodeHandle: () => null,
     Keyboard: { dismiss: () => keyboardDismissals++ } };
+  const calendarTheme = { LUXURY: { colors: { plum: '#3F0B2F', goldLight: '#E7D4A8', inverse: '#FFFFFF' }, typography: {} }, RADIUS: {}, SPACING: {} };
   const Picker = runModule('components/packing/PackingDateRangePicker.tsx', {
     ...renderer.runtimeModules, 'react-native': rn,
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
-    '../../constants/theme': deepStub(), './packingDates': dates, './packingCalendar': calendar,
+    '../../constants/theme': calendarTheme, './packingDates': dates, './packingCalendar': calendar,
   });
   const { PackingTripForm } = runModule('components/packing/PackingTripForm.tsx', {
     ...renderer.runtimeModules, 'react-native': rn, '../../constants/theme': deepStub(),
@@ -74,6 +75,8 @@ for (const os of ['ios', 'android']) {
     sameDay.tap('packing-start-date');
     sameDay.tap('packing-calendar-day-2028-02-29');
     sameDay.tap('packing-calendar-day-2028-02-29');
+    const selectedDay = sameDay.node('packing-calendar-day-2028-02-29');
+    assert.equal(selectedDay.props.style.filter(s => s?.backgroundColor).at(-1).backgroundColor, '#3F0B2F', 'same-day L/R text retains a dark, readable endpoint background');
     sameDay.tap('packing-calendar-confirm');
     sameDay.tap('packing-submit');
     assert.equal(sameDay.submitted[0].startDate, '2028-02-29');

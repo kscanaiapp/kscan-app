@@ -77,7 +77,7 @@ export function PackingDateRangePicker({ startDate, endDate, initialField, maxNi
                       accessibilityRole="button" accessibilityLabel={description}
                       accessibilityState={{ disabled, selected: departure || returning || within }}
                       onPress={() => choose(date)}
-                      style={[styles.day, within && styles.range, departure && styles.departure, returning && styles.returning, date === today && styles.today, disabled && styles.disabled]}>
+                      style={[styles.day, within && styles.range, departure && styles.departure, returning && !departure && styles.returning, date === today && styles.today, disabled && styles.disabled]}>
                       <Text style={[styles.dayText, departure && styles.departureText, date === today && styles.todayText]}>{Number(date.slice(8))}</Text>
                       {departure || returning ? <Text style={[styles.marker, departure && styles.departureText]}>{departure && returning ? 'L/R' : departure ? 'L' : 'R'}</Text> : null}
                     </Pressable>;
