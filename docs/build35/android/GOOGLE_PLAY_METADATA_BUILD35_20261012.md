@@ -1,7 +1,7 @@
 # K Scan AI — Android Google Play metadata package (Build 35 source)
 
-**Prepared:** 2026-10-12  
-**Source reviewed:** `integration/build35-v1-convergence` @ `ca5c13611543ebc8faff873160182974ae0d408b` (merged PR #564)  
+**Prepared:** 2026-10-12; updated 2026-10-16 for current Android Live VTO and Speech source  
+**Source reviewed:** `integration/build35-v1-convergence` @ `1dbddcf2dcc0e7ed2d80ad2f0dcad7c6b74e989a` (merged PR #626)  
 **Scope:** Android-only store-facing copy, declarations and submission checklist. Internal build number **must not appear in customer-facing copy**.  
 **Status:** READY FOR PLAY CONSOLE ENTRY / **NOT** proof that Play Console was updated; no store, build or backend mutation authorized by this document. Reconcile any later source/profile change before copying.
 
@@ -21,7 +21,7 @@ SCAN AND DISCOVER
 Photograph clothing or select images from your gallery. Explore fashion-specific details such as garment category, color, print, texture, silhouette and styling context. Where available, select and review more than one garment or photo and compare retailer-neutral shopping options. Results may be similar styles rather than exact products; prices, stock and links depend on third-party retailers.
 
 STYLE WITH ELISE
-Ask Elise, K Scan AI's AI fashion assistant, for styling ideas and ways to wear your finds. Use optional fashion preferences and authorized clothing context to make suggestions more relevant.
+Ask Elise, K Scan AI's AI fashion assistant, for styling ideas and ways to wear your finds. Use optional fashion preferences and authorized clothing context to make suggestions more relevant. Supported sessions may include optional spoken replies, depending on consent, device settings and service availability.
 
 SAVE, ORGANIZE AND SHARE
 Save scans and fashion inspiration, organize your Closet and looks, and use Dressing Rooms to plan or share outfits. Supported Closet content can synchronize through your account when enabled. Recent Scans and some other content may remain local to your device rather than synchronizing.
@@ -30,7 +30,7 @@ PLAN AND EXPLORE
 Use Packing Intelligence and supported Watchlist tools to organize upcoming looks and follow fashion items. Features and alerts depend on account eligibility, supported services, and notification settings.
 
 TRY A LOOK
-Where available, explore AI-assisted photo virtual try-on and styling previews. These are visualizations, not measurements, fit guarantees or authentic product photography.
+Explore AI-assisted photo virtual try-on and styling previews where available. K+ members with a supported Android device can also try the Live Camera VTO pilot with one eligible black tee, using an interactive camera preview. Other garments may use photo try-on where supported. Previews are visualizations, not measurements, fit guarantees or authentic product photography.
 
 VOICE SCAN
 On supported Android devices, speak a fashion search using a user-initiated on-device speech recognition flow. Microphone access is requested only when you choose a voice feature; no background listening is intended. Availability depends on your device's on-device speech recognition capabilities.
@@ -47,7 +47,7 @@ K Scan AI is a fashion discovery and shopping-assistance service, not a retailer
 
 ## B. What's new — en-US (≤500 characters)
 
-Discover more ways to turn fashion inspiration into action. Explore multi-image fashion scans, Closet sync, Packing Intelligence, Watchlist tools, Voice Scan on supported Android devices, and photo-based virtual try-on where available. Enjoy enhanced Elise styling and Dressing Room experiences, plus optional K+ membership. Availability depends on device, account eligibility and supported services.
+Turn fashion inspiration into action with multi-image scans, Closet sync, Packing Intelligence, Watchlist tools and Voice Scan. Explore photo virtual try-on and a limited Live Camera VTO pilot on supported Android devices. Elise gains optional spoken styling replies. K+ membership, device capabilities and service availability govern access.
 
 This is an **update**, not an initial release. Do not expose the internal build number in Play release notes.
 
@@ -82,7 +82,7 @@ This is an **update**, not an initial release. Do not expose the internal build 
 | User-generated content | Dressing Room messages, reactions, shared images/looks and relevant saved content. Confirm reporting, blocking, moderation and user policy terms. |
 | AI prompts / style messages | Elise text and authorized fashion context processed server-side; AI-output in-app reporting must be reachable. |
 | Approximate location | Optional foreground coarse/rounded weather context. Do not declare precise/background collection without evidence. |
-| Audio / Voice Scan | Android `RECORD_AUDIO` capability now ships for user-initiated Voice Scan; on-device recognizer required. Confirm whether raw audio ever leaves the device through the recognizer/service before answering Audio category. Recognized text may be sent for fashion search. Elise spoken responses (ElevenLabs) remain OFF in release config at this snapshot. |
+| Audio / Voice Scan | Android `RECORD_AUDIO` capability now ships for user-initiated Voice Scan; on-device recognizer required. Confirm whether raw audio ever leaves the device through the recognizer/service before answering Audio category. Recognized text may be sent for fashion search. Elise spoken responses are ON in the current release source, subject to consent, provider availability and runtime verification. |
 | Watchlist device identifiers / notifications | Smart Watchlist/push source capability ON. Confirm FCM/Expo push token handling and actual notification opt-in, account isolation and server enablement. `POST_NOTIFICATIONS` permission posture must be checked in final merged AAB. |
 | App interactions/diagnostics | Inventory PostHog activation, crash SDKs, ML Kit, Firebase, RevenueCat and Supabase telemetry; no assumptions from package presence alone. |
 | Purchases/entitlements | Google Play/RevenueCat K+ monthly and annual catalog source exists; payment-related data handling must be matched to actual service and live transaction flow. |
@@ -107,10 +107,10 @@ From `eas.json` and `scripts/check-build35-release-profile.js` at the source SHA
 | Elise Concierge/Elise V10/Avatar Motion flags | ON | Separate visibility and service proof |
 | K+ paid membership | Native commerce present | Store availability, Play products/base plans and sandbox purchase remain uncertified (see owner dependencies) |
 | Mirror Selfie | OFF on Android | Native extraction is Apple-only; `mirrorSelfieAndroidGating.test.js` asserts Android unavailability despite the shared flag |
-| Elise spoken replies | OFF | Do not promise audible Elise replies in this release; source disclosure approval is not active rollout |
+| Elise spoken replies | ON in production/build35-release source | Optional, consent-gated spoken replies. Provider and actual customer playback still require Android artifact/device verification; do not guarantee availability |
 | Today With Elise parent and children | HARD OFF | Do not show as released |
 | Complimentary K+ Early Access | OFF | Do not describe as available promotion |
-| Live VTO / demo or debug harness flags | OFF/unset | Do not advertise live AR or development features |
+| Native Live Camera VTO | ON in production/build35-release source; Production operator `vto_generation.live.enabled=true` for `top` | K+-gated limited real-product pilot (AS Colour Staple Tee 5001 Black); actual camera/pose/preview on physical Android remains unverified. Development/demo fixture and harness experiences remain OFF |
 
 ## F.1 Live Android subscription verification (2026-10-12 UTC)
 
