@@ -126,10 +126,10 @@ export function PackingTripForm({
             style={styles.input}
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel={`Departure date ${formatPackingTripDate(startDate) || 'not selected'}, DD-MM-YYYY. Open calendar`}
+            accessibilityLabel={`Departure date ${formatPackingTripDate(startDate) || 'not selected'}, MM-DD-YYYY. Open calendar`}
             testID="packing-start-date"
           >
-            <Text style={styles.dateText}>{formatPackingTripDate(startDate) || 'DD-MM-YYYY'}</Text>
+            <Text style={styles.dateText}>{formatPackingTripDate(startDate) || 'MM-DD-YYYY'}</Text>
           </Pressable>
         </View>
         <View style={styles.dateField}>
@@ -139,10 +139,10 @@ export function PackingTripForm({
             style={styles.input}
             disabled={busy}
             accessibilityRole="button"
-            accessibilityLabel={`Return date ${formatPackingTripDate(endDate) || 'not selected'}, DD-MM-YYYY. Open calendar`}
+            accessibilityLabel={`Return date ${formatPackingTripDate(endDate) || 'not selected'}, MM-DD-YYYY. Open calendar`}
             testID="packing-end-date"
           >
-            <Text style={styles.dateText}>{formatPackingTripDate(endDate) || 'DD-MM-YYYY'}</Text>
+            <Text style={styles.dateText}>{formatPackingTripDate(endDate) || 'MM-DD-YYYY'}</Text>
           </Pressable>
         </View>
       </View>
