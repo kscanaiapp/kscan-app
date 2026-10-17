@@ -213,7 +213,7 @@ export function VtoLivePanel({
         {onTogglePause && !errored ? <SecondaryButton title={paused ? "Resume Live" : "Pause Live"} onPress={onTogglePause} disabled={busy || photorealPending} testID="vto-live-pause-resume" /> : null}
         {errored && onRestart ? <PrimaryButton title="Restart Live" onPress={onRestart} testID="vto-live-restart" /> : null}
         <PrimaryButton
-          title={photorealPending ? 'Creating AI photo…' : 'Create AI photo'}
+          title={photorealPending ? 'Preparing photo?' : 'Continue to AI Photo'}
           onPress={onRequestPhotoreal}
           disabled={!canCapture || photorealPending}
           testID="vto-live-photoreal"

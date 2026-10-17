@@ -364,35 +364,29 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
           if (sessionGeneration.get() == myGeneration) { cameraSnapshot = null; invalidate() }
         } },
       )
-      if (!session.load(manifest, dims.first, dims.second)) {
-        loadError = "camera perception load refused: ${session.currentState()}"
-        session.dispose()
-        handleCameraControllerStateForSession(CameraControllerState.ERROR)
-        stopCamera()
-        return
-      }
-      session.start()
-      cameraPerceptionSession = session
-      cameraPerceptionDriver = LiveVtoPerceptionDriver(session, { controller.latestFrame() }).also { it.start() }
-      // N1-G camera diagnostic cycle (2026-09-06, amendment G1 hypothesis
-      // (c)): `pv` was JUST added to the view hierarchy on this same call
-      // stack, so it has not necessarily been through its first
-      // measure/layout pass yet -- `PreviewView.surfaceProvider` cannot
-      // hand CameraX a correctly-sized `SurfaceRequest` before that
-      // happens. Bind only after a real layout pass reports a non-zero
-      // size, rather than assuming `addView` alone makes the view ready
-      // the instant this function returns. `controller.start()` itself
-      // stays exactly the same call, only its timing changes.
-      // `View.post` queues onto the UI thread's own message queue, which is
-      // also what drives measure/layout -- by the time this runs, `pv` has
-      // been through at least one real layout pass (an OnGlobalLayoutListener
-      // attempt here did not reliably fire on this device/RN view-hierarchy
-      // combination; `post` is the simpler, well-established primitive).
-      // `cameraController` may already be null if `stopCamera()` ran before
-      // this runs.
-      pv.post {
-        if (cameraController === controller) controller.start()
-      }
+      // MediaPipe model initialization must not block the UI or its deadline.
+      Thread({
+        val prepared = session.load(manifest, dims.first, dims.second)
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+          if (sessionGeneration.get() != myGeneration || cameraController !== controller) {
+            Thread({ session.dispose() }, "LiveVtoCancelledBootstrap").start()
+            return@post
+          }
+          if (!prepared || !session.start()) {
+            Thread({ session.dispose() }, "LiveVtoFailedBootstrap").start()
+            loadError = "camera perception initialization failed"
+            handleCameraControllerStateForSession(CameraControllerState.ERROR)
+            stopCamera()
+            return@post
+          }
+          cameraPerceptionSession = session
+          cameraPerceptionDriver = LiveVtoPerceptionDriver(session, { controller.latestFrame() }).also { it.start() }
+          // Bind after PreviewView's first layout; cancelled work cannot reopen it.
+          pv.post {
+            if (cameraController === controller) controller.start()
+          }
+        }
+      }, "LiveVtoModelBootstrap").start()
     } catch (t: Throwable) {
       loadError = t.message ?: t.toString()
       Log.e(TAG, "N1-F camera start failed", t)

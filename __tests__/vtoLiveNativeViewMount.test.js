@@ -118,6 +118,7 @@ test('customer Live controls invoke actions and paused capture is disabled', () 
   byId('vto-live-return-shopping').props.onPress();
   assert.deepEqual(called, ['pause', 'shopping']);
   assert.equal(byId('vto-live-capture-preview').props.disabled, false);
+  assert.equal(byId('vto-live-photoreal').props.title, 'Continue to AI Photo');
   tree = r.render(r.jsx(panel.VtoLivePanel, { ...p, paused: true }));
   assert.equal(byId('vto-live-capture-preview').props.disabled, true);
   assert.equal(byId('vto-live-pause-resume').props.title, 'Resume Live');

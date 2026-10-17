@@ -329,25 +329,29 @@ public final class LiveVtoRenderView: ExpoView {
           self.cameraSnapshot = nil
           self.cameraMeshOverlay?.setNeedsDisplay()
         } })
-      guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
-        loadError = "camera perception load refused: \(session.currentState())"
-        _ = session.dispose()
-        handleCameraControllerStateForSession(.error)
-        stopCamera()
-        return
+      // Keep the main queue and its ten-second deadline responsive while loading MediaPipe.
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        let prepared = session.load(manifest, textureWidth: dims.0, textureHeight: dims.1)
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self, self.sessionGeneration == myGeneration,
+            self.cameraController === controller else {
+            DispatchQueue.global(qos: .utility).async { _ = session.dispose() }
+            return
+          }
+          guard prepared, session.start() else {
+            DispatchQueue.global(qos: .utility).async { _ = session.dispose() }
+            self.loadError = "camera perception initialization failed"
+            self.handleCameraControllerStateForSession(.error)
+            self.stopCamera()
+            return
+          }
+          self.cameraPerceptionSession = session
+          let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
+          self.cameraPerceptionDriver = driver
+          driver.start()
+          controller.start()
+        }
       }
-      session.start()
-      cameraPerceptionSession = session
-      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
-      cameraPerceptionDriver = driver
-      driver.start()
-      // The camera producer (AVCaptureVideoDataOutput's own delegate
-      // callback) starts only once the perception session is READY to
-      // receive frames -- starting it first would let camera-produced
-      // frames pile up against a slot nothing is draining yet, which
-      // `LatestStateSlot` would count as drops that never represented real
-      // backpressure.
-      controller.start()
     } catch {
       loadError = "\(error)"
       handleCameraControllerStateForSession(.error)

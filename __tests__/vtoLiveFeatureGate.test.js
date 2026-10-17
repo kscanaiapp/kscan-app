@@ -1,13 +1,6 @@
-// P3-C: the Live VTO feature gate, the harness lock, and safe module absence.
-//
-// THE LAUNCH POSTURE THIS FILE PINS. Live defaults OFF, is set in no EAS
-// profile, is a DIFFERENT switch from the generative VTO flag, and cannot be
-// reached by a customer on any build that exists today. A build with no Live
-// native module -- which is every build -- starts normally and shows exactly
-// the AI Photo experience it showed before this lane existed.
-//
-// These are the assertions that make "this PR is safe to merge without
-// exposing Live" a checked claim rather than an intention.
+// Build 35 completion: six approved profiles carry the real Live runtime.
+// Runtime defaults and unknown capability still fail closed; simulation is
+// disabled in release profiles and operator Live can be disabled separately.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

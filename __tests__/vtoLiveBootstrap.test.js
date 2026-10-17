@@ -1,0 +1,30 @@
+﻿const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '../modules/kscan-live-vto-native');
+test('Android bootstrap keeps model initialization off main and rejects cancelled completion', () => {
+  const source = fs.readFileSync(path.join(root, 'android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoTestRenderView.kt'), 'utf8');
+  const bootstrap = source.slice(source.indexOf('private fun startCamera()'), source.indexOf('private fun stopCamera()'));
+  assert.match(bootstrap, /Thread\(\{\s*val prepared = session\.load/);
+  assert.match(bootstrap, /sessionGeneration\.get\(\) != myGeneration \|\| cameraController !== controller/);
+  assert.match(bootstrap, /Handler\(android\.os\.Looper\.getMainLooper\(\)\)\.post/);
+  const deadline = source.slice(source.indexOf('fun startSession()'), source.indexOf('fun stopSession()'));
+  assert.match(deadline, /publishedCount/);
+  assert.match(deadline, /10_000L/);
+  assert.match(deadline, /RUNTIME_INITIALIZATION_FAILED/);
+  assert.match(deadline, /camera = false/);
+});
+test('iOS bootstrap leaves main free for timeout and disposes a cancelled model', () => {
+  const source = fs.readFileSync(path.join(root, 'ios/LiveVtoRenderView.swift'), 'utf8');
+  const bootstrap = source.slice(source.indexOf('private func startCamera()'), source.indexOf('private func stopCamera()'));
+  assert.match(bootstrap, /DispatchQueue\.global\(qos: \.userInitiated\)\.async[\s\S]*let prepared = session\.load/);
+  assert.match(bootstrap, /self\.sessionGeneration == myGeneration/);
+  assert.match(bootstrap, /self\.cameraController === controller/);
+  assert.match(bootstrap, /qos: \.utility\)\.async \{ _ = session\.dispose\(\) \}/);
+  const deadline = source.slice(source.indexOf('func startSession()'), source.indexOf('func stopSession()'));
+  assert.match(deadline, /asyncAfter\(deadline: \.now\(\) \+ 10\)/);
+  assert.match(deadline, /publishedCount/);
+  assert.match(deadline, /RUNTIME_INITIALIZATION_FAILED/);
+  assert.match(deadline, /self\.camera = false/);
+});
