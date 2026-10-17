@@ -39,8 +39,8 @@ for (const os of ['ios', 'android']) {
     assert.equal(r.submitted.length, 0, 'selection never triggers paid generation');
     r.tap('packing-calendar-confirm');
     assert.equal(byTestId(r.render(), 'packing-calendar-modal').length, 0);
-    assert.match(textContent(r.render()), /30-12-2026/);
-    assert.match(textContent(r.render()), /03-01-2027/);
+    assert.match(textContent(r.render()), /12-30-2026/);
+    assert.match(textContent(r.render()), /01-03-2027/);
     r.tap('packing-end-date');
     assert.match(textContent(r.node('packing-calendar-month')), /January 2027/);
     r.tap('packing-calendar-cancel');
@@ -102,7 +102,9 @@ for (const os of ['ios', 'android']) {
   });
 }
 test('Gregorian month grids, leap years, range limits, and local-calendar today are stable', () => {
-  assert.equal(dates.formatPackingTripDate('2028-02-29'), '29-02-2028');
+  assert.equal(dates.formatPackingTripDate('2028-02-29'), '02-29-2028');
+  assert.equal(dates.formatPackingTripDate('2026-12-30'), '12-30-2026');
+  assert.equal(dates.formatPackingTripDate('2026-03-09'), '03-09-2026');
   assert.equal(calendar.packingCalendarMonth('2026-12-29', 1), '2027-01-01');
   assert.equal(calendar.packingCalendarMonth('2027-01-02', -1), '2026-12-01');
   assert.ok(calendar.packingCalendarCells('2028-02-01').includes('2028-02-29'));
