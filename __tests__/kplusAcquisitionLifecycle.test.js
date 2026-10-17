@@ -115,6 +115,7 @@ for (const platformOS of ['ios', 'android']) {
 test('a timed-out native operation offers neutral continuation without implying cancellation or Free status', async t => {
   const r = rig(t, { nativeBusy: true });
   r.render();
+  t.mock.timers.tick(500);
   t.mock.timers.tick(90_000);
   const tree = r.render();
   const action = byTestId(tree, 'kplus-native-continue-later')[0];
