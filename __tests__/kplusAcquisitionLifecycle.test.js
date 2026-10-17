@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { ROOT, runModule, createRenderer, createReactNativeStub, deepStub, byTestId, settle, deferred } = require('./helpers/componentRenderer');
 const path = require('node:path');
-function rig(t, { result = deferred().promise, platformOS = 'ios' } = {}) {
+function rig(t, { result = deferred().promise, platformOS = 'ios', nativeBusy = false } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const renderer = createRenderer();
   const rel = 'components/kplus/KPlusMembershipStep.tsx';
@@ -23,7 +23,7 @@ function rig(t, { result = deferred().promise, platformOS = 'ios' } = {}) {
     '../../hooks/useKPlusLiveCapabilitySignals': { useKPlusLiveCapabilitySignals: () => ({ signals: {}, promotion: {}, settled: true }) },
     '../../services/kplus/kplusActivationCatalog': { resolveActivationCapabilities: () => [{}], selectPromotedCapabilities: () => [] },
     '../../services/kplus/kplusHostedPaywall': { isHostedKPlusPaywallAvailable: () => true, presentHostedKPlusPaywall: async () => { calls++; return result; } },
-    '../../services/kplus/kplusCommerceService': { KPLUS_COMMERCE_RECHECK_DELAYS_MS: [], isKPlusNativeOperationInFlight: () => false, subscribeToKPlusCommerce: () => () => {} },
+    '../../services/kplus/kplusCommerceService': { KPLUS_COMMERCE_RECHECK_DELAYS_MS: [], isKPlusNativeOperationInFlight: () => nativeBusy, subscribeToKPlusCommerce: () => () => {} },
     '../../services/kplus/kplusPaywallModel': { INITIAL_KPLUS_PAYWALL_UI: { lastOperation: null }, KPLUS_PAYWALL_COPY: {}, deriveKPlusPaywallScreen: () => ({ entry: 'ACQUISITION_ELIGIBLE', screen: 'READY', paywall: { plans: [], cta: {}, restoreEnabled: true } }) },
     './KPlusPaywallParts': new Proxy({ kplusPaywallStyles: {} }, { get: (o, k) => o[k] ?? ((props) => renderer.jsx('Part', props)) }),
   };
@@ -111,3 +111,15 @@ for (const platformOS of ['ios', 'android']) {
     assert.equal(r.calls(), 1);
   });
 }
+
+test('a timed-out native operation offers neutral continuation without implying cancellation or Free status', async t => {
+  const r = rig(t, { nativeBusy: true });
+  r.render();
+  t.mock.timers.tick(90_000);
+  const tree = r.render();
+  const action = byTestId(tree, 'kplus-native-continue-later')[0];
+  assert.ok(action);
+  assert.equal(action.props.label, 'Continue and check membership later');
+  action.props.onPress();
+  assert.equal(r.closed(), 1);
+});

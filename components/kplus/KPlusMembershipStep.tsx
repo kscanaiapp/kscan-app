@@ -486,7 +486,7 @@ export function KPlusMembershipStep({
       <View style={styles.root} testID="kplus-native-operation-pending">
         <KPlusPaywallHeader compact />
         <KPlusStatusPanel testID="kplus-native-recovery" icon={null} title="The store is still responding" body="A previous membership window has not finished. Close that store window if it is visible. A pending store action may still complete. Check your membership when you return.">
-          <KPlusFreePath onPress={onContinue} />
+          <KPlusTextAction testID="kplus-native-continue-later" label="Continue and check membership later" onPress={onContinue} />
         </KPlusStatusPanel>
       </View>
     );
