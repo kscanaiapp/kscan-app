@@ -103,7 +103,7 @@ test('Packing form: both platforms share a calendar while submit stays canonical
   assert.match(form, /useState\(initial\?\.endDate \?\? ''\)/);
   assert.match(form, /formatPackingTripDate\(startDate\)/);
   assert.match(form, /formatPackingTripDate\(endDate\)/);
-  assert.match(form, /DD-MM-YYYY/);
+  assert.match(form, /MM-DD-YYYY/);
   assert.match(form, /Open calendar/);
   assert.doesNotMatch(form, /keyboardType="(?:number-pad|numeric|decimal-pad)"/);
   assert.doesNotMatch(form, /Platform\.OS/);
