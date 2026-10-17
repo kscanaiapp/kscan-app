@@ -27,6 +27,8 @@ const stagesReport = {
     platformSupported: true,
     frontCameraPresent: true,
     modelAssetPresent: true,
+    modelIntegrityValid: true,
+    rendererAvailable: true,
     cameraPermission: 'granted',
     physicalCertification: 'not_approved',
   },
@@ -61,6 +63,8 @@ test('stages are bounded: unknown keys, wrong types and free text are dropped', 
     platformSupported: null,
     frontCameraPresent: null,
     modelAssetPresent: true,
+    modelIntegrityValid: null,
+    rendererAvailable: null,
     cameraPermission: null,
     physicalCertification: null,
   });
@@ -83,7 +87,7 @@ test('no post-start stage exists in the TypeScript contract or the native report
   }
 });
 
-test('the shipped native gates stay closed: Android constant false, both platforms report false', () => {
+test('physical certification remains unapproved and no native capability is hardcoded true', () => {
   const kt = read('modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoCapabilityStages.kt');
   assert.match(kt, /const val PHYSICAL_CERTIFICATION_APPROVED = false/);
   const module = read('modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/KScanLiveVtoNativeModule.kt');

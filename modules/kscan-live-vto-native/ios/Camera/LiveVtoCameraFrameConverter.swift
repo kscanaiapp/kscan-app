@@ -27,12 +27,9 @@ import UIKit
 /// `LiveVtoCameraController` pins the capture connection's `videoOrientation`
 /// to `.portrait` (this lane does not support device rotation for the Live
 /// VTO camera screen, matching a typical portrait-only try-on UX). For a
-/// FRONT camera with a portrait-pinned connection, `.leftMirrored` is the
-/// well-established constant EXIF orientation that yields an upright,
-/// mirrored image directly -- front and back cameras are mounted with
-/// opposite physical rotations, which is why the back camera's equivalent
-/// constant is `.right`, not `.left`. Revisit only if this feature ever
-/// needs to support landscape device rotation.
+/// output, AVFoundation already physically rotates the sample buffers. Apply
+/// only a horizontal mirror here, never a second 90-degree rotation.
+/// Apple QA1744: https://developer.apple.com/library/archive/qa/qa1744/
 enum LiveVtoCameraFrameConverter {
   /// Reused across frames rather than constructed per-call -- `CIContext`
   /// construction has real overhead, and this pipeline is explicitly bounded
@@ -42,7 +39,7 @@ enum LiveVtoCameraFrameConverter {
 
   static func toImage(sampleBuffer: CMSampleBuffer) -> UIImage? {
     guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
-    let oriented = CIImage(cvPixelBuffer: pixelBuffer).oriented(.leftMirrored)
+    let oriented = CIImage(cvPixelBuffer: pixelBuffer).oriented(.upMirrored)
     guard let cgImage = context.createCGImage(oriented, from: oriented.extent) else { return nil }
     return UIImage(cgImage: cgImage)
   }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.kscanlivevtonative.LiveVtoRasterIntegrationTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:05:32.298Z" hostname="runnervm8k3b6" time="3.187">
+  <properties/>
+  <testcase name="controlledPoseRendersDistinctGarmentsAndCapturesPng" classname="expo.modules.kscanlivevtonative.LiveVtoRasterIntegrationTest" time="3.122"/>
+  <testcase name="modelBytesArePinnedAndCorruptionIsRejected" classname="expo.modules.kscanlivevtonative.LiveVtoRasterIntegrationTest" time="0.065"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[[Robolectric] WARN: Android SDK 36 requires Java 21 (have Java 17). Tests won't be run on SDK 36 unless explicitly requested.
+]]></system-err>
+</testsuite>

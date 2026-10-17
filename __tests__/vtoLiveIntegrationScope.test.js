@@ -312,9 +312,13 @@ test('guard: generative backend stays read-only outside the exact Build 35 entit
     );
     assert.equal(
       productionEnv.EXPO_PUBLIC_VTO_UI_ENABLED,
-      undefined,
-      'ordinary production must remain dark during certification activation',
+      'true',
+      'Build 35 completion retains the approved production VTO UI',
     );
+    assert.equal(productionEnv.EXPO_PUBLIC_LIVE_VTO_ENABLED, 'true', 'Build 35 completion carries the genuine Live runtime');
+    for (const profile of Object.values(eas.build)) {
+      assert.notEqual(profile.env?.EXPO_PUBLIC_LIVE_VTO_HARNESS_ENABLED, 'true', 'simulated harness must remain disabled');
+    }
   }
 });
 

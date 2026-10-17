@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.kscanlivevtonative.ReplayRuntimeTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:05:36.044Z" hostname="runnervm8k3b6" time="0.387">
+  <properties/>
+  <testcase name="switchingToAnInvalidGarmentFailsClosedWithoutCorruptingTheSession" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.003"/>
+  <testcase name="producerClockIsIndependentOfRenderCadence" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.255"/>
+  <testcase name="switchingGarmentMidReplayTakesEffectWithoutRestartAndLeavesNoStaleState" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.003"/>
+  <testcase name="disposeDuringPlaybackStopsProductionAndEmitsNothingFurther" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.001"/>
+  <testcase name="replayEventsCarryOnlyBoundedStateAndNoFrameData" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.003"/>
+  <testcase name="eofStopsProductionEmitsATerminalStateAndAllowsRestart" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.001"/>
+  <testcase name="disposeIsSafeWhileAProducerThreadIsRunning" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.062"/>
+  <testcase name="producerOutrunningConsumerDropsStaleFramesAndStaysBounded" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.019"/>
+  <testcase name="garmentMovesOverTimeAndStaysSynchronisedWithTheFrameIndex" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.003"/>
+  <testcase name="rapidStartStopCyclesAreSafe" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.002"/>
+  <testcase name="repeatedStartRunStopDisposeCyclesDoNotGrowUnbounded" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.018"/>
+  <testcase name="eventCountIsBoundedByTransitionsNotByFrameCount" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.012"/>
+  <testcase name="lifecycleFollowsTheDeclaredStateMachine" classname="expo.modules.kscanlivevtonative.ReplayRuntimeTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[Exception in thread "pool-8-thread-1" java.lang.InterruptedException: sleep interrupted
+	at java.base/java.lang.Thread.sleep(Native Method)
+	at expo.modules.kscanlivevtonative.ReplayRuntimeTest.producerClockIsIndependentOfRenderCadence$lambda$9(ReplayRuntimeTest.kt:256)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+]]></system-err>
+</testsuite>

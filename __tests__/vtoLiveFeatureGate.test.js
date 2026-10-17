@@ -1,13 +1,6 @@
-// P3-C: the Live VTO feature gate, the harness lock, and safe module absence.
-//
-// THE LAUNCH POSTURE THIS FILE PINS. Live defaults OFF, is set in no EAS
-// profile, is a DIFFERENT switch from the generative VTO flag, and cannot be
-// reached by a customer on any build that exists today. A build with no Live
-// native module -- which is every build -- starts normally and shows exactly
-// the AI Photo experience it showed before this lane existed.
-//
-// These are the assertions that make "this PR is safe to merge without
-// exposing Live" a checked claim rather than an intention.
+// Build 35 completion: six approved profiles carry the real Live runtime.
+// Runtime defaults and unknown capability still fail closed; simulation is
+// disabled in release profiles and operator Live can be disabled separately.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -86,16 +79,15 @@ test('flag: Live is a DIFFERENT switch from the generative VTO surface', () => {
   assert.ok(!vtoResolver.includes('EXPO_PUBLIC_LIVE_VTO_ENABLED'));
 });
 
-test('flag: no EAS profile sets it -- production and staging included', () => {
-  const forbidden = ['EXPO_PUBLIC_LIVE_VTO_ENABLED', 'EXPO_PUBLIC_LIVE_VTO_HARNESS'];
+test('flag: native Live is configured only in the approved Build 35 profiles; harness stays absent', () => {
+  const approved = new Set(['production', 'staging', 'build35-release']);
+  const effective = new Set(['production', 'build35-release', 'build35-testing', 'production-certification', 'staging', 'staging-certification']);
+  const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
   for (const [name, profile] of Object.entries(easProfiles)) {
     const env = profile.env ?? {};
-    for (const key of forbidden) {
-      assert.ok(
-        !(key in env),
-        `${name} must not define ${key} -- Live is not enabled anywhere by this lane`,
-      );
-    }
+    assert.equal(env.EXPO_PUBLIC_LIVE_VTO_ENABLED, approved.has(name) ? 'true' : undefined, name);
+    assert.ok(!('EXPO_PUBLIC_LIVE_VTO_HARNESS' in env), name + ' must not enable a simulated runtime');
+    assert.equal(resolveEasBuildProfile({ build: easProfiles }, name).env.EXPO_PUBLIC_LIVE_VTO_ENABLED, effective.has(name) ? 'true' : undefined, name + ' resolved');
   }
 });
 

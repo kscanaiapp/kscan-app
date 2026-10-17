@@ -38,14 +38,29 @@ public final class LiveVtoCameraController: NSObject {
   public private(set) var state: CameraControllerState = .idle
   private let onStateChanged: (CameraControllerState, String?) -> Void
 
+  private let lifecycleLock = NSLock()
+  private var generation = 0
+  private var acceptingFrames = false
+  private func beginGeneration() -> Int {
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }
+    generation += 1; acceptingFrames = true
+    return generation
+  }
+  private func isCurrent(_ epoch: Int) -> Bool {
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }
+    return acceptingFrames && generation == epoch
+  }
+  private weak var previewLayer: AVCaptureVideoPreviewLayer?
   private let session = AVCaptureSession()
   private let sessionQueue = DispatchQueue(label: "kscan-live-vto-camera-session")
   private let analysisQueue = DispatchQueue(label: "kscan-live-vto-camera-analysis")
 
   public init(previewLayer: AVCaptureVideoPreviewLayer, onStateChanged: @escaping (CameraControllerState, String?) -> Void = { _, _ in }) {
     self.onStateChanged = onStateChanged
+    self.previewLayer = previewLayer
     super.init()
     previewLayer.session = session
+    previewLayer.videoGravity = .resizeAspect
   }
 
   public func start() {
@@ -54,11 +69,13 @@ public final class LiveVtoCameraController: NSObject {
       transition(.permissionDenied, "AVCaptureDevice authorization is not .authorized")
       return
     }
+    let epoch = beginGeneration()
     transition(.starting, nil)
-    sessionQueue.async { [weak self] in self?.configureAndStart() }
+    sessionQueue.async { [weak self] in self?.configureAndStart(epoch: epoch) }
   }
 
-  private func configureAndStart() {
+  private func configureAndStart(epoch: Int) {
+    guard isCurrent(epoch) else { return }
     session.beginConfiguration()
     defer { session.commitConfiguration() }
 
@@ -72,11 +89,11 @@ public final class LiveVtoCameraController: NSObject {
     session.outputs.forEach { session.removeOutput($0) }
 
     guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
-      finishOnMain(.error, "no front camera device available")
+      finishOnMain(.error, "no front camera device available", epoch: epoch)
       return
     }
     guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else {
-      finishOnMain(.error, "could not create/add AVCaptureDeviceInput")
+      finishOnMain(.error, "could not create/add AVCaptureDeviceInput", epoch: epoch)
       return
     }
     session.addInput(input)
@@ -87,7 +104,7 @@ public final class LiveVtoCameraController: NSObject {
     output.alwaysDiscardsLateVideoFrames = true
     output.setSampleBufferDelegate(self, queue: analysisQueue)
     guard session.canAddOutput(output) else {
-      finishOnMain(.error, "could not add AVCaptureVideoDataOutput")
+      finishOnMain(.error, "could not add AVCaptureVideoDataOutput", epoch: epoch)
       return
     }
     session.addOutput(output)
@@ -97,27 +114,51 @@ public final class LiveVtoCameraController: NSObject {
       // rather than read dynamically: this lane does not support landscape
       // device rotation for the Live VTO camera screen.
       connection.videoOrientation = .portrait
+      if connection.isVideoMirroringSupported {
+        connection.automaticallyAdjustsVideoMirroring = false
+        connection.isVideoMirrored = false // converter mirrors once
+      }
     }
 
-    session.startRunning()
-    finishOnMain(.running, nil)
+    // commitConfiguration must precede startRunning (AVFoundation precondition).
+    sessionQueue.async { [weak self] in
+      guard let self = self, self.isCurrent(epoch) else { return }
+      self.session.startRunning()
+      self.finishOnMain(.running, nil, epoch: epoch)
+    }
   }
 
-  private func finishOnMain(_ next: CameraControllerState, _ reason: String?) {
-    DispatchQueue.main.async { [weak self] in self?.transition(next, reason) }
+  private func finishOnMain(_ next: CameraControllerState, _ reason: String?, epoch: Int) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self, self.isCurrent(epoch) else { return }
+      if next == .running, let connection = self.previewLayer?.connection {
+        if connection.isVideoOrientationSupported { connection.videoOrientation = .portrait }
+        if connection.isVideoMirroringSupported {
+          connection.automaticallyAdjustsVideoMirroring = false
+          connection.isVideoMirrored = true
+        }
+      }
+      self.transition(next, reason)
+    }
   }
 
   public func stop() {
     guard state != .idle, state != .stopped else { return }
+    lifecycleLock.lock()
+    generation += 1; acceptingFrames = false
+    lifecycleLock.unlock()
+    transition(.stopped, nil)
     frameSlot.clear()
-    sessionQueue.async { [weak self] in
-      guard let self = self else { return }
-      if self.session.isRunning { self.session.stopRunning() }
-      self.finishOnMain(.stopped, nil)
+    captureSlot.clear()
+    sessionQueue.async { [session, frameSlot, captureSlot] in
+      if session.isRunning { session.stopRunning() }
+      frameSlot.clear()
+      captureSlot.clear()
     }
   }
 
   /// Called by the perception producer tick. Never blocks; never invents a frame when none has arrived.
+  public let captureSlot = LatestStateSlot<PerceptionInputFrame>()
   public func latestFrame() -> PerceptionInputFrame? { frameSlot.consume() }
 
   /// Always invoked on the main thread -- either directly (start/stop are
@@ -135,6 +176,10 @@ extension LiveVtoCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
       os_log("camera frame conversion failed", log: cameraLog, type: .error)
       return
     }
-    frameSlot.publish(LiveVtoStaticImageFrame(image: image))
+    lifecycleLock.lock(); defer { lifecycleLock.unlock() }
+    guard acceptingFrames else { return }
+    let frame = LiveVtoStaticImageFrame(image: image)
+    captureSlot.publish(frame)
+    frameSlot.publish(frame)
   }
 }

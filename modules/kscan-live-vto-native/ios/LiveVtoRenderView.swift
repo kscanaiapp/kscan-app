@@ -90,6 +90,9 @@ public final class LiveVtoRenderView: ExpoView {
     else {
       throw LiveVtoGarmentValidationError("fixture manifest not found: \(name)/manifest.json")
     }
+    guard LiveVtoBundledAssetIntegrity.validate(name, "manifest.json", try Data(contentsOf: manifestURL)) else {
+      throw LiveVtoGarmentValidationError("GARMENT_INTEGRITY_FAILED")
+    }
     let manifest = try KsgarmentManifest.parseAssetManifest(manifestText)
 
     guard
@@ -101,6 +104,10 @@ public final class LiveVtoRenderView: ExpoView {
       throw LiveVtoGarmentValidationError("fixture texture/alpha not found under \(name)/")
     }
 
+    guard LiveVtoBundledAssetIntegrity.validate(name, manifest.texture, try Data(contentsOf: textureURL)),
+          LiveVtoBundledAssetIntegrity.validate(name, manifest.alphaMask, try Data(contentsOf: alphaURL)) else {
+      throw LiveVtoGarmentValidationError("GARMENT_INTEGRITY_FAILED")
+    }
     let combined: CGImage
     if let cached = combinedImageCache[name] {
       combined = cached
@@ -252,6 +259,10 @@ public final class LiveVtoRenderView: ExpoView {
   private var cameraController: LiveVtoCameraController?
   private var cameraPerceptionSession: LiveVtoPerceptionSession?
   private var cameraPerceptionDriver: LiveVtoPerceptionDriver?
+  private var cameraManifestProductId: String?
+  private var cameraSnapshot: GeometrySnapshot?
+  private var cameraSnapshotAt: TimeInterval = 0
+  private var trackingVisible = false
   private var cameraImage: CGImage?
   private var cameraPreviewContainer: LiveVtoCameraPreviewContainerView?
   private var cameraMeshOverlay: LiveVtoMeshOverlayView?
@@ -274,8 +285,9 @@ public final class LiveVtoRenderView: ExpoView {
   private func startCamera() {
     if cameraController != nil { return }
     do {
-      let (manifest, image, dims) = try loadFixture("n1b-fixture")
+      let (manifest, image, dims) = try loadFixture(loadedGarment?.assetKey ?? "n1b-fixture")
       cameraImage = image
+      cameraManifestProductId = manifest.productId
 
       let previewContainer = LiveVtoCameraPreviewContainerView(frame: bounds)
       previewContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -300,28 +312,50 @@ public final class LiveVtoRenderView: ExpoView {
       }
       cameraController = controller
 
+      let myGeneration = sessionGeneration
       let provider = LiveVtoMediaPipePoseProvider()
       let session = LiveVtoPerceptionSession(
         provider: provider, canvasWidth: Float(renderCanvasW), canvasHeight: Float(renderCanvasH),
-        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } })
-      guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
-        loadError = "camera perception load refused: \(session.currentState())"
-        return
+        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } },
+        onSnapshotComputed: { [weak self] snapshot in DispatchQueue.main.async {
+          guard let self = self, self.sessionGeneration == myGeneration,
+            self.loadedGarment == nil || self.cameraManifestProductId == snapshot.activeAssetId else { return }
+          self.cameraSnapshot = snapshot
+          self.cameraSnapshotAt = ProcessInfo.processInfo.systemUptime
+          self.cameraMeshOverlay?.setNeedsDisplay()
+        } },
+        onPoseUnavailable: { [weak self] in DispatchQueue.main.async {
+          guard let self = self, self.sessionGeneration == myGeneration else { return }
+          self.cameraSnapshot = nil
+          self.cameraMeshOverlay?.setNeedsDisplay()
+        } })
+      // Keep the main queue and its ten-second deadline responsive while loading MediaPipe.
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        let prepared = session.load(manifest, textureWidth: dims.0, textureHeight: dims.1)
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self, self.sessionGeneration == myGeneration,
+            self.cameraController === controller else {
+            DispatchQueue.global(qos: .utility).async { _ = session.dispose() }
+            return
+          }
+          guard prepared, session.start() else {
+            DispatchQueue.global(qos: .utility).async { _ = session.dispose() }
+            self.loadError = "camera perception initialization failed"
+            self.handleCameraControllerStateForSession(.error)
+            self.stopCamera()
+            return
+          }
+          self.cameraPerceptionSession = session
+          let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
+          self.cameraPerceptionDriver = driver
+          driver.start()
+          controller.start()
+        }
       }
-      session.start()
-      cameraPerceptionSession = session
-      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
-      cameraPerceptionDriver = driver
-      driver.start()
-      // The camera producer (AVCaptureVideoDataOutput's own delegate
-      // callback) starts only once the perception session is READY to
-      // receive frames -- starting it first would let camera-produced
-      // frames pile up against a slot nothing is draining yet, which
-      // `LatestStateSlot` would count as drops that never represented real
-      // backpressure.
-      controller.start()
     } catch {
       loadError = "\(error)"
+      handleCameraControllerStateForSession(.error)
+      stopCamera()
     }
   }
 
@@ -337,6 +371,8 @@ public final class LiveVtoRenderView: ExpoView {
     cameraMeshOverlay?.removeFromSuperview()
     cameraMeshOverlay = nil
     cameraImage = nil
+    cameraSnapshot = nil
+    trackingVisible = false
   }
 
   /// Bounded end-to-end telemetry for gate evidence: the camera boundary's
@@ -364,23 +400,22 @@ public final class LiveVtoRenderView: ExpoView {
 
   private func drawCameraOverlay(_ context: CGContext, rect: CGRect) {
     guard let session = cameraPerceptionSession, let image = cameraImage else { return }
-    let fitScale = min(rect.width / renderCanvasW, rect.height / renderCanvasH)
-    let snapshot = session.consumeForRender() ?? session.geometrySlot.peek()
+    let frameSize = (cameraController?.captureSlot.peek() as? LiveVtoStaticImageFrame)?.image.size ?? CGSize(width: renderCanvasW, height: renderCanvasH)
+    let fitScale = min(rect.width / frameSize.width, rect.height / frameSize.height)
+    _ = session.consumeForRender()
+    let snapshot = ProcessInfo.processInfo.systemUptime - cameraSnapshotAt < 0.8 ? cameraSnapshot : nil
+    let visible = snapshot?.meshVertices != nil && sessionState == .running
+    if sessionState == .running && visible != trackingVisible {
+      trackingVisible = visible
+      emitSessionEvent(visible ? "trackingAcquired" : "trackingLost")
+    }
     context.saveGState()
-    context.scaleBy(x: fitScale, y: fitScale)
+    context.translateBy(x: (rect.width - frameSize.width * fitScale) / 2, y: (rect.height - frameSize.height * fitScale) / 2)
+    context.scaleBy(x: frameSize.width * fitScale / renderCanvasW, y: frameSize.height * fitScale / renderCanvasH)
     if let verts = snapshot?.meshVertices, let snapshot = snapshot {
-      drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
+      LiveVtoRasterRenderer.drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
     }
     context.restoreGState()
-    let st = session.stats()
-    drawText(
-      context, "camera=\(cameraControllerState.rawValue) produced=\(st.produced) inferred=\(st.inferred) rendered=\(st.rendered) refused=\(st.refused)",
-      at: CGPoint(x: 20, y: 24), color: UIColor.cyan)
-    if snapshot?.meshVertices == nil {
-      drawText(
-        context, "no mesh: \(snapshot?.failure ?? snapshot?.gateFindings.description ?? "unknown")",
-        at: CGPoint(x: 20, y: 48), color: UIColor.red)
-    }
     if session.currentState() == .playing { cameraMeshOverlay?.setNeedsDisplay() }
   }
 
@@ -495,7 +530,7 @@ public final class LiveVtoRenderView: ExpoView {
     defer { endCaptureIfSessionActive() }
     let source: UIImage?
     if camera {
-      guard let frame = cameraController?.frameSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
+      guard let frame = cameraController?.captureSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
       source = frame.image
     } else if perception {
       source = perceptionSourceImage
@@ -516,9 +551,19 @@ public final class LiveVtoRenderView: ExpoView {
     guard beginCaptureIfSessionActive() else { return nil }
     defer { endCaptureIfSessionActive() }
     guard bounds.width > 0, bounds.height > 0 else { return nil }
+    if camera && cameraController?.captureSlot.peek() == nil { return nil }
     let renderer = UIGraphicsImageRenderer(bounds: bounds)
     let image = renderer.image { context in
-      layer.render(in: context.cgContext)
+      if camera {
+        // AVCaptureVideoPreviewLayer is not rasterized by layer.render. Composite
+        // the actual native camera frame and the same mesh explicitly instead.
+        guard let frame = cameraController?.captureSlot.peek() as? LiveVtoStaticImageFrame else { return }
+        UIColor.black.setFill(); context.fill(bounds)
+        let size = frame.image.size
+        let scale = min(bounds.width / size.width, bounds.height / size.height)
+        frame.image.draw(in: CGRect(x: (bounds.width - size.width * scale) / 2, y: (bounds.height - size.height * scale) / 2, width: size.width * scale, height: size.height * scale))
+        drawCameraOverlay(context.cgContext, rect: bounds)
+      } else { layer.render(in: context.cgContext) }
     }
     return saveCapturedImage(image, kind: "PREVIEW")
   }
@@ -624,17 +669,19 @@ public final class LiveVtoRenderView: ExpoView {
   /// already moved the state off `.starting` has already made a late
   /// running/error completion here a no-op by construction.
   private func handleCameraControllerStateForSession(_ state: CameraControllerState) {
-    guard sessionState == .starting else { return }
+    guard sessionState == .starting || sessionState == .running || sessionState == .paused else { return }
     switch state {
     case .running:
+      guard sessionState == .starting else { return }
       sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeReady).next
       emitSessionEvent("ready")
     case .error, .permissionDenied:
-      sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeFailed).next
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .fatal).next
       emitSessionEvent("fatalError", [
         "state": state == .permissionDenied ? "CAMERA_PERMISSION_DENIED" : "RUNTIME_INITIALIZATION_FAILED",
         "recoverable": true,
       ])
+      camera = false
     default:
       break
     }
@@ -645,7 +692,17 @@ public final class LiveVtoRenderView: ExpoView {
     guard result.accepted else { return false }
     sessionState = result.next
     sessionGeneration += 1
-    startCamera()
+    camera = false // restart releases any old failed pipeline
+    camera = true
+    let epoch = sessionGeneration
+    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+      guard let self = self, self.sessionGeneration == epoch,
+        self.sessionState == .starting || self.sessionState == .running,
+        (self.cameraController?.frameSlot.publishedCount ?? 0) == 0 else { return }
+      self.sessionState = .error
+      self.emitSessionEvent("fatalError", ["state": "RUNTIME_INITIALIZATION_FAILED", "recoverable": true])
+      self.camera = false
+    }
     return true
   }
 
@@ -656,7 +713,7 @@ public final class LiveVtoRenderView: ExpoView {
     sessionState = result.next
     if before == .created || before == .stopped { return true } // idempotent no-op
     sessionGeneration += 1 // invalidate any in-flight start/garment-load for the prior epoch
-    stopCamera()
+    camera = false
     sessionState = LiveVtoSessionMachine.complete(sessionState, .stopped).next
     return true
   }
@@ -681,7 +738,7 @@ public final class LiveVtoRenderView: ExpoView {
   func disposeSession() -> Bool {
     let result = LiveVtoSessionMachine.apply(sessionState, .dispose)
     sessionGeneration += 1
-    stopCamera()
+    camera = false
     sessionState = result.next
     loadedGarment = nil
     sessionEventSink = nil
@@ -720,7 +777,7 @@ public final class LiveVtoRenderView: ExpoView {
     let myGeneration = sessionGeneration
     do {
       let (manifest, image, dims) = try loadFixture(descriptor.assetKey)
-      guard assetIdentityMatches(manifest, descriptor) else {
+      guard assetIdentityMatches(manifest, descriptor), LiveVtoBundledAssetIntegrity.identityMatches(descriptor.assetKey, descriptor.assetId) else {
         throw LiveVtoGarmentValidationError(
           "asset version mismatch for \(descriptor.assetKey): requested \(descriptor.assetVersion), manifest reports \(manifest.assetVersion)")
       }
@@ -732,6 +789,8 @@ public final class LiveVtoRenderView: ExpoView {
       // draw its image. The perception session refuses a load while playing or
       // paused, hence the stop first. A failed swap fails closed through the
       // same garmentLoadFailed path as any other load failure.
+      cameraSnapshot = nil
+      cameraManifestProductId = manifest.productId
       if let perception = cameraPerceptionSession {
         let before = perception.currentState()
         let wasRunning = before == .playing || before == .paused
@@ -867,71 +926,6 @@ public final class LiveVtoRenderView: ExpoView {
   /// source image (which lands correctly only inside the clipped region).
   /// This is a standard, textbook technique for warping an image over an
   /// arbitrary triangle mesh using only Core Graphics primitives.
-  private func drawMesh(_ context: CGContext, image: CGImage, meshCellsWide: Int, meshCellsHigh: Int, verts: [Float], textureWidth: Int, textureHeight: Int) {
-    guard meshCellsWide > 0, meshCellsHigh > 0, textureWidth > 0, textureHeight > 0 else { return }
-    let vertsPerRow = meshCellsWide + 1
-    func destAt(_ col: Int, _ row: Int) -> CGPoint {
-      let i = (row * vertsPerRow + col) * 2
-      return CGPoint(x: CGFloat(verts[i]), y: CGFloat(verts[i + 1]))
-    }
-    func sourceAt(_ col: Int, _ row: Int) -> CGPoint {
-      CGPoint(x: CGFloat(col) / CGFloat(meshCellsWide) * CGFloat(textureWidth),
-              y: CGFloat(row) / CGFloat(meshCellsHigh) * CGFloat(textureHeight))
-    }
-    for row in 0..<meshCellsHigh {
-      for col in 0..<meshCellsWide {
-        let d00 = destAt(col, row), d10 = destAt(col + 1, row), d01 = destAt(col, row + 1), d11 = destAt(col + 1, row + 1)
-        let s00 = sourceAt(col, row), s10 = sourceAt(col + 1, row), s01 = sourceAt(col, row + 1), s11 = sourceAt(col + 1, row + 1)
-        drawTriangle(context, image: image, src: (s00, s10, s01), dst: (d00, d10, d01))
-        drawTriangle(context, image: image, src: (s10, s11, s01), dst: (d10, d11, d01))
-      }
-    }
-  }
-
-  private func drawTriangle(_ context: CGContext, image: CGImage, src: (CGPoint, CGPoint, CGPoint), dst: (CGPoint, CGPoint, CGPoint)) {
-    // Solve the affine transform T with T(src.0)=dst.0, T(src.1)=dst.1, T(src.2)=dst.2.
-    // Edge vectors: M_src * A = M_dst  =>  A = M_dst * M_src^-1 (2x2), then translation from src.0/dst.0.
-    let sx1 = Double(src.1.x - src.0.x), sy1 = Double(src.1.y - src.0.y)
-    let sx2 = Double(src.2.x - src.0.x), sy2 = Double(src.2.y - src.0.y)
-    let dx1 = Double(dst.1.x - dst.0.x), dy1 = Double(dst.1.y - dst.0.y)
-    let dx2 = Double(dst.2.x - dst.0.x), dy2 = Double(dst.2.y - dst.0.y)
-
-    let det = sx1 * sy2 - sy1 * sx2
-    guard abs(det) > 1e-9 else { return } // degenerate triangle -- nothing to draw
-
-    let invDet = 1.0 / det
-    // M_src^-1
-    let ia = sy2 * invDet, ib = -sy1 * invDet
-    let ic = -sx2 * invDet, id = sx1 * invDet
-
-    // A = [dx1 dx2; dy1 dy2] * [ia ib; ic id]
-    let a = dx1 * ia + dx2 * ic
-    let b = dy1 * ia + dy2 * ic
-    let c = dx1 * ib + dx2 * id
-    let d = dy1 * ib + dy2 * id
-    // translation: dst.0 = A*src.0 + t  =>  t = dst.0 - A*src.0
-    let tx = Double(dst.0.x) - (a * Double(src.0.x) + c * Double(src.0.y))
-    let ty = Double(dst.0.y) - (b * Double(src.0.x) + d * Double(src.0.y))
-
-    let transform = CGAffineTransform(a: CGFloat(a), b: CGFloat(b), c: CGFloat(c), d: CGFloat(d), tx: CGFloat(tx), ty: CGFloat(ty))
-
-    context.saveGState()
-    let path = CGMutablePath()
-    path.move(to: dst.0)
-    path.addLine(to: dst.1)
-    path.addLine(to: dst.2)
-    path.closeSubpath()
-    context.addPath(path)
-    context.clip()
-    context.concatenate(transform)
-    // Now in texture-space coordinates (post-concat): clip additionally to
-    // the alpha mask's own coverage (already baked into `image` by
-    // `combineTextureAndAlpha`, so this draw call alone carries both the
-    // garment silhouette and its texture).
-    context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-    context.restoreGState()
-  }
-
   private func drawReplayOrPerception(_ context: CGContext, rect: CGRect, isPerception: Bool) {
     let fitScale = min(rect.width / renderCanvasW, rect.height / renderCanvasH)
     let session: (state: ReplayState, consume: () -> GeometrySnapshot?, peek: () -> GeometrySnapshot?)
@@ -969,7 +963,7 @@ public final class LiveVtoRenderView: ExpoView {
     // double-flip both the image and the mesh coordinates.
     context.scaleBy(x: fitScale, y: fitScale)
     if let verts = snapshot?.meshVertices, let image = image, let snapshot = snapshot {
-      drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
+      LiveVtoRasterRenderer.drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
     }
     context.restoreGState()
     drawText(context, label, at: CGPoint(x: 20, y: 24), color: isPerception ? UIColor.cyan : UIColor.green)
@@ -1025,7 +1019,7 @@ public final class LiveVtoRenderView: ExpoView {
     }
 
     if let verts = meshVerts {
-      drawMesh(context, image: image, meshCellsWide: meshWidth, meshCellsHigh: meshHeight, verts: verts, textureWidth: lastSnapshot?.textureWidth ?? image.width, textureHeight: lastSnapshot?.textureHeight ?? image.height)
+      LiveVtoRasterRenderer.drawMesh(context, image: image, meshCellsWide: meshWidth, meshCellsHigh: meshHeight, verts: verts, textureWidth: lastSnapshot?.textureWidth ?? image.width, textureHeight: lastSnapshot?.textureHeight ?? image.height)
     }
     context.restoreGState()
     if meshVerts == nil {

@@ -98,6 +98,7 @@ export function buildVtoGarmentFromCommerceRecord(
   if (!productRef) return null;
   return {
     productRef,
+    ...(vtoGarmentPurchaseUrl(record) ? { productUrl: vtoGarmentPurchaseUrl(record)! } : {}),
     imageUrl: imageUrl ?? '',
     category: String(record.category || record.imageCategory || '').trim(),
     brand:

@@ -4,52 +4,36 @@ import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
-/**
- * N1-A: scaffold + registration only.
- *
- * Registers as "KScanLiveVto" -- this exact string is
- * constants/featureFlags.ts's LIVE_VTO_NATIVE_MODULE_NAME, the value
- * services/vto/liveVtoNativeModule.ts's requireOptionalNativeModule() looks
- * up. Do not rename either side independently.
- *
- * getCapability() is synchronous (Function, not AsyncFunction) because the
- * merged application adapter calls it without awaiting
- * (describeLiveVtoNativeCapability in liveVtoNativeModule.ts) -- an
- * AsyncFunction here would hand JS a Promise where a plain object is
- * expected and silently fail every capability check.
- *
- * Field names are `capable`/`runtimeReady`/`runtimeVersion` -- the actual
- * merged LiveVtoNativeSelfCheck shape in services/vto/liveVtoNativeModule.ts,
- * not the informal "moduleAvailable" example the build mission used. Both
- * are false at N1-A: this stage proves registration only, and neither device
- * eligibility nor runtime initialization has been implemented yet. Claiming
- * `capable: true` here would be exactly the "registration is not capability"
- * mistake the application module's own header comment warns against.
- *
- * No Events() yet, no commands yet -- those are declared gate by gate
- * (N1-B..N1-G) as their real implementations land, not speculatively here.
- */
+/** Expo bridge for the single mounted native Live view. Static capability is
+ * distinct from runtime camera/tracking events and physical certification. */
 class KScanLiveVtoNativeModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("KScanLiveVto")
 
-    // Static prerequisites only, reported as separate stages, behind a closed
-    // certification gate. See LiveVtoCapabilityStages for why nothing here may
-    // read as "the camera works" and why frames/perception/rendering are not
-    // (and cannot be) reported before a session starts.
+    // Static prerequisites only. Camera and tracking are observed after Start.
     Function("getCapability") {
       val context = appContext.reactContext
-      val modelPresent = try {
-        context?.assets?.open(LiveVtoMediaPipePoseProvider.MODEL_ASSET_PATH)?.close() != null
-      } catch (t: Throwable) {
-        false
-      }
+      val modelBytes = try {
+        context?.assets?.open(LiveVtoMediaPipePoseProvider.MODEL_ASSET_PATH)?.use { it.readBytes() }
+      } catch (_: Throwable) { null }
+      // Construct the same software Canvas/mesh primitive the native view uses.
+      val rendererAvailable = try {
+        val target = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+        val texture = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+        texture.eraseColor(android.graphics.Color.WHITE)
+        android.graphics.Canvas(target).drawBitmapMesh(texture, 1, 1, floatArrayOf(0f, 0f, 2f, 0f, 0f, 2f, 2f, 2f), 0, null, 0, null)
+        val painted = target.getPixel(0, 0) != 0
+        target.recycle(); texture.recycle()
+        painted
+      } catch (_: Throwable) { false }
       LiveVtoCapabilityStages.evaluate(
         LiveVtoCapabilityStages.Inputs(
           sdkInt = android.os.Build.VERSION.SDK_INT,
           frontCameraPresent = context?.packageManager
             ?.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_FRONT) == true,
-          modelAssetPresent = modelPresent,
+          modelAssetPresent = modelBytes != null,
+          modelIntegrityValid = modelBytes?.let { LiveVtoModelIntegrity.isApproved(it) } == true,
+          rendererAvailable = rendererAvailable,
           cameraPermissionGranted = context != null &&
             androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED,
@@ -75,7 +59,7 @@ class KScanLiveVtoNativeModule : Module() {
     AsyncFunction("capturePersonFrame") {
       val view = LiveVtoTestRenderView.currentInstance()
         ?: throw CodedException("NO_ACTIVE_SESSION", "capturePersonFrame called with no active Live VTO view", null)
-      val result = view.captureCleanFrame()
+      val result = runOnMainThreadBlocking { view.captureCleanFrame() }
         ?: throw CodedException("CAPTURE_UNAVAILABLE", "no clean person frame is currently available to capture", null)
       mapOf(
         "captureId" to result.captureId,
@@ -89,7 +73,7 @@ class KScanLiveVtoNativeModule : Module() {
     AsyncFunction("capturePreview") {
       val view = LiveVtoTestRenderView.currentInstance()
         ?: throw CodedException("NO_ACTIVE_SESSION", "capturePreview called with no active Live VTO view", null)
-      val result = view.captureCompositedFrame()
+      val result = runOnMainThreadBlocking { view.captureCompositedFrame() }
         ?: throw CodedException("CAPTURE_UNAVAILABLE", "no composited preview is currently available to capture", null)
       mapOf(
         "captureId" to result.captureId,
@@ -271,7 +255,7 @@ class KScanLiveVtoNativeModule : Module() {
   }
 
   companion object {
-    private const val RUNTIME_VERSION = "n1-a"
+    private const val RUNTIME_VERSION = "build35-live-v1"
   }
 }
 

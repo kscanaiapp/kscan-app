@@ -1,0 +1,192 @@
+{
+  "recordedAt": "2026-10-17T00:00:11.718Z",
+  "evidenceClass": "CONTROLLED_NATIVE_TEST_NOT_DEVICE_CERTIFICATION",
+  "android": {
+    "tests": 97,
+    "failures": 0,
+    "skipped": 0,
+    "compile": "passed",
+    "pixelArtifacts": [
+      "empty",
+      "n1b-fixture",
+      "n1c-asym-fixture",
+      "ascolour-5001-black-v1"
+    ],
+    "ciRun": 38984316111,
+    "ciJob": 117252114902,
+    "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2"
+  },
+  "js": {
+    "tests": 979,
+    "passed": 975,
+    "failures": 0,
+    "skipped": 4
+  },
+  "phase4": {
+    "tests": 87,
+    "passed": 87,
+    "failures": 0
+  },
+  "assets": [
+    {
+      "assetKey": "n1b-fixture",
+      "productRef": "p4-multi-image-product",
+      "assetId": "081350cef7f5c83e05c3e6c1",
+      "category": "top",
+      "qa": {
+        "silhouette": {
+          "fillRatio": 0.5961731140490213,
+          "compactness": 1.3446622499724994,
+          "maskToBboxAreaNote": "fillRatio/compactness are intrinsic self-consistency measures, not a comparison to an external reference mask"
+        },
+        "color": {
+          "computable": true,
+          "referenceClass": "REFERENCE_AVAILABLE",
+          "value": 0,
+          "detail": "mean masked color delta from known synthetic fill color: 0.00"
+        },
+        "logo": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for logo placement/appearance exists for this source"
+        },
+        "pattern": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for pattern structure exists for this source"
+        },
+        "passed": true,
+        "failureReasons": []
+      },
+      "eligibility": {
+        "live2d": true,
+        "live3d": false,
+        "reason": null
+      },
+      "sourceSha256": "26bdf8130586d29b69b9d149ea3f885807447ef2482c5382f2721a8cdf8aebf1",
+      "hashes": {
+        "manifest.json": "32f311c39566b448b1a37c4f9e9286437f245ffdad25b4876e4d3a1ae21bce2d",
+        "texture.png": "5deca90a677b8ab31f01108b865641eccafb2f3f8f3c21083944acc9adec4393",
+        "alpha.png": "709dda03727503c3cccfd9ad8193b35cc576703a01cf4661f9215aa2ce312c00"
+      },
+      "androidBundled": true,
+      "iosBundled": true
+    },
+    {
+      "assetKey": "n1c-asym-fixture",
+      "productRef": "n1c-asym-marker",
+      "assetId": "n1c-asym-marker-fixture",
+      "category": "top",
+      "qa": {
+        "silhouette": {
+          "fillRatio": 0.5961731140490213,
+          "compactness": 1.3446622499724994,
+          "maskToBboxAreaNote": "fillRatio/compactness are intrinsic self-consistency measures, not a comparison to an external reference mask"
+        },
+        "color": {
+          "computable": true,
+          "referenceClass": "REFERENCE_AVAILABLE",
+          "value": 0,
+          "detail": "mean masked color delta from known synthetic fill color: 0.00"
+        },
+        "logo": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for logo placement/appearance exists for this source"
+        },
+        "pattern": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for pattern structure exists for this source"
+        },
+        "passed": true,
+        "failureReasons": []
+      },
+      "eligibility": {
+        "live2d": true,
+        "live3d": false,
+        "reason": null
+      },
+      "sourceSha256": "5deca90a677b8ab31f01108b865641eccafb2f3f8f3c21083944acc9adec4393",
+      "hashes": {
+        "manifest.json": "3d8aafb41bcbfb444312a95741ef41c1c5a59577ab118a96171982f7e7ac1347",
+        "texture.png": "9c0e24fd94f10477c80677061ad7c49fbcd2237959dd0e30565fc840cbdb67f8",
+        "alpha.png": "709dda03727503c3cccfd9ad8193b35cc576703a01cf4661f9215aa2ce312c00"
+      },
+      "androidBundled": true,
+      "iosBundled": true
+    },
+    {
+      "assetKey": "ascolour-5001-black-v1",
+      "productRef": "https://ascolour.com/staple-tee-5001/?Colour=Black",
+      "assetId": "524ab66a3f16bda5c3d7f9fe",
+      "category": "top",
+      "qa": {
+        "silhouette": {
+          "fillRatio": 0.5963866493281318,
+          "compactness": 1.4761867825131296,
+          "maskToBboxAreaNote": "fillRatio/compactness are intrinsic self-consistency measures, not a comparison to an external reference mask"
+        },
+        "color": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground-truth color exists for this source; only the pipeline's own extraction is available, which cannot certify its own fidelity"
+        },
+        "logo": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for logo placement/appearance exists for this source"
+        },
+        "pattern": {
+          "computable": false,
+          "referenceClass": "NO_REFERENCE",
+          "detail": "no independent ground truth for pattern structure exists for this source"
+        },
+        "passed": true,
+        "failureReasons": []
+      },
+      "eligibility": {
+        "live2d": true,
+        "live3d": false,
+        "reason": null
+      },
+      "sourceSha256": "59003a90b1987d5e09b3c86d8f8e29ee0feb07670e73dcb8dc005da35137ce49",
+      "hashes": {
+        "manifest.json": "da3fa1a0613f0923d26acbde8aca401759fc6909521ea97083acb005310cdf79",
+        "texture.png": "c5ff5abfa5898fabe4ec1ae1d8a43cebad282ad570ae966d81fcbdddf983afe6",
+        "alpha.png": "2c189b257d48fdbbe7614fb381fb755f6320d73af168da25954726101c6ca7ba"
+      },
+      "androidBundled": true,
+      "iosBundled": true
+    }
+  ],
+  "ios": {
+    "tests": 86,
+    "status": "SwiftPM passed",
+    "sourceHead": "1a3fbe3e18a0a9731d8a6101b32a4eb79f9d7da2",
+    "ciRun": 38984316111,
+    "ciJob": 117252115040,
+    "deviceCertified": false,
+    "simulatorCompile": "passed",
+    "simulatorJob": 117252484303
+  },
+  "renderArtifacts": {
+    "android": {
+      "ascolour-5001-black-v1.png": "801f98b85a2aa8359f4e79205aec8ce7d90defc95f8f63ec6fc89bd16b488680",
+      "empty.png": "0cbf985498305e13cee66c38760ec406f4e33ec5fa0f769b77bd2501ab7cae4a",
+      "n1b-fixture.png": "3458aad0f4cc7554f9e8471b63fbc1aaa8f76a67bdcec7b6e0cf293fefd4311a",
+      "n1c-asym-fixture.png": "ec6b713d43c3087ee64509918fa10721931a1ddfe73a7bfedd3a761efe55f32f"
+    },
+    "ios": {
+      "ascolour-5001-black-v1.png": "c590d96b2cfb5db0c5935d6ad50f39565dbeeb0d571e9adfce8624d7a3326cd9",
+      "n1b-fixture.png": "f231398710fcef6e105fc0243ce0c9a666f814112b211ac355269e3b19ae0aad",
+      "n1c-asym-fixture.png": "db73e46d5e08f09d9f66c13b83d113c1e6259e2391b981bd4a74ce646cbd77ba"
+    }
+  },
+  "fullRepository": {
+    "tests": 11221,
+    "passed": 11125,
+    "failed": 0,
+    "skipped": 96
+  }
+}

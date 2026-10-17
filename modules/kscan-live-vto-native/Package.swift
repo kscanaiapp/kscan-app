@@ -30,9 +30,10 @@ let package = Package(
       name: "LiveVtoCore",
       path: "ios/Core"
     ),
+    .target(name: "LiveVtoRendering", path: "ios/Rendering"),
     .testTarget(
       name: "LiveVtoCoreTests",
-      dependencies: ["LiveVtoCore"],
+      dependencies: ["LiveVtoCore", "LiveVtoRendering"],
       path: "Tests/LiveVtoCoreTests"
     ),
   ]

@@ -212,11 +212,13 @@ export interface LiveVtoReadinessStages {
   platformSupported: boolean | null;
   frontCameraPresent: boolean | null;
   modelAssetPresent: boolean | null;
+  modelIntegrityValid: boolean | null;
+  rendererAvailable: boolean | null;
   cameraPermission: 'granted' | 'not_granted' | null;
   physicalCertification: 'approved' | 'not_approved' | null;
 }
 
-const READINESS_BOOLEAN_STAGES = ['platformSupported', 'frontCameraPresent', 'modelAssetPresent'] as const;
+const READINESS_BOOLEAN_STAGES = ['platformSupported', 'frontCameraPresent', 'modelAssetPresent', 'modelIntegrityValid', 'rendererAvailable'] as const;
 
 /**
  * Reads the native module's stage report, bounded: only the known keys, only
@@ -245,6 +247,8 @@ export function describeLiveVtoReadinessStages(
     platformSupported: null,
     frontCameraPresent: null,
     modelAssetPresent: null,
+    modelIntegrityValid: null,
+    rendererAvailable: null,
     cameraPermission: null,
     physicalCertification: null,
   };

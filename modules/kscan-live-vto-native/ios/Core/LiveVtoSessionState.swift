@@ -90,7 +90,7 @@ public enum LiveVtoSessionMachine {
     switch command {
     case .start:
       switch current {
-      case .created, .stopped, .error: next = .starting
+      case .created, .ready, .stopped, .error: next = .starting
       default: next = nil
       }
     case .loadGarment:
@@ -180,7 +180,7 @@ public struct LiveVtoGarmentDescriptor: Equatable {
   /// and Android's own `LiveVtoGarmentDescriptor.SUPPORTED_ASSET_KEYS` --
   /// re-declared, not imported, same reasoning as the rest of this file's
   /// re-declared TS contract.
-  public static let supportedAssetKeys: Set<String> = ["n1b-fixture", "n1c-asym-fixture"]
+  public static let supportedAssetKeys: Set<String> = ["n1b-fixture", "n1c-asym-fixture", "ascolour-5001-black-v1"]
 
   public let productRef: String
   public let imageUrl: String

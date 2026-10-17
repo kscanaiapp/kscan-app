@@ -8,6 +8,7 @@
 // when every Live control agrees; AI Photo is described as a visualization and
 // never as a promise of fit or size.
 import React from 'react';
+import { LiveVtoPilotProduct } from '../components/vto/LiveVtoPilotProduct';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -80,6 +81,7 @@ function StudioContent() {
             <View style={styles.liveBlock} testID="try-on-studio-live">
               <Text style={styles.sectionTitle} accessibilityRole="header">{COPY.liveTitle}</Text>
               <Text style={styles.body}>{COPY.liveBody}</Text>
+              <LiveVtoPilotProduct />
             </View>
           ) : null}
 

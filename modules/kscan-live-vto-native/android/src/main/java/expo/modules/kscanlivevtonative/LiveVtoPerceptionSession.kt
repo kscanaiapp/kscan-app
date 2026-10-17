@@ -47,6 +47,7 @@ class LiveVtoPerceptionSession(
   private val onEvent: (ReplayEvent) -> Unit = {},
   /** Diagnostic-only observer, fired synchronously on the perception thread right after a geometry snapshot is computed (whether or not its rigid gate passed). Never used to leak data across the JS bridge -- Android-side logging only. */
   private val onSnapshotComputed: (GeometrySnapshot) -> Unit = {},
+  private val onPoseUnavailable: () -> Unit = {},
 ) {
   private val lock = Any()
 
@@ -203,10 +204,16 @@ class LiveVtoPerceptionSession(
           }
           is LiveVtoBodyFrameAdapter.Result.NoUsablePose, is LiveVtoBodyFrameAdapter.Result.InvalidProviderOutput -> {
             refusedCount.incrementAndGet()
+            geometrySlot.clear()
+            onPoseUnavailable()
           }
         }
       }
-      is PerceptionResult.NoPose, is PerceptionResult.Failure -> refusedCount.incrementAndGet()
+      is PerceptionResult.NoPose, is PerceptionResult.Failure -> {
+        refusedCount.incrementAndGet()
+        geometrySlot.clear()
+        onPoseUnavailable()
+      }
     }
     return true
   }

@@ -147,7 +147,7 @@ test('production public environment, when stated, must be production', () => {
 });
 test('unsupported or demonstration-only capability enabled in production is rejected as unapproved', () => {
   assert.match(productionFixture((env) => { env.EXPO_PUBLIC_NEW_UNCERTIFIED_FEATURE = 'true'; }), /unapproved public capability/);
-  assert.match(productionFixture((env) => { env.EXPO_PUBLIC_LIVE_VTO_ENABLED = 'true'; }), /absent or explicitly false/);
+  assert.match(productionFixture((env) => { env.EXPO_PUBLIC_LIVE_VTO_HARNESS = 'true'; }), /absent or explicitly false/);
 });
 test('production cannot inherit a certification profile, simulator build or internal distribution', () => {
   const inherit = input(); inherit.profileName = 'production';

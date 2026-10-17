@@ -216,29 +216,22 @@ export function VirtualTryOnSheet({
   // Called unconditionally to satisfy the rules of hooks. With a null
   // descriptor it starts nothing, subscribes to nothing, and never loads the
   // native module or the camera.
+  const liveVisible = liveOffered && mode === 'live' && !liveCrashed;
+  const aiPhotoVisible = !liveVisible;
   const live = useVtoLiveSession({
+    active: visible && liveVisible,
     descriptor: liveDescriptor,
     // The clean person frame joins the ORDINARY generative flow here: same
     // store, same client, same Edge Function, same governance. The visible
     // surface switches to the generative view while the Live session stays
     // alive behind it, so a completed or failed generation can return to Live.
     onPhotorealPerson: (person) => {
-      // LIVE IS DARK: no build flag, no native runtime. Before Live can be
-      // switched on it needs its own consent step BEFORE the frame is captured;
-      // asking after the capture, at this line, would be too late to be honest.
-      // Until then this stays safe by construction: the hook hands the store the
-      // consent proof, and the store refuses the real transport without it, so a
-      // Live capture can never be transmitted ahead of the customer's yes. Left
-      // as a literal vto.generate() because vtoLivePhotorealHandoff.test.js pins
-      // the handoff to the ordinary governed path.
+      // A clean frame enters the ordinary Photo review. Its existing Generate
+      // action owns consent, billing and quota; Live never auto-submits it.
       vto.adoptPerson(person);
-      vto.generate();
       setMode('ai_photo');
     },
   });
-
-  const liveVisible = liveOffered && mode === 'live' && !liveCrashed;
-  const aiPhotoVisible = !liveVisible;
 
   // NOTHING INVISIBLE MAY HOLD THE CAMERA.
   //
@@ -267,11 +260,11 @@ export function VirtualTryOnSheet({
   //
   // Tearing down rather than pausing, because this is a privacy question and
   // not a battery one. Re-entering Live costs one tap.
-  const liveEntered = live.entered;
+
   const liveSurfaceWithdrawn = !visible || !liveVisible;
   useEffect(() => {
-    if (liveSurfaceWithdrawn && liveEntered) live.exitLive();
-  }, [liveSurfaceWithdrawn, liveEntered, live]);
+    if (liveSurfaceWithdrawn) live.exitLive();
+  }, [liveSurfaceWithdrawn, live]);
 
   const handleSelectMode = useCallback((next: VtoSurfaceMode) => {
     setMode(next);
@@ -654,6 +647,13 @@ export function VirtualTryOnSheet({
               >
                 <VtoLivePanel
                   session={live.session}
+                  garmentTitle={garmentTitle}
+                  garmentImageUrl={garment.imageUrl}
+                  garmentBrand={garment.brand}
+                  paused={live.paused}
+                  onTogglePause={live.togglePause}
+                  onRestart={() => { void live.restart(); }}
+                  onReturnToShopping={handleClose}
                   entered={live.entered}
                   photorealFailure={live.photorealFailure}
                   previewUri={live.previewUri}

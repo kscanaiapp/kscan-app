@@ -159,6 +159,8 @@ export type VtoGarmentSource =
  * reference plus the fields a generation provider actually needs.
  */
 export interface VtoGarmentInput {
+  /** Advisory retailer destination for governed Live asset matching, never authorization. */
+  productUrl?: string;
   source?: VtoGarmentSource;
   /** Advisory UI evidence; never sent as authority. */
   ownedMediaReady?: boolean;

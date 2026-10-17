@@ -18,7 +18,7 @@ const REQUIRED_OFF = Object.freeze([
   'EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER', // non-interactive design-only stub
 ]);
 // Build 35 full-feature launch contract: ON in both exact store profiles.
-// Real user features ship ON; test stubs and missing-native LIVE VTO remain OFF.
+// Real runtimes ship ON; simulated harnesses remain OFF.
 const REQUIRED_ON = Object.freeze([
   'EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1',
   'EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1',
@@ -27,6 +27,7 @@ const REQUIRED_ON = Object.freeze([
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   'EXPO_PUBLIC_VTO_UI_ENABLED',
+  'EXPO_PUBLIC_LIVE_VTO_ENABLED',
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
   'EXPO_PUBLIC_AVATAR_MOTION_V1',
   'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
@@ -39,7 +40,6 @@ const REQUIRED_ON = Object.freeze([
 // invented EAS worker/push variables: the worker is controlled in app_config.
 const OPTIONAL_OFF = Object.freeze([
   'KSCAN_VOICE_CERTIFICATION',
-  'EXPO_PUBLIC_LIVE_VTO_ENABLED',
   'EXPO_PUBLIC_LIVE_VTO_HARNESS',
   'EXPO_PUBLIC_SCAN_RESULTS_DEMO_UI',
   'EXPO_PUBLIC_TEXTSCAN_DEMO_RESULTS',

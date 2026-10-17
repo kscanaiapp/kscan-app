@@ -8,6 +8,22 @@ description.
 
 ---
 
+## Build 35 completion authority (2026-10-16)
+
+The owner explicitly authorized completing native Live capability, garment authoring,
+customer UI, direct Scanner/commerce and K+ boundaries, Live-only source/operator
+activation, native/integration tests, commits, PRs and governed merges. The historical
+P3-C launch restrictions below describe the original lane; this completion authority
+permits Live ON in the approved Build 35 profiles and a guarded nested Live operator
+change after source readiness. It does not permit an EAS build, submission, unrelated
+feature work, Photo provider change or backend authority mutation.
+
+Completion base: integration/build35-v1-convergence at
+1e5918852c948759d2dbdd954daea0b44b475d1f. Backend read-only authority:
+rebuild/backend-authority-v2 at 54e9c27d9e39df99b167126382fe8ed9f5f01edb.
+Branch: build35/live-vto-completion-20261016. PR #626 records exact-head CI and merge
+state; docs/build35/vto/BUILD35_LIVE_VTO_COMPLETION_HANDOFF.md records the final evidence.
+
 ## Base authority
 
 ```
@@ -35,6 +51,8 @@ added to a list without a justification.
 
 | AUTHORIZED PATH | WHY MUTATION IS REQUIRED | SOURCE AUTHORITY |
 | --- | --- | --- |
+| `app/try-on-studio.tsx` | Mount the approved real Live pilot product only inside the existing Live/K+ offer; reuse TryItOnEntry and its session. | Owner Build 35 Live completion sprint, Parts B/C, 2026-10-16 |
+| `docs/build35/vto/**` | Completion handoff, approved product provenance, device certification and Live-only rollback. | Owner Build 35 Live completion sprint, Part H |
 | `types/vtoLive.ts` | The promoted Live contract has to live somewhere the app can import; the research workspace is deliberately not an app dependency. | P3-C §29 (contract promotion), amendment §20 |
 | `types/vto.ts` | One additive union member (`VtoPersonInputSource`) so a clean Live capture can enter the existing generative contract without a parallel type. | P3-C §21, amendment §9 (additive extension) |
 | `services/vto/**` | The capability router, native adapter, Live garment rule, camera-permission read, harness, session reducer and Photoreal bridge are all VTO services. | Amendment §4 (authorized VTO mutation boundary) |

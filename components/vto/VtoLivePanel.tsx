@@ -42,6 +42,13 @@ import type { LiveVtoSessionSnapshot } from '../../services/vto/vtoLiveSession';
 import { resolveLiveVtoNativeView, VtoLiveNativeView } from './VtoLiveNativeView';
 
 export interface VtoLivePanelProps {
+  garmentTitle?: string;
+  garmentImageUrl?: string;
+  garmentBrand?: string | null;
+  paused?: boolean;
+  onTogglePause?: () => void;
+  onRestart?: () => void;
+  onReturnToShopping?: () => void;
   session: LiveVtoSessionSnapshot;
   entered: boolean;
   photorealFailure: PhotorealFailureOutcome | null;
@@ -83,6 +90,13 @@ const BUSY_STATES: ReadonlySet<LiveVtoSessionState> = new Set<LiveVtoSessionStat
 
 export function VtoLivePanel({
   session,
+  garmentTitle,
+  garmentImageUrl,
+  garmentBrand,
+  paused = false,
+  onTogglePause,
+  onRestart,
+  onReturnToShopping,
   entered,
   photorealFailure,
   previewUri,
@@ -107,11 +121,21 @@ export function VtoLivePanel({
   const errored = session.state === 'ERROR';
   // Photoreal and preview are only honest offers while a session is actually
   // tracking someone -- a capture with nothing tracked is not a person frame.
-  const canCapture = session.state === 'TRACKING' || session.state === 'CAPTURE_READY';
+  const canCapture = !paused && (session.state === 'TRACKING' || session.state === 'CAPTURE_READY');
+  const selectedGarment = garmentTitle ? (
+    <View style={styles.garment} testID="vto-live-selected-garment">
+      {garmentImageUrl ? <Image source={{ uri: garmentImageUrl }} style={styles.garmentImage} resizeMode="contain" accessibilityLabel={garmentTitle} /> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.garmentTitle}>{garmentTitle}</Text>
+        {garmentBrand ? <Text style={styles.privacy}>{garmentBrand}</Text> : null}
+      </View>
+    </View>
+  ) : null;
 
   if (!entered) {
     return (
       <View style={styles.root} testID={testID ?? 'vto-live-panel'}>
+        {selectedGarment}
         <View style={styles.stage}>
           {nativeView}
           <Text style={styles.stageText}>Live uses your camera to show the piece on you.</Text>
@@ -132,16 +156,17 @@ export function VtoLivePanel({
 
   return (
     <View style={styles.root} testID={testID ?? 'vto-live-panel'}>
+      {selectedGarment}
       <View
         style={styles.stage}
         accessible
         accessibilityLiveRegion="polite"
-        accessibilityLabel={STATE_COPY[session.state]}
+        accessibilityLabel={paused ? 'Live paused' : STATE_COPY[session.state]}
         testID="vto-live-stage"
       >
         {nativeView}
         {busy ? <ActivityIndicator size="large" color={LUXURY.colors.plum} /> : null}
-        <Text style={styles.stageText}>{STATE_COPY[session.state]}</Text>
+        <Text style={styles.stageText}>{paused ? 'Live paused' : STATE_COPY[session.state]}</Text>
       </View>
 
       {errored && session.error ? (
@@ -185,8 +210,10 @@ export function VtoLivePanel({
       <Text style={styles.privacy}>{LIVE_VTO_PROCESSING_NOTE}</Text>
 
       <View style={styles.actions}>
+        {onTogglePause && !errored ? <SecondaryButton title={paused ? "Resume Live" : "Pause Live"} onPress={onTogglePause} disabled={busy || photorealPending} testID="vto-live-pause-resume" /> : null}
+        {errored && onRestart ? <PrimaryButton title="Restart Live" onPress={onRestart} testID="vto-live-restart" /> : null}
         <PrimaryButton
-          title={photorealPending ? 'Creating AI photo…' : 'Create AI photo'}
+          title={photorealPending ? 'Preparing photo?' : 'Continue to AI Photo'}
           onPress={onRequestPhotoreal}
           disabled={!canCapture || photorealPending}
           testID="vto-live-photoreal"
@@ -209,6 +236,7 @@ export function VtoLivePanel({
             testID="vto-live-dismiss-error"
           />
         ) : null}
+        {onReturnToShopping ? <SecondaryButton title="Return to shopping" onPress={onReturnToShopping} testID="vto-live-return-shopping" /> : null}
         <TertiaryButton title="Close Live" onPress={onClose} testID="vto-live-close" />
       </View>
     </View>
@@ -216,24 +244,33 @@ export function VtoLivePanel({
 }
 
 const styles = StyleSheet.create({
+  garment: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  garmentImage: { width: 48, height: 56, borderRadius: RADIUS.sm },
+  garmentTitle: { ...LUXURY.typography.body },
   root: {
     marginTop: SPACING.xs,
   },
   stage: {
-    minHeight: 180,
+    width: '100%',
+    aspectRatio: 3 / 4,
+    minHeight: 320,
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: LUXURY.colors.hairline,
-    backgroundColor: LUXURY.colors.champagne,
+    backgroundColor: '#08080E',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.lg,
     overflow: 'hidden',
   },
   stageText: {
     ...LUXURY.typography.body,
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(8,8,14,0.7)',
+    padding: SPACING.sm,
+    borderRadius: RADIUS.sm,
     textAlign: 'center',
   },
   privacy: {

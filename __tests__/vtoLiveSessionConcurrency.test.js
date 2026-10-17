@@ -433,3 +433,36 @@ test('the composited preview never becomes a generative input', async () => {
   assert.equal(adopted.length, 0, 'capturing a preview must not hand anything to the generative path');
   view.unmount();
 });
+
+// Build 35 completion: pending async work cannot recreate a camera or adopt a
+// capture after the surface/account has been withdrawn.
+test('permission resolution after exit cannot start a native session', async () => {
+  const sc = scenario({ permissionDelayMs: 15 });
+  const view = mount(sc, D1, () => {});
+  const pending = view.result.enterLive();
+  view.result.exitLive();
+  await pending;
+  assert.equal(sc.calls.controllers, 0);
+  assert.equal(sc.calls.starts.length, 0);
+  view.unmount();
+});
+test('permission resolution after unmount cannot resurrect a signed-out actor session', async () => {
+  const sc = scenario({ permissionDelayMs: 15 });
+  const view = mount(sc, D1, () => {});
+  const pending = view.result.enterLive();
+  view.unmount();
+  await pending;
+  assert.equal(sc.calls.controllers, 0);
+});
+test('a clean capture resolving after exit cannot enter Photo under another actor', async () => {
+  const sc = scenario({ captureDelayMs: 15 });
+  const adopted = [];
+  const view = mount(sc, D1, (person) => adopted.push(person));
+  await view.result.enterLive();
+  view.settle();
+  const pending = view.result.requestPhotoreal();
+  view.result.exitLive();
+  await pending;
+  assert.deepEqual(adopted, []);
+  view.unmount();
+});

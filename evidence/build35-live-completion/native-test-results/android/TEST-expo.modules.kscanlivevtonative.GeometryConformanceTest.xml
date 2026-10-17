@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="expo.modules.kscanlivevtonative.GeometryConformanceTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-17T00:05:29.163Z" hostname="runnervm8k3b6" time="0.079">
+  <properties/>
+  <testcase name="everyValidGoldenProducesFiniteRenderableGeometry" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.006"/>
+  <testcase name="pipelineIsDeterministic" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.026"/>
+  <testcase name="everyRefusalGoldenFailsClosedWithItsDeclaredReason" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.001"/>
+  <testcase name="invalidGarmentManifestsAreRefusedAtParse" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.002"/>
+  <testcase name="badFrameInASequenceIsNotAmplifiedAndDoesNotPoisonTheNextFrame" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.001"/>
+  <testcase name="switchingGarmentsUnderTheSamePoseCarriesNoStaleState" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.002"/>
+  <testcase name="raisedShoulderAsymmetryLandsOnTheRaisedSide" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.001"/>
+  <testcase name="deformationIsContinuousAcrossASmoothSequence" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.011"/>
+  <testcase name="leftRightOrientationIsPreservedAcrossEveryGolden" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.007"/>
+  <testcase name="writesNativeSnapshotsForEveryGolden" classname="expo.modules.kscanlivevtonative.GeometryConformanceTest" time="0.019"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

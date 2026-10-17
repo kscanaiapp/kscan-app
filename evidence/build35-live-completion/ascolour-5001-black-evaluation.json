@@ -1,0 +1,253 @@
+{
+  "assetId": "524ab66a3f16bda5c3d7f9fe",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-10-16T21:51:52.963Z",
+  "evidenceClass": "COMMITTED_REAL_PRODUCT_FIXTURE",
+  "productIdentity": {
+    "productRef": "https://ascolour.com/staple-tee-5001/?Colour=Black",
+    "retailer": "AS Colour",
+    "variantId": "Black",
+    "category": "top"
+  },
+  "source": {
+    "ref": "vto-phase4-pipeline/fixtures-input/pilot/ascolour-5001-black.jpg",
+    "sha256": "59003a90b1987d5e09b3c86d8f8e29ee0feb07670e73dcb8dc005da35137ce49",
+    "width": 850,
+    "height": 850,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "EASY",
+    "confidence": 0.9233260749433603,
+    "evidence": {
+      "backgroundUniformity": 0,
+      "coverage": 0.477,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 1,
+      "skinRatio": 0,
+      "reason": "uniform_background_single_compact_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.9233260749433603,
+    "segmentation": 0.44788556566970095,
+    "anchorCompleteness": 1,
+    "geometryValidity": 1,
+    "sourceQuality": 1,
+    "productFidelity": 1
+  },
+  "qa": {
+    "silhouette": {
+      "fillRatio": 0.5971807542262679,
+      "compactness": 1.445187223008194,
+      "maskToBboxAreaNote": "fillRatio/compactness are intrinsic self-consistency measures, not a comparison to an external reference mask"
+    },
+    "color": {
+      "computable": false,
+      "referenceClass": "NO_REFERENCE",
+      "detail": "no independent ground-truth color exists for this source; only the pipeline's own extraction is available, which cannot certify its own fidelity"
+    },
+    "logo": {
+      "computable": false,
+      "referenceClass": "NO_REFERENCE",
+      "detail": "no independent ground truth for logo placement/appearance exists for this source"
+    },
+    "pattern": {
+      "computable": false,
+      "referenceClass": "NO_REFERENCE",
+      "detail": "no independent ground truth for pattern structure exists for this source"
+    },
+    "passed": true,
+    "failureReasons": []
+  },
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "EXTRACTION_UNRELIABLE"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "EXTRACTION_UNRELIABLE",
+    "message": "overall confidence 0.45 is below the eligibility threshold",
+    "stage": "qa"
+  },
+  "ksgarment": {
+    "version": "1.0",
+    "productId": "https://ascolour.com/staple-tee-5001/?Colour=Black",
+    "category": "top",
+    "subcategory": "unknown",
+    "silhouette": "unknown",
+    "sleeveLength": "unknown",
+    "garmentLength": "unknown",
+    "neckline": "unknown",
+    "controlPoints": [
+      {
+        "id": "leftShoulder",
+        "u": 0.23466666666666666,
+        "v": 0.07932379713914174
+      },
+      {
+        "id": "rightShoulder",
+        "u": 0.776,
+        "v": 0.07932379713914174
+      },
+      {
+        "id": "leftHem",
+        "u": 0.21733333333333332,
+        "v": 0.9479843953185956
+      },
+      {
+        "id": "rightHem",
+        "u": 0.7853333333333333,
+        "v": 0.9479843953185956
+      },
+      {
+        "id": "waist",
+        "u": 0.5013333333333333,
+        "v": 0.5474642392717816
+      },
+      {
+        "id": "leftTorso",
+        "u": 0.21733333333333332,
+        "v": 0.5474642392717816
+      },
+      {
+        "id": "rightTorso",
+        "u": 0.7853333333333333,
+        "v": 0.5474642392717816
+      },
+      {
+        "id": "leftSleeve",
+        "u": 0.02266666666666667,
+        "v": 0.22626788036410922
+      },
+      {
+        "id": "rightSleeve",
+        "u": 0.9746666666666667,
+        "v": 0.22626788036410922
+      },
+      {
+        "id": "leftArmpit",
+        "u": 0.232,
+        "v": 0.08062418725617686
+      },
+      {
+        "id": "rightArmpit",
+        "u": 0.7786666666666666,
+        "v": 0.08062418725617686
+      }
+    ],
+    "meshDefinition": {
+      "type": "grid",
+      "width": 8,
+      "height": 10
+    },
+    "texture": "texture.png",
+    "alphaMask": "alpha.png",
+    "assetVersion": "1"
+  },
+  "anchorEvidence": [
+    {
+      "id": "leftShoulder",
+      "confidence": 1
+    },
+    {
+      "id": "rightShoulder",
+      "confidence": 1
+    },
+    {
+      "id": "leftHem",
+      "confidence": 1
+    },
+    {
+      "id": "rightHem",
+      "confidence": 1
+    },
+    {
+      "id": "waist",
+      "confidence": 1
+    },
+    {
+      "id": "leftTorso",
+      "confidence": 1
+    },
+    {
+      "id": "rightTorso",
+      "confidence": 1
+    },
+    {
+      "id": "leftSleeve",
+      "confidence": 0.9307692307692308
+    },
+    {
+      "id": "rightSleeve",
+      "confidence": 0.9307692307692308
+    },
+    {
+      "id": "leftArmpit",
+      "confidence": 0.3620665720631786
+    },
+    {
+      "id": "rightArmpit",
+      "confidence": 0.3620665720631786
+    }
+  ],
+  "sourceAdequacy": {
+    "classification": "ADEQUATE",
+    "sourceWidth": 850,
+    "sourceHeight": 850,
+    "shortSidePx": 850,
+    "longSidePx": 850,
+    "garmentBoundingWidthPx": 715,
+    "garmentBoundingHeightPx": 734,
+    "garmentOccupancyRatio": 0.7263806228373703,
+    "reason": "garment-region short side 715px meets the 256px provisional diagnostic floor"
+  },
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 117,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "extraction",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "canonicalization",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "anchor_generation",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "geometry_generation",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "qa",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

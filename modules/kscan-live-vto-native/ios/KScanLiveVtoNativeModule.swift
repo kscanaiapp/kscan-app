@@ -1,45 +1,23 @@
 import AVFoundation
+import UIKit
 import ExpoModulesCore
 
-/// iOS catch-up counterpart to Android's `KScanLiveVtoNativeModule.kt`.
-///
-/// Registers as "KScanLiveVto" -- this exact string is
-/// `constants/featureFlags.ts`'s `LIVE_VTO_NATIVE_MODULE_NAME`, the value
-/// `services/vto/liveVtoNativeModule.ts`'s `requireOptionalNativeModule()`
-/// looks up. Do not rename either side independently.
-///
-/// SCOPE. This reproduces N1's ACTUAL shipped diagnostic surface -- the one
-/// `RuntimeBoundaryTest.theBridgeSurfaceIsPinned` mechanically pins on
-/// Android -- not the full aspirational `LiveVtoNativeModule` TS interface
-/// (`start`/`pause`/`resume`/`stop`/`loadGarment`/`switchGarment`/
-/// `requestPhotorealCapture`/`dispose` remain unimplemented on both
-/// platforms). N1-G (2026-09-06) implements the two capture commands
-/// (`capturePersonFrame`/`capturePreview`) as MODULE-level functions,
-/// matching how `services/vto/vtoLiveSession.ts` already calls them on the
-/// real `LiveVtoNativeModule` interface (no view ref involved) -- see
-/// `LiveVtoRenderView.capturePersonFrame()`/`.capturePreview()` for the
-/// clean-frame-vs-composited-frame distinction.
-///
-/// `getCapability()` is synchronous (`Function`, not `AsyncFunction`) for the
-/// same reason as Android: the merged application adapter
-/// (`describeLiveVtoNativeCapability` in `liveVtoNativeModule.ts`) calls it
-/// without awaiting -- an `AsyncFunction` here would hand JS a Promise where
-/// a plain object is expected and silently fail every capability check.
-///
-/// Field names are `capable`/`runtimeReady`/`runtimeVersion` -- the actual
-/// merged `LiveVtoNativeSelfCheck` shape, matching Android exactly. Both are
-/// `false` at this gate: this stage proves registration only, and neither
-/// device eligibility nor runtime initialization has been implemented yet.
-/// Claiming `capable: true` here would be exactly the "registration is not
-/// capability" mistake Android's own module comment warns against.
+/// Expo bridge for the single mounted native Live view. Static capability is
+/// distinct from camera/tracking events and physical certification.
 public class KScanLiveVtoNativeModule: Module {
+  // A real bitmap context allocation. It does not assert camera/render session success.
+  private static func rendererAvailable() -> Bool {
+    guard let context = CGContext(data: nil, width: 2, height: 2, bitsPerComponent: 8, bytesPerRow: 8,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+    context.setFillColor(UIColor.white.cgColor)
+    context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+    return context.makeImage() != nil
+  }
+
   public func definition() -> ModuleDefinition {
     Name("KScanLiveVto")
 
-    // Static prerequisites only, as separate stages, behind a closed
-    // certification gate. See LiveVtoCapabilityStages for why none of these may
-    // read as "the camera works" and why frames/perception/rendering are not
-    // reported before a session starts.
+    // Static prerequisites only. Camera and tracking are observed after Start.
     Function("getCapability") { () -> [String: Any?] in
       var platformSupported = false
       if #available(iOS 15.1, *) { platformSupported = true }
@@ -54,7 +32,9 @@ public class KScanLiveVtoNativeModule: Module {
           platformSupported: platformSupported,
           frontCameraPresent: frontCameraPresent,
           modelAssetPresent: modelAssetPresent,
-          cameraPermissionGranted: AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+          cameraPermissionGranted: AVCaptureDevice.authorizationStatus(for: .video) == .authorized,
+          modelIntegrityValid: LiveVtoMediaPipePoseProvider.modelIntegrityValid(),
+          rendererAvailable: Self.rendererAvailable()
         ),
         runtimeVersion: Self.runtimeVersion
       )

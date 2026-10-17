@@ -63,7 +63,7 @@ test('live rows retain their own VTO garment, launcher identity, and server-auth
   const row = surface.mapRawProductToPurchaseOption(classified());
   assert.equal(row.vtoGarment.productRef, product.id);
   assert.equal(row.productUrl, product.productUrl);
-  assert.equal(Object.prototype.hasOwnProperty.call(row.vtoGarment, 'productUrl'), false, 'VTO garment contract has no productUrl');
+  assert.equal(row.vtoGarment.productUrl, product.productUrl, 'Live asset resolution retains an advisory destination without changing selected productRef');
   assert.equal(row.watchCandidate.productUrl, product.productUrl);
   assert.equal(surface.canWatchPurchaseOption(row), true);
   const panel = fs.readFileSync(path.join(root, 'components/scan-results/PurchaseOptionsPanel.tsx'), 'utf8');
