@@ -341,12 +341,27 @@ test('no model asset or new permission came along; Android ML Kit is limited to 
     }
     return rest;
   };
+  // Build 35 Live Camera VTO legitimately updates the EXISTING camera usage
+  // description to cover a continuous front-camera preview. This does not
+  // authorize any NEW NS*UsageDescription or any other plist drift. The
+  // approved purpose is independently pinned by iosAppReviewSurface and the
+  // Apple readiness verifier; this test also checks the exact wording before
+  // normalizing the old historical baseline.
+  const LIVE_CAMERA_KEY = 'NSCameraUsageDescription';
+  const APPROVED_LIVE_CAMERA_PURPOSE =
+    'K Scan AI uses your camera to take photos for fashion scans and show live virtual try-on previews of supported tops.';
+  assert.equal(after.infoPlist[LIVE_CAMERA_KEY], APPROVED_LIVE_CAMERA_PURPOSE);
+  assert.ok(LIVE_CAMERA_KEY in (before.infoPlist ?? {}), 'Live VTO must not introduce a new camera permission');
+  const applyLiveCameraDisclosureRewrite = (baseline) => ({
+    ...(baseline ?? {}),
+    [LIVE_CAMERA_KEY]: APPROVED_LIVE_CAMERA_PURPOSE,
+  });
   assert.deepEqual(
     stripOrientation(after.infoPlist),
-    applyVtoDisclosureRewrite(
+    applyLiveCameraDisclosureRewrite(applyVtoDisclosureRewrite(
       applyBrandingRename(stripOrientation(before.infoPlist)),
       stripOrientation(after.infoPlist),
-    ),
+    )),
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
   for (const key of Object.keys(after.infoPlist ?? {})) {
