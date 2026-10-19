@@ -201,7 +201,7 @@ function verify() {
   );
   check(
     result,
-    infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
+    infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to take photos for fashion scans and show live virtual try-on previews of supported tops.',
     'Camera usage description is present and scoped',
   );
   // Build 34 Voice Scan V1 introduced the first real, reachable microphone use

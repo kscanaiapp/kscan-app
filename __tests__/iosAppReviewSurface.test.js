@@ -112,6 +112,16 @@ test('the TextScan voice placeholder stays off in the production profile', () =>
   assert.notEqual(prodEnv.EXPO_PUBLIC_TEXTSCAN_VOICE_PLACEHOLDER, 'true');
 });
 
+test('Apple camera permission describes both fashion scanning and enabled Live VTO', () => {
+  const cameraPurpose = infoPlist.NSCameraUsageDescription;
+  assert.equal(easJson.build.production.env.EXPO_PUBLIC_LIVE_VTO_ENABLED, 'true');
+  assert.match(cameraPurpose, /^K Scan AI uses your camera/);
+  assert.match(cameraPurpose, /fashion scans/);
+  assert.match(cameraPurpose, /live virtual try-on previews of supported tops/i);
+  assert.equal(pluginProps('expo-camera').cameraPermission, cameraPurpose,
+    'Expo camera permission must not overwrite the Apple purpose text');
+});
+
 // -- Microphone posture ------------------------------------------------------
 
 test('the iOS microphone purpose string exists only for Voice Scan, and neither camera nor audio plugin injects its own', () => {
