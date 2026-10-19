@@ -40,8 +40,19 @@ Pod::Spec.new do |s|
   # resource bundle so Swift can locate them reliably regardless of
   # use_frameworks!/static-framework configuration. See
   # LiveVtoAssetBundle.swift.
+  #
+  # `Assets/*` (top-level entries only) -- NOT `Assets/**/*`. CocoaPods adds
+  # each matched directory as a folder reference, which Xcode copies with its
+  # subdirectory intact (`n1b-fixture/alpha.png`, `models/...`), matching the
+  # `subdirectory:`/`inDirectory:` lookups in LiveVtoRenderView.swift and
+  # LiveVtoMediaPipePoseProvider.swift. A recursive glob also matches every
+  # nested FILE, which Xcode flattens to the bundle root, so the garment
+  # directories' identically named alpha.png/texture.png/manifest.json
+  # collide ("Multiple commands produce ...") and fail the Release archive
+  # (EAS build 45dafd1d-2440-4f29-8654-9ea3b94ec34d). Guarded by
+  # __tests__/iosLiveVtoResourceBundleOutputs.test.js.
   s.resource_bundles = {
-    'KScanLiveVtoNativeAssets' => ['Assets/**/*']
+    'KScanLiveVtoNativeAssets' => ['Assets/*']
   }
 
   s.test_spec 'Tests' do |test_spec|
