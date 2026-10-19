@@ -122,6 +122,7 @@ jobs:
     # to a current Xcode that satisfies this. swift-test stays on macos-14
     # since SwiftPM alone never hit this requirement.
     runs-on: macos-15
+    timeout-minutes: 75
     needs: swift-test
     steps:
       - uses: actions/checkout@v4
@@ -164,22 +165,38 @@ jobs:
         run: |
           WORKSPACE=$(ls -d *.xcworkspace | head -1)
           echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')
+          # The APP scheme is named after the workspace. `schemes[0]` was
+          # previously used and resolved to a pod scheme (EXApplication), so
+          # this job never compiled the app or KScanLiveVtoNative at all.
+          SCHEME="${WORKSPACE%.xcworkspace}"
+          xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; s=sys.argv[1]; sys.exit(0 if s in json.load(sys.stdin)["workspace"]["schemes"] else f"app scheme {s} not found")' "$SCHEME"
           echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
           echo "Using workspace=$WORKSPACE scheme=$SCHEME"
 
-      # Simulator SDK, Debug config: no code signing required, and this is
-      # the real app target -- a genuine compile of KScanLiveVtoNativeModule,
-      # LiveVtoRenderView, the Drivers, and LiveVtoMediaPipePoseProvider
-      # against the real ExpoModulesCore and MediaPipeTasksVision headers,
-      # not a standalone lint of the podspec in isolation.
-      - name: xcodebuild (simulator, Debug, no codesign)
+      # Device SDK, Release archive, unsigned: the same configuration EAS
+      # archives for the store, so CocoaPods resource-bundle collisions
+      # ("Multiple commands produce", EAS build 45dafd1d) and Release-only
+      # compile failures surface here, not on a paid EAS build.
+      - name: xcodebuild archive (device, Release, no codesign)
         working-directory: ios
         run: |
-          xcodebuild build \
+          xcodebuild archive \
             -workspace "${{ steps.discover.outputs.workspace }}" \
             -scheme "${{ steps.discover.outputs.scheme }}" \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -destination "generic/platform=iOS Simulator" \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/KScanAI.xcarchive" \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Confirm Live VTO resource bundle keeps its subdirectories
+        run: |
+          BUNDLE=$(find "$RUNNER_TEMP/KScanAI.xcarchive/Products/Applications" -type d -name KScanLiveVtoNativeAssets.bundle | head -1)
+          test -n "$BUNDLE" || (echo "::error::KScanLiveVtoNativeAssets.bundle missing from the archived app" && exit 1)
+          find "$BUNDLE" -type f | sed "s|$BUNDLE/||" | sort
+          for f in models/pose_landmarker_lite.task perception/synthetic-test-frame.png \
+                   n1b-fixture/manifest.json n1b-fixture/texture.png n1b-fixture/alpha.png \
+                   n1c-asym-fixture/manifest.json n1c-asym-fixture/texture.png n1c-asym-fixture/alpha.png \
+                   ascolour-5001-black-v1/manifest.json ascolour-5001-black-v1/texture.png ascolour-5001-black-v1/alpha.png; do
+            cmp "$BUNDLE/$f" "modules/kscan-live-vto-native/ios/Assets/$f" || (echo "::error::$f missing or altered in archived bundle" && exit 1)
+          done
