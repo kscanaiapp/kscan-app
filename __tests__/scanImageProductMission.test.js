@@ -19,10 +19,27 @@ const code = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 const moduleObj = { exports: {} };
-vm.runInNewContext(code, { module: moduleObj, exports: moduleObj.exports }, {
+const logged = [];
+const captureConsole = { log: (...args) => logged.push(args) };
+vm.runInNewContext(code, { module: moduleObj, exports: moduleObj.exports, console: captureConsole }, {
   filename: 'scanImageProductMission.ts',
 });
 const mission = moduleObj.exports;
+
+test('runtime activation log is metadata-only and reports flag state per image request', () => {
+  logged.length = 0;
+  mission.buildScanImageProductMission(true, 'selected_item');
+  mission.buildScanImageProductMission(false, 'multi_item_detection');
+  assert.equal(logged.length, 2);
+  assert.deepEqual(logged[0], [
+    '[scan-identify] image_mission version=%s enabled=%s request_mode=%s attached=%s',
+    'scan-image-product-mission-v1', 'true', 'selected_item', 'true',
+  ]);
+  assert.deepEqual(logged[1].slice(1), ['scan-image-product-mission-v1', 'false', 'multi_item_detection', 'false']);
+  for (const args of logged) {
+    for (const arg of args) assert.ok(String(arg).length < 100, 'no instruction text in the log');
+  }
+});
 
 test('flag is default-off and disabled mission preserves exact legacy provider payload', () => {
   assert.equal(mission.isScanImageProductMissionEnabled(() => undefined), false);

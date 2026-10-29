@@ -16,17 +16,31 @@ const configSource = fs.readFileSync(path.join(backendRoot, 'eliseConfig.ts'), '
 const handlerSource = fs.readFileSync(path.join(backendRoot, 'index.ts'), 'utf8');
 const speechSource = fs.readFileSync(path.join(root, 'supabase/functions/stylist-speech/handler.ts'), 'utf8');
 
-function loadVoiceModule() {
-  // Transpile just the side-effect-free pure module; do not instantiate Edge Functions.
+function loadVoiceModule(logged = []) {
+  // Transpile just the pure module (its only side effect is a metadata log);
+  // do not instantiate Edge Functions.
   const code = ts.transpileModule(voiceSource, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(code, { module, exports: module.exports }, {
+  const console = { log: (...args) => logged.push(args) };
+  vm.runInNewContext(code, { module, exports: module.exports, console }, {
     filename: 'eliseBrandVoice.ts',
   });
   return module.exports;
 }
+
+test('runtime activation log is metadata-only and never carries prompt text', () => {
+  const logged = [];
+  const { appendEliseBrandVoice } = loadVoiceModule(logged);
+  appendEliseBrandVoice('SECRET-BASE-PROMPT', true);
+  appendEliseBrandVoice('SECRET-BASE-PROMPT', false);
+  assert.deepEqual(logged, [
+    ['[elise_brand_voice] version=%s enabled=%s attached=%s', 'elise-brand-voice-v1', 'true', 'true'],
+    ['[elise_brand_voice] version=%s enabled=%s attached=%s', 'elise-brand-voice-v1', 'false', 'false'],
+  ]);
+  assert.doesNotMatch(JSON.stringify(logged), /SECRET-BASE-PROMPT|PERSONALITY/);
+});
 
 test('disabled global voice flag leaves existing Gemini system text byte-identical', () => {
   const { appendEliseBrandVoice } = loadVoiceModule();
