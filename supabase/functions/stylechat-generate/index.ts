@@ -38,6 +38,7 @@ import {
   VISUAL_COLLECTION_CONTRACT_VERSION,
 } from './activeContext.ts';
 import { readEliseBackendConfig } from './eliseConfig.ts';
+import { appendEliseBrandVoice } from './eliseBrandVoice.ts';
 import {
   buildGenerationIdentity,
   finalizeGenerationOperation,
@@ -2148,9 +2149,15 @@ Deno.serve(async (req) => {
 
   // ── 7. Build Gemini request payload ──────────────────────────────────────────
 
-  const baseSystemPrompt = config.flags.explanations
-    ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
-    : SYSTEM_PROMPT;
+  // Build 35 expansion: same brand voice for every eligible conversation.
+  // Default-OFF keeps the original system prompt byte-identical; existing
+  // grounding/identity/authorization/attachment blocks still append afterward.
+  const baseSystemPrompt = appendEliseBrandVoice(
+    config.flags.explanations
+      ? `${SYSTEM_PROMPT}\n\n${EXPLANATION_INSTRUCTIONS}`
+      : SYSTEM_PROMPT,
+    config.flags.brandVoiceV1,
+  );
 
   const systemText = memoryText
     ? `${baseSystemPrompt}\n\nUser style context (use as background only):\n${memoryText}`
