@@ -113,7 +113,7 @@ test('MODE A: the guard test file skips exactly the two live assertions and pass
   assert.equal(result.status, 0, output);
   assert.match(output, /^# fail 0$/m, output);
   assert.match(output, /^# skipped 2$/m, 'exactly the two live-diff assertions skip');
-  assert.match(output, /^# pass 9$/m, 'the eight original static controls plus canonical promotion parity still run');
+  assert.match(output, /^# pass 10$/m, 'the eight original static controls plus two byte-bound promotion controls still run');
   // Skipping is reported with its reason, never silent.
   assert.match(output, /NOT APPLICABLE/);
 });
