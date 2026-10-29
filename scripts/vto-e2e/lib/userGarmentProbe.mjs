@@ -97,7 +97,8 @@ const CERTIFICATION_CATEGORY = 'top';
  * __tests__/vtoE2eUserGarmentProbe.test.js.
  */
 export const NOT_DISPATCHED_FAILURE_CODES = Object.freeze([
-  'authorization_failed',
+  // A durable receipt/settlement failure can report authorization_failed after
+  // paid submission. Count that ambiguity against the one-dispatch budget.
   'feature_disabled',
   'entitlement_required',
   'unsupported_category',
