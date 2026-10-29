@@ -1,0 +1,39 @@
+✔ identity is optional, verified, permissioned and unexpired (2.3248ms)
+✔ client defaults OFF and cannot start secondary work until primary settles (2.5991ms)
+✔ client sends only garment attributes, no raw image or primary response mutation (3.1678ms)
+✔ client failure and cancellation leave secondary absent (1.1911ms)
+✔ telemetry allowlists events, removes arbitrary properties, never equates click with purchase (43.2031ms)
+✔ shelf defaults off, hides zero results, keeps card actions, and is never mounted directly by an app route (9.4349ms)
+✔ malformed secondary product display fields fail closed before reaching primary host (2.74ms)
+✔ valid HTTPS discovery destinations and display strings remain available (0.7832ms)
+✔ secondary waits for primary commerce to settle (8.6549ms)
+✔ request carries sanitized structured attributes, market and primary ids/URLs only (3.72ms)
+✔ the actual wire body from the request helper contains no image or prose (2.8916ms)
+✔ primary identities keep display order, de-duplicate and cap at 30 (0.6832ms)
+✔ ownership badges: only verified, current, permitted identities for rendered primary ids (0.9377ms)
+✔ secondary shelf: organic only, never duplicates a primary card, hides empty/unavailable (0.9083ms)
+✔ hook never invokes before primary settles, then exactly once after (70.4915ms)
+✔ disabled feature performs no request and exposes nothing (16.833ms)
+✔ supersession aborts the stale request and discards its late response (68.5133ms)
+React does not recognize the `testID` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `testid` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+Received `true` for a non-boolean attribute `horizontal`.
+
+If you want to write it to the DOM, pass a string instead: horizontal="true" or horizontal={value.toString()}.
+React does not recognize the `showsHorizontalScrollIndicator` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `showshorizontalscrollindicator` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+React does not recognize the `contentContainerStyle` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `contentcontainerstyle` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+React does not recognize the `accessibilityRole` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `accessibilityrole` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+React does not recognize the `accessibilityLabel` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `accessibilitylabel` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+React does not recognize the `numberOfLines` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `numberoflines` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+✔ secondary errors leave the result absent (primary untouched) (29.9396ms)
+✔ async badge attaches to the matching primary card without reordering or reclassifying (29.8996ms)
+✔ badge is overlaid on the fixed-ratio image, not inserted into card text flow (3.837ms)
+✔ organic shelf renders genuine products with heading and Shop; hides when empty (4.3169ms)
+✔ ScanResultV2 mounts the organic shelf after primary commerce, gated and settle-ordered; no sponsored surface (27.3513ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1773.6595

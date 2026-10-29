@@ -18,3 +18,5 @@
 Resume commands: gh pr checks 644; gh pr checks 645; git fetch origin; inspect the three worktree status outputs before editing; use captured raw logs and exact source inventories rather than rerunning completed checks without cause.
 
 Additional Lane F executed probe: all 18 Production endpoints marked verify_jwt=true returned HTTP 401 to an anonymous POST with an empty object. Evidence: evidence/anonymous-endpoint-probes.json. This verifies gateway rejection only, not authenticated IDOR, handler authorization, storage isolation or tampered-token rejection. Corresponding mandatory-probe cells updated individually. No authenticated/customer/provider operation requested.
+
+Documentation-only evidence worktree: C:/b35evidence1029, branch docs/build35-campaign-checkpoint-20261029. Consent repair TypeScript check completed with exit 0 at 8c86a9fdabcd1bff905e86423d4033a3c8ed7e62. Raw full-suite logs remain in each original audit worktree; compact results and failure names are committed.

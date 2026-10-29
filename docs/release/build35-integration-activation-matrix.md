@@ -46,3 +46,5 @@ NOT AUDITED means no complete client-to-authority hostile audit. Regression suit
 Physical iOS/Android parity, revoked permissions, signed-URL expiry, real purchases/restore, push receipts, avatar timing and native VTO remain NOT TESTED.
 
 Additional Lane F executed probe: all 18 Production endpoints marked verify_jwt=true returned HTTP 401 to an anonymous POST with an empty object. Evidence: evidence/anonymous-endpoint-probes.json. This verifies gateway rejection only, not authenticated IDOR, handler authorization, storage isolation or tampered-token rejection. Corresponding mandatory-probe cells updated individually. No authenticated/customer/provider operation requested.
+
+18 individually attributed anonymous gateway cells PASS; remaining mandatory cells NOT TESTED. Minimum classes still require endpoint/field-specific expansion.

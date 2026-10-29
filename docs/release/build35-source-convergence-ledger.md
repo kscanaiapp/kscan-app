@@ -14,4 +14,4 @@ PRs #635/#637 merged into integration; #636/#638/#640/#641 merged into backend; 
 
 Repair #644: bd2827e7bb524cf149ac01ae5443f2901bbb29f6 on audit/build35-full-hostile-20261029. Repair #645: 8c86a9fdabcd1bff905e86423d4033a3c8ed7e62 on audit/build35-integration-hostile-20261029. Both draft/unmerged. Conditional order: #644 then #645, then owner-selected convergence. No conflicting-file repairs run concurrently.
 
-Mobile branch protection API returned 404 (not protected); rulesets and branch rules captured separately. This does not waive governed CI/review. Final candidate SHA: NOT SELECTED. Final clean-tree proof and final CI: NOT AVAILABLE. Working report artifacts are intentionally uncommitted until this checkpoint is saved.
+Mobile branch protection API returned 404 (not protected); rulesets and branch rules captured separately. This does not waive governed CI/review. Final candidate SHA: NOT SELECTED. Final clean-tree proof and final CI: NOT AVAILABLE. Reports are committed separately on docs/build35-campaign-checkpoint-20261029 in C:/b35evidence1029. Repair worktrees retain raw full-suite logs locally.
