@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LUXURY, SPACING, RADIUS } from '../../constants/theme';
 import { hasVerifiedOwnership, type OwnershipIdentity } from '../../services/blackOwnedDiscovery';
+import { useOwnershipExpiryRefresh } from '../../hooks/useOwnershipExpiryRefresh';
 
 export interface ProductCardProps {
   /** Product image URI. */
@@ -56,6 +57,7 @@ export function ProductCard({
   style,
 }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
+  useOwnershipExpiryRefresh([ownershipIdentity]);
 
   const hasImage = Boolean(imageUrl) && !imageError;
 

@@ -25,6 +25,7 @@ import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAva
 import { VTO_UI_ENABLED } from '../../constants/featureFlags';
 import { TryItOnEntry } from '../vto/TryItOnEntry';
 import { hasVerifiedOwnership, type OwnershipIdentity } from '../../services/blackOwnedDiscovery';
+import { useOwnershipExpiryRefresh } from '../../hooks/useOwnershipExpiryRefresh';
 // Customer activation: this is the surface the one-time Try It On cue teaches
 // from, so it declares its own modal -- the cue never appears while it is up.
 import { useVtoAwarenessBlocker } from '../../hooks/useVtoAwareness';
@@ -92,6 +93,7 @@ export function PurchaseOptionsPanel({
   ownershipById,
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
+  useOwnershipExpiryRefresh(Object.values(ownershipById ?? {}));
   // ONE authoritative classification per listing, read from the validated
   // metadata and never re-derived from a score. Rows keep their relative order
   // inside a tier and keep their stable ids as keys (so a try-on opened from a
