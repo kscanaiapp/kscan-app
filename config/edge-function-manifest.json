@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-29T00:00:00.000Z",
-    "generatedFromGitSha": "afed68a34876d54807b2df62d8ef1f0b119cee3c"
+    "generatedAtUtc": "2026-10-29T12:35:56.163Z",
+    "generatedFromGitSha": "83f155846b113f9da70318f1caf96e974cdbad9f"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -47,8 +47,8 @@
         ],
         "bundleFileCount": 47,
         "treeFileCount": 83,
-        "bundleHash": "d2f223cf3dffeadb6368642263c56f0e2cc464e8e227bb561b228723f5f59ffc",
-        "treeHash": "03a01f73e3df70927210a496f218115c4aec20287632f626971184ac6635d9cb",
+        "bundleHash": "8b5ecea0713d04c05e0f9ce42c8964b47aaa691e7ea8ab587817cffb8e8aa6a8",
+        "treeHash": "ec629eaafafa3c43e02545debdbc2eb7c9c01f1260b7cbd35747eda17d156a74",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -347,7 +347,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanImageProductMission.ts",
-            "sha256": "f8b017ef62fe821ee983feb23da7586952270047eecc553f1899329fabdac46c",
+            "sha256": "45b167aa3fe142c48e116a5f52e94d65ef707785858d738b5019336c67c897f8",
             "bundle": true
           },
           {
@@ -599,8 +599,8 @@
         ],
         "bundleFileCount": 53,
         "treeFileCount": 78,
-        "bundleHash": "86d31c9c0fd753e619a22659e8971ee7c7290f9a18ab6fd13be75844fc234af9",
-        "treeHash": "35079ece16305765dcb2a215facbcb3bd3b227947b1687287d069829dd70475e",
+        "bundleHash": "8baeb79c570e6392b93db08b72cfcd66393b694fdd2d2a69abea6bb9d73a5eae",
+        "treeHash": "d2eb3b938e3ed243097434de956c0cd5f01a41fa38caabee7ddced74698cc49e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -699,7 +699,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseBrandVoice.ts",
-            "sha256": "9e2f9adec87ba3bb15303be7fd032f164976f4334f92482b2badb126481d7a4f",
+            "sha256": "b39bd180a35931359edf9fdad17e70832d664de6c575507cad040212e1198c1d",
             "bundle": true
           },
           {
