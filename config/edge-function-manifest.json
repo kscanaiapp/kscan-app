@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-16T16:53:19.369Z",
-    "generatedFromGitSha": "a02f0063816d3720c637aa22da9a096e6f4f5e50"
+    "generatedAtUtc": "2026-10-29T00:00:00.000Z",
+    "generatedFromGitSha": "54e9c27d9e39df99b167126382fe8ed9f5f01edb"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -592,10 +592,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 52,
-        "treeFileCount": 77,
-        "bundleHash": "ca1b4c860b49bc8d8b94aa260eaf908830aee8b35328679121209bacd2c9285c",
-        "treeHash": "72efbedef11d127ec552093ee277e83527c3f7614adf971107ad29587ce9512b",
+        "bundleFileCount": 53,
+        "treeFileCount": 78,
+        "bundleHash": "86d31c9c0fd753e619a22659e8971ee7c7290f9a18ab6fd13be75844fc234af9",
+        "treeHash": "35079ece16305765dcb2a215facbcb3bd3b227947b1687287d069829dd70475e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -693,6 +693,11 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/eliseBrandVoice.ts",
+            "sha256": "9e2f9adec87ba3bb15303be7fd032f164976f4334f92482b2badb126481d7a4f",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/eliseClosetCensus.ts",
             "sha256": "c402c8570f162f961c354160dddc082af36a966b5a8dfb5dda2e4694475401b8",
             "bundle": true
@@ -729,7 +734,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "eaf7aaf17947599a1865c1330df62a9967c8a3305efee9fe68777a5a5eda97e9",
+            "sha256": "65397de8992a74b802bcde0bee8b12b14e6a5226740001efc7756c1945888eb4",
             "bundle": true
           },
           {
@@ -864,7 +869,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "1ff1eca89773a50402a312aa5fcdc127aa966130f27a51384dfb0384093a9e17",
+            "sha256": "0332f5bbf65cbbf93501f80ca45bf3f1a2bb049ab9e19275a615fbdebce456d4",
             "bundle": true
           },
           {
