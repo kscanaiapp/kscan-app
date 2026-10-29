@@ -300,6 +300,27 @@ client; an external click is never recorded as a purchase.
 
 ## Validation, performance and remaining external dependencies
 
+Source-control delivery: backend PR
+[kscan-app#641](https://github.com/kscanaiapp/kscan-app/pull/641), linked optional
+mobile preparation PR
+[kscan-app#642](https://github.com/kscanaiapp/kscan-app/pull/642).
+The full governed Deno run passed **1,467 tests**. The full local backend Node run
+found only two assertions enumerating the preexisting pending-migration list;
+both now include the new exact migration ID, with **97/97** reconciliation tests
+passing. TypeScript, actual-migration integration, source parity, backend
+authority, migration authority/provenance and security validation passed.
+CI source/security reports remain the authority for the exact submitted head.
+
+The mobile base had inherited dependency-gate failures. Narrow exact overrides
+and lockfile updates bring compression/proxy-addr/shell-quote/source-map-js and
+node-forge to verified patched registry versions; no broad upgrade or exception
+relaxation was used. Both branches' dependency reachability checks pass with
+zero unapproved critical/high findings. Existing documented build-tool exceptions
+remain unchanged. Local Windows mobile full-suite failures include inherited
+absolute-path ESM loader limitations and preexisting baseline failures; the Linux
+PR Project checks passed before the lockfile repairs, with base-relative regression
+handling as configured by that branch.
+
 Focused Deno tests cover deterministic relevance, original-primary deduplication,
 timeouts, aborts, cache invalidation, flag independence, source normalization,
 Shopify boundaries, staff sandbox denial, disclosure, shadow scheduling and
