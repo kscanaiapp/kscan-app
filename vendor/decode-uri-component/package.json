@@ -1,0 +1,9 @@
+{
+  "name": "decode-uri-component",
+  "version": "0.5.1",
+  "private": true,
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "description": "Exact upstream 0.5.1 security algorithm, CommonJS/legacy-plus adaptation for the existing Expo SDK consumer"
+}
