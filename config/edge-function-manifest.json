@@ -356,6 +356,16 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/scanQuota.ts",
+            "sha256": "384f271ad9c7748403c3276f93886632363205075ea856f5a491f2cd808f5c6c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanQuotaFailClosed.test.ts",
+            "sha256": "98e636ef3d091d65f4699eccdcd0fef7a7c0d268cb07a1f0b8a3fc28d8414fbf",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/scan-identify/scannerBrandIsolation.test.ts",
             "sha256": "e1aa1ac3b7a15c2a0cda6d0bfc7523799054998d8720d0688576980ee297dbfc",
             "bundle": false
@@ -394,16 +404,6 @@
             "path": "supabase/functions/scan-identify/scannerVisualEvidence.ts",
             "sha256": "b9c888ad412968492504ffdceafe8c9f4db7dd13b59476df3d2cd058e80686b7",
             "bundle": true
-          },
-          {
-            "path": "supabase/functions/scan-identify/scanQuota.ts",
-            "sha256": "384f271ad9c7748403c3276f93886632363205075ea856f5a491f2cd808f5c6c",
-            "bundle": true
-          },
-          {
-            "path": "supabase/functions/scan-identify/scanQuotaFailClosed.test.ts",
-            "sha256": "98e636ef3d091d65f4699eccdcd0fef7a7c0d268cb07a1f0b8a3fc28d8414fbf",
-            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/selectedItemBoundary.ts",
