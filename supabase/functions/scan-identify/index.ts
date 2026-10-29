@@ -115,6 +115,10 @@ import {
 } from './scanQuota.ts';
 import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
 import {
+  buildScanImageProductMission,
+  isScanImageProductMissionEnabled,
+} from './scanImageProductMission.ts';
+import {
   buildWeightedCommerceQueries,
   filterAndDedupeProducts,
   shouldRunFallbackQuery,
@@ -2849,6 +2853,16 @@ Deno.serve(async (req) => {
     ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled))
     : '';
 
+  // Scanner camera/gallery and other image-entry missions are separate from
+  // TextScan and Elise's conversational tone. The flag-OFF request must remain
+  // structurally identical to the previously certified Gemini JSON request.
+  const imageMission = mode === 'image'
+    ? buildScanImageProductMission(
+      isScanImageProductMissionEnabled((key) => Deno.env.get(key)),
+      requestModeForRoute === 'text' ? 'legacy_single_item' : requestModeForRoute,
+    )
+    : null;
+
   const geminiBody = mode === 'text'
     ? {
         contents: [
@@ -2867,6 +2881,9 @@ Deno.serve(async (req) => {
         },
       }
     : {
+        // System-level product identity is independent of user-provided image
+        // and text data. Preserve the existing task prompt and JSON schema.
+        ...(imageMission ? { system_instruction: { parts: [{ text: imageMission }] } } : {}),
         contents: [
           {
             role: 'user',
