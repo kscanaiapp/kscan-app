@@ -1,32 +1,42 @@
-# Campaign checkpoint — 2026-10-29
+# Build 35 campaign checkpoint
 
-**PARTIAL; FAIL — BLOCKING ISSUES REMAIN.**
+Verdict: BLOCKED pending explicit owner merge approval and outstanding verification. No release certification issued.
 
-- Lanes completed: none in full. Completed slices: A authority/PR baseline; G discovery host and malformed-response repair; C consent disclosure/version repair; F/B integration baseline suites.
-- Lanes in progress: F → B → C → G. D/E/H NOT AUDITED. Final A convergence pending owner gate.
-- Findings: P0 0 confirmed, P1 1 (B35-C-001), P2 1 (B35-G-001), P3 0 confirmed; no inference of absence elsewhere. Three UNCONFIRMED hypotheses, 68 untriaged pre-freeze failing assertions.
-- Repairs: open 2 (#644, #645), merged 0. Each separately committed, draft/unmerged. Order #644 then #645 then governed convergence. Sole lead editor, no conflicting shared-file parallelism.
-- Latest test status: discovery 22/22; consent 39/39; backend authority discovery 28/28; integration baseline Deno 1422/1422; integration baseline Node 11179 pass/0 fail/98 skip; pre-freeze+discovery repair Node 9332 pass/68 fail/67 skip; baseline TypeScript both exit 0. No all-green final candidate claim.
-- Runtime: Production 28 functions, discovery ABSENT; Staging 40 functions, discovery ACTIVE v5 JWT=true. Migration readback attempted but blocked by IPv6. Effective flags/cost controls/provider ingestion NOT VERIFIED.
-- TestSprite: CLI authenticated, existing backend project found; native source changes undeployed and no MCP available. Do not run an old deployment and call it patch verification.
-- Exact next action: inspect repair #645 CI, reproduce/classify each of 68 failures from evidence/prefreeze-failures.txt, then run Lane F per-endpoint identity/input/storage/replay probes with synthetic A/B actors and staged fixtures. Mandatory probe inventory is evidence/mandatory-hostile-probes.json; every unexecuted cell remains NOT TESTED.
-- Then: complete B privacy/network-boundary fixtures; C timing/provider failure injection; G runtime deployment/ownership/catalog/analytics; D/E/H; final A governance/convergence and full rerun.
-- Pending owner gate: retain pre-freeze Build 34 isolation and converge into Build 35 integration, or explicitly supersede RP-108. User question remains unanswered. No authority selected by assumption. Protected Production rollout is separately gated.
-- Worktrees: C:/b35full1029 branch audit/build35-full-hostile-20261029; C:/b35int1029 branch audit/build35-integration-hostile-20261029; C:/b35be1029 branch audit/build35-backend-hostile-20261029. Baseline SHAs in convergence record. No other engineer tree modified.
-- No EAS build or signed mobile artifact generated. No Production mutation.
+## Current operation and source
 
-Resume commands: gh pr checks 644; gh pr checks 645; git fetch origin; inspect the three worktree status outputs before editing; use captured raw logs and exact source inventories rather than rerunning completed checks without cause.
+- Last completed: promoted governed backend SQL tests and dry-run invoker files; reconciled migration authority with current read-only Staging/Production ledgers. Focused 159/159 pass, zero skips.
+- Candidate: integration/build35-hostile-convergence-20261029 at 72eee2fb (PR #648, pushed); target integration/build35-v1-convergence at 65a1e7cd. This is an unmerged candidate, not the authoritative release head.
+- Backend authority: rebuild/backend-authority-v2 at 3efcb6cb. Pre-freeze 840ba88e remains Build 34 isolated by RP-108. Authority conflict resolved by existing scoped governance; no exception authorized.
+- Sole lead edits shared files serially. Original worktrees and uncommitted evidence preserved.
 
-Additional Lane F executed probe: all 18 Production endpoints marked verify_jwt=true returned HTTP 401 to an anonymous POST with an empty object. Evidence: evidence/anonymous-endpoint-probes.json. This verifies gateway rejection only, not authenticated IDOR, handler authorization, storage isolation or tampered-token rejection. Corresponding mandatory-probe cells updated individually. No authenticated/customer/provider operation requested.
+## Lanes
 
-Documentation-only evidence worktree: C:/b35evidence1029, branch docs/build35-campaign-checkpoint-20261029. Consent repair TypeScript check completed with exit 0 at 8c86a9fdabcd1bff905e86423d4033a3c8ed7e62. Raw full-suite logs remain in each original audit worktree; compact results and failure names are committed.
+- Fully completed lanes: none. Completed bounded work: source authority resolution; all 68 historical failure dispositions; six repairs prepared; real Staging identity/storage/share-removal fixtures; production deployment/flag/migration readback; source convergence preparation.
+- In progress: F backend/security; B Scanner/commerce; C consent/speech/VTO; G discovery/analytics. D/E/H retain NOT AUDITED for any untraced/unexecuted surfaces. A final convergence/CI pending.
 
-## Continuation checkpoint
+## Findings and repairs
 
-- Source authority resolved by scoped governance: RP-108 isolates Build 34 pre-freeze; final Build 35 convergence targets existing integration/build35-v1-convergence. No exception to RP-108 or new deployment authority.
-- PR #646 CI root cause: exact legacy terminology references in immutable baseline path inventory. Added one file-scoped HISTORICAL_AUDIT_RECORD entry and explicitly reconciled 26 occurrences; detector/negative controls retained, 7/7 pass. Commit fdbd5a24 pushed to existing PR.
-- All 68 failures individually dispositioned in build35-prefreeze-68-failure-disposition.md / evidence/prefreeze-68-dispositions.json. Corresponding integration suites pass 336/336; isolated original pre-freeze writeguard suite passes 67/67 with original link metadata restored. Final candidate rerun remains required.
-- New source convergence PR #648 (ca90db75), working tree C:/b35converge1030; canonical runtime closures and four missing append-only migrations promoted, mobile deployment authority remains denied. Focused discovery/analytics 61/61; backend 1482/1482; source release/native/migration gates pass.
-- New P1 B35-F-002 outfit lifecycle fail-open repaired in backend-authority PR #647 (b8b9fc27), C:/b35outfit1030, focused 38/38 after reproduced wiring failure.
-- #644/#645 remain existing open draft PRs. Pending clarification: owner-confirmation merge gate referenced in new scope but section omitted. Independent testing/repair continues.
-- Exact next step: complete per-transfer consent authority investigation, refresh #646/#647/#648 CI, execute/attribute hostile harnesses, then candidate full regression and feature-level coverage. No full audit or deployment PASS claimed.
+- Confirmed P0 0, P1 3 (C-001 disclosure, F-002 lifecycle, C-002 backend receipt), P2 2 (G-001 secondary parsing, COST-003 paid-probe accounting), P3 1 (G-004 mounted badge expiry). Six repairs prepared, zero merged. Count is findings proved, not absence of other defects.
+- PRs #644, #645, #647, #649, #650, #651 remain open; #648 contains serially promoted repairs for candidate verification. #646 is the existing evidence lane. No duplicate repair PRs.
+- Owner explicitly requires approval before merging #644/#645; dependent convergence cannot merge them indirectly. No merge performed. Sensitive dependent changes remain subject to owner/governance gates.
+- Separate P4 input-resilience failure: real Scanner handler throws on JSON null, zero provider/write effects. Preserved in standalone hostile harness; proposed guard touches excluded scan-identify subsystem, so safe lower-severity repair condition fails. No scope bypass or severity inflation.
+- Durable Gemini withdrawal authority remains unresolved: immutable acceptance receipts alone cannot represent withdrawal. Do not claim universal consent completion.
+
+## Tests and runtime
+
+- Prior 68 failures: individually dispositioned; 336/336 corresponding integration checks; original writeguard 67/67 with isolated then restored CLI metadata. Final candidate rerun in progress.
+- Running at 5175f01f: node scripts/run-all-tests.js, node scripts/run-backend-tests.js, npx tsc --noEmit. Logs candidate-node-final.log, candidate-backend-final.log, candidate-typecheck-final.log.
+- Standalone hostile handler suite: 31 handlers, 186 invalid/anonymous cases, 185 bounded PASS, one FAIL (Scanner null); not authenticated IDOR proof.
+- Real Staging isolation fixture: 19/19 including cleanup actor checks. Prior two harness-invalid runs retained and explicitly invalid, not product findings. Read-only cleanup readback confirms zero remaining tagged actors, rooms and storage objects.
+- Production: discovery absent; organic discovery/badge flags false; all three sponsorship flags false; brand-voice/image-mission flags true. Both projects have all four promoted migrations. Metadata RLS readback found no client-granted public/storage table with RLS disabled. This does not establish every policy correct.
+- No Production mutation, no paid purchase/provider probe, no EAS build or signed artifact. Native TestSprite patch remains undeployed/unverified; existing authenticated CLI is not evidence of this patch running.
+
+## Exact next steps
+
+1. Collect structured full Node test attribution at 72eee2fb; backend 1515/1515 at 72eee2fb, tsc exit 0 at 01d78197. Six source gates pass. Earlier 5175f01f Node run 11288 pass/0 fail/98 skip. VTO enforced CI scope repaired with exact canonical provenance at 72eee2fb; await refreshed CI.
+2. Verify Staging synthetic cleanup with read-only tagged counts; retain probe rows with environment/SHA/expected/actual/evidence.
+3. Refresh all PR CI; reconcile stacked repair branches with tested candidate without merging owner-gated changes.
+4. Complete remaining source/provider/state probes and update feature matrix. Every unexecuted boundary gets NOT TESTED and a precise reason.
+5. Refresh all evidence reports/claims/ledger; push existing #646. Await owner approval only at protected merge/deployment boundaries while independent work continues.
+
+Live external readback: RevenueCat current U.S. 0.99/month and 9.99/year plus one-month trials verified on Apple and Google; Apple products READY_TO_SUBMIT, no purchases/price changes. PostHog project571577 has four event names seen in last30days; no full-taxonomy or artifact-binding claim. Project recording opt-in is true while client SDK replay is explicitly false; no capture configuration changed. Cron/pg_net extensions absent in both Supabase projects; GitHub protected Watchlist scheduling is the source authority, recent Production runs pending/cancelled, not delivery proof.
