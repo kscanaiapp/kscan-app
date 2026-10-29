@@ -19,7 +19,7 @@ const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 function load(file, resolve = () => undefined) {
   const js = ts.transpileModule(read(file), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(js, { module, exports: module.exports, require: (name) => resolve(name) ?? require(name), Date, Set, Map, Promise, AbortController, setTimeout, clearTimeout, JSON, Object, Array, Number, String });
+  vm.runInNewContext(js, { module, exports: module.exports, require: (name) => resolve(name) ?? require(name), URL, Date, Set, Map, Promise, AbortController, setTimeout, clearTimeout, JSON, Object, Array, Number, String });
   return module.exports;
 }
 
@@ -40,7 +40,7 @@ const analysis = {
   conversation: 'PRIVATE CHAT',
 };
 
-// ── Ordering: primary settles first ─────────────────────────────────────────
+// â”€â”€ Ordering: primary settles first â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 test('secondary waits for primary commerce to settle', () => {
   assert.equal(host.isPrimaryCommerceSettled({ ...analysis, commerceDeferred: true }, 'pending'), false);
   assert.equal(host.isPrimaryCommerceSettled({ ...analysis, commerceDeferred: true }, 'idle'), false);
@@ -51,7 +51,7 @@ test('secondary waits for primary commerce to settle', () => {
   assert.equal(host.isPrimaryCommerceSettled(null, 'success'), false);
 });
 
-// ── Privacy: structured attributes only ─────────────────────────────────────
+// â”€â”€ Privacy: structured attributes only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 test('request carries sanitized structured attributes, market and primary ids/URLs only', () => {
   const primary = host.primaryIdentities([{ id: 'p1', productUrl: 'https://shop.example.com/a', imageUrl: 'x', title: 'PRIVATE' }]);
   const input = host.buildBlackOwnedDiscoveryInput(analysis, primary);
@@ -81,7 +81,7 @@ test('primary identities keep display order, de-duplicate and cap at 30', () => 
   assert.equal(host.primaryIdentities(Array.from({ length: 40 }, (_, i) => ({ id: `p${i}` }))).length, 30);
 });
 
-// ── Badges and duplicates ───────────────────────────────────────────────────
+// â”€â”€ Badges and duplicates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 test('ownership badges: only verified, current, permitted identities for rendered primary ids', () => {
   const map = host.primaryOwnershipById(response({ primaryOwnership: {
     p1: identity(), p2: identity('b2', { verifiedUntil: '2020-01-01T00:00:00Z' }), p3: identity('b3', { publicOwnershipLabelAllowed: false }),
@@ -105,7 +105,7 @@ test('secondary shelf: organic only, never duplicates a primary card, hides empt
   assert.equal(host.displayableSecondary(undefined, primary), undefined);
 });
 
-// ── Hook lifecycle: deferred, cancelled, superseded ─────────────────────────
+// â”€â”€ Hook lifecycle: deferred, cancelled, superseded â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function createHooks() {
   let slots = [], index = 0, effects = [], dirty = false;
   const react = {
@@ -199,7 +199,7 @@ test('secondary errors leave the result absent (primary untouched)', async () =>
   assert.equal(use(input, key, { enabled: true, primarySettled: true, invoke }), undefined);
 });
 
-// ── Rendering ───────────────────────────────────────────────────────────────
+// â”€â”€ Rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const native = { View: 'div', Text: 'span', Image: 'img', Pressable: 'button', ScrollView: 'div', TouchableOpacity: 'button', ActivityIndicator: 'progress', StyleSheet: { create: (x) => x } };
 const theme = { SPACING: { sm: 8, md: 12, xs: 4, lg: 16 }, RADIUS: { sm: 8, md: 12 }, SHADOWS: {}, LUXURY: { cards: { product: { shadow: {} } }, colors: {}, typography: { brandMark: {}, caption: {}, bodyStrong: {}, body: {}, ctaSecondary: {} } } };
 const ui = (n) => (n === 'react' ? React : n === 'react-native' ? native : n === '../../constants/theme' ? theme : n === '../../services/blackOwnedDiscovery' ? client : undefined);
@@ -250,7 +250,7 @@ test('organic shelf renders genuine products with heading and Shop; hides when e
   assert.equal(renderToStaticMarkup(React.createElement(BlackOwnedDiscoveryShelf, { enabled: false, response: response() })), '');
 });
 
-// ── Host wiring (source-level contract on the real surface) ────────────────
+// â”€â”€ Host wiring (source-level contract on the real surface) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 test('ScanResultV2 mounts the organic shelf after primary commerce, gated and settle-ordered; no sponsored surface', () => {
   const src = read('components/scan-results/ScanResultV2.tsx');
   const purchase = src.indexOf('<PurchaseOptionsPanel');
