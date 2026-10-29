@@ -12,7 +12,8 @@
  *
  * - Staging only (asserted before any request). Never production.
  * - Reads only the repository's approved `assets/qa_fixtures` images.
- * - Creates no account, deploys nothing, writes no database row directly.
+ * - Creates no account and deploys nothing. Its only write is one owned
+ *   style_chat_sessions row (as the app creates), deleted at the end.
  * - The report carries counts, enums, booleans and latencies only: no reply
  *   text, prompt text, image data, user id, email or token.
  */
@@ -174,9 +175,26 @@ async function run(env = process.env) {
   const scanUrl = buildScanIdentifyUrl(base);
   const startIso = new Date(Date.now() - 5_000).toISOString();
 
-  const eliseRaw = await post(`${base}/functions/v1/stylechat-generate`, key, token,
-    { sessionId: `kscan-activation-probe-${crypto.randomUUID()}`, message: ELISE_MESSAGE });
+  // Elise requires a session the caller owns. Create it exactly as the app does
+  // (RLS-scoped insert as the user) and delete it afterwards; messages cascade.
+  const userId = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).sub;
+  const sessionId = crypto.randomUUID();
+  const restHeaders = { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const sessionRes = await fetch(`${base}/rest/v1/style_chat_sessions`, {
+    method: 'POST',
+    headers: { ...restHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({ id: sessionId, user_id: userId, title: 'K Scan activation probe', mode: 'general' }),
+  });
+  let eliseRaw;
+  try {
+    eliseRaw = await post(`${base}/functions/v1/stylechat-generate`, key, token,
+      { sessionId, message: ELISE_MESSAGE });
+  } finally {
+    await fetch(`${base}/rest/v1/style_chat_sessions?id=eq.${sessionId}`, { method: 'DELETE', headers: restHeaders })
+      .catch(() => {});
+  }
   const elise = {
+    sessionCreateStatus: sessionRes.status,
     httpStatus: eliseRaw.httpStatus,
     elapsedMs: eliseRaw.elapsedMs,
     status: typeof eliseRaw.body?.status === 'string' ? eliseRaw.body.status : null,

@@ -5,7 +5,8 @@
 # probe's own branch so the workflow self-registers for dispatch.
 #
 # Side effects: one Elise turn, three image-mode scans and one TextScan by the
-# governed synthetic ACTIVE account against Staging. Deploys nothing.
+# governed synthetic ACTIVE account against Staging, plus one owned Elise
+# session row (created as the app does, deleted afterwards). Deploys nothing.
 
 name: K Scan Staging Instruction Activation Live Probe
 
