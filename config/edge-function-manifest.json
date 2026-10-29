@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-29T17:02:29.996Z",
-    "generatedFromGitSha": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74"
+    "generatedAtUtc": "2026-10-29T17:14:00.518Z",
+    "generatedFromGitSha": "6f354c7df88bca625f8455f6918fe3caed0f1695"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -406,7 +406,7 @@
         "bundleFileCount": 47,
         "treeFileCount": 83,
         "bundleHash": "8b5ecea0713d04c05e0f9ce42c8964b47aaa691e7ea8ab587817cffb8e8aa6a8",
-        "treeHash": "142a6c91139f15787ea43b2e12d3e9edcfb4c3a0b0590c9168ac466ccfbb206c",
+        "treeHash": "1b38fd5739c8ac46eff750dc3b5785422fd2581c2260d926de72bf18393904e3",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -660,7 +660,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "b4d068438a877849cf178e25a7ffc9be66822d50583540a6cfdd92b6b14ae9f8",
+            "sha256": "6c3b181a1c732c45a901b72d598685e7f9ec8dcecfd8c42efc33158e7062dd3e",
             "bundle": false
           },
           {
@@ -1362,7 +1362,7 @@
         "bundleFileCount": 8,
         "treeFileCount": 11,
         "bundleHash": "b7b2d22099f7ecb3a4d82bc69b2e0524ec78e91ba377e8b85b9c805d6b54b6d6",
-        "treeHash": "36539ee6fc017f7d964ed2464db9c338caaebb960baa9a26fdbfc46863ddc82e",
+        "treeHash": "ade2fbc8589f959066b4e06c58f7a3450c177e0bff76b14def973944c4c231b4",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1371,7 +1371,7 @@
           },
           {
             "path": "supabase/functions/style-outfit-generate/accountActiveGate.test.ts",
-            "sha256": "efa448d0c8525d08011e2fcdee7b3d49c70ac0b30c61296def6794d9104f1dbc",
+            "sha256": "0412202df380f35650dee3ac2daf147f81d5a72181ab7c4d0b09f4fac188ea08",
             "bundle": false
           },
           {
