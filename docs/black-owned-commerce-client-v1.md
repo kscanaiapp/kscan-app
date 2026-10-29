@@ -40,3 +40,13 @@ __tests__/sponsorshipSandboxRender.test.js` and `npx tsc --noEmit -p tsconfig.js
 Actual iOS/Android layout, keyboard, accessibility and image loading need device
 review when a host mounts these prepared components. Render tests use React DOM
 with native view stubs and verify disclosure and default ordinary-card behavior.
+
+CI remediation: exact patched overrides/lock entries for compression 1.8.2,
+proxy-addr 2.0.8, shell-quote 1.12.0, source-map-js 1.2.2 and node-forge 1.4.2
+repair the older mobile base's dependency reachability failure. No dependency
+exception was broadened. The live reachability check passes. Linux Project checks
+passed on the initial client commit; local Windows full-suite failures include
+inherited ESM absolute-path loader limitations and recorded baseline failures.
+The focused client, privacy-scrubbing and real disclosure-render tests pass, and
+TypeScript passes. Backend: https://github.com/kscanaiapp/kscan-app/pull/641.
+Client: https://github.com/kscanaiapp/kscan-app/pull/642.
