@@ -112,8 +112,9 @@ function evaluate(evidence) {
   const add = (name, pass, detail) => checks.push({ name, pass: Boolean(pass), detail });
   const { logs, elise, legacy, detect, selected, text } = evidence;
 
-  add('elise_turn_succeeded', elise.httpStatus === 200 && elise.status === 'success',
-    `http=${elise.httpStatus} status=${elise.status}`);
+  // 'success' (not the 'error' fallback) means Gemini produced the reply.
+  add('elise_turn_succeeded', elise.httpStatus === 200 && elise.status === 'success' && elise.replyLength > 0,
+    `http=${elise.httpStatus} status=${elise.status} replyLength=${elise.replyLength}`);
   add('elise_brand_voice_enabled_and_attached',
     logs.elise.length >= 1 && logs.elise.every((l) => l.enabled && l.attached && l.version === 'elise-brand-voice-v1'),
     `lines=${logs.elise.length}`);
@@ -188,7 +189,8 @@ async function run(env = process.env) {
   let eliseRaw;
   try {
     eliseRaw = await post(`${base}/functions/v1/stylechat-generate`, key, token,
-      { sessionId, message: ELISE_MESSAGE });
+      // V2 contract (as the current app sends) so structured actions are checked.
+      { sessionId, message: ELISE_MESSAGE, contractVersion: '2' });
   } finally {
     await fetch(`${base}/rest/v1/style_chat_sessions?id=eq.${sessionId}`, { method: 'DELETE', headers: restHeaders })
       .catch(() => {});
@@ -198,7 +200,8 @@ async function run(env = process.env) {
     httpStatus: eliseRaw.httpStatus,
     elapsedMs: eliseRaw.elapsedMs,
     status: typeof eliseRaw.body?.status === 'string' ? eliseRaw.body.status : null,
-    replyLength: typeof eliseRaw.body?.message === 'string' ? eliseRaw.body.message.length : 0,
+    replyLength: typeof eliseRaw.body?.message?.content === 'string' ? eliseRaw.body.message.content.length : 0,
+    contractVersion: typeof eliseRaw.body?.contractVersion === 'string' ? eliseRaw.body.contractVersion : null,
     capabilities: Array.isArray(eliseRaw.body?.capabilities) ? eliseRaw.body.capabilities : [],
     actionsIsArray: Array.isArray(eliseRaw.body?.actions),
   };

@@ -21,7 +21,7 @@ const ON_ROWS = [
 ];
 
 const OK_RESPONSES = {
-  elise: { httpStatus: 200, status: 'success', capabilities: ['attachments', 'structured_actions'], actionsIsArray: true },
+  elise: { httpStatus: 200, status: 'success', replyLength: 120, capabilities: ['attachments', 'structured_actions'], actionsIsArray: true },
   legacy: { httpStatus: 200, status: 'identified' },
   detect: { httpStatus: 200, v2Status: 'candidates', candidateCount: 2 },
   selected: { httpStatus: 200, v2Status: 'identified', candidateCount: 1 },
