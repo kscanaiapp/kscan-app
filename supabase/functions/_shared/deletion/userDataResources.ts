@@ -37,6 +37,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // the operational record of the request and must survive the Auth delete.
   { table: 'deletion_requests', column: 'user_id', action: 'survive_auth_delete' },
   { table: 'legal_acceptances', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'ai_processing_permissions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'saved_scans', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'dressing_rooms', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'dressing_room_items', column: null, action: 'parent_room_cascade', count: false },
