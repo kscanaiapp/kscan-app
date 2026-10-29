@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-29T18:45:52.136Z",
-    "generatedFromGitSha": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf"
+    "generatedAtUtc": "2026-10-29T22:00:27.356Z",
+    "generatedFromGitSha": "9ab4a2da3eefd94fb366a4ff7721ea7999c2f54f"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1369,10 +1369,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 8,
-        "treeFileCount": 10,
-        "bundleHash": "f37a73ec1c6ad7f7ea595f22d586a78d112416f906af7ed5a8a864c1372b2800",
-        "treeHash": "ee9c52822a3a99ebbf08686eab24e02b14ace39d7fbbded5fcb3be3c8ea57e07",
+        "bundleFileCount": 9,
+        "treeFileCount": 12,
+        "bundleHash": "bb3edf7dad961012950032278cf40b5206eafc4bcb8f8f075c9233fe2eee88cb",
+        "treeHash": "b73facac10ed052c77b043570eef43543a1cf3532388f272835312194df128ce",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1385,8 +1385,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/style-outfit-generate/accountActiveGate.test.ts",
+            "sha256": "0412202df380f35650dee3ac2daf147f81d5a72181ab7c4d0b09f4fac188ea08",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/style-outfit-generate/accountActiveGate.ts",
+            "sha256": "a924868157dba3a076024fc0d0aba8c4a65bb561932d26a3132217fcedb504b1",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "d3e08d1607b80b927a065260fb5fbac1034554f5cdcc25dc112c5806cc8472a4",
+            "sha256": "aa338f7ab6346aa8a93e48b0cc00e18db9599629d52d3453f6453c690fcf69df",
             "bundle": true
           },
           {
