@@ -53,6 +53,12 @@
       "action": "auth_delete_cascade"
     },
     {
+      "table": "ai_processing_permissions",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true
+    },
+    {
       "table": "saved_scans",
       "column": "user_id",
       "action": "auth_delete_cascade"

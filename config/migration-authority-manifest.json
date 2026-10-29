@@ -729,6 +729,15 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "New additive secondary-commerce source authored 2026-10-29 on codex/black-owned-discovery-v1. This workstream has applied it to no remote database. Source declaration only: current live-ledger reconciliation and single-version governed staging/production approval remain required. Does not authorize application or deployment; no merchants or campaigns seeded."
+          },
+          {
+            "localVersion": "20261029184000",
+            "logicalName": "gemini_processing_permission",
+            "evidence": "B35-C-005 owner-authorized source work, October29. New revocable Gemini permission and actor/revision-fenced RPCs, retaining legal receipts. Not applied by campaign; protected migration approval required before deploying dependent consent gate. Copy/merge review remains separate.",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20260812031312"
+            ]
           }
         ]
       },
@@ -1490,6 +1499,15 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "New additive secondary-commerce source authored 2026-10-29 on codex/black-owned-discovery-v1. This workstream has applied it to no remote database. Source declaration only: current live-ledger reconciliation and single-version governed staging/production approval remain required. Does not authorize application or deployment; no merchants or campaigns seeded."
+          },
+          {
+            "localVersion": "20261029184000",
+            "logicalName": "gemini_processing_permission",
+            "evidence": "B35-C-005 owner-authorized source work, October29. New revocable Gemini permission and actor/revision-fenced RPCs, retaining legal receipts. Not applied by campaign; protected migration approval required before deploying dependent consent gate. Copy/merge review remains separate.",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20260812031312"
+            ]
           }
         ],
         "remoteOnly": [
