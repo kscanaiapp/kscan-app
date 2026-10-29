@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { LUXURY, SPACING, RADIUS } from '../../constants/theme';
+import { hasVerifiedOwnership, type OwnershipIdentity } from '../../services/blackOwnedDiscovery';
 
 export interface ProductCardProps {
   /** Product image URI. */
@@ -18,6 +19,10 @@ export interface ProductCardProps {
   subtitle?: string;
   /** Formatted price string. */
   price?: string;
+  /** Optional live server-authored identity; never inferred from brand names. */
+  ownershipIdentity?: OwnershipIdentity;
+  /** Only the staff sandbox contract may supply this V1 disclosure. */
+  sponsoredDisclosure?: { label: 'Sponsored'; sandbox: true };
   /** Called when the card is pressed. */
   onPress?: () => void;
   /** Called when the user taps the "Add to Dressing Room" action. */
@@ -42,6 +47,8 @@ export function ProductCard({
   title,
   subtitle,
   price,
+  ownershipIdentity,
+  sponsoredDisclosure,
   onPress,
   onAddToRoom,
   addToRoomLabel = 'Add to Room',
@@ -71,6 +78,8 @@ export function ProductCard({
       </View>
 
       <View style={styles.meta}>
+        {sponsoredDisclosure?.sandbox === true && sponsoredDisclosure.label === 'Sponsored' ? <Text style={styles.subtitle}>Sponsored</Text> : null}
+        {hasVerifiedOwnership(ownershipIdentity) ? <Text style={styles.subtitle}>Black-owned brand</Text> : null}
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
