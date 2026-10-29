@@ -1,3 +1,4 @@
+import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
 // style-outfit-generate — Secure server-side owned-closet outfit generation.
 //
 // DEPLOYMENT STATUS. This file previously said "SOURCE ONLY — NOT DEPLOYED in
@@ -323,6 +324,9 @@ Deno.serve(async (req) => {
   }
 
   // 3. Parse and bound the request. Client candidate arrays are never read.
+  const consentGate = await requireGeminiConsent(userId);
+  if (consentGate) return consentGate;
+
   let body: unknown = {};
   try {
     body = await req.json();
