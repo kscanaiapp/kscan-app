@@ -1,0 +1,45 @@
+{
+  "integrationBaseline": {
+    "node": {
+      "total": 11277,
+      "pass": 11179,
+      "fail": 0,
+      "skip": 98
+    },
+    "deno": {
+      "pass": 1422,
+      "fail": 0
+    },
+    "typescript": "exit 0 before consent changes"
+  },
+  "prefreezeRepair": {
+    "node": {
+      "total": 9467,
+      "pass": 9332,
+      "fail": 68,
+      "skip": 67
+    },
+    "typescript": "exit 0"
+  },
+  "focused": {
+    "discovery": {
+      "pass": 22,
+      "fail": 0,
+      "skip": 0
+    },
+    "consent": {
+      "pass": 39,
+      "fail": 0,
+      "skip": 0
+    },
+    "backendDiscovery": {
+      "pass": 28,
+      "fail": 0
+    }
+  },
+  "mandatoryGatewayAnonymous": {
+    "pass": 18,
+    "fail": 0
+  },
+  "prefreezeFailureNames": []
+}
