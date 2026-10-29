@@ -30,3 +30,11 @@ Authenticated Production function inventory contains no black-owned-discovery sl
 - Regression: real legal constants plus legacy local marker fixture; source disclosure assertion; existing legal/onboarding suites.
 - PR #645; commit 8c86a9fd (full SHA in convergence record). Focused 39/39 pass; CI pending. Merge and authoritative reverification NOT DONE. Cross-platform device enforcement and direct backend consent authority remain NOT TESTED.
 - Merge order: 1 B35-G-001 (#644); 2 B35-C-001 (separate disjoint files, integration branch). Lead is sole editor; no shared-file parallel repairs.
+
+## B35-F-002 — P1 — outfit generation lifecycle check fails open
+
+- Confirmed by source contract: backend authority `supabase/functions/style-outfit-generate/index.ts`, lifecycle block after verified `userId`, reads `.from('profiles').select('account_status').eq('id', userId).maybeSingle()` but discards the error and rejects only pending_deletion/locked. Missing/RLS-hidden rows, lookup errors and other non-active states proceed to Gemini and saved-look work.
+- Contradicts the existing server-authoritative account-active contract used by Scanner and StyleChat in `_shared/deletion/common.ts:assertAccountActive`, which fails closed and resolves missing profiles through Auth plus effective deletion state.
+- Repair queued: replace local two-status check with shared account-active guard through a testable response adapter; no schema/policy or Production mutation.
+- Regression planned: missing/error/deactivated guard failures produce 403 and zero downstream work; active account proceeds; index wiring guard precedes parsing/provider/reservation.
+- Owner/merge: lead only, dedicated backend-authority repair branch/PR, separate from consent work. Status OPEN.

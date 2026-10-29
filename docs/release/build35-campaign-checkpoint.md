@@ -20,3 +20,13 @@ Resume commands: gh pr checks 644; gh pr checks 645; git fetch origin; inspect t
 Additional Lane F executed probe: all 18 Production endpoints marked verify_jwt=true returned HTTP 401 to an anonymous POST with an empty object. Evidence: evidence/anonymous-endpoint-probes.json. This verifies gateway rejection only, not authenticated IDOR, handler authorization, storage isolation or tampered-token rejection. Corresponding mandatory-probe cells updated individually. No authenticated/customer/provider operation requested.
 
 Documentation-only evidence worktree: C:/b35evidence1029, branch docs/build35-campaign-checkpoint-20261029. Consent repair TypeScript check completed with exit 0 at 8c86a9fdabcd1bff905e86423d4033a3c8ed7e62. Raw full-suite logs remain in each original audit worktree; compact results and failure names are committed.
+
+## Continuation checkpoint
+
+- Source authority resolved by scoped governance: RP-108 isolates Build 34 pre-freeze; final Build 35 convergence targets existing integration/build35-v1-convergence. No exception to RP-108 or new deployment authority.
+- PR #646 CI root cause: exact legacy terminology references in immutable baseline path inventory. Added one file-scoped HISTORICAL_AUDIT_RECORD entry and explicitly reconciled 26 occurrences; detector/negative controls retained, 7/7 pass. Commit fdbd5a24 pushed to existing PR.
+- All 68 failures individually dispositioned in build35-prefreeze-68-failure-disposition.md / evidence/prefreeze-68-dispositions.json. Corresponding integration suites pass 336/336; isolated original pre-freeze writeguard suite passes 67/67 with original link metadata restored. Final candidate rerun remains required.
+- New source convergence PR #648 (ca90db75), working tree C:/b35converge1030; canonical runtime closures and four missing append-only migrations promoted, mobile deployment authority remains denied. Focused discovery/analytics 61/61; backend 1482/1482; source release/native/migration gates pass.
+- New P1 B35-F-002 outfit lifecycle fail-open repaired in backend-authority PR #647 (b8b9fc27), C:/b35outfit1030, focused 38/38 after reproduced wiring failure.
+- #644/#645 remain existing open draft PRs. Pending clarification: owner-confirmation merge gate referenced in new scope but section omitted. Independent testing/repair continues.
+- Exact next step: complete per-transfer consent authority investigation, refresh #646/#647/#648 CI, execute/attribute hostile harnesses, then candidate full regression and feature-level coverage. No full audit or deployment PASS claimed.
