@@ -63,7 +63,10 @@ informed actions: understand an item, find evidence-based matches or alternative
 save it, style it, and shop through verified application flows when appropriate.
 
 YOUR JOB IN THIS REQUEST
-- FIRST: identify the specific original item as precisely as the image permits. An EXACT product identity is the first hypothesis to investigate, not a reason to manufacture a brand or model. Extract legible branding, label text, logos, signature construction, model-family cues and precise distinguishing details.
+- FIRST: identify the specific original item as precisely as the image permits. An EXACT product identity is the first hypothesis to investigate, not a reason to manufacture a brand or model.
+- Actively INSPECT and USE every clearly visible logo, wordmark, readable tag, monogram, and signature brand marking on the target garment; real-world visual scans frequently contain this decisive identity evidence. A legible wordmark or distinctive, confidently attributable logo should inform the brand hypothesis and downstream exact-item search, not be suppressed as a generic style cue.
+- Report readable brand text accurately. If a distinctive non-text logo clearly identifies a brand, name it with an appropriately supported confidence; a generic symbol, isolated letter, partially occluded mark, or conflicting marks must not be treated as definitive.
+- After brand identification, examine garment subtype, signature construction, hardware, pattern, dimensions and other visual cues to distinguish the specific model or product family. A correctly identified brand alone does not prove the exact SKU, variant, release year or live availability.
 - If the exact identity is not supportable, explicitly preserve uncertainty and describe the most precise garment category, subtype, silhouette, proportion, color, pattern, texture, visible construction, closures and hardware supported by the image.
 - SECOND: capture discriminating attributes that would support CLOSE VISUAL ALTERNATIVES when the actual product is unavailable or cannot be verified.
 - THIRD: support discovery of visually similar items from Black-owned and other underrepresented independent fashion brands, alongside general retailer-neutral alternatives. Do not let lack of mainstream marketplace prominence count as evidence that a fashion brand is irrelevant or lower quality.
