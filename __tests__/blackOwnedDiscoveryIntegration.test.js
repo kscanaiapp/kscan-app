@@ -203,7 +203,8 @@ test('secondary errors leave the result absent (primary untouched)', async () =>
 const native = { View: 'div', Text: 'span', Image: 'img', Pressable: 'button', ScrollView: 'div', TouchableOpacity: 'button', ActivityIndicator: 'progress', StyleSheet: { create: (x) => x } };
 const theme = { SPACING: { sm: 8, md: 12, xs: 4, lg: 16 }, RADIUS: { sm: 8, md: 12 }, SHADOWS: {}, LUXURY: { cards: { product: { shadow: {} } }, colors: {}, typography: { brandMark: {}, caption: {}, bodyStrong: {}, body: {}, ctaSecondary: {} } } };
 const ui = (n) => (n === 'react' ? React : n === 'react-native' ? native : n === '../../constants/theme' ? theme : n === '../../services/blackOwnedDiscovery' ? client : undefined);
-const { ProductCard } = load('components/luxury/ProductCard.tsx', ui);
+const expiry = load('hooks/useOwnershipExpiryRefresh.ts', (n) => n === '../services/blackOwnedDiscovery' ? client : undefined);
+const { ProductCard } = load('components/luxury/ProductCard.tsx', (n) => n === '../../hooks/useOwnershipExpiryRefresh' ? expiry : ui(n));
 const opened = [];
 const stubs = (n) => ui(n) ?? ({
   '../luxury/ProductCard': { ProductCard },
