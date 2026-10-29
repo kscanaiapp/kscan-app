@@ -1,0 +1,42 @@
+# Secondary commerce client preparation
+
+This branch is mobile/shared UI preparation only. Canonical backend work is on
+`codex/black-owned-discovery-v1`, targeting `rebuild/backend-authority-v2`.
+Use its engineering report and Activation Runbook for schema, server controls,
+staff sandbox setup, prospect intake and release approvals. Do not deploy this
+branch's copy of Supabase functions.
+
+`services/blackOwnedDiscovery.ts` defines the versioned public subset and an
+abortable request helper. Call it with the existing authenticated Supabase
+function invoker after primary commerce settles, passing `enabled:true` and
+`primarySettled:true`. Only sanitized fashion attributes, market and primary
+product IDs/URLs are projected. It never sends scan photos or modifies primary
+results. Errors, cancellation and an 1,800 ms deadline leave the secondary absent.
+
+Server organic discovery and ownership badges default ON by owner instruction;
+explicit `false` is each server rollback. Optional card metadata is never inferred
+from a name. `BlackOwnedDiscoveryShelf` is a prepared, default-unmounted surface:
+it supports real inventory, the existing guarded Shop action and an optional
+host-supplied Save callback. Empty/unavailable results render no placeholder.
+
+`SponsorshipSandboxShelf` is exclusively a prepared internal demo surface. It
+requires the `sponsorship-sandbox-v1` contract, `sandbox:true`, a staff-verified
+host context and per-product `previewOnly:true` plus `disclosure:'Sponsored'`.
+It always renders Sandbox and Sponsored and offers no purchase/save handoff.
+Public endpoint authorization and explicit non-production checks remain
+server-side; no client parameter grants access. There is no customer sponsored
+renderer and no active campaign in this change.
+
+Optional `ownershipIdentity` and `sponsoredDisclosure` props on the existing
+ProductCard preserve ordinary rendering when omitted. Server primaryOwnership
+metadata can be attached by ID to live props without sorting or persisting it.
+The metadata-only telemetry module allowlists events/counters, is bridged to the
+existing PostHog sink, and never treats a Shop click as a confirmed conversion.
+
+No app route is changed and no EAS artifact is built. Integrate the host surface
+only after backend approval/deployment and authorized inventory are ready.
+Run `node --test __tests__/blackOwnedDiscoveryClient.test.js
+__tests__/sponsorshipSandboxRender.test.js` and `npx tsc --noEmit -p tsconfig.json`.
+Actual iOS/Android layout, keyboard, accessibility and image loading need device
+review when a host mounts these prepared components. Render tests use React DOM
+with native view stubs and verify disclosure and default ordinary-card behavior.
