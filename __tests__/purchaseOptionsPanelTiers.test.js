@@ -51,6 +51,7 @@ function render(props) {
     '../vto/TryItOnEntry': { TryItOnEntry: 'TryItOnEntry' },
     '../../hooks/useVtoAwareness': { useVtoAwarenessBlocker: () => {} },
     '../../supabase/functions/scan-identify/matchTier': tier,
+    '../../services/blackOwnedDiscovery': loadPortable('services/blackOwnedDiscovery.ts'),
   });
   const tree = r.render(r.jsx(module.PurchaseOptionsPanel, props));
   return { tree, module, entries };
