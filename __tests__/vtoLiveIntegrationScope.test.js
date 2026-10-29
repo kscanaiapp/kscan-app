@@ -137,8 +137,8 @@ test('campaign VTO settlement and validation promotion preserves canonical backe
 });
 
 test('mixed campaign backend exceptions are exact byte-bound promotions, not a folder grant', () => {
-  assert.equal(campaignPromotion.files.length, 38);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 38);
+  assert.equal(campaignPromotion.files.length, 39);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 39);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);

@@ -50,9 +50,10 @@ Deno.test('Gemini receipt timeout fails closed', async () => {
 Deno.test('Gemini receipt current actor, withdrawal and re-consent are rechecked without cache', async () => {
   let rows = receipt(); const paths: string[] = [];
   const read = async (path: string) => { paths.push(path); return Response.json(rows); };
-  expect(await requireGeminiConsent(A, read), null);
-  rows = []; expect((await requireGeminiConsent(A, read))?.status, 403);
-  rows = receipt(); expect(await requireGeminiConsent(A, read), null);
+  const currentPermission = async () => Response.json([]);
+  expect(await requireGeminiConsent(A, read, currentPermission), null);
+  rows = []; expect((await requireGeminiConsent(A, read, currentPermission))?.status, 403);
+  rows = receipt(); expect(await requireGeminiConsent(A, read, currentPermission), null);
   expect(paths.length, 3);
   const query = new URL('https://example.test/'+paths[0]).searchParams;
   expect(query.get('user_id'), 'eq.'+A); expect(query.get('policy_version'), 'eq.'+GEMINI_CONSENT_VERSION);
@@ -60,4 +61,50 @@ Deno.test('Gemini receipt current actor, withdrawal and re-consent are rechecked
 Deno.test('Scanner commerce-only routing remains before Gemini consent authority', async () => {
   const source = await Deno.readTextFile(new URL('../scan-identify/index.ts', import.meta.url));
   expect(source.indexOf('MODE B: commerce-only request') < source.indexOf('await requireGeminiConsent(userId)'), true);
+});
+
+for (const [label, payload, status] of [
+  ['existing receipt without override', [], null],
+  ['explicit re-consent', [{ user_id: A, policy_version: GEMINI_CONSENT_VERSION, granted: true }], null],
+  ['durable withdrawal', [{ user_id: A, policy_version: GEMINI_CONSENT_VERSION, granted: false }], 403],
+  ['foreign permission', [{ user_id: B, policy_version: GEMINI_CONSENT_VERSION, granted: true }], 503],
+  ['wrong version', [{ user_id: A, policy_version: 'v1', granted: true }], 503],
+  ['string grant', [{ user_id: A, policy_version: GEMINI_CONSENT_VERSION, granted: 'true' }], 503],
+  ['null body', null, 503], ['object body', {}, 503],
+  ['duplicate rows', [{ granted: true }, { granted: true }], 503],
+] as const) {
+  Deno.test(`Gemini current permission: ${label}`, async () => {
+    const response = await requireGeminiConsent(A, async () => Response.json(receipt()), async () => Response.json(payload));
+    expect(response?.status ?? null, status);
+  });
+}
+for (const status of [401, 429, 500]) {
+  Deno.test(`Gemini permission lookup HTTP ${status} blocks dispatch`, async () => {
+    const response = await requireGeminiConsent(A, async () => Response.json(receipt()), async () => new Response('', { status }));
+    expect(response?.status, 503);
+  });
+}
+for (const body of ['', '{']) {
+  Deno.test(`Gemini permission lookup invalid JSON ${JSON.stringify(body)} blocks dispatch`, async () => {
+    expect((await requireGeminiConsent(A, async () => Response.json(receipt()), async () => new Response(body)))?.status, 503);
+  });
+}
+Deno.test('Gemini permission timeout blocks dispatch', async () => {
+  expect((await requireGeminiConsent(A, async () => Response.json(receipt()), async () => {
+    throw new DOMException('timeout', 'TimeoutError');
+  }))?.status, 503);
+});
+Deno.test('durable withdrawal and re-consent change subsequent requests without mutating receipts or caching permission', async () => {
+  let granted = true; let lookups = 0;
+  const read = async (path: string) => {
+    lookups++;
+    const query = new URL('https://fixture.invalid/' + path).searchParams;
+    expect(query.get('user_id'), 'eq.' + A);
+    return Response.json([{ user_id: A, policy_version: GEMINI_CONSENT_VERSION, granted }]);
+  };
+  const receipts = async () => Response.json(receipt());
+  expect(await requireGeminiConsent(A, receipts, read), null);
+  granted = false; expect((await requireGeminiConsent(A, receipts, read))?.status, 403);
+  granted = true; expect(await requireGeminiConsent(A, receipts, read), null);
+  expect(lookups, 3);
 });

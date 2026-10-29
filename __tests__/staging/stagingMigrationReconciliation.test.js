@@ -542,6 +542,7 @@ test('production carries only explicit governed reconciliation authority', async
       ['20261015214749', 'KNOWN_FUTURE_UNAPPLIED'],
       ['20261016001500', 'KNOWN_FUTURE_UNAPPLIED'],
       ['20261029125521', 'KNOWN_FUTURE_UNAPPLIED'],
+      ['20261029184000', 'KNOWN_FUTURE_UNAPPLIED'],
     ],
   );
 });

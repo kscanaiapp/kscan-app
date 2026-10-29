@@ -5,15 +5,15 @@
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
-      "sha256": "09fca58f4f39a80c722a3cf421524436133c63f0ea4505b9a26a6914a5e62602",
-      "source": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf",
-      "reason": "Exact prepared B35-C-002 consent repair source, PR649; owner-governed merge required"
+      "sha256": "c715fb7f21b4e9ad5defb55dda766506aee56996638b1f0258601a2037ecc644",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
     },
     {
       "file": "supabase/functions/_shared/geminiConsent.ts",
-      "sha256": "e7a1540f7f82af55442b0327301e5df0943a8bfaf6a827946b108b618443c836",
-      "source": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf",
-      "reason": "Exact prepared B35-C-002 consent repair source, PR649; owner-governed merge required"
+      "sha256": "d1fe78df48e94088a6e8a160eae6d7b4f82655c96dea8313c8f62bcdc6cf72e6",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
     },
     {
       "file": "supabase/functions/black-owned-discovery/adminService.ts",
@@ -231,6 +231,12 @@
       "sha256": "4b2745d14bc7adb88dccb852351208ec86237928e328cdc47f9ff711cd92afc2",
       "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
       "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261029184000_gemini_processing_permission.sql",
+      "sha256": "bd8cd0766ad874050d767f72f071ff7c140702044d302b691c12407463bec061",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
     }
   ]
 }
