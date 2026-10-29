@@ -722,6 +722,13 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Read-only Staging migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
+          },
+          {
+            "localVersion": "20261029125521",
+            "logicalName": "black_owned_discovery_v1",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "New additive secondary-commerce source authored 2026-10-29 on codex/black-owned-discovery-v1. This workstream has applied it to no remote database. Source declaration only: current live-ledger reconciliation and single-version governed staging/production approval remain required. Does not authorize application or deployment; no merchants or campaigns seeded."
           }
         ]
       },
@@ -1476,6 +1483,13 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Read-only Production migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
+          },
+          {
+            "localVersion": "20261029125521",
+            "logicalName": "black_owned_discovery_v1",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "New additive secondary-commerce source authored 2026-10-29 on codex/black-owned-discovery-v1. This workstream has applied it to no remote database. Source declaration only: current live-ledger reconciliation and single-version governed staging/production approval remain required. Does not authorize application or deployment; no merchants or campaigns seeded."
           }
         ],
         "remoteOnly": [

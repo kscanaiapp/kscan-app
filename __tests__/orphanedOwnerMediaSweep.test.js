@@ -214,7 +214,7 @@ test('registering zero retained objects clears any stale work item', () => {
   assert.match(record, /delete from public\.deleted_owner_retained_media/);
 });
 
-test('no new Edge Function is introduced (the governed set is unchanged)', () => {
+test('only explicitly governed Edge Functions exist; retained-media sweep stays in its worker', () => {
   const dirs = fs
     .readdirSync(path.join(ROOT, 'supabase', 'functions'))
     .filter((n) => !n.startsWith('_'))
@@ -261,7 +261,10 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // Now 28: Build 35 Receipt Intelligence added purchase-import-extract.
   // Now 29: the VTO post-Kimi lane adds kplus-offer-redeem, the authenticated
   // HMAC-only offer-code ingestion boundary. Neither belongs to this sweep.
-  assert.equal(dirs.length, 29, 'no unexplained Edge Function has appeared');
+  // Secondary commerce V1 adds black-owned-discovery independently of deletion.
+  assert.equal(dirs.length, 31, 'no unexplained Edge Function has appeared');
+  assert.ok(dirs.includes('black-owned-discovery'));
+  assert.ok(dirs.includes('sponsorship-sandbox'));
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant

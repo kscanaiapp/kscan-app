@@ -82,6 +82,7 @@ const TEST_SUFFIX = '.test.ts';
  * Deno.serve handler against a fake backend, not by grepping its source.
  */
 const GOVERNED = [
+  'black-owned-discovery',
   'scan-identify',
   'handle-user-deletion',
   'process-account-deletions',
