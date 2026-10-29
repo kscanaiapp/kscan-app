@@ -105,6 +105,7 @@ test('detector reports 1-based line numbers and trimmed text', () => {
 // directory.
 
 const ALLOWLIST = [
+  { file: 'docs/release/evidence/source-inventory.json', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Immutable path-only inventories of the three October 29 baseline SHAs; quotes historical source and migration filenames without introducing active product terminology.' },
   // ── EXTERNAL_WIRE_CONTRACT: eas.json build-flag env vars ─────────────────
   // Owner-ratified eas.json keys (repeated across the preview, development,
   // staging and production build profiles). Not proven safe to rename ahead
@@ -276,7 +277,8 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
     totalOccurrences,
     // 111 -> 112: the exact immutable name in the October 13 Production ledger
     // snapshot, classified above. No new active product terminology is allowed.
-    112,
+    // 112 -> 138: 26 historical filename references in the SHA-bound audit inventory.
+    138,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });
