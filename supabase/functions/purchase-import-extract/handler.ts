@@ -1,3 +1,4 @@
+import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
 /**
  * Receipt & Purchase Intelligence V1 — purchase-import-extract orchestration.
  *
@@ -93,6 +94,7 @@ const STATUS: Record<FailureClass, number> = {
 type Reservation = { allowed: boolean; reservationId: string | null; retryAfterSeconds: number | null };
 
 export interface PurchaseImportDeps {
+  checkGeminiConsent: typeof requireGeminiConsent;
   requireUser: typeof requireUser;
   assertAccountActive: typeof assertAccountActive;
   isEnabled: () => boolean;
@@ -116,6 +118,7 @@ async function userClient(accessToken: string) {
 }
 
 export const defaultPurchaseImportDeps: PurchaseImportDeps = {
+  checkGeminiConsent: requireGeminiConsent,
   requireUser,
   assertAccountActive,
   isEnabled: () => (Deno.env.get('PURCHASE_IMPORT_EXTRACT_ENABLED') ?? '').trim() === 'true',
@@ -246,6 +249,9 @@ export async function handlePurchaseImportRequest(
 
   // 5. Kill switch. Default off.
   if (!deps.isEnabled()) return respondFailure('feature_disabled', { uid, stage: 'kill_switch' });
+
+  const consentGate = await deps.checkGeminiConsent(user.id);
+  if (consentGate) return consentGate;
 
   // 6. Input bounds. Refused, never truncated.
   if (body.contractVersion !== PURCHASE_IMPORT_CONTRACT_VERSION) {

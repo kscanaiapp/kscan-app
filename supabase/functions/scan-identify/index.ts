@@ -1,3 +1,4 @@
+import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
 // scan-identify — Secure server-side Gemini proxy for K Scan fashion ID.
 //
 // Architecture:
@@ -2496,6 +2497,9 @@ Deno.serve(async (req) => {
       401,
     );
   }
+
+  const consentGate = await requireGeminiConsent(userId);
+  if (consentGate) return consentGate;
 
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const catalogClient = auth.isAuthenticated && supabaseUrl && supabaseServiceRoleKey
