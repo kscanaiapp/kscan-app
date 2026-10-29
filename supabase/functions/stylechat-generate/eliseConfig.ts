@@ -3,6 +3,7 @@ import {
   ELISE_PRIMARY_MODEL,
   getConfiguredModel,
 } from './modelRouting.ts';
+import { ELISE_BRAND_VOICE_VERSION } from './eliseBrandVoice.ts';
 
 export const ELISE_BACKEND_VERSION = 'elise-backend-foundation-r015';
 export const ELISE_PROMPT_VERSION = 'stylechat-prompt-v1';
@@ -23,6 +24,8 @@ export interface EliseBackendFlags {
   structuredGroundingV1: boolean;
   generationRetryV1: boolean;
   explanations: boolean;
+  /** Build 35 expansion: global server-side conversational voice; disabled until tested. */
+  brandVoiceV1: boolean;
   /** E-4 closet-aware styling — all default OFF. */
   adviceIntentsV1: boolean;
   closetRetrievalV1: boolean;
@@ -146,9 +149,12 @@ function parsePositiveIntEnv(
 }
 
 export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
+  const brandVoiceV1 = parseBooleanEnv(env, 'ELISE_BRAND_VOICE_V1_ENABLED', false);
   return {
     backendVersion: ELISE_BACKEND_VERSION,
-    promptVersion: ELISE_PROMPT_VERSION,
+    promptVersion: brandVoiceV1
+      ? `${ELISE_PROMPT_VERSION}+${ELISE_BRAND_VOICE_VERSION}`
+      : ELISE_PROMPT_VERSION,
     contextContractVersion: ELISE_CONTEXT_CONTRACT_VERSION,
     outputParserVersion: ELISE_OUTPUT_PARSER_VERSION,
     // Frozen model map (modelRouting.ts): explicit workload vars only, allowlist-validated.
@@ -174,6 +180,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       structuredGroundingV1: parseBooleanEnv(env, 'ELISE_STRUCTURED_GROUNDING_V1_ENABLED', false),
       generationRetryV1: parseBooleanEnv(env, 'ELISE_GENERATION_RETRY_V1_ENABLED', false),
       explanations: parseBooleanEnv(env, 'STYLECHAT_EXPLANATIONS_ENABLED', true),
+      brandVoiceV1,
       adviceIntentsV1: parseBooleanEnv(env, 'ELISE_ADVICE_INTENTS_V1_ENABLED', false),
       closetRetrievalV1: parseBooleanEnv(env, 'ELISE_CLOSET_RETRIEVAL_V1_ENABLED', false),
       compatibilityScoringV1: parseBooleanEnv(env, 'ELISE_COMPATIBILITY_SCORING_V1_ENABLED', false),
