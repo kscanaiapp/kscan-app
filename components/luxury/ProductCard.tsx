@@ -75,11 +75,17 @@ export function ProductCard({
             <Text style={styles.placeholderText}>K</Text>
           </View>
         )}
+        {/* Overlaid on the fixed-ratio image so a badge that arrives after the
+            card is on screen never changes card height or shifts the shelf. */}
+        {hasVerifiedOwnership(ownershipIdentity) ? (
+          <View style={styles.ownershipBadge} pointerEvents="none">
+            <Text style={styles.ownershipBadgeText} numberOfLines={1}>Black-owned brand</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.meta}>
         {sponsoredDisclosure?.sandbox === true && sponsoredDisclosure.label === 'Sponsored' ? <Text style={styles.subtitle}>Sponsored</Text> : null}
-        {hasVerifiedOwnership(ownershipIdentity) ? <Text style={styles.subtitle}>Black-owned brand</Text> : null}
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
@@ -163,6 +169,23 @@ const styles = StyleSheet.create({
     fontFamily: LUXURY.typography.brandMark.fontFamily,
     fontSize: 28,
     color: LUXURY.colors.goldBrushed,
+  },
+  ownershipBadge: {
+    position: 'absolute',
+    left: SPACING.xs,
+    bottom: SPACING.xs,
+    maxWidth: '92%',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    backgroundColor: LUXURY.colors.ink,
+    opacity: 0.88,
+  },
+  ownershipBadgeText: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: LUXURY.colors.ivory,
   },
   meta: {
     marginTop: SPACING.sm,
