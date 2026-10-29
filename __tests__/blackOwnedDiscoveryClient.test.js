@@ -38,7 +38,7 @@ test('telemetry allowlists events, removes arbitrary properties, never equates c
   telemetry.trackBlackOwnedDiscovery('confirmed_purchase',{});assert.equal(events.length,1);
   assert.deepEqual(JSON.parse(JSON.stringify(events[0].payload)),{lane:'black_owned',placement_type:'organic',position:1});
 });
-test('prepared shelf remains unmounted, hides zero results, and existing card actions remain',()=>{
+test('shelf defaults off, hides zero results, keeps card actions, and is never mounted directly by an app route',()=>{
   const shelf=fs.readFileSync(path.join(__dirname,'../components/scan-results/BlackOwnedDiscoveryShelf.tsx'),'utf8');
   assert.match(shelf,/enabled = false/);assert.match(shelf,/if \(!visible \|\| !response\) return null/);assert.match(shelf,/openExternalUrl/);assert.match(shelf,/onAddToRoom=/);
   const routes=fs.readdirSync(path.join(__dirname,'../app')).filter(f=>f.endsWith('.tsx'));for(const route of routes)assert.equal(fs.readFileSync(path.join(__dirname,'../app',route),'utf8').includes('BlackOwnedDiscoveryShelf'),false);

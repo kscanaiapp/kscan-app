@@ -24,6 +24,7 @@ import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAva
 // the sheet; this surface only decides which rows may offer it.
 import { VTO_UI_ENABLED } from '../../constants/featureFlags';
 import { TryItOnEntry } from '../vto/TryItOnEntry';
+import { hasVerifiedOwnership, type OwnershipIdentity } from '../../services/blackOwnedDiscovery';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -39,6 +40,8 @@ interface PurchaseOptionsPanelProps {
   commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
   /** Present only when a failed deferred fetch is retryable. */
   onRetry?: () => void;
+  /** Verified ownership by option id, attached after secondary discovery. Never reorders rows. */
+  ownershipById?: Record<string, OwnershipIdentity>;
 }
 
 /**
@@ -71,6 +74,7 @@ export function PurchaseOptionsPanel({
   testID,
   commerceStatus = 'idle',
   onRetry,
+  ownershipById,
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
   const mode = resolvePurchaseOptionsPanelMode(hasData, commerceStatus);
@@ -107,7 +111,13 @@ export function PurchaseOptionsPanel({
                 ]}
               >
                 <View style={styles.rowLeft}>
-                  <Text style={styles.retailer}>{option.retailer}</Text>
+                  <Text style={styles.retailer}>
+                    {option.retailer}
+                    {/* Inline on the existing line: a late badge adds no row height. */}
+                    {hasVerifiedOwnership(ownershipById?.[option.id]) ? (
+                      <Text style={styles.ownershipBadge}>{'  ·  Black-owned brand'}</Text>
+                    ) : null}
+                  </Text>
                   {option.title ? (
                     <Text style={styles.productTitle} numberOfLines={1}>
                       {option.title}
@@ -292,6 +302,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     color: LUXURY.colors.stone,
     textTransform: 'uppercase',
+  },
+  ownershipBadge: {
+    color: LUXURY.colors.graphite,
+    textTransform: 'none',
+    letterSpacing: 0.4,
   },
   productTitle: {
     ...LUXURY.typography.bodyStrong,
