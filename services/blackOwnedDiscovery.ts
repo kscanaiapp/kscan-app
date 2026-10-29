@@ -24,6 +24,21 @@ export function hasVerifiedOwnership(identity?: OwnershipIdentity | null, now = 
     && Number.isFinite(Date.parse(identity.verifiedUntil)) && Date.parse(identity.verifiedUntil) > now;
 }
 type Invoke = (name: string, options: { body: SecondaryInput; signal: AbortSignal }) => Promise<{ data: unknown; error: unknown }>;
+
+function safeOptionalUrl(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== 'string' || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password;
+  } catch { return false; }
+}
+
+function safeDisplayFields(product: SecondaryProduct): boolean {
+  return safeOptionalUrl(product.productUrl) && safeOptionalUrl(product.imageUrl)
+    && (product.price === undefined || typeof product.price === 'string')
+    && (product.currency === undefined || typeof product.currency === 'string');
+}
 /** Host calls only after the primary shelf settles. Default disabled and never
  * imported by scan orchestration. Server feature flags remain authoritative. */
 export async function requestBlackOwnedDiscovery(invoke: Invoke, input: SecondaryInput, options: { enabled?: boolean; primarySettled?: boolean; signal?: AbortSignal } = {}): Promise<SecondaryResponse | undefined> {
@@ -40,7 +55,7 @@ export async function requestBlackOwnedDiscovery(invoke: Invoke, input: Secondar
     if (error || controller.signal.aborted || !data || typeof data !== 'object') return undefined;
     const result = data as SecondaryResponse;
     if (result.version !== 'black-owned-discovery-v1' || !['ready','empty','unavailable'].includes(result.status) || !Array.isArray(result.products) || result.products.length > 8) return undefined;
-    if (result.products.some((p) => !p || p.type !== 'similar' || p.matchType !== 'similar' || p.placementType !== 'organic' || typeof p.id !== 'string' || typeof p.title !== 'string' || typeof p.brandName !== 'string')) return undefined;
+    if (result.products.some((p) => !p || p.type !== 'similar' || p.matchType !== 'similar' || p.placementType !== 'organic' || typeof p.id !== 'string' || typeof p.title !== 'string' || typeof p.brandName !== 'string' || !safeDisplayFields(p))) return undefined;
     return result;
   };
   const cancelled = new Promise<undefined>((resolve) => {

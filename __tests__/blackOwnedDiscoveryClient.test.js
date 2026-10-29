@@ -7,7 +7,7 @@ const vm = require('node:vm');
 function load(file) {
   const source=fs.readFileSync(path.join(__dirname,'..',file),'utf8');
   const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
-  const module={exports:{}};vm.runInNewContext(js,{exports:module.exports,module,require,Date,Set,Promise,AbortController,setTimeout,clearTimeout});return module.exports;
+  const module={exports:{}};vm.runInNewContext(js,{exports:module.exports,module,require,URL,Date,Set,Promise,AbortController,setTimeout,clearTimeout});return module.exports;
 }
 const {hasVerifiedOwnership,requestBlackOwnedDiscovery}=load('services/blackOwnedDiscovery.ts');
 const input={garment:{item_type:'outerwear',subtype:'bomber'},market:'US',primaryProducts:[]};
@@ -42,4 +42,19 @@ test('shelf defaults off, hides zero results, keeps card actions, and is never m
   const shelf=fs.readFileSync(path.join(__dirname,'../components/scan-results/BlackOwnedDiscoveryShelf.tsx'),'utf8');
   assert.match(shelf,/enabled = false/);assert.match(shelf,/if \(!visible \|\| !response\) return null/);assert.match(shelf,/openExternalUrl/);assert.match(shelf,/onAddToRoom=/);
   const routes=fs.readdirSync(path.join(__dirname,'../app')).filter(f=>f.endsWith('.tsx'));for(const route of routes)assert.equal(fs.readFileSync(path.join(__dirname,'../app',route),'utf8').includes('BlackOwnedDiscoveryShelf'),false);
+});
+
+test('malformed secondary product display fields fail closed before reaching primary host', async () => {
+  const valid = { id: 'synthetic', title: 'Synthetic jacket', brandName: 'Synthetic Brand', type: 'similar', matchType: 'similar', placementType: 'organic' };
+  for (const bad of [{ productUrl: 42 }, { imageUrl: {} }, { price: {} }, { productUrl: 'javascript:alert(1)' }, { imageUrl: 'data:image/png;base64,fixture' }]) {
+    const result = await requestBlackOwnedDiscovery(async () => ({ data: { version: 'black-owned-discovery-v1', status: 'ready', products: [{ ...valid, ...bad }], primaryOwnership: {}, generatedAt: new Date().toISOString() }, error: null }), input, { enabled: true, primarySettled: true });
+    assert.equal(result, undefined, JSON.stringify(bad));
+  }
+});
+
+
+test('valid HTTPS discovery destinations and display strings remain available', async () => {
+  const product = { id: 'synthetic', title: 'Synthetic jacket', brandName: 'Synthetic Brand', type: 'similar', matchType: 'similar', placementType: 'organic', productUrl: 'https://example.com/product', imageUrl: 'https://example.com/image.jpg', price: '$20', currency: 'USD' };
+  const result = await requestBlackOwnedDiscovery(async () => ({ data: { version: 'black-owned-discovery-v1', status: 'ready', products: [product], primaryOwnership: {}, generatedAt: new Date().toISOString() }, error: null }), input, { enabled: true, primarySettled: true });
+  assert.equal(result.products[0].productUrl, product.productUrl);
 });
