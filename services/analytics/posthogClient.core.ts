@@ -52,6 +52,7 @@ import { setKPlusAnalyticsSink } from '../kplus/kplusTelemetry';
 import { setTodayWithEliseAnalyticsSink } from '../todayWithElise/analytics';
 import { setVoiceAnalyticsSink } from '../voice/voiceTelemetry';
 import { setVtoAnalyticsSink } from '../vto/vtoTelemetry';
+import { setBlackOwnedDiscoveryAnalyticsSink } from '../blackOwnedDiscoveryTelemetry';
 
 export { PostHogProvider };
 
@@ -136,6 +137,7 @@ export function forwardTelemetryToPostHog(
  * description for the full audit.
  */
 const SINK_SETTERS = [
+  setBlackOwnedDiscoveryAnalyticsSink,
   setClosetTelemetrySink,
   setKPlusAnalyticsSink,
   setTodayWithEliseAnalyticsSink,
