@@ -40,6 +40,16 @@ import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
 import { resolvePurchaseShelfMode } from '../AnalysisCard';
+import { BlackOwnedDiscoveryShelf } from './BlackOwnedDiscoveryShelf';
+import { useBlackOwnedDiscovery } from '../../hooks/useBlackOwnedDiscovery';
+import {
+  buildBlackOwnedDiscoveryInput,
+  discoveryRequestKey,
+  displayableSecondary,
+  isPrimaryCommerceSettled,
+  primaryIdentities,
+  primaryOwnershipById,
+} from '../../services/blackOwnedDiscoveryHost';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
@@ -317,6 +327,19 @@ export function ScanResultV2({
     onAnalyzeSelectedCandidate?.(activeCandidateId);
   }, [activeCandidateId, onAnalyzeSelectedCandidate]);
 
+  // Secondary discovery: independent of, and strictly after, primary commerce.
+  // It never alters primary order, identity or classification; it only adds a
+  // separate shelf below and badges keyed by primary product id. Shares the
+  // priceDiscovery kill switch; server flags remain authoritative.
+  const discoveryPrimary = primaryIdentities(renderableSimilarFinds, v2Data?.purchaseOptions);
+  const discoveryInput = buildBlackOwnedDiscoveryInput(analysis, discoveryPrimary);
+  const discovery = useBlackOwnedDiscovery(discoveryInput, discoveryRequestKey(discoveryInput), {
+    enabled: priceDiscoveryEnabled && !SCAN_RESULTS_DEMO_UI_ENABLED,
+    primarySettled: isPrimaryCommerceSettled(analysis, commerceStatus),
+  });
+  const ownershipById = primaryOwnershipById(discovery, discoveryPrimary.map((p) => p.id));
+  const secondaryShelf = displayableSecondary(discovery, discoveryPrimary);
+
   // If no meaningful data at all, show empty state
   if (!v2Data) {
     return (
@@ -545,6 +568,7 @@ export function ScanResultV2({
                   <SimilarFindsShelf
                     similarFinds={renderableSimilarFinds}
                     onViewAll={handleViewAllSimilar}
+                    ownershipById={ownershipById}
                   />
                 </View>
               ) : null}
@@ -556,6 +580,7 @@ export function ScanResultV2({
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={v2Data.purchaseOptions}
+                    ownershipById={ownershipById}
                   />
                 </View>
               ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
@@ -565,6 +590,14 @@ export function ScanResultV2({
                     commerceStatus={purchaseShelfMode}
                     onRetry={onRetryCommerce}
                   />
+                </View>
+              ) : null}
+
+              {/* Secondary organic discovery: rendered only with genuine eligible
+                  products, after primary commerce, never in its place. */}
+              {secondaryShelf ? (
+                <View style={styles.section}>
+                  <BlackOwnedDiscoveryShelf enabled response={secondaryShelf} />
                 </View>
               ) : null}
 

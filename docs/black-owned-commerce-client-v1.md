@@ -33,8 +33,31 @@ metadata can be attached by ID to live props without sorting or persisting it.
 The metadata-only telemetry module allowlists events/counters, is bridged to the
 existing PostHog sink, and never treats a Shop click as a confirmed conversion.
 
-No app route is changed and no EAS artifact is built. Integrate the host surface
-only after backend approval/deployment and authorized inventory are ready.
+## Host integration (live Scan Results)
+
+The live surface is `components/scan-results/ScanResultV2.tsx` (mounted by
+`app.js` when `SCAN_RESULTS_V2_UI_ENABLED`). `hooks/useBlackOwnedDiscovery.ts`
+issues the request only once `isPrimaryCommerceSettled` is true (inline products,
+or deferred commerce reaching success/empty/error; never during multi-item
+confirmation or for non-fashion), aborts it on a new request key or unmount, and
+discards superseded responses. `services/blackOwnedDiscoveryHost.ts` projects the
+structured identification snapshot (legacy metadata fallback), market `US`, and
+primary `{id, productUrl}` only. The client gate is the existing remote
+`priceDiscovery` kill switch; no new EAS flag was added. Server flags remain
+authoritative.
+
+`BlackOwnedDiscoveryShelf` renders below the primary panels only with genuine,
+organic, non-duplicate products. `primaryOwnership` is filtered to verified,
+current, permitted identities for rendered primary ids and passed as an id-keyed
+map to `SimilarFindsShelf` (badge overlaid on the fixed-ratio card image) and
+`PurchaseOptionsPanel` (inline on the existing retailer line), so a late badge
+does not move layout or reorder/reclassify primary cards. This surface has no
+per-product Save for primary cards, so the organic shelf offers Shop only.
+`SponsorshipSandboxShelf` is not mounted anywhere customer-facing.
+
+No EAS artifact is built by this change; mobile binary deployment is deferred by
+the owner. Device review of the badge overlay, retailer-line badge, shelf layout,
+accessibility and image loading on iOS and Android remains required.
 Run `node --test __tests__/blackOwnedDiscoveryClient.test.js
 __tests__/sponsorshipSandboxRender.test.js` and `npx tsc --noEmit -p tsconfig.json`.
 Actual iOS/Android layout, keyboard, accessibility and image loading need device
