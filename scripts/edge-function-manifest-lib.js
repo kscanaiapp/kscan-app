@@ -121,6 +121,8 @@ const APPROVED_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
  * the manifest, so an ungoverned function could never be shipped at all.
  */
 const GOVERNED_FUNCTIONS = [
+  'black-owned-discovery',
+  'sponsorship-sandbox',
   'scan-identify',
   'commerce-watch-refresh',
   'stylechat-generate',
