@@ -1,6 +1,6 @@
 # Build35 privacy verification continuation
 
-Source c86bf3d052806c6105ce7830a03ac2b1501d34a1, backend f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af. No newly confirmed P0-P3 finding. This is a bounded checkpoint, not full audit completion.
+Source c86bf3d052806c6105ce7830a03ac2b1501d34a1, backend f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af. New account-state P3 B35-F-007 is separately confirmed; neither H001 nor H003 is reclassified by that finding. This is a bounded checkpoint, not full audit completion.
 
 ## H-001: UNCONFIRMED; source/privacy facts and legal gate
 

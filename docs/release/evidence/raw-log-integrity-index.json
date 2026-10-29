@@ -991,6 +991,60 @@
       "archiveBytes": 1464,
       "archiveSha256": "d9aafc218e9c9110621a5bf4f61c51d3dd7403ff48cc270d04bd1c33106980b6",
       "encoding": "UTF-8 (BOM where present)"
+    },
+    {
+      "rawFile": "continuation-scanner-null.log",
+      "rawBytes": 8474,
+      "rawSha256": "35bbef81dfd82feb34737f101bc2aee4a6b034882a32d4c9997f4cedefeca609",
+      "archiveFile": "continuation-scanner-null.log.gz",
+      "archiveBytes": 1206,
+      "archiveSha256": "6d4a9f4351f7addb64482548b4733cc3d0a84af92a7f25c7e3cd34e22a536778",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-discovery-guard-backend.log",
+      "rawBytes": 444346,
+      "rawSha256": "9f393d212a069eadd5914267a4bd770e80ea77d69d0818a7e062b8d589672b07",
+      "archiveFile": "continuation-discovery-guard-backend.log.gz",
+      "archiveBytes": 53814,
+      "archiveSha256": "0d5d5ccaf1e98fe9ccf161452ed860808b374225dcfecf34f89a8a61ae49a111",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-discovery-guard-focused.log",
+      "rawBytes": 57600,
+      "rawSha256": "a214eb2efdcd1215bbeeffb7bc7e0e75ebc1ce0108e61a1565879b8e12354a6a",
+      "archiveFile": "continuation-discovery-guard-focused.log.gz",
+      "archiveBytes": 9124,
+      "archiveSha256": "00aae1629839f94aaba5e58e2cb83496340bf58b3d0dd8fb6b9a791f1636a4c1",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-elevenlabs-empty-invalid-environment.log",
+      "rawBytes": 3086,
+      "rawSha256": "0def7d884bf0e7b4f898a4bae4eafb429918b2a9a342de628dc75f8dd0c066ea",
+      "archiveFile": "continuation-elevenlabs-empty-invalid-environment.log.gz",
+      "archiveBytes": 785,
+      "archiveSha256": "f403b466bc155d75e8c41c7333e7bbb02a97e0a147e3e07754943cd583d7c7e2",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-elevenlabs-empty.log",
+      "rawBytes": 1198,
+      "rawSha256": "fce88b201c286fc2bd76851ad9c1207c1cbbf4d0e670fb3e981c98fd9f16f94a",
+      "archiveFile": "continuation-elevenlabs-empty.log.gz",
+      "archiveBytes": 408,
+      "archiveSha256": "801617e64bf4f45dae37a86ed3fa8be054b149d8819874b8ebdf47f47567cf2b",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-evidence-terminology.log",
+      "rawBytes": 1530,
+      "rawSha256": "2829ca08c2d5c4e8f22c5509992fb7aad8ce02ab04de11d0962aaf6f0ed6b388",
+      "archiveFile": "continuation-evidence-terminology.log.gz",
+      "archiveBytes": 628,
+      "archiveSha256": "2e0d65d5336fcd00e3449bcfc5bbe6c42728bd1d0b0a0270315e80f0e7bf359e",
+      "encoding": "UTF-16LE BOM"
     }
   ]
 }

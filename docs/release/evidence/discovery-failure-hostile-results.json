@@ -8,43 +8,113 @@
       "probeId": "B35-DISC-001",
       "probe": "invoke 500 produces no secondary success and no retries",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector invoke 500 produces no secondary success and no retries",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-002",
       "probe": "invoke 429 produces no secondary success and no retries",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector invoke 429 produces no secondary success and no retries",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-003",
       "probe": "invoke empty produces no secondary success and no retries",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector invoke empty produces no secondary success and no retries",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-004",
       "probe": "invoke wrong schema produces no secondary success and no retries",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector invoke wrong schema produces no secondary success and no retries",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-005",
       "probe": "malformed JSON parser rejection produces no success or retry",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector malformed JSON parser rejection produces no success or retry",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-006",
       "probe": "hung invocation deadline resolves without waiting for provider cooperation",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector hung invocation deadline resolves without waiting for provider cooperation",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     },
     {
       "probeId": "B35-DISC-007",
       "probe": "cancellation after dispatch wins over later successful provider response",
       "verdict": "PASS",
-      "actual": "Assertions passed"
+      "actual": "Assertions passed",
+      "feature": "Secondary discovery",
+      "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+      "inputReference": "discovery-failure-hostile.cjs named probe/vector cancellation after dispatch wins over later successful provider response",
+      "expected": "Failure/cancellation returns no successful secondary result and no retry amplification",
+      "evidence": "discovery-failure-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
     }
   ]
 }

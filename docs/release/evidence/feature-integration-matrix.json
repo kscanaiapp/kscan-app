@@ -1,7 +1,7 @@
 [
   {
     "feature": "Authentication / onboarding / recovery",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/auth; app/onboarding; contexts/AuthSessionContext.tsx; services/legalAcceptance.ts; AuthGate",
     "backendDeploymentAndFlags": "Supabase Auth; legal_acceptances RLS",
     "clientContractTests": "authPrivacy; onboardingAiConsent; legalAcceptance; Android/iOS shared onboarding",
@@ -9,11 +9,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "P1 consent changes unmerged; signed OAuth/recovery/permissions not tested",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Account/profile/settings/privacy",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/privacy.tsx; contexts/PrivacyPreferencesContext.tsx; Supabase profile clients",
     "backendDeploymentAndFlags": "profiles RLS and privacy-* functions",
     "clientContractTests": "Staging A/B profile reads/writes, 19-case isolation harness; privacy account/rate-limit suites",
@@ -21,11 +22,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "All settings/opt-out effects not traced end-to-end; legal consent decisions remain",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Scanner camera/gallery/single/selected/multi",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/scan/index.tsx -> app.js -> services/scannerScanRequest.ts -> scan-identify -> ScanResultV2",
     "backendDeploymentAndFlags": "Production scan-identify ACTIVE; image mission flag true; deployed digest not source-attested",
     "clientContractTests": "scannerLocalPrivacyDispatch; recentScanAccountIsolation; Scanner/multiitem/brand/JSON Deno contracts",
@@ -33,11 +35,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "B35-B-004 P4 null input gate; physical local masking/pixel/camera/permission tests unavailable; Gemini repairs unmerged",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Privacy Lens / native PII masking",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "services/privacy/scannerImagePreparation.ts; privacyBoundary.ts; nativeFaceEngine.ts; nativePlateEngine.ts; modules/kscan-pii-native",
     "backendDeploymentAndFlags": "Scanner/Closet derived artifact dispatch guard; separate Photo VTO path",
     "clientContractTests": "Real orchestrator + injected native/Expo APIs: raw-proof/copy/cancel/unavailable/error cases",
@@ -45,11 +48,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Native detection accuracy and bytes on actual iOS/Android NOT TESTED; no universal masking claim",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "TextScan",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/text-scan/index.tsx -> scan identification/commerce client -> scan-identify",
     "backendDeploymentAndFlags": "Public text commerce path; independent in-function limits",
     "clientContractTests": "Text/Mode B routing, input/schema/URL/provider/fallback backend tests",
@@ -57,11 +61,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Deployed provider mode/user market and cross-account navigation not device verified",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "VoiceScan",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "services/voice; scanner voice entry; modules/kscan-voice-native",
     "backendDeploymentAndFlags": "Native speech path and public commerce transport; no assumed Gemini audio transfer",
     "clientContractTests": "voiceScanPrivacyBoundary; voice/telemetry/permission source suites",
@@ -69,11 +74,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Real mic denial/revocation, transcription, interruption and Android/iOS audio unavailable",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Gemini image intelligence / exact identity",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "scanImageProductMission.ts; scan-identify/index.ts; selected candidate/bounding-box and JSON contracts",
     "backendDeploymentAndFlags": "Image mission true; MODE-specific attachment logs/output not retrieved",
     "clientContractTests": "Deno brand evidence, ambiguity, grounding, tier evidence/schema tests",
@@ -81,11 +87,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No live representative image quality/latency/cost evaluation; brand recognition is not SKU proof",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Primary retailer-neutral commerce",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "shoppingProvider.ts; commerce relevance/tier and destination boundaries; PurchaseOptionsPanel/ProductCard",
     "backendDeploymentAndFlags": "Serper then Brave with independent bounded failure; runtime invocation not verified",
     "clientContractTests": "Strict original primary digest restoration proof after consent-only prerequisite; tier/URL/ranking/duplicate tests",
@@ -93,35 +100,38 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No retailer stock/price freshness, real checkout or merchant partnership claim; saved action success is authority-bound",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Black-owned organic discovery",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "ScanResultV2.tsx:383 hook / :756 shelf; useBlackOwnedDiscovery -> service -> black-owned-discovery",
     "backendDeploymentAndFlags": "Production ABSENT; organic/badge flags FALSE. Staging v5/JWT true/digest captured",
     "clientContractTests": "Client/host malformed/stale/cancel/isolation + SQL catalog/reviewer/eligibility tests; badges expiry tests",
     "deviceVerified": "NOT TESTED; no signed app/device run in campaign",
     "customerLive": "NOT VERIFIED; no published artifact binding",
-    "blockers": "Source prepared in #648, not authoritative; protected deployment/organic activation needed; no fabricated catalog",
+    "blockers": "New B35-F-007 account-state guard PR656 pending; Production discovery absent/disabled; original customer-device/runtime checks remain",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Partnership / merchant ownership / sponsorship",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "black-owned-discovery catalog/engine/Shopify adapter; SQL admin/reviewer registry",
     "backendDeploymentAndFlags": "Migration applied both projects; three sponsorship flags FALSE",
     "clientContractTests": "PGlite real migration authorization, expiry/revoke/optout, feed and sponsorship/fixture isolation",
     "deviceVerified": "NOT TESTED; no signed app/device run in campaign",
     "customerLive": "NOT VERIFIED; no published artifact binding",
-    "blockers": "Production actual approved ownership/catalog records not read; draft legal verification policies not certified",
+    "blockers": "New B35-F-007 account-state guard PR656 pending; Production discovery absent/disabled; original customer-device/runtime checks remain",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Elise / other selected stylists / conversation",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/style-chat/[sessionId].tsx -> EdgeStyleChatProvider -> stylechat-generate; eliseBrandVoice.ts",
     "backendDeploymentAndFlags": "Production stylechat ACTIVE; brand voice flag true; actual current outputs not retrieved",
     "clientContractTests": "Persona/actions/context-isolation/prompt/schema and receipt tests, including Packing dispatch",
@@ -129,11 +139,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Provider-specific disclosure/receipt repairs await owner merge/deployment; no model-quality or device proof",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Speech / ElevenLabs / avatar",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "stylist-speech/elevenLabsClient -> stylistSpeechClient -> avatarSpeech -> AvatarRuntime -> AnimatedStylistAvatar",
     "backendDeploymentAndFlags": "Server-authorized assistant text; approved voice secret names; real invocation not verified",
     "clientContractTests": "elevenLabsClient/providerFailure Deno tests; avatarEngineContract empty alignment closed; interruption/client lifecycle",
@@ -141,11 +152,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Actual delay/lip sync/audio-focus/foreground performance NOT TESTED on hardware; source fallback is distinct from empty-array evidence",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "K+ paywall / purchase / restore / entitlements",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "KPlusMembershipSheet; kplusAcquisitionSurface.ts -> RevenueCat native -> reconcile -> canonical entitlement reader",
     "backendDeploymentAndFlags": "Live project/default offering/k_plus/prod webhook; US store price/trial readback verified; Apple READY_TO_SUBMIT",
     "clientContractTests": "Hosted paywall iOS/Android actor-switch/offer/error tests; stale provider authority, webhook/reconciliation suites",
@@ -153,11 +165,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Existing-user route reachability source exercised; signed native sandbox/second-device restore/billing grace NOT TESTED; no pricing change",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Closet / media sync / restore / saved ownership",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/library.tsx; closetLibrary; closetCandidatePromotion; closetMediaPrivacy; closet sync/restore engines",
     "backendDeploymentAndFlags": "RLS/private style-library-images; Staging cross-user path denial/signing verified",
     "clientContractTests": "Media/privacy/cloud restore and actor-bound cleanup/cache suites",
@@ -165,11 +178,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Actual cross-device restart restore and native media sanitization unavailable; ownership is not inferred from a scan",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Private Dressing Room / saved looks",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/dressing-rooms; app/looks; services/styleObjects.ts -> RPC/RLS; style-outfit-generate",
     "backendDeploymentAndFlags": "Server account-active repair prepared; authenticated owner and Gemini receipt gates",
     "clientContractTests": "Outfit account lifecycle 38/38; reaction-hook owner context contract; saves and room source suites",
@@ -177,11 +191,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Full physical navigation/offline save/restore not tested; F-002/C-002 unmerged",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Shared Dressing Room / messages/reactions/media",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/(public)/rooms/[token].tsx; roomMessages/dressingRoomCollaboration; useDressingRoomReactions",
     "backendDeploymentAndFlags": "Live shared membership RPC + private Storage and signed URL authority",
     "clientContractTests": "Real share creation/join, successful member message read, removal -> RPC denial; reaction SQL signatures/token binding",
@@ -189,11 +204,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Shared media URL after membership change across every legacy signed link not exhaustively tested; actual expiry denial verified for synthetic owner link",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Packing Intelligence / interactive calendar",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/packing; PackingDateRange/calendar components; packingClient -> stylechat; packingPlanStore/cache",
     "backendDeploymentAndFlags": "Intentional actor-bound device-local latest-plan cache (30 days), not backend trip history",
     "clientContractTests": "Calendar iOS/Android taps/cancel/back/leap/DST; payload/weather/provenance and plan-cache contracts",
@@ -201,11 +217,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No backend trip-history feature claimed; device timezone/offline/restart and actual forecasts not verified; Gemini consent repair pending",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Smart Watchlist / monitoring",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "app/watchlist; watchlistClient -> commerce-watch-refresh; protected production sweep workflow",
     "backendDeploymentAndFlags": "No Supabase cron/pg_net in either project; protected GitHub 6-hour schedule exists; recent pending/cancelled runs",
     "clientContractTests": "Token isolation/receipt/routing/worker-entitlement/provider tests",
@@ -213,11 +230,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Production invocation and APNs/FCM receipt not verified; environment approval gate and physical notifications remain",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Notifications / device tokens / deep links",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "services/watchlist/pushRegistration.ts; watchNotificationRouting; app/+native-intent.ts -> watch detail",
     "backendDeploymentAndFlags": "Expo push -> APNs/FCM; private token authority",
     "clientContractTests": "Cold/warm/readiness, duplicate delivery, actor-switch/token and receipt fixtures",
@@ -225,11 +243,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Physical iOS/APNs/Android13+ permission/FCM delivery not tested; provider acceptance not delivery",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Photo VTO",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "TryItOnEntry/useVirtualTryOn -> vto client -> vto-generate -> AILabTools/RapidAPI",
     "backendDeploymentAndFlags": "Canonical attempt-scoped SQL migration applied; candidate backend promotion source byte-bound",
     "clientContractTests": "Reservation/settlement/duplicate/timeout/provider 500/429/schema/media tests; cost probe accounting repair",
@@ -237,11 +256,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No real paid provider call; person-photo transfer deliberately separate from Scanner; device result presentation not certified",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Live Camera VTO",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "Try-On Studio -> native capability/session -> modules/kscan-live-vto-native",
     "backendDeploymentAndFlags": "On-device camera/pose/rendering; source native/config checks only",
     "clientContractTests": "Native registration/resource/model digests, bridge no-frame-upload, session/capability failure source tests",
@@ -249,11 +269,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No supported physical iOS/Android execution, camera revocation/orientation/background/frame-budget verification",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Account deletion / restoration",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "services/accountDeletion.js; deletion status/terminal cleanup; handle/process/restore functions; Render internal email",
     "backendDeploymentAndFlags": "Auth/storage/data purge code and lifecycle gates; no real customer deletion",
     "clientContractTests": "Deletion/idempotency/partial failure/Apple revoke/RevenueCat cleanup and account-state suites",
@@ -261,11 +282,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No live purge of a customer; all-vendor propagation/retention/backups/email delivery NOT VERIFIED; synthetic Auth cleanup is not full account-deletion certification",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "PostHog analytics",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "posthogClient.core.ts / .tsx -> seven allowlisted feature sinks; posthogIdentitySync",
     "backendDeploymentAndFlags": "SDK/source wired; four provider-ingested event names verified; current binary environment unknown",
     "clientContractTests": "Config-disabled zero-egress negative controls; sink/property allowlists; reset-before-identify",
@@ -273,11 +295,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No full taxonomy, current-binary ingestion or legal unconditional-analytics approval. Project capture opt-ins differ from SDK explicit disabled behavior",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Backend RLS / RPC / Storage / Edge",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "31 governed source functions; 183 local migrations; SQL/security tests",
     "backendDeploymentAndFlags": "28 Production / 40 Staging functions; ledgers156/183; RLS metadata both; private media and invoker views",
     "clientContractTests": "1531 backend tests at53b93724; 31 actual offline handlers/186 cases (one FAIL); 19 real staging fixture checks",
@@ -285,11 +308,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "All per-RPC/endpoint identity, SSRF, injection/concurrency combinations are not exhausted; individual NOT TESTED rows retained",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Release / iOS / Android / legal",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "eas.json; app.json; native modules/plugins; RP-108 and Build35 release certification docs",
     "backendDeploymentAndFlags": "Production/build35-release source profiles; backend authority role remains nonauthoritative on mobile",
     "clientContractTests": "Native parity17, source release/migration/edge/dependency gates; TypeScript passed",
@@ -297,11 +321,12 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "No signed artifact/privacy manifest merge/store declaration audit; legal copy remains legal-agent responsibility",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   },
   {
     "feature": "Additional discovered surfaces",
-    "sourceMerged": "NO candidate repair/convergence merge; baseline65a1e7cd plus prepared751e3815",
+    "sourceMerged": "Source present at authoritative c86bf3d0; nine repairs merged; feature completeness requires separate route/runtime evidence",
     "candidateSource": "Purchase import; Today With Elise; Signature Style; glasses/wearable research; legacy web/server routes",
     "backendDeploymentAndFlags": "Purchase-import Gemini boundary included; other enabled/runtime surfaces require separate exact gating review",
     "clientContractTests": "Existing matching full-suite contracts executed; no automatic live certification",
@@ -309,6 +334,7 @@
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "NOT AUDITED end-to-end for all additional routes; unmerged PR625/627/582/566 not imported by timestamp",
     "finalIntegrationStatus": "BLOCKED",
-    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced"
+    "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
+    "auditContinuation": "Original feature evidence retained; full boundary/device/provider verification remains as specified, not implied by green aggregate tests"
   }
 ]

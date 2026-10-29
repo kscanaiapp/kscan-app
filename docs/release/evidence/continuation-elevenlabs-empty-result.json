@@ -1,0 +1,16 @@
+{
+  "probeId": "B35-EL-EMPTY-001",
+  "feature": "Speech",
+  "boundary": "requestElevenLabsSpeech actual provider adapter",
+  "sourceLocation": "supabase/functions/stylist-speech/elevenLabsClient.ts",
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "environment": "Offline Deno injected fetch/no network permission",
+  "input": "HTTP200 empty body",
+  "expected": "Reject invalid body, no fabricated audio, exactly1 dispatch",
+  "actual": "PROVIDER_RESPONSE_INVALID;1 dispatch;1 passing test",
+  "verdict": "PASS",
+  "evidence": "elevenlabs-empty-body.test.ts and continuation-elevenlabs-empty.log.gz",
+  "defect": null,
+  "repair": null,
+  "reverification": "Executed missing case, not a live ElevenLabs invocation"
+}

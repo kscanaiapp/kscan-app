@@ -1,10 +1,12 @@
 {
-  "sourceSha": "a376f2f7 prepared candidate, separate deployed evidence as noted",
-  "total": 3096,
+  "sourceSha": "c86bf3d0/f4df2a5a; dated deployed evidence qualified per row",
+  "originalTotal": 3096,
   "counts": {
-    "PASS": 54,
-    "NOT TESTED": 3041,
+    "PASS": 64,
+    "NOT TESTED": 3031,
     "FAIL": 1
   },
-  "limitation": "Only explicitly matched complete-boundary cases closed; bounded separately indexed cases do not automatically close full identity/provider probes."
+  "additionalNewAccountStateFailures": 2,
+  "additionalDefect": "B35-F-007; continuation-state-probes.json; outside original43-class matrix",
+  "limitation": "Not merged with bounded886 or current harness test totals; no automatic full-feature certification"
 }
