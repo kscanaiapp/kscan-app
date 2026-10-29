@@ -1,6 +1,6 @@
 # Controlled real-entrypoint probes
 
-Run `deno test --allow-env --allow-read security/probes/edge-entrypoint-hostile.test.ts`.
+Run `deno test --allow-env --allow-read qa/security/edge-entrypoint-hostile.test.ts`.
 No network permission is granted. The harness captures actual `Deno.serve`
 handlers, replaces fetch with a rejecting synthetic authority, and restores
 environment/fetch/server descriptors after every endpoint.
