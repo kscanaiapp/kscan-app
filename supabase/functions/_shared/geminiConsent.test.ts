@@ -1,4 +1,4 @@
-﻿for (const [file, marker] of [
+for (const [file, marker] of [
   ['../scan-identify/index.ts', 'await requireGeminiConsent(userId)'],
   ['../stylechat-generate/index.ts', 'await requireGeminiConsent(userId)'],
   ['../style-outfit-generate/index.ts', 'await requireGeminiConsent(userId)'],
