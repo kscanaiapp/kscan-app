@@ -57,7 +57,13 @@ function isFiniteNonNegativeArray(value: unknown): value is number[] {
 }
 
 function validateAlignment(value: unknown): AvatarSpeechAlignment | null {
-  if (value == null) return null;
+  // The provider normalizes missing, empty, and unusable timing to null.
+  // Once audio is ready, that means no timing evidence, not permission for
+  // the engine's pre-alignment fallback cycle. Its explicit empty timeline
+  // keeps valid audio available while the mouth remains closed.
+  if (value == null) return {
+    characters: [], characterStartTimesSeconds: [], characterEndTimesSeconds: [],
+  };
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Speech response alignment is invalid.');
   }
