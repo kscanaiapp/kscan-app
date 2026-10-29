@@ -619,8 +619,7 @@ export default function OnboardingScreen() {
       </Text>
 
       <Text style={styles.privacyNote} testID="onboarding-ai-processing-statement">
-        Images you choose to submit may be securely transmitted and processed using artificial
-        intelligence to provide scanning, styling, and shopping results.
+        Photos and text you submit, including Elise chats, are sent to Google Gemini for fashion analysis, styling, and shopping results.
       </Text>
 
       <View style={styles.legalLinks}>
@@ -672,13 +671,13 @@ export default function OnboardingScreen() {
         onPress={() => setAiConsentChecked((v) => !v)}
         style={styles.checkboxRow}
         accessibilityRole="checkbox"
-        accessibilityLabel="AI image processing consent checkbox"
+        accessibilityLabel="Google Gemini photo and text processing consent checkbox"
         accessibilityState={{ checked: aiConsentChecked }}
       >
         <View style={[styles.checkbox, aiConsentChecked && styles.checkboxChecked]}>
           {aiConsentChecked && <Text style={styles.checkmark}>✓</Text>}
         </View>
-        <Text style={styles.checkboxLabel}>I consent to AI image processing</Text>
+        <Text style={styles.checkboxLabel}>I consent to Gemini processing</Text>
       </Pressable>
 
       <Pressable
