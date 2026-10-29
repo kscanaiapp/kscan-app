@@ -57,6 +57,12 @@ function createDataAccess(authHeader: string): StylistSpeechDataAccess {
       return !error && data?.account_locked_at == null && typeof data?.account_status === 'string'
         ? data.account_status : null;
     },
+    async hasActiveKPlus() {
+      // Uses the caller's Authorization JWT, not the privileged cost client.
+      // has_active_k_plus() resolves canonical entitlement from auth.uid().
+      const { data, error } = await client.rpc('has_active_k_plus');
+      return !error && data === true;
+    },
     async reserveSpeechRequest(actorId, fingerprint, characters) {
       const { data, error } = await costClient().rpc('reserve_speech_request', {
         p_user_id: actorId, p_fingerprint: fingerprint, p_characters: characters,

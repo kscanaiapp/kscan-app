@@ -70,6 +70,7 @@ import { assertSafeRemoteMediaUrl } from '../_shared/net/safeRemoteMedia.ts';
 import {
   buildVtoIdempotencyKey,
   completeVtoGeneration,
+  recordVtoProviderTask,
   releaseVtoGeneration,
   reserveVtoGeneration,
 } from './vtoReservation.ts';
@@ -134,6 +135,7 @@ const RETRYABLE: ReadonlySet<VtoFailureCode> = new Set<VtoFailureCode>([
   'rate_limited',
   'quota_exhausted',
   'generation_failed',
+  'result_unavailable',
   'provider_busy',
   'invalid_output',
   'network_failure',
@@ -220,6 +222,7 @@ export interface VtoHandlerDeps {
   resolveVtoEntitlement: typeof resolveVtoEntitlement;
   resolveVtoProvider: typeof resolveVtoProvider;
   reserveVtoGeneration: typeof reserveVtoGeneration;
+  recordVtoProviderTask: typeof recordVtoProviderTask;
   completeVtoGeneration: typeof completeVtoGeneration;
   releaseVtoGeneration: typeof releaseVtoGeneration;
   generationTimeoutMs: number;
@@ -235,6 +238,7 @@ export const defaultVtoHandlerDeps: VtoHandlerDeps = {
   resolveVtoEntitlement,
   resolveVtoProvider,
   reserveVtoGeneration,
+  recordVtoProviderTask,
   completeVtoGeneration,
   releaseVtoGeneration,
   generationTimeoutMs: GENERATION_TIMEOUT_MS,
@@ -499,10 +503,79 @@ export async function handleVtoRequest(
       origin,
       priorStatus: reservation.priorStatus ?? 'unknown',
     });
-    return fail('request_in_flight', {
-      requestId, uid, origin, stage: 'reservation_duplicate',
+    // A prior accepted task may still be retrievable without a second paid
+    // POST. Recover by provider task ID only, never by submitting the images
+    // again. Terminal rows require no second settlement; an in-flight success
+    // must atomically settle exactly its original attempt UUID.
+    if (reservation.taskId && typeof selection.provider.recover === 'function') {
+      const recoverController = new AbortController();
+      const recoverTimer = setTimeout(() => recoverController.abort(), 12_000);
+      let recovered;
+      try {
+        recovered = await selection.provider.recover(
+          reservation.taskId, { signal: recoverController.signal },
+        );
+      } catch {
+        recovered = null;
+      } finally {
+        clearTimeout(recoverTimer);
+      }
+      if (recovered?.ok) {
+        const checked = validateVtoResultMedia(recovered.media);
+        if (checked.ok) {
+          if (reservation.priorStatus === 'in_flight') {
+            if (!reservation.attemptId ||
+                !await deps.completeVtoGeneration(
+                  authUser.id, idempotencyKey, 'succeeded',
+                  selection.provider.id, reservation.attemptId,
+                )) {
+              return fail('authorization_failed', {
+                requestId, uid, origin, stage: 'recovered_settlement_unverified',
+              });
+            }
+          }
+          if (reservation.priorStatus === 'succeeded' ||
+              reservation.priorStatus === 'in_flight') {
+            logVtoEvent('vto_generate_succeeded', {
+              requestId, uid, origin, provider: selection.provider.id,
+              slot: eligibility.slot, category: eligibility.canonicalCategory,
+              latencyMs: 0, inputBucket: payloadBucket(personDataUri.length),
+              outputBucket: dimensionBucket(checked.media.width, checked.media.height),
+              outputBytes: checked.byteLength,
+              billedUnits: checked.media.billedUnits ?? undefined,
+            });
+            return json({
+              requestId, status: 'success',
+              ...(ownedGarment ? { garmentSource: ownedGarment.source } : {}),
+              ...(suppliedGarment ? { garmentSource: suppliedGarment.source } : {}),
+              provider: selection.provider.id,
+              result: {
+                dataUri: checked.media.dataUri, mediaType: checked.media.mediaType,
+                width: checked.media.width, height: checked.media.height,
+                isAiVisualization: true, latencyMs: 0,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    // A succeeded attempt is never dispatched twice. Results are ephemeral:
+    // report that the prior receipt cannot be replayed, requiring a deliberate
+    // new requestGeneration rather than a misleading endless in-flight UI.
+    return fail(reservation.priorStatus === 'succeeded' ? 'result_unavailable' : 'request_in_flight', {
+      requestId, uid, origin,
+      stage: reservation.priorStatus === 'succeeded'
+        ? 'prior_success_result_not_replayable' : 'reservation_duplicate',
     });
   }
+
+  if (reservation.outcome !== 'reserved' || !reservation.attemptId) {
+    return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'attempt_identity_unavailable',
+    });
+  }
+  const attemptId = reservation.attemptId;
 
   logVtoEvent('vto_generate_start', {
     requestId,
@@ -528,7 +601,13 @@ export async function handleVtoRequest(
         slot: eligibility.slot,
         canonicalCategory: eligibility.canonicalCategory,
       },
-      { signal: controller.signal },
+      {
+        signal: controller.signal,
+        onTaskAccepted: (taskId) =>
+          deps.recordVtoProviderTask(
+            authUser.id, idempotencyKey, attemptId, taskId, selection.provider.id,
+          ),
+      },
     );
   } catch (err) {
     const aborted = err instanceof DOMException && err.name === 'AbortError';
@@ -536,7 +615,12 @@ export async function handleVtoRequest(
     // longer influence. The attempt still counts against the daily cap: the
     // paid call was made, and counting only successes would let a failing
     // provider be retried without bound.
-    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    const recorded = await deps.completeVtoGeneration(
+      authUser.id, idempotencyKey, 'failed', selection.provider.id, attemptId, undefined, true,
+    );
+    if (!recorded) return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'settlement_unverified_exception',
+    });
     return fail(aborted ? 'provider_timeout' : 'generation_failed', {
       requestId,
       uid,
@@ -556,11 +640,20 @@ export async function handleVtoRequest(
     // failure before the submit was sent. Absent or true means it stays
     // counted, so a vendor that accepted the job is still paid for out of the
     // daily cap and the unbounded-retry hole VTO-QUOTA-001 closed stays closed.
-    if (outcome.billable === false) {
-      await deps.releaseVtoGeneration(authUser.id, idempotencyKey, selection.provider.id);
-    } else {
-      await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
-    }
+    const uncertain = outcome.billable !== false &&
+      ['network_failure','provider_timeout','provider_unavailable','rate_limited',
+       'cancelled','generation_failed'].includes(outcome.failure);
+    const recorded = outcome.billable === false
+      ? await deps.releaseVtoGeneration(
+        authUser.id, idempotencyKey, selection.provider.id, attemptId,
+      )
+      : await deps.completeVtoGeneration(
+        authUser.id, idempotencyKey, 'failed',
+        selection.provider.id, attemptId, undefined, uncertain,
+      );
+    if (!recorded) return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'settlement_unverified_failure',
+    });
     return fail(outcome.failure, {
       requestId,
       uid,
@@ -578,7 +671,12 @@ export async function handleVtoRequest(
   // -- 10. A provider success is not yet a K Scan result ---------------------
   const validation = validateVtoResultMedia(outcome.media);
   if (!validation.ok) {
-    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    const recorded = await deps.completeVtoGeneration(
+      authUser.id, idempotencyKey, 'failed', selection.provider.id, attemptId,
+    );
+    if (!recorded) return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'settlement_unverified_media',
+    });
     return fail('invalid_output', {
       requestId,
       uid,
@@ -590,7 +688,12 @@ export async function handleVtoRequest(
     });
   }
 
-  await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'succeeded', selection.provider.id);
+  const completed = await deps.completeVtoGeneration(
+    authUser.id, idempotencyKey, 'succeeded', selection.provider.id, attemptId,
+  );
+  if (!completed) return fail('authorization_failed', {
+    requestId, uid, origin, stage: 'settlement_unverified_success',
+  });
 
   logVtoEvent('vto_generate_succeeded', {
     requestId,

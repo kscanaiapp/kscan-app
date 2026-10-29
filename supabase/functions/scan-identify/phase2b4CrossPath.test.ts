@@ -285,6 +285,20 @@ type PrivilegeProfile = {
  * this record states the privileged behavior that review must account for.
  */
 const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
+  // Separate secondary commerce endpoint. requireUser/rest reuse the existing
+  // common module, whose full source closure includes the auth-admin helpers;
+  // discovery itself only authenticates, reads approved inventory and claims
+  // its own per-actor request quota. No storage or primary-commerce mutation.
+  'black-owned-discovery': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  // Same audited common auth/REST closure, with an additional server-side
+  // protected staff lookup and explicit non-production sandbox controls.
+  'sponsorship-sandbox': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   // EDGE-02: Sign in with Apple revocation pair, recovered from Git history
   // (commit e369fca9) and cross-verified against the live deployed source on
   // both projects. dbWrite is correctly false here even though both functions

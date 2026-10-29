@@ -1,0 +1,16 @@
+{
+  "baseCommit": "3e94c06326af7726955b7197c786b7e94812b24d",
+  "files": {
+    "supabase/functions/scan-identify/index.ts": "f28e0c8759f8129d3648dd7c62bb23c83c19d729dee83abe26eeba0a2c6773af",
+    "supabase/functions/scan-identify/scanCommerceRouter.ts": "717bec5a58bd3e8d4d283da38c23cd0977933789da65cfe78a5042d87e70eb4f",
+    "supabase/functions/scan-identify/qualityTuneCommerce.ts": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+    "supabase/functions/scan-identify/commerceRelevanceAgreement.ts": "02abec82e5454a255ddc24b4dcdc50455ade1f3b31a60f0e0a7ac22b0b201e00",
+    "supabase/functions/scan-identify/commerceRelevanceDiversity.ts": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6",
+    "supabase/functions/scan-identify/commerceFunnelConfig.ts": "6a8914ab08fa79df60cec1a239fc22f5836bf6ffb01533c6dfba61a8674f3f6b",
+    "supabase/functions/scan-identify/canonicalCommerce.ts": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+    "supabase/functions/scan-identify/commerceRetrievalConfig.ts": "f14e3f5b363834e39b8ccf353bfbc60ffe5101bf198456ef752f04238daee2a3",
+    "supabase/functions/scan-identify/shoppingProvider.ts": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+    "supabase/functions/scan-identify/similarityMatcher.ts": "5a95c4aafbb1fbd25ff8d1b3e724ec55dbc19d9b107770303e2093d6eb192401",
+    "supabase/functions/_shared/catalogRetrieval.ts": "36df6c3c86cbed1d4c0d8df820cc4fe95389118ed4b2222d219df36df57cfe1e"
+  }
+}

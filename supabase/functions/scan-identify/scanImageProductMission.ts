@@ -82,5 +82,14 @@ export function buildScanImageProductMission(
   enabled: boolean,
   requestMode: ImageMissionRequestMode,
 ): string | null {
+  // Runtime activation evidence: metadata only, never the instruction text,
+  // image, user id or any user-provided content. Only image mode calls this.
+  console.log(
+    '[scan-identify] image_mission version=%s enabled=%s request_mode=%s attached=%s',
+    SCAN_IMAGE_PRODUCT_MISSION_VERSION,
+    String(enabled),
+    requestMode,
+    String(enabled),
+  );
   return enabled ? `${IMAGE_PRODUCT_MISSION}\n\n${MODE_CONTEXT[requestMode]}` : null;
 }

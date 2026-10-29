@@ -78,8 +78,9 @@ function deps(overrides: Partial<VtoHandlerDeps> = {}): Partial<VtoHandlerDeps> 
     // the reservation's own behaviour (duplicate / quota / fail-closed) is
     // covered in vtoPaidBoundary.test.ts.
     reserveVtoGeneration: () =>
-      Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10 }),
-    completeVtoGeneration: () => Promise.resolve(),
+      Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10, attemptId: '33333333-4444-4555-8666-777777777777' }),
+    completeVtoGeneration: () => Promise.resolve(true),
+    releaseVtoGeneration: () => Promise.resolve(true),
     generationTimeoutMs: 1_000,
     devScenariosAllowed: () => false,
     ...overrides,
@@ -520,11 +521,11 @@ function settlementSpy() {
       _u: string, _k: string, status: 'succeeded' | 'failed',
     ) => {
       settled.push({ how: 'complete', status });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
     releaseVtoGeneration: () => {
       settled.push({ how: 'release' });
-      return Promise.resolve();
+      return Promise.resolve(true);
     },
   };
 }
@@ -621,4 +622,30 @@ Deno.test('VTO-QUOTA-003: an adapter that says nothing is treated as billable', 
     }),
   );
   assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }]);
+});
+
+Deno.test('VTO-003: unverified success settlement never returns an image', async () => {
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    completeVtoGeneration: () => Promise.resolve(false),
+  }));
+  assertEquals(await failureCode(response), 'authorization_failed');
+});
+
+Deno.test('VTO-003: missing reservation attempt identity prevents provider work', async () => {
+  let providerCallCount = 0;
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    reserveVtoGeneration: () =>
+      Promise.resolve({ outcome: 'unavailable' as const }),
+    resolveVtoProvider: () => ({
+      ok: true as const, provider: {
+        id: 'mock',
+        generate: async () => {
+          providerCallCount++;
+          return { ok: false as const, failure: 'generation_failed' as const };
+        },
+      },
+    }),
+  }));
+  assertEquals(providerCallCount, 0);
+  assertEquals(await failureCode(response), 'authorization_failed');
 });
