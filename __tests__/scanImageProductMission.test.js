@@ -51,7 +51,7 @@ test('selected garment and multiple garment workflows retain their distinct task
   assert.match(multi, /first pass/i);
   assert.match(selected, /authorized candidate and its bounds/i);
   assert.match(selected, /direct Elise gallery image/i);
-  assert.match(selected, /this is identification/i);
+  assert.match(selected, /objective attributes for the stylist handoff/i);
 });
 
 test('unknown caller source is not falsely attributed to camera or gallery', () => {
