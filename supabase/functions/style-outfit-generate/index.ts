@@ -31,6 +31,7 @@
 // user-facing scores; no retailer products; anchor preserved in every outfit.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
+import { isOutfitAccountActive } from './accountActiveGate.ts';
 import {
   FASHION_REASONING_CONTRACT_VERSION,
   STYLE_OUTFIT_PROMPT_VERSION,
@@ -314,19 +315,11 @@ Deno.serve(async (req) => {
   // deletion accounts, so deny them here with a stable, non-retryable contract
   // (403 + ACCOUNT_PENDING_DELETION) instead of surfacing the RPC guard as an
   // opaque 500. No quota is reserved, no provider is reached, no Look is created.
-  {
-    const { data: lifecycleRow } = await userClient
-      .from('profiles')
-      .select('account_status')
-      .eq('id', userId)
-      .maybeSingle();
-    const accountStatus = lifecycleRow?.account_status;
-    if (accountStatus === 'pending_deletion' || accountStatus === 'locked') {
-      return json(
-        { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
-        403,
-      );
-    }
+  if (!await isOutfitAccountActive(userId)) {
+    return json(
+      { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+      403,
+    );
   }
 
   // 3. Parse and bound the request. Client candidate arrays are never read.
