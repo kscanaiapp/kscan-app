@@ -1,0 +1,15 @@
+{
+  "upstreamVersion": "0.5.1",
+  "upstreamPackage": "https://registry.npmjs.org/decode-uri-component/-/decode-uri-component-0.5.1.tgz",
+  "upstreamIndexSha256": "6a86ac891edf15c5efa0841ebb31935e3669d58b98318b57d7b08a4530317cb0",
+  "upstreamIntegrity": "sha512-vWHQkXgg2cE3BB4rR0c+PYw9BCQzLoNIRMI7AunIkZst74tw/vpPp7VLoYtsR/cy1f55g3XDWUslfeCZjiZJyA==",
+  "adaptations": [
+    "export default function -> module.exports callable for the existing query-string CommonJS consumer",
+    "retain legacy plus-to-space normalization before decoding; algorithm itself unchanged"
+  ],
+  "advisories": [
+    "GHSA-vcc3-ghjq-m6fr",
+    "GHSA-qr28-fpjm-wq7f"
+  ],
+  "license": "MIT, upstream license retained verbatim"
+}

@@ -1,3 +1,4 @@
+import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
 // stylechat-generate — Secure server-side Gemini proxy for StyleChat v0.4
 //
 // Architecture:
@@ -1014,6 +1015,9 @@ Deno.serve(async (req) => {
   }
 
   // ── 3. Parse and validate request body ──────────────────────────────────────
+
+  const consentGate = await requireGeminiConsent(userId);
+  if (consentGate) return consentGate;
 
   let body: {
     sessionId?: unknown;

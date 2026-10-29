@@ -27,7 +27,8 @@ const STAGING_REF = 'yzqjvdfgefveprobvvyw';
 const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 const OCTOBER = ['20261002010000', '20261003195716', '20261004184118', '20261004221500', '20261004231628'];
 const SPEECH = '20261011222213';
-const CAMPAIGN = [...OCTOBER, SPEECH];
+const LATER_SOURCE = ['20261014210000', '20261015214749', '20261016001500', '20261029125521', '20261029184000'];
+const CAMPAIGN = [...OCTOBER, SPEECH, ...LATER_SOURCE];
 const OBSOLETE = '20260916234025';
 const fixture = JSON.parse(fs.readFileSync(path.join(ROOT, '__tests__', 'fixtures', 'staging-ledger-2026-10-07.json'), 'utf8'));
 
@@ -64,7 +65,7 @@ test('fixture sanity: Staging holds none of the five, Production holds all five'
 
 // ---- A / K. Deploy-only with five pending: PASS, nothing selected ----------
 
-test('A+K: deploy-only with six declared pending sources selects NO migration', async () => {
+test('A+K: deploy-only with all ten declared historical pending sources selects NO migration', async () => {
   const { compareMigrations } = await loadPreflight();
   const { local, remote, reconciliation } = await world();
   const report = compareMigrations(local, remote, '', reconciliation);

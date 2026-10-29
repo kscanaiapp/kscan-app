@@ -49,8 +49,10 @@ function render(props) {
     '../../services/watchlist/watchlistAvailability': { resolveWatchlistAvailable: () => false },
     '../../constants/featureFlags': { VTO_UI_ENABLED: true },
     '../vto/TryItOnEntry': { TryItOnEntry: 'TryItOnEntry' },
+    '../../hooks/useOwnershipExpiryRefresh': runModule('hooks/useOwnershipExpiryRefresh.ts', { ...r.runtimeModules, '../services/blackOwnedDiscovery':loadPortable('services/blackOwnedDiscovery.ts') }),
     '../../hooks/useVtoAwareness': { useVtoAwarenessBlocker: () => {} },
     '../../supabase/functions/scan-identify/matchTier': tier,
+    '../../services/blackOwnedDiscovery': loadPortable('services/blackOwnedDiscovery.ts'),
   });
   const tree = r.render(r.jsx(module.PurchaseOptionsPanel, props));
   return { tree, module, entries };

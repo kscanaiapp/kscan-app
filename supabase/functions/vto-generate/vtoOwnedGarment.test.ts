@@ -86,10 +86,10 @@ function harness(options: { actor?: string; row?: Record<string, unknown>; entit
     resolveVtoProvider: () => ({ ok: true, provider: { id: mock.id, generate: (input, opts) => { providerInputs.push(input); return mock.generate(input, opts); } } }),
     reserveVtoGeneration: async (_actor, key) => {
       reservations++;
-      if (keys.has(key)) return { outcome: 'duplicate', used: keys.size, dailyLimit: 10, priorStatus: 'succeeded' };
-      keys.add(key); return { outcome: 'reserved', used: keys.size, dailyLimit: 10 };
+      if (keys.has(key)) return { outcome: 'duplicate', used: keys.size, dailyLimit: 10, priorStatus: 'succeeded', taskId: null, attemptId: null };
+      keys.add(key); return { outcome: 'reserved', used: keys.size, dailyLimit: 10, attemptId: '33333333-4444-4555-8666-777777777777' };
     },
-    completeVtoGeneration: async () => {}, releaseVtoGeneration: async () => {}, devScenariosAllowed: () => false,
+    completeVtoGeneration: async () => true, releaseVtoGeneration: async () => true, devScenariosAllowed: () => false,
   };
   return { deps, keys, providerInputs, get reservations() { return reservations; }, get signs() { return signCount; } };
 }
@@ -108,7 +108,7 @@ Deno.test('owned duplicate suppresses second paid job even when signed URL rotat
   const h = harness();
   assertEquals((await handleVtoRequest(request(), h.deps)).status, 200);
   const duplicate = await handleVtoRequest(request({ requestId: 'owned_2' }), h.deps);
-  assertEquals(duplicate.status, 429); assertEquals((await duplicate.json()).error.code, 'request_in_flight');
+  assertEquals(duplicate.status, 409); assertEquals((await duplicate.json()).error.code, 'result_unavailable');
   assertEquals(h.providerInputs.length, 1); assertEquals(h.keys.size, 1);
   assertEquals((await handleVtoRequest(request({ requestGeneration: 'intent_2' }), h.deps)).status, 200);
   assertEquals(h.providerInputs.length, 2); assertEquals(h.keys.size, 2);

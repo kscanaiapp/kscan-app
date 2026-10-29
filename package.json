@@ -95,7 +95,8 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
-    "react-native-purchases-ui": "10.10.2"
+    "react-native-purchases-ui": "10.10.2",
+    "decode-uri-component": "file:./vendor/decode-uri-component"
   },
   "engines": {
     "node": ">=20"
@@ -108,10 +109,12 @@
   },
   "overrides": {
     "shell-quote": "1.12.0",
+    "browserslist": "4.28.8",
     "compression": "1.8.2",
     "proxy-addr": "2.0.8",
     "source-map-js": "1.2.2",
-    "browserslist": "4.28.8"
+    "node-forge": "1.4.2",
+    "decode-uri-component": "$decode-uri-component"
   },
   "expo": {
     "doctor": {

@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
+const { loadTsModule, loadEngine, mouthOnlyCapabilities, snapshot } = require('./fixtures/avatarEngineHarness');
 
 function load(file, mocks, transform = (source) => source) {
   const sourcePath = path.join(ROOT, file);
@@ -38,6 +39,48 @@ function load(file, mocks, transform = (source) => source) {
   vm.createContext(sandbox);
   new vm.Script(output, { filename: sourcePath }).runInContext(sandbox);
   return mod.exports;
+}
+
+for (const [label, timing] of [
+  ['empty', { characters: [], character_start_times_seconds: [], character_end_times_seconds: [] }],
+  ['missing', undefined],
+  ['malformed', { characters: ['H'], character_start_times_seconds: [], character_end_times_seconds: [] }],
+]) {
+  test(`real provider -> client -> avatar: ${label} timing retains audio without invented lip motion`, async () => {
+    const { requestElevenLabsSpeech } = loadTsModule('supabase/functions/stylist-speech/elevenLabsClient.ts');
+    const secrets = new Map([
+      ['ELEVENLABS_API_KEY', 'sk_0123456789abcdef0123456789abcdef'],
+      ['ELEVENLABS_STYLIST_TEST_VOICE_ID', 'ZZZFixtureVoiceId0001'],
+      ['ELEVENLABS_MODEL_ID', 'eleven_flash_v2_5'],
+      ['ELEVENLABS_OUTPUT_FORMAT', 'mp3_44100_128'],
+    ]);
+    const provider = await requestElevenLabsSpeech({
+      text: 'Synthetic test reply.', voiceProfile: 'feminine',
+      voiceSecretName: 'ELEVENLABS_STYLIST_TEST_VOICE_ID',
+      env: { get: (name) => secrets.get(name) }, diagnosticsSink: () => {},
+      fetchImpl: async () => Response.json({ audio_base64: btoa('ID3audio'), normalized_alignment: timing }),
+    });
+    const client = load('services/avatars/stylistSpeechClient.ts', {
+      '../supabaseClient': { supabase: { functions: { invoke: async () => ({
+        data: speechResponse({ audioBase64: provider.audioBase64, alignment: provider.alignment }), error: null,
+      }) } } },
+    });
+    const received = await client.requestStylistSpeech({
+      actorId: 'actor', sessionId: 'session-1', messageId: 'message-1', stylistId: 'stylist_portrait_05',
+    });
+    assert.equal(received.audioBase64, btoa('ID3audio'), 'a valid spoken reply remains available');
+    const { AvatarRuntime } = loadEngine();
+    const runtime = new AvatarRuntime();
+    runtime.loadAvatar({ avatarId: 'stylist_portrait_05', capabilities: mouthOnlyCapabilities() });
+    const frames = [0, 0.12, 0.24, 0.4, 0.8].map((position) =>
+      runtime.update(snapshot({ alignment: received.alignment, playbackPositionSeconds: position })));
+    assert.ok(frames.every((frame) => frame.mouthState === 'closed'),
+      `no speech timing evidence may become fabricated lip sync: ${frames.map((frame) => frame.mouthState).join(',')}`);
+    for (const frame of frames) {
+      assert.equal(frame.shouldRenderMouth, false);
+      assert.equal(frame.diagnostics.fallbackUsed, false);
+    }
+  });
 }
 
 function speechResponse(overrides = {}) {

@@ -44,6 +44,14 @@ The K Scan principle: turn fashion inspiration into informed, confident action, 
 
 /** The disabled path must remain byte-identical to the pre-expansion system prompt. */
 export function appendEliseBrandVoice(baseSystemPrompt: string, enabled: boolean): string {
+  // Runtime activation evidence: metadata only, never prompt text, messages,
+  // user ids or attachments. Independent of ELISE_TELEMETRY_V1_ENABLED.
+  console.log(
+    '[elise_brand_voice] version=%s enabled=%s attached=%s',
+    ELISE_BRAND_VOICE_VERSION,
+    String(enabled === true),
+    String(enabled === true),
+  );
   return enabled
     ? `${baseSystemPrompt}\n\n${ELISE_BRAND_VOICE_SYSTEM_BLOCK}`
     : baseSystemPrompt;

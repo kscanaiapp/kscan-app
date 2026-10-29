@@ -22,7 +22,29 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
+const { createHash } = require('node:crypto');
+const campaignPromotion = JSON.parse(fs.readFileSync(path.join(ROOT, 'config/build35-hostile-source-promotion.json'), 'utf8'));
+const sourceHash = (text) => createHash('sha256').update(text.replace(/\r\n/g, '\n')).digest('hex');
+function verifiedCampaignPromotion(file, text = fs.readFileSync(path.join(ROOT, file), 'utf8')) {
+  const record = campaignPromotion.files.find((row) => row.file === file);
+  if (!record || sourceHash(text) !== record.sha256) return false;
+  if (record.baseSourceSha256) {
+    // The only composed shared entrypoint: lifecycle repair first, then the
+    // exact consent import/prerequisite. Removing those lines must restore the
+    // independently reviewed lifecycle source, not a newly minted baseline.
+    const prior = text.replace(/\r\n/g, '\n')
+      .replace("import { requireGeminiConsent } from '../_shared/geminiConsent.ts';\n", '')
+      .replace('  const consentGate = await requireGeminiConsent(userId);\n  if (consentGate) return consentGate;\n\n', '');
+    return sourceHash(prior) === record.baseSourceSha256;
+  }
+  return true;
+}
 const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
+  // Exact canonical source promotion, not a new generative-backend grant.
+  'supabase/functions/vto-generate/vtoReservation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.test.ts',
+  'supabase/functions/vto-generate/vtoHandler.test.ts',
   'supabase/functions/vto-generate/vtoEntitlement.ts',
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
@@ -98,6 +120,36 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts',
   'supabase/functions/stylechat-generate/index.ts',
 ]);
+
+test('campaign VTO settlement and validation promotion preserves canonical backend bytes', () => {
+  const { execFileSync } = require('node:child_process');
+  const canonical = '3efcb6cbf29eb10c1bc1510f05e9a3365755bd74';
+  for (const file of [
+    'supabase/functions/vto-generate/vtoReservation.ts',
+    'supabase/functions/vto-generate/vtoResultValidation.ts',
+    'supabase/functions/vto-generate/vtoResultValidation.test.ts',
+    'supabase/functions/vto-generate/vtoHandler.test.ts',
+  ]) {
+    const approved = execFileSync('git', ['show', `${canonical}:${file}`], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n'),
+      approved.replace(/\r\n/g, '\n'), `${file} must be the reviewed backend source, not an unrelated VTO rewrite`);
+  }
+});
+
+test('mixed campaign backend exceptions are exact byte-bound promotions, not a folder grant', () => {
+  assert.equal(campaignPromotion.files.length, 39);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 39);
+  for (const row of campaignPromotion.files) {
+    assert.match(row.file, /^supabase\//);
+    assert.doesNotMatch(row.file, /\*|\.\./);
+    assert.ok(row.source && row.reason);
+    const source = fs.readFileSync(path.join(ROOT, row.file), 'utf8');
+    assert.equal(verifiedCampaignPromotion(row.file, source), true, row.file);
+    assert.equal(verifiedCampaignPromotion(row.file, source + '\n// unauthorized mutation\n'), false, row.file);
+  }
+  assert.equal(verifiedCampaignPromotion('supabase/functions/_shared/net/safeRemoteMedia.ts', 'anything'), false);
+  assert.equal(verifiedCampaignPromotion('supabase/functions/unreviewed/index.ts', 'anything'), false);
+});
 
 // ── The manifest parses, and every row carries its justification ────────────
 
@@ -291,13 +343,13 @@ test('guard: generative backend stays read-only outside the exact Build 35 entit
 
   const forbiddenBackendTouches = changed.filter(
     (file) =>
-      (file.startsWith('supabase/') && !BUILD35_AUTHORIZED_BACKEND_PATHS.has(file)) ||
+      (file.startsWith('supabase/') && !BUILD35_AUTHORIZED_BACKEND_PATHS.has(file) && !verifiedCampaignPromotion(file)) ||
       file === 'app.json',
   );
   assert.deepEqual(
     forbiddenBackendTouches,
     [],
-    'only the exact Build 35 backend paths may change; all other supabase/** and app.json remain read-only',
+    'only exact declared Build 35 paths and byte-bound reviewed campaign promotions may change; all other supabase/** and app.json remain read-only',
   );
 
   if (changed.includes('eas.json')) {
