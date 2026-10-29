@@ -40,7 +40,7 @@ test('legacy CommonJS consumer and normal/partial Unicode query semantics remain
 test('vendored decoder is the exact upstream security algorithm with only documented module/legacy-plus adaptation', () => {
   const dir = path.join(ROOT, 'vendor/decode-uri-component');
   const record = JSON.parse(fs.readFileSync(path.join(dir, 'provenance.json'), 'utf8'));
-  const source = fs.readFileSync(path.join(dir, 'index.cjs'), 'utf8');
+  const source = fs.readFileSync(path.join(dir, 'index.cjs'), 'utf8').replace(/\r\n/g, '\n');
   const restored = source.replace('module.exports = function decodeUriComponent(encodedURI) {',
     'export default function decodeUriComponent(encodedURI) {')
     .replace("\n\tencodedURI = encodedURI.replace(/\\+/g, ' ');", '');
