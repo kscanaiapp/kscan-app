@@ -42,6 +42,7 @@ import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
 import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
 import { SpeechSettingsSection } from '../components/settings/SpeechSettingsSection';
+import { GeminiProcessingSettingsSection } from '../components/settings/GeminiProcessingSettingsSection';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
 import { KPlusMembershipSheet } from '../components/kplus/KPlusMembershipSheet';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
@@ -745,6 +746,7 @@ export default function PrivacyScreen() {
 
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
             <SpeechSettingsSection actorId={user?.id ?? null} />
+            <GeminiProcessingSettingsSection actorId={user?.id ?? null} />
 
             <TrustCenterCard
               title="How K Scan AI Handles Your Data"
