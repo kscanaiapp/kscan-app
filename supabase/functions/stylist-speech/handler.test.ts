@@ -18,6 +18,7 @@ const DEFAULT_BODY = { sessionId: SESSION_ID, messageId: MESSAGE_ID, stylistId: 
 interface DataOverrides {
   actor?: { id: string } | null;
   accountStatus?: string | null;
+  kplusActive?: boolean;
   session?: SpeechSessionRow | null;
   message?: SpeechMessageRow | null;
   preference?: StylistPreferenceRow | null;
@@ -27,6 +28,7 @@ function dataAccess(overrides: DataOverrides = {}): StylistSpeechDataAccess {
   const defaults = {
     actor: { id: ACTOR_ID },
     accountStatus: 'active',
+    kplusActive: true,
     session: { id: SESSION_ID, user_id: ACTOR_ID },
     message: {
       id: MESSAGE_ID,
@@ -43,6 +45,7 @@ function dataAccess(overrides: DataOverrides = {}): StylistSpeechDataAccess {
   return {
     getAuthenticatedActor: () => Promise.resolve(values.actor),
     getAccountStatus: () => Promise.resolve(values.accountStatus),
+    hasActiveKPlus: () => Promise.resolve(values.kplusActive),
     reserveSpeechRequest: () => Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' }),
     finishSpeechRequest: () => Promise.resolve(),
     getSession: () => Promise.resolve(values.session),
@@ -110,6 +113,104 @@ for (const [name, overrides, status] of [
     assert.equal(paidCalls, 0);
   });
 }
+
+
+Deno.test('Free, expired or revoked K+ never reserves or dispatches paid Speech', async () => {
+  for (const body of [DEFAULT_BODY, { cue: 'welcome', stylistId: 'stylist_portrait_05' }]) {
+    let reservations = 0;
+    let paidCalls = 0;
+    const handler = handlerFor({ kplusActive: false }, {
+      createDataAccess: () => ({
+        ...dataAccess({ kplusActive: false }),
+        reserveSpeechRequest: () => { reservations++; throw new Error('reservation must not run'); },
+      }),
+      generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+    });
+    const response = await handler(speechRequest(body));
+    assert.equal(response.status, 403);
+    assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+    assert.equal(reservations, 0);
+    assert.equal(paidCalls, 0);
+  }
+});
+
+Deno.test('unreadable K+ entitlement fails closed before provider reservation', async () => {
+  let reservations = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      hasActiveKPlus: () => Promise.reject(new Error('entitlement backend offline')),
+      reserveSpeechRequest: () => { reservations++; throw new Error('reservation must not run'); },
+    }),
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(reservations, 0);
+});
+
+Deno.test('K+ lapse during owned-message lookup blocks paid reservation', async () => {
+  let checks = 0; let reservations = 0; let paidCalls = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      hasActiveKPlus: () => Promise.resolve(++checks === 1),
+      reserveSpeechRequest: () => { reservations++; throw new Error('reservation must not run'); },
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(checks, 2);
+  assert.equal(reservations, 0);
+  assert.equal(paidCalls, 0);
+});
+
+Deno.test('active K+ can reserve and generate authorized speech', async () => {
+  let checks = 0; let reservations = 0; let paidCalls = 0;
+  const handler = handlerFor({ kplusActive: true }, {
+    createDataAccess: () => ({
+      ...dataAccess({ kplusActive: true }),
+      hasActiveKPlus: () => { checks++; return Promise.resolve(true); },
+      reserveSpeechRequest: () => {
+        reservations++;
+        return Promise.resolve({ allowed: true, reservationId: '33333333-3333-4333-8333-333333333333' });
+      },
+    }),
+    generateSpeech: () => {
+      paidCalls++;
+      return Promise.resolve({ audioBase64: 'YQ==', alignment: null, alignmentDiagnostics: { source: 'none', rawStatus: 'absent' } });
+    },
+  });
+  assert.equal((await handler(speechRequest())).status, 200);
+  assert.equal(checks, 2);
+  assert.equal(reservations, 1);
+  assert.equal(paidCalls, 1);
+});
+
+Deno.test('reservation-time K+ revocation preserves terminal membership denial without paid dispatch', async () => {
+  let paidCalls = 0;
+  let reservations = 0;
+  let completions = 0;
+  const handler = handlerFor({}, {
+    createDataAccess: () => ({
+      ...dataAccess(),
+      reserveSpeechRequest: () => {
+        reservations++;
+        return Promise.resolve({ allowed: false, reason: 'entitlement_required' });
+      },
+      finishSpeechRequest: () => { completions++; return Promise.resolve(); },
+    }),
+    generateSpeech: () => { paidCalls++; throw new Error('provider must not run'); },
+  });
+  const response = await handler(speechRequest());
+  assert.equal(response.status, 403);
+  assert.equal((await responseBody(response)).code, 'KPLUS_REQUIRED');
+  assert.equal(reservations, 1);
+  assert.equal(paidCalls, 0);
+  assert.equal(completions, 0);
+});
 
 Deno.test('unknown or unavailable account status cannot dispatch paid Speech', async () => {
   for (const accountStatus of [null, 'unknown', 'deactivated', 'purged']) {

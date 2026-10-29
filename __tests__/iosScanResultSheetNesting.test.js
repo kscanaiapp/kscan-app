@@ -178,6 +178,18 @@ function loadScanResultV2(
     '../free-tier/ScanResultUtilityFooter': { ScanResultUtilityFooter: 'ScanResultUtilityFooter' },
     '../../data/scan-results-demo': { getDemoScanResultV2: () => ({}) },
     '../AnalysisCard': { resolvePurchaseShelfMode: () => 'hidden' },
+    // Secondary discovery renders inside the same sheet; inert here so the
+    // nesting checks never depend on a network request or its shelf.
+    './BlackOwnedDiscoveryShelf': { BlackOwnedDiscoveryShelf: 'BlackOwnedDiscoveryShelf' },
+    '../../hooks/useBlackOwnedDiscovery': { useBlackOwnedDiscovery: () => undefined },
+    '../../services/blackOwnedDiscoveryHost': {
+      primaryIdentities: () => [],
+      buildBlackOwnedDiscoveryInput: () => null,
+      discoveryRequestKey: () => null,
+      isPrimaryCommerceSettled: () => false,
+      primaryOwnershipById: () => ({}),
+      displayableSecondary: () => undefined,
+    },
     // Lazy: the unrepaired ScanResultV2 never asks for it.
     get './ResultSurfaceModal'() {
       if (probe) probe.wrapperLoaded = true;

@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "scope": "Exact non-VTO backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
+  "canonicalBackend": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+  "files": [
+    {
+      "file": "supabase/functions/_shared/geminiConsent.test.ts",
+      "sha256": "c715fb7f21b4e9ad5defb55dda766506aee56996638b1f0258601a2037ecc644",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
+    },
+    {
+      "file": "supabase/functions/_shared/geminiConsent.ts",
+      "sha256": "d1fe78df48e94088a6e8a160eae6d7b4f82655c96dea8313c8f62bcdc6cf72e6",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/adminService.ts",
+      "sha256": "0d6e80aed901b8927ed70a30404d4a8298103527ab1b9fe056d53bd6a88b4f59",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/catalog.test.ts",
+      "sha256": "2ccceebe096079af7d66e7f57a087f62da6962060e990a30680ad46b34064607",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/catalog.ts",
+      "sha256": "dbc4776d6bf2f8fc69eb264532ab1b995d2e594e092c4e25b9659bc9d39c97b7",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/contracts.ts",
+      "sha256": "ef6f344c5f8bd862d6d7a689f20b17e6a6feb9113f15e7dde451f7c00c96ead4",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/engine.test.ts",
+      "sha256": "b3cc3c1f4eca207005feff7b24e4230586bee2116501e90b43219b11dcf8615e",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/engine.ts",
+      "sha256": "533223dfd3a402a43196cad26208cf696392692e8621d98e6ad15cdfeff2dbce",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/fixtures.test.ts",
+      "sha256": "00912c768563614e5314d7d2e674c0e5d0d54899a7fde84c5d0af1b8fa9e38e5",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/handler.test.ts",
+      "sha256": "646774974be732f97ba352b9c13effa5d128201d50c4959f02923b31b34a172a",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/handler.ts",
+      "sha256": "69da5d93a7b640a7667a55a56e54b70002d7f15b844c1f1c9ca47c8fe1fcd2c9",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/index.ts",
+      "sha256": "ab70818ddeda8d16758b0dc8bc5891589195b58d263c90aaee479d8ff3df2dac",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sandboxShadow.test.ts",
+      "sha256": "54260e215ed331a2153d42b7c7487662b9a3129bd2d0b4ed8821eac00fa37f44",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/shopifyAdapter.ts",
+      "sha256": "5dac80b6773c1e6b545eed185fab380e61fba9b1f8571466c20584bafff3e61c",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sponsorship.test.ts",
+      "sha256": "d8e862f77532919179cf7105b204d7573c770f7f77231af295bcd0d4a6c3c5f9",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sponsorshipPolicy.ts",
+      "sha256": "08f216d007684243a135df23d6b3b7d033b8581f0f2ca5950c725184fe951aba",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sponsorshipSandbox.ts",
+      "sha256": "7d8130c06df9570bef9cadaaf58ee1fc1417cac632763464b4a15c203e6840e4",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sponsorshipShadow.ts",
+      "sha256": "1d99ff2f3bb54fe51b62b38ce6e8b49a6013b2acc9de18005b94a6926892c1c7",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/sponsorshipStore.ts",
+      "sha256": "886a780a0715081b7da6f7438d7fe1eec9dc5a96d0a21b013ef3074bda8b8154",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/validation.ts",
+      "sha256": "3d65d2019dafae71a7536bff8d3969c13bee50d93595a830d3d6cc70290cd44f",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/purchase-import-extract/handler.test.ts",
+      "sha256": "16de6d13bc0c234a4d0b7639ff6a8ff67fc06584f87f0ac60ebc25afc5dc224e",
+      "source": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf",
+      "reason": "Exact prepared B35-C-002 consent repair source, PR649; owner-governed merge required"
+    },
+    {
+      "file": "supabase/functions/purchase-import-extract/handler.ts",
+      "sha256": "d1f39898b4b49bc5cfedac72aec7a8ada2e0e9fd39a2eca1946676cd15d8f270",
+      "source": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf",
+      "reason": "Exact prepared B35-C-002 consent repair source, PR649; owner-governed merge required"
+    },
+    {
+      "file": "supabase/functions/scan-identify/scanImageProductMission.ts",
+      "sha256": "45b167aa3fe142c48e116a5f52e94d65ef707785858d738b5019336c67c897f8",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/sponsorship-sandbox/index.ts",
+      "sha256": "d42ee10ecff7d6076286603d12aa5af9d67bda1c90e9b9b6368f78f1a24164a1",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/style-outfit-generate/accountActiveGate.test.ts",
+      "sha256": "0412202df380f35650dee3ac2daf147f81d5a72181ab7c4d0b09f4fac188ea08",
+      "source": "aedfbf788655cc059859640bf57cdb40183bbb98",
+      "reason": "Exact prepared B35-F-002 lifecycle repair source, PR647; governed merge required"
+    },
+    {
+      "file": "supabase/functions/style-outfit-generate/accountActiveGate.ts",
+      "sha256": "a924868157dba3a076024fc0d0aba8c4a65bb561932d26a3132217fcedb504b1",
+      "source": "aedfbf788655cc059859640bf57cdb40183bbb98",
+      "reason": "Exact prepared B35-F-002 lifecycle repair source, PR647; governed merge required"
+    },
+    {
+      "file": "supabase/functions/style-outfit-generate/index.ts",
+      "sha256": "aa338f7ab6346aa8a93e48b0cc00e18db9599629d52d3453f6453c690fcf69df",
+      "source": "PR647 aedfbf78 + PR649 ded0ee8d",
+      "reason": "Serial composition of PR647 lifecycle then PR649 consent; no other source edit",
+      "baseSourceSha256": "c23ec49deff39bbda1c4d3fb034967ce77d699649b16d50e77b481a5baa31db0"
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/eliseBrandVoice.ts",
+      "sha256": "b39bd180a35931359edf9fdad17e70832d664de6c575507cad040212e1198c1d",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/handler.test.ts",
+      "sha256": "6c3a44f50f05ec522d2bfbfcc19c6add469d5c028fd46be625547dcc884367e6",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/handler.ts",
+      "sha256": "9e43795f9b5250a68a5abb31e3d976058a92932c0bb5db5fc6abc371b7d0f3cf",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/index.ts",
+      "sha256": "94c14907feabf7b4e6adc23fa94e71ff46a70b2352ba40286e6d3be15d135dd8",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/paidBoundary.test.ts",
+      "sha256": "3878ca257e50da3a4e7306cf27a5d93fa8bb55c8233a6da3a67550921c9597b4",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/speechCues.test.ts",
+      "sha256": "70b9eef89c400842ca31874721c8b82d1e62aec41a001219bfbd07ef462cdecf",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/stylist-speech/types.ts",
+      "sha256": "7aa1b20ef92cc2bdfdbacc98b77bdbcfa05d6674b8c7d392a5dc1edfabf75ae8",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261014210000_stylist_speech_kplus_reservation_guard.sql",
+      "sha256": "dd1092c923d6a8640445267f8ca7a6a5b81ea98407967f371a5472fd14dc4c78",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261015214749_style_chat_greeting_actor_session_unique.sql",
+      "sha256": "1aa91caf3cfa62d8399694cb8fe03fc0c8a6075033d5040f740cb6f7832f8634",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261016001500_vto_attempt_scoped_settlement.sql",
+      "sha256": "0976942fd27e2e81da2c20d305d5666cb5e6e2b0cc821f50095a613e18a7272f",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261029125521_black_owned_discovery_v1.sql",
+      "sha256": "4b2745d14bc7adb88dccb852351208ec86237928e328cdc47f9ff711cd92afc2",
+      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
+      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/migrations/20261029184000_gemini_processing_permission.sql",
+      "sha256": "bd8cd0766ad874050d767f72f071ff7c140702044d302b691c12407463bec061",
+      "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
+      "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
+    }
+  ]
+}

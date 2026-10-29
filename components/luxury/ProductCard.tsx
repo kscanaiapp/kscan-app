@@ -8,6 +8,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { LUXURY, SPACING, RADIUS } from '../../constants/theme';
+import { hasVerifiedOwnership, type OwnershipIdentity } from '../../services/blackOwnedDiscovery';
+import { useOwnershipExpiryRefresh } from '../../hooks/useOwnershipExpiryRefresh';
 
 export interface ProductCardProps {
   /** Product image URI. */
@@ -18,6 +20,10 @@ export interface ProductCardProps {
   subtitle?: string;
   /** Formatted price string. */
   price?: string;
+  /** Optional live server-authored identity; never inferred from brand names. */
+  ownershipIdentity?: OwnershipIdentity;
+  /** Only the staff sandbox contract may supply this V1 disclosure. */
+  sponsoredDisclosure?: { label: 'Sponsored'; sandbox: true };
   /** Called when the card is pressed. */
   onPress?: () => void;
   /** Called when the user taps the "Add to Dressing Room" action. */
@@ -42,6 +48,8 @@ export function ProductCard({
   title,
   subtitle,
   price,
+  ownershipIdentity,
+  sponsoredDisclosure,
   onPress,
   onAddToRoom,
   addToRoomLabel = 'Add to Room',
@@ -49,6 +57,7 @@ export function ProductCard({
   style,
 }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
+  useOwnershipExpiryRefresh([ownershipIdentity]);
 
   const hasImage = Boolean(imageUrl) && !imageError;
 
@@ -68,9 +77,17 @@ export function ProductCard({
             <Text style={styles.placeholderText}>K</Text>
           </View>
         )}
+        {/* Overlaid on the fixed-ratio image so a badge that arrives after the
+            card is on screen never changes card height or shifts the shelf. */}
+        {hasVerifiedOwnership(ownershipIdentity) ? (
+          <View style={styles.ownershipBadge} pointerEvents="none">
+            <Text style={styles.ownershipBadgeText} numberOfLines={1}>Black-owned brand</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.meta}>
+        {sponsoredDisclosure?.sandbox === true && sponsoredDisclosure.label === 'Sponsored' ? <Text style={styles.subtitle}>Sponsored</Text> : null}
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
@@ -154,6 +171,23 @@ const styles = StyleSheet.create({
     fontFamily: LUXURY.typography.brandMark.fontFamily,
     fontSize: 28,
     color: LUXURY.colors.goldBrushed,
+  },
+  ownershipBadge: {
+    position: 'absolute',
+    left: SPACING.xs,
+    bottom: SPACING.xs,
+    maxWidth: '92%',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    backgroundColor: LUXURY.colors.ink,
+    opacity: 0.88,
+  },
+  ownershipBadgeText: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    color: LUXURY.colors.ivory,
   },
   meta: {
     marginTop: SPACING.sm,

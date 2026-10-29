@@ -160,6 +160,7 @@ test('committed manifest governs every governed function and the approved projec
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
+    'black-owned-discovery',
     'commerce-watch-refresh',
     'deletion-status',
     'handle-user-deletion',
@@ -181,6 +182,7 @@ test('committed manifest governs every governed function and the approved projec
     'scan-identify',
     'search-vinted-secondhand',
     'shared-room-image-url',
+    'sponsorship-sandbox',
     'staging-health',
     'style-outfit-generate',
     'stylechat-generate',

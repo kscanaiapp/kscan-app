@@ -65,11 +65,15 @@ export async function buildVtoIdempotencyKey(input: {
   );
 }
 
+
+/**
+ * VTO-002/003: the RPC contract is attempt-scoped. NEVER fall back to the old
+ * key-only RPCs: they can settle a different attempt after a lease rollover.
+ */
 export type VtoReservationOutcome =
-  | { outcome: 'reserved'; used: number; dailyLimit: number }
-  | { outcome: 'duplicate'; used: number; dailyLimit: number; priorStatus: string | null }
+  | { outcome: 'reserved'; used: number; dailyLimit: number; attemptId: string }
+  | { outcome: 'duplicate'; used: number; dailyLimit: number; priorStatus: string | null; taskId: string | null; attemptId: string | null }
   | { outcome: 'quota_exceeded'; used: number; dailyLimit: number }
-  /** The reservation could not be read/written. FAIL CLOSED: no provider work. */
   | { outcome: 'unavailable' };
 
 type Rpc = (fnName: string, body: Record<string, unknown>) => Promise<Response>;
@@ -81,28 +85,31 @@ export async function reserveVtoGeneration(
 ): Promise<VtoReservationOutcome> {
   const call = deps?.rpc ?? rpc;
   try {
-    const response = await call('reserve_vto_generation', {
+    const response = await call('reserve_vto_generation_v2', {
       p_user_id: userId,
       p_idempotency_key: idempotencyKey,
       p_daily_limit: deps?.dailyLimit ?? vtoDailyLimit(),
-      p_lease_minutes: deps?.leaseMinutes ?? vtoLeaseMinutes(),
     });
     if (!response.ok) return { outcome: 'unavailable' };
-    const rows = await response.json();
-    const row = Array.isArray(rows) ? rows[0] : rows;
+    const data = await response.json();
+    const row = Array.isArray(data) ? data[0] : data;
     if (!row || typeof row.outcome !== 'string') return { outcome: 'unavailable' };
     const used = Number(row.used) || 0;
     const dailyLimit = Number(row.daily_limit) || 0;
-    if (row.outcome === 'reserved') return { outcome: 'reserved', used, dailyLimit };
-    if (row.outcome === 'quota_exceeded') return { outcome: 'quota_exceeded', used, dailyLimit };
-    if (row.outcome === 'duplicate') {
-      return {
-        outcome: 'duplicate',
-        used,
-        dailyLimit,
-        priorStatus: typeof row.prior_status === 'string' ? row.prior_status : null,
-      };
+    if (row.outcome === 'reserved') {
+      if (typeof row.attempt_id !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(row.attempt_id)) {
+        return { outcome: 'unavailable' };
+      }
+      return { outcome: 'reserved', used, dailyLimit, attemptId: row.attempt_id };
     }
+    if (row.outcome === 'duplicate') return {
+      outcome: 'duplicate', used, dailyLimit,
+      priorStatus: typeof row.prior_status === 'string' ? row.prior_status : null,
+      taskId: typeof row.provider_task_id === 'string' ? row.provider_task_id : null,
+      attemptId: typeof row.attempt_id === 'string' ? row.attempt_id : null,
+    };
+    if (row.outcome === 'quota_exceeded') return { outcome: 'quota_exceeded', used, dailyLimit };
     return { outcome: 'unavailable' };
   } catch {
     return { outcome: 'unavailable' };
@@ -110,57 +117,54 @@ export async function reserveVtoGeneration(
 }
 
 /**
- * VTO-QUOTA-003 — give back one PROVABLY non-billable attempt.
- *
- * Called instead of completeVtoGeneration when the adapter reported
- * `billable: false`: the gateway refused (401/403/429/5xx) or the submit was
- * never sent, so no generation exists to have paid for. Charging the daily cap
- * for that is charging a person for an outage.
- *
- * Best-effort, like the settle below: if the release cannot be recorded the
- * user is still told the truth about the failure, and the attempt simply stays
- * counted. Failing loudly here would trade a small over-count for an error the
- * user can do nothing about.
+ * Preserve task identity durably BEFORE polling. If this fails, the provider
+ * was already invoked and no additional task is submitted by this request.
  */
-export async function releaseVtoGeneration(
-  userId: string,
-  idempotencyKey: string,
-  provider?: string | null,
-  deps?: { rpc?: Rpc },
-): Promise<void> {
-  const call = deps?.rpc ?? rpc;
+export async function recordVtoProviderTask(
+  userId: string, idempotencyKey: string, attemptId: string,
+  taskId: string, provider?: string | null, deps?: { rpc?: Rpc },
+): Promise<boolean> {
   try {
-    await call('release_vto_generation', {
-      p_user_id: userId,
-      p_idempotency_key: idempotencyKey,
-      p_provider: provider ?? null,
+    const result = await (deps?.rpc ?? rpc)('record_vto_task_v2', {
+      p_user_id: userId, p_idempotency_key: idempotencyKey,
+      p_attempt_id: attemptId, p_task_id: taskId, p_provider: provider ?? null,
     });
-  } catch {
-    // Intentionally silent — see above.
-  }
+    return result.ok && (await result.json()) === true;
+  } catch { return false; }
 }
 
-/**
- * Settle a reservation. Best-effort by design: the paid call has already
- * happened, so a bookkeeping failure must not change what the user is told.
- * An unsettled row simply ages out of its lease.
- */
+/** An accepted or uncertain provider call is NEVER released on RPC failure. */
 export async function completeVtoGeneration(
-  userId: string,
-  idempotencyKey: string,
-  status: 'succeeded' | 'failed',
-  provider?: string | null,
-  deps?: { rpc?: Rpc },
-): Promise<void> {
-  const call = deps?.rpc ?? rpc;
+  userId: string, idempotencyKey: string,
+  status: 'succeeded' | 'failed', provider?: string | null,
+  attemptId?: string, deps?: { rpc?: Rpc }, uncertain = false,
+  resultDigest?: string | null,
+): Promise<boolean> {
+  if (!attemptId) return false;
   try {
-    await call('complete_vto_generation', {
-      p_user_id: userId,
-      p_idempotency_key: idempotencyKey,
-      p_status: status,
+    const response = await (deps?.rpc ?? rpc)('settle_vto_generation_v2', {
+      p_user_id: userId, p_idempotency_key: idempotencyKey,
+      p_attempt_id: attemptId,
+      p_action: uncertain ? 'uncertain' : status,
       p_provider: provider ?? null,
+      p_result_digest: resultDigest ?? null,
     });
-  } catch {
-    // Intentionally silent — see above.
-  }
+    return response.ok && (await response.json()) === true;
+  } catch { return false; }
+}
+
+export async function releaseVtoGeneration(
+  userId: string, idempotencyKey: string, provider?: string | null,
+  attemptId?: string, deps?: { rpc?: Rpc },
+): Promise<boolean> {
+  if (!attemptId) return false;
+  try {
+    const response = await (deps?.rpc ?? rpc)('settle_vto_generation_v2', {
+      p_user_id: userId, p_idempotency_key: idempotencyKey,
+      p_attempt_id: attemptId, p_action: 'release',
+      p_provider: provider ?? null,
+      p_result_digest: null,
+    });
+    return response.ok && (await response.json()) === true;
+  } catch { return false; }
 }

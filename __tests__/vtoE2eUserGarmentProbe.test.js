@@ -616,6 +616,7 @@ test('the not-dispatched codes are exactly those the handler and the adapter can
   // The two ambiguous codes stay counted as a dispatch.
   assert.equal(NOT_DISPATCHED_FAILURE_CODES.includes('provider_unavailable'), false);
   assert.equal(NOT_DISPATCHED_FAILURE_CODES.includes('rate_limited'), false);
+  assert.equal(NOT_DISPATCHED_FAILURE_CODES.includes('authorization_failed'), false);
 });
 
 // ── Production is refused ─────────────────────────────────────────────────

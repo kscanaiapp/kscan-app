@@ -15,8 +15,8 @@ const ROOT = path.resolve(__dirname, '..');
 const screen = fs.readFileSync(path.join(ROOT, 'app/onboarding/index.tsx'), 'utf8');
 
 const AI_STATEMENT =
-  'Images you choose to submit may be securely transmitted and processed using artificial intelligence to provide scanning, styling, and shopping results.';
-const AI_LABEL = 'I consent to AI image processing';
+  'Photos and text you submit, including Elise chats, are sent to Google Gemini for fashion analysis, styling, and shopping results.';
+const AI_LABEL = 'I consent to Gemini processing';
 
 const termsBlock = screen.match(/const renderTerms = \(\) => \([\s\S]*?\n  \);/)?.[0] ?? '';
 

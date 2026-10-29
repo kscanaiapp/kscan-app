@@ -75,6 +75,9 @@ const TEST_SUFFIX = '.test.ts';
  * Registering it here is what makes `npm run test:backend` enforce them.
  */
 const GOVERNED = [
+  'black-owned-discovery',
+  'process-account-deletions',
+  'kplus-activate',
   'stylist-speech',
   'scan-identify',
   'handle-user-deletion',

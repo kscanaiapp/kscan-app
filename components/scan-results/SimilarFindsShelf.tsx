@@ -14,10 +14,13 @@ import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { InlineNotice } from '../luxury/InlineNotice';
 import { formatMatchPercent } from './formatMatchPercent';
 import type { ProductMatch } from './types';
+import type { OwnershipIdentity } from '../../services/blackOwnedDiscovery';
 
 interface SimilarFindsShelfProps {
   similarFinds?: ProductMatch[];
   onViewAll?: () => void;
+  /** Verified ownership by product id, attached after secondary discovery. Never reorders cards. */
+  ownershipById?: Record<string, OwnershipIdentity>;
   testID?: string;
 }
 
@@ -33,6 +36,7 @@ interface SimilarFindsShelfProps {
 export function SimilarFindsShelf({
   similarFinds,
   onViewAll,
+  ownershipById,
   testID,
 }: SimilarFindsShelfProps) {
   const hasData = Array.isArray(similarFinds) && similarFinds.length > 0;
@@ -64,6 +68,7 @@ export function SimilarFindsShelf({
                 title={product.title}
                 subtitle={subtitle}
                 price={price}
+                ownershipIdentity={ownershipById?.[product.id]}
                 onPress={
                   // productUrl is provider-supplied; the shared guard rejects
                   // any non-https / private-host destination.
