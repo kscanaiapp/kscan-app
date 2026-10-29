@@ -1,0 +1,50 @@
+{
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "environment": "Real client request helper with injected Supabase invoke; deterministic deadline clock; no network/provider invocation",
+  "boundary": "services/blackOwnedDiscovery.ts:requestBlackOwnedDiscovery",
+  "limitation": "Not a whole mounted primary UI latency measurement or backend catalog validation",
+  "results": [
+    {
+      "probeId": "B35-DISC-001",
+      "probe": "invoke 500 produces no secondary success and no retries",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-002",
+      "probe": "invoke 429 produces no secondary success and no retries",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-003",
+      "probe": "invoke empty produces no secondary success and no retries",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-004",
+      "probe": "invoke wrong schema produces no secondary success and no retries",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-005",
+      "probe": "malformed JSON parser rejection produces no success or retry",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-006",
+      "probe": "hung invocation deadline resolves without waiting for provider cooperation",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    },
+    {
+      "probeId": "B35-DISC-007",
+      "probe": "cancellation after dispatch wins over later successful provider response",
+      "verdict": "PASS",
+      "actual": "Assertions passed"
+    }
+  ]
+}

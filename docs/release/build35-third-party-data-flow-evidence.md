@@ -1,3 +1,5 @@
+> ACTIVE CONTINUATION CHECKPOINT: authorities independently verified c86bf3d0/f4df2a5a, nine prior repairs merged;110archives verified. New PostHog70/70 and discovery7/7 source probes; current Scanner nullP4 remains reproduced. H001 UNCONFIRMED/legal authority pending; H003 native accuracy not certified/ADB0targets. All3041 outstanding cells now have execution dispositions (300N/A,2443local,285Staging,8sandbox,4native,1artifact); classification is not coverage completion. See [high-risk privacy evidence](build35-high-risk-privacy-verification.md) and current checkpoint. Full campaign remains INCOMPLETE; no newP0-P3 finding or runtime repair.
+
 # Third-party processing and privacy evidence
 
 Source inspected on prepared candidate a376f2f7. This is a bounded source/data-flow review, not a vendor retention, legal compliance or signed-binary attestation. All 17 requested evidence dimensions per provider are in [structured inventory](evidence/third-party-processing-inventory.json). No customer photos, chat, individual analytics events or live account data were accessed.
