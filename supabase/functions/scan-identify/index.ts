@@ -2859,7 +2859,6 @@ Deno.serve(async (req) => {
   const imageMission = mode === 'image'
     ? buildScanImageProductMission(
       isScanImageProductMissionEnabled((key) => Deno.env.get(key)),
-      isV2Request ? internalRequest.entryPath : source,
       requestModeForRoute === 'text' ? 'legacy_single_item' : requestModeForRoute,
     )
     : null;
