@@ -1,0 +1,10 @@
+{
+  "sourceSha": "a376f2f7 prepared candidate, separate deployed evidence as noted",
+  "total": 3096,
+  "counts": {
+    "PASS": 54,
+    "NOT TESTED": 3041,
+    "FAIL": 1
+  },
+  "limitation": "Only explicitly matched complete-boundary cases closed; bounded separately indexed cases do not automatically close full identity/provider probes."
+}

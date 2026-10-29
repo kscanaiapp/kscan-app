@@ -8,7 +8,7 @@
     "directIdentifiers": "User content may identify people; no blanket de-identification claim",
     "imageAudioText": "Image and text; no direct audio established in reviewed Gemini paths",
     "transmissionMethod": "Backend HTTPS model request; provider key server-side",
-    "authenticationAuthorization": "Per-actor JWT/account gates; candidate exact consent receipt gate before model/quota",
+    "authenticationAuthorization": "Verified actor/account plus exact v2 receipt and durable permission state before model/quota, prepared PR649/653; unmerged and undeployed. Missing migration/read errors fail closed.",
     "productionUse": "Brand/image flags true in Production, actual mode-specific invocations/source digest not verified",
     "failureBehaviorEvidence": "Inference errors/validation tests; no live quality scoring or paid Gemini fixture",
     "encryptionEvidence": "HTTPS literals/SDK configuration in source only; no packet-level TLS/certificate attestation for a signed binary",

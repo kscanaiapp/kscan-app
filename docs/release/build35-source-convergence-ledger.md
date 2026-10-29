@@ -1,17 +1,27 @@
-# Source convergence record — PARTIAL
+> FINAL STOP-STATE: Latest complete full Node validation:751e3815,11336 passed/0failed/98skipped,total11434; log candidate-node-permission-matrix-final.log and exit0 captured. Runtime source is unchanged froma376f2f7 (TypeScript and six source gates0), backend unchanged from53b93724 (1531/0failed). No combined-SHA runtime claim.
 
-| Authority | Fetched SHA |
+> OWNER-REQUESTED STOP: prepared candidate 751e381565a70f34fdf14edee43fffab232b8030, unmerged. Latest test-only commit751e3815 adds12 permission failure cases; focused29/29 pass. Last completed full suitea376f2f7:11324 pass/0fail/98skip; TypeScript/six source gates0. Latest full rerun exit0. Backend1531 at53b93724, unchanged runtime source. Exact654 wording owner-approved; merge/deployment remain gated. See current checkpoint for resumption.
+
+# Build35 source convergence record
+
+This records a prepared candidate, not a merged/released source certification. Final authority remains integration/build35-v1-convergence at65a1e7cd6c2bea790e87c009a41de999d6cf2fa8. Candidate PR648 is ata376f2f7fc6694b30e5623998a56522eccf20280 including URI decoder source repair655. No repair PR has merged.
+
+| Authority | Remote SHA / role |
 |---|---|
-| origin/release/kscan-pre-freeze-v1 | 840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2 |
-| origin/integration/build35-v1-convergence | 65a1e7cd6c2bea790e87c009a41de999d6cf2fa8 |
-| origin/rebuild/backend-authority-v2 | 3efcb6cbf29eb10c1bc1510f05e9a3365755bd74 |
+| rebuild/backend-authority-v2 | 3efcb6cbf29eb10c1bc1510f05e9a3365755bd74; canonical backend deployment source |
+| release/kscan-pre-freeze-v1 | 840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2; RP-108 Build34 isolation, no Build35 ancestry allowed |
+| integration/build35-v1-convergence | 65a1e7cd6c2bea790e87c009a41de999d6cf2fa8; existing Build35 convergence target |
 
-Original directory C:/Users/jsmit/KScan is bare. Isolated worktrees: C:/b35full1029, C:/b35int1029, C:/b35be1029. Other engineers' trees were not modified. Local pre-freeze ref was 82b9b7cfea4d59e6706db19588969e4efd07b489; local integration was 5a0e2c3dae04e27e2528f05967388e3c19b2a346. Backend local branch absent. Fetched remote heads govern inspection.
+Authority resolution is VERIFIED from docs/audits/rp108-release-certification-authority.md and docs/build35/release/release-profile-certification.md, not newest timestamp or owner override. Baseline mobile/integration merge basee97de30eab67691b91f9d68ffbb5ef2635aa0741, five mobile-only/512 integration-only commits. Four conflicts were resolved selectively, preserving primary tier order, candidate review, purchase-import plus discovery analytics, native dependencies and nonauthoritative mobile backend role.
 
-Mobile/integration merge base e97de30eab67691b91f9d68ffbb5ef2635aa0741; ahead counts 5 mobile-only / 512 integration-only. Merge preview conflicts: PurchaseOptionsPanel.tsx, ScanResultV2.tsx, package.json, posthogClient.core.ts. No merge performed. RP-108 expressly excludes Build 35 ancestry on pre-freeze; target resolution is pending owner answer. No new authority declared.
+PR635/637 merged to integration;636/638/640/641 to backend;642/643 to pre-freeze. Per-PR exact merge SHA/files/checks retained in evidence/pr-N.json. Pre-freeze discovery commits were promoted with provenance into candidate, not reimplemented, and no Build35 merge into pre-freeze occurred. #644's original pre-freeze merge target is unsuitable; its actual repair is included in reviewed #648 preparation. #645 remains separate, green/ready and owner-gated.
 
-PRs #635/#637 merged into integration; #636/#638/#640/#641 merged into backend; #642/#643 merged into pre-freeze. Exact merges, file lists and then-current checks: evidence/pr-*.json. Open PR inventory included #625/#627/#582/#566 against integration and unrelated work. These are not incorporated or certified by this campaign.
+Prepared order: original discovery source feecc117/eebd4444/d68c2ad9 -> malformed secondary repair da480d9b/84fe1c89 -> canonical backend/migrations aed55fb0 -> Gemini disclosure e2395662 -> outfit lifecycle95468f05 -> server receipt1dd0ac17 -> VTO conservative accounting1db2ef1c -> mounted expiry29ba460c -> primary source restoration proof84e5a628 -> source governance/VTO exact promotion manifests7860c72f/72eee2fb/c1348ed4 -> speech boundary50088fd0 -> durable Gemini authority40b0d52e -> Privacy control53b93724. These are candidate commits, not merge SHAs.
 
-Repair #644: bd2827e7bb524cf149ac01ae5443f2901bbb29f6 on audit/build35-full-hostile-20261029. Repair #645: 8c86a9fdabcd1bff905e86423d4033a3c8ed7e62 on audit/build35-integration-hostile-20261029. Both draft/unmerged. Conditional order: #644 then #645, then owner-selected convergence. No conflicting-file repairs run concurrently.
+Backend source promotion preserves migration order and backend ownership; function roster31 on mobile remains integration-convergence-non-authoritative. Four canonical migrations verified already applied in both remote ledgers; new permission migration20261029184000 is source-only and explicitly pending. No historical migration rewritten. Exact39-path mixed-lane source registry binds declared non-VTO promotions to reviewed bytes; undeclared backend changes, app.json and shared remote-media boundary remain refused. Serial shared entrypoint composition is independently reconstructed to its prior reviewed hash.
 
-Mobile branch protection API returned 404 (not protected); rulesets and branch rules captured separately. This does not waive governed CI/review. Final candidate SHA: NOT SELECTED. Final clean-tree proof and final CI: NOT AVAILABLE. Reports are committed separately on docs/build35-campaign-checkpoint-20261029 in C:/b35evidence1029. Repair worktrees retain raw full-suite logs locally.
+Dedicated worktrees retained: C:/b35full1029 #644; b35int1029 #645; b35evidence1029 #646; b35outfit1030 #647; b35converge1030 #648; b35consent1030 #649; b35vtosafety1030 #650; b35badge1030 #651; b35speech1030 #652; b35withdraw1030 #653; b35withdrawui1030 #654; b35decode1030 decoder repair in progress. Original C:/Users/jsmit/KScan is bare. No unrelated engineer worktree modified or pruned.
+
+Clean-tree/source relationship snapshot is evidence/final-source-state.json atc1348ed4 (20 commits ahead of65a then); update required for the later candidate. Full candidate53b93724 Node11321 pass/0fail/98skip, Deno1531/1531, TypeScript exit0; exact-head GitHub dependency gate currently fails on newly ingested decoder advisory. No all-green final candidate claim; prepare/verify the decoder repair, refresh source state and CI. Existing other open Build35 PR625/627/582/566 are preserved and not silently merged. Required owner copy/merge/protected deployment gates remain.
+
+Final prepared check: a376f2f7 full Node11324 pass/0fail/98skip, TypeScript0, six source gates0. Backend1531/1531 at53b93724; git diff53b93724..a376f2f7 -- supabase is empty (no backend rerun required for decoder-only change). No PR merge or authoritative branch-level CI claim.

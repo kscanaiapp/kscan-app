@@ -1,0 +1,14 @@
+﻿[
+    {
+        "component":  "cron_schema_exists",
+        "enabled":  false
+    },
+    {
+        "component":  "pg_cron_extension",
+        "enabled":  false
+    },
+    {
+        "component":  "pg_net_extension",
+        "enabled":  false
+    }
+]

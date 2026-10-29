@@ -1,3 +1,40 @@
+> FINAL STOP-STATE: Latest complete full Node validation:751e3815,11336 passed/0failed/98skipped,total11434; log candidate-node-permission-matrix-final.log and exit0 captured. Runtime source is unchanged froma376f2f7 (TypeScript and six source gates0), backend unchanged from53b93724 (1531/0failed). No combined-SHA runtime claim.
+
+> OWNER STOP: current candidate751e3815; PR654 now36020928 with29/29 focused tests after12 added failure injections; runtime repair source unchanged. Source-prepared9,merged0,deployed0. Exact wording APPROVED, merging/deployment not approved. Latest complete Node/source gates ata376f2f7; collect pending751e3815 rerun before certifying.
+
+# Build35 current repair ledger
+
+Current disposition supersedes the dated discovery/planned/blocked entries preserved below. Nine confirmed P0-P3 findings: P1=4,P2=3,P3=2; P0=0 confirmed. Nine source repairs prepared, zero merged, zero deployed. One owner-gated P4 remains unimplemented. Owner authorized durable withdrawal SOURCE work; wording is owner-approved; merge remains gated. No defect is declared operationally repaired.
+
+| Order | ID / priority | Separate repair PR / original source | Prepared candidate commit | Regression / current gate |
+|---|---|---|---|---|
+|1|G-001 P2|644 bd2827e7|da480d9b,84fe1c89|22/22; owner approval, review promotion648 rather than Build34 target|
+|2|C-001 P1|645 8c86a9fd; decoder backport fb08e845|e2395662|39/39; explicit owner merge approval; latest CI pending after decoder|
+|3|F-002 P1|647 aedfbf78; decoder backport9ab4a2da|95468f05,7624ab3f|38/38; promotion artifact/CI rerun clearance required|
+|4|C-002 P1|649 ded0ee8d; decoder backport6f768494|1dd0ac17,84e5a628|41 gate tests plus3 source-neutrality controls; required CI and coordinated consent rollout|
+|5|COST-003 P2|650 dae4ff07|1db2ef1c|54/54; conservatively retains ambiguous paid dispatch; old stacked CI red, candidate validation separate|
+|6|G-004 P3|651 31d2f53c|29ba460c|Controlled mounted before failure,25/25 after; old stacked CI red, final candidate tests pass|
+|7|C-004 P3|652 fc503112; decoder backport1c3433e2|50088fd0|Three actual provider/client/engine missing-timing failures before;85 focused after; no physical-device lip-sync PASS|
+|8a|C-005 P1 backend|653 5b5c471a; decoder backport394645c2|40b0d52e|41 gate/108 SQL-governance focused;1508 backend and8533 Node source-branch passes; new migration unapplied|
+|8b|C-005 P1 client|654 a5fb7f75; decoder backport26c06e73|53b93724|17/17 actor/revision/error/duplicate/platform cases; Owner wording APPROVED; merge approval required|
+|9|F-006 P2|655 37a519bc,b4ba29c8|9f0eb834,a376f2f7|3/3 actual query consumer/provenance tests; clean install; dependency gate PASS, final Node11324/0fail/98skip, TypeScript0|
+
+No shared-file parallel edits. Lowest-risk independent changes were committed before serial consent/index/manifest changes; table is the candidate preparation order, NOT a merged-PR history. Candidate648 is a376f2f7fc6694b30e5623998a56522eccf20280, clean and pushed. Authoritative integration remains65a1e7cd. Explicit644/645 approval cannot be bypassed by merging648. Older stacked650/651 CI inherits earlier base failures; passing candidate does not mark those checks green or authorize red merges.
+
+## Latest withdrawal repair evidence
+
+C-005 root cause is a positive immutable receipt treated as current permission. Source migration supabase/migrations/20261029184000_gemini_processing_permission.sql:1-74 adds own-read RLS, no client table writes, expected-actor/revision RPC fences, retained receipt authority for grant and cascade deletion. Server _shared/geminiConsent.ts:36-46 rechecks live state before each model transfer and fails closed on missing migration/backend/malformed/foreign state. An absent override preserves a valid current receipt; an explicit withdrawal denies403. It does not recall already-dispatched data.
+
+Client services/geminiProcessingPermission.ts:7-32 validates actor/version/type/revision/ack with timeout; components/settings/GeminiProcessingSettingsSection.tsx:11-43 uses actor-generation fences, synchronous double-submit lock and unknown+retry after ambiguous save. Existing app/privacy.tsx:749 mounts it; no new screen/tab/modal/library. Draft copy is visible in654 for review. Tests use actual SQL migration/PGlite plus platform-injected clients/components. Withdrawal, re-consent, legacy/no receipt, A/B IDOR, direct-write denial, anonymous caller, concurrent stale grant, duplicate withdrawal, account cascade, account switch, write401/timeout/wrong response, no optimistic success and both platform paths are executable evidence. No Production migration or feature activation.
+
+Source/runtime distinction: new migration declared KNOWN_FUTURE_UNAPPLIED in both authorities. Required path is protected migration approval -> matching backend rollout -> client version/copy rollout with existing-user re-consent -> synthetic authorized staging E2E -> platform artifacts. Deploying v2 enforcement before supported clients can acknowledge v2 is a rollout risk, not silently authorized here.
+
+## Latest decoder repair evidence
+
+Before command node --test __tests__/uriDecoderSecurity.test.js on vulnerable locked consumer fails bounded replacement assertion:1031 replacements on7171 bytes. After official0.5.1 algorithm compatibility patch:5 replacements,3/3 tests. Full candidate a376f2f7:11324 passed,0 failed,98 skipped; npx tsc --noEmit exit0; six source gates including dependency reachability exit0. Captured uri-decoder-before.log,uri-decoder-after.log,candidate-node-decoder-final.log and candidate-source-gates-decoder.json. No SDK upgrade, contract change or advisory exception. Algorithm source SHA is pinned and tested after reversing only module export/legacy-plus adapters; MIT retained.
+
+## Historical discovery/reproduction entries (status statements superseded above)
+
 # Build 35 P0–P3 repair ledger (source repairs prepared; owner-gated)
 
 ## B35-G-001 — P2 — malformed secondary response can break primary result rendering
@@ -114,3 +151,13 @@ Preparation order (not merges): canonical mobile discovery source -> G-001 parsi
 - Root cause: immutable legal evidence was reused as current permission authority without a revocable state model. Material consent gap; not downgraded to an unconfirmed privacy concern. No claim a customer withdrew and was observed leaking data.
 - Proposed complete repair: preserve immutable receipts; introduce actor-bound revocable consent state; recheck before all four Gemini transfers; add withdrawal/re-consent to the existing Privacy settings; verify stale/failed state and account switch; legal-reviewed copy. Requires source/data/UI changes beyond safe polishing.
 - BLOCKED ON OWNER DECISION: user UX prohibitions forbid a new consent flow without owner decision. Asynchronous request asks authorization for the existing-Privacy-setting/durable-state repair and separate legal-copy/merge review. No dependent source work or Production mutation while pending. Other audit/CI work continues.
+
+## B35-F-006 ? P2 ? shipped navigation query decoder has input-driven denial of service
+
+- CONFIRMED exact contract/source: npm audit identifies decode-uri-component0.2.2 in the committed lock; query-string/index.js requires that decoder, and @react-navigation/core/src/getStateFromPath.tsx:750 calls queryString.parse on deep-link query input. Expo Router is imported by shipped routes. Dependency reachability correctly rejects a build/dev-only exception for that live path.
+- Primary advisories GHSA-vcc3-ghjq-m6fr (recursive/exponential fallback) and GHSA-qr28-fpjm-wq7f (quadratic whole-string replacement) affect the installed version; patched upstream0.5.1 is ESM-only, while this SDK's query-string consumer requires a CommonJS callable. Blindly overriding to the registry ESM release can break navigation. Sources: https://github.com/advisories/GHSA-qr28-fpjm-wq7f and https://github.com/SamVerschueren/decode-uri-component/releases/tag/v0.5.1 .
+- Scope/impact: input-driven JS CPU/availability, not credential disclosure or remote code execution. No attack sent to Production or a customer's device; physical Hermes timing remains unverified. P2 follows actual shipped parser reachability, not a CVSS label alone.
+- Dedicated branch/worktree repair/build35-uri-decoder-dos-20261029 at C:/b35decode1030, based53b93724. Repair in progress: preserve Expo54/React Navigation versions; use exact upstream patched algorithm with documented CommonJS/legacy-plus compatibility and MIT license; verify deterministic replace-call bound, legitimate query decoding, source provenance, locked resolution and unchanged dependency gate. No broader security exception.
+- Existing CI failures on #646/#648/#652/#653 are now additionally blocked by this newly ingested advisory; prior green checks are time-specific, not proof the new advisory was handled.
+
+Owner update: exact PR654 Gemini control wording APPROVED; this does not authorize merging or deployment. Broader Terms/Privacy/store disclosure reconciliation remains a separate legal handoff.

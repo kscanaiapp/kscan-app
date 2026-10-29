@@ -1,6 +1,6 @@
 # Third-party processing and privacy evidence
 
-Source inspected on prepared candidate 72eee2fb. This is a bounded source/data-flow review, not a vendor retention, legal compliance or signed-binary attestation. All 17 requested evidence dimensions per provider are in [structured inventory](evidence/third-party-processing-inventory.json). No customer photos, chat, individual analytics events or live account data were accessed.
+Source inspected on prepared candidate a376f2f7. This is a bounded source/data-flow review, not a vendor retention, legal compliance or signed-binary attestation. All 17 requested evidence dimensions per provider are in [structured inventory](evidence/third-party-processing-inventory.json). No customer photos, chat, individual analytics events or live account data were accessed.
 
 | Provider / function | Exact source boundary | Transmitted content / key limitation |
 |---|---|---|
@@ -24,10 +24,12 @@ Source inspected on prepared candidate 72eee2fb. This is a bounded source/data-f
 
 Scanner's real orchestrator/encoder/privacy-artifact tests prove dispatch of the derived face-then-plate artifact and refusal of raw/copied proofs, native-unavailable/error, corrupt output and cancellation in an injected platform harness. Native detector accuracy and actual pixel masking require hardware; this is not universal Zero-Knowledge certification. Closet has a separate blocked/local-only policy. Photo VTO intentionally transfers a person photo under its separate disclosure and cannot inherit Scanner masking claims. VoiceScan, purchase import and authorized Elise/Closet visual paths retain separate tests and untested device boundaries.
 
-Gemini disclosure/version (#645) and verified-actor server receipt authority (#649) are prepared, not merged/deployed. An immutable acceptance receipt does not implement durable withdrawal. Speech/VTO device-local consent does not follow an account to another device; the conservative new-device behavior asks again. Do not represent it as a server legal ledger.
+Gemini disclosure/version (#645) and verified-actor server receipt authority (#649) are prepared, not merged/deployed. An immutable acceptance receipt does not implement withdrawal. Owner-authorized source PR653/654 now adds revocable actor/revision-fenced permission state and an existing-Privacy control; its migration and backend/client rollout are not applied, and wording owner-approved; merge gated. Speech/VTO device-local consent does not follow an account to another device; the conservative new-device behavior asks again. Do not represent it as a server legal ledger.
 
 PostHog: SDK installed and source wired; provider ingestion VERIFIED only for Application Opened, Application Backgrounded, kplus_early_access_viewed and closet_candidate_cleanup_failed in the last 30 days. Published artifact/source/environment binding and complete taxonomy remain UNVERIFIED. Project recording/exception opt-ins are true, whereas this client's SDK explicitly disables replay/autocapture/errors and GeoIP. No recording contents were fetched and no replay toggle changed. Legal sign-off for unconditional configured analytics remains outstanding. [Provider readback](evidence/posthog-readonly-configuration-ingestion.json), [official SDK capture documentation](https://posthog.com/docs/libraries/react-native#autocapture).
 
 Store configuration was read through the connected RevenueCat authority, not inferred from offering prices: US 0.99/month, 9.99/year, one-month trials on both stores. Apple's READY_TO_SUBMIT is an external submission gate. Google returned an Apple-territory warning on Play products; the warning is retained as provider output and not interpreted as an instruction to alter pricing. [Store evidence](evidence/revenuecat-live-us-store-readback.json).
 
 Resend is an unverified downstream candidate, not a proven direct recipient: this repository calls a Render internal email endpoint. APNs/FCM are downstream of the proven Expo push adapter; direct vendor transport/retention is not certified. No partnerships, merchant inventory, training/retention/region commitments or refund guarantees were invented.
+
+Owner update: exact PR654 Gemini control wording APPROVED; this does not authorize merging or deployment. Broader Terms/Privacy/store disclosure reconciliation remains a separate legal handoff.

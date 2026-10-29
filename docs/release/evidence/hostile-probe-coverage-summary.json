@@ -1,0 +1,16 @@
+{
+  "originalMandatoryCells": 3096,
+  "executedRecords": 886,
+  "byVerdict": {
+    "PASS": 873,
+    "FAIL": 1,
+    "NOT TESTED": 12
+  },
+  "newAttributedRecords": 43,
+  "reverifiedRecords": 12,
+  "limitations": [
+    "Bounded record count is not deduplicated mandatory-cell closure.",
+    "Unit source assertions and injection tests do not certify live providers/devices.",
+    "SQL fixture parent container excluded from per-probe records."
+  ]
+}

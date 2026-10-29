@@ -105,6 +105,13 @@ test('detector reports 1-based line numbers and trimmed text', () => {
 // directory.
 
 const ALLOWLIST = [
+  {"file":"docs/release/evidence/production-function-privilege-metadata.json","token":"\"proname\":  \"upsert_style_dna_profile\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/production-migration-comparison-current.json","token":"\"logicalName\": \"upsert_style_dna_profile_rpc\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/production-migration-ledger-current.json","token":"\"name\":  \"upsert_style_dna_profile_rpc\"","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/staging-function-privilege-metadata.json","token":"\"proname\":  \"upsert_style_dna_profile\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/staging-migration-comparison-current.json","token":"\"name\": \"upsert_style_dna_profile_rpc\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/staging-migration-ledger-current.json","token":"\"name\":  \"upsert_style_dna_profile_rpc\"","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
+  {"file":"docs/release/evidence/staging-migration-ledger-current.json","token":"\"name\":  \"fix_upsert_style_dna_profile_column_ambiguity\"","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
   { file: 'docs/release/evidence/source-inventory.json', token: 'ENTIRE_FILE', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Immutable path-only inventories of the three October 29 baseline SHAs; quotes historical source and migration filenames without introducing active product terminology.' },
   // ── EXTERNAL_WIRE_CONTRACT: eas.json build-flag env vars ─────────────────
   // Owner-ratified eas.json keys (repeated across the preview, development,
@@ -278,7 +285,8 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
     // 111 -> 112: the exact immutable name in the October 13 Production ledger
     // snapshot, classified above. No new active product terminology is allowed.
     // 112 -> 138: 26 historical filename references in the SHA-bound audit inventory.
-    138,
+    // 138 -> 145: seven exact immutable runtime metadata lines, individually classified above.
+    145,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });

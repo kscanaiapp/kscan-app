@@ -1,13 +1,18 @@
-# Deferred findings and unconfirmed investigations — PARTIAL
+# Build35 deferred items and unconfirmed investigations
 
-No confirmed P4–P10 product defect is asserted yet. Do not interpret this as zero remaining defects. No deferred implementation performed.
+No invented UX findings. No confirmed P5-P10 finding has been asserted from the audited slices; no ClassA/B cosmetic work performed. Zero ClassC UX findings are scheduled; see [executable Wave2 plan](build35-ux-pass-plan.md). This does not certify physical UX.
 
-| ID / status | Surface / scope / source | Attempt and missing evidence | Impact / proposed next work / complexity | Why outside repair queue |
-|---|---|---|---|---|
-| H-001 UNCONFIRMED, priority unassigned | PostHog consent / shared; services/analytics/posthogClient.core.ts:createClient | Reviewed unconditional defaultOptIn, no dedicated analytics-consent authority, explicit replay/autocapture off. No production ingestion/config/legal-jurisdiction evidence collected. | Potential privacy concern; confirm configuration, event allowlists and legal authority before classification. Medium. | No demonstrated applicable consent violation; not labeled low risk. |
-| H-002 UNCONFIRMED, priority unassigned | Gemini transfer coverage / shared+backend; services/style-chat/providers/edgeStyleChatProvider.ts:generateReply, Scanner/Closet paths | Traced onboarding and text invocation; repaired proven disclosure/version defect. No synthetic network capture across all paths or server ledger enforcement test. | Potential consent bypass beyond UI; next inject revoked/missing acceptance at each boundary. High. | Must not infer universal resolution from #645. |
-| H-003 UNCONFIRMED, priority unassigned | Image masking / native+shared; acquisition/sanitization paths not fully traced | Located source inventories; no synthetic face/plate network-boundary test yet. | Potential material privacy exposure; prioritize Lane B payload capture and native-unavailable failure paths. High. | NOT AUDITED, no fabricated privacy finding. |
+## Confirmed P4 outside the safe-repair authorization
 
-All three require prompt investigation in this campaign's continuation, not deferral merely because reproduction is difficult. No invented line locations, provider terms, release dates or cosmetic backlog.
+B35-B-004, P4, Scanner backend, scan-identify/index.ts:1907 and1945 / v2Activation.ts:258. JSONnull passes parsing and legacy classification, then body.mode throws. Actual real-entrypoint probe: TypeError, zero provider calls or privileged writes; source SHA84e5a628, unchanged handler through53b93724. Expected controlled invalid-body response. Impact: malformed-input resilience, no demonstrated payment/privacy/authorization exposure. Proposed one-file object/non-array guard plus negative regression; complexity low, no new feature or platform divergence. Deferral reason: safe P4 condition4 excludes owner-confirmation scan-identify; campaign explicitly says record failed safe conditions and move on. Standalone hostile assertion remains FAIL. No priority inflation to escape scope, no source patch applied.
 
-Untriaged pre-freeze test failures are separately recorded in evidence/prefreeze-failures.txt. They are failures, not automatically application defects. At least one is a Windows path-separator assertion. Root cause and classification of all 68 failures remain required before release approval.
+## Unconfirmed investigations retained under the evidence-floor rule
+
+These are not lower-severity findings and are not in the repair queue. They are retained here because the owner expressly requires hypotheses and missing evidence to remain visible.
+
+| ID | Status / exact source | Genuine investigation and missing evidence | Potential impact / next verification |
+|---|---|---|---|
+| H-001 | UNCONFIRMED, severity/class unassigned; services/analytics/posthogClient.core.ts:createClient | Reviewed defaultOptIn=true and absent dedicated analytics consent authority; explicit SDK replay/autocapture/error/GeoIP controls and identity reset tested; read current provider project config and four ingested event names. No current signed-binary binding or approved legal basis/disclosure readback. | Possible privacy/consent gap; legal agent must reconcile analytics categories/purposes and actual provider policy. Do not infer tracking, illegal processing or no-retention without evidence. No false P2. |
+| H-003 | UNCONFIRMED, severity/class unassigned; services/privacy/privacyBoundary.ts; scannerImagePreparation.ts; nativeFaceEngine.ts/nativePlateEngine.ts and alternative visual intake | Actual orchestrator/encoder/proof failures, copied/raw proof rejection, native-unavailable/error/cancellation tests executed. Native detectors are injected, not real pixels; ADB reports zero targets; no signed app built. | Potential masking accuracy/coverage concern; run synthetic face/plate imagery through each actual native intake and capture network-boundary bytes on supported iOS/Android. Do not equate model ignore instructions or PhotoVTO disclosure with local masking. |
+
+H-002 Gemini transfer concern was PROVED, promoted to B35-C-002 and B35-C-005, and removed from the hypothesis count. Every previous68 test failure has an individual disposition and passing candidate counterpart; these are not product findings by default. All8 earlier confirmed P0-P3 source repairs and the new decoder P2 in progress are in the repair ledger, not silently deferred here.

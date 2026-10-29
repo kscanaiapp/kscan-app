@@ -1,0 +1,2420 @@
+[
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "apple-revoke-credential",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 403,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "black-owned-discovery",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "commerce-watch-refresh",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "deletion-status",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-reconcile-revenuecat",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "kplus-revenuecat-webhook",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 503,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "process-account-deletions",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "reconcile-orphan-media",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "resend-restoration-email",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "restore-account",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": "TypeError",
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "FAIL",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "scan-identify",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 500,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 500,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "sponsorship-sandbox",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 200,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "staging-health",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 405,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 410,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "anonymous caller / empty body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "null body",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "malformed JSON",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "wrong schema array",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "malformed JWT",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "tampered JWT claims",
+    "expected": "No provider dispatch, no privileged write, controlled response to invalid/unauthorized input",
+    "actual": {
+      "status": 401,
+      "providerCalls": 0,
+      "writes": 0
+    },
+    "verdict": "PASS",
+    "environment": "offline fake auth/backend; actual handler",
+    "limitation": "PASS is limited to no-dispatch/no-write/controlled-response; HTTP status and authenticated resource isolation are separate assertions."
+  }
+]
