@@ -51,6 +51,10 @@ added to a list without a justification.
 
 | AUTHORIZED PATH | WHY MUTATION IS REQUIRED | SOURCE AUTHORITY |
 | --- | --- | --- |
+| `supabase/functions/vto-generate/vtoReservation.ts` | Promote the existing attempt-scoped reservation/task/settlement contract with its already-applied migration; key-only settlement can target the wrong attempt after lease rollover. Source promotion only, no new payment/provider behavior or deployment. | Build 35 full convergence campaign, canonical backend 3efcb6cb; original 34de6e0d VTO-003/004 |
+| `supabase/functions/vto-generate/vtoResultValidation.ts` | Promote canonical JPEG/PNG/WebP structural and bounded-dimension verification so invalid provider bytes cannot become a successful result. No provider selection or remote configuration change. | Build 35 full convergence campaign, canonical backend 3efcb6cb; original 58ff6dc0 VTO-005 |
+| `supabase/functions/vto-generate/vtoResultValidation.test.ts` | Preserve canonical malformed/truncated image and dimension regression coverage for the validation source above, without weakening assertions. | Build 35 full convergence campaign, canonical backend 3efcb6cb; original 58ff6dc0 VTO-005 |
+| `supabase/functions/vto-generate/vtoHandler.test.ts` | Promote canonical handler regressions together with attempt-scoped settlement and validated result bytes; tests must express the actual promoted authority. | Build 35 full convergence campaign, canonical backend 3efcb6cb |
 | `app/try-on-studio.tsx` | Mount the approved real Live pilot product only inside the existing Live/K+ offer; reuse TryItOnEntry and its session. | Owner Build 35 Live completion sprint, Parts B/C, 2026-10-16 |
 | `docs/build35/vto/**` | Completion handoff, approved product provenance, device certification and Live-only rollback. | Owner Build 35 Live completion sprint, Part H |
 | `types/vtoLive.ts` | The promoted Live contract has to live somewhere the app can import; the research workspace is deliberately not an app dependency. | P3-C §29 (contract promotion), amendment §20 |

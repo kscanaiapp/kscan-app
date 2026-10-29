@@ -23,6 +23,11 @@ const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
 const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
+  // Exact canonical source promotion, not a new generative-backend grant.
+  'supabase/functions/vto-generate/vtoReservation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.ts',
+  'supabase/functions/vto-generate/vtoResultValidation.test.ts',
+  'supabase/functions/vto-generate/vtoHandler.test.ts',
   'supabase/functions/vto-generate/vtoEntitlement.ts',
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
@@ -98,6 +103,21 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts',
   'supabase/functions/stylechat-generate/index.ts',
 ]);
+
+test('campaign VTO settlement and validation promotion preserves canonical backend bytes', () => {
+  const { execFileSync } = require('node:child_process');
+  const canonical = '3efcb6cbf29eb10c1bc1510f05e9a3365755bd74';
+  for (const file of [
+    'supabase/functions/vto-generate/vtoReservation.ts',
+    'supabase/functions/vto-generate/vtoResultValidation.ts',
+    'supabase/functions/vto-generate/vtoResultValidation.test.ts',
+    'supabase/functions/vto-generate/vtoHandler.test.ts',
+  ]) {
+    const approved = execFileSync('git', ['show', `${canonical}:${file}`], { cwd: ROOT, encoding: 'utf8' });
+    assert.equal(fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n'),
+      approved.replace(/\r\n/g, '\n'), `${file} must be the reviewed backend source, not an unrelated VTO rewrite`);
+  }
+});
 
 // ── The manifest parses, and every row carries its justification ────────────
 
