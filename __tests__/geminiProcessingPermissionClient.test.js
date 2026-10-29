@@ -123,3 +123,33 @@ test('the existing Privacy route mounts the control and source retains the acces
   assert.match(readSource('components/PrivacyToggle.tsx'), /accessibilityRole="switch"/);
   assert.match(readSource('components/settings/GeminiProcessingSettingsSection.tsx'), /accessibilityRole="alert"/);
 });
+
+const permissionFailures = [
+  ['HTTP 500', async () => ({ data: null, error: { status: 500, message: 'upstream internal details' } })],
+  ['HTTP 429', async () => ({ data: null, error: { status: 429, message: 'upstream rate limit details' } })],
+  ['timeout', async () => { throw new DOMException('upstream timeout details', 'TimeoutError'); }],
+  ['malformed JSON', async () => { throw new SyntaxError('upstream invalid JSON details'); }],
+  ['empty body', async () => ({ data: null, error: null })],
+  ['valid JSON with wrong schema', async () => ({ data: { status: 'saved' }, error: null })],
+];
+for (const platform of ['ios', 'android']) {
+  for (const [failure, respond] of permissionFailures) {
+    test(`${platform}: mounted permission control and real service fail closed on ${failure}`, async () => {
+      const service = serviceFixture(respond);
+      const f = uiFixture(platform, {
+        save: (actor, next, revision) => service.setGeminiProcessingPermission(actor, next, revision),
+      });
+      f.render(A); await settle();
+      byType(f.render(A), 'PrivacyToggle')[0].props.onChange(false);
+      await settle();
+      const tree = f.render(A);
+      assert.equal(service.calls.length, 1, 'one intent must not amplify into retries');
+      assert.equal(byType(tree, 'PrivacyToggle')[0].props.disabled, true);
+      assert.equal(byType(tree, 'PrivacyToggle')[0].props.busy, false);
+      assert.match(textContent(tree), /could not verify/);
+      assert.doesNotMatch(textContent(tree), /upstream|permission (?:was )?saved|withdrawal (?:was )?saved|successfully/i,
+        'no raw details or affirmative success claim; the uncertainty message may refer to a saved permission');
+      assert.equal(byType(tree, 'SecondaryButton').length, 1, 'authority reread remains available');
+    });
+  }
+}
