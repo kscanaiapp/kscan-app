@@ -20,3 +20,12 @@ test('secondary source has no model or scan-image integration and sponsorship ha
     if(file==='engine.ts')assert.equal(source.includes("from './sponsorshipPolicy"),false,file);
   }
 });
+
+
+test('consent repair changes only the actor prerequisite, preserving original primary source bytes',()=>{
+  const source=fs.readFileSync(path.join(root,'supabase/functions/scan-identify/index.ts'),'utf8').replace(/\r\n/g,'\n');
+  const original=source.replace("import { requireGeminiConsent } from '../_shared/geminiConsent.ts';\n",'').replace('  const consentGate = await requireGeminiConsent(userId);\n  if (consentGate) return consentGate;\n\n','');
+  assert.notEqual(original,source,'the explicit guard additions must be present');
+  assert.equal(crypto.createHash('sha256').update(original).digest('hex'),baseline.consentAuthorityPromotion.priorScanEntrypointDigest);
+  assert.notEqual(crypto.createHash('sha256').update(original+'\n// unauthorized primary drift').digest('hex'),baseline.consentAuthorityPromotion.priorScanEntrypointDigest);
+});

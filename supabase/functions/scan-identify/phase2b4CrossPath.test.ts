@@ -479,8 +479,11 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
     privilegedBackend: false, actorBoundary: false,
   },
+  // The shared account/receipt guards import deletion/common.ts. Record that
+  // module's complete deployed closure, including its existing admin/write helpers;
+  // outfit handling invokes only account validation and the actor-scoped receipt read.
   'style-outfit-generate': {
-    serviceRole: false, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
   'stylechat-generate': {
