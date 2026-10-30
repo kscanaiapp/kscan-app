@@ -35,6 +35,9 @@ added to a list without a justification.
 
 | AUTHORIZED PATH | WHY MUTATION IS REQUIRED | SOURCE AUTHORITY |
 | --- | --- | --- |
+| `supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts` | Reject empty, MIME-lying and structurally truncated remote garment media before the paid multipart boundary; no URL, API, provider or quota-policy change. Exact helper only. | Build35 hostile-audit P0-P3 repair authorization, confirmed B35-C-010/P3; actual adapter and handler reproductions retained in release evidence; PR659 |
+| `supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts` | Actual-adapter malformed/valid media and supported-container regressions for C010; no real provider requests. Exact test only. | Same owner-authorized C010 repair and PR659 |
+| `supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts` | Real handler plus real adapter proves invalid media submits zero requests and releases its attempt; external effects injected. Exact test only. | Same owner-authorized C010 repair and PR659 |
 | `types/vtoLive.ts` | The promoted Live contract has to live somewhere the app can import; the research workspace is deliberately not an app dependency. | P3-C §29 (contract promotion), amendment §20 |
 | `types/vto.ts` | One additive union member (`VtoPersonInputSource`) so a clean Live capture can enter the existing generative contract without a parallel type. | P3-C §21, amendment §9 (additive extension) |
 | `services/vto/**` | The capability router, native adapter, Live garment rule, camera-permission read, harness, session reducer and Photoreal bridge are all VTO services. | Amendment §4 (authorized VTO mutation boundary) |
