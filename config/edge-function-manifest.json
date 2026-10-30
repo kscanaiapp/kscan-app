@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-29T18:54:46.863Z",
-    "generatedFromGitSha": "50088fd0b8dc5cfc1c1bdbd50e0511cab363f115"
+    "generatedAtUtc": "2026-10-30T14:36:35.531Z",
+    "generatedFromGitSha": "9c66fe50f537179046bc4e8b160ec4ddd1c463b6"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -47,10 +47,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 28,
-        "treeFileCount": 38,
-        "bundleHash": "6e39a98509c687d611fb5dbe8fdb99b4b867f4e6a3213eddac4e4e6ea8b03f49",
-        "treeHash": "5c79da67acc9fd31f72c706eee5bc9cb8b64cbefd87ac35662ae5060b69348ff",
+        "bundleFileCount": 29,
+        "treeFileCount": 40,
+        "bundleHash": "a632ea0d7ebbece4edf22cb2b7a8e4d35a95737a63c9748bd5f53018a6d17559",
+        "treeHash": "102bb119fddf21293d8bba75763eaccaaa1cb952bb176f179ccb9296c940aa0f",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -65,6 +65,16 @@
           {
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/accountAuthorization.test.ts",
+            "sha256": "823c51aa84872b437cb8663657878aae22d66994add6f415e835e9e1b834dd90",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/accountAuthorization.ts",
+            "sha256": "ed8a62892d40e5f6ae65872afbd60b2b8b534f245150fd3be7e15fc08e043060",
             "bundle": true
           },
           {
@@ -114,7 +124,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/index.ts",
-            "sha256": "ab70818ddeda8d16758b0dc8bc5891589195b58d263c90aaee479d8ff3df2dac",
+            "sha256": "97c659b0bdfdc308111e135dda15fcd76a6070cc54bbaf15b6a896c157bb4cf3",
             "bundle": true
           },
           {
