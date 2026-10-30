@@ -22,9 +22,12 @@ let lastSyncedUserId: string | null | undefined;
 export function syncPostHogIdentityWith(
   client: PostHogIdentityClient | null,
   userId: string | null,
+  forceReset = false,
 ): void {
   if (!client) return;
-  if (userId === lastSyncedUserId) return;
+  if (!forceReset && userId === lastSyncedUserId) return;
+  // A partial reset/identify failure must not leave a prior success cached.
+  lastSyncedUserId = undefined;
   client.reset();
   if (userId) client.identify(userId);
   lastSyncedUserId = userId;
