@@ -2,11 +2,12 @@
   "sourceSha": "c86bf3d0/f4df2a5a; dated deployed evidence qualified per row",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 64,
-    "NOT TESTED": 3031,
+    "PASS": 67,
+    "NOT TESTED": 3028,
     "FAIL": 1
   },
   "additionalNewAccountStateFailures": 2,
   "additionalDefect": "B35-F-007; continuation-state-probes.json; outside original43-class matrix",
-  "limitation": "Not merged with bounded886 or current harness test totals; no automatic full-feature certification"
+  "limitation": "Not merged with bounded886 or current harness test totals; no automatic full-feature certification",
+  "additionalAnalyticsFailure": "B35-G-008 actual-source reset failure, separate from original matrix; no live vendor leak"
 }

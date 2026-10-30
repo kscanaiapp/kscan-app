@@ -1,3 +1,14 @@
+# Current continuation repair status
+
+Authorities remain mobile `c86bf3d052806c6105ce7830a03ac2b1501d34a1` and backend `f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af`. The nine historical repairs are MERGED IN SOURCE; older prepared/unmerged statements below are historical, not the current verdict. No repaired runtime has been deployed during this continuation.
+
+| Serialized order | Finding | Current source repair | Evidence and gate |
+|---|---|---|---|
+| 10 | B35-F-007 P3, restricted-account discovery | PR #656, `ffd3f40d48b1e45c08b976cd623c41dbaab6e3da`, backend authority target; READY FOR REVIEW, UNMERGED | Real Staging active/pending/locked fixture; 8 focused and 1,523 backend tests pass; CI 32 successful/14 skipped/0 failed at last readback. Owner merge approval pending; mobile promotion and deployment are separate gates. |
+| 11 | B35-G-008 P3, analytics identity failure | Draft PR #657, `37330f804fbb5cca38cf706a84041fcbdeb2c687`, based on mobile c86bf3d0; SOURCE PREPARED, UNMERGED | Actual wrapper fixture reproduces event capture under A after a failed switch to B. See [finding and reproduction](build35-g008-evidence.md). Final focused16/16, TypeScript0; eight PR workflows successful. Full642-file2worker suite11345PASS/0FAIL/98SKIP; six source gates0. Owner merge approval required. No live vendor/device test or deployment claimed. |
+
+Two newly confirmed P3 findings are separate from H-001's unresolved legal assessment and H-003's device-dependent masking investigation. No new P0, P1 or P2 is established. Private-room account restriction passed its separate real Staging fixture; it is not a defect. Shared runtime files are edited serially by the lead. Required merge order: owner-approved #656 backend source, governed equivalent mobile backend promotion, and separately approved G-008 client repair; none is silently included in an evidence-only merge.
+
 ## NEW B35-F-007 ? P3 ? Discovery ignores authoritative account restriction
 
 Confirmed on current source c86bf3d0/f4df2a5a and real Staging v5 using one tagged synthetic actor. Active request returns200/empty/quota1; admin-controlled pending_deletion then locked profile still returns200/empty, quota2 then3, while Auth user endpoint remains200 with same valid JWT. Evidence continuation-discovery-lifecycle-staging.json; reproducible guarded script staging-discovery-lifecycle.ps1. Synthetic actor tag verified before deletion, cleanup HTTP200. No customer content/merchant fabrication/paid provider call.

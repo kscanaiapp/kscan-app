@@ -1,0 +1,12 @@
+{
+  "boundary": "actual wrapper + identity helper, injected SDK reset failure",
+  "sent": [],
+  "expected": "No B event emitted under prior A identity when reset fails",
+  "environment": "offline; no vendor/network",
+  "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+  "sourceFileSha256": {
+    "services/analytics/posthogClient.core.ts": "200249f056ef428f142394ad9345b629d92c687ac75bbd934b8c1a47a2336263",
+    "services/analytics/posthogIdentitySync.ts": "2e1a1d274a130d9c8e2a2f5abac96e7f2dd44dd68d1881e51a93b3fb1f4528b4"
+  },
+  "verdict": "PASS"
+}

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-29T19:39:35.326Z",
+  "capturedAt": "2026-10-30T04:31:05.281Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1045,6 +1045,166 @@
       "archiveBytes": 628,
       "archiveSha256": "2e0d65d5336fcd00e3449bcfc5bbe6c42728bd1d0b0a0270315e80f0e7bf359e",
       "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "continuation-analytics-focused-initial.log",
+      "rawBytes": 1543,
+      "rawSha256": "41bbdfc7694d298db8b695a0f1646d45164a4455a41173970017ad788c66426e",
+      "archiveFile": "continuation-analytics-focused-initial.log.gz",
+      "archiveBytes": 733,
+      "archiveSha256": "7832acf5ef4569b8579ae882de508a11ea87c8c30ca34b8f4e07b3d57c2b7d71",
+      "encoding": "UTF-8",
+      "sourceNote": "See continuation checkpoint for exact source SHA and working-tree/test-sequence qualification."
+    },
+    {
+      "rawFile": "continuation-analytics-focused-final.log",
+      "rawBytes": 1636,
+      "rawSha256": "7a0854b38c974a6f3a019e79fc335ab148ee2f2eabcd7983a86f4d196565ce60",
+      "archiveFile": "continuation-analytics-focused-final.log.gz",
+      "archiveBytes": 766,
+      "archiveSha256": "c8d9b60c0ef337cf4d0aaaabb1db3f9dc109ff0d22cb999070eb0a8b4c0035f1",
+      "encoding": "UTF-8",
+      "sourceNote": "See continuation checkpoint for exact source SHA and working-tree/test-sequence qualification."
+    },
+    {
+      "rawFile": "continuation-analytics-governance-before-final-retry-guard.log",
+      "rawBytes": 3720,
+      "rawSha256": "e50348e7402425959f39b5727fa48efb2cecfb2fb365a9b264a71e91ef306964",
+      "archiveFile": "continuation-analytics-governance-before-final-retry-guard.log.gz",
+      "archiveBytes": 1300,
+      "archiveSha256": "7a9b06b4f07284ef6631e0c3ce1f73c4d65bbcc46fa3ce6e27b13649c7b6ccf0",
+      "encoding": "UTF-8",
+      "sourceNote": "See continuation checkpoint for exact source SHA and working-tree/test-sequence qualification."
+    },
+    {
+      "rawFile": "continuation-analytics-reset-before.log",
+      "rawBytes": 928,
+      "rawSha256": "859efe2b26bceea18fdfb0e09eca22ca589b357f8cfa21e3e0b5ad5428b0bdcd",
+      "archiveFile": "continuation-analytics-reset-before.log.gz",
+      "archiveBytes": 624,
+      "archiveSha256": "de3deca8490c5224e367e17b76f7bd5254604271c0776f4f0f84ff9489a3b480",
+      "encoding": "UTF-8",
+      "sourceNote": "See continuation checkpoint for exact source SHA and working-tree/test-sequence qualification."
+    },
+    {
+      "rawFile": "continuation-analytics-reset-after.log",
+      "rawBytes": 515,
+      "rawSha256": "428309f445dab3f68c4f37c58ac355cc1b1195faca1243280451f40dbc9db0aa",
+      "archiveFile": "continuation-analytics-reset-after.log.gz",
+      "archiveBytes": 370,
+      "archiveSha256": "40b8b49185d380d69099318a4548457a3280fefb8bbf6d2930c5935cbed345a6",
+      "encoding": "UTF-8",
+      "sourceNote": "See continuation checkpoint for exact source SHA and working-tree/test-sequence qualification."
+    },
+    {
+      "rawFile": "continuation-analytics-default-node-INTERRUPTED.log",
+      "rawBytes": 2920,
+      "rawSha256": "4b3505391211267fb5ac1ecf901c3ed275756d310159271f9873ca19066bfa60",
+      "archiveFile": "continuation-analytics-default-node-INTERRUPTED.log.gz",
+      "archiveBytes": 735,
+      "archiveSha256": "5c89ccdcc0767899cc369d57865a2cdc7de30549a20093503afc2899021c2bc3",
+      "encoding": "UTF-8",
+      "sourceNote": "Incomplete; resource-pressure interrupted exit1; not product failure or PASS"
+    },
+    {
+      "rawFile": "continuation-analytics-typescript-INTERRUPTED.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-analytics-typescript-INTERRUPTED.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceNote": "Incomplete; resource-pressure interrupted exit1"
+    },
+    {
+      "rawFile": "continuation-analytics-typescript-final.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-analytics-typescript-final.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed independently; exit0 at37330f80; empty output valid"
+    },
+    {
+      "rawFile": "continuation-analytics-node-final.log",
+      "rawBytes": 1017531,
+      "rawSha256": "f8e8340877494f7f70eacd9c1f7d5d53bdea7c3989d631ed58388e2bcbcf8665",
+      "archiveFile": "continuation-analytics-node-final.log.gz",
+      "archiveBytes": 326592,
+      "archiveSha256": "3636d8643922f58288076f7e19cf0d7470d3beb013d14fd8e497cc96aad93119",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed11345pass/0fail/98skip at37330f80; same642-file inventory,2workers"
+    },
+    {
+      "rawFile": "continuation-discovery-hook.log",
+      "rawBytes": 30,
+      "rawSha256": "8180b4da16441296704d07079a51020bdeb1b81d939e74bad0aa5d7363c2c001",
+      "archiveFile": "continuation-discovery-hook.log.gz",
+      "archiveBytes": 46,
+      "archiveSha256": "593e77dda4ca4864cba08c4aca13100dad52cb5d5849f21055b7649235a3777a",
+      "encoding": "UTF-8",
+      "sourceNote": "Currentc86source4PASS; actual hook fixture, no live provider/UI claim"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "3765fbfff33f489e4238cfa807adf8263115f80bf3f22cfa59e4598bd0c2c48a",
+      "archiveFile": "continuation-analytics-gate-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 956,
+      "archiveSha256": "2110ca2e9f1871b12ccb4b0e9da654c8454e79f5465630e77acc7c890955682d",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-verify-backend-authority.js.log",
+      "rawBytes": 657,
+      "rawSha256": "c586c0f2396f9595d2daeb34f2727aa71b4501f287ec2820b8683f9ed276bd3c",
+      "archiveFile": "continuation-analytics-gate-verify-backend-authority.js.log.gz",
+      "archiveBytes": 388,
+      "archiveSha256": "90d589fa2ef5054e138a4192b9a9876ab650e627b95d32cd26bd58a1fcc68389",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "continuation-analytics-gate-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-analytics-gate-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-analytics-gate-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-analytics-gate-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "continuation-analytics-gate-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "sourceNote": "Completed source gate exit0 at37330f80"
     }
   ]
 }
