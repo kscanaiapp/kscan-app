@@ -1,3 +1,5 @@
+> **Current October30 status:** see [current audit completion work](build35-audit-remaining-work.md). Build35 authority8bdcaaba, backend98c88ff1; eleven previous repairs MERGED, new C010/P3 source repair659 awaiting governed integration. Original matrix67PASS/6FAIL/3023NOTTESTED (300N/A). Full audit INCOMPLETE. Owner approves fully green merges and factual legal metadata; owner maintains policy/website language. Historical status paragraphs below retain their original dates and are superseded by this notice. No Production rollout or mobile build.
+
 # Build35 hostile audit continuation
 
 Audit status: **INCOMPLETE; confirmed P3 B35-F-007 and B35-G-008 await governed source merge.** H001 and H003 remain qualified privacy investigations, not automaticP0 findings. Substantial safely executable coverage remains. No PASS or platform/store certification.

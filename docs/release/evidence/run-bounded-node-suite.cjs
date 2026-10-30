@@ -25,8 +25,10 @@ function save(chunk){output.write(chunk);tail=(tail+chunk.toString('utf8')).slic
 child.stdout.on('data',save);child.stderr.on('data',save);
 child.on('error',e=>{save(Buffer.from(String(e)));process.exitCode=1;});
 child.on('close',(code,signal)=>output.end(()=>{
- const counts={};for(const key of ['tests','suites','pass','fail','cancelled','skipped','todo']){const re=new RegExp(`(?:[ℹ#]\\s*)${key}\\s+(\\d+)`,'g');let m;while((m=re.exec(tail)))counts[key]=Number(m[1]);}
- const complete=Number.isInteger(counts.tests)&&Number.isInteger(counts.pass)&&Number.isInteger(counts.fail);
+ // Only top-level summary lines count. Failed assertions may quote a nested
+ // TAP report, whose escaped "\\n# pass" must never overwrite the real total.
+ const counts={};for(const key of ['tests','suites','pass','fail','cancelled','skipped','todo']){const re=new RegExp(`^[\\u2139#]\\s+${key}\\s+(\\d+)\\s*$`,'gm');let m;while((m=re.exec(tail)))counts[key]=Number(m[1]);}
+ const complete=['tests','pass','fail','cancelled','skipped','todo'].every(k=>Number.isInteger(counts[k]))&&counts.tests===counts.pass+counts.fail+counts.cancelled+counts.skipped+counts.todo;
  const result={sourceSha,inventoryFiles:found.length,concurrency,exitCode:code,signal,complete,counts,verdict:complete&&code===0&&counts.fail===0?'PASS':'FAIL_OR_INCOMPLETE'};
  fs.writeFileSync(prefix+'.result.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));process.exitCode=result.verdict==='PASS'?0:1;
 }));

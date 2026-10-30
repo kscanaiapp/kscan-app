@@ -8,7 +8,7 @@
     "directIdentifiers": "User content may identify people; no blanket de-identification claim",
     "imageAudioText": "Image and text; no direct audio established in reviewed Gemini paths",
     "transmissionMethod": "Backend HTTPS model request; provider key server-side",
-    "authenticationAuthorization": "Verified actor/account plus exact v2 receipt and durable permission state before model/quota, prepared PR649/653; unmerged and undeployed. Missing migration/read errors fail closed.",
+    "authenticationAuthorization": "Verified actor/account, exactv2receipt and durable permission source MERGED through prior repairs. Migration20261029184000 absent both projects at last dated readback; protected compatible migration/client/backend rollout not authorized or executed.",
     "productionUse": "Brand/image flags true in Production, actual mode-specific invocations/source digest not verified",
     "failureBehaviorEvidence": "Inference errors/validation tests; no live quality scoring or paid Gemini fixture",
     "encryptionEvidence": "HTTPS literals/SDK configuration in source only; no packet-level TLS/certificate attestation for a signed binary",
@@ -69,7 +69,7 @@
     "imageAudioText": "No photo/chat/audio required by reviewed commerce path",
     "transmissionMethod": "Native SDK HTTPS with public SDK config; backend REST/webhook secret/signature authority",
     "authenticationAuthorization": "Supabase canonical entitlement reread; actor binding and webhook replay suites",
-    "productionUse": "Connected project apps/offering/k_plus/webhook and live US store states verified",
+    "productionUse": "Connected proj46588afb, default offering/k_plus binding and production webhook destination metadata read; native sandbox purchase/restore and webhook delivery unverified. See continuation-revenuecat-store-readback.json.",
     "failureBehaviorEvidence": "Sandbox billing retry/real restore not performed; no real purchases",
     "encryptionEvidence": "HTTPS literals/SDK configuration in source only; no packet-level TLS/certificate attestation for a signed binary",
     "storageRetentionEvidence": "Vendor retention, training, region and contractual deletion unknown unless independently cited; no zero-retention assertion",
@@ -137,7 +137,7 @@
     "consent": "Feature-specific source gate as described; legal sufficiency and all published binary paths NOT VERIFIED",
     "logsAnalytics": "Reviewed allowlisted telemetry/bounded diagnostics only; deployed log content/retention not exhaustively inspected",
     "responsibleDisclosure": "Privacy Policy/AI disclosure/subscription or notification notice as applicable; legal-agent factual reconciliation required",
-    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence"
+    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence G008 source identity-failure guard merged657; complete legal/runtime/retention/deletion evidence still required; owner maintains policy language."
   },
   {
     "provider": "AILabTools via RapidAPI",

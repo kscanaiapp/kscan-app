@@ -1,5 +1,18 @@
 # Current continuation repair status
 
+## Current October30 merge and new-reproduction status
+
+Owner authorized merging fully green PRs. F007/#656 is MERGED in backend98c88ff1240b6596649d7967e9a180d43d7fa83e (tested treeffd3f40d identical; backend1523PASS; branch CI7/7SUCCESS). G008/#657 is MERGED in mobile9c66fe50f537179046bc4e8b160ec4ddd1c463b6 (tested37330f80 identical; Node11345PASS/0FAIL/98SKIP; branch CI9/9SUCCESS). Mobile promotion658 is in validation, head75610bc5da4e7c7ae2ba4fc0eb9a8cb8abe11f71. Its first full run correctly failed one meta-test expecting10static guard passes after an added11th control; exact count and named-test assertion were corrected without removing controls. Required full rerun/CI remain pending. Historical pending-owner statements below are superseded.
+
+### B35-C-010 — P3 — remote VTO garment bytes bypass image-integrity rejection before dispatch
+
+- CONFIRMED by two offline executions on148e48d26ac390de40ec21aed0efa41f29870775; affected VTO source bytes equal canonical backend98c88ff1. `deno test --allow-env --allow-read C:/b35readback1030/vto-remote-image-integrity.test.ts`:2PASS/4FAIL. Zero-byte,12-byte truncated PNG, HTML labelled image/jpeg and corrupt bytes labelled image/webp each reach the real adapter's POST boundary. Declared text/html is rejected; valid2918-byte PNG is the positive control.
+- Full actual handler plus actual adapter reproduction: `deno test --allow-env --allow-read C:/b35readback1030/vto-remote-handler-integrity.test.ts`:0PASS/1FAIL. An HTML garment labelled JPEG followed by a simulated provider400 yields HTTP422/provider_rejected_input, submit1, complete-failed1, release0. Provider and quota storage are injected; no live charge, customer loss, live database mutation or paid-provider claim is made.
+- Exact source/function: `supabase/functions/vto-generate/providers/aiLabToolsProvider.ts:189` fetchWithTimeoutAndCap checks MIME header/size only; `:433` generate wraps unchecked remote bytes into top_garment; `:446` dispatches POST. `vtoHandler.ts:599` forwards the validated URL to the adapter and `:641` onward retains a failed attempt for provider rejection. Contract: invalid/corrupt media must be rejected before unnecessary provider dispatch; an invalid retailer response must not consume a usable try-on attempt through a preventable paid-boundary call.
+- Root cause: remote-media validation trusts a declared image MIME type without verifying bytes. Inline garment and result-media validation are separate existing paths; this finding is specifically the remote garment path. SeverityP3 reflects reproducible feature reliability/quota degradation, not an invented unauthorized charge or P0 exposure.
+- Repair IN PROGRESS, lead-only dedicated C:/b35vtomedia1030, branch repair/build35-vto-remote-media-integrity-20261030, based canonical98c88ff1. Small bounded byte-integrity guard at the remote garment boundary, supported-format positive controls and real handler settlement regression planned. No public API/schema/provider-selection/flags/Production changes. Merge only after governed green checks under owner approval; subsequent exact mobile promotion is required.
+- Serialized order:12, after656backend/657client and658discovery promotion. The lead alone edits adapter/manifest; no overlapping agent or combined defect PR.
+
 Authorities remain mobile `c86bf3d052806c6105ce7830a03ac2b1501d34a1` and backend `f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af`. The nine historical repairs are MERGED IN SOURCE; older prepared/unmerged statements below are historical, not the current verdict. No repaired runtime has been deployed during this continuation.
 
 | Serialized order | Finding | Current source repair | Evidence and gate |
@@ -184,3 +197,9 @@ Preparation order (not merges): canonical mobile discovery source -> G-001 parsi
 - Existing CI failures on #646/#648/#652/#653 are now additionally blocked by this newly ingested advisory; prior green checks are time-specific, not proof the new advisory was handled.
 
 Owner update: exact PR654 Gemini control wording APPROVED; this does not authorize merging or deployment. Broader Terms/Privacy/store disclosure reconciliation remains a separate legal handoff.
+
+## Latest exact state — supersedes earlier checkpoint snapshots
+
+Mobile8bdcaaba986b169a15cb5545008ffef34c7b65f7 branch CI9/9SUCCESS; backend98c88ff1240b6596649d7967e9a180d43d7fa83e branch CI7/7SUCCESS. Source658merged and exact tested tree equality verified. C010repair659now412761fb0ea480e69bf910adad96a08dd07e592e, runtime/config byte-identical to tested7dc257bb;59focused/1531backendPASS. Initial scope CI correctly refused3new files;3exact justified declarations plus unrelated-sibling refusal added,52enforced-scopePASS/0skip. CI pending, unmerged, unpromoted, undeployed.
+
+Original matrix3096:67PASS/6FAIL/3023NOTTESTED,300N/A. Five newly reconciled failures all describe C010, not five findings; applicable pending2723, local2426/Staging284/sandbox8/native4/artifact1.150lossless archives integrity-verified. Owner legal language/website handoff and factual metadata saved. Exact next: finish659CI and governed integration, merge current source into evidence646 without overwriting uncommitted work, preserve/push this batch serially, then continue high-risk probes. The audit is INCOMPLETE, with a confirmed unrepaired-in-authorityP3 until659converges.

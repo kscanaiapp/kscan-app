@@ -15,18 +15,18 @@
     "10": "Documented technical limitation"
   },
   "allCellsByDisposition": {
-    "1": 68,
+    "1": 73,
     "2": 300,
-    "3": 2431,
+    "3": 2426,
     "4": 284,
     "5": 8,
     "6": 4,
     "7": 1
   },
   "originalNotTestedByDisposition": {
-    "1": 13,
+    "1": 18,
     "2": 300,
-    "3": 2431,
+    "3": 2426,
     "4": 284,
     "5": 8,
     "6": 4,
@@ -37,16 +37,17 @@
   "reconciledExistingPasses": 5,
   "currentVerdicts": {
     "PASS": 67,
-    "NOT TESTED": 3028,
-    "FAIL": 1
+    "NOT TESTED": 3023,
+    "FAIL": 6
   },
   "currentPendingByDisposition": {
     "2": 300,
-    "3": 2431,
+    "3": 2426,
     "4": 284,
     "5": 8,
     "6": 4,
     "7": 1
   },
-  "originalPendingResolved": 13
+  "originalPendingResolved": 18,
+  "continuation": "C010 five failing cells linked to one defect, with actual boundary/source equivalence. No duplicate independent-finding claim. Provider tests are local adapters, not live AILabTools."
 }

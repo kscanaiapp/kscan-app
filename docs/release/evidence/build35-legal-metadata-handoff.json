@@ -1,0 +1,27 @@
+{
+  "updatedAt": "2026-10-30T15:10:17.932Z",
+  "authorization": "Owner updates legal documents/language and website; factual metadata updates authorized. No binding legal text, store declaration, or live policy changed.",
+  "mobileSha": "8bdcaaba986b169a15cb5545008ffef34c7b65f7",
+  "backendSha": "98c88ff1240b6596649d7967e9a180d43d7fa83e",
+  "facts": {
+    "gemini": "Images and text including Elise; revocable current-permission source merged; rollout pending, not operationally certified",
+    "scanner": "Local face/plate orchestration tested with injected native detectors; actual device accuracy/pixels/network not certified",
+    "photoVto": "Person and garment images processed by AILabTools via RapidAPI; cannot inherit universal Scanner masking claims",
+    "analytics": "PostHog explicit allowlisted events and SDK lifecycle/device data; source disables replay/UIautocapture/errors/GeoIP; project opt-ins differ; actor-failure repair merged; retention/deletion/legal basis still unverified",
+    "subscriptions": "Dated connected-store readback US0.99monthly/9.99annual with1month intro; store eligibility/cohorts/native purchase and Apple submission remain separate",
+    "deletion": "Application lifecycle source tested; all-processor propagation/retention/backups not certified",
+    "packing": "Actor-bound device-local latest-plan cache30days, not backend trip-history feature"
+  },
+  "requiredOwnerReview": [
+    "Policy/website reflect actual processor categories, triggers and content",
+    "Confirm analytics basis, retention/deletion, opt-out and store data categories",
+    "Avoid universal on-device masking/zero-retention/unpublished customer-live claims",
+    "Reconcile signed binary SDK behavior before final Nutrition Label/Data Safety submissions"
+  ],
+  "evidence": [
+    "third-party-processing-inventory.json",
+    "continuation-revenuecat-store-readback.json",
+    "posthog-readonly-configuration-ingestion.json",
+    "continuation-runtime-readback.json"
+  ]
+}

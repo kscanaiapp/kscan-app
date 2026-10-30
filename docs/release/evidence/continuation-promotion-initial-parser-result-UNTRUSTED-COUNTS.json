@@ -1,0 +1,18 @@
+{
+  "sourceSha": "148e48d26ac390de40ec21aed0efa41f29870775",
+  "inventoryFiles": 642,
+  "concurrency": 2,
+  "exitCode": 1,
+  "signal": null,
+  "complete": true,
+  "counts": {
+    "tests": 13,
+    "suites": 0,
+    "pass": 10,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "verdict": "FAIL_OR_INCOMPLETE"
+}

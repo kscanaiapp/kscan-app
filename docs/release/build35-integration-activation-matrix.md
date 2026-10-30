@@ -1,3 +1,5 @@
+> **Current October30 status:** see [current audit completion work](build35-audit-remaining-work.md). Build35 authority8bdcaaba, backend98c88ff1; eleven previous repairs MERGED, new C010/P3 source repair659 awaiting governed integration. Original matrix67PASS/6FAIL/3023NOTTESTED (300N/A). Full audit INCOMPLETE. Owner approves fully green merges and factual legal metadata; owner maintains policy/website language. Historical status paragraphs below retain their original dates and are superseded by this notice. No Production rollout or mobile build.
+
 # Build35 integration and activation matrix — current continuation
 
 Mobile authority `c86bf3d052806c6105ce7830a03ac2b1501d34a1`; backend `f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af`. Nine historical repairs MERGED IN SOURCE. New P3 repairs [#656](https://github.com/kscanaiapp/kscan-app/pull/656) and [#657](https://github.com/kscanaiapp/kscan-app/pull/657) are UNMERGED. Source, deployment, flags, client integration, harness tests, device verification and customer availability remain separate fields in [the complete structured matrix](evidence/feature-integration-matrix.json).

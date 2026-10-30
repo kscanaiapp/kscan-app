@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T04:49:45.249Z",
+  "capturedAt": "2026-10-30T15:14:54.842Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1245,6 +1245,146 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "sourceNote": "TypeScript exit0 after canonical QA fixture relocation; committed lock/package identicalc86; reused matching dependency junction"
+    },
+    {
+      "rawFile": "continuation-promotion-node-initial-failed.log",
+      "rawBytes": 1021853,
+      "rawSha256": "6ebf264d53b3399c16c3cc92a15a79f294698186fd015a1ef4f61757a1eef512",
+      "archiveFile": "continuation-promotion-node-initial-failed.log.gz",
+      "archiveBytes": 327629,
+      "archiveSha256": "b5a10f447e8bafa17f6a6686b34c314cafaeb58bfa0a5fec6e2b17b4fc44c294",
+      "encoding": "UTF-8",
+      "sourceNote": "148e48d2 complete11345PASS/1FAIL/98SKIP; stale exact static-control count; raw preserved"
+    },
+    {
+      "rawFile": "continuation-promotion-node-final.log",
+      "rawBytes": 1017237,
+      "rawSha256": "aca28f65ad716dd52d53c6e0db4854a80a2299770de01345c8a8176b0250429e",
+      "archiveFile": "continuation-promotion-node-final.log.gz",
+      "archiveBytes": 325907,
+      "archiveSha256": "afcc49c4ce9fa81ceb630eebafb48eb9ed36d78f266d36e886d102d2c87e45ae",
+      "encoding": "UTF-8",
+      "sourceNote": "75610bc5 complete11346PASS/0FAIL/98SKIP"
+    },
+    {
+      "rawFile": "continuation-promotion-backend-final.log",
+      "rawBytes": 226165,
+      "rawSha256": "be81b47eb3354a915049516a3b923ac79e0819d2477ffb80d1926bc5c1fe321b",
+      "archiveFile": "continuation-promotion-backend-final.log.gz",
+      "archiveBytes": 45884,
+      "archiveSha256": "e94b845638448aaecdf5c4596c8a9310a77890cddfeedee3cc3aed1b19bcfdfd",
+      "encoding": "UTF-8",
+      "sourceNote": "75610bc5 complete1539PASS/0FAIL"
+    },
+    {
+      "rawFile": "continuation-promotion-ci-initial-failed.log",
+      "rawBytes": 3730484,
+      "rawSha256": "b54c95d6ac884acb73fba17a9f81594da09910360382fe5ce5599a9bf4b096bb",
+      "archiveFile": "continuation-promotion-ci-initial-failed.log.gz",
+      "archiveBytes": 506925,
+      "archiveSha256": "6c4a359e809bfac60dda83b69df91376473df299612a471f7877017e0d6d1d46",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "GitHub Project checks and aggregate correctly failed at148e48d2; no gate suppression"
+    },
+    {
+      "rawFile": "continuation-promotion-scope-invalid-harness.log",
+      "rawBytes": 3624,
+      "rawSha256": "e64e1762e86501fedd8338043d8e6c81461e4faef3b2a4d308beef94f6009ea8",
+      "archiveFile": "continuation-promotion-scope-invalid-harness.log.gz",
+      "archiveBytes": 1161,
+      "archiveSha256": "721828f45a6ff03428e6d16c9ab5dc6ef40aaf28414f93ea30f13960eec89a77",
+      "encoding": "UTF-8",
+      "sourceNote": "Missing explicit scope base; invalid invocation retained; corrected invocation13PASS"
+    },
+    {
+      "rawFile": "continuation-vto-media-before.log",
+      "rawBytes": 9608,
+      "rawSha256": "8ab21b0ec866b7bb6fd6520ed2be9c1dbe56ee39064d5bb92d3659cebefa8866",
+      "archiveFile": "continuation-vto-media-before.log.gz",
+      "archiveBytes": 1131,
+      "archiveSha256": "ff5cdabe4fe26bf6cb4dfd58fab4bba53c71f41616067378cc753cff4312ea70",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "148e48d2, bytes identical canonical98c88ff1; real adapter2PASS/4FAIL; injected external fetch only"
+    },
+    {
+      "rawFile": "continuation-vto-handler-before.log",
+      "rawBytes": 4506,
+      "rawSha256": "a3958e35f86306550cbed897232b77372425836733baa4fe8ea694c099553f08",
+      "archiveFile": "continuation-vto-handler-before.log.gz",
+      "archiveBytes": 1128,
+      "archiveSha256": "8e95591d30874218446f7afa5eb331d1b8a908bb6e4d0f47449f8b55dd498f73",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "148e48d2; real handler0PASS/1FAIL; mocked external effects; no live billing"
+    },
+    {
+      "rawFile": "continuation-vto-media-focused-after.log",
+      "rawBytes": 8043,
+      "rawSha256": "356f0e5c0f4710961cd8c5542c01913c215a60046b9ea70a615c2e3444cb7a70",
+      "archiveFile": "continuation-vto-media-focused-after.log.gz",
+      "archiveBytes": 2475,
+      "archiveSha256": "e193c3a86f96ac5964c65ee643a1520c73cf9ff8edb81e95c55ce2f73c2e1767",
+      "encoding": "UTF-8",
+      "sourceNote": "7dc257bb;59PASS/0FAIL, explicit cmd exit0; no network permission"
+    },
+    {
+      "rawFile": "continuation-vto-media-backend-final.log",
+      "rawBytes": 452950,
+      "rawSha256": "8de0442a6a04b3e39a0b8226aa67c0a52d40ffa23f40541bf4a0b1b79e2791aa",
+      "archiveFile": "continuation-vto-media-backend-final.log.gz",
+      "archiveBytes": 55558,
+      "archiveSha256": "a6fff8124b660f6f4d6e403e94879a6375bda4733e5bb6ac6ed837375cce4548",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "7dc257bb;1531PASS/0FAIL; DENO_NO_PACKAGE_JSON=1 only disables automatic package-json resolution; assertions unchanged"
+    },
+    {
+      "rawFile": "continuation-vto-media-interrupted-initialization.log",
+      "rawBytes": 72542,
+      "rawSha256": "3b9ac6112f490caea07cf5ee3b00bc724f29e67b200461d7e1e4300edceb8c6e",
+      "archiveFile": "continuation-vto-media-interrupted-initialization.log.gz",
+      "archiveBytes": 11826,
+      "archiveSha256": "e45db988436951276f12c75bc15829012073f8ed38ecc3450a5721b859fb6c6d",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "Interrupted local dependency initialization; not a test result"
+    },
+    {
+      "rawFile": "continuation-vto-media-powershell-wrapper.log",
+      "rawBytes": 17530,
+      "rawSha256": "7b2843d774308348a7c5f129fe36c625c514f6d01cfe30415f75a4ce48e9c623",
+      "archiveFile": "continuation-vto-media-powershell-wrapper.log.gz",
+      "archiveBytes": 3243,
+      "archiveSha256": "ec1f514121b590ad2b3360e523543d17bfec3450ba6a912847b97205ebb4a92c",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "59PASS/0FAIL but PowerShell native-stderr wrapper exit1; explicit cmd rerun exit0 retained separately"
+    },
+    {
+      "rawFile": "continuation-vto-media-authority-dirty-before-commit.log",
+      "rawBytes": 1420,
+      "rawSha256": "4b08af2af7c8a1caf910eb52e712e1e6a623ba19f66be39c52b06a112875b36f",
+      "archiveFile": "continuation-vto-media-authority-dirty-before-commit.log.gz",
+      "archiveBytes": 529,
+      "archiveSha256": "804965fd5c9abeb3bbe1735a311ec8c573d5602daf21c165ed43a2ff543642a8",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "Expected authority dirty-tree refusal before source commit; final clean authority check passes"
+    },
+    {
+      "rawFile": "continuation-vto-media-scope-ci-failed.log",
+      "rawBytes": 6930,
+      "rawSha256": "00631318459366d6743fd14bfea70893c926a19a0b6361fd0dd6e71b450caea5",
+      "archiveFile": "continuation-vto-media-scope-ci-failed.log.gz",
+      "archiveBytes": 980,
+      "archiveSha256": "25e3d32bc768640cf191e56348470d5b3f65ada63776ff0cedb77437aa0445db",
+      "encoding": "UTF-8",
+      "sourceNote": "659 enforced guard correctly refused3undeclared exact new files; no runtime test suppression"
+    },
+    {
+      "rawFile": "continuation-vto-media-enforced-scope-after.log",
+      "rawBytes": 8690,
+      "rawSha256": "44d56f7347aa0c7db4f4a66638348f7713952e9be647c6ef90f360f36298ed1a",
+      "archiveFile": "continuation-vto-media-enforced-scope-after.log.gz",
+      "archiveBytes": 2252,
+      "archiveSha256": "c2896935bc94f3ecfbfe6e271ef0048935ca1b672c9f8dafdcada21692555049",
+      "encoding": "UTF-8",
+      "sourceNote": "412761fb exact3path declarations plus unrelated-sibling refusal;52PASS/0FAIL/0SKIP, explicit base98c88ff1"
     }
   ]
 }
