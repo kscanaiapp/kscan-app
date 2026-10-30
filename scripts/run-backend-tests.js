@@ -81,6 +81,8 @@ const GOVERNED = [
   'stylist-speech',
   'scan-identify',
   'handle-user-deletion',
+  // B35-F-012: keep private image signing response validation in the default gate.
+  'shared-room-image-url',
   'stylechat-generate',
   'style-outfit-generate',
   'commerce-watch-refresh',
