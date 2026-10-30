@@ -153,6 +153,14 @@ test('discovery account-lifecycle promotion preserves reviewed canonical backend
   }
 });
 
+function restoreC010Adapter(text) {
+  return text.replace(/\r\n/g, '\n')
+    .replace("import { publicMediaFetch } from '../../_shared/net/publicMediaFetch.ts';\n", '')
+    .replace('  // Production remote images use address-checked socket lookup. Injectable\n  // fixture transport remains local to server-side tests, never request data.\n  const mediaFetch: SubmitFetcher = options.fetchImpl ?? publicMediaFetch;\n', '')
+    .replaceAll('signal, mediaFetch, billedUnits', 'signal, doFetch, billedUnits')
+    .replace('          mediaFetch,\n', '          doFetch,\n');
+}
+
 test('VTO remote garment integrity promotion preserves reviewed canonical backend bytes', () => {
   const { execFileSync } = require('node:child_process');
   const canonical = '531f288fe52ab7ff8ef733408779d19ba4d93c6b';
@@ -164,16 +172,46 @@ test('VTO remote garment integrity promotion preserves reviewed canonical backen
 ]) {
     const approved = execFileSync('git', ['show', canonical + ':' + file], { cwd: ROOT, encoding: 'utf8' });
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    assert.equal(source.replace(/\r\n/g, '\n'), approved.replace(/\r\n/g, '\n'), file);
-    assert.equal(campaignPromotion.files.find(row => row.file === file).source, canonical);
+    const compared = file === 'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts' ? restoreC010Adapter(source) : source.replace(/\r\n/g, '\n');
+    assert.equal(compared, approved.replace(/\r\n/g, '\n'), file);
+    if (file !== 'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts') assert.equal(campaignPromotion.files.find(row => row.file === file).source, canonical);
     assert.equal(verifiedCampaignPromotion(file, source), true);
     assert.equal(verifiedCampaignPromotion(file, source + '\n// unreviewed mutation\n'), false);
   }
 });
 
+test('C011 media DNS promotion preserves exact canonical bytes and refuses mutation', () => {
+  const { execFileSync } = require('node:child_process');
+  const canonical = '3bab42e47817da8a4941efc4a509afee73879015';
+  for (const file of [
+  "supabase/functions/_shared/net/publicMediaFetch.ts",
+  "supabase/functions/_shared/net/publicMediaFetch.test.ts",
+  "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
+  "qa/security/vto-media-dns-boundary.test.ts",
+  "__tests__/edgeFunctionSourceParity.test.js"
+]) {
+    const approved = execFileSync('git', ['show', canonical + ':' + file], { cwd: ROOT, encoding: 'utf8' }).replace(/\r\n/g, '\n');
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
+    let compared = source;
+    if (file === '__tests__/edgeFunctionSourceParity.test.js') {
+      const mobileRole = "test('deploy guard: this checkout itself is correctly marked non-authoritative (B34-DEF-001)', () => {\n  const authority = JSON.parse(\n    fs.readFileSync(path.join(REPO_ROOT, 'config', 'backend-authority.json'), 'utf8'),\n  );\n  assert.notEqual(authority.role, 'backend-deployment-authority');\n  const blocked = runNode(REPO_ROOT, DEPLOYER);\n  assert.equal(blocked.status, 1);\n  assert.match(blocked.output, /ABORTED/);\n});";
+      const backendRole = "test('deploy guard: this checkout itself is the declared backend authority and remains dry-run by default', () => {\n  const authority = JSON.parse(\n    fs.readFileSync(path.join(REPO_ROOT, 'config', 'backend-authority.json'), 'utf8'),\n  );\n  assert.equal(authority.role, 'backend-deployment-authority');\n  const dryRun = runNode(REPO_ROOT, DEPLOYER);\n  assert.equal(dryRun.status, 0, dryRun.output);\n  assert.match(dryRun.output, /DRY RUN — nothing was deployed/);\n  assert.ok(!/Deployment complete/.test(dryRun.output));\n});";
+      assert.ok(source.includes(mobileRole), 'mobile deploy refusal must remain');
+      assert.ok(!source.includes(backendRole), 'mobile must not inherit canonical deploy authority');
+      compared = source.replace(mobileRole, backendRole);
+    }
+    assert.equal(compared, approved, file);
+    if (file.startsWith('supabase/')) {
+      assert.equal(campaignPromotion.files.find(row => row.file === file).source, canonical);
+      assert.equal(verifiedCampaignPromotion(file, source), true);
+      assert.equal(verifiedCampaignPromotion(file, source + '\n// unreviewed mutation\n'), false);
+    }
+  }
+});
+
 test('mixed campaign backend exceptions are exact byte-bound promotions, not a folder grant', () => {
-  assert.equal(campaignPromotion.files.length, 45);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 45);
+  assert.equal(campaignPromotion.files.length, 47);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 47);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);
