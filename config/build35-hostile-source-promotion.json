@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "scope": "Exact non-VTO backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "98c88ff1240b6596649d7967e9a180d43d7fa83e",
+  "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
+  "canonicalBackend": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -219,6 +219,30 @@
       "sha256": "7aa1b20ef92cc2bdfdbacc98b77bdbcfa05d6674b8c7d392a5dc1edfabf75ae8",
       "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
       "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+    },
+    {
+      "file": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
+      "sha256": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
+      "source": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+      "reason": "Exact reviewed C010/P3 remote garment integrity repair from canonical PR659; basic container validation and real handler regressions. Source-only, no API/schema/provider/quota-policy/rollout change."
+    },
+    {
+      "file": "supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts",
+      "sha256": "d00cf8d578c5045f978daecacf2e6c6b5422205c6b1ba0f7c58da3080460a405",
+      "source": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+      "reason": "Exact reviewed C010/P3 remote garment integrity repair from canonical PR659; basic container validation and real handler regressions. Source-only, no API/schema/provider/quota-policy/rollout change."
+    },
+    {
+      "file": "supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts",
+      "sha256": "75089cadeea4ef3b4a479da375adc777914e6f79262bd5b08e8bc17648235a64",
+      "source": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+      "reason": "Exact reviewed C010/P3 remote garment integrity repair from canonical PR659; basic container validation and real handler regressions. Source-only, no API/schema/provider/quota-policy/rollout change."
+    },
+    {
+      "file": "supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts",
+      "sha256": "0f85241f3bef97d6d2316222ca79a9977d4e4c7f0cb387e795eb917ebe082e2f",
+      "source": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+      "reason": "Exact reviewed C010/P3 remote garment integrity repair from canonical PR659; basic container validation and real handler regressions. Source-only, no API/schema/provider/quota-policy/rollout change."
     },
     {
       "file": "supabase/migrations/20261014210000_stylist_speech_kplus_reservation_guard.sql",

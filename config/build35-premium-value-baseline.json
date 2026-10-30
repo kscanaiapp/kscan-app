@@ -85,7 +85,7 @@
     "supabase/functions/stylist-speech/types.ts": "7aa1b20ef92cc2bdfdbacc98b77bdbcfa05d6674b8c7d392a5dc1edfabf75ae8",
     "supabase/functions/stylist-speech/voiceProfiles.ts": "20e996831d13c3df011b0c245bcf8514ec3d88130353f93dad1c7e6c91730eeb",
     "supabase/functions/vto-generate/index.ts": "83c35a1c2debcaec182dd94f47f59e54cdd42f13a7c5592f319f8f8b6dd05e48",
-    "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts": "4368b41c9b27f4d34bce1af7fad2ce0366a9b212c52f42434d0d47c455b95c61",
+    "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
     "supabase/functions/vto-generate/providers/index.ts": "38f551fd3eb86c79e454a3d205d6f2db43b82dff1a4e0bc537db8bb4cc68089a",
     "supabase/functions/vto-generate/providers/mockProvider.ts": "34ab35bba3c34387b55c919b2a695f2ec79ed2129e663b5fa4cdd0afb464cebc",
     "supabase/functions/vto-generate/providers/mockResultAsset.ts": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
@@ -116,5 +116,12 @@
       "supabase/functions/vto-generate/vtoResultValidation.ts"
     ],
     "reason": "Deliberate source-only promotion of already merged backend paid-safety/Speech controls. Exact current bytes checked against backend authority; Today, RevenueCat and K+ holds unchanged. No deployment or activation."
+  },
+  "c010SourcePromotion": {
+    "sha": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+    "pr": 659,
+    "file": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
+    "priorDigest": "4368b41c9b27f4d34bce1af7fad2ce0366a9b212c52f42434d0d47c455b95c61",
+    "reason": "Owner-authorized confirmed C010/P3 repair; only this adapter digest advances to exact canonical bytes. All Today, Speech, RevenueCat, K+ and other VTO holds remain unchanged; no rollout."
   }
 }
