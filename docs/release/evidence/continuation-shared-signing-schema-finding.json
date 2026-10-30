@@ -1,7 +1,7 @@
 {
   "id": "B35-F-012",
   "priority": "P4",
-  "status": "CONFIRMED — UNREPAIRED, protected subsystem",
+  "status": "OWNER AUTHORIZED; source repair prepared, not authoritative-merged",
   "feature": "Shared-room private image URL resolution",
   "scope": "Backend/shared; malformed external response only",
   "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
@@ -29,8 +29,18 @@
     "business": "Localized recoverable missing image; no payment or persistent mutation."
   },
   "proposedFix": "Validate signedPath is a nonempty string before interpolation, reject malformed relative signing paths under the existing Supabase contract, and add object/array/number response regressions plus a valid-sign baseline.",
-  "repairGate": "Safe P4 addendum condition4 fails: this service-role endpoint directly reads room/item authorization state and signs private storage objects (RLS-facing protected subsystem). Latest continuation authorizes new P0-P3 repairs, not unapproved protected P4 implementation. Record exact owner authorization dependency; no severity inflation.",
+  "repairGate": "Owner explicitly approved bounded source repair and reiterated you may make the p4 repair. Fully-green merge approval persists; no Production rollout authorization.",
   "complexity": "Low; localized function and focused regression fixture",
   "dependencies": "Owner authorization for protected P4 source repair, canonical backend PR and exact mobile promotion, normal green CI; no Production change authorized",
-  "deferral": "Limited malformed-response image resilience with refresh/retry workaround, no demonstrated material privacy/security/payment/core-workflow impact; not a confirmed P0-P3 blocker."
+  "deferral": "Limited malformed-response image resilience with refresh/retry workaround, no demonstrated material privacy/security/payment/core-workflow impact; not a confirmed P0-P3 blocker.",
+  "repairSource": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+  "repairDetails": "Type/path validation of relative Storage signing JSON, actual-handler regression, validator tests, default backend runner enrollment and generated manifest;6files113insertions/10deletions; no RLS/storage policy or response shape change",
+  "validation": {
+    "backendPass": 1571,
+    "backendFail": 0,
+    "governancePass": 54,
+    "pureAndHandlerPass": 18,
+    "applicableCanonicalGates": 5,
+    "nonApplicable": "Mobile-only build35 profile checker is absent by backend ownership; attempted error retained"
+  }
 }

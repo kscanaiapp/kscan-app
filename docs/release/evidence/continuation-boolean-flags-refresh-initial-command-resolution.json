@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-10-30T20:07:23.791Z",
+  "method": "Read-only Supabase CLI secret metadata; compare only seven approved flag digests to literal true/false; no raw secret values or other secret names emitted",
+  "projects": {
+    "production": {
+      "status": "UNAVAILABLE",
+      "reason": "Secret metadata command failed; no values inferred"
+    },
+    "staging": {
+      "status": "UNAVAILABLE",
+      "reason": "Secret metadata command failed; no values inferred"
+    }
+  },
+  "limits": [
+    "Stored secret metadata is not proof of active invocation or customer-live binary.",
+    "No flags or secrets changed."
+  ]
+}

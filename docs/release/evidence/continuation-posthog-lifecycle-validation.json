@@ -2,7 +2,7 @@
   "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
   "branch": "audit/build35-posthog-launch-privacy-20261030",
   "worktree": "C:/b35launchprivacy1030",
-  "status": "COMMITTED/PUSHED; no PR yet; full Node active",
+  "status": "MERGED #663 at a9503e135162824ed8127f6a3066fac1deab3e67; exact tested-tree equality",
   "finding": "B35-G-013/P1",
   "focused": {
     "pass": 58,
@@ -45,11 +45,22 @@
     }
   ],
   "fullNode": {
-    "status": "RUNNING",
-    "session": 32804,
-    "prefix": "C:/b35readback1030/posthog-lifecycle-node-final",
+    "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
     "inventoryFiles": 643,
-    "concurrency": 2
+    "concurrency": 2,
+    "exitCode": 0,
+    "signal": null,
+    "complete": true,
+    "counts": {
+      "tests": 11451,
+      "suites": 2,
+      "pass": 11353,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 98,
+      "todo": 0
+    },
+    "verdict": "PASS"
   },
   "backend": {
     "status": "UNCHANGED — retained exact source1569PASS at reviewed06e/merged2d",
@@ -63,5 +74,10 @@
     "status": "NOT TESTED",
     "reason": "Owner confirms no physical devices available"
   },
-  "archivesVerified": 197
+  "archivesVerified": 213,
+  "pr": 663,
+  "premergeChecks": {
+    "pass": 34,
+    "skipping": 20
+  }
 }

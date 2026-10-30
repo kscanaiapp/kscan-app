@@ -23,5 +23,11 @@
     "continuation-revenuecat-store-readback.json",
     "posthog-readonly-configuration-ingestion.json",
     "continuation-runtime-readback.json"
-  ]
+  ],
+  "launchUrlPrivacyCorrection": {
+    "finding": "B35-G-013/P1",
+    "sourceMerged": "a9503e135162824ed8127f6a3066fac1deab3e67",
+    "control": "Raw launch URL omitted from all SDK events at final before_send; lifecycle names/counts remain. Query, fragment and private path synthetic regressions pass.",
+    "limits": "No published binary or historical provider-ingestion binding; do not claim the policy already describes a verified live release. H001 legal basis/retention/deletion remain owner/legal gates. No legal language rewritten."
+  }
 }

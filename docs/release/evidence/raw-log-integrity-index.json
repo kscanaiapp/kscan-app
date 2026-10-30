@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T19:56:56.013Z",
+  "capturedAt": "2026-10-30T20:25:32.469Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1879,6 +1879,182 @@
       "encoding": "UTF-8",
       "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
       "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-node-final.log",
+      "rawBytes": 1019066,
+      "rawSha256": "9840c4367d8ea58a9888606c852e4b46172bac0fcf3be2ea56ea443211dd8860",
+      "archiveFile": "continuation-posthog-lifecycle-node-final.log.gz",
+      "archiveBytes": 326082,
+      "archiveSha256": "6c396aadb63e129391279c592b1009252bcc3536e5508c4615512aba185d2c87",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS11353/0FAIL/98SKIP"
+    },
+    {
+      "rawFile": "shared-schema-governance-focused.log",
+      "rawBytes": 11154,
+      "rawSha256": "3d038faa908a4de3d6a0186eef7a36aaf2297dd712be3c8530a3c1c740179770",
+      "archiveFile": "continuation-shared-schema-governance-focused.log.gz",
+      "archiveBytes": 3813,
+      "archiveSha256": "05bc676834241e65ed0b8385c055e88eef3f4626fb61ffb808b28e73123ab922",
+      "encoding": "UTF-8",
+      "sourceSha": "3bab42e4+uncommitted repair",
+      "disposition": "Dirty precommit authority correctly refused; not product defect; final clean54PASS"
+    },
+    {
+      "rawFile": "shared-schema-governance-focused-final.log",
+      "rawBytes": 4789,
+      "rawSha256": "e04b146e56c7ac630cd3d3cfff07ca6c858dfda149c222ce59b4321cd6d9564a",
+      "archiveFile": "continuation-shared-schema-governance-focused-final.log.gz",
+      "archiveBytes": 2017,
+      "archiveSha256": "ee3831cc08c58229ab7290c5023990d71beeedf404c07e1d7e2828747a82599b",
+      "encoding": "UTF-8",
+      "sourceSha": "899a953f",
+      "disposition": "PASS54 after source commit"
+    },
+    {
+      "rawFile": "shared-schema-validation-after.log",
+      "rawBytes": 1525,
+      "rawSha256": "b2833930edf6ca7018336eb2c374de7ca56b6d9462c1d0a79c36f413ecad70ea",
+      "archiveFile": "continuation-shared-schema-validation-after.log.gz",
+      "archiveBytes": 695,
+      "archiveSha256": "4cd090e51030635fa875eed82274514b0d82d406a6fa6e590abb9ac780069af9",
+      "encoding": "UTF-8",
+      "sourceSha": "899a953f runtime-equivalent",
+      "disposition": "PASS17 pure validator tests"
+    },
+    {
+      "rawFile": "shared-schema-handler-after-invalid-source-label.log",
+      "rawBytes": 2058,
+      "rawSha256": "164f1332e49ab1798712524903221536b93f878551f8f73726fe50acf708691b",
+      "archiveFile": "continuation-shared-schema-handler-after-invalid-source-label.log.gz",
+      "archiveBytes": 724,
+      "archiveSha256": "6be7da9afda124b9dea06e35c19f35d2946f6da5282bc5b749d3c90d35542a37",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "899a953f runtime",
+      "disposition": "INVALID PROVENANCE LABEL: fixture retained old06esource string while running new worktree; corrected rerun retained"
+    },
+    {
+      "rawFile": "shared-schema-handler-after.log",
+      "rawBytes": 2892,
+      "rawSha256": "c71844b6854900d0c0a4cdcb48a7e5b70802fe98a839392e0a41ee41f190699d",
+      "archiveFile": "continuation-shared-schema-handler-after.log.gz",
+      "archiveBytes": 934,
+      "archiveSha256": "e080b2de19e1c5e69ab17cce075a565e92961cecf5dc281c835f059dbb9177aa",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "899a953f",
+      "disposition": "PASS actual handler; runtime identical through e979"
+    },
+    {
+      "rawFile": "shared-schema-backend-final.log",
+      "rawBytes": 460282,
+      "rawSha256": "c0bfb8485d80006b34c7d5f9ea0c2d82beaf17b9bda4a25199af4cf8d3b59921",
+      "archiveFile": "continuation-shared-schema-backend-final.log.gz",
+      "archiveBytes": 57245,
+      "archiveSha256": "35befed5e0d7296eb1262552042ca24b82fa6ef2a76dc11c23d4081eea9f92ec",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "899a953f",
+      "disposition": "PASS1570 before adding default-gate actual-handler regression"
+    },
+    {
+      "rawFile": "shared-schema-backend-final-with-handler.log",
+      "rawBytes": 460164,
+      "rawSha256": "0f68276c62e56efbaae5ad8e91f73757596f50c77bde1bc72d4655ccb5382c7c",
+      "archiveFile": "continuation-shared-schema-backend-final-with-handler.log.gz",
+      "archiveBytes": 57126,
+      "archiveSha256": "d4954072c54f361b293477aa08626bc9e46d5cc26a5e16cae23238a703765e32",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS1571 final default suite includes18shared tests"
+    },
+    {
+      "rawFile": "shared-schema-direct-regressions-final.log",
+      "rawBytes": 1784,
+      "rawSha256": "4d37114d6a489a45b2152252bdc810f74e088ff7e30abf7c1c5d6bf111fa8c71",
+      "archiveFile": "continuation-shared-schema-direct-regressions-final.log.gz",
+      "archiveBytes": 755,
+      "archiveSha256": "3b9ddce8b19fa344d41bc707104afdea625d95fe2ea8a8ba597aedb94f2bcddc",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS18 validator and actual-handler tests"
+    },
+    {
+      "rawFile": "shared-schema-governance-final-head.log",
+      "rawBytes": 4792,
+      "rawSha256": "ba4543201bb4e7fbf822d856ef2013a620394a427b642a9b2e5d24135170ad31",
+      "archiveFile": "continuation-shared-schema-governance-final-head.log.gz",
+      "archiveBytes": 2015,
+      "archiveSha256": "911ea7f08af532f132f1dc8450f50d65c114fce5b32d86b978cad6962e958490",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS54 final clean-source governance"
+    },
+    {
+      "rawFile": "shared-schema-check-build35-release-profile.js.log",
+      "rawBytes": 712,
+      "rawSha256": "2d728f4d7d65c42b6e38b6438bd2b018b295a5de2448c9436dda3be59753ccd9",
+      "archiveFile": "continuation-shared-schema-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 367,
+      "archiveSha256": "1df5cb9c7759a6169cb72c4045bceb82a6b36f148117a0d463c4c4c8cfb29e2b",
+      "encoding": "UTF-8",
+      "sourceSha": "899a953f",
+      "disposition": "NOT APPLICABLE: mobile-only checker absent from canonical backend tree; attempted module-not-found retained, never PASS"
+    },
+    {
+      "rawFile": "shared-schema-final-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "fddce1d8f82d12513e77c9a06a741cee77b2bdf64a04c9a32ea25ded658a7153",
+      "archiveFile": "continuation-shared-schema-final-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 956,
+      "archiveSha256": "86bdd94019633ec66294eac6c3545fa2ea84b1f9f2e83ee2aa7637025b58ef25",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS applicable canonical source gate"
+    },
+    {
+      "rawFile": "shared-schema-final-verify-backend-authority.js.log",
+      "rawBytes": 642,
+      "rawSha256": "2bdb9862007c3f0c4c08154c61937a6a14ba165b989b243a3f43aad269983abe",
+      "archiveFile": "continuation-shared-schema-final-verify-backend-authority.js.log.gz",
+      "archiveBytes": 374,
+      "archiveSha256": "18672a8e5379ae19ba1524fe74529e4431d16dab882f467715df927f30745708",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS applicable canonical source gate"
+    },
+    {
+      "rawFile": "shared-schema-final-check-native-config-parity.js.log",
+      "rawBytes": 1133,
+      "rawSha256": "123e5e4fce582dcb1083099570414ecb394b19f60b739b07f09b3069c0b2e4f7",
+      "archiveFile": "continuation-shared-schema-final-check-native-config-parity.js.log.gz",
+      "archiveBytes": 539,
+      "archiveSha256": "e61df995f0953c57a7ac1eefd3759c67a6c034644c61a45d53bca07a54b3e964",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS applicable canonical source gate"
+    },
+    {
+      "rawFile": "shared-schema-final-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-shared-schema-final-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS applicable canonical source gate"
+    },
+    {
+      "rawFile": "shared-schema-final-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-shared-schema-final-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+      "disposition": "PASS applicable canonical source gate"
     }
   ]
 }
