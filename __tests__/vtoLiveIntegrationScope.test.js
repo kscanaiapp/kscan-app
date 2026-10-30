@@ -34,6 +34,10 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',
   'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+  // Build35 hostile-audit C010: exact owner-authorized P3 source repair.
+  'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts',
+  'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts',
+  'supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts',
   'supabase/functions/vto-generate/vtoContract.ts',
   'supabase/functions/vto-generate/vtoHandler.ts',
   'supabase/functions/vto-generate/vtoOwnedGarment.ts',
@@ -176,6 +180,9 @@ test('guard: the paths this lane legitimately touches are accepted', () => {
     'scripts/check-vto-live-integration-scope.js',
     '__tests__/vtoLiveCapabilityRouter.test.js',
     '__tests__/vtoPrivacyAndWiring.test.js',
+    'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts',
+    'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts',
+    'supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts',
   ];
   const { unauthorized } = guard.classifyChangedPaths(lanePaths, patterns);
   assert.deepEqual(unauthorized, []);
@@ -186,10 +193,11 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
   // `services/vto/**` must not accidentally authorize all of `services/`, and
   // `__tests__/vto*` must not authorize every test in the repo.
   const { unauthorized } = guard.classifyChangedPaths(
-    ['services/haptics.js', 'services/supabaseClient.js', '__tests__/closetCloudSync.test.js'],
+    ['services/haptics.js', 'services/supabaseClient.js', '__tests__/closetCloudSync.test.js',
+      'supabase/functions/vto-generate/providers/unreviewedRemoteMedia.ts'],
     patterns,
   );
-  assert.equal(unauthorized.length, 3);
+  assert.equal(unauthorized.length, 4, 'C010 exact paths must not authorize an unrelated provider helper');
 });
 
 // ── The live diff, on a lane that has DECLARED itself a VTO lane ───────────

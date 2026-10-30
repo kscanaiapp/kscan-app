@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-29T23:32:17.034Z",
-    "generatedFromGitSha": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af"
+    "generatedAtUtc": "2026-10-30T15:05:50.978Z",
+    "generatedFromGitSha": "98c88ff1240b6596649d7967e9a180d43d7fa83e"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -2212,10 +2212,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 18,
-        "treeFileCount": 26,
-        "bundleHash": "08e0840b7cae244fa47423894f08010b1b45299ecb37d042792d631777f521f9",
-        "treeHash": "d8c53885eae6e068ce2f3c175fce48c9d67419f25aa664838ff7ed036c005114",
+        "bundleFileCount": 19,
+        "treeFileCount": 29,
+        "bundleHash": "a8e3dbf56d6c2453f99a4a72e43d7e9de47b3f3459f08bd2120649055e2bb4da",
+        "treeHash": "222cc9f94c8117071380786929bd8a71fdbd9e9054ef57fc3e7c0e00735f70db",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -2244,7 +2244,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "4368b41c9b27f4d34bce1af7fad2ce0366a9b212c52f42434d0d47c455b95c61",
+            "sha256": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
             "bundle": true
           },
           {
@@ -2265,6 +2265,21 @@
           {
             "path": "supabase/functions/vto-generate/providers/mockResultAsset.ts",
             "sha256": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts",
+            "sha256": "d00cf8d578c5045f978daecacf2e6c6b5422205c6b1ba0f7c58da3080460a405",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts",
+            "sha256": "75089cadeea4ef3b4a479da375adc777914e6f79262bd5b08e8bc17648235a64",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts",
+            "sha256": "0f85241f3bef97d6d2316222ca79a9977d4e4c7f0cb387e795eb917ebe082e2f",
             "bundle": true
           },
           {
