@@ -26,8 +26,11 @@
   ],
   "launchUrlPrivacyCorrection": {
     "finding": "B35-G-013/P1",
-    "sourceMerged": "a9503e135162824ed8127f6a3066fac1deab3e67",
-    "control": "Raw launch URL omitted from all SDK events at final before_send; lifecycle names/counts remain. Query, fragment and private path synthetic regressions pass.",
-    "limits": "No published binary or historical provider-ingestion binding; do not claim the policy already describes a verified live release. H001 legal basis/retention/deletion remain owner/legal gates. No legal language rewritten."
+    "sourceMerged": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+    "controls": [
+      "Raw launch URL excluded before enqueue for new captures (#663)",
+      "Restored default Queue cleaned before SDK transport, cleaned cache installed; identity/order and unrelated keys preserved (#665)"
+    ],
+    "limits": "Source contracts only. Native persistent-storage encryption/deletion, historical provider ingestion and published-binary behavior remain unverified. Owner controls legal language/website; H001legal/retention/deletion remains open."
   }
 }

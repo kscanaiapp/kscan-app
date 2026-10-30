@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T20:25:32.469Z",
+  "capturedAt": "2026-10-30T21:48:40.485Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2055,6 +2055,281 @@
       "encoding": "UTF-8",
       "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
       "disposition": "PASS applicable canonical source gate"
+    },
+    {
+      "rawFile": "posthog-persisted-url-before.log",
+      "rawBytes": 1561,
+      "rawSha256": "fea022f33b993f0a02b46dc80261b1b169ef1414c779ddf20bd56f5c5570e563",
+      "archiveFile": "continuation-posthog-persisted-url-before.log.gz",
+      "archiveBytes": 908,
+      "archiveSha256": "08f186a3a0983f253b956ff642edbf0e12ab5edd114cf695c1da26c2914fc95c",
+      "encoding": "UTF-8",
+      "sourceSha": "a9503e135162824ed8127f6a3066fac1deab3e67",
+      "disposition": "FAIL — reopened G013 legacy-queue transport path"
+    },
+    {
+      "rawFile": "evidence-6719-project-failure.log",
+      "rawBytes": 1873832,
+      "rawSha256": "2ea0f644619372eeabc811aad4b03af1a6f1c2d6d8ba9a7632c08cbf81369d8d",
+      "archiveFile": "continuation-evidence-6719-project-failure.log.gz",
+      "archiveBytes": 426530,
+      "archiveSha256": "89ccc65d00db01efb469eef9e3de5f0f82722e6323525cec710198a334533983",
+      "encoding": "UTF-8",
+      "sourceSha": "6719e04e9a9e05efc5420450df5be0810825d6b7",
+      "disposition": "FAIL — evidence metadata immutable migration names need exact existing terminology classification; no product defect"
+    },
+    {
+      "rawFile": "posthog-queue-node-final.log",
+      "rawBytes": 1019521,
+      "rawSha256": "def2d972a15873f69b070589ffd59232cc6a9c78ef12a796649ada475fddbcb2",
+      "archiveFile": "continuation-posthog-queue-node-final.log.gz",
+      "archiveBytes": 326331,
+      "archiveSha256": "215a1bac4711b0d320f8320157fa62dba664c5a837713e765552a784abfd6e52",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS11358/0FAIL/98SKIP"
+    },
+    {
+      "rawFile": "posthog-queue-focused-after.log",
+      "rawBytes": 30861,
+      "rawSha256": "724fcbea2c7061a6b9441f4913add4117b44ff97eb1ec34a242b20902d6f998c",
+      "archiveFile": "continuation-posthog-queue-focused-after.log.gz",
+      "archiveBytes": 7531,
+      "archiveSha256": "2d3f9ab975e2601ca7d99a4c557047c83b2232fa5421d8f2e7ed3b2b7682da75",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "Initial source constructor-name assertion failed; GeoIP option retained and guard now verifies real SDK inheritance plus option"
+    },
+    {
+      "rawFile": "posthog-queue-focused-final.log",
+      "rawBytes": 7119,
+      "rawSha256": "fe0344f9bc52fadf313b55a379f717d568ef312e577a17103d967bbb971b2caa",
+      "archiveFile": "continuation-posthog-queue-focused-final.log.gz",
+      "archiveBytes": 2341,
+      "archiveSha256": "7d9d4661779f79ede430cff13a27754f81fab20bcfdf77d34c257db0c814d726",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS63"
+    },
+    {
+      "rawFile": "posthog-queue-typescript.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-posthog-queue-typescript.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "TypeScript0"
+    },
+    {
+      "rawFile": "evidence-terminology-refresh-after.log",
+      "rawBytes": 1930,
+      "rawSha256": "edd3c8352023cb6b383278ac3147b4be3775efe807c5e38dfe7f7c0f68312747",
+      "archiveFile": "continuation-evidence-terminology-refresh-after.log.gz",
+      "archiveBytes": 953,
+      "archiveSha256": "be7e4be41a2e48650ce566bdf8ef5596acea97ca75b69d82c2b520126b87132c",
+      "encoding": "UTF-8",
+      "sourceSha": "6719+metadata correction",
+      "disposition": "Initial exact count still145; three immutable new snapshot lines independently counted and negative-controlled"
+    },
+    {
+      "rawFile": "evidence-terminology-refresh-final.log",
+      "rawBytes": 886,
+      "rawSha256": "456ac4082d70141663d7da50d753351980726042d3fc38442b9dcb07c828329e",
+      "archiveFile": "continuation-evidence-terminology-refresh-final.log.gz",
+      "archiveBytes": 551,
+      "archiveSha256": "2437db879d3db759b94fe2081ae9f1c9ead268ef46194755989317acc21b254c",
+      "encoding": "UTF-8",
+      "sourceSha": "6719+metadata correction",
+      "disposition": "PASS8, exact148total plus exact3new snapshot occurrences; wrong-file/new-token refusals retained"
+    },
+    {
+      "rawFile": "retired-staging-diagnostic-probes.log",
+      "rawBytes": 170,
+      "rawSha256": "277aa23110ce9ca7e28ffe7900d2f1a43f5f042d1743e4c88f2480bad48235ca",
+      "archiveFile": "continuation-retired-staging-diagnostic-probes.log.gz",
+      "archiveBytes": 124,
+      "archiveSha256": "0abb6840d70b4308b649ef12c49c484508466faea210d958e334d5adb1f86b05",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "Dated retrieved/deployed source",
+      "disposition": "PASS18bounded records,3actual Staging posts,0paid-provider calls"
+    },
+    {
+      "rawFile": "shared-signing-promotion-focused.log",
+      "rawBytes": 7924,
+      "rawSha256": "c653084344ef1f28725171462823f644c04adc85b17438003904af6c166bd19b",
+      "archiveFile": "continuation-shared-signing-promotion-focused.log.gz",
+      "archiveBytes": 1224,
+      "archiveSha256": "c281287acd5fded7504593784ac4652692774fcd77dfe4a03025f418df691952",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "a950+preliminary promotion",
+      "disposition": "PASS41preliminary; not final candidate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-focused-final.log",
+      "rawBytes": 8576,
+      "rawSha256": "1c98c180a97e014da73bc26f70a27b397664fae29832c28623dd00872a3ee8cb",
+      "archiveFile": "continuation-shared-signing-promotion-focused-final.log.gz",
+      "archiveBytes": 2794,
+      "archiveSha256": "1713d7b721e3185634140ec0ddf8162ec8bdd95f7723f13c5af231700ae8dc1a",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS94final focused"
+    },
+    {
+      "rawFile": "shared-signing-promotion-typescript.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-shared-signing-promotion-typescript.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "TypeScript0"
+    },
+    {
+      "rawFile": "shared-signing-promotion-backend-final.log",
+      "rawBytes": 233863,
+      "rawSha256": "4a2ff0a76f0d3c01939ffd052ff4e7e42d3879da98d08643e8e109596afbd647",
+      "archiveFile": "continuation-shared-signing-promotion-backend-final.log.gz",
+      "archiveBytes": 48090,
+      "archiveSha256": "6a19f565410f73df0e0273d573bce4d1c17e95bade0504e39f6a2bab7e6e006d",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS1587; all prior mobile purchase-import tests retained"
+    },
+    {
+      "rawFile": "posthog-queue-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "be225f9f5a31f38fcc6624eed2725269211b01326360a872756280bbc9d1e0ff",
+      "archiveFile": "continuation-posthog-queue-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 957,
+      "archiveSha256": "a4324e4ca7620b23d85b4af25ab784faaf5a63199e8f7a3dd62f320faadcab2d",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "fddce1d8f82d12513e77c9a06a741cee77b2bdf64a04c9a32ea25ded658a7153",
+      "archiveFile": "continuation-shared-signing-promotion-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 956,
+      "archiveSha256": "86bdd94019633ec66294eac6c3545fa2ea84b1f9f2e83ee2aa7637025b58ef25",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "posthog-queue-verify-backend-authority.js.log",
+      "rawBytes": 650,
+      "rawSha256": "453d779260fa46947e143afa8a6c75f3674e1a67f7369aa8ef57f8dfe8aa2e58",
+      "archiveFile": "continuation-posthog-queue-verify-backend-authority.js.log.gz",
+      "archiveBytes": 389,
+      "archiveSha256": "8e3a9a3865d4e2d223401098b9f7573b7f6a6afeff45f85749c144de4dd5cc3c",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-verify-backend-authority.js.log",
+      "rawBytes": 654,
+      "rawSha256": "6f1ef81de06def2007e2547969da5f27caee98885c1713613e5da68b8c5523b8",
+      "archiveFile": "continuation-shared-signing-promotion-verify-backend-authority.js.log.gz",
+      "archiveBytes": 387,
+      "archiveSha256": "0e3efbfc7caa5df4ff3f93f7b9de78032fd9c07581d2e1462c52e81c62a738c2",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "posthog-queue-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "continuation-posthog-queue-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "continuation-shared-signing-promotion-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "posthog-queue-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-posthog-queue-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-shared-signing-promotion-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "posthog-queue-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-posthog-queue-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-shared-signing-promotion-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "posthog-queue-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "continuation-posthog-queue-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+      "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "continuation-shared-signing-promotion-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "disposition": "PASS source gate"
     }
   ]
 }

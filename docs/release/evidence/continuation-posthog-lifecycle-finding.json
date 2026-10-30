@@ -1,7 +1,7 @@
 {
   "id": "B35-G-013",
   "priority": "P1",
-  "status": "SOURCE REPAIRED AND MERGED #663; no deployment/binary/ingestion certification",
+  "status": "SOURCE REPAIRED: new captures#663 and restored queues#665; no operational/native/provider certification",
   "feature": "PostHog automatic launch event privacy; H001 implementation subfinding",
   "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c (analytics bytes unchanged from mobile d342087c)",
   "sourceLocation": "services/analytics/posthogClient.core.ts:96 before_send; captureAppLifecycleEvents:true at line107; services/authDeepLink.js:30-32; services/authCallbackOrigin.ts:11",
@@ -24,11 +24,12 @@
   "impact": "Credential-bearing OAuth/email/recovery URLs accepted into the analytics send boundary when configured and ordered as reproduced. Actual app supports access_token/refresh_token/token_hash callbacks. Serious privacy/security boundary defect; no real credential ingestion, compromised user or Production incident demonstrated.",
   "proposedRepair": "Drop raw launch URL properties at the final SDK before_send boundary while preserving lifecycle event names, bounded app metadata, explicit feature payloads and the existing identity fence. Add delayed-order real-SDK-method and actor/feature regressions. No legal wording, consent flow, auth session behavior or provider configuration changes.",
   "h001Disposition": "Implementation defect confirmed as G013. Approved analytics basis/disclosures, retention/deletion and current-binary/provider ingestion remain unresolved separate gates.",
-  "repairState": "Source a9503e135162824ed8127f6a3066fac1deab3e67 exact tested a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37;58focused and11353NodePASS/0FAIL/98SKIP, TypeScript/six gates0",
+  "repairState": "Mobile 35bd7f42839d3711b29328dc8b0ac2db6b591960 exact reviewed6da9f866f05c7d4888f724b4985f6c44b7728c47;63focused,11358NodePASS/0FAIL/98SKIP, TypeScript0,6source gates0",
   "probeId": "B35-H001-LAUNCH-001",
   "boundary": "SDK Application Opened payload -> actual app before_send",
   "expected": "No raw credential/private-capability launch URL accepted for analytics",
   "beforeVerdict": "FAIL",
   "afterVerdict": "SOURCE PASS",
-  "repairReference": "#663"
+  "repairReference": "#663+#665",
+  "followUpEvidence": "continuation-posthog-persisted-queue-finding.json"
 }

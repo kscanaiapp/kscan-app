@@ -1,7 +1,7 @@
 {
   "id": "B35-F-012",
   "priority": "P4",
-  "status": "OWNER AUTHORIZED; source repair prepared, not authoritative-merged",
+  "status": "CANONICAL SOURCE MERGED #664; mobile promotion candidate f8cd400b8901495ca04ea925ad2aecce98fbf8ad validating",
   "feature": "Shared-room private image URL resolution",
   "scope": "Backend/shared; malformed external response only",
   "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
@@ -42,5 +42,7 @@
     "pureAndHandlerPass": 18,
     "applicableCanonicalGates": 5,
     "nonApplicable": "Mobile-only build35 profile checker is absent by backend ownership; attempted error retained"
-  }
+  },
+  "canonicalMerge": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+  "mobileCandidate": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad"
 }

@@ -105,6 +105,8 @@ test('detector reports 1-based line numbers and trimmed text', () => {
 // directory.
 
 const ALLOWLIST = [
+  { file: 'docs/release/evidence/continuation-runtime-inventory-refresh.json', token: '"name": "upsert_style_dna_profile_rpc"', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Exact applied migration identifier in the October30 read-only Management API snapshot, repeated for two projects; immutable backend metadata, never active product terminology.' },
+  { file: 'docs/release/evidence/continuation-runtime-inventory-refresh.json', token: '"name": "fix_upsert_style_dna_profile_column_ambiguity"', classification: 'HISTORICAL_AUDIT_RECORD', reason: 'Exact applied Staging migration identifier in the October30 read-only snapshot; this name line only, never a whole-file exemption.' },
   {"file":"docs/release/evidence/production-function-privilege-metadata.json","token":"\"proname\":  \"upsert_style_dna_profile\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
   {"file":"docs/release/evidence/production-migration-comparison-current.json","token":"\"logicalName\": \"upsert_style_dna_profile_rpc\",","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
   {"file":"docs/release/evidence/production-migration-ledger-current.json","token":"\"name\":  \"upsert_style_dna_profile_rpc\"","classification":"HISTORICAL_AUDIT_RECORD","reason":"Exact immutable function/migration name in the October29 read-only runtime metadata snapshot; this exact line only, never active product copy."},
@@ -224,6 +226,15 @@ test('NEGATIVE CONTROL: the allowlist mechanism actually restricts by file (self
   assert.equal(isAllowed('eas.json', 'EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED'), true);
 });
 
+test('runtime readback classification is confined to the exact immutable identifiers and file', () => {
+  const file = 'docs/release/evidence/continuation-runtime-inventory-refresh.json';
+  assert.equal(isAllowed(file, '"name": "upsert_style_dna_profile_rpc"'), true);
+  assert.equal(isAllowed(file, '"name": "fix_upsert_style_dna_profile_column_ambiguity"'), true);
+  assert.equal(isAllowed('app/new-screen.tsx', '"name": "upsert_style_dna_profile_rpc"'), false);
+  assert.equal(isAllowed(file, '"name": "new_style_dna_feature"'), false);
+  assert.equal(findLegacyTermLines(fs.readFileSync(path.join(ROOT, file), 'utf8')).length, 3);
+});
+
 test('every legacy-term occurrence in the repository is an explicit, classified allowlist entry', () => {
   const files = listTrackedFiles();
   const unclassified = [];
@@ -285,8 +296,8 @@ test('every legacy-term occurrence in the repository is an explicit, classified 
     // 111 -> 112: the exact immutable name in the October 13 Production ledger
     // snapshot, classified above. No new active product terminology is allowed.
     // 112 -> 138: 26 historical filename references in the SHA-bound audit inventory.
-    // 138 -> 145: seven exact immutable runtime metadata lines, individually classified above.
-    145,
+    // 145 existing lines + three exact applied-migration names in the new snapshot.
+    148,
     'the count of retained legacy-term occurrences changed -- update this pin deliberately alongside the ALLOWLIST above, do not just bump the number',
   );
 });
