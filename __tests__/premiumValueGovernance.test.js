@@ -54,21 +54,22 @@ function assertProtected(read) {
 const readProtected = file => fs.readFileSync(path.join(root, file), 'utf8');
 test('Today, Speech, VTO lifecycle, RevenueCat and K+ entitlement semantics preserve integration authority', () => assertProtected(readProtected));
 
-test('C010 updates only the reviewed canonical adapter digest and retains all other protected baselines', () => {
+test('C010 and C011 preserve all unrelated holds while binding the adapter to canonical repair', () => {
   const { execFileSync } = require('node:child_process');
-  const canonical = '531f288fe52ab7ff8ef733408779d19ba4d93c6b';
-  const file = 'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts';
-  const before = JSON.parse(execFileSync('git', ['show', '8bdcaaba986b169a15cb5545008ffef34c7b65f7:config/build35-premium-value-baseline.json'], { cwd: root, encoding: 'utf8' }));
-  const approved = execFileSync('git', ['show', `${canonical}:${file}`], { cwd: root, encoding: 'utf8' }).replace(/\r\n/g, '\n');
+  const canonical = '3bab42e47817da8a4941efc4a509afee73879015', file = 'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts';
+  const prior = JSON.parse(execFileSync('git', ['show', 'd342087cef908e806c891d5f19264d4eeeb8d665:config/build35-premium-value-baseline.json'], { cwd: root, encoding: 'utf8' }));
+  const approved = execFileSync('git', ['show', canonical + ':' + file], { cwd: root, encoding: 'utf8' }).replace(/\r\n/g, '\n');
   const digest = crypto.createHash('sha256').update(approved).digest('hex');
-  assert.deepEqual(baseline.protectedSourceDigests, { ...before.protectedSourceDigests, [file]: digest });
-  assert.deepEqual(baseline.todayByProfile, before.todayByProfile);
-  assert.equal(baseline.c010SourcePromotion.sha, canonical);
-  assert.equal(baseline.c010SourcePromotion.pr, 659);
-  assert.equal(baseline.c010SourcePromotion.priorDigest, before.protectedSourceDigests[file]);
+  assert.deepEqual(baseline.protectedSourceDigests, { ...prior.protectedSourceDigests, [file]: digest });
+  assert.deepEqual(baseline.todayByProfile, prior.todayByProfile);
+  assert.deepEqual(baseline.c010SourcePromotion, prior.c010SourcePromotion);
+  assert.equal(baseline.c011SourcePromotion.sha, canonical);
+  assert.equal(baseline.c011SourcePromotion.pr, 661);
+  assert.equal(baseline.c011SourcePromotion.priorDigest, prior.protectedSourceDigests[file]);
   assert.equal(readProtected(file).replace(/\r\n/g, '\n'), approved);
   assert.throws(() => assertProtected(target => readProtected(target) + (target === file ? '\n// unreviewed mutation\n' : '')), assert.AssertionError);
 });
+
 test('NC-PV-10: changing RevenueCat or the legacy acquisition implementation fails the release guard', () => {
   for (const target of ['services/kplus/revenueCatNative.ts', 'components/kplus/KPlusEarlyAccessSheet.tsx']) {
     assert.throws(() => assertProtected(file => readProtected(file) + (file === target ? '\n// unauthorized change\n' : '')), assert.AssertionError);

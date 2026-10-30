@@ -39,6 +39,11 @@ const MANIFEST_PATH = path.join(REPO_ROOT, 'config', 'edge-function-manifest.jso
 const CHECKER = 'scripts/check-edge-function-parity.js';
 const GENERATOR = 'scripts/generate-edge-function-manifest.js';
 const DEPLOYER = 'scripts/deploy-edge-functions.js';
+const C011_VTO_BUILTINS = new Set(['node:dns', 'node:https', 'node:net', 'node:stream']);
+function approvedDependencySpecifier(name, specifier) {
+  return /^(npm:|jsr:|https:)/.test(specifier) ||
+    (name === 'vto-generate' && C011_VTO_BUILTINS.has(specifier));
+}
 
 function runNode(repoRoot, scriptRelativePath, args = []) {
   const result = spawnSync(process.execPath, [path.join(repoRoot, scriptRelativePath), ...args], {
@@ -235,16 +240,31 @@ test('the deployable bundle pulls in the required shared modules', () => {
     'stylechat-generate must deploy the shared account-active guard',
   );
 
-  // Remote specifiers are described but never fetched: the gate must stay
-  // deterministic and usable offline.
+  // Nonlocal dependencies are described but never fetched. C011 uses four
+  // runtime-provided Node built-ins in VTO only, not an arbitrary node:* grant.
   for (const name of GOVERNED_FUNCTIONS) {
     for (const specifier of buildParity(REPO_ROOT, [name]).functions[0].remoteSpecifiers) {
       assert.ok(
-        /^(npm:|jsr:|https:)/.test(specifier),
-        `unexpected non-remote specifier recorded: ${specifier}`,
+        approvedDependencySpecifier(name, specifier),
+        `unexpected dependency specifier recorded for ${name}: ${specifier}`,
       );
     }
   }
+});
+
+test('C011 built-in capability approval is exact and confined to the VTO closure', () => {
+  for (const name of GOVERNED_FUNCTIONS) {
+    for (const specifier of C011_VTO_BUILTINS) {
+      assert.equal(approvedDependencySpecifier(name, specifier), name === 'vto-generate');
+    }
+  }
+  for (const specifier of ['node:fs', 'node:child_process', 'node:process', 'node:tls', 'file:///etc/passwd', 'http://unapproved.example']) {
+    assert.equal(approvedDependencySpecifier('vto-generate', specifier), false, specifier);
+  }
+  assert.deepEqual(
+    buildParity(REPO_ROOT, ['vto-generate']).functions[0].remoteSpecifiers.filter(s => s.startsWith('node:')),
+    [...C011_VTO_BUILTINS].sort(),
+  );
 });
 
 // ── Specifier extraction does not misread prose or TypeScript type syntax ───

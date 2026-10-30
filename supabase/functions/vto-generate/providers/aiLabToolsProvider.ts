@@ -69,6 +69,7 @@ import type {
   VtoProviderOutcome,
 } from '../vtoContract.ts';
 import { hasRemoteGarmentImageContainer } from './remoteGarmentIntegrity.ts';
+import { publicMediaFetch } from '../../_shared/net/publicMediaFetch.ts';
 
 export const AILABTOOLS_PROVIDER_ID = 'ailabtools_tryon_clothes_pro';
 
@@ -351,6 +352,9 @@ function mapSubmitFailure(
 
 export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): VtoProvider {
   const doFetch: SubmitFetcher = options.fetchImpl ?? fetch;
+  // Production remote images use address-checked socket lookup. Injectable
+  // fixture transport remains local to server-side tests, never request data.
+  const mediaFetch: SubmitFetcher = options.fetchImpl ?? publicMediaFetch;
   const pollIntervalMs = options.pollIntervalMs ?? POLL_INTERVAL_MS;
   const pollMaxAttempts = options.pollMaxAttempts ?? POLL_MAX_ATTEMPTS;
 
@@ -386,7 +390,7 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
       };
       const usage = body?.usage as Record<string, unknown> | undefined;
       const billedUnits = typeof usage?.image_count === 'number' ? usage.image_count : null;
-      return await fetchResultAsMedia(imageUrl, signal, doFetch, billedUnits);
+      return await fetchResultAsMedia(imageUrl, signal, mediaFetch, billedUnits);
     },
     async generate(input: VtoProviderInput,
       { signal, onTaskAccepted }: {
@@ -425,7 +429,7 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
           GARMENT_FETCH_TIMEOUT_MS,
           GARMENT_FETCH_MAX_BYTES,
           signal,
-          doFetch,
+          mediaFetch,
         );
         if (!garment.ok) {
           // The garment never resolved, so the submit was never sent.
@@ -548,7 +552,7 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
             | Record<string, unknown>
             | undefined;
           const billedUnits = typeof usage?.image_count === 'number' ? usage.image_count : null;
-          const media = await fetchResultAsMedia(imageUrl, signal, doFetch, billedUnits);
+          const media = await fetchResultAsMedia(imageUrl, signal, mediaFetch, billedUnits);
           return media;
         }
         // 0 (queued) / 1 (processing) / anything else: keep polling.
