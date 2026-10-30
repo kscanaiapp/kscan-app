@@ -95,14 +95,20 @@ function createClient(): PostHog | null {
       host: resolveHost(),
       before_send: (event) => {
         if (!event) return null;
+        // The SDK adds Linking.getInitialURL() to Application Opened. Auth
+        // callbacks and private share links may carry secrets in any URL part.
+        // No feature sink approves raw URLs: omit them at the final boundary,
+        // including when URL resolution finishes after identity becomes ready.
+        const safeEvent = { ...event, properties: { ...event.properties } };
+        delete safeEvent.properties.url;
         const distinctId = event.properties?.distinct_id;
         // identify() emits its own event before returning. It is safe only for
         // the exact incoming actor, never a prior actor or unknown identity.
         if (!identityReady) {
           return typeof intendedActor === 'string' && event.event === '$identify'
-            && distinctId === intendedActor ? event : null;
+            && distinctId === intendedActor ? safeEvent : null;
         }
-        return distinctId === verifiedDistinctId ? event : null;
+        return distinctId === verifiedDistinctId ? safeEvent : null;
       },
       captureAppLifecycleEvents: true,
       // V1 = product analytics only. Every autocapture surface is explicit
