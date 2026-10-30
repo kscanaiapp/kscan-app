@@ -1,5 +1,18 @@
 > **Latest status:** canonical backend3bab42e4 includes merged661; C011mobilepromotion is pending. See [owner status report](build35-status-report-2026-10-30.md), including the explicitly recorded merge-sequencing deviation and pending post-merge CI. No whole-audit PASS.
 
+## Current checkpoint — shared capability and hardware disposition
+
+Owner confirms **no physical devices available**. All26feature device fields and4native matrix cells remain NOT TESTED; native masking accuracy is not certified. Continue independent source/backend work.
+
+Completed this batch: actual shared-room image handler47bounded records PASS (one Deno test), injecting failures independently at share lookup, room lookup, item lookup and storage-sign stages. Twelve exact matrix cells now PASS. Ten endpoint-specific non-applicable cases explicitly reviewed (7newlyN/A); no model/payment/deletion/upload claims manufactured. Five additional vendor-boundary cells matched17retained actual Staging profile/room/storage/removal/expiry cases; no new remote call. Current3096: **89PASS/3FAIL/3004NOT TESTED**, including307N/A; **2697applicable remain**. These are matrix cells, not independent tests/bugs. H001/H003 remain unresolved investigations, not automaticallyP0.
+
+Canonical3bab42e4branchCI7/7SUCCESS. Mobile d342087cbranchCI9/9SUCCESS. C011promotion branch promotion/build35-media-dns-topology-20261030 is committed/pushed at06e1e1e5afd9c179f68e0a51090d60beb8582a9c; no PR yet. Focused118PASS/2declared skips, TypeScript exit0, six source gates and enforced actual-diff checks passed; VTO bundle/tree digests exactly equal canonical3bab. Full642-file Node suite active with2workers (session32197; scratch dns-promotion-node-final). Backend suite follows serially. Do not edit tested source mid-run.
+
+All13P0-P3 repairs source-merged in owning authorities (4P1/3P2/6P3),12mobile-converged; C011promotion remains the open integration. No new product defect confirmed this batch. 183lossless archives verified, original110unchanged. Initial shared-handler fixture used disallowed storage shape; source correctly refused it. Corrected to documented bucket/owner/scans/*.jpg without source changes; invalid log/source retained.
+
+Exact next: collect full Node result, run governed backend suite, review/publish a single bounded promotion PR, wait every current-head check before any merge, verify exact tested-tree parity and branchCI. Then update C011cells only after candidate convergence, continue high-risk applicable probes. Existing646evidence lane only; no new evidence PR. Owner legal copy/website work, protected runtime rollout, native store/signed-artifact gates remain separate. No Production change, build, pricing or real purchase action.
+
+
 > **Owner status checkpoint (October30):** audit INCOMPLETE. Source mobile d342087c/backend531f288f; twelve confirmed P0–P3 repairs merged, C011/P3 DNS boundary repair661 prepared/unmerged. Matrix72PASS/3FAIL/3021NOTTESTED (300N/A); these are probe cells, not defect counts. See [current status report](build35-status-report-2026-10-30.md). Earlier status snapshots below are historical and superseded. No Production rollout/mobile artifact.
 
 > **Current October30 status:** see [current audit completion work](build35-audit-remaining-work.md). Build35 authority8bdcaaba, backend98c88ff1; eleven previous repairs MERGED, new C010/P3 source repair659 awaiting governed integration. Original matrix67PASS/6FAIL/3023NOTTESTED (300N/A). Full audit INCOMPLETE. Owner approves fully green merges and factual legal metadata; owner maintains policy/website language. Historical status paragraphs below retain their original dates and are superseded by this notice. No Production rollout or mobile build.

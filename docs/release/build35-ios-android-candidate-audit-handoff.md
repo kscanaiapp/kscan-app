@@ -1,5 +1,10 @@
 > **Latest status:** canonical backend3bab42e4 includes merged661; C011mobilepromotion is pending. See [owner status report](build35-status-report-2026-10-30.md), including the explicitly recorded merge-sequencing deviation and pending post-merge CI. No whole-audit PASS.
 
+## Owner-confirmed hardware gate — October30
+
+No physical devices are available. Device certification is **NOT TESTED — hardware unavailable**, including native masking accuracy/pixels and physical camera/audio/VTO/lifecycle behavior. These remain applicable tests for a later authorized platform gate, not N/A or source PASS. Continue all independent source/backend verification. See [owner evidence](evidence/owner-device-availability.json). Current C011 mobile promotion is committed at06e1e1e; focused118PASS/2declared skips, six source gates and actual-diff checks passed; full validation pending. Backend3bab post-merge CI7/7SUCCESS.
+
+
 > **Owner status checkpoint (October30):** audit INCOMPLETE. Source mobile d342087c/backend531f288f; twelve confirmed P0–P3 repairs merged, C011/P3 DNS boundary repair661 prepared/unmerged. Matrix72PASS/3FAIL/3021NOTTESTED (300N/A); these are probe cells, not defect counts. See [current status report](build35-status-report-2026-10-30.md). Earlier status snapshots below are historical and superseded. No Production rollout/mobile artifact.
 
 > **Current October30 status:** see [current audit completion work](build35-audit-remaining-work.md). Build35 authority8bdcaaba, backend98c88ff1; eleven previous repairs MERGED, new C010/P3 source repair659 awaiting governed integration. Original matrix67PASS/6FAIL/3023NOTTESTED (300N/A). Full audit INCOMPLETE. Owner approves fully green merges and factual legal metadata; owner maintains policy/website language. Historical status paragraphs below retain their original dates and are superseded by this notice. No Production rollout or mobile build.

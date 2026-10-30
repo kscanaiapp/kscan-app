@@ -1,5 +1,10 @@
 # Build35 owner status report — October30
 
+## Latest continuation — shared capability probes and owner hardware gate
+
+Canonical backend3bab42e4post-mergeCI7/7SUCCESS; mobile d342087cCI9/9SUCCESS. C011exact mobile promotion06e1e1e is pushed and validating:118focusedPASS/2declared skips, TypeScript0, six source gates0, canonical bundle/tree parity; full Node active, backend next serially. All13repairs merged in owning authorities,12mobile-converged. Audit INCOMPLETE. New47actual shared-room handler cases PASS close12specific matrix cells;5more cells reconcile17dated actual Staging cases. No new defect. Current3096matrix89PASS/3FAIL/3004NOT TESTED, including307explicit N/A;2697applicable pending. Source/harness evidence is not live provider or whole-feature certification. Owner confirms no actual devices available: all26feature device fields and4native cells remain NOT TESTED. Physical masking accuracy cannot be certified here. H001/H003 remain unresolved investigations, not automaticP0.183lossless archives verified; current evidence646head e554CIgreen before this update. See the top [checkpoint](build35-campaign-checkpoint.md) and [probe attribution](evidence/continuation-shared-capability-probes.json). No Production change/build/store action.
+
+
 **The full hostile audit is not complete.** Substantial source repair work is complete, but coverage reconciliation, additional high-risk probes, privacy determinations and runtime/device certification remain. This report supersedes older status snapshots in the retained campaign documents.
 
 **Current release verdict: FAIL — the C011 backend fix still requires mobile-source convergence.** The broader audit is also INCOMPLETE; external privacy/runtime evidence remains unavailable. This is not final platform or store certification.

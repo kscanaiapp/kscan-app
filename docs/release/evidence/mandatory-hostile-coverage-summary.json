@@ -1,13 +1,13 @@
 {
-  "sourceSha": "c86bf3d0/f4df2a5a; dated deployed evidence qualified per row",
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 67,
-    "NOT TESTED": 3028,
-    "FAIL": 1
+    "PASS": 89,
+    "NOT TESTED": 3004,
+    "FAIL": 3
   },
-  "additionalNewAccountStateFailures": 2,
-  "additionalDefect": "B35-F-007; continuation-state-probes.json; outside original43-class matrix",
-  "limitation": "Not merged with bounded886 or current harness test totals; no automatic full-feature certification",
-  "additionalAnalyticsFailure": "B35-G-008 actual-source reset failure, separate from original matrix; no live vendor leak"
+  "nonApplicable": 307,
+  "applicablePending": 2697,
+  "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
+  "limitation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification."
 }

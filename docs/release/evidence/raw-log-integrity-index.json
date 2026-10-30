@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T16:13:15.422Z",
+  "capturedAt": "2026-10-30T19:38:17.350Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1595,6 +1595,138 @@
       "archiveSha256": "96af4f825a0d660cca2ada203818a636096a8b8c4b96875a77139bca2a4f1ced",
       "encoding": "UTF-8",
       "sourceNote": "Docker CLI cannot reach DockerDesktop Linux daemon; no local Supabase Edge runtime certification"
+    },
+    {
+      "rawFile": "dns-promotion-focused.log",
+      "rawBytes": 21992,
+      "rawSha256": "23d178f2bfd6abf50bd23ccd1788821ceeb5ed6f449360dbe44e4e7a1bce56de",
+      "archiveFile": "continuation-dns-promotion-focused.log.gz",
+      "archiveBytes": 4330,
+      "archiveSha256": "5479a7ae720e338177665d24bc78da0dd7df57da2389de2df234bcd8027719f3",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-typescript-final.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-dns-promotion-typescript-final.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "be225f9f5a31f38fcc6624eed2725269211b01326360a872756280bbc9d1e0ff",
+      "archiveFile": "continuation-dns-promotion-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 957,
+      "archiveSha256": "a4324e4ca7620b23d85b4af25ab784faaf5a63199e8f7a3dd62f320faadcab2d",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-verify-backend-authority.js.log",
+      "rawBytes": 652,
+      "rawSha256": "7c80067ac7117488c5a8b6a71d0e2a1a514d20813c40b2117d8db494742de87a",
+      "archiveFile": "continuation-dns-promotion-verify-backend-authority.js.log.gz",
+      "archiveBytes": 388,
+      "archiveSha256": "dec49b782e7e77b898fc886cba49159e4af2a69196a85972b28f120fc842232b",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "continuation-dns-promotion-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-dns-promotion-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-dns-promotion-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "continuation-dns-promotion-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "dns-promotion-enforced-scope.log",
+      "rawBytes": 4911,
+      "rawSha256": "ae2b6e525a0d41a69edbed78709efe1f0ab1f5261bfa06f09ca142099cbf6ef9",
+      "archiveFile": "continuation-dns-promotion-enforced-scope.log.gz",
+      "archiveBytes": 2044,
+      "archiveSha256": "0243facfbd9a671b49bea8bced2b08ae2b5bf95555ea6d6d2ff9484cf0d80810",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "shared-capability-boundary-final.log",
+      "rawBytes": 24325,
+      "rawSha256": "7a2f8b95b63f2ccca04234b7501829c71e8133272d2a1d76f9024bcdff8ca015",
+      "archiveFile": "continuation-shared-capability-boundary-final.log.gz",
+      "archiveBytes": 1154,
+      "archiveSha256": "98696f80941c1c13b683c5e1afd22e486d07b20c252f0e8f958a6ef5521c4ddf",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "shared-capability-first-25-pass.log",
+      "rawBytes": 13118,
+      "rawSha256": "7b75e2216194e02ac839a5621aa865001c52f48769183ac6618155c02150a366",
+      "archiveFile": "continuation-shared-capability-first-25-pass.log.gz",
+      "archiveBytes": 923,
+      "archiveSha256": "c33d311b1f5f64e7a908bd4f8486303c1e65df403ef5308636879b9cf057d99c",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "Captured execution; scope and outcome described in linked report"
+    },
+    {
+      "rawFile": "shared-capability-invalid-storage-fixture.log",
+      "rawBytes": 1053,
+      "rawSha256": "9c5e900485f84c26223204d9ee45d2c26ede297c21461ee2be614835ecaf2fde",
+      "archiveFile": "continuation-shared-capability-invalid-storage-fixture.log.gz",
+      "archiveBytes": 375,
+      "archiveSha256": "2ca6bcc57f5e784e80b060e17ef047a3dd8692db1cb446f7086a18e4c98f9160",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "INVALID HARNESS — unapproved synthetic bucket/path, no product finding"
     }
   ]
 }

@@ -15,10 +15,10 @@
     "10": "Documented technical limitation"
   },
   "allCellsByDisposition": {
-    "1": 75,
-    "2": 300,
-    "3": 2424,
-    "4": 284,
+    "1": 92,
+    "2": 307,
+    "3": 2405,
+    "4": 279,
     "5": 8,
     "6": 4,
     "7": 1
@@ -36,18 +36,19 @@
   "protocolOwnershipExclusionsAdded": 90,
   "reconciledExistingPasses": 5,
   "currentVerdicts": {
-    "PASS": 72,
-    "NOT TESTED": 3021,
+    "PASS": 89,
+    "NOT TESTED": 3004,
     "FAIL": 3
   },
   "currentPendingByDisposition": {
-    "2": 300,
-    "3": 2424,
-    "4": 284,
+    "2": 307,
+    "3": 2405,
+    "4": 279,
     "5": 8,
     "6": 4,
     "7": 1
   },
   "originalPendingResolved": 20,
-  "continuation": "C010 five cells SOURCE PASS after canonical/mobile convergence; C011 two actual socket/handler failures still authoritative; full PhotoVTO UI workflow not inferred."
+  "continuation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification.",
+  "currentApplicablePending": 2697
 }

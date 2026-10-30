@@ -14,3 +14,5 @@ Start with ../build35-full-hostile-audit-report.md and ../build35-campaign-check
 - raw-log-integrity-index.json: lossless raw log archives, SHA256 for raw/archive bytes and original encoding. Both failing-before and passing-after/invalid-environment/failed-CI outputs are retained, not rewritten. Decode UTF16LE BOM when listed; compression is storage only.
 
 No secrets/customer records are intentionally collected. Scratch PR-body drafts and the earlier invalid flag-digest readback are not evidence and are excluded. No source readiness PASS implies a signed app or live provider feature.
+
+October30 current index: see ../build35-status-report-2026-10-30.md and the top checkpoint; earlier prepared-candidate labels above are historical. continuation-shared-capability-probes.json records47actual offline cases; continuation-staging-isolation-reconciliation.json links5specific cells to17retained live cases without new remote execution. owner-device-availability.json records explicit unavailable physical hardware. No whole-feature PASS is inferred.

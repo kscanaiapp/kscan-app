@@ -1,5 +1,23 @@
 # Build35 resumed hostile audit checkpoint
 
+## Current checkpoint — shared capability and hardware disposition
+
+Owner confirms **no physical devices available**. All26feature device fields and4native matrix cells remain NOT TESTED; native masking accuracy is not certified. Continue independent source/backend work.
+
+Completed this batch: actual shared-room image handler47bounded records PASS (one Deno test), injecting failures independently at share lookup, room lookup, item lookup and storage-sign stages. Twelve exact matrix cells now PASS. Ten endpoint-specific non-applicable cases explicitly reviewed (7newlyN/A); no model/payment/deletion/upload claims manufactured. Five additional vendor-boundary cells matched17retained actual Staging profile/room/storage/removal/expiry cases; no new remote call. Current3096: **89PASS/3FAIL/3004NOT TESTED**, including307N/A; **2697applicable remain**. These are matrix cells, not independent tests/bugs. H001/H003 remain unresolved investigations, not automaticallyP0.
+
+Canonical3bab42e4branchCI7/7SUCCESS. Mobile d342087cbranchCI9/9SUCCESS. C011promotion branch promotion/build35-media-dns-topology-20261030 is committed/pushed at06e1e1e5afd9c179f68e0a51090d60beb8582a9c; no PR yet. Focused118PASS/2declared skips, TypeScript exit0, six source gates and enforced actual-diff checks passed; VTO bundle/tree digests exactly equal canonical3bab. Full642-file Node suite active with2workers (session32197; scratch dns-promotion-node-final). Backend suite follows serially. Do not edit tested source mid-run.
+
+All13P0-P3 repairs source-merged in owning authorities (4P1/3P2/6P3),12mobile-converged; C011promotion remains the open integration. No new product defect confirmed this batch. 183lossless archives verified, original110unchanged. Initial shared-handler fixture used disallowed storage shape; source correctly refused it. Corrected to documented bucket/owner/scans/*.jpg without source changes; invalid log/source retained.
+
+Exact next: collect full Node result, run governed backend suite, review/publish a single bounded promotion PR, wait every current-head check before any merge, verify exact tested-tree parity and branchCI. Then update C011cells only after candidate convergence, continue high-risk applicable probes. Existing646evidence lane only; no new evidence PR. Owner legal copy/website work, protected runtime rollout, native store/signed-artifact gates remain separate. No Production change, build, pricing or real purchase action.
+
+
+## Owner-confirmed hardware gate — October30
+
+No physical devices are available. Device certification is **NOT TESTED — hardware unavailable**, including native masking accuracy/pixels and physical camera/audio/VTO/lifecycle behavior. These remain applicable tests for a later authorized platform gate, not N/A or source PASS. Continue all independent source/backend verification. See [owner evidence](evidence/owner-device-availability.json). Current C011 mobile promotion is committed at06e1e1e; focused118PASS/2declared skips, six source gates and actual-diff checks passed; full validation pending. Backend3bab post-merge CI7/7SUCCESS.
+
+
 ## Live checkpoint — source repair659 merged; promotion660 validating
 
 PR659 MERGED at canonical531f288fe52ab7ff8ef733408779d19ba4d93c6b after32successful/14conditional-skipped checks and no failures/pending; exact tree equals reviewed412761fb. Its runtime bytes equal tested7dc257bb (59focused/1531backendPASS); source governance52enforcedPASS. Mobile source remains8bdcaaba pending exact promotion660.

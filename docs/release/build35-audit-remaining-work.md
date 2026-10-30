@@ -1,5 +1,10 @@
 > **Owner status checkpoint (October30):** audit INCOMPLETE. Source mobile d342087c/backend531f288f; twelve confirmed P0–P3 repairs merged, C011/P3 DNS boundary repair661 prepared/unmerged. Matrix72PASS/3FAIL/3021NOTTESTED (300N/A); these are probe cells, not defect counts. See [current status report](build35-status-report-2026-10-30.md). Earlier status snapshots below are historical and superseded. No Production rollout/mobile artifact.
 
+## Latest continuation — shared capability probes and owner hardware gate
+
+Canonical backend3bab42e4post-mergeCI7/7SUCCESS; mobile d342087cCI9/9SUCCESS. C011exact mobile promotion06e1e1e is pushed and validating:118focusedPASS/2declared skips, TypeScript0, six source gates0, canonical bundle/tree parity; full Node active, backend next serially. All13repairs merged in owning authorities,12mobile-converged. Audit INCOMPLETE. New47actual shared-room handler cases PASS close12specific matrix cells;5more cells reconcile17dated actual Staging cases. No new defect. Current3096matrix89PASS/3FAIL/3004NOT TESTED, including307explicit N/A;2697applicable pending. Source/harness evidence is not live provider or whole-feature certification. Owner confirms no actual devices available: all26feature device fields and4native cells remain NOT TESTED. Physical masking accuracy cannot be certified here. H001/H003 remain unresolved investigations, not automaticP0.183lossless archives verified; current evidence646head e554CIgreen before this update. See the top [checkpoint](build35-campaign-checkpoint.md) and [probe attribution](evidence/continuation-shared-capability-probes.json). No Production change/build/store action.
+
+
 # Build35 — current audit status and completion work
 
 The application-wide hostile audit is **INCOMPLETE**. Repairs are substantially further along than coverage reconciliation. This document supersedes older unmerged/approval/current-SHA statements in the retained historical reports. It is not a release certificate.
