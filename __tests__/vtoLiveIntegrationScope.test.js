@@ -23,6 +23,9 @@ const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
 const manifest = fs.readFileSync(path.join(ROOT, guard.MANIFEST), 'utf8');
 const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
+  // C011 owner-authorized P3: exact socket-DNS transport and its offline tests.
+  'supabase/functions/_shared/net/publicMediaFetch.ts',
+  'supabase/functions/_shared/net/publicMediaFetch.test.ts',
   // October 15 owner-authorized Photo VTO paid transaction repair (VTO-001–005).
   // Exact files only; do not permit unrelated backend changes or app.json.
   'supabase/functions/vto-generate/vtoHandler.test.ts',
@@ -183,6 +186,9 @@ test('guard: the paths this lane legitimately touches are accepted', () => {
     'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts',
     'supabase/functions/vto-generate/providers/remoteGarmentIntegrity.test.ts',
     'supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts',
+    'supabase/functions/_shared/net/publicMediaFetch.ts',
+    'supabase/functions/_shared/net/publicMediaFetch.test.ts',
+    'qa/security/vto-media-dns-boundary.test.ts',
   ];
   const { unauthorized } = guard.classifyChangedPaths(lanePaths, patterns);
   assert.deepEqual(unauthorized, []);
@@ -194,10 +200,11 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
   // `__tests__/vto*` must not authorize every test in the repo.
   const { unauthorized } = guard.classifyChangedPaths(
     ['services/haptics.js', 'services/supabaseClient.js', '__tests__/closetCloudSync.test.js',
-      'supabase/functions/vto-generate/providers/unreviewedRemoteMedia.ts'],
+      'supabase/functions/vto-generate/providers/unreviewedRemoteMedia.ts',
+      'supabase/functions/_shared/net/unreviewedPublicFetch.ts'],
     patterns,
   );
-  assert.equal(unauthorized.length, 4, 'C010 exact paths must not authorize an unrelated provider helper');
+  assert.equal(unauthorized.length, 5, 'C010/C011 exact paths must not authorize unrelated provider/shared helpers');
 });
 
 // ── The live diff, on a lane that has DECLARED itself a VTO lane ───────────
