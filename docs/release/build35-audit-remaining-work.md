@@ -1,3 +1,5 @@
+> **Owner status checkpoint (October30):** audit INCOMPLETE. Source mobile d342087c/backend531f288f; twelve confirmed P0–P3 repairs merged, C011/P3 DNS boundary repair661 prepared/unmerged. Matrix72PASS/3FAIL/3021NOTTESTED (300N/A); these are probe cells, not defect counts. See [current status report](build35-status-report-2026-10-30.md). Earlier status snapshots below are historical and superseded. No Production rollout/mobile artifact.
+
 # Build35 — current audit status and completion work
 
 The application-wide hostile audit is **INCOMPLETE**. Repairs are substantially further along than coverage reconciliation. This document supersedes older unmerged/approval/current-SHA statements in the retained historical reports. It is not a release certificate.

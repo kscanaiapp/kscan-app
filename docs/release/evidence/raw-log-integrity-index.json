@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T15:14:54.842Z",
+  "capturedAt": "2026-10-30T16:13:15.422Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1385,6 +1385,216 @@
       "archiveSha256": "c2896935bc94f3ecfbfe6e271ef0048935ca1b672c9f8dafdcada21692555049",
       "encoding": "UTF-8",
       "sourceNote": "412761fb exact3path declarations plus unrelated-sibling refusal;52PASS/0FAIL/0SKIP, explicit base98c88ff1"
+    },
+    {
+      "rawFile": "continuation-c010-mobile-initial-failed.log",
+      "rawBytes": 1020008,
+      "rawSha256": "b875e1c2f8a88410de824faac914cb6ded3085ac95ac875bca88d5582ffd16ae",
+      "archiveFile": "continuation-c010-mobile-initial-failed.log.gz",
+      "archiveBytes": 326288,
+      "archiveSha256": "c50be78e606af876695adf14ac2b4d39322f3cc8292e5e305a158874eac020ca",
+      "encoding": "UTF-8",
+      "sourceNote": "b95af246:11345PASS/2FAIL/98SKIP; frozen adapter digest and provider roster; not product regressions"
+    },
+    {
+      "rawFile": "continuation-c010-mobile-final.log",
+      "rawBytes": 1017249,
+      "rawSha256": "c4462a796ca227627f0a9cad5ec055f06b0d5170da0b166f6c515022e6cfa3ac",
+      "archiveFile": "continuation-c010-mobile-final.log.gz",
+      "archiveBytes": 325510,
+      "archiveSha256": "9f50cdfa29b2089b12a1b80f3d5c51bf8438649f5f6cd3887146c53f19b27bb6",
+      "encoding": "UTF-8",
+      "sourceNote": "c437e04b exact merged treed342087c:11348PASS/0FAIL/98SKIP"
+    },
+    {
+      "rawFile": "continuation-c010-mobile-backend-final.log",
+      "rawBytes": 230082,
+      "rawSha256": "8e9f90e8d207f17ce58713ade271bf4e3dced795c94e7a5493142827ecf6a184",
+      "archiveFile": "continuation-c010-mobile-backend-final.log.gz",
+      "archiveBytes": 46501,
+      "archiveSha256": "67ef3093c96bf0f6ab577652856c78ae84e05c3e885f4f840c4f680d2bd7d605",
+      "encoding": "UTF-8",
+      "sourceNote": "c437e04b:1547PASS/0FAIL"
+    },
+    {
+      "rawFile": "continuation-c010-governance-focused.log",
+      "rawBytes": 12964,
+      "rawSha256": "07b9e3bea417fbf64ab9a0fea88652c48def4f8bbc6e8ae56f6cd4a3fd1db7a3",
+      "archiveFile": "continuation-c010-governance-focused.log.gz",
+      "archiveBytes": 4532,
+      "archiveSha256": "514d4db4460a87f2dab6d8d38c19a415fb7a74f6d091a3ac8dbc2ba3de76b7a9",
+      "encoding": "UTF-8",
+      "sourceNote": "118PASS after independent canonical digest/other-baseline preservation and exact provider roster checks"
+    },
+    {
+      "rawFile": "continuation-c010-enforced-final.log",
+      "rawBytes": 4814,
+      "rawSha256": "d371fd113198f73cf47f63a163520c529d83f5ec58f67e11abb22965b55be59f",
+      "archiveFile": "continuation-c010-enforced-final.log.gz",
+      "archiveBytes": 2007,
+      "archiveSha256": "fa778618b284c774d24c5ab56f09c85eb024941691b563943e4314394c8de701",
+      "encoding": "UTF-8",
+      "sourceNote": "c437e04b:56PASS/0FAIL/0SKIP actual-diff/meta enforcement"
+    },
+    {
+      "rawFile": "continuation-c011-url-guard-before.log",
+      "rawBytes": 448,
+      "rawSha256": "543103601619dfeca02a0c5ff08beb9ae00d28b4267fcc271a7c18d88ee297f4",
+      "archiveFile": "continuation-c011-url-guard-before.log.gz",
+      "archiveBytes": 171,
+      "archiveSha256": "c052b10290f2efd870d9d7c4551197f7c07f3f114a0a54bc78fed5d864655332",
+      "encoding": "UTF-8",
+      "sourceNote": "Actual lexical URL guard accepts public names; no fetch in this script"
+    },
+    {
+      "rawFile": "continuation-c011-loopback-before.log",
+      "rawBytes": 1253,
+      "rawSha256": "56bf5fa33622b8829780bf772cea4b341011b36665eedb5e7bf626bfcae856ad",
+      "archiveFile": "continuation-c011-loopback-before.log.gz",
+      "archiveBytes": 547,
+      "archiveSha256": "bf2250a56bbdbaf2a4e6e3250e1c7ddf74b06e18491cb192bdd8f474346f5d02",
+      "encoding": "UTF-8",
+      "sourceNote": "Canonical531f288f equivalent source412761fb:actual adapter/default Deno transport reaches controlled loopback1connection/64TLSbytes; no HTTP/data/provider"
+    },
+    {
+      "rawFile": "continuation-c011-pinning-MISSING-ENV-INVALID.log",
+      "rawBytes": 1325,
+      "rawSha256": "f0ece682ce24c01c3417904858d457e451e2a7b608edf07aed5e04d2234f2500",
+      "archiveFile": "continuation-c011-pinning-MISSING-ENV-INVALID.log.gz",
+      "archiveBytes": 579,
+      "archiveSha256": "0ac0c70697f7c7e340565f4532d570e6bde17178b193ed5b9ed913c50484c60a",
+      "encoding": "UTF-8",
+      "sourceNote": "Test permission omission, not product failure"
+    },
+    {
+      "rawFile": "continuation-c011-pinning-CALLBACK-SHAPE-INVALID.log",
+      "rawBytes": 1039,
+      "rawSha256": "0a2d00bfe381e92eb4ad38b129d5982cafdfbb446bba160d49f9bae78a3a7342",
+      "archiveFile": "continuation-c011-pinning-CALLBACK-SHAPE-INVALID.log.gz",
+      "archiveBytes": 464,
+      "archiveSha256": "766ab1446137158b5bd36bbb16704903d8ff0967bc5cf290574128f3457e4a93",
+      "encoding": "UTF-8",
+      "sourceNote": "Initial harness did not honor options.all callback shape; not product failure"
+    },
+    {
+      "rawFile": "continuation-c011-pinning-control.log",
+      "rawBytes": 543,
+      "rawSha256": "b517a1c00256a89950a5369b0ffce3d043829c68892f743174e832ab2bc94e17",
+      "archiveFile": "continuation-c011-pinning-control.log.gz",
+      "archiveBytes": 308,
+      "archiveSha256": "f5ea7c9085107d761b0537d4d8c8bb1bc847fe942b501681a23c829cc27f9857",
+      "encoding": "UTF-8",
+      "sourceNote": "Actual local Deno2.8.2 NodeHTTPS lookup honors single resolved socket address;1lookup/1controlled connection, TLS refused by fixture"
+    },
+    {
+      "rawFile": "continuation-c011-after-PORT-ONLY-DNS-PERMISSION-INVALID.log",
+      "rawBytes": 1303,
+      "rawSha256": "01cd4b03f8e11d71da43f1b1332149b07203dfcd145975d874130a5bd390feb5",
+      "archiveFile": "continuation-c011-after-PORT-ONLY-DNS-PERMISSION-INVALID.log.gz",
+      "archiveBytes": 550,
+      "archiveSha256": "cc89bfa995714083e81aef109bf21b9b368563cb9f3e21471d8439d5ea621cdb",
+      "encoding": "UTF-8",
+      "sourceNote": "Port-only Deno grant was insufficient for NodeDNS lookup;EPERM is not claimed as a source denial"
+    },
+    {
+      "rawFile": "continuation-c011-qa-SHELL-SEPARATOR-INVALID.log",
+      "rawBytes": 59,
+      "rawSha256": "a1a5852a10fea45392b75abb4996175309d3d6390a5f2c6d57c06e60d11a4ad4",
+      "archiveFile": "continuation-c011-qa-SHELL-SEPARATOR-INVALID.log.gz",
+      "archiveBytes": 79,
+      "archiveSha256": "a365a9e79126e434884190597afa917a171272c8e8ff548d689eebe065ac279e",
+      "encoding": "UTF-8",
+      "sourceNote": "Initial cmd invocation passed a semicolon as a filename; not a source defect"
+    },
+    {
+      "rawFile": "continuation-c011-network-qa-final.log",
+      "rawBytes": 1032,
+      "rawSha256": "94426a02e854242d6594a49fc4ff0a5d0a71796c7e7caf517ed98d239c7033e5",
+      "archiveFile": "continuation-c011-network-qa-final.log.gz",
+      "archiveBytes": 495,
+      "archiveSha256": "02599a8e57e8bd87578e6f77c65cf95b96abdaa47c704c402c2a0bc69ba93add",
+      "encoding": "UTF-8",
+      "sourceNote": "a4a5fa1a:2PASS default transport/proxy;0connections/0submits, explicitEACCES"
+    },
+    {
+      "rawFile": "continuation-c011-public-tls-positive.log",
+      "rawBytes": 463,
+      "rawSha256": "bec0c6de5682c3c3f0a26522ec67fa3b44d53e81568ff7f14dcb2a7cc9b91e72",
+      "archiveFile": "continuation-c011-public-tls-positive.log.gz",
+      "archiveBytes": 335,
+      "archiveSha256": "c16abc194c8ad4ee60454cdb92e0a96b7bc63e9a1e03a3811eb20ebf80f634c5",
+      "encoding": "UTF-8",
+      "sourceNote": "a4a5fa1a:W3C301->200 PNG1848bytes, default TLS; no paid/personal content"
+    },
+    {
+      "rawFile": "continuation-c011-focused-final.log",
+      "rawBytes": 6078,
+      "rawSha256": "b7ed2b912edfbe1c6ab3435ef6f2a08542f8b1277f6bab9b1ff40da90b150386",
+      "archiveFile": "continuation-c011-focused-final.log.gz",
+      "archiveBytes": 2080,
+      "archiveSha256": "9581058c6ea6b1c3e5c8e9793132c9ac405cc6ac224dbb55b52914b2c80b9d28",
+      "encoding": "UTF-8",
+      "sourceNote": "a4a5fa1a:73PASS (22new offline DNS/HTTP and51existing adapter tests)"
+    },
+    {
+      "rawFile": "continuation-c011-backend-final.log",
+      "rawBytes": 456882,
+      "rawSha256": "909cb8ff3d751ddb55e18a3dee67fc60e3b7c8e783e9b6030ea92491cae07ce6",
+      "archiveFile": "continuation-c011-backend-final.log.gz",
+      "archiveBytes": 55967,
+      "archiveSha256": "8e2983cae0ae066256a5d226ad772b6758073ca462763aa65ef1bd70f70adec7",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "a4a5fa1a:1553PASS/0FAIL; runtime/manifest identical8384e8b0"
+    },
+    {
+      "rawFile": "continuation-c011-exact-builtins-guard.log",
+      "rawBytes": 4204,
+      "rawSha256": "f0973929f8e3c6b75205eb689c46317124fb1a34741605ffa8d065870cb1f216",
+      "archiveFile": "continuation-c011-exact-builtins-guard.log.gz",
+      "archiveBytes": 1151,
+      "archiveSha256": "028a72d5d088a82ec207414e814d8653759fdd6340089d6e15f20662f0e70d64",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "8384e8b0:24PASS; only four reviewed VTO builtins, unrelated capabilities/functions refused"
+    },
+    {
+      "rawFile": "continuation-c011-ci-before-capability-reconciliation.log",
+      "rawBytes": 2748570,
+      "rawSha256": "b75c6874931b9ffef5c7914865603c18269b06ec3ada107a11e5e9adc1de5e34",
+      "archiveFile": "continuation-c011-ci-before-capability-reconciliation.log.gz",
+      "archiveBytes": 370241,
+      "archiveSha256": "86649f20a37f6360336a79062d20916857a0ba5f58de87508e8834cd3f000a4a",
+      "encoding": "UTF-16LE BOM",
+      "sourceNote": "Actual a4a5fa1a CI:8537PASS/1FAIL/65SKIP, previously remote-only specifier guard refused node:dns. Exact-four/VTO-only guard reconciled, original refusal controls retained"
+    },
+    {
+      "rawFile": "continuation-c011-handler-before.log",
+      "rawBytes": 1841,
+      "rawSha256": "a90a4061119a9f26a017d519e1e03b9b442f4c550975ea655a6070e1531dfbb5",
+      "archiveFile": "continuation-c011-handler-before.log.gz",
+      "archiveBytes": 779,
+      "archiveSha256": "8b436dff6613f8f6d1dfad25795e5a2966382b4b9eeb414056495e28fe762df1",
+      "encoding": "UTF-8",
+      "sourceNote": "Actual handleVtoRequest/default provider transport, injected actor/entitlement/DB;1controlled loopback connection,0paid submits; FAIL"
+    },
+    {
+      "rawFile": "continuation-c011-handler-after.log",
+      "rawBytes": 1261,
+      "rawSha256": "4216e20ae046cde11f3bc80aeb77ba4a744888eccdce52d448b1dcdb800a5ca3",
+      "archiveFile": "continuation-c011-handler-after.log.gz",
+      "archiveBytes": 612,
+      "archiveSha256": "50f63d4db067d16b408bf98ef002c120a1a5819ee6e7a18dee1d6edf180b930d",
+      "encoding": "UTF-8",
+      "sourceNote": "a4a5fa1a actual handler/default transport:0connections/0submits/reserve1/release1;1PASS"
+    },
+    {
+      "rawFile": "continuation-c011-docker-unavailable.log",
+      "rawBytes": 225,
+      "rawSha256": "8bf69fe59662c48af09aa8577b37b1fb78a1e3326c4c24a52aaf71745f410eae",
+      "archiveFile": "continuation-c011-docker-unavailable.log.gz",
+      "archiveBytes": 162,
+      "archiveSha256": "96af4f825a0d660cca2ada203818a636096a8b8c4b96875a77139bca2a4f1ced",
+      "encoding": "UTF-8",
+      "sourceNote": "Docker CLI cannot reach DockerDesktop Linux daemon; no local Supabase Edge runtime certification"
     }
   ]
 }

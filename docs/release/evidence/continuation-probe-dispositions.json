@@ -15,18 +15,18 @@
     "10": "Documented technical limitation"
   },
   "allCellsByDisposition": {
-    "1": 73,
+    "1": 75,
     "2": 300,
-    "3": 2426,
+    "3": 2424,
     "4": 284,
     "5": 8,
     "6": 4,
     "7": 1
   },
   "originalNotTestedByDisposition": {
-    "1": 18,
+    "1": 20,
     "2": 300,
-    "3": 2426,
+    "3": 2424,
     "4": 284,
     "5": 8,
     "6": 4,
@@ -36,18 +36,18 @@
   "protocolOwnershipExclusionsAdded": 90,
   "reconciledExistingPasses": 5,
   "currentVerdicts": {
-    "PASS": 67,
-    "NOT TESTED": 3023,
-    "FAIL": 6
+    "PASS": 72,
+    "NOT TESTED": 3021,
+    "FAIL": 3
   },
   "currentPendingByDisposition": {
     "2": 300,
-    "3": 2426,
+    "3": 2424,
     "4": 284,
     "5": 8,
     "6": 4,
     "7": 1
   },
-  "originalPendingResolved": 18,
-  "continuation": "C010 five failing cells linked to one defect, with actual boundary/source equivalence. No duplicate independent-finding claim. Provider tests are local adapters, not live AILabTools."
+  "originalPendingResolved": 20,
+  "continuation": "C010 five cells SOURCE PASS after canonical/mobile convergence; C011 two actual socket/handler failures still authoritative; full PhotoVTO UI workflow not inferred."
 }

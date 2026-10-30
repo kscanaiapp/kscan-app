@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-10-30T15:10:17.932Z",
+  "updatedAt": "2026-10-30T16:13:15.477Z",
   "authorization": "Owner updates legal documents/language and website; factual metadata updates authorized. No binding legal text, store declaration, or live policy changed.",
-  "mobileSha": "8bdcaaba986b169a15cb5545008ffef34c7b65f7",
-  "backendSha": "98c88ff1240b6596649d7967e9a180d43d7fa83e",
+  "mobileSha": "d342087cef908e806c891d5f19264d4eeeb8d665",
+  "backendSha": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
   "facts": {
     "gemini": "Images and text including Elise; revocable current-permission source merged; rollout pending, not operationally certified",
     "scanner": "Local face/plate orchestration tested with injected native detectors; actual device accuracy/pixels/network not certified",
