@@ -136,9 +136,26 @@ test('campaign VTO settlement and validation promotion preserves canonical backe
   }
 });
 
+test('discovery account-lifecycle promotion preserves reviewed canonical backend bytes', () => {
+  const { execFileSync } = require('node:child_process');
+  const canonical = '98c88ff1240b6596649d7967e9a180d43d7fa83e';
+  for (const file of [
+    'supabase/functions/black-owned-discovery/accountAuthorization.ts',
+    'supabase/functions/black-owned-discovery/accountAuthorization.test.ts',
+    'supabase/functions/black-owned-discovery/index.ts',
+  ]) {
+    const approved = execFileSync('git', ['show', `${canonical}:${file}`], { cwd: ROOT, encoding: 'utf8' });
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.equal(source.replace(/\r\n/g, '\n'), approved.replace(/\r\n/g, '\n'), file);
+    assert.equal(campaignPromotion.files.find((row) => row.file === file).source, canonical);
+    assert.equal(verifiedCampaignPromotion(file, source), true);
+    assert.equal(verifiedCampaignPromotion(file, `${source}\n// unreviewed mutation\n`), false);
+  }
+});
+
 test('mixed campaign backend exceptions are exact byte-bound promotions, not a folder grant', () => {
-  assert.equal(campaignPromotion.files.length, 39);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 39);
+  assert.equal(campaignPromotion.files.length, 41);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 41);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);

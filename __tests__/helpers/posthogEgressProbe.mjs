@@ -26,6 +26,9 @@ core.identifyPostHogUser('probe-user-a');
 core.resetPostHogUser();
 core.syncPostHogIdentity('probe-user-a');
 core.syncPostHogIdentity(null);
+// Configured capture is permitted only after SDK readiness and identity reset.
+await core.posthog?.ready();
+await new Promise((resolve) => setImmediate(resolve));
 
 // Real feature events through the five bridged sinks — the path a shipped
 // feature actually takes.

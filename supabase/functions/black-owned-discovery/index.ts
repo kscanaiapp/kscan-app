@@ -1,4 +1,5 @@
-import { requireUser, rest } from '../_shared/deletion/common.ts';
+import { requireUser, rest, assertAccountActive } from '../_shared/deletion/common.ts';
+import { createDiscoveryAuthenticator } from './accountAuthorization.ts';
 import { discoveryFlags, type CatalogRow, type OwnershipIdentity } from './contracts.ts';
 import { createDiscoveryService } from './engine.ts';
 import { createDiscoveryHandler } from './handler.ts';
@@ -29,7 +30,7 @@ const scheduleShadow = shadowScheduler(Deno.env.get('SPONSORSHIP_SHADOW_MODE') =
   createShadowEvaluator({snapshot:sponsorshipSnapshot,emit:(event)=>console.info(JSON.stringify(event))}));
 Deno.serve(createDiscoveryHandler({
   flags: () => discoveryFlags((key) => Deno.env.get(key)),
-  authenticate: requireUser,
+  authenticate: createDiscoveryAuthenticator(requireUser, assertAccountActive),
   claim: async (id, signal) => (await query('rpc/discovery_claim_request', { p_actor: id }, signal)) === true,
   discover,
   completed:scheduleShadow,
