@@ -1,18 +1,20 @@
 {
   "capturedAt": "2026-10-30T16:13:15.487Z",
   "mobileSha": "d342087cef908e806c891d5f19264d4eeeb8d665",
-  "backendSha": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+  "backendSha": "3bab42e47817da8a4941efc4a509afee73879015",
   "sourceRepairs": {
     "confirmed": 13,
-    "merged": 12,
-    "preparedUnmerged": 1,
+    "merged": 13,
+    "preparedUnmerged": 0,
     "unprepared": 0,
     "priority": {
       "P0": 0,
       "P1": 4,
       "P2": 3,
       "P3": 6
-    }
+    },
+    "fullyConvergedMobile": 12,
+    "canonicalOnlyAwaitingMobile": 1
   },
   "probeMatrix": {
     "total": 3096,
@@ -34,8 +36,11 @@
   "openSourceRepair": {
     "pr": 661,
     "head": "8384e8b0ec32312f2da978448d645fac44d7d5a5",
-    "state": "draft/pending CI; unmerged",
-    "actualSupabaseRuntime": "NOT VERIFIED"
+    "merge": "3bab42e47817da8a4941efc4a509afee73879015",
+    "state": "MERGED CANONICAL; MOBILE PROMOTION PENDING",
+    "actualSupabaseRuntime": "NOT VERIFIED",
+    "freshBranchCi": "5successful/2pending at readback"
   },
-  "verdict": "INCOMPLETE; no source-level whole-audit PASS, platform or runtime certification"
+  "verdict": "INCOMPLETE; no source-level whole-audit PASS, platform or runtime certification",
+  "processDeviation": "661 merged while readiness refresh3checks pending; earlier same-head CI green; refreshed PR CI subsequently32success/14skip; postmerge branch CI not yet fully green."
 }

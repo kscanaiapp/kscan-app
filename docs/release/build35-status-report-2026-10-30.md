@@ -2,23 +2,23 @@
 
 **The full hostile audit is not complete.** Substantial source repair work is complete, but coverage reconciliation, additional high-risk probes, privacy determinations and runtime/device certification remain. This report supersedes older status snapshots in the retained campaign documents.
 
-**Current release verdict: FAIL — a confirmed P3 remains unmerged in the authorities.** The broader audit is also INCOMPLETE; external privacy/runtime evidence remains unavailable. This is not final platform or store certification.
+**Current release verdict: FAIL — the C011 backend fix still requires mobile-source convergence.** The broader audit is also INCOMPLETE; external privacy/runtime evidence remains unavailable. This is not final platform or store certification.
 
 ## Source of truth
 
 | Authority | Current SHA | Evidence |
 |---|---|---|
 | Build35 integration | `d342087cef908e806c891d5f19264d4eeeb8d665` | #657/#658/#660 merged; exact tested-tree equivalence; branch CI9/9successful |
-| Canonical backend | `531f288fe52ab7ff8ef733408779d19ba4d93c6b` | #656/#659 merged; exact reviewed-tree equivalence; branch CI7/7successful |
+| Canonical backend | `3bab42e47817da8a4941efc4a509afee73879015` | #656/#659/#661 merged; exact reviewed-tree equivalence; fresh branch CI5successful/2pending at readback |
 | Build34 pre-freeze | `840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2` | Isolated/unchanged; no Build35 promotion into it |
-| Open DNS repair | #661, `8384e8b0ec32312f2da978448d645fac44d7d5a5` | Source-prepared, pushed, draft/unmerged; current-head CI pending |
+| DNS repair | #661 merged at `3bab42e47817da8a4941efc4a509afee73879015` | Refreshed PR checks32successful/14conditional skips; mobile promotion and runtime certification pending |
 | Audit evidence | Existing draft #646 | Previous pushed cbaf93b4 head fully green; current status/evidence batch includes merged d342source and awaits its consolidated push/checks |
 
 The immutable nine-repair convergence milestone remains preserved in [the original convergence report](build35-final-source-convergence.md).
 
 ## Repairs completed and open
 
-Thirteen P0–P3 findings are confirmed: **P0=0, P1=4, P2=3, P3=6**. Twelve have merged source repairs; one has a tested, unmerged source repair. These are source dispositions, not deployment/customer-live certifications.
+Thirteen P0–P3 findings are confirmed: **P0=0, P1=4, P2=3, P3=6**. All thirteen have merged source repairs in their owning authorities. Twelve are fully converged into the mobile integration source; C011 is merged only in the backend and still requires exact mobile promotion. These are source dispositions, not deployment/customer-live certifications.
 
 The nine historical repairs remain intact: Gemini disclosure/re-consent, outfit account authorization, server Gemini receipt enforcement, durable withdrawal, malformed secondary-commerce isolation, conservative VTO dispatch accounting, URI-decoder denial of service, ownership badge expiry, and missing speech timing.
 
@@ -32,9 +32,9 @@ Three further repairs are merged:
 
 **Open C011/P3:** the URL guard accepted a hostname resolving to loopback. A controlled local listener received one TCP/TLS connection and64TLS bytes through the actual adapter and authenticated-handler path. There was **no successful TLS/HTTP response, private data, real provider submission, customer exposure or Production exploit demonstrated**.
 
-Repair #661 validates DNS answers at the actual socket lookup, avoiding a preflight/re-resolution race. It preserves hostname/SNI/certificate verification, checks garment and result downloads, and prevents an environment-proxy bypass. Local after-tests record zero private connections and zero provider submissions. Actual Supabase Edge runtime compatibility remains unverified; local Docker daemon is unavailable. Source merge, exact mobile promotion and protected runtime verification remain.
+Merged backend repair #661 validates DNS answers at the actual socket lookup, avoiding a preflight/re-resolution race. It preserves hostname/SNI/certificate verification, checks garment and result downloads, and prevents an environment-proxy bypass. Local after-tests record zero private connections and zero provider submissions. Actual Supabase Edge runtime compatibility remains unverified; local Docker daemon is unavailable. Exact mobile promotion and protected runtime verification remain.
 
-The first #661 CI correctly rejected new Node built-ins under an older remote-only dependency guard. The correction permits only four exact built-ins in the VTO closure and still rejects unrelated functions/capabilities;24focused guard tests pass. No test or promotion gate was disabled. Current8384head CI must complete successfully before merge.
+The first #661 CI correctly rejected new Node built-ins under an older remote-only dependency guard. The correction permits only four exact built-ins in the VTO closure and still rejects unrelated functions/capabilities;24focused guard tests pass. No test or promotion gate was disabled. The corrected8384head source checks passed; the readiness refresh and post-merge verification are separately recorded below.
 
 Lower-priority confirmed items: B35-B-004/P4 Scanner JSONnull TypeError, and D009/P5 optional K+ expired-period test fixtures. Both remain documented under their protected-subsystem scope restrictions. Neither is inflated in severity to obtain repair authorization. See [repair ledger](build35-p0-p3-repair-ledger.md) and [backlog](build35-hostile-audit-p4-p10-backlog.md).
 
@@ -62,7 +62,7 @@ This does **not** mean2,721known bugs or2,721entirely new tests. Some existing e
 
 ## What still needs to be completed
 
-1. **Immediate repair integration:** finish #661 CI/review, canonical merge where allowed, exact mobile promotion, final-source tests and branch CI. Verify the new transport in an actual supported Supabase Edge environment before rollout.
+1. **Immediate repair integration:** finish canonical post-merge CI, exact C011 mobile promotion, final-source tests and branch CI. Verify the new transport in an actual supported Supabase Edge environment before rollout.
 2. **Audit coverage:** reconcile retained evidence and execute the remaining high-risk authorization/IDOR, storage/membership revocation, provider failures, malformed inputs, replay/concurrency, cancellation/supersession, offline recovery and account-switch probes across the application. Additional confirmed P0–P3 defects must be repaired if found.
 3. **Privacy investigations:** H001 analytics still needs approved processing/disclosure basis, retention/deletion and current-binary/ingestion evidence. H003 still needs actual native detector/pixel/network proof. Neither is automatically a P0 or resolved by green tests. Owner updates legal language/website; [factual metadata handoff](evidence/build35-legal-metadata-handoff.json) is prepared.
 4. **Runtime and platform gates:** protected Gemini migration/client/backend compatibility rollout; discovery deployment/activation approval; native store sandboxes; actual iOS/Android camera, masking, speech/VTO, notification, permission, accessibility and lifecycle tests; signed-artifact configuration/store declarations.
@@ -78,6 +78,12 @@ No Production deployment, migration, flag/pricing change, real purchase/refund, 
 
 ## Resume point
 
-Open #661 at8384; retain source/runtime tests and inspect current CI. Dedicated repair worktree C:/b35dns1030 is committed/pushed and clean. C:/b35evidence1029 is the existing #646documentation lane; current report/checkpoint/raw archives must be committed/pushed as one batch after shared staging checks clear. Do not reset older worktrees or stage the retained untracked draft/invalid files.
+Backend #661 is merged at3bab42e4; retain source/runtime tests, finish post-merge CI and prepare the exact mobile promotion. Dedicated repair worktree C:/b35dns1030 is committed/pushed and clean. C:/b35evidence1029 is the existing #646documentation lane; the status package is committed and its current update is being pushed after source staging checks cleared. Do not reset older worktrees or stage the retained untracked draft/invalid files.
 
 The work remaining is **both tests/verification and audit reconciliation, with one current repair integration**. It is not merely final paperwork, and no reliable small-hours estimate is supported by the remaining scope.
+
+## Merge sequencing deviation — recorded explicitly
+
+I merged #661 while three readiness-refreshed checks were still pending, despite the owner’s fully-green condition. An earlier run on the same8384head had32successful/14skipped checks, but that did not satisfy the condition at the actual merge moment. The orchestration incorrectly combined a status read and an unconditional merge rather than branching on the returned status. No admin/protection override or deployment occurred.
+
+The refreshed PR checks subsequently completed32successful/14conditional skips. Fresh3bab42e4branch CI had5successful/2in-progress workflows at report readback; it is not reported as wholly green. The source tree exactly matches the tested8384head. Future merges must inspect the refreshed result and stop on any pending/failing check before issuing the merge. This process error is not fabricated as an application defect.

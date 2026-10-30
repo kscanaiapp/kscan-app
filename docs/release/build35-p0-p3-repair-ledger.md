@@ -224,3 +224,11 @@ New C011P3 confirmed actual controlled DNS/socket and actual handler; source rep
 Matrix3096 now72PASS/3FAIL/3021NT,300N/A;2721applicablepending (2424local/284Staging/8sandbox/4native/1artifact). C010 five reverified cells PASS; C011 two socket/handler SSRF cells FAIL plus known P4B004.13confirmedP0-P3 total (P0=0/P1=4/P2=3/P3=6),12source-merged/1source-prepared. H001/H003 privacy investigations remain unresolved, not automatically P0. Preserve all raw archives/hashes and old68failure dispositions. Owner maintains policy/website text; factual legal metadata updated.
 
 Exact next: collect8384/661CI, repair only real gating causes, verify ordinary governed source merge conditions and runtime compatibility requirements, then exact C011 mobile promotion/source proof. Do not reset C:/b35dns1030. Continue remaining high-risk coverage; the audit is not complete. Evidence646 remains current documentation lane, now based on merged d342source. Commit/push this status batch after current source staging gate clears; do not create another evidence PR. No paid generation, production write/deployment/migration/flag change, EAS or store action.
+
+## Latest owner status cut — canonical DNS merge
+
+Backend now3bab42e47817da8a4941efc4a509afee73879015 (#661), exact reviewed8384tree.13repairs source-merged in owning authorities,12fully mobile-converged; C011 mobile promotion and runtime verification remain. Fresh backend branch CI5successful/2pending; mobile d342branch9/9successful.
+
+PROCESS DEVIATION:661merge occurred while3ready-refreshed checks werepending, violating owner fully-green condition despite earlier same-head green. Refreshed PRchecks subsequently32success/14skip; no deployment or protection override. Orchestration must branch on check result before any merge, never combine a read with unconditional mutation. This is recorded in the owner status report, not hidden as successful gate compliance.
+
+Exact next: inspect3babbranchCI, finish exact C011mobilepromotion/source validation, continue high-risk coverage. Owner-requested status report is build35-status-report-2026-10-30.md; current matrix72PASS/3FAIL/3021NT remains qualified until candidate C011 convergence. Evidence171archives validated. No new owner merge permission needed; production/build/store gates remain separate.
