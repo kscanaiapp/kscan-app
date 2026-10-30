@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-30T15:23:00.298Z",
-    "generatedFromGitSha": "8bdcaaba986b169a15cb5545008ffef34c7b65f7"
+    "generatedAtUtc": "2026-10-30T19:22:16.578Z",
+    "generatedFromGitSha": "d342087cef908e806c891d5f19264d4eeeb8d665"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -2210,16 +2210,25 @@
         "name": "vto-generate",
         "entry": "supabase/functions/vto-generate/index.ts",
         "remoteSpecifiers": [
+          "node:dns",
+          "node:https",
+          "node:net",
+          "node:stream",
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 19,
-        "treeFileCount": 29,
-        "bundleHash": "a8e3dbf56d6c2453f99a4a72e43d7e9de47b3f3459f08bd2120649055e2bb4da",
-        "treeHash": "222cc9f94c8117071380786929bd8a71fdbd9e9054ef57fc3e7c0e00735f70db",
+        "bundleFileCount": 20,
+        "treeFileCount": 30,
+        "bundleHash": "aaf5fe17a3fe0461ed7cdef2f0a342099c95bfce3498f1179f4eb3cd75b0cbd0",
+        "treeHash": "898b55c09262c134cc431665eec21c70eff8d412eaef8aa073fc4544f0f84ab2",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/net/publicMediaFetch.ts",
+            "sha256": "95937350162613c331446d85ddc6f6a430c231ab338ae3a89b58589629f5e120",
             "bundle": true
           },
           {
@@ -2244,7 +2253,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
+            "sha256": "333b9a5ced6a4ba386d9bf21f11e886f67658e04de75f1b2c25f5255021a7d21",
             "bundle": true
           },
           {

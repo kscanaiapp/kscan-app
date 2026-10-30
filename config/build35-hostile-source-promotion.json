@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
+  "canonicalBackend": "3bab42e47817da8a4941efc4a509afee73879015",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -14,6 +14,18 @@
       "sha256": "d1fe78df48e94088a6e8a160eae6d7b4f82655c96dea8313c8f62bcdc6cf72e6",
       "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
       "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
+    },
+    {
+      "file": "supabase/functions/_shared/net/publicMediaFetch.test.ts",
+      "sha256": "ac0b45a6fc04d999d7c70853d930fa8ac91e1389d85dbdda70d65bb092a9f180",
+      "source": "3bab42e47817da8a4941efc4a509afee73879015",
+      "reason": "Exact reviewed C011/P3 media socket-DNS boundary repair from canonical PR661. Original TLS identity/paid API behavior and all existing media validation preserved. Source only; no deployment/activation."
+    },
+    {
+      "file": "supabase/functions/_shared/net/publicMediaFetch.ts",
+      "sha256": "95937350162613c331446d85ddc6f6a430c231ab338ae3a89b58589629f5e120",
+      "source": "3bab42e47817da8a4941efc4a509afee73879015",
+      "reason": "Exact reviewed C011/P3 media socket-DNS boundary repair from canonical PR661. Original TLS identity/paid API behavior and all existing media validation preserved. Source only; no deployment/activation."
     },
     {
       "file": "supabase/functions/black-owned-discovery/accountAuthorization.test.ts",
@@ -222,9 +234,9 @@
     },
     {
       "file": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-      "sha256": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
-      "source": "531f288fe52ab7ff8ef733408779d19ba4d93c6b",
-      "reason": "Exact reviewed C010/P3 remote garment integrity repair from canonical PR659; basic container validation and real handler regressions. Source-only, no API/schema/provider/quota-policy/rollout change."
+      "sha256": "333b9a5ced6a4ba386d9bf21f11e886f67658e04de75f1b2c25f5255021a7d21",
+      "source": "3bab42e47817da8a4941efc4a509afee73879015",
+      "reason": "Exact reviewed C011/P3 media socket-DNS boundary repair from canonical PR661. Original TLS identity/paid API behavior and all existing media validation preserved. Source only; no deployment/activation."
     },
     {
       "file": "supabase/functions/vto-generate/providers/remoteGarmentHandler.test.ts",
