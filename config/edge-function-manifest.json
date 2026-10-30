@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-30T15:59:32.258Z",
-    "generatedFromGitSha": "531f288fe52ab7ff8ef733408779d19ba4d93c6b"
+    "generatedAtUtc": "2026-10-30T20:03:03.917Z",
+    "generatedFromGitSha": "3bab42e47817da8a4941efc4a509afee73879015"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -2113,22 +2113,22 @@
         "remoteSpecifiers": [],
         "bundleFileCount": 2,
         "treeFileCount": 3,
-        "bundleHash": "3937778b650e1cd501f48d2a06111a4f7e72d70a166c0588233cf4397899db6f",
-        "treeHash": "231f0840fb5e6c14f6dcce6d9faecc005838fabba5a4e960bf242082ea274ebf",
+        "bundleHash": "5b674aa134488676e0a138a40d5ab6ad1e9d8708f6c847c7d60f25bce80ae120",
+        "treeHash": "253fd7aad3cb19ad8ed6d5d5079e8e25cc8560dfbbd98f834d36bb3d04f83d0a",
         "files": [
           {
             "path": "supabase/functions/shared-room-image-url/index.ts",
-            "sha256": "739dbc6d56bcb7776ca378191b99a39e47799e3845011e97ce31c3eb46ed6800",
+            "sha256": "555facc7ae8b8a8638935e33309e2b3e6c1dcd92ebbe8af03895a9c5049985f4",
             "bundle": true
           },
           {
             "path": "supabase/functions/shared-room-image-url/validation.test.ts",
-            "sha256": "02169331c6a2cd6cba8b02484ce11b94803e7d337596c233bd6da8a8d30a2137",
+            "sha256": "9506fee2fd2a5c883ed8715dc3ab7373e30471cadc087b51cc89dd27c5fc3472",
             "bundle": false
           },
           {
             "path": "supabase/functions/shared-room-image-url/validation.ts",
-            "sha256": "6ca15d78a7a0f64d674281a738da36e5e920a427a66eb30d3a36585e683cc73d",
+            "sha256": "812b4f80432a243f21b936d0359aabc9b142e76ab6928cb0785684da5d5589ed",
             "bundle": true
           }
         ]

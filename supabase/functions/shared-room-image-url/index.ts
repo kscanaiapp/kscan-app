@@ -32,6 +32,7 @@ import {
   resolveStorageRefFromRow,
   sanitizeItemIds,
   sanitizeItemRefs,
+  sanitizeSignedStoragePath,
   sharedRoomItemRefKey,
   type DressingRoomItemStorageRow,
   type InspirationItemStorageRow,
@@ -249,8 +250,8 @@ async function createSignedImageUrl(bucket: string, path: string): Promise<strin
 
   if (!signRes.ok) return null;
 
-  const signJson = (await signRes.json()) as { signedURL?: string | null } | null;
-  const signedPath = signJson?.signedURL;
+  const signJson = (await signRes.json()) as { signedURL?: unknown } | null;
+  const signedPath = sanitizeSignedStoragePath(signJson?.signedURL);
   if (!signedPath) return null;
 
   // Supabase returns a relative signed path; build the absolute URL.

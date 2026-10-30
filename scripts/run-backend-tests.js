@@ -86,6 +86,8 @@ const GOVERNED = [
   'scan-identify',
   'handle-user-deletion',
   'process-account-deletions',
+  // B35-F-012: keep private image signing response validation in the default gate.
+  'shared-room-image-url',
   'stylechat-generate',
   // Speech owns paid dispatch and entitlement guards; keep its provider-free
   // tests in the default gate so dependency/authorization drift cannot hide.
