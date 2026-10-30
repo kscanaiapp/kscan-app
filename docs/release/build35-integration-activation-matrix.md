@@ -1,5 +1,16 @@
 > **Latest status:** canonical backend3bab42e4 includes merged661; C011mobilepromotion is pending. See [owner status report](build35-status-report-2026-10-30.md), including the explicitly recorded merge-sequencing deviation and pending post-merge CI. No whole-audit PASS.
 
+## Current checkpoint — DNS source converged; new analytics P1 being repaired
+
+Mobile now **2d2a944f294645e031f60efbbbdb9691f502541e**, #662merged under owner green-CI approval after separate34successful/20conditional-skipped checks and CLEAN/expected-head read. Exact merged tree equals reviewed06e: **11350NodePASS/0FAIL/98SKIP**, **1569backendPASS/0FAIL**,promotion focused118PASS/2declared skips; TypeScript/six gates0. Backend3babbranchCI7/7SUCCESS; mobile post-merge branchCIpending.13prior source repairs are fully converged. No deployment/build occurred.
+
+New **G013/P1**: actual installed SDK4.67.0 lifecycle method plus real app send filter accepts synthetic auth code/token in delayed launch URL after identity sync. No network or real credential ingestion claim. This is an H001implementation subfinding; legal/retention/deletion/current-binary questions remain separate. Source repair committed **a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37**, worktree C:/b35launchprivacy1030, branch audit/build35-posthog-launch-privacy-20261030, two files only. Final send filter omits raw URL, keeps identity fence and lifecycle/feature events.58focusedPASS; TypeScript session21485 and six-gate session79343active. Full Node must follow serially after TS; backend bytes unchanged, retain exact1569suite via source equivalence. No PR yet.
+
+New **F012/P4** is confirmed by failing storage signedURL object fixture, not repaired because protected RLS-facing safe-P4 condition4fails; owner scope question pending. Main3096matrix **90PASS/2FAIL/3004NOT TESTED**,307N/A;2697applicable pending. Two FAILcells are knownP4B004/F012; G013is separately logged outside original43-class inventory.47positive shared-handler cases and one stronger failing schema counterexample both retained. Five Staging cells reconcile17earlier actual cases, no new remote calls. Original3041pending disposition:37executed,307N/A,2405local,279Staging,8sandbox,4physical,1artifact. Do not add these populations as independent PASS counts.
+
+Owner confirms **no actual devices available**. Device certification/native masking accuracy remains NOT TESTED.14confirmedP0-P3 now0P0/5P1/3P2/6P3;13merged/converged, newG013prepared/unmerged. Source readiness verdict **FAIL — new P1 repair pending**; overall audit INCOMPLETE.189lossless archives retained before next batch. Exact next: collect TS/gates, full643-file Node, current662branchCI, push boundedG013PR and wait all current checks before merge; preserve this checkpoint in existing646serially. No Production migration/deploy/flags/pricing/EAS/store action.
+
+
 ## Current checkpoint — shared capability and hardware disposition
 
 Owner confirms **no physical devices available**. All26feature device fields and4native matrix cells remain NOT TESTED; native masking accuracy is not certified. Continue independent source/backend work.

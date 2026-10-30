@@ -1,0 +1,36 @@
+{
+  "id": "B35-F-012",
+  "priority": "P4",
+  "status": "CONFIRMED — UNREPAIRED, protected subsystem",
+  "feature": "Shared-room private image URL resolution",
+  "scope": "Backend/shared; malformed external response only",
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "location": "supabase/functions/shared-room-image-url/index.ts:252; createSignedImageUrl, lines253-257",
+  "reproduction": "Copy shared-room-signing-schema.test.ts.txt to a .test.ts file; set KSCAN_AUDIT_SOURCE_ROOT to the exact checked-out source; run deno test --no-config --node-modules-dir=none --allow-env --allow-read <fixture>. Actual handler, injected backend, no network grants.",
+  "expected": "A non-string storage signedURL is rejected with a null image entry or controlled error; never construct a fabricated image URL from an object.",
+  "actual": {
+    "id": "storage-object-schema",
+    "status": 200,
+    "payload": {
+      "imageUrls": {
+        "11111111-1111-4111-8111-111111111111": "https://shared-fixture.invalid/storage/v1[object Object]"
+      }
+    },
+    "signedCalls": 1
+  },
+  "rootCause": "The TypeScript assertion does not validate the external JSON at runtime. Truthiness accepts an object, then template interpolation coerces it to [object Object].",
+  "evidence": [
+    "continuation-shared-room-signing-schema.log.gz",
+    "shared-room-signing-schema.test.ts.txt"
+  ],
+  "impact": {
+    "customer": "Broken shared-room image when upstream returns this malformed 200 response; ordinary valid responses unchanged.",
+    "privacySecurity": "No cross-user access, secret exposure or unsafe external host demonstrated. URL remains prefixed with configured Supabase origin.",
+    "business": "Localized recoverable missing image; no payment or persistent mutation."
+  },
+  "proposedFix": "Validate signedPath is a nonempty string before interpolation, reject malformed relative signing paths under the existing Supabase contract, and add object/array/number response regressions plus a valid-sign baseline.",
+  "repairGate": "Safe P4 addendum condition4 fails: this service-role endpoint directly reads room/item authorization state and signs private storage objects (RLS-facing protected subsystem). Latest continuation authorizes new P0-P3 repairs, not unapproved protected P4 implementation. Record exact owner authorization dependency; no severity inflation.",
+  "complexity": "Low; localized function and focused regression fixture",
+  "dependencies": "Owner authorization for protected P4 source repair, canonical backend PR and exact mobile promotion, normal green CI; no Production change authorized",
+  "deferral": "Limited malformed-response image resilience with refresh/retry workaround, no demonstrated material privacy/security/payment/core-workflow impact; not a confirmed P0-P3 blocker."
+}

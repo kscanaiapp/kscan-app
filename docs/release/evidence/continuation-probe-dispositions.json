@@ -24,10 +24,10 @@
     "7": 1
   },
   "originalNotTestedByDisposition": {
-    "1": 20,
-    "2": 300,
-    "3": 2424,
-    "4": 284,
+    "1": 37,
+    "2": 307,
+    "3": 2405,
+    "4": 279,
     "5": 8,
     "6": 4,
     "7": 1
@@ -36,9 +36,9 @@
   "protocolOwnershipExclusionsAdded": 90,
   "reconciledExistingPasses": 5,
   "currentVerdicts": {
-    "PASS": 89,
+    "PASS": 90,
     "NOT TESTED": 3004,
-    "FAIL": 3
+    "FAIL": 2
   },
   "currentPendingByDisposition": {
     "2": 307,
@@ -48,7 +48,8 @@
     "6": 4,
     "7": 1
   },
-  "originalPendingResolved": 20,
-  "continuation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification.",
-  "currentApplicablePending": 2697
+  "originalPendingResolved": 37,
+  "continuation": "C011 two cells reverified SOURCE PASS after exact canonical/mobile convergence662. Current failures are B004/P4 and F012/P4. New P1 G013 lifecycle credential event is outside original43-class matrix and separately logged; audit remains FAIL/INCOMPLETE until repaired and verified.",
+  "currentApplicablePending": 2697,
+  "reconciliationSourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c"
 }

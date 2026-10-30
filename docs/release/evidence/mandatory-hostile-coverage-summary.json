@@ -1,13 +1,18 @@
 {
-  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "sourceSha": "2d2a944f294645e031f60efbbbdb9691f502541e",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 89,
+    "PASS": 90,
     "NOT TESTED": 3004,
-    "FAIL": 3
+    "FAIL": 2
   },
   "nonApplicable": 307,
   "applicablePending": 2697,
   "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
-  "limitation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification."
+  "limitation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification.",
+  "knownFailingDefects": [
+    "B35-B-004/P4",
+    "B35-F-012/P4"
+  ],
+  "additionalDefectOutsideMatrix": "B35-G-013/P1; credential-bearing PostHog launch event; source prepared a5b55fc5, unmerged"
 }

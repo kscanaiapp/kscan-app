@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T19:38:17.350Z",
+  "capturedAt": "2026-10-30T19:56:56.013Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1727,6 +1727,158 @@
       "encoding": "UTF-8",
       "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
       "disposition": "INVALID HARNESS — unapproved synthetic bucket/path, no product finding"
+    },
+    {
+      "rawFile": "dns-promotion-node-final.log",
+      "rawBytes": 1017570,
+      "rawSha256": "11f3ccfa33b1ececb6c215972496f4200e7f428f8c1b6c14b4bd6102b57d2a7a",
+      "archiveFile": "continuation-dns-promotion-node-final.log.gz",
+      "archiveBytes": 325733,
+      "archiveSha256": "dc38341bd9ab9a0dc7578f0d57511812a38c57d0e976dd3881b7424db3e7e3a0",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "PASS — exact committed source validation"
+    },
+    {
+      "rawFile": "dns-promotion-backend-final.log",
+      "rawBytes": 231946,
+      "rawSha256": "b86d410f83c2c3e71bcbeb3acfb5423c887b988e0bc7f5c48cc44e9e19da3e83",
+      "archiveFile": "continuation-dns-promotion-backend-final.log.gz",
+      "archiveBytes": 47515,
+      "archiveSha256": "3afee122d96e6c91f81a222e85a23dd7a2c4debb07d81383e8b76ef41b2ef71a",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "PASS — exact committed source validation"
+    },
+    {
+      "rawFile": "shared-room-signing-schema.log",
+      "rawBytes": 1347,
+      "rawSha256": "32cd1d1597fa0dbfad674a9625907aef95e81ee8f76d3dd42be4de088b104e6a",
+      "archiveFile": "continuation-shared-room-signing-schema.log.gz",
+      "archiveBytes": 506,
+      "archiveSha256": "445f6055ecfcba0c6ed7df2aea1e986ee8519ffe10f66802ae4aee9aa35d67a0",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "FAIL — confirmed B35-F-012/P4, preserved failing assertion"
+    },
+    {
+      "rawFile": "shared-room-schema-module-not-created.log",
+      "rawBytes": 97,
+      "rawSha256": "8af3114c4ec51ce54ffcdf39aaf0e6bb01952b9dbcf89a6702b88b3dbfa07144",
+      "archiveFile": "continuation-shared-room-schema-module-not-created.log.gz",
+      "archiveBytes": 109,
+      "archiveSha256": "fb4e5d42b234db3baeded7a2e9c6c2913a1035dc4da60e327eb9a16b395bb044",
+      "encoding": "UTF-8",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "disposition": "INVALID HARNESS invocation after authoring command failed; no source test executed"
+    },
+    {
+      "rawFile": "posthog-lifecycle-url-before.log",
+      "rawBytes": 1424,
+      "rawSha256": "e25bc7dd0c7fa715843481be9f72ef87b355b60ccf96216f4af8088807de4c87",
+      "archiveFile": "continuation-posthog-lifecycle-url-before.log.gz",
+      "archiveBytes": 820,
+      "archiveSha256": "27b9d8cffd42137023982a69d8cca5789b7d181500e86b74616e01b5afebbb2c",
+      "encoding": "UTF-8",
+      "disposition": "FAIL — actual installed SDK method plus app filter permits synthetic auth secrets, B35-G-013/P1"
+    },
+    {
+      "rawFile": "posthog-lifecycle-invalid-package-export.log",
+      "rawBytes": 1321,
+      "rawSha256": "6f466d7125e674ac0653e7002e6e61316449bd2a8ce864c1990c00b5c7bf4b4d",
+      "archiveFile": "continuation-posthog-lifecycle-invalid-package-export.log.gz",
+      "archiveBytes": 572,
+      "archiveSha256": "8aad5ccea7f63859da50cc077c827053ed558723027bda843c06bac6df5ce415",
+      "encoding": "UTF-8",
+      "disposition": "INVALID HARNESS — package subpath export prevents initial load; no source result"
+    },
+    {
+      "rawFile": "posthog-lifecycle-focused-after.log",
+      "rawBytes": 13178,
+      "rawSha256": "dda4d24cc49c7cfda127ad90ce1970d651b4c84dce35b08291e35d43633dba02",
+      "archiveFile": "continuation-posthog-lifecycle-focused-after.log.gz",
+      "archiveBytes": 2666,
+      "archiveSha256": "a5056449c7fbad83e68515c3c0b56f5d0faba67b72e3a15d10783bf77ca1b067",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-typescript.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-posthog-lifecycle-typescript.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "be225f9f5a31f38fcc6624eed2725269211b01326360a872756280bbc9d1e0ff",
+      "archiveFile": "continuation-posthog-lifecycle-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 957,
+      "archiveSha256": "a4324e4ca7620b23d85b4af25ab784faaf5a63199e8f7a3dd62f320faadcab2d",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-verify-backend-authority.js.log",
+      "rawBytes": 652,
+      "rawSha256": "965efb2586aed07c7200a6ac17562c5b5245f22b75c62bb8414e460b7af6b8e6",
+      "archiveFile": "continuation-posthog-lifecycle-verify-backend-authority.js.log.gz",
+      "archiveBytes": 388,
+      "archiveSha256": "5fbf908cfdfcd6b45d1ea838a6286eb1ea1cf12bd0a3dc99f1ff9cf7f027e71a",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "continuation-posthog-lifecycle-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "continuation-posthog-lifecycle-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-check-dependency-reachability.js.log",
+      "rawBytes": 658,
+      "rawSha256": "8c7b1e6f0c03a07ca74013498e244578b327d2a1481006cc4dcc556e3ee0b87a",
+      "archiveFile": "continuation-posthog-lifecycle-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 271,
+      "archiveSha256": "daa0e7e8c1ebcc375637cc3cc395ab34885b462cf72e2f8fcffbf2ede47d0cb0",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
+    },
+    {
+      "rawFile": "posthog-lifecycle-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "continuation-posthog-lifecycle-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+      "disposition": "PASS — focused/TypeScript/source gate; full candidate suite pending"
     }
   ]
 }

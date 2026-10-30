@@ -1,5 +1,32 @@
 # Build35 resumed hostile audit checkpoint
 
+## Execution checkpoint — G013 validation running
+
+Last completed: G013source repair committed/pushed **a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37**, 2files,58focusedPASS, TypeScript0,6source gates0. Actual SDK delayed URL regression now emits lifecycle event without raw URL; prior identity-failure and unrelated feature behavior retained. Full643-file2worker Node run active **session32804**, scratch posthog-lifecycle-node-final.*. Backend source/manifest unchanged; retained1569PASS is explicitly attributed to exact source, not a new run. No PR yet.197lossless archives now verified, original110preserved.
+
+Mobile authority **2d2a944f** (#662merged green34PASS/20conditionalSKIP), backend **3bab42e4** (branchCI7/7SUCCESS). Mobile postmergeCI7successful/2pending at latest readback.14confirmedP0-P3:13merged/converged, newP1G013source-prepared/unmerged. Source verdict FAIL until thisP1merges and verifies; audit INCOMPLETE. Matrix90PASS/2FAIL/3004NT incl307N/A;2697applicable pending. NewF012P4scope approval question pending; do not modify protected shared-room source meanwhile. B004P4andD009P5remain documented. No physical devices available; device certification and native masking accuracy NOT TESTED. TestSprite cannot certify an undeployed native mobile change using its historical API target.
+
+Exact next: collect session32804 and full result; review source PR after complete local validation; wait all current checks/reviews before merging under existing owner approval; verify exact tested tree and branchCI. Update G013/H001metadata with source vs device/runtime limits. Preserve current evidence in existing646; no duplicatePR. Continue high-risk local/Staging coverage after bounded repair closes. No Production/EAS/store/pricing change.
+
+
+## Current checkpoint — DNS source converged; new analytics P1 being repaired
+
+Mobile now **2d2a944f294645e031f60efbbbdb9691f502541e**, #662merged under owner green-CI approval after separate34successful/20conditional-skipped checks and CLEAN/expected-head read. Exact merged tree equals reviewed06e: **11350NodePASS/0FAIL/98SKIP**, **1569backendPASS/0FAIL**,promotion focused118PASS/2declared skips; TypeScript/six gates0. Backend3babbranchCI7/7SUCCESS; mobile post-merge branchCIpending.13prior source repairs are fully converged. No deployment/build occurred.
+
+New **G013/P1**: actual installed SDK4.67.0 lifecycle method plus real app send filter accepts synthetic auth code/token in delayed launch URL after identity sync. No network or real credential ingestion claim. This is an H001implementation subfinding; legal/retention/deletion/current-binary questions remain separate. Source repair committed **a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37**, worktree C:/b35launchprivacy1030, branch audit/build35-posthog-launch-privacy-20261030, two files only. Final send filter omits raw URL, keeps identity fence and lifecycle/feature events.58focusedPASS; TypeScript session21485 and six-gate session79343active. Full Node must follow serially after TS; backend bytes unchanged, retain exact1569suite via source equivalence. No PR yet.
+
+New **F012/P4** is confirmed by failing storage signedURL object fixture, not repaired because protected RLS-facing safe-P4 condition4fails; owner scope question pending. Main3096matrix **90PASS/2FAIL/3004NOT TESTED**,307N/A;2697applicable pending. Two FAILcells are knownP4B004/F012; G013is separately logged outside original43-class inventory.47positive shared-handler cases and one stronger failing schema counterexample both retained. Five Staging cells reconcile17earlier actual cases, no new remote calls. Original3041pending disposition:37executed,307N/A,2405local,279Staging,8sandbox,4physical,1artifact. Do not add these populations as independent PASS counts.
+
+Owner confirms **no actual devices available**. Device certification/native masking accuracy remains NOT TESTED.14confirmedP0-P3 now0P0/5P1/3P2/6P3;13merged/converged, newG013prepared/unmerged. Source readiness verdict **FAIL — new P1 repair pending**; overall audit INCOMPLETE.189lossless archives retained before next batch. Exact next: collect TS/gates, full643-file Node, current662branchCI, push boundedG013PR and wait all current checks before merge; preserve this checkpoint in existing646serially. No Production migration/deploy/flags/pricing/EAS/store action.
+
+
+## B35-G-013 — P1 — credential-bearing launch URL accepted by analytics send filter
+
+**CONFIRMED, source repair required.** Real installed SDK4.67.0 method captureAppLifecycleEvents awaits Linking.getInitialURL and emits Application Opened with raw url. Current app [before_send](../../services/analytics/posthogClient.core.ts#L106) checks actor identity but does not scrub that URL. A controlled delayed URL resolves after real app identity sync; accepted event includes synthetic OAuth code/access token. Failing1-test fixture and [structured evidence](evidence/continuation-posthog-lifecycle-finding.json) retained. Actual auth callback paths support access_token/refresh_token/token_hash (services/authDeepLink.js:30-32 and authCallbackOrigin.ts:11). No real secrets or network dispatch in probe; no Production incident/ingestion claim. P1 reflects permitted credential exposure at an analytics boundary, not an invented P0.
+
+Root cause: enabled SDK lifecycle capture is outside the seven explicit feature sink property allowlists; a verified user identity does not sanitize event content. Proposed bounded repair: omit raw launch URL at final before_send, preserve identity fence/lifecycle counts/feature payloads, add delayed-SDK-method and unrelated-sink regression coverage. Lead serializes posthogClient.core.ts changes in dedicated mobile worktree. No legal copy/provider/consent settings change. Current14confirmedP0-P3 =0P0/5P1/3P2/6P3;13source repairs merged in owning authorities, newG013unrepaired, C011mobilepromotion662pending. H001's policy, retention/deletion and current-binary/provider evidence gates remain separate.
+
+
 ## Current checkpoint — shared capability and hardware disposition
 
 Owner confirms **no physical devices available**. All26feature device fields and4native matrix cells remain NOT TESTED; native masking accuracy is not certified. Continue independent source/backend work.

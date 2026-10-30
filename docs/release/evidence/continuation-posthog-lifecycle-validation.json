@@ -1,0 +1,67 @@
+{
+  "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+  "branch": "audit/build35-posthog-launch-privacy-20261030",
+  "worktree": "C:/b35launchprivacy1030",
+  "status": "COMMITTED/PUSHED; no PR yet; full Node active",
+  "finding": "B35-G-013/P1",
+  "focused": {
+    "pass": 58,
+    "fail": 0,
+    "skip": 0
+  },
+  "typescript": {
+    "exitCode": 0
+  },
+  "sourceGates": [
+    {
+      "name": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-dependency-reachability.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-build35-release-profile.js",
+      "exitCode": 0,
+      "error": null
+    }
+  ],
+  "fullNode": {
+    "status": "RUNNING",
+    "session": 32804,
+    "prefix": "C:/b35readback1030/posthog-lifecycle-node-final",
+    "inventoryFiles": 643,
+    "concurrency": 2
+  },
+  "backend": {
+    "status": "UNCHANGED — retained exact source1569PASS at reviewed06e/merged2d",
+    "scope": "git diff supabase/ and edge manifest empty"
+  },
+  "testSprite": {
+    "status": "NOT TESTED",
+    "reason": "Changed native mobile client source is undeployed; only historical Build29 API project is linked. No current deployed mobile/web target and no physical devices. Do not test stale URL and claim this source verified."
+  },
+  "device": {
+    "status": "NOT TESTED",
+    "reason": "Owner confirms no physical devices available"
+  },
+  "archivesVerified": 197
+}
