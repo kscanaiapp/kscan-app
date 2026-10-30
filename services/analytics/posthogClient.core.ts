@@ -78,6 +78,12 @@ function isUsableHost(host: string): boolean {
   return /^https?:\/\/[^\s]+$/i.test(host);
 }
 
+// No event may inherit an SDK identity that the current auth scope has not verified.
+let identityReady = false;
+let intendedActor: string | null | undefined;
+let verifiedDistinctId: string | undefined;
+let identityGeneration = 0;
+
 export function isPostHogConfigured(): boolean {
   return resolveApiKey().length > 0 && isUsableHost(resolveHost());
 }
@@ -87,6 +93,17 @@ function createClient(): PostHog | null {
   try {
     return new PostHog(resolveApiKey(), {
       host: resolveHost(),
+      before_send: (event) => {
+        if (!event) return null;
+        const distinctId = event.properties?.distinct_id;
+        // identify() emits its own event before returning. It is safe only for
+        // the exact incoming actor, never a prior actor or unknown identity.
+        if (!identityReady) {
+          return typeof intendedActor === 'string' && event.event === '$identify'
+            && distinctId === intendedActor ? event : null;
+        }
+        return distinctId === verifiedDistinctId ? event : null;
+      },
       captureAppLifecycleEvents: true,
       // V1 = product analytics only. Every autocapture surface is explicit
       // and off — see the module header for why each one is off. UI
@@ -118,6 +135,7 @@ export function forwardTelemetryToPostHog(
   payload: Record<string, string | number | boolean | null> = {},
 ): void {
   if (!posthog) return;
+  if (!identityReady) return;
   try {
     posthog.capture(event, payload);
   } catch {
@@ -173,26 +191,38 @@ export function unbridgeAllTelemetrySinks(): void {
 
 export function identifyPostHogUser(userId: string): void {
   if (!posthog) return;
-  try {
-    posthog.identify(userId);
-  } catch {
-    /* identity sync never propagates */
-  }
+  syncPostHogIdentity(userId);
 }
 
 export function resetPostHogUser(): void {
   if (!posthog) return;
-  try {
-    posthog.reset();
-  } catch {
-    /* identity sync never propagates */
-  }
+  syncPostHogIdentity(null);
 }
 
 export function syncPostHogIdentity(userId: string | null): void {
-  try {
-    syncPostHogIdentityWith(posthog, userId);
-  } catch {
-    /* identity sync never propagates */
-  }
+  const generation = ++identityGeneration;
+  const previousActor = intendedActor;
+  const previousDistinctId = verifiedDistinctId;
+  const wasIdentityReady = identityReady;
+  identityReady = false;
+  verifiedDistinctId = undefined;
+  intendedActor = userId;
+  if (!posthog) return;
+  const client = posthog;
+  // Wait for persisted SDK state before reset/identify; late initialization
+  // must never restore an outgoing identity over the current auth scope.
+  void Promise.resolve().then(() => client.ready()).then(() => {
+    if (generation !== identityGeneration) return;
+    const previousSdkId = client.getDistinctId();
+    syncPostHogIdentityWith(client, userId, !wasIdentityReady);
+    const distinctId = client.getDistinctId();
+    if (typeof distinctId !== 'string' || !distinctId.trim() || (userId !== null && distinctId !== userId)) return;
+    // A retry cannot turn a failed/no-op logout into a verified anonymous scope.
+    if (userId === null && distinctId === previousSdkId
+      && !(wasIdentityReady && previousActor === null && previousDistinctId === distinctId)) return;
+    verifiedDistinctId = distinctId;
+    identityReady = true;
+  }).catch(() => {
+    /* Fail closed for analytics; auth and customer operations still continue. */
+  });
 }

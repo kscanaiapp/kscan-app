@@ -26,15 +26,23 @@ const spy = (globalThis.__POSTHOG_VENDOR_SPY__ ??= { events: [] });
 
 export default class PostHog {
   constructor(apiKey, options) {
+    this.options = options;
+    this.distinctId = 'restored-probe-identity';
     spy.events.push({ op: 'construct', apiKey, options });
   }
+  ready() { return Promise.resolve(); }
+  getDistinctId() { return this.distinctId; }
   capture(event, properties) {
-    spy.events.push({ op: 'capture', event, properties });
+    const payload = { event, properties: { ...properties, distinct_id: this.distinctId } };
+    const accepted = this.options.before_send ? this.options.before_send(payload) : payload;
+    if (accepted) spy.events.push({ op: 'capture', event, properties: accepted.properties });
   }
   identify(distinctId) {
+    this.distinctId = distinctId;
     spy.events.push({ op: 'identify', distinctId });
   }
   reset() {
+    this.distinctId = 'anonymous-probe-identity';
     spy.events.push({ op: 'reset' });
   }
   flush() {
