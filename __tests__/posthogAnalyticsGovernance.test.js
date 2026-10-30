@@ -58,9 +58,10 @@ test('isPostHogConfigured requires a non-empty key and an http(s) host', () => {
 });
 
 test('GeoIP enrichment is explicitly disabled instead of inheriting the stateful SDK default', () => {
+  assert.match(clientSource, /class PrivacyPostHog extends PostHog/);
   assert.match(
     clientSource,
-    /new PostHog\(resolveApiKey\(\),\s*\{[\s\S]*?disableGeoip:\s*true/,
+    /new PrivacyPostHog\(resolveApiKey\(\),\s*\{[\s\S]*?disableGeoip:\s*true/,
   );
 });
 
