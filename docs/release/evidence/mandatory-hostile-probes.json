@@ -69919,6 +69919,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -69944,6 +69950,12 @@
       "reason": "Use synthetic actor/resource baseline and foreign/removed/expired access through actual authenticated database/Storage/RPC. No customer data or Production writes.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -69969,6 +69981,12 @@
       "reason": "Use synthetic actor/resource baseline and foreign/removed/expired access through actual authenticated database/Storage/RPC. No customer data or Production writes.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70069,6 +70087,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70094,6 +70118,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70119,6 +70149,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70169,6 +70205,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70194,6 +70236,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70219,6 +70267,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70369,6 +70423,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70469,6 +70529,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {
@@ -70894,6 +70960,12 @@
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+    },
+    "partialBoundaryEvidence": {
+      "evidence": "continuation-kplus-bounded-coverage.json",
+      "boundary": "service-only reconcile_kplus_provider_transition RPC",
+      "verdict": "46 bounded records PASS; aggregate workflow cell not closed",
+      "reason": "Canonical RPC assertions executed; other client/store/webhook/RPC boundaries remain unverified. Downstream RPC replay is not signed-webhook replay."
     }
   },
   {

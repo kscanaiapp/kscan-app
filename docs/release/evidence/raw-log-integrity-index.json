@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T04:31:05.281Z",
+  "capturedAt": "2026-10-30T04:49:45.249Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -1205,6 +1205,46 @@
       "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
       "encoding": "UTF-8",
       "sourceNote": "Completed source gate exit0 at37330f80"
+    },
+    {
+      "rawFile": "continuation-pr646-project-ts-failure.log",
+      "rawBytes": 6292,
+      "rawSha256": "363a8c9cd894b3af179418d0229bc31fed017a03eb9404b628fd3aeb9f2daa40",
+      "archiveFile": "continuation-pr646-project-ts-failure.log.gz",
+      "archiveBytes": 1298,
+      "archiveSha256": "59569a7739953d80f03ae35db9bc56cf76ef6b6b58f37bad76e3346e70193283",
+      "encoding": "UTF-8",
+      "sourceNote": "Actual CI1476fe01 failed Project checks; Deno evidence fixture entered mobile TypeScript scope"
+    },
+    {
+      "rawFile": "continuation-elevenlabs-relocated.log",
+      "rawBytes": 236,
+      "rawSha256": "2a13d1ed56b7be9444d49f5ed65bc0f1ae56e10c83c32a7f07712b3d33718f68",
+      "archiveFile": "continuation-elevenlabs-relocated.log.gz",
+      "archiveBytes": 171,
+      "archiveSha256": "bba6853b87addd08ed4a1c6d047296e2eda41a4d38aec745f776db1682eaa122",
+      "encoding": "UTF-8",
+      "sourceNote": "Deno actual-client empty body regression1PASS after exact fixture relocation to existing qa/security tree"
+    },
+    {
+      "rawFile": "continuation-evidence-typescript-no-deps.log",
+      "rawBytes": 700,
+      "rawSha256": "9eb6230db490614cc840ba3761e6ce3a24e72c8c68940c60b62c8ff5ac23f731",
+      "archiveFile": "continuation-evidence-typescript-no-deps.log.gz",
+      "archiveBytes": 356,
+      "archiveSha256": "3f3d4d8137f21e0535b77b592f0b43dfcdef1aede1e7e2c1dbe1c4fa1b6289cb",
+      "encoding": "UTF-8",
+      "sourceNote": "Invalid environment attempt; no node_modules installed in evidence worktree; not source defect"
+    },
+    {
+      "rawFile": "continuation-evidence-typescript-after-relocation.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "continuation-evidence-typescript-after-relocation.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "sourceNote": "TypeScript exit0 after canonical QA fixture relocation; committed lock/package identicalc86; reused matching dependency junction"
     }
   ]
 }

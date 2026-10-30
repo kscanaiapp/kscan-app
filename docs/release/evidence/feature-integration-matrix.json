@@ -160,7 +160,7 @@
     "sourceMerged": "integration/build35-v1-convergence c86bf3d052806c6105ce7830a03ac2b1501d34a1; nine previous repairs merged. New #656/#657 unmerged.",
     "candidateSource": "KPlusMembershipSheet; kplusAcquisitionSurface.ts -> RevenueCat native -> reconcile -> canonical entitlement reader",
     "backendDeploymentAndFlags": "Live project/default offering/k_plus/prod webhook; US store price/trial readback verified; Apple READY_TO_SUBMIT",
-    "clientContractTests": "Hosted paywall iOS/Android actor-switch/offer/error tests; stale provider authority, webhook/reconciliation suites",
+    "clientContractTests": "Hosted paywall iOS/Android actor-switch/offer/error tests; stale provider authority, webhook/reconciliation suites;46 new bounded actual-Staging service-RPC records including19parameter input probes and concurrent normalized events; original optionalDB tests remain skipped",
     "deviceVerified": "NOT TESTED; no signed app/device run in campaign",
     "customerLive": "NOT VERIFIED; no published artifact binding",
     "blockers": "Existing-user route reachability source exercised; signed native sandbox/second-device restore/billing grace NOT TESTED; no pricing change",
