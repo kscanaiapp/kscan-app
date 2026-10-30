@@ -2418,7 +2418,13 @@ test('P1-21: there is no second VTO provider, endpoint or eligibility system for
   assert.deepEqual(providers, [
     'aiLabToolsProvider.test.ts', 'aiLabToolsProvider.ts', 'index.ts',
     'mockProvider.test.ts', 'mockProvider.ts', 'mockResultAsset.ts',
+    'remoteGarmentHandler.test.ts', 'remoteGarmentIntegrity.test.ts', 'remoteGarmentIntegrity.ts',
   ]);
+  assert.doesNotMatch(
+    stripComments(read('supabase/functions/vto-generate/providers/remoteGarmentIntegrity.ts')),
+    /\bfetch\s*\(|\bgenerate\s*\(|\bcreate\w*Provider\s*\(/,
+    'C010 helper validates bytes; it must not become a second provider or network path',
+  );
   const functions = fs.readdirSync(path.join(ROOT, 'supabase/functions'));
   assert.deepEqual(functions.filter((name) => /elise/i.test(name)), [], 'no Elise-specific Edge Function');
   // The try-on functions are exactly the two that already existed.

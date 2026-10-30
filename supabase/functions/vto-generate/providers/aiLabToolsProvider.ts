@@ -68,6 +68,7 @@ import type {
   VtoProviderMedia,
   VtoProviderOutcome,
 } from '../vtoContract.ts';
+import { hasRemoteGarmentImageContainer } from './remoteGarmentIntegrity.ts';
 
 export const AILABTOOLS_PROVIDER_ID = 'ailabtools_tryon_clothes_pro';
 
@@ -430,6 +431,14 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
           // The garment never resolved, so the submit was never sent.
           return {
             ok: false, failure: 'invalid_garment_input', detail: `garment_fetch_${garment.reason}`, billable: false,
+          };
+        }
+        if (!hasRemoteGarmentImageContainer(garment.bytes, garment.mediaType)) {
+          // A lying image header/empty/truncated body must not buy a task or
+          // consume an attempt. Inline media retains its separate validation.
+          return {
+            ok: false, failure: 'invalid_garment_input',
+            detail: 'garment_media_invalid_container', billable: false,
           };
         }
         garmentBlob = new Blob([garment.bytes], { type: garment.mediaType });

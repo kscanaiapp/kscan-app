@@ -113,8 +113,9 @@ test('MODE A: the guard test file skips exactly the two live assertions and pass
   assert.equal(result.status, 0, output);
   assert.match(output, /^# fail 0$/m, output);
   assert.match(output, /^# skipped 2$/m, 'exactly the two live-diff assertions skip');
-  assert.match(output, /^# pass 11$/m, 'the eight original static controls plus three byte-bound promotion controls still run');
+  assert.match(output, /^# pass 12$/m, 'the eight original static controls plus four byte-bound promotion controls still run');
   assert.match(output, /ok \d+ - discovery account-lifecycle promotion preserves reviewed canonical backend bytes/, 'the additional reviewed-backend promotion control must execute');
+  assert.match(output, /ok \d+ - VTO remote garment integrity promotion preserves reviewed canonical backend bytes/);
   // Skipping is reported with its reason, never silent.
   assert.match(output, /NOT APPLICABLE/);
 });
