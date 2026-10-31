@@ -971,9 +971,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 54,
-        "treeFileCount": 79,
-        "bundleHash": "d020662c97d06e5583f93bcaaf4050f3f4bb5c966a132d242c36bf769c3db8c5",
-        "treeHash": "5077e996c8908f03f043cb0eed4573e9f061f184443dda17ef2c08dc7547254a",
+        "treeFileCount": 80,
+        "bundleHash": "39e7e392b24a73e5f0ab2f52f78a1276bb871462e91744fb2a840f5a6aa8b0e6",
+        "treeHash": "549208ea04e26e979bc53d35a9fda4b23a310d1feaa718bb3cec601cead280e5",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1252,8 +1252,13 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "863b5bcc73591414e06ee64c2f0265a7920712773a7b9d864db2604313ba3ed5",
+            "sha256": "da0ef8a3597f18e98701be672154b167bc0f4e2052b1f97bf230d51cd2f70231",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/invalidBodyHostile.test.ts",
+            "sha256": "8c4c0f2ecab08d41fe8abe585bbec4934d89c5512df2e7251c3473e7740b6d9c",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/modelRouting.ts",
