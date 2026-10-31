@@ -88,10 +88,48 @@ export function isPostHogConfigured(): boolean {
   return resolveApiKey().length > 0 && isUsableHost(resolveHost());
 }
 
+/** Preserve queued event identity/order while excluding legacy launch URLs. */
+function sanitizeQueuedLaunchUrls<T>(value: T): T {
+  if (!Array.isArray(value)) return value;
+  let changed = false;
+  const sanitized = value.map((item) => {
+    const message = item?.message;
+    const properties = message?.properties;
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)
+      || !Object.prototype.hasOwnProperty.call(properties, 'url')) return item;
+    const safeProperties = { ...properties };
+    delete safeProperties.url;
+    changed = true;
+    return { ...item, message: { ...message, properties: safeProperties } };
+  });
+  return changed ? sanitized as T : value;
+}
+
+class PrivacyPostHog extends PostHog {
+  getPersistedProperty<T>(key: Parameters<PostHog['getPersistedProperty']>[0]): T | undefined {
+    const value = super.getPersistedProperty<T>(key);
+    // SDK4.67 preserves this queue across reset and does not rerun before_send
+    // when flushing restored records. Intercept the public storage read before
+    // any constructor/readiness-driven flush; unrelated SDK keys stay intact.
+    if (key !== 'queue') return value;
+    const sanitized = sanitizeQueuedLaunchUrls(value);
+    if (sanitized !== value) {
+      try {
+        super.setPersistedProperty(key, sanitized ?? null);
+      } catch {
+        // Keep the stored queue available for recovery, but do not transmit it
+        // until a sanitized snapshot can be installed consistently.
+        return undefined;
+      }
+    }
+    return sanitized;
+  }
+}
+
 function createClient(): PostHog | null {
   if (!isPostHogConfigured()) return null;
   try {
-    return new PostHog(resolveApiKey(), {
+    return new PrivacyPostHog(resolveApiKey(), {
       host: resolveHost(),
       before_send: (event) => {
         if (!event) return null;

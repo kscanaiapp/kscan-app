@@ -11,12 +11,31 @@ import {
   resolveStorageRefFromRow,
   sanitizeItemIds,
   sanitizeItemRefs,
+  sanitizeSignedStoragePath,
   sharedRoomItemRefKey,
 } from './validation.ts';
 
 const ITEM_A = '11111111-2222-3333-4444-555555555555';
 const ITEM_B = '66666666-7777-8888-9999-000000000000';
 const OWNER = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+Deno.test('signing response rejects schema confusion and unusable relative paths', () => {
+  for (const value of [undefined, null, {}, [], 42, true, '', ' ',
+    { unexpected: 'object' }, 'https://foreign.invalid/object/sign/x?token=x',
+    '//foreign.invalid/object/sign/x?token=x', '/object/sign/x',
+    '/object/sign/x?token=', '/object/sign/x?token=%20',
+    '/object/sign/../x?token=x', '/object/sign/x?token=x#fragment',
+    '/object/sign/x?token=x\n', '/storage/v1/object/sign/x?token=x']) {
+    assert.equal(sanitizeSignedStoragePath(value), null);
+  }
+});
+
+Deno.test('valid Storage signing paths and encoded object names are preserved exactly', () => {
+  for (const value of [
+    '/object/sign/style-library-images/user/scans/image.jpg?token=synthetic-token',
+    '/object/sign/style-library-images/user/saved%20scans/image%231.jpg?token=synthetic%2Etoken',
+  ]) assert.equal(sanitizeSignedStoragePath(value), value);
+});
 
 Deno.test('isValidShareToken accepts the real token contract, not just UUIDs', () => {
   assert.equal(isValidShareToken('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'), true);

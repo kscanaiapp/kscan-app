@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "3bab42e47817da8a4941efc4a509afee73879015",
+  "canonicalBackend": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -166,6 +166,30 @@
       "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
     },
     {
+      "file": "supabase/functions/shared-room-image-url/index.ts",
+      "sha256": "555facc7ae8b8a8638935e33309e2b3e6c1dcd92ebbe8af03895a9c5049985f4",
+      "source": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "reason": "Exact owner-authorized F012/P4 signing-response repair and default-gate regression coverage from canonical PR664. No RLS/schema/response-shape/secret/flag/deployment change."
+    },
+    {
+      "file": "supabase/functions/shared-room-image-url/signingResponse.test.ts",
+      "sha256": "0aca667b5c1eceef95aec1493cba7fce822851b31eca67e5b56c4d10f62f25d3",
+      "source": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "reason": "Exact owner-authorized F012/P4 signing-response repair and default-gate regression coverage from canonical PR664. No RLS/schema/response-shape/secret/flag/deployment change."
+    },
+    {
+      "file": "supabase/functions/shared-room-image-url/validation.test.ts",
+      "sha256": "9506fee2fd2a5c883ed8715dc3ab7373e30471cadc087b51cc89dd27c5fc3472",
+      "source": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "reason": "Exact owner-authorized F012/P4 signing-response repair and default-gate regression coverage from canonical PR664. No RLS/schema/response-shape/secret/flag/deployment change."
+    },
+    {
+      "file": "supabase/functions/shared-room-image-url/validation.ts",
+      "sha256": "812b4f80432a243f21b936d0359aabc9b142e76ab6928cb0785684da5d5589ed",
+      "source": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "reason": "Exact owner-authorized F012/P4 signing-response repair and default-gate regression coverage from canonical PR664. No RLS/schema/response-shape/secret/flag/deployment change."
+    },
+    {
       "file": "supabase/functions/sponsorship-sandbox/index.ts",
       "sha256": "d42ee10ecff7d6076286603d12aa5af9d67bda1c90e9b9b6368f78f1a24164a1",
       "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
@@ -286,5 +310,12 @@
       "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
       "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
     }
-  ]
+  ],
+  "sharedSigningRegressionRegistration": {
+    "file": "scripts/run-backend-tests.js",
+    "baseMobileSha": "a9503e135162824ed8127f6a3066fac1deab3e67",
+    "canonicalSource": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+    "sha256": "411f77b2b88266e1970cd6a1c8fe9776adba17109f22b56bcc4c54bd89bef329",
+    "scope": "Only add the reviewed shared-room-image-url default target/comment to the existing mobile runner; preserve every previous target including purchase-import-extract. This derived mobile file is not claimed byte-identical to canonical."
+  }
 }
