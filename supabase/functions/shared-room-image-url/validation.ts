@@ -145,6 +145,21 @@ export function isBucketAllowed(bucket: string): boolean {
   return ALLOWED_BUCKETS.has(bucket);
 }
 
+/** Validate untrusted Storage signing JSON before constructing a public URL. */
+export function sanitizeSignedStoragePath(value: unknown): string | null {
+  const prefix = '/object/sign/';
+  if (typeof value !== 'string' || !value.startsWith(prefix) || /[\u0000-\u0020\u007f]/.test(value)) return null;
+  try {
+    const parsed = new URL(value, 'https://signed-storage.invalid');
+    if (parsed.origin !== 'https://signed-storage.invalid' ||
+      !parsed.pathname.startsWith(prefix) || parsed.pathname.length <= prefix.length ||
+      !parsed.searchParams.get('token')?.trim() || parsed.hash) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Enforces the private object conventions established by the write paths and
  * database constraints. The room owner id stays server-side and is never
