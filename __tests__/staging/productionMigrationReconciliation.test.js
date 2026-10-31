@@ -685,7 +685,7 @@ test('an environment variable alone can never make a migration executable', asyn
 test('staging recognizes only explicitly declared pending migrations while unknown drift stays blocked', async () => {
   const { compareMigrations, loadLedgerReconciliation } = await loadPreflight();
   const staging = loadLedgerReconciliation(STAGING_REF, MANIFEST);
-  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500', '20261029125521', '20261029184000'], 'only exact declared migration identities may be pending');
+  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500', '20261029125521', '20261029184000', '20261031162813'], 'only exact declared migration identities may be pending');
 
   const result = compareMigrations(localOf('20260101000000', '20260202000000'), [], '', {
     reconciled: [],
