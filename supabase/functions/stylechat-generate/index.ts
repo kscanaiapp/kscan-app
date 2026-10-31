@@ -1047,6 +1047,13 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }
+  // B35-C-015: JSON.parse accepts null, arrays, and primitives. TypeScript's
+  // declared body shape is not runtime validation; an authenticated JSON null
+  // previously threw before requestId/session checks. Reject non-object bodies
+  // without reserving quota, invoking providers, or changing object contracts.
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return json({ error: 'Invalid request body' }, 400);
+  }
 
   const config = readEliseBackendConfig({ get: (name) => Deno.env.get(name) ?? undefined });
   const requestId = typeof body.requestId === 'string' && body.requestId.trim()
