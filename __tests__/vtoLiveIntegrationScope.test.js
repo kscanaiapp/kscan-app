@@ -210,8 +210,23 @@ test('C011 media DNS promotion preserves exact canonical bytes and refuses mutat
 });
 
 test('mixed campaign backend exceptions are exact byte-bound promotions, not a folder grant', () => {
-  assert.equal(campaignPromotion.files.length, 47);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 47);
+  const { execFileSync } = require('node:child_process');
+  const previous = JSON.parse(execFileSync('git', [
+    'show', '35bd7f42839d3711b29328dc8b0ac2db6b591960:config/build35-hostile-source-promotion.json',
+  ], { cwd: ROOT, encoding: 'utf8' }));
+  const signingFiles = [
+    'supabase/functions/shared-room-image-url/index.ts',
+    'supabase/functions/shared-room-image-url/signingResponse.test.ts',
+    'supabase/functions/shared-room-image-url/validation.test.ts',
+    'supabase/functions/shared-room-image-url/validation.ts',
+  ];
+  assert.equal(previous.files.length, 47);
+  assert.deepEqual(campaignPromotion.files.filter(row => !signingFiles.includes(row.file)), previous.files,
+    'all 47 prior byte-bound grants must remain unchanged');
+  assert.deepEqual(campaignPromotion.files.filter(row => signingFiles.includes(row.file)).map(row => row.file), signingFiles,
+    'only the four owner-authorized F012 canonical files are added');
+  assert.equal(campaignPromotion.files.length, 51);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 51);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);
