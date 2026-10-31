@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-31T08:11:20.432Z",
+  "capturedAt": "2026-10-31T13:33:18.427Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2352,6 +2352,56 @@
       "encoding": "UTF-16LE BOM",
       "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
       "result": "57 PASS / 0 FAIL / 2 explicitly non-applicable skips; all47 prior grants preserved, only four exact F012 files added"
+    },
+    {
+      "rawFile": "shared-signing-promotion-node-corrected.log",
+      "rawBytes": 1019445,
+      "rawSha256": "fc93dde747778bd05d3d02b77673a417762cc6888428184cc0bb3e66ecbf9c09",
+      "archiveFile": "shared-signing-promotion-node-corrected.log.gz",
+      "archiveBytes": 325656,
+      "archiveSha256": "639d7c4733b2ff725af8602f5b63092eaab541728ee6723d15fd12d7f8383d5c",
+      "encoding": "UTF-8",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
+    },
+    {
+      "rawFile": "authenticated-body-probes.log",
+      "rawBytes": 31812,
+      "rawSha256": "889fce299953edbc174e13f648fb429ec723cdaebcb2faa017894b4f80bdfd5e",
+      "archiveFile": "authenticated-body-probes.log.gz",
+      "archiveBytes": 1728,
+      "archiveSha256": "b50db2bc6489c2e932672fff3560337ec047851c9869d62daf2ba6ea08316277",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
+    },
+    {
+      "rawFile": "authenticated-body-probes-enabled.log",
+      "rawBytes": 34128,
+      "rawSha256": "0092aff19eedd6abe6c13e5a40d99990b1e6895be8aa2e485fced97b51a79d8b",
+      "archiveFile": "authenticated-body-probes-enabled.log.gz",
+      "archiveBytes": 1933,
+      "archiveSha256": "b30a5330d316e1dd5f8ca67dfd360021ccc4f5f8acf0da8cdb9077c62594229a",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
+    },
+    {
+      "rawFile": "authenticated-body-probes-final.log",
+      "rawBytes": 36626,
+      "rawSha256": "b56b0567509566360e7fe5c79c440e0c8d7d596c58791c33419a3c002d9a3386",
+      "archiveFile": "authenticated-body-probes-final.log.gz",
+      "archiveBytes": 2058,
+      "archiveSha256": "3961b4f5a38d6a34ded098b071fd4204bf20d5f573ecee98e29531564f4db89e",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
+    },
+    {
+      "rawFile": "evidence-terminology-post-promotion.log",
+      "rawBytes": 1738,
+      "rawSha256": "d9353f3dc16519952596518c4b42b7bbbef0c74a5eb1911a1c9a58f0a4884bcc",
+      "archiveFile": "evidence-terminology-post-promotion.log.gz",
+      "archiveBytes": 685,
+      "archiveSha256": "1afac278ce354e072f3900290f12305308b642c291f80b73254a61bccebc7046",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
     }
   ]
 }

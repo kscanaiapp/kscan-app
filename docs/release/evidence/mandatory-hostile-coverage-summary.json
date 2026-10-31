@@ -1,18 +1,40 @@
 {
-  "sourceSha": "2d2a944f294645e031f60efbbbdb9691f502541e",
+  "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 90,
-    "NOT TESTED": 3004,
+    "PASS": 101,
+    "NOT TESTED": 2993,
     "FAIL": 2
   },
   "nonApplicable": 307,
-  "applicablePending": 2697,
+  "applicablePending": 2686,
   "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
-  "limitation": "12 exact shared-handler cells newly PASS;5 exact dated Staging boundary cells reconciled. 10 endpoint-specific exclusions reviewed (7 newly N/A); all remain explicitly NOT TESTED/N/A. No whole-feature or current runtime certification.",
+  "limitation": "Exact malformed-body cells only; 24 records are not added as 24 independent matrix closures. Device certification excluded by owner, not PASS. Broad remaining locally executable coverage is still unfinished.",
   "knownFailingDefects": [
     "B35-B-004/P4",
-    "B35-F-012/P4"
+    "B35-C-015/P4"
   ],
-  "additionalDefectOutsideMatrix": "B35-G-013/P1; credential-bearing PostHog launch event; source prepared a5b55fc5, unmerged"
+  "additionalDefectOutsideMatrix": "G013/P1 SOURCE REPAIRED by merged663/665; no new P0-P3 in this batch",
+  "scopeExcludedDeviceCells": 4,
+  "inScopeApplicablePending": 2682,
+  "latestExecution": {
+    "records": 24,
+    "PASS": 22,
+    "FAIL": 2,
+    "exactMatrixCells": [
+      "B35-MAND-1172",
+      "B35-MAND-1174",
+      "B35-MAND-1173",
+      "B35-MAND-1129",
+      "B35-MAND-1131",
+      "B35-MAND-1130",
+      "B35-MAND-0914",
+      "B35-MAND-0916",
+      "B35-MAND-0915",
+      "B35-MAND-0742",
+      "B35-MAND-0744",
+      "B35-MAND-0743"
+    ],
+    "reverifiedSigningCell": "B35-MAND-1024"
+  }
 }

@@ -18515,76 +18515,103 @@
   {
     "endpoint": "function:purchase-import-extract",
     "probe": "empty body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific empty body harness and authorized valid-resource/provider fixture not implemented for purchase-import-extract; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"ok\":false,\"contractVersion\":\"purchase-import-v1\",\"errorClass\":\"invalid_file\",\"retryAfterSeconds\":null}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-0742",
     "feature": "purchase-import-extract",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/purchase-import-extract/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-019",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:purchase-import-extract",
     "probe": "null body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific null body harness and authorized valid-resource/provider fixture not implemented for purchase-import-extract; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"ok\":false,\"contractVersion\":\"purchase-import-v1\",\"errorClass\":\"invalid_file\",\"retryAfterSeconds\":null}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-0743",
     "feature": "purchase-import-extract",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/purchase-import-extract/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-021",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:purchase-import-extract",
     "probe": "malformed JSON",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific malformed JSON harness and authorized valid-resource/provider fixture not implemented for purchase-import-extract; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"ok\":false,\"contractVersion\":\"purchase-import-v1\",\"errorClass\":\"invalid_file\",\"retryAfterSeconds\":null}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-0744",
     "feature": "purchase-import-extract",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/purchase-import-extract/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-020",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
@@ -22815,76 +22842,103 @@
   {
     "endpoint": "function:scan-identify",
     "probe": "empty body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific empty body harness and authorized valid-resource/provider fixture not implemented for scan-identify; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 0,
+      "responseBody": "{\"status\":\"failed\",\"identification\":{},\"attributes\":{},\"recommendedProducts\":[],\"products\":[],\"purchaseOptions\":[],\"similarityMatches\":[],\"shoppingMeta\":{},\"userMessage\":\"Image pay"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-0914",
     "feature": "scan-identify",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/scan-identify/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-013",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:scan-identify",
     "probe": "null body",
-    "expected": "Controlled rejection of JSON null, no provider/write dispatch",
-    "actual": "TypeError when body.mode is dereferenced; providerCalls=0, privilegedWrites=0",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": "TypeError",
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 0,
+      "responseBody": ""
+    },
     "verdict": "FAIL",
-    "reason": "Reproduced invalid-input resilience defect; not account compromise/provider dispatch. P4 safe-repair condition excludes scan-identify subsystem.",
     "probeId": "B35-MAND-0915",
     "feature": "scan-identify",
-    "sourceSha": "5175f01f (handler harness source); failure retained through prepared a376f2f7",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/scan-identify/index.ts",
-    "environment": "Offline actual scan-identify Deno.serve handler; fake Auth/backend, no network permission",
-    "evidence": "hostile-entrypoints-results.json and raw handler log",
-    "executionMethod": "deno test --allow-read --allow-env qa/security/edge-entrypoint-hostile.test.ts",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-015",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": "B35-B-004",
     "repairReference": "Owner-gated P4; no repair implemented",
-    "reverificationStatus": "Unrepaired; standalone hostile suite intentionally remains red",
+    "reverificationStatus": "Reproduced, deferred P4; no provider dispatch/write",
     "coverageDisposition": {
       "category": 1,
-      "label": "Already executed with matching evidence",
-      "reason": "Already recorded exact boundary evidence remains dated; no new PASS inferred.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "FAIL",
+      "evidence": "hostile-entrypoints-results.json and raw handler log"
     }
   },
   {
     "endpoint": "function:scan-identify",
     "probe": "malformed JSON",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific malformed JSON harness and authorized valid-resource/provider fixture not implemented for scan-identify; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 0,
+      "responseBody": "{\"status\":\"failed\",\"identification\":{},\"attributes\":{},\"recommendedProducts\":[],\"products\":[],\"purchaseOptions\":[],\"similarityMatches\":[],\"shoppingMeta\":{},\"userMessage\":\"Image pay"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-0916",
     "feature": "scan-identify",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/scan-identify/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-014",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
@@ -25556,24 +25610,28 @@
     "endpoint": "function:shared-room-image-url",
     "probe": "provider wrong schema",
     "expected": "A non-string storage signedURL is rejected with a null image entry or controlled error; never construct a fabricated image URL from an object.",
-    "actual": "{\"id\":\"storage-object-schema\",\"status\":200,\"payload\":{\"imageUrls\":{\"11111111-1111-4111-8111-111111111111\":\"https://shared-fixture.invalid/storage/v1[object Object]\"}},\"signedCalls\":1}",
-    "verdict": "FAIL",
-    "reason": "Null wrong-schema cases passed, but a subsequent structured wrong-schema counterexample fails. Earlier positive records remain preserved; not a complete schema PASS.",
+    "actual": "Canonical actual-handler wrong-schema regression accepts valid paths and rejects nine malformed/unsafe signedURL variants; promotion files equal canonical, merged and full suite green.",
+    "verdict": "PASS",
     "probeId": "B35-MAND-1024",
     "feature": "shared-room-image-url",
-    "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+    "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
     "sourceLocation": "supabase/functions/shared-room-image-url/index.ts; validation.ts",
     "environment": "Offline actual shared-room-image-url handler; injected Supabase responses, no network permission",
-    "evidence": "continuation-shared-signing-schema-finding.json",
+    "evidence": "continuation-pr666-convergence.json; shared-schema-backend-final-with-handler.log.gz; supabase/functions/shared-room-image-url/signingResponse.test.ts",
     "executionMethod": "deno test --no-config --node-modules-dir=none --allow-env --allow-read qa/security/shared-room-capability-boundary.test.ts",
     "linkedDefectId": "B35-F-012",
-    "repairReference": null,
-    "reverificationStatus": "Confirmed P4; source not repaired, owner gate recorded",
+    "repairReference": "PR664 canonical f64d8b7f; PR666 mobile50387a2b",
+    "reverificationStatus": "SOURCE REPAIRED AND VERIFIED; no runtime deployment",
     "coverageDisposition": {
       "category": 1,
       "label": "Already executed with matching evidence",
       "reason": "Actual handler exercised at each attributed boundary; precise cases in continuation-shared-capability-probes.json",
       "reviewSourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c"
+    },
+    "previousFailure": {
+      "verdict": "FAIL",
+      "actual": "{\"id\":\"storage-object-schema\",\"status\":200,\"payload\":{\"imageUrls\":{\"11111111-1111-4111-8111-111111111111\":\"https://shared-fixture.invalid/storage/v1[object Object]\"}},\"signedCalls\":1}",
+      "evidence": "continuation-shared-signing-schema-finding.json"
     }
   },
   {
@@ -28178,76 +28236,103 @@
   {
     "endpoint": "function:style-outfit-generate",
     "probe": "empty body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific empty body harness and authorized valid-resource/provider fixture not implemented for style-outfit-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"error\":\"Invalid JSON\"}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-1129",
     "feature": "style-outfit-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-007",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:style-outfit-generate",
     "probe": "null body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific null body harness and authorized valid-resource/provider fixture not implemented for style-outfit-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"error\":\"Invalid request body\"}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-1130",
     "feature": "style-outfit-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-009",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:style-outfit-generate",
     "probe": "malformed JSON",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific malformed JSON harness and authorized valid-resource/provider fixture not implemented for style-outfit-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"error\":\"Invalid JSON\"}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-1131",
     "feature": "style-outfit-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-008",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
@@ -29253,76 +29338,103 @@
   {
     "endpoint": "function:stylechat-generate",
     "probe": "empty body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific empty body harness and authorized valid-resource/provider fixture not implemented for stylechat-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"error\":\"Invalid JSON\"}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-1172",
     "feature": "stylechat-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-001",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:stylechat-generate",
     "probe": "null body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific null body harness and authorized valid-resource/provider fixture not implemented for stylechat-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": "TypeError",
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": ""
+    },
+    "verdict": "FAIL",
     "probeId": "B35-MAND-1173",
     "feature": "stylechat-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
-    "linkedDefectId": null,
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-003",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
+    "linkedDefectId": "B35-C-015",
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Reproduced, deferred P4; no provider dispatch/write",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
     "endpoint": "function:stylechat-generate",
     "probe": "malformed JSON",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific malformed JSON harness and authorized valid-resource/provider fixture not implemented for stylechat-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "actual": {
+      "status": 400,
+      "providerCalls": 0,
+      "writes": 0,
+      "authReads": 1,
+      "receiptReads": 1,
+      "responseBody": "{\"error\":\"Invalid JSON\"}"
+    },
+    "verdict": "PASS",
     "probeId": "B35-MAND-1174",
     "feature": "stylechat-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-002",
+    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Source contract PASS",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual-handler contract",
+      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
@@ -69403,7 +69515,7 @@
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
     "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
     "verdict": "NOT TESTED",
-    "reason": "Owner explicitly confirms no physical devices available. Requires supported iOS/Android device and authorized test app; native accuracy/lifecycle cannot be certified by injected source tests.",
+    "reason": "Native physical-device execution excluded from this audit; capability accuracy not verified, no PASS inferred.",
     "probeId": "B35-MAND-2777",
     "feature": "Live Camera VTO",
     "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
@@ -69421,7 +69533,8 @@
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
     },
-    "deviceAvailabilityEvidence": "owner-device-availability.json"
+    "deviceAvailabilityEvidence": "owner-device-availability.json",
+    "scopeDisposition": "OUT OF SCOPE — device certification explicitly excluded by owner on October31"
   },
   {
     "endpoint": "workflow:Live Camera VTO",
@@ -69429,7 +69542,7 @@
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
     "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
     "verdict": "NOT TESTED",
-    "reason": "Owner explicitly confirms no physical devices available. Requires supported iOS/Android device and authorized test app; native accuracy/lifecycle cannot be certified by injected source tests.",
+    "reason": "Native physical-device execution excluded from this audit; capability accuracy not verified, no PASS inferred.",
     "probeId": "B35-MAND-2778",
     "feature": "Live Camera VTO",
     "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
@@ -69447,7 +69560,8 @@
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
     },
-    "deviceAvailabilityEvidence": "owner-device-availability.json"
+    "deviceAvailabilityEvidence": "owner-device-availability.json",
+    "scopeDisposition": "OUT OF SCOPE — device certification explicitly excluded by owner on October31"
   },
   {
     "endpoint": "workflow:Live Camera VTO",
@@ -69455,7 +69569,7 @@
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
     "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
     "verdict": "NOT TESTED",
-    "reason": "Owner explicitly confirms no physical devices available. Requires supported iOS/Android device and authorized test app; native accuracy/lifecycle cannot be certified by injected source tests.",
+    "reason": "Native physical-device execution excluded from this audit; capability accuracy not verified, no PASS inferred.",
     "probeId": "B35-MAND-2779",
     "feature": "Live Camera VTO",
     "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
@@ -69473,7 +69587,8 @@
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
     },
-    "deviceAvailabilityEvidence": "owner-device-availability.json"
+    "deviceAvailabilityEvidence": "owner-device-availability.json",
+    "scopeDisposition": "OUT OF SCOPE — device certification explicitly excluded by owner on October31"
   },
   {
     "endpoint": "workflow:Live Camera VTO",
@@ -69481,7 +69596,7 @@
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
     "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
     "verdict": "NOT TESTED",
-    "reason": "Owner explicitly confirms no physical devices available. Requires supported iOS/Android device and authorized test app; native accuracy/lifecycle cannot be certified by injected source tests.",
+    "reason": "Native physical-device execution excluded from this audit; capability accuracy not verified, no PASS inferred.",
     "probeId": "B35-MAND-2780",
     "feature": "Live Camera VTO",
     "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
@@ -69499,7 +69614,8 @@
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
     },
-    "deviceAvailabilityEvidence": "owner-device-availability.json"
+    "deviceAvailabilityEvidence": "owner-device-availability.json",
+    "scopeDisposition": "OUT OF SCOPE — device certification explicitly excluded by owner on October31"
   },
   {
     "endpoint": "workflow:Live Camera VTO",
