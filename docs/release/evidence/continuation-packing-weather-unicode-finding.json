@@ -1,7 +1,7 @@
 {
   "id": "B35-E-016",
   "priority": "P3",
-  "status": "CONFIRMED — repair starting",
+  "status": "CANONICAL REPAIRED/VERIFIED; MOBILE CONVERGENCE PENDING",
   "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
   "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
   "canonicalBackend": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
@@ -26,5 +26,25 @@
   "impact": "Non-Latin cities share an empty destination cache component; a second trip receives the first city forecast/resolved location and incorrect weather-driven packing advice. Public weather data, no demonstrated private-data leak.",
   "rootCause": "ASCII-only character class removes all Unicode letters/marks before a shared forecast cache lookup.",
   "repairPlan": "Preserve Unicode letters/marks/numbers with NFKC normalization; keep case/punctuation/space normalization; regress CJK, Cyrillic, Devanagari marks, fullwidth/composed equivalents and actual resolver requests. No API/schema/legal/platform change.",
-  "authorization": "New confirmed P3 source repair and green-PR merge authorized by existing campaign; isolated canonical then mobile promotions, no deployment"
+  "authorization": "New confirmed P3 source repair and green-PR merge authorized by existing campaign; isolated canonical then mobile promotions, no deployment",
+  "canonicalRepair": "PR667",
+  "canonicalMerge": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+  "reviewedSource": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+  "reviewedAndMergedTree": "71cb227032f64453756f448dc1356d650927f1d3",
+  "regressions": "3 new cases in packingWeather.test.ts; focused20/0, full CI backend1574/0",
+  "canonicalPremerge": "32success/14conditional skip; no pending",
+  "canonicalBranchCI": "7/7 push workflows successful",
+  "mobilePR": 668,
+  "mobileHead": "ced4bb37f1d03719cf0ded0f442d2ae3bd98448a",
+  "mobileFocus": {
+    "pass": 155,
+    "fail": 0,
+    "skipped": 2
+  },
+  "mobileInitialFailure": "One generated identity/source mismatch; regenerate documented capability identity only. No capability evidence or activation record renewed.",
+  "generatedPackingFingerprint": {
+    "from": "7e9befb680cae412c347950393ab7aa6d11acaaa024e631cde6630d0f28bf71d",
+    "to": "8646c79d01dd90da8862049319a0ff51ac989ae1a82a702c30477a5954662c6e"
+  },
+  "noProductionDeployment": true
 }

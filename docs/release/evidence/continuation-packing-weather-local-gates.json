@@ -1,0 +1,30 @@
+{
+  "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+  "results": [
+    {
+      "file": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "file": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "file": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "file": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "file": "check-dependency-reachability.js",
+      "exitCode": 2,
+      "error": null
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-31T13:43:41.367Z",
+  "capturedAt": "2026-10-31T16:07:24.565Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2441,6 +2441,186 @@
       "archiveBytes": 842,
       "archiveSha256": "28136bb9a39f015145f92ee026e003c1939ede416f267f734fc8248cb9ba27a0",
       "encoding": "UTF-16LE BOM"
+    },
+    {
+      "rawFile": "speech-provider-chain.log",
+      "rawBytes": 12870,
+      "rawSha256": "d9cde4201ab0c67297b93a425e3618eab63d515a3e09f3f04c487a0eebc599b9",
+      "archiveFile": "speech-provider-chain.log.gz",
+      "archiveBytes": 1412,
+      "archiveSha256": "3d4b2b4fb1e120cf43f0bcc13d47e48f0c38b4eeb0d6c7900b8683bfce83846a",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "weather-provider-boundaries-initial-weak-oracle.log",
+      "rawBytes": 16618,
+      "rawSha256": "69aed4e0c6503f24310be52259a1160673ac5de9fa975c7663f361888c33d64f",
+      "archiveFile": "weather-provider-boundaries-initial-weak-oracle.log.gz",
+      "archiveBytes": 1324,
+      "archiveSha256": "6c820608e625ed3e2b8e0c7263da60f54a93ac3bae2d3330a4a7851e6066f68e",
+      "encoding": "UTF-16LE BOM",
+      "scope": "Initial weaker security oracle, excluded as final proof"
+    },
+    {
+      "rawFile": "weather-provider-boundaries-final.log",
+      "rawBytes": 16828,
+      "rawSha256": "af4034d481f8a5a0445b8da2b14d1fc0541fb16a788e3461618ab054c28e12f4",
+      "archiveFile": "weather-provider-boundaries-final.log.gz",
+      "archiveBytes": 1377,
+      "archiveSha256": "982395e615db7fe8813e2880da674d7e1c0b37a03b2104ff7dbe83f828439028",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "share-purge-staging.log",
+      "rawBytes": 374,
+      "rawSha256": "f2d5d9857f9301a387eef9415b3013997f168519f10827fa050b7ada8b0caa9d",
+      "archiveFile": "share-purge-staging.log.gz",
+      "archiveBytes": 71,
+      "archiveSha256": "f33d4f398ffcc1dd1d38c389da58436517aad6a481b972e448db2d4ac176db50",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "prepare-expired-jwt-fixture.log",
+      "rawBytes": 162,
+      "rawSha256": "5fab2f9237fdae9ad9be324a63506bc25bfd9d6a2c58dfe9c3644502280d68cd",
+      "archiveFile": "prepare-expired-jwt-fixture.log.gz",
+      "archiveBytes": 120,
+      "archiveSha256": "ef47bb19c4009f1ee7310968385daac4ea2b82d92a912776e4ac427ee7a591e9",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-focused-after.log",
+      "rawBytes": 55536,
+      "rawSha256": "e578ba0a03fc10990e9dad2f3034ca402cd975c06fa6445737cce226065cbd51",
+      "archiveFile": "packing-weather-focused-after.log.gz",
+      "archiveBytes": 8910,
+      "archiveSha256": "998043c950fc07c65c5969d1a18e4000b1489eddbcd24e959558f192672b6c2e",
+      "encoding": "UTF-16LE BOM",
+      "scope": "Interrupted initial automatic dependency/type initialization; not a completed source verdict"
+    },
+    {
+      "rawFile": "packing-weather-focused-controlled.log",
+      "rawBytes": 3654,
+      "rawSha256": "98411dfa6f5d208d4580332771cfc24175bd789a2974da1d81c4aeda2cace1e2",
+      "archiveFile": "packing-weather-focused-controlled.log.gz",
+      "archiveBytes": 1056,
+      "archiveSha256": "26be57a702c0a889137904dd8ccd9d953b4a50e38ab91afa2e9b3a2fa5dfdeb3",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-focused-manual.log",
+      "rawBytes": 1802,
+      "rawSha256": "be120e6b7953e7133532ba60e106ff3061623ba128d146f4b3d77fa2bb245d4e",
+      "archiveFile": "packing-weather-focused-manual.log.gz",
+      "archiveBytes": 840,
+      "archiveSha256": "f81864144c26b9997b6830e42251d7d034ad6f505a9305b9bbf0bbf36de92b33",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-backend-final.log",
+      "rawBytes": 7797,
+      "rawSha256": "eb3b75f93603597d528ce635630af6153b9d3b595ab8833c0993da6a93ef57fc",
+      "archiveFile": "packing-weather-backend-final.log.gz",
+      "archiveBytes": 1412,
+      "archiveSha256": "1164b759d98bbc3c67b3becd8979367a68f84c3aaaaa7fe069e42d2008ee1600",
+      "encoding": "UTF-8",
+      "scope": "INCOMPLETE local discovery/run; no passing count"
+    },
+    {
+      "rawFile": "packing-weather-promotion-focused.log",
+      "rawBytes": 28344,
+      "rawSha256": "cabeddd96b0a4b57b0dd2dce923dcbcf1939a07d1695e52fe62a58fd2d3c6d3b",
+      "archiveFile": "packing-weather-promotion-focused.log.gz",
+      "archiveBytes": 5720,
+      "archiveSha256": "573694a1d91ba853ec0b4030dec2ec47e0d10bd13e7533051b29029fe8a72f61",
+      "encoding": "UTF-16LE BOM",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "ci-pr667-contract-job.log",
+      "rawBytes": 67301,
+      "rawSha256": "fcd328a734d8ee5f9ee6959865cc24d6958f35048cffcf7cc4c71d52b1802ba4",
+      "archiveFile": "ci-pr667-contract-job.log.gz",
+      "archiveBytes": 14764,
+      "archiveSha256": "39592c15f4216c029967f41d6340c091e156d966df7b17d616f075f825b47bd1",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "ci-pr667-project-job-raw.log",
+      "rawBytes": 1775317,
+      "rawSha256": "f8c9aba8e35499700a15ef918e83e41d02fa3ce6c4e0f53cbc8db92eda4fa2fb",
+      "archiveFile": "ci-pr667-project-job-raw.log.gz",
+      "archiveBytes": 435188,
+      "archiveSha256": "4732a34e9cb429718465f71fb5ff47ca9e887837822f42982750223f994e2c55",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "ci-pr668-initial-project-failure.log",
+      "rawBytes": 1544826,
+      "rawSha256": "631a6a7a6dcafbe17000f1cfccc833c285749b2a9fa133bb5c957d5740582a28",
+      "archiveFile": "ci-pr668-initial-project-failure.log.gz",
+      "archiveBytes": 434933,
+      "archiveSha256": "06ee861b24a407437fde8b990a886dd05cfc9c22113e4520ca34bd899ecce490",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-check-edge-function-parity.js.log",
+      "rawBytes": 2070,
+      "rawSha256": "c0caba341f0d9ec278f85f7c93cb41ae6f4ec917c499195b8b897a5c23a41fcc",
+      "archiveFile": "packing-weather-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 956,
+      "archiveSha256": "abeecfeb940fc35f8dedf4e154cf807663f9abf2e76a9609bab2f19ffcbae65c",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-verify-backend-authority.js.log",
+      "rawBytes": 638,
+      "rawSha256": "506b20c353fd97e1359a5f0606332d50047472345bef3a0164e762924f7d46a4",
+      "archiveFile": "packing-weather-verify-backend-authority.js.log.gz",
+      "archiveBytes": 369,
+      "archiveSha256": "205f41a5d605dddedb60cb5c6ce84e6fc8fa825cf2a37bdbb6dc39097ad1b4d7",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-check-native-config-parity.js.log",
+      "rawBytes": 1133,
+      "rawSha256": "123e5e4fce582dcb1083099570414ecb394b19f60b739b07f09b3069c0b2e4f7",
+      "archiveFile": "packing-weather-check-native-config-parity.js.log.gz",
+      "archiveBytes": 539,
+      "archiveSha256": "e61df995f0953c57a7ac1eefd3759c67a6c034644c61a45d53bca07a54b3e964",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "d9a10d3fa52e2f1dc9aa2e16dbbd3c22edafc022f5be5eb2a25f63f42c43d1a0",
+      "archiveFile": "packing-weather-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "16f6f1a55d7eb3268d6b014b7f5a68adce67a8044ad094ddf67d7dd4f145a092",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "packing-weather-check-dependency-reachability.js.log",
+      "rawBytes": 320,
+      "rawSha256": "1b340698ccdb31628bd5f51409ba91fa799fcc9e5de7ecc3a5802e7a06630205",
+      "archiveFile": "packing-weather-check-dependency-reachability.js.log.gz",
+      "archiveBytes": 244,
+      "archiveSha256": "1faf61339424a7f74d93656edb984ae85da58b1196b5a20c21dde100747f31a0",
+      "encoding": "UTF-8",
+      "scope": "As classified in linked source/CI/probe records"
     }
   ]
 }

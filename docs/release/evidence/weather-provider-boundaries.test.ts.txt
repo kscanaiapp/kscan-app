@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+const root=new URL('file:///C:/b35weather1031/');
+const {clearPackingWeatherCache,resolvePackingWeather,packingWeatherCacheKey}=await import(new URL('supabase/functions/stylechat-generate/packingWeather.ts',root).href);
+const now=()=>Date.parse('2026-09-01T12:00:00Z');
+const trip={destination:'Synthetic City',startDate:'2026-09-12',endDate:'2026-09-13',now};
+const geo={results:[{latitude:35.67123,longitude:139.65123,name:'Synthetic City'}]};
+const forecast={daily:{temperature_2m_max:[25,26],temperature_2m_min:[16,17],weather_code:[0,1]}};
+function record(probe:string,actual:unknown,expected:string){console.log('WEATHER_BOUNDARY_RESULT '+JSON.stringify({probe,expected,actual,verdict:'PASS'}));}
+function assertGeocodeRequest(raw:string,destination:string){const u=new URL(raw);assert.equal(u.origin,'https://geocoding-api.open-meteo.com');assert.equal(u.pathname,'/v1/search');assert.equal(u.searchParams.get('name'),destination);}
+for(const stage of ['geocode','forecast'])for(const mode of ['500','429','timeout','malformed','empty','wrong-schema']){
+ Deno.test('weather provider boundary '+stage+': '+mode,async()=>{
+  clearPackingWeatherCache();let calls=0;const urls:string[]=[];
+  const fetchImpl=(async(input:unknown)=>{
+   calls++;const u=new URL(String(input));urls.push(u.toString());
+   const current=u.hostname==='geocoding-api.open-meteo.com'?'geocode':'forecast';
+   if(current!==stage)return Response.json(geo);
+   if(mode==='timeout')throw new DOMException('Synthetic timeout','AbortError');
+   if(mode==='500'||mode==='429')return Response.json({error:true},{status:Number(mode)});
+   if(mode==='malformed')return new Response('{');
+   if(mode==='empty')return new Response('');
+   return Response.json({results:{wrong:true},daily:{wrong:true}});
+  }) as typeof fetch;
+  const result=await resolvePackingWeather({...trip,fetchImpl});assert.equal(result,null);
+  assert.equal(calls,stage==='geocode'?1:2);
+  assert.ok(urls.every(raw=>['https://geocoding-api.open-meteo.com','https://api.open-meteo.com'].includes(new URL(raw).origin)));
+  const replay=await resolvePackingWeather({...trip,fetchImpl});assert.equal(replay,null);assert.equal(calls,stage==='geocode'?1:2);
+  record(stage+' provider '+mode,{result,calls,replay},'Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification');
+ });
+}
+for(const destination of ['http://169.254.169.254/latest/meta-data','http://localhost/admin','file:///private/fixture','gopher://127.0.0.1/','https://controlled-rebinding.invalid/']){
+ Deno.test('weather fixed-origin URL boundary '+destination,async()=>{
+  clearPackingWeatherCache();const urls:string[]=[];
+  const fetchImpl=(async(input:unknown)=>{urls.push(String(input));return Response.json({results:[]});}) as typeof fetch;
+  assert.equal(await resolvePackingWeather({...trip,destination,fetchImpl}),null);assert.equal(urls.length,1);
+  assertGeocodeRequest(urls[0],destination);
+  record('untrusted destination text '+destination,{requestedOrigins:urls.map(x=>new URL(x).origin),calls:urls.length},'Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called');
+ });
+}
+Deno.test('weather cache cannot reuse Latin forecast for a visually similar mixed-script destination',async()=>{
+ clearPackingWeatherCache();const paris='Paris',mixed='\u0420\u0430ris';let calls=0;
+ const fetchImpl=(async(input:unknown)=>{calls++;const u=new URL(String(input));if(u.hostname==='geocoding-api.open-meteo.com')return Response.json(u.searchParams.get('name')===paris?{results:[{latitude:48.86,longitude:2.35,name:paris}]}:{results:[]});return Response.json(forecast);}) as typeof fetch;
+ const a=await resolvePackingWeather({...trip,destination:paris,fetchImpl}),b=await resolvePackingWeather({...trip,destination:mixed,fetchImpl});
+ assert.equal(a?.resolvedLocation,paris);assert.equal(b,null);assert.equal(calls,3);
+ assert.notEqual(packingWeatherCacheKey(paris,trip.startDate,trip.endDate),packingWeatherCacheKey(mixed,trip.startDate,trip.endDate));
+ record('mixed-script cache identity',{first:a?.resolvedLocation,second:b,calls},'Distinct Unicode input is not silently assigned a cached Latin-city forecast');
+});
+Deno.test('weather payload allowlist does not forward private account, closet or note fields',async()=>{
+ clearPackingWeatherCache();const urls:string[]=[];
+ const secret='synthetic-private-account-note';
+ const fetchImpl=(async(input:unknown)=>{const u=new URL(String(input));urls.push(u.toString());return Response.json(u.hostname==='geocoding-api.open-meteo.com'?geo:forecast);}) as typeof fetch;
+ const out=await resolvePackingWeather({...trip,fetchImpl,userId:secret,closet:[secret],note:secret} as typeof trip&{fetchImpl:typeof fetch});
+ assert.ok(out);assert.equal(urls.length,2);assert.ok(urls.every(raw=>!raw.includes(secret)));
+ assert.deepEqual([...new URL(urls[0]).searchParams.keys()].sort(),['count','format','language','name']);
+ record('private property exclusion',{calls:urls.length,containsPrivateValue:urls.some(x=>x.includes(secret))},'Only approved destination/date/rounded-coordinate provider parameters leave the adapter');
+});
+Deno.test('oracle negative control: a swallowed mock assertion cannot hide an unsafe requested origin',()=>{
+ for(const raw of ['http://169.254.169.254/v1/search?name=x','http://localhost/v1/search?name=x','file:///v1/search?name=x','gopher://localhost/v1/search?name=x']){
+  assert.throws(()=>assertGeocodeRequest(raw,'x'));
+ }
+});

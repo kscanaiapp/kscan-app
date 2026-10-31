@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+const root=new URL('file:///C:/b35sharepromote1030/');
+const {createStylistSpeechHandler}=await import(new URL('supabase/functions/stylist-speech/handler.ts',root).href);
+const {requestElevenLabsSpeech}=await import(new URL('supabase/functions/stylist-speech/elevenLabsClient.ts',root).href);
+const actor='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',foreign='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',session='11111111-1111-4111-8111-111111111111',message='22222222-2222-4222-8222-222222222222',lease='33333333-3333-4333-8333-333333333333';
+const env={get:(n:string)=>n==='ELEVENLABS_API_KEY'?'sk_0123456789abcdef0123456789abcdef':n.endsWith('_VOICE_ID')?'ZZZFixtureVoiceId0001':n==='ELEVENLABS_MODEL_ID'?'eleven_flash_v2_5':n==='ELEVENLABS_OUTPUT_FORMAT'?'mp3_44100_128':undefined};
+function fixture(mode:string){
+ let calls=0,reservations=0,finishes:boolean[]=[];let releaseProvider:()=>void=()=>{},entered:()=>void=()=>{};
+ const enteredPromise=new Promise<void>(r=>{entered=r}),held=new Promise<void>(r=>{releaseProvider=r});
+ const data={
+  getAuthenticatedActor:async()=>mode==='anonymous'?null:{id:actor},
+  getAccountStatus:async()=>mode==='inactive'?'pending_deletion':'active',
+  hasActiveKPlus:async()=>mode!=='free',
+  getSession:async()=>({id:session,user_id:mode==='foreign-session'?foreign:actor}),
+  getMessage:async()=>({id:message,session_id:session,user_id:mode==='foreign-message'?foreign:actor,sender:'assistant',content:'Synthetic source-chain response.',ui_blocks:null,provider:'stylechat'}),
+  getStylistPreference:async()=>({avatar_id:'stylist_portrait_05'}),
+  reserveSpeechRequest:async()=>{reservations++;return{allowed:true,reservationId:lease};},
+  finishSpeechRequest:async(_a:string,_r:string,succeeded:boolean)=>{finishes.push(succeeded);},
+ };
+ const handler=createStylistSpeechHandler({createDataAccess:()=>data,env,generateSpeech:(input:Record<string,unknown>)=>requestElevenLabsSpeech({...input,timeoutMs:mode==='timeout'?5:1000,diagnosticsSink:()=>{},fetchImpl:(async(_url:unknown,init:RequestInit)=>{
+   calls++;assert.match(String(_url),/^https:\/\/api\.elevenlabs\.io\/v1\/text-to-speech\//);
+   if(mode==='held'){entered();await held;}
+   if(mode==='timeout')return await new Promise<Response>((_resolve,reject)=>{if(init.signal?.aborted)reject(new DOMException('Fixture timeout','AbortError'));else init.signal?.addEventListener('abort',()=>reject(new DOMException('Fixture timeout','AbortError')),{once:true});});
+   if(mode==='500'||mode==='429')return Response.json({detail:{status:mode==='429'?'quota_exceeded':'internal_error',message:'synthetic-secret-provider-detail'}},{status:Number(mode)});
+   if(mode==='malformed')return new Response('{');
+   if(mode==='empty')return new Response('');
+   if(mode==='wrong-schema')return Response.json({audio_base64:{wrong:true},normalized_alignment:[]});
+   return Response.json({audio_base64:btoa('ID3synthetic-audio'),normalized_alignment:{characters:[],character_start_times_seconds:[],character_end_times_seconds:[]}});
+  }) as typeof fetch})});
+ const request=()=>new Request('https://fixture.invalid/stylist-speech',{method:'POST',headers:{Authorization:'Bearer synthetic-verified-actor','Content-Type':'application/json'},body:JSON.stringify({sessionId:session,messageId:message,stylistId:'stylist_portrait_05'})});
+ return{handler,request,enteredPromise,releaseProvider,get counts(){return{providerCalls:calls,reservations,finalizations:finishes};}};
+}
+for(const mode of ['500','429','timeout','malformed','empty','wrong-schema','empty-timestamps'] as const)Deno.test('full speech source chain: '+mode,async()=>{
+ const h=fixture(mode),r=await h.handler(h.request()),body=await r.json();
+ const timing=mode==='empty-timestamps';
+ assert.equal(h.counts.providerCalls,1);assert.equal(h.counts.reservations,1);
+ assert.deepEqual(h.counts.finalizations,[timing]);
+ if(timing){assert.equal(r.status,200);assert.equal(body.alignment,null);assert.equal(body.alignmentDiagnostics.source,'none');assert.ok(body.audioBase64);}
+ else{assert.ok(r.status>=400);assert.ok(!body.audioBase64);assert.ok(!JSON.stringify(body).includes('synthetic-secret-provider-detail'));}
+ console.log('SPEECH_CHAIN_RESULT '+JSON.stringify({probe:mode,actual:{http:r.status,code:body.code??null,alignment:body.alignment??null,...h.counts},verdict:'PASS',expected:timing?'Audio remains available but no fabricated timing; finalize success once':'Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak'}));
+});
+for(const mode of ['anonymous','inactive','free','foreign-session','foreign-message'] as const)Deno.test('speech authority source chain: '+mode,async()=>{
+ const h=fixture(mode),r=await h.handler(h.request()),body=await r.json();
+ assert.ok(r.status>=400);assert.deepEqual(h.counts,{providerCalls:0,reservations:0,finalizations:[]});
+ console.log('SPEECH_CHAIN_RESULT '+JSON.stringify({probe:mode,actual:{http:r.status,code:body.code,...h.counts},verdict:'PASS',expected:'Reject before reservation/provider; actor and owned session/message authority are independently enforced'}));
+});
+Deno.test('speech same-operation concurrency: ten retries while paid dispatch is held',async()=>{
+ const h=fixture('held'),first=h.handler(h.request());await h.enteredPromise;
+ const retries=await Promise.all(Array.from({length:10},()=>h.handler(h.request())));
+ assert.ok(retries.every(r=>r.status===409));assert.equal(h.counts.reservations,1);assert.equal(h.counts.providerCalls,1);
+ h.releaseProvider();const r=await first;assert.equal(r.status,200);assert.deepEqual(h.counts.finalizations,[true]);
+ console.log('SPEECH_CHAIN_RESULT '+JSON.stringify({probe:'simultaneous duplicate and ten rapid retries',actual:{firstStatus:r.status,retryStatuses:retries.map(r=>r.status),...h.counts},verdict:'PASS',expected:'Only one reservation/provider call; duplicate requests fail409 and initial operation finalizes once'}));
+});

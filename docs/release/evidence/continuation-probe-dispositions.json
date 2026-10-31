@@ -15,9 +15,9 @@
     "10": "Documented technical limitation"
   },
   "allCellsByDisposition": {
-    "1": 105,
+    "1": 122,
     "2": 307,
-    "3": 2394,
+    "3": 2377,
     "4": 277,
     "5": 8,
     "6": 4,
@@ -36,13 +36,13 @@
   "protocolOwnershipExclusionsAdded": 90,
   "reconciledExistingPasses": 5,
   "currentVerdicts": {
-    "PASS": 103,
-    "NOT TESTED": 2991,
+    "PASS": 120,
+    "NOT TESTED": 2974,
     "FAIL": 2
   },
   "currentPendingByDisposition": {
     "2": 307,
-    "3": 2394,
+    "3": 2377,
     "4": 277,
     "5": 8,
     "6": 4,
@@ -50,8 +50,8 @@
   },
   "originalPendingResolved": 37,
   "continuation": "P4 F012 exact wrong-schema cell reverified after canonical664/mobile666; four authenticated invalid-body handlers executed24cases,22PASS/2P4FAIL; source coverage unfinished.",
-  "currentApplicablePending": 2684,
+  "currentApplicablePending": 2667,
   "reconciliationSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
-  "inScopeApplicablePending": 2680,
+  "inScopeApplicablePending": 2663,
   "scopeExcludedDeviceCells": 4
 }

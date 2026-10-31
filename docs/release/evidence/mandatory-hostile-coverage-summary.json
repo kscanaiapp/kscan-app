@@ -2,21 +2,21 @@
   "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 103,
-    "NOT TESTED": 2991,
+    "PASS": 120,
+    "NOT TESTED": 2974,
     "FAIL": 2
   },
   "nonApplicable": 307,
-  "applicablePending": 2684,
+  "applicablePending": 2667,
   "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
   "limitation": "Exact malformed-body cells only; 24 records are not added as 24 independent matrix closures. Device certification excluded by owner, not PASS. Broad remaining locally executable coverage is still unfinished.",
   "knownFailingDefects": [
     "B35-B-004/P4",
     "B35-C-015/P4"
   ],
-  "additionalDefectOutsideMatrix": "G013/P1 SOURCE REPAIRED by merged663/665; no new P0-P3 in this batch",
+  "additionalDefectOutsideMatrix": "B35-E-016/P3 weather cache, canonical PR667 merged; mobile PR668 pending. G013 remains repaired.",
   "scopeExcludedDeviceCells": 4,
-  "inScopeApplicablePending": 2680,
+  "inScopeApplicablePending": 2663,
   "latestExecution": {
     "records": 24,
     "PASS": 22,
@@ -54,5 +54,184 @@
       }
     ],
     "limitation": "Two matrix cells reference the same real membership probe; no independent-test inflation. Public inactive-owner availability is an observation, not a security PASS."
+  },
+  "providerReconciliation": {
+    "speechRecords": 13,
+    "weatherRecords": 19,
+    "weatherOracleControls": 1,
+    "mappedCells": [
+      {
+        "probeId": "B35-MAND-1234",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-001"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1406",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-001"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1836",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-001",
+          "B35-WEATHER-BOUNDARY-007"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1235",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-002"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1407",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-002"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1837",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-002",
+          "B35-WEATHER-BOUNDARY-008"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1236",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-003"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1408",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-003"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1838",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-003",
+          "B35-WEATHER-BOUNDARY-009"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1237",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-004"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1409",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-004"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1839",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-004",
+          "B35-WEATHER-BOUNDARY-010"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1238",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-005"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1410",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-005"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1840",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-005",
+          "B35-WEATHER-BOUNDARY-011"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1239",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-006"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1411",
+        "previousVerdict": "PASS",
+        "records": [
+          "B35-SPEECH-CHAIN-006"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1841",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-006",
+          "B35-WEATHER-BOUNDARY-012"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1227",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-013"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1228",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-013"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1242",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-007"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1414",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-SPEECH-CHAIN-007"
+        ]
+      },
+      {
+        "probeId": "B35-MAND-1823",
+        "previousVerdict": "NOT TESTED",
+        "records": [
+          "B35-WEATHER-BOUNDARY-013",
+          "B35-WEATHER-BOUNDARY-014",
+          "B35-WEATHER-BOUNDARY-015",
+          "B35-WEATHER-BOUNDARY-016",
+          "B35-WEATHER-BOUNDARY-017"
+        ]
+      }
+    ],
+    "limit": "The same exact record may support overlapping cells; source counts are not independent live/provider/device certifications."
   }
 }

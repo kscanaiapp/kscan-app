@@ -63,7 +63,13 @@
     "consent": "Feature-specific source gate as described; legal sufficiency and all published binary paths NOT VERIFIED",
     "logsAnalytics": "Reviewed allowlisted telemetry/bounded diagnostics only; deployed log content/retention not exhaustively inspected",
     "responsibleDisclosure": "Privacy Policy/AI disclosure/subscription or notification notice as applicable; legal-agent factual reconciliation required",
-    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence"
+    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence",
+    "publicShareLifecycle": {
+      "ownerDecision": "Active public links remain until explicitly revoked or account purge",
+      "stagingVerification": "10/10 records PASS; actual synthetic Auth hard-delete/FK cascade removes public room/share authority; old public preview token unavailable",
+      "limits": "Not a full worker, storage, backups or third-party purge certification",
+      "evidence": "continuation-share-purge-staging.json"
+    }
   },
   {
     "provider": "RevenueCat",
