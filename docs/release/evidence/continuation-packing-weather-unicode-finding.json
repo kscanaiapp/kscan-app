@@ -1,0 +1,30 @@
+{
+  "id": "B35-E-016",
+  "priority": "P3",
+  "status": "CONFIRMED — repair starting",
+  "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+  "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "canonicalBackend": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+  "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts:84 packingWeatherCacheKey; global weatherCache; resolvePackingWeather:245",
+  "reproduction": "deno test --allow-read packing-weather-unicode-before.test.ts.txt (save .txt as .ts before running)",
+  "exitCode": 1,
+  "witness": {
+    "source": "2b04f5d5 / equivalent merged50387a2b",
+    "firstDestination": "東京",
+    "secondDestination": "大阪",
+    "firstKey": "|2026-09-12|2026-09-13",
+    "secondKey": "|2026-09-12|2026-09-13",
+    "firstResult": "東京",
+    "secondResult": "東京",
+    "providerCalls": 2,
+    "expected": {
+      "firstResult": "東京",
+      "secondResult": "大阪",
+      "providerCalls": 4
+    }
+  },
+  "impact": "Non-Latin cities share an empty destination cache component; a second trip receives the first city forecast/resolved location and incorrect weather-driven packing advice. Public weather data, no demonstrated private-data leak.",
+  "rootCause": "ASCII-only character class removes all Unicode letters/marks before a shared forecast cache lookup.",
+  "repairPlan": "Preserve Unicode letters/marks/numbers with NFKC normalization; keep case/punctuation/space normalization; regress CJK, Cyrillic, Devanagari marks, fullwidth/composed equivalents and actual resolver requests. No API/schema/legal/platform change.",
+  "authorization": "New confirmed P3 source repair and green-PR merge authorized by existing campaign; isolated canonical then mobile promotions, no deployment"
+}

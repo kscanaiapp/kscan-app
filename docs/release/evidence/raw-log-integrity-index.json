@@ -2432,6 +2432,15 @@
       "archiveSha256": "dc194d4a9a1be0f899e83f575b8d49b8d9bdef331113a0be7dfc4c1993d20e1a",
       "encoding": "UTF-8",
       "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    {
+      "rawFile": "packing-weather-unicode-before.log",
+      "rawBytes": 3388,
+      "rawSha256": "9bea6ae05bb61ed2e9fc88e51927180bac44c6630026789c4b89517bf622a8a0",
+      "archiveFile": "packing-weather-unicode-before.log.gz",
+      "archiveBytes": 842,
+      "archiveSha256": "28136bb9a39f015145f92ee026e003c1939ede416f267f734fc8248cb9ba27a0",
+      "encoding": "UTF-16LE BOM"
     }
   ]
 }

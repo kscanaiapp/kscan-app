@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+const root=new URL('file:///C:/b35sharepromote1030/');
+const {clearPackingWeatherCache,packingWeatherCacheKey,resolvePackingWeather}=await import(new URL('supabase/functions/stylechat-generate/packingWeather.ts',root).href);
+Deno.test('different non-Latin destinations cannot reuse another city forecast',async()=>{
+ clearPackingWeatherCache();const tokyo='\u6771\u4eac',osaka='\u5927\u962a',calls:string[]=[];
+ const fetchImpl=(async(input:unknown)=>{const u=new URL(String(input));calls.push(u.toString());if(u.hostname==='geocoding-api.open-meteo.com')return Response.json({results:[{latitude:u.searchParams.get('name')===tokyo?35.67:34.69,longitude:139.65,name:u.searchParams.get('name')}]});return Response.json({daily:{temperature_2m_max:[25,26],temperature_2m_min:[16,17],weather_code:[0,1]}});}) as typeof fetch;
+ const common={startDate:'2026-09-12',endDate:'2026-09-13',now:()=>Date.parse('2026-09-01T12:00:00Z'),fetchImpl};
+ const a=await resolvePackingWeather({...common,destination:tokyo}),b=await resolvePackingWeather({...common,destination:osaka});
+ console.log('WEATHER_UNICODE_RESULT '+JSON.stringify({source:'2b04f5d5 / equivalent merged50387a2b',firstDestination:tokyo,secondDestination:osaka,firstKey:packingWeatherCacheKey(tokyo,common.startDate,common.endDate),secondKey:packingWeatherCacheKey(osaka,common.startDate,common.endDate),firstResult:a?.resolvedLocation,secondResult:b?.resolvedLocation,providerCalls:calls.length,expected:{firstResult:tokyo,secondResult:osaka,providerCalls:4}}));
+ assert.equal(a?.resolvedLocation,tokyo);assert.equal(b?.resolvedLocation,osaka);assert.equal(calls.length,4);
+});
