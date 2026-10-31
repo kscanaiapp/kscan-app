@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+  "canonicalBackend": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -309,6 +309,18 @@
       "sha256": "bd8cd0766ad874050d767f72f071ff7c140702044d302b691c12407463bec061",
       "source": "5b5c471a1b7723ed018a60ecb779ace55b74bcf1",
       "reason": "Exact owner-authorized B35-C-005 durable Gemini withdrawal source, PR653; protected migration/merge approval still required"
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/packingWeather.test.ts",
+      "sha256": "c2bffd82a90f72e49b0322f0da19ef2b1767aecfa2daba82b3b086332a38c9f4",
+      "source": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "reason": "Exact canonical PR667 B35-E-016/P3 Unicode weather-cache repair and regression promotion; no API/schema/provider/privacy/deployment authority change."
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "sha256": "f3ceca2f104307d5c7ac1ce6cfa25bcf84869ec4298e266a557b243cc7afd4c1",
+      "source": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "reason": "Exact canonical PR667 B35-E-016/P3 Unicode weather-cache repair and regression promotion; no API/schema/provider/privacy/deployment authority change."
     }
   ],
   "sharedSigningRegressionRegistration": {
@@ -317,5 +329,11 @@
     "canonicalSource": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
     "sha256": "411f77b2b88266e1970cd6a1c8fe9776adba17109f22b56bcc4c54bd89bef329",
     "scope": "Only add the reviewed shared-room-image-url default target/comment to the existing mobile runner; preserve every previous target including purchase-import-extract. This derived mobile file is not claimed byte-identical to canonical."
+  },
+  "packingWeatherUnicodePromotion": {
+    "canonicalSource": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+    "previousMobileSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+    "reviewedCanonicalSource": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+    "scope": "Only two exact weather source/test files from merged canonical PR667; all previous 51 grants and the mobile-owned signing runner remain unchanged."
   }
 }

@@ -25,6 +25,56 @@ import {
 const NOW = Date.parse('2026-09-01T12:00:00Z');
 const now = () => NOW;
 
+Deno.test('B35-E-016: cache keys preserve distinct Unicode destinations and combining marks', () => {
+  for (const [first, second] of [
+    ['\u6771\u4eac', '\u5927\u962a'],
+    ['\u041c\u043e\u0441\u043a\u0432\u0430', '\u041a\u0430\u0437\u0430\u043d\u044c'],
+    ['\u0915\u093e\u0932\u093e', '\u0915\u0932\u093e'],
+  ]) {
+    assert(
+      packingWeatherCacheKey(first, '2026-09-12', '2026-09-16') !==
+        packingWeatherCacheKey(second, '2026-09-12', '2026-09-16'),
+      'Different city names must not collapse into the same shared weather-cache entry',
+    );
+  }
+});
+
+Deno.test('B35-E-016: equivalent Unicode and existing punctuation/case refinements still share a cache key', () => {
+  for (const [first, second] of [
+    ['M\u00dcNCHEN', 'mu\u0308nchen,'],
+    ['\uff2e\uff45\uff57\u3000\uff39\uff4f\uff52\uff4b', 'new york,'],
+    [' New   York ', 'NEW YORK!'],
+  ]) {
+    assertEquals(
+      packingWeatherCacheKey(first, '2026-09-12', '2026-09-16'),
+      packingWeatherCacheKey(second, '2026-09-12', '2026-09-16'),
+    );
+  }
+});
+
+Deno.test('B35-E-016: a second non-Latin destination receives its own geocode and forecast', async () => {
+  clearPackingWeatherCache();
+  const tokyo = '\u6771\u4eac';
+  const osaka = '\u5927\u962a';
+  const { impl, calls } = stubFetch([
+    () => jsonResponse({ results: [{ latitude: 35.67, longitude: 139.65, name: tokyo }] }),
+    () => jsonResponse(FORECAST_OK),
+    () => jsonResponse({ results: [{ latitude: 34.69, longitude: 135.5, name: osaka }] }),
+    () => jsonResponse(FORECAST_OK),
+  ]);
+  const common = { startDate: '2026-09-12', endDate: '2026-09-16', fetchImpl: impl, now };
+  const first = await resolvePackingWeather({ ...common, destination: tokyo });
+  const second = await resolvePackingWeather({ ...common, destination: osaka });
+  assertEquals(first?.resolvedLocation, tokyo);
+  assertEquals(second?.resolvedLocation, osaka);
+  assertEquals(calls.length, 4, 'Only distinct destinations require their own provider lookups');
+  assertEquals(new URL(calls[0]).searchParams.get('name'), tokyo);
+  assertEquals(new URL(calls[2]).searchParams.get('name'), osaka);
+  await resolvePackingWeather({ ...common, destination: tokyo });
+  await resolvePackingWeather({ ...common, destination: osaka });
+  assertEquals(calls.length, 4, 'Repeated trips keep the existing cache efficiency');
+});
+
 function jsonResponse(body: unknown, ok = true): Response {
   return new Response(JSON.stringify(body), { status: ok ? 200 : 500 });
 }
