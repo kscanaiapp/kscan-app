@@ -73,15 +73,16 @@ export interface PackingWeatherResult {
  */
 const weatherCache = new Map<string, { result: PackingWeatherResult | null; cachedAt: number }>();
 
-/** Case/whitespace/punctuation-insensitive, so "New York" and "new york," share an entry. */
+/** Case/width/whitespace/punctuation-insensitive without erasing non-Latin city names. */
 export function packingWeatherCacheKey(
   destination: string,
   startDate: string,
   endDate: string,
 ): string {
   const normalized = destination
+    .normalize('NFKC')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ')
     .trim();
   return `${normalized}|${startDate}|${endDate}`;
 }

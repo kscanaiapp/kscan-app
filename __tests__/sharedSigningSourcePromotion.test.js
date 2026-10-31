@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const canonical = 'f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee';
+const currentCanonical = '5df63c052ad0e9e757016d8f2100f9a7fdbab836';
 const runner = 'scripts/run-backend-tests.js';
 const mobileBase = 'a9503e135162824ed8127f6a3066fac1deab3e67';
 const files = [
@@ -23,8 +24,8 @@ const expectedRunner = Buffer.from(originalRunner.replace("  'handle-user-deleti
 const allFiles = [runner, ...files];
 const actual = new Map(allFiles.map(file => [file, fs.readFileSync(path.join(root, file))]));
 function verify(bytes) {
-  assert.equal(policy.canonicalBackend, canonical);
-  assert.equal(policy.files.length, 51, '47 prior exact entries plus four canonical F012 function/test files');
+  assert.equal(policy.canonicalBackend, currentCanonical);
+  assert.equal(policy.files.length, 53, '51 prior entries plus two exact weather files; F012 bytes and runner stay pinned to their original authority');
   assert.ok(!policy.files.some(entry => entry.file === runner), 'Preserve the mobile-owned runner difference explicitly');
   for (const file of files) {
     const row = policy.files.find(entry => entry.file === file);
@@ -40,7 +41,7 @@ function verify(bytes) {
 test('F012 promotion contains exact canonical source and regression coverage without deployment authority', () => {
   verify(actual);
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
-  assert.equal(authority.build35CampaignConvergence.sha, canonical);
+  assert.equal(authority.build35CampaignConvergence.sha, currentCanonical);
   assert.ok(originalRunner.includes("'purchase-import-extract'"));
   const canonicalRunner = execFileSync('git', ['show', `${canonical}:${runner}`], { cwd: root, encoding: 'utf8' });
   assert.ok(canonicalRunner.includes(addedRegistration), 'Registration comes from the reviewed canonical repair');
