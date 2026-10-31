@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-30T21:48:40.485Z",
+  "capturedAt": "2026-10-31T08:11:20.432Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2330,6 +2330,28 @@
       "encoding": "UTF-8",
       "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
       "disposition": "PASS source gate"
+    },
+    {
+      "rawFile": "shared-signing-promotion-node-final.log",
+      "rawBytes": 1026382,
+      "rawSha256": "39097b75f28564a2c18f515fedda3b8bb18d2b3caa337a50a3b8fb0ac87233e0",
+      "archiveFile": "shared-signing-promotion-node-final.log.gz",
+      "archiveBytes": 327685,
+      "archiveSha256": "8d42ff36a3f552d0efc6e09e81c34fb234ca92cfa2c1ccc2f3f616ef3048cff9",
+      "encoding": "UTF-8",
+      "sourceSha": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+      "result": "11358 PASS / 2 FAIL / 98 SKIP; both failures traced to obsolete 47-file manifest assertion and its nested execution"
+    },
+    {
+      "rawFile": "shared-signing-promotion-governance-correction.log",
+      "rawBytes": 11176,
+      "rawSha256": "44b98adc8995122f85acb224440f1e1e26505442feb1759c368a342f9af1d9e5",
+      "archiveFile": "shared-signing-promotion-governance-correction.log.gz",
+      "archiveBytes": 2729,
+      "archiveSha256": "1d2042c3c7f9125242770f2f8f96c6bb505c66813b389519bd9c79796f19ceee",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "result": "57 PASS / 0 FAIL / 2 explicitly non-applicable skips; all47 prior grants preserved, only four exact F012 files added"
     }
   ]
 }
