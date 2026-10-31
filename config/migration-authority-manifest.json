@@ -738,6 +738,13 @@
             "applyAfter": [
               "20260812031312"
             ]
+          },
+          {
+            "localVersion": "20261031162813",
+            "logicalName": "saved_scans_active_account_guard",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Build 35 B35-F-017 (PR #669), 2026-10-31: forward-only restrictive saved_scans RLS policy requiring the existing canonical public.is_active_account() guard. This version is newly introduced as source in PR #669 and was not applied to either environment by this campaign. This declaration records intentional pending source, not approval to apply; protected single-version migration execution and live ledger/policy readback remain required. Existing ownership and tombstone policies must remain intact."
           }
         ]
       },
@@ -1508,6 +1515,13 @@
             "applyAfter": [
               "20260812031312"
             ]
+          },
+          {
+            "localVersion": "20261031162813",
+            "logicalName": "saved_scans_active_account_guard",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [],
+            "evidence": "Build 35 B35-F-017 (PR #669), 2026-10-31: forward-only restrictive saved_scans RLS policy requiring the existing canonical public.is_active_account() guard. This version is newly introduced as source in PR #669 and was not applied to either environment by this campaign. This declaration records intentional pending source, not approval to apply; protected single-version migration execution and live ledger/policy readback remain required. Existing ownership and tombstone policies must remain intact."
           }
         ],
         "remoteOnly": [

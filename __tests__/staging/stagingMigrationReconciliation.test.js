@@ -525,7 +525,7 @@ test('production carries only explicit governed reconciliation authority', async
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
-  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500', '20261029125521', '20261029184000'], 'Staging must declare only the explicit pending migration identities');
+  assert.deepEqual(staging.knownPending.map((entry) => entry.localVersion), ['20261015214749', '20261016001500', '20261029125521', '20261029184000', '20261031162813'], 'Staging must declare only the explicit pending migration identities');
 });
 
 test('production still fails closed on anything outside its declared authority', async () => {
