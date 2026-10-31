@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-10-30T20:16:40.434Z",
-    "generatedFromGitSha": "899a953f59d8b015c34a7e53fc987d4506a57d65"
+    "generatedAtUtc": "2026-10-31T13:59:00.308Z",
+    "generatedFromGitSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -972,8 +972,8 @@
         ],
         "bundleFileCount": 54,
         "treeFileCount": 79,
-        "bundleHash": "6745270ff0e340c9fc013f6892fad94a76aad66b7bc1556828b134f5881eec0b",
-        "treeHash": "e064ddadc070f3b92423741626d1d701bd9b753b37f0218937747f6f4e19864a",
+        "bundleHash": "d020662c97d06e5583f93bcaaf4050f3f4bb5c966a132d242c36bf769c3db8c5",
+        "treeHash": "5077e996c8908f03f043cb0eed4573e9f061f184443dda17ef2c08dc7547254a",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1327,12 +1327,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingWeather.test.ts",
-            "sha256": "d9d0906fc7985a1778d9d4df5382cabf4c064757c9c2537587c48bdb6ac719d0",
+            "sha256": "c2bffd82a90f72e49b0322f0da19ef2b1767aecfa2daba82b3b086332a38c9f4",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/packingWeather.ts",
-            "sha256": "bebf482601d3fb857b6e843240e3f1d9afec7c0c4becb94ac74ed10ca6493438",
+            "sha256": "f3ceca2f104307d5c7ac1ce6cfa25bcf84869ec4298e266a557b243cc7afd4c1",
             "bundle": true
           },
           {
