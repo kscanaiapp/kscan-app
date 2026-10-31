@@ -1,0 +1,55 @@
+{
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "canonical": "3bab42e47817da8a4941efc4a509afee73879015",
+  "results": [
+    {
+      "script": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-dependency-reachability.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-build35-release-profile.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "enforced actual diff scope/meta",
+      "exitCode": 0
+    }
+  ],
+  "parity": {
+    "function": "vto-generate",
+    "fields": {
+      "bundleHash": {
+        "current": "aaf5fe17a3fe0461ed7cdef2f0a342099c95bfce3498f1179f4eb3cd75b0cbd0",
+        "canonical": "aaf5fe17a3fe0461ed7cdef2f0a342099c95bfce3498f1179f4eb3cd75b0cbd0",
+        "equal": true
+      },
+      "treeHash": {
+        "current": "898b55c09262c134cc431665eec21c70eff8d412eaef8aa073fc4544f0f84ab2",
+        "canonical": "898b55c09262c134cc431665eec21c70eff8d412eaef8aa073fc4544f0f84ab2",
+        "equal": true
+      }
+    }
+  }
+}

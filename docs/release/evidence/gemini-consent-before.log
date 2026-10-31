@@ -1,0 +1,320 @@
+✖ Gemini disclosure explicitly covers provider, image and Elise text transfer (2.2603ms)
+✖ existing image-only v1 acceptance cannot bypass the expanded Gemini disclosure (31.4101ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 294.3897
+
+✖ failing tests:
+
+test at __tests__\build35GeminiConsentDisclosure.test.js:13:1
+✖ Gemini disclosure explicitly covers provider, image and Elise text transfer (2.2603ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /I consent[^<]*Google Gemini[^<]*photos[^<]*text[^<]*Elise/i. Input:
+  
+  "import React, { useEffect, useRef, useState, useCallback } from 'react';\n" +
+    'import {\n' +
+    '  View,\n' +
+    '  Text,\n' +
+    '  StyleSheet,\n' +
+    '  Pressable,\n' +
+    '  TextInput,\n' +
+    '  BackHandler,\n' +
+    '  ActivityIndicator,\n' +
+    '  Platform,\n' +
+    '  Linking,\n' +
+    "} from 'react-native';\n" +
+    "import { StatusBar } from 'expo-status-bar';\n" +
+    "import { useLocalSearchParams, useRouter } from 'expo-router';\n" +
+    '\n' +
+    "import { useAuthSession } from '../../contexts/AuthSessionContext';\n" +
+    'import {\n' +
+    '  markOnboardingComplete,\n' +
+    '  resolveOnboardingCompletion,\n' +
+    "} from '../../services/onboardingCompletion';\n" +
+    'import {\n' +
+    '  LuxuryScreen,\n' +
+    '  KScanHeader,\n' +
+    '  PrimaryButton,\n' +
+    '  TertiaryButton,\n' +
+    "} from '../../components/luxury';\n" +
+    "import { OnboardingShell } from '../../components/onboarding';\n" +
+    'import {\n' +
+    '  WelcomeStepV1,\n' +
+    '  AccountSetupStepV1,\n' +
+    '  PermissionsStepV1,\n' +
+    "} from '../../components/account-home';\n" +
+    "import { KPlusMembershipStep } from '../../components/kplus/KPlusMembershipStep';\n" +
+    "import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';\n" +
+    'import {\n' +
+    '  TERMS_VERSION,\n' +
+    '  PRIVACY_VERSION,\n' +
+    '  AGE_VERSION,\n' +
+    '  AI_PROCESSING_VERSION,\n' +
+    "} from '../../constants/legal';\n" +
+    "import { validateAuthInput, mapAuthError } from '../../services/authValidation';\n" +
+    "import { recordLegalAcceptances } from '../../services/legalAcceptance';\n" +
+    "import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';\n" +
+    "import * as WebBrowser from 'expo-web-browser';\n" +
+    "import { supabase } from '../../services/supabaseClient';\n" +
+    "import { AUTH_CALLBACK_URL } from '../../services/authConfig';\n" +
+    "import { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';\n" +
+    "import { parseAuthCallbackUrl } from '../../services/authDeepLink';\n" +
+    "import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';\n" +
+    "import { traceAuthLifecycle } from '../../services/authLifecycleTrace';\n" +
+    '\n' +
+    '// ── Types ───────────────────────────────────────────────────────────────────\n' +
+    '\n' +
+    'type OnboardingStep =\n' +
+    '  | 1  // Welcome\n' +
+    '  | 2  // Auth Choice\n' +
+    '  | 3  // Create Account / Email Auth\n' +
+    '  | 4  // Terms + Privacy\n' +
+    '  | 5  // Permissions Preferences\n' +
+    '  | 6  // K+ Membership\n' +
+    '  | 7; // Home Handoff\n' +
+    '\n' +
+    '// ── Main Route ───────────────────────────────────────────────────────────────\n' +
+    '\n' +
+    'export default function OnboardingScreen() {\n' +
+    '  const router = useRouter();\n' +
+    '  const routeParams = useLocalSearchParams<{ resume?: string | string[] }>();\n' +
+    '  const { loading: authLoading, isAuthenticated, user, signUp, signIn } = useAuthSession();\n' +
+    '  const resumeParam = Array.isArray(routeParams.resume) ? routeParams.resume[0] : routeParams.resume;\n' +
+    "  const shouldResumeTerms = resumeParam === 'terms';\n" +
+    '\n' +
+    '  const [step, setStep] = useState<OnboardingStep>(1);\n' +
+    '\n' +
+    '  // Step 3: Create Account form\n' +
+    "  const [fullName, setFullName] = useState('');\n" +
+    "  const [email, setEmail] = useState('');\n" +
+    "  const [password, setPassword] = useState('');\n" +
+    "  const [styleNickname, setStyleNickname] = useState('');\n" +
+    '  const [marketingOptIn, setMarketingOptIn] = useState(false);\n' +
+    '  const [createBusy, setCreateBusy] = useState(false);\n' +
+    '  const [createError, setCreateError] = useState<string | null>(null);\n' +
+    '  const [passwordVisible, setPasswordVisible] = useState(false);\n' +
+    "  const [confirmPassword, setConfirmPassword] = useState('');\n" +
+    '  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);\n' +
+    '  const [googleBusy, setGoogleBusy] = useState(false);\n' +
+    '  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);\n' +
+    '  const resumeHandledRef = useRef(false);\n' +
+    '  const authResumeKeyRef = useRef<string | null>(null);\n' +
+    '\n' +
+    '  // Step 4: Terms\n' +
+    '  const [termsChecked, setTermsChecked] = useState(false);\n' +
+    '  const [privacyChecked, setPrivacyChecked] = useState(false);\n' +
+    '  const [aiConsentChecked, setAiConsentChecked] = useState(false);\n' +
+    '  const [ageChecked, setAgeChecked] = useState(false);\n' +
+    '  const [legalBusy, setLegalBusy] = useState(false);\n' +
+    '  const [legalError, setLegalError] = useState<string | null>(null);\n' +
+    '\n' +
+    '  // Step 5: only the real Notifications registration outcome is reflected\n' +
+    '  // here. Camera, Photos, and Microphone are requested just in time.\n' +
+    '  const {\n' +
+    '    preferences: permissionPrefs,\n' +
+    '    setPreference: setPermissionPreference,\n' +
+    '    requestNotificationPermission,\n' +
+    '    disableNotificationDelivery,\n' +
+    '  } = usePermissionPreferences();\n' +
+    '\n' +
+    '  const moveToTermsOnce = useCallback(() => {\n' +
+    '    setStep((current) => (current === 4 ? current : 4));\n' +
+    '  }, []);\n' +
+    '\n' +
+    '  useEffect(() => {\n' +
+    "    if (resumeHandledRef.current || resumeParam !== 'terms') return;\n" +
+    '    resumeHandledRef.current = true;\n' +
+    '    moveToTermsOnce();\n' +
+    '  }, [moveToTermsOnce, resumeParam]);\n' +
+    '\n' +
+    '  // Auth state: if onboarding is already complete for this user, redirect to Home.\n' +
+    '  // Otherwise, stay on onboarding so the user can finish Terms + Permissions.\n' +
+    '  // If user is authenticated but on Welcome/Auth-Choice (steps 1-2), skip to Terms (step 4)\n' +
+    "  // so they don't get reset after OAuth or returning with an existing session.\n" +
+    '  useEffect(() => {\n' +
+    '    if (authLoading || !isAuthenticated || !user?.id) return;\n' +
+    "    const resumeKey = `${user.id}:${resumeParam === 'terms' ? 'terms' : 'session'}`;\n" +
+    '    if (authResumeKeyRef.current === resumeKey) return;\n' +
+    '    authResumeKeyRef.current = resumeKey;\n' +
+    '\n' +
+    '    let active = true;\n' +
+    '    resolveOnboardingCompletion(user.id)\n' +
+    '      .then((complete) => {\n' +
+    '        if (!active) return;\n' +
+    '        if (!complete) {\n' +
+    '          setStep((current) => {\n' +
+    '            if (current === 4) return current;\n' +
+    '            return shouldResumeTerms || current <= 2 ? 4 : current;\n' +
+    '          });\n' +
+    '        }\n' +
+    '      })\n' +
+    '      .catch((error) => {\n' +
+    '        if (__DEV__) {\n' +
+    "          console.warn('[onboarding] Unable to read onboarding completion flag', error);\n" +
+    '        }\n' +
+    '        if (active) moveToTermsOnce();\n' +
+    '      });\n' +
+    '\n' +
+    '    return () => {\n' +
+    '      active = false;\n' +
+    '    };\n' +
+    '  }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, resumeParam, shouldResumeTerms]);\n' +
+    '\n' +
+    '  // Android hardware back handler\n' +
+    '  useEffect(() => {\n' +
+    '    const backAction = () => {\n' +
+    '      if (step > 1) {\n' +
+    '        setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);\n' +
+    '        return true;\n' +
+    '      }\n' +
+    '      return false;\n' +
+    '    };\n' +
+    '\n' +
+    "    const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);\n" +
+    '    return () => subscription.remove();\n' +
+    '  }, [step]);\n' +
+    '\n' +
+    '  // ── Navigation helpers ───────────────────────────────────────────────────\n' +
+    '\n' +
+    '  const goToNext = useCallback(() => {\n' +
+    '    setCreateError(null);\n' +
+    '    setConfirmationEmail(null);\n' +
+    '    setStep((prev) => Math.min(6, prev + 1) as OnboardingStep);\n' +
+    '  }, []);\n' +
+    '\n' +
+    '  const goToPrev = useCallback(() => {\n' +
+    '    setCreateError(null);\n' +
+    '    setConfirmationEmail(null);\n' +
+    '    setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);\n' +
+    '  }, []);\n' +
+    '\n' +
+    '  const continueAuthenticatedFlow = useCallback(\n' +
+    '    async (sessionUserId?: string | null) => {\n' +
+    '      const resolvedUserId =\n' +
+    '        sessionUserId ??\n' +
+    '        user?.id ??\n' +
+    '        (await supabase.auth.getSession()).data.session?.user?.id ??\n' +
+    '        null;\n' +
+    '\n' +
+    '      if (!resolvedUserId) {\n' +
+    '        moveToTermsOnce();\n' +
+    '        return;\n' +
+    '      }\n' +
+    '\n' +
+    '      const complete = await resolveOnboardingCompletion(resolvedUserId);\n' +
+    '      if (complete) return;\n' +
+    '\n' +
+    '      moveToTermsOnce();\n' +
+    '    },\n' +
+    '    [moveToTermsOnce, user?.id],\n' +
+    '  );\n' +
+    '\n' +
+    '  // Step 6 is a handoff spinner with no navigation of its own: it only clears\n' +
+    "  // when AuthGate observes onboarding completion and redirects to '/'. So the\n" +
+    '  // completion write must succeed before we show it, and every failure path has\n' +
+    '  // to land somewhere the tester can act on instead of an endless spinner.\n' +
+    '  const goToHome = useCallback(async () => {\n' +
+    '    const resolvedUserId =\n' +
+    '      user?.id ??\n' +
+    '      (await supabase.auth.getSession()).data.session?.user?.id ??\n' +
+    '      null;\n' +
+    '\n' +
+    '    if (!resolvedUserId) {\n' +
+    '      // Session was lost mid-onboarding (expiry or refresh failure). Return to\n' +
+    '      // the auth choice so the tester can sign in and resume at Terms.\n' +
+    '      setStep(2);\n' +
+    "      setCreateError('Your session expired. Please sign in again to finish setup.');\n" +
+    '      return;\n' +
+    '    }\n' +
+    '\n' +
+    '    setStep(7);\n' +
+    '    try {\n' +
+    '      await markOnboardingComplete(resolvedUserId);\n' +
+    '    } catch (error) {\n' +
+    '      if (__DEV__) {\n' +
+    "        console.warn('[onboarding] Unable to persist onboarding completion', error);\n" +
+    '      }\n' +
+    '      // Completion never landed, so AuthGate will never redirect. Fall back to\n' +
+    '      // the permissions step, where Continue re-runs this handoff.\n' +
+    '      setStep(5);\n' +
+    '    }\n' +
+    '  }, [user?.id]);\n' +
+    '\n' +
+    '  const goToAuth = useCallback(() => {\n' +
+    "    router.push('/auth');\n" +
+    '  }, [router]);\n' +
+    '\n' +
+    '  /** Permissions -> K+ membership (step 6).\n' +
+    '   *\n' +
+    '   *  Authentication already happened at step 3, so every actor reaching this\n' +
+    '   *  point is signed in and the membership screen can read a real, actor-scoped\n' +
+    '   *  canonical entitlement. The screen itself decides what applies -- an active\n' +
+    '   *  member is confirmed, a complimentary member is acknowledged, an unresolved\n' +
+    '   *  read is never treated as Free, and only a positively Free actor sees the\n' +
+    '   *  paid membership options. */\n' +
+    '  const goToKPlusActivation = useCallback(() => {\n' +
+    '    setStep(6);\n' +
+    '  }, []);\n' +
+    '\n' +
+    '  // ── Step 3: Create Account handler ───────────────────────────────────────\n' +
+    '\n' +
+    '  const handleCreateAccount = useCallback(async () => {\n' +
+    "    const validation = validateAuthInput('create-account', email, password, confirmPassword);\n" +
+    '    if (!validation.valid) {\n' +
+    '      setCreateError(validation.error);\n' +
+    '      return;\n' +
+    '    }\n' +
+    '    const trimmedEmail = email.trim();\n' +
+    '    setConfirmationEmail(null);\n' +
+    '    setCreateError(null);\n' +
+    '    setCreateBusy(true);\n' +
+    '    try {\n' +
+    '      const result = await signUp(trimmedEmail, password, { fullName, styleNickname });\n' +
+    '      if (result.confirmationRequired) {\n' +
+    '        setConfirmationEmail(trimmedEmail);\n' +
+    '        return;\n' +
+    '      }\n' +
+    '      await continueAuthenticatedFlow(result.session?.user?.id ?? null);\n' +
+    '    } catch (err) {\n' +
+    "      const raw = err instanceof Error ? err.message : 'Something went wrong. Try again.';\n" +
+    "      setCreateError(mapAuthError(raw, 'create-account'));\n" +
+    '    } finally {\n' +
+    '      setCreateBusy(false);\n' +
+    '    }\n' +
+    '  }, [email, password, confirmPassword, fullName, styleNickname, signUp, continueAuthenticatedFlow]);\n' +
+    '\n' +
+    '  // ── Google OAuth handler (used from onb'... 22027 more characters
+  
+      at TestContext.<anonymous> (C:\b35int1029\__tests__\build35GeminiConsentDisclosure.test.js:15:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "import React, { useEffect, useRef, useState, useCallback } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  Pressable,\n  TextInput,\n  BackHandler,\n  ActivityIndicator,\n  Platform,\n  Linking,\n} from 'react-native';\nimport { StatusBar } from 'expo-status-bar';\nimport { useLocalSearchParams, useRouter } from 'expo-router';\n\nimport { useAuthSession } from '../../contexts/AuthSessionContext';\nimport {\n  markOnboardingComplete,\n  resolveOnboardingCompletion,\n} from '../../services/onboardingCompletion';\nimport {\n  LuxuryScreen,\n  KScanHeader,\n  PrimaryButton,\n  TertiaryButton,\n} from '../../components/luxury';\nimport { OnboardingShell } from '../../components/onboarding';\nimport {\n  WelcomeStepV1,\n  AccountSetupStepV1,\n  PermissionsStepV1,\n} from '../../components/account-home';\nimport { KPlusMembershipStep } from '../../components/kplus/KPlusMembershipStep';\nimport { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';\nimport {\n  TERMS_VERSION,\n  PRIVACY_VERSION,\n  AGE_VERSION,\n  AI_PROCESSING_VERSION,\n} from '../../constants/legal';\nimport { validateAuthInput, mapAuthError } from '../../services/authValidation';\nimport { recordLegalAcceptances } from '../../services/legalAcceptance';\nimport { usePermissionPreferences } from '../../hooks/usePermissionPreferences';\nimport * as WebBrowser from 'expo-web-browser';\nimport { supabase } from '../../services/supabaseClient';\nimport { AUTH_CALLBACK_URL } from '../../services/authConfig';\nimport { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';\nimport { parseAuthCallbackUrl } from '../../services/authDeepLink';\nimport { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';\nimport { traceAuthLifecycle } from '../../services/authLifecycleTrace';\n\n// ── Types ───────────────────────────────────────────────────────────────────\n\ntype OnboardingStep =\n  | 1  // Welcome\n  | 2  // Auth Choice\n  | 3  // Create Account / Email Auth\n  | 4  // Terms + Privacy\n  | 5  // Permissions Preferences\n  | 6  // K+ Membership\n  | 7; // Home Handoff\n\n// ── Main Route ───────────────────────────────────────────────────────────────\n\nexport default function OnboardingScreen() {\n  const router = useRouter();\n  const routeParams = useLocalSearchParams<{ resume?: string | string[] }>();\n  const { loading: authLoading, isAuthenticated, user, signUp, signIn } = useAuthSession();\n  const resumeParam = Array.isArray(routeParams.resume) ? routeParams.resume[0] : routeParams.resume;\n  const shouldResumeTerms = resumeParam === 'terms';\n\n  const [step, setStep] = useState<OnboardingStep>(1);\n\n  // Step 3: Create Account form\n  const [fullName, setFullName] = useState('');\n  const [email, setEmail] = useState('');\n  const [password, setPassword] = useState('');\n  const [styleNickname, setStyleNickname] = useState('');\n  const [marketingOptIn, setMarketingOptIn] = useState(false);\n  const [createBusy, setCreateBusy] = useState(false);\n  const [createError, setCreateError] = useState<string | null>(null);\n  const [passwordVisible, setPasswordVisible] = useState(false);\n  const [confirmPassword, setConfirmPassword] = useState('');\n  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);\n  const [googleBusy, setGoogleBusy] = useState(false);\n  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);\n  const resumeHandledRef = useRef(false);\n  const authResumeKeyRef = useRef<string | null>(null);\n\n  // Step 4: Terms\n  const [termsChecked, setTermsChecked] = useState(false);\n  const [privacyChecked, setPrivacyChecked] = useState(false);\n  const [aiConsentChecked, setAiConsentChecked] = useState(false);\n  const [ageChecked, setAgeChecked] = useState(false);\n  const [legalBusy, setLegalBusy] = useState(false);\n  const [legalError, setLegalError] = useState<string | null>(null);\n\n  // Step 5: only the real Notifications registration outcome is reflected\n  // here. Camera, Photos, and Microphone are requested just in time.\n  const {\n    preferences: permissionPrefs,\n    setPreference: setPermissionPreference,\n    requestNotificationPermission,\n    disableNotificationDelivery,\n  } = usePermissionPreferences();\n\n  const moveToTermsOnce = useCallback(() => {\n    setStep((current) => (current === 4 ? current : 4));\n  }, []);\n\n  useEffect(() => {\n    if (resumeHandledRef.current || resumeParam !== 'terms') return;\n    resumeHandledRef.current = true;\n    moveToTermsOnce();\n  }, [moveToTermsOnce, resumeParam]);\n\n  // Auth state: if onboarding is already complete for this user, redirect to Home.\n  // Otherwise, stay on onboarding so the user can finish Terms + Permissions.\n  // If user is authenticated but on Welcome/Auth-Choice (steps 1-2), skip to Terms (step 4)\n  // so they don't get reset after OAuth or returning with an existing session.\n  useEffect(() => {\n    if (authLoading || !isAuthenticated || !user?.id) return;\n    const resumeKey = `${user.id}:${resumeParam === 'terms' ? 'terms' : 'session'}`;\n    if (authResumeKeyRef.current === resumeKey) return;\n    authResumeKeyRef.current = resumeKey;\n\n    let active = true;\n    resolveOnboardingCompletion(user.id)\n      .then((complete) => {\n        if (!active) return;\n        if (!complete) {\n          setStep((current) => {\n            if (current === 4) return current;\n            return shouldResumeTerms || current <= 2 ? 4 : current;\n          });\n        }\n      })\n      .catch((error) => {\n        if (__DEV__) {\n          console.warn('[onboarding] Unable to read onboarding completion flag', error);\n        }\n        if (active) moveToTermsOnce();\n      });\n\n    return () => {\n      active = false;\n    };\n  }, [authLoading, isAuthenticated, user?.id, moveToTermsOnce, resumeParam, shouldResumeTerms]);\n\n  // Android hardware back handler\n  useEffect(() => {\n    const backAction = () => {\n      if (step > 1) {\n        setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);\n        return true;\n      }\n      return false;\n    };\n\n    const subscription = BackHandler.addEventListener('hardwareBackPress', backAction);\n    return () => subscription.remove();\n  }, [step]);\n\n  // ── Navigation helpers ───────────────────────────────────────────────────\n\n  const goToNext = useCallback(() => {\n    setCreateError(null);\n    setConfirmationEmail(null);\n    setStep((prev) => Math.min(6, prev + 1) as OnboardingStep);\n  }, []);\n\n  const goToPrev = useCallback(() => {\n    setCreateError(null);\n    setConfirmationEmail(null);\n    setStep((prev) => Math.max(1, prev - 1) as OnboardingStep);\n  }, []);\n\n  const continueAuthenticatedFlow = useCallback(\n    async (sessionUserId?: string | null) => {\n      const resolvedUserId =\n        sessionUserId ??\n        user?.id ??\n        (await supabase.auth.getSession()).data.session?.user?.id ??\n        null;\n\n      if (!resolvedUserId) {\n        moveToTermsOnce();\n        return;\n      }\n\n      const complete = await resolveOnboardingCompletion(resolvedUserId);\n      if (complete) return;\n\n      moveToTermsOnce();\n    },\n    [moveToTermsOnce, user?.id],\n  );\n\n  // Step 6 is a handoff spinner with no navigation of its own: it only clears\n  // when AuthGate observes onboarding completion and redirects to '/'. So the\n  // completion write must succeed before we show it, and every failure path has\n  // to land somewhere the tester can act on instead of an endless spinner.\n  const goToHome = useCallback(async () => {\n    const resolvedUserId =\n      user?.id ??\n      (await supabase.auth.getSession()).data.session?.user?.id ??\n      null;\n\n    if (!resolvedUserId) {\n      // Session was lost mid-onboarding (expiry or refresh failure). Return to\n      // the auth choice so the tester can sign in and resume at Terms.\n      setStep(2);\n      setCreateError('Your session expired. Please sign in again to finish setup.');\n      return;\n    }\n\n    setStep(7);\n    try {\n      await markOnboardingComplete(resolvedUserId);\n    } catch (error) {\n      if (__DEV__) {\n        console.warn('[onboarding] Unable to persist onboarding completion', error);\n      }\n      // Completion never landed, so AuthGate will never redirect. Fall back to\n      // the permissions step, where Continue re-runs this handoff.\n      setStep(5);\n    }\n  }, [user?.id]);\n\n  const goToAuth = useCallback(() => {\n    router.push('/auth');\n  }, [router]);\n\n  /** Permissions -> K+ membership (step 6).\n   *\n   *  Authentication already happened at step 3, so every actor reaching this\n   *  point is signed in and the membership screen can read a real, actor-scoped\n   *  canonical entitlement. The screen itself decides what applies -- an active\n   *  member is confirmed, a complimentary member is acknowledged, an unresolved\n   *  read is never treated as Free, and only a positively Free actor sees the\n   *  paid membership options. */\n  const goToKPlusActivation = useCallback(() => {\n    setStep(6);\n  }, []);\n\n  // ── Step 3: Create Account handler ───────────────────────────────────────\n\n  const handleCreateAccount = useCallback(async () => {\n    const validation = validateAuthInput('create-account', email, password, confirmPassword);\n    if (!validation.valid) {\n      setCreateError(validation.error);\n      return;\n    }\n    const trimmedEmail = email.trim();\n    setConfirmationEmail(null);\n    setCreateError(null);\n    setCreateBusy(true);\n    try {\n      const result = await signUp(trimmedEmail, password, { fullName, styleNickname });\n      if (result.confirmationRequired) {\n        setConfirmationEmail(trimmedEmail);\n        return;\n      }\n      await continueAuthenticatedFlow(result.session?.user?.id ?? null);\n    } catch (err) {\n      const raw = err instanceof Error ? err.message : 'Something went wrong. Try again.';\n      setCreateError(mapAuthError(raw, 'create-account'));\n    } finally {\n      setCreateBusy(false);\n    }\n  }, [email, password, confirmPassword, fullName, styleNickname, signUp, continueAuthenticatedFlow]);\n\n  // ── Google OAuth handler (used from onb"... 22027 more characters,
+    expected: /I consent[^<]*Google Gemini[^<]*photos[^<]*text[^<]*Elise/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at __tests__\build35GeminiConsentDisclosure.test.js:17:1
+✖ existing image-only v1 acceptance cannot bypass the expanded Gemini disclosure (31.4101ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (C:\b35int1029\__tests__\build35GeminiConsentDisclosure.test.js:25:10)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

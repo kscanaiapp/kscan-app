@@ -1,0 +1,47 @@
+// Actual handler, synthetic verified Auth + current consent; no network permission.
+const root = new URL('file:///C:/b35sharepromote1030/');
+const actor = '00000000-0000-4000-8000-000000000031';
+function controlledFailure(status:number|string, raw:string):boolean {
+  if(typeof status!=='number')return false;
+  if(status>=400)return true;
+  try{return status===200&&JSON.parse(raw)?.status==='failed';}catch{return false;}
+}
+Deno.test('probe classifier accepts Scanner failure envelopes, never completed or empty success',()=>{
+  for(const [s,b,expected] of [[200,'{"status":"failed"}',true],[200,'{"status":"completed"}',false],[200,'{}',false],[200,'',false],['TypeError','',false],[400,'{}',true]] as const){
+    if(controlledFailure(s,b)!==expected)throw Error('Invalid semantic failure classifier');
+  }
+});
+for (const endpoint of ['stylechat-generate', 'style-outfit-generate', 'scan-identify', 'purchase-import-extract']) {
+  Deno.test({ name: `authenticated invalid body boundary: ${endpoint}`, sanitizeOps:false, sanitizeResources:false, fn:async()=>{
+    const names=['SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','GEMINI_API_KEY','PURCHASE_IMPORT_EXTRACT_ENABLED'];
+    const saved=names.map(n=>[n,Deno.env.get(n)] as const), fetchSaved=globalThis.fetch, serveSaved=Object.getOwnPropertyDescriptor(Deno,'serve')!;
+    let handler:((req:Request)=>Promise<Response>)|undefined, providerCalls=0,writes=0,authReads=0,receiptReads=0;
+    try {
+      for(const n of names)Deno.env.set(n,n==='SUPABASE_URL'?'https://body-fixture.invalid':n==='PURCHASE_IMPORT_EXTRACT_ENABLED'?'true':'synthetic-fixture-only');
+      globalThis.fetch=async(input,init)=>{
+        const u=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url);
+        const method=init?.method??(input instanceof Request?input.method:'GET');
+        if(u.origin!=='https://body-fixture.invalid'){providerCalls++;return Response.json({error:'fixture_provider_rejected'},{status:503});}
+        if(method!=='GET')writes++;
+        if(u.pathname==='/auth/v1/user'){authReads++;return Response.json({id:actor,aud:'authenticated',role:'authenticated',is_anonymous:false,app_metadata:{provider:'email'}});}
+        if(u.pathname==='/rest/v1/profiles')return Response.json([{id:actor,account_status:'active',account_locked_at:null}]);
+        if(u.pathname==='/rest/v1/legal_acceptances'){receiptReads++;return Response.json([{user_id:actor,acceptance_type:'ai_processing',policy_version:'v2_google_gemini'}]);}
+        if(u.pathname==='/rest/v1/ai_processing_permissions')return Response.json([{user_id:actor,policy_version:'v2_google_gemini',granted:true}]);
+        return Response.json({error:'unconfigured_fixture_boundary'},{status:503});
+      };
+      Object.defineProperty(Deno,'serve',{configurable:true,value:(a:unknown,b:unknown)=>{handler=(typeof a==='function'?a:b) as typeof handler;return{finished:Promise.resolve(),shutdown:async()=>{}};}});
+      await import(new URL(`supabase/functions/${endpoint}/index.ts`,root).href);
+      if(!handler)throw Error('No handler captured');
+      const failures:string[]=[];
+      for(const [probe,body] of [['empty body',''],['malformed JSON','{'],['null body','null'],['wrong schema array','[]'],['wrong schema number','17'],['wrong schema object','{}']] as const){
+        providerCalls=0;writes=0;authReads=0;receiptReads=0;
+        let status:number|string, rawResponse='';
+        try{const r=await handler(new Request('https://body-fixture.invalid/functions/v1/'+endpoint,{method:'POST',headers:{Authorization:'Bearer synthetic-verified-user',apikey:'synthetic-fixture-only','Content-Type':'application/json'},body}));status=r.status;rawResponse=await r.text();}catch(e){status=e instanceof Error?e.name:'unhandled';}
+        const pass=controlledFailure(status,rawResponse)&&providerCalls===0&&writes===0&&authReads>0;
+        console.log('AUTH_BODY_RESULT '+JSON.stringify({endpoint,probe,input:body,expected:'Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success',actual:{status,providerCalls,writes,authReads,receiptReads,responseBody:rawResponse.slice(0,180)},verdict:pass?'PASS':'FAIL',limitation:'Synthetic server authority; no real JWT signature, database RLS or provider tested'}));
+        if(!pass)failures.push(probe+': '+status);
+      }
+      if(failures.length)throw Error('Uncontrolled invalid-body response: '+failures.join('; '));
+    }finally{globalThis.fetch=fetchSaved;Object.defineProperty(Deno,'serve',serveSaved);for(const[n,v]of saved)v===undefined?Deno.env.delete(n):Deno.env.set(n,v);}
+  }});
+}

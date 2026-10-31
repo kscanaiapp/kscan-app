@@ -1,0 +1,16 @@
+﻿[
+    {
+        "schema_name":  "public",
+        "view_name":  "discovery_eligible_inventory",
+        "reloptions":  [
+                           "security_invoker=true"
+                       ]
+    },
+    {
+        "schema_name":  "public",
+        "view_name":  "discovery_eligible_products",
+        "reloptions":  [
+                           "security_invoker=true"
+                       ]
+    }
+]

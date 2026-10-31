@@ -1,0 +1,35 @@
+{
+  "id": "B35-G-013",
+  "priority": "P1",
+  "status": "SOURCE REPAIRED: new captures#663 and restored queues#665; no operational/native/provider certification",
+  "feature": "PostHog automatic launch event privacy; H001 implementation subfinding",
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c (analytics bytes unchanged from mobile d342087c)",
+  "sourceLocation": "services/analytics/posthogClient.core.ts:96 before_send; captureAppLifecycleEvents:true at line107; services/authDeepLink.js:30-32; services/authCallbackOrigin.ts:11",
+  "rootCause": "Real installed PostHog React Native4.67.0 lifecycle method awaits Linking.getInitialURL and captures it unfiltered as Application Opened.properties.url. The app before_send checks identity only and returns this event intact after identityReady. A delayed launch URL can settle after that identity fence opens.",
+  "reproduction": "node --test posthog-lifecycle-url.test.cjs; uses installed SDK lifecycle method, real app wrapper, injected RN Linking resolution ordering, synthetic actor/URL, no network dispatch",
+  "observed": {
+    "sdkVersion": "4.67.0",
+    "sdkMethodSha256": "375520fc6a5f7e70965fa16714af953dc0b93b07646c088603040946325b44fe",
+    "actual": {
+      "event": "Application Opened",
+      "properties": {
+        "url": "kscan://auth/callback?code=SYNTHETIC_AUTH_CODE#access_token=SYNTHETIC_ACCESS_TOKEN",
+        "distinct_id": "11111111-1111-4111-8111-111111111111"
+      }
+    },
+    "networkCalls": 0,
+    "method": "Installed SDK lifecycle method; injected RN Linking; real app source filter; identity sync completes before delayed initial URL"
+  },
+  "contract": "Analytics must not receive authentication secrets, raw private content or unreviewed event properties. A correct actor identity does not make launch-link secrets safe analytics data.",
+  "impact": "Credential-bearing OAuth/email/recovery URLs accepted into the analytics send boundary when configured and ordered as reproduced. Actual app supports access_token/refresh_token/token_hash callbacks. Serious privacy/security boundary defect; no real credential ingestion, compromised user or Production incident demonstrated.",
+  "proposedRepair": "Drop raw launch URL properties at the final SDK before_send boundary while preserving lifecycle event names, bounded app metadata, explicit feature payloads and the existing identity fence. Add delayed-order real-SDK-method and actor/feature regressions. No legal wording, consent flow, auth session behavior or provider configuration changes.",
+  "h001Disposition": "Implementation defect confirmed as G013. Approved analytics basis/disclosures, retention/deletion and current-binary/provider ingestion remain unresolved separate gates.",
+  "repairState": "Mobile 35bd7f42839d3711b29328dc8b0ac2db6b591960 exact reviewed6da9f866f05c7d4888f724b4985f6c44b7728c47;63focused,11358NodePASS/0FAIL/98SKIP, TypeScript0,6source gates0",
+  "probeId": "B35-H001-LAUNCH-001",
+  "boundary": "SDK Application Opened payload -> actual app before_send",
+  "expected": "No raw credential/private-capability launch URL accepted for analytics",
+  "beforeVerdict": "FAIL",
+  "afterVerdict": "SOURCE PASS",
+  "repairReference": "#663+#665",
+  "followUpEvidence": "continuation-posthog-persisted-queue-finding.json"
+}

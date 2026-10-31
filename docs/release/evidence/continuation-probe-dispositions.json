@@ -1,0 +1,57 @@
+{
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "originalTotal": 3096,
+  "originalNotTested": 3041,
+  "categories": {
+    "1": "Already executed with matching evidence",
+    "2": "Genuinely non-applicable",
+    "3": "Safely executable locally",
+    "4": "Safely executable with synthetic Staging fixtures",
+    "5": "Requires authorized external sandbox",
+    "6": "Requires native physical hardware",
+    "7": "Requires signed artifact",
+    "8": "Requires paid third-party testing",
+    "9": "Requires Production authorization",
+    "10": "Documented technical limitation"
+  },
+  "allCellsByDisposition": {
+    "1": 105,
+    "2": 307,
+    "3": 2394,
+    "4": 277,
+    "5": 8,
+    "6": 4,
+    "7": 1
+  },
+  "originalNotTestedByDisposition": {
+    "1": 37,
+    "2": 307,
+    "3": 2405,
+    "4": 279,
+    "5": 8,
+    "6": 4,
+    "7": 1
+  },
+  "limitation": "Conservative first-pass venue assignment. Category3/4 are still unfinished work; source testing is not actual vendor/runtime certification. Supabase vendor identity/storage probes deliberately retained as applicable.",
+  "protocolOwnershipExclusionsAdded": 90,
+  "reconciledExistingPasses": 5,
+  "currentVerdicts": {
+    "PASS": 103,
+    "NOT TESTED": 2991,
+    "FAIL": 2
+  },
+  "currentPendingByDisposition": {
+    "2": 307,
+    "3": 2394,
+    "4": 277,
+    "5": 8,
+    "6": 4,
+    "7": 1
+  },
+  "originalPendingResolved": 37,
+  "continuation": "P4 F012 exact wrong-schema cell reverified after canonical664/mobile666; four authenticated invalid-body handlers executed24cases,22PASS/2P4FAIL; source coverage unfinished.",
+  "currentApplicablePending": 2684,
+  "reconciliationSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "inScopeApplicablePending": 2680,
+  "scopeExcludedDeviceCells": 4
+}

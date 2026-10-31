@@ -1,0 +1,38 @@
+[
+  {
+    "command": "node scripts/check-edge-function-parity.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  },
+  {
+    "command": "node scripts/verify-backend-authority.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  },
+  {
+    "command": "node scripts/check-native-config-parity.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  },
+  {
+    "command": "node scripts/check-migration-provenance.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  },
+  {
+    "command": "node scripts/check-dependency-reachability.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  },
+  {
+    "command": "node scripts/check-build35-release-profile.js",
+    "exitCode": 0,
+    "error": null,
+    "verdict": "PASS"
+  }
+]

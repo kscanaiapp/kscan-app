@@ -1,0 +1,40 @@
+{
+  "capturedRunSha": "72eee2fbdd09d604039aa6cfdbbd942bc629bcea",
+  "currentSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "closureSha256": {
+    "supabase/functions/stylist-speech/elevenLabsClient.test.ts": "4c7c847199609166e81463af7adc2b2b8cd6db891d1aff835f42c2096aed94cd",
+    "supabase/functions/stylist-speech/elevenLabsClient.ts": "da6586d9a53007c8cf6d366212223688caa2a07a3977165fae74889b734e10e9",
+    "supabase/functions/stylist-speech/providerFailure.ts": "486112b2615480eedbe6783b6c96ef3136776f52f651e8bee0dbb804e790106e",
+    "supabase/functions/stylist-speech/types.ts": "7aa1b20ef92cc2bdfdbacc98b77bdbcfa05d6674b8c7d392a5dc1edfabf75ae8",
+    "supabase/functions/stylist-speech/providerDiagnostics.ts": "26524601b7ed8f17694da79b4c1dd85943fb85d129a78a3f5fa13b9105e0ce6e",
+    "supabase/functions/stylist-speech/secretConfig.ts": "2bf74902a518b31ce35b11051b5160623c3b412f8a78a1d84c22240dc4b675c6"
+  },
+  "links": [
+    {
+      "probeId": "B35-MAND-1406",
+      "probe": "provider 500",
+      "id": "DENO-0785"
+    },
+    {
+      "probeId": "B35-MAND-1407",
+      "probe": "provider 429",
+      "id": "DENO-0785"
+    },
+    {
+      "probeId": "B35-MAND-1408",
+      "probe": "provider timeout",
+      "id": "DENO-0787"
+    },
+    {
+      "probeId": "B35-MAND-1409",
+      "probe": "provider malformed JSON",
+      "id": "DENO-0788"
+    },
+    {
+      "probeId": "B35-MAND-1411",
+      "probe": "provider wrong schema",
+      "id": "DENO-0788"
+    }
+  ],
+  "notClosed": "Empty HTTP body is not the same as empty audio_base64; its mandatory cell stays NOT TESTED."
+}

@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-30T19:31:33.852Z",
+  "authority": "Owner statement in active campaign: there are no actual devices available to run the device certification",
+  "physicalDevicesAvailable": false,
+  "disposition": "NOT TESTED — owner confirms physical devices unavailable",
+  "sourceAuthority": {
+    "mobile": "d342087cef908e806c891d5f19264d4eeeb8d665",
+    "backend": "3bab42e47817da8a4941efc4a509afee73879015"
+  },
+  "limits": [
+    "Does not change applicable hardware cases to N/A or PASS.",
+    "Does not prevent local source, deterministic harness or controlled backend testing.",
+    "Native masking accuracy, actual output pixels/network payloads, camera/audio/animation lifecycle and device performance remain unverified.",
+    "No mobile build or production rollout is authorized by this statement."
+  ]
+}

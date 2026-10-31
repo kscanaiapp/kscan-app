@@ -1,0 +1,378 @@
+{
+  "capturedAt": "2026-10-30T21:30:49.913Z",
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "records": [
+    {
+      "probeId": "B35-STG-DIAG-001",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Deployed Management source v26 sha256:63cbe99e2e98d8636852e081c4684ea489277384832385fce5df7016b6d32317",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "GET anonymous",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 59,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-002",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Deployed Management source v26 sha256:63cbe99e2e98d8636852e081c4684ea489277384832385fce5df7016b6d32317",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST null",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 59,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-003",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Deployed Management source v26 sha256:63cbe99e2e98d8636852e081c4684ea489277384832385fce5df7016b6d32317",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST {",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 59,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-004",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Deployed Management source v26 sha256:63cbe99e2e98d8636852e081c4684ea489277384832385fce5df7016b6d32317",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 59,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-005",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Deployed Management source v26 sha256:63cbe99e2e98d8636852e081c4684ea489277384832385fce5df7016b6d32317",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 59,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-006",
+      "feature": "Retired diagnostic surface",
+      "boundary": "vto-provider-diag",
+      "sourceSha": "Management v26 bundle:38b5504cf87be7bee00b8a3ee41878c6d48d4a25b0ae7fdcd69e2b9ceddd8f84",
+      "environment": "Actual Staging HTTPS, anonymous/no API credentials, empty JSON",
+      "probe": "Anonymous gateway/retired endpoint readback",
+      "expected": "HTTP401",
+      "actual": {
+        "status": 401,
+        "bodyBytes": 79,
+        "bodySha256": "2fa2c84fed16d2ecfffc375515c8095ca6be18d8dabe1f54fd12142d23834634"
+      },
+      "verdict": "PASS",
+      "reason": null,
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Single non-destructive POST after source reviewed as inert; no retries, provider request or customer data",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Dated runtime gateway/410 evidence only"
+    },
+    {
+      "probeId": "B35-STG-DIAG-007",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Deployed Management source v21 sha256:5f2d8092ed3b87a064791be077b14861d662fa0a4645401231814032cbde5ea1",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "GET anonymous",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-008",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Deployed Management source v21 sha256:5f2d8092ed3b87a064791be077b14861d662fa0a4645401231814032cbde5ea1",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST null",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-009",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Deployed Management source v21 sha256:5f2d8092ed3b87a064791be077b14861d662fa0a4645401231814032cbde5ea1",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST {",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-010",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Deployed Management source v21 sha256:5f2d8092ed3b87a064791be077b14861d662fa0a4645401231814032cbde5ea1",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-011",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Deployed Management source v21 sha256:5f2d8092ed3b87a064791be077b14861d662fa0a4645401231814032cbde5ea1",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-012",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-key-diag",
+      "sourceSha": "Management v21 bundle:722b88df415e913b1fdf3f850f0d990718188321fe1b03d7f289190e4258ac46",
+      "environment": "Actual Staging HTTPS, anonymous/no API credentials, empty JSON",
+      "probe": "Anonymous gateway/retired endpoint readback",
+      "expected": "HTTP410",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "bodySha256": "e5ab4c9e2bce5c7ec6d1bda8e6e9e5a4371ac7419aa4b74cbd102e2a02197cae"
+      },
+      "verdict": "PASS",
+      "reason": null,
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Single non-destructive POST after source reviewed as inert; no retries, provider request or customer data",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Dated runtime gateway/410 evidence only"
+    },
+    {
+      "probeId": "B35-STG-DIAG-013",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Deployed Management source v23 sha256:601f923ba16247b6a1853b16aadb425bded821dbff1dcd00f7998024ef7e8fb6",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "GET anonymous",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-014",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Deployed Management source v23 sha256:601f923ba16247b6a1853b16aadb425bded821dbff1dcd00f7998024ef7e8fb6",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST null",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-015",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Deployed Management source v23 sha256:601f923ba16247b6a1853b16aadb425bded821dbff1dcd00f7998024ef7e8fb6",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST {",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-016",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Deployed Management source v23 sha256:601f923ba16247b6a1853b16aadb425bded821dbff1dcd00f7998024ef7e8fb6",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-017",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Deployed Management source v23 sha256:601f923ba16247b6a1853b16aadb425bded821dbff1dcd00f7998024ef7e8fb6",
+      "environment": "Offline exact deployed handler; sandbox has no network/env interfaces",
+      "probe": "POST hostile authorization header",
+      "expected": "410 fixed retired response; no input reflection or privileged operation",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "reflectsInput": false
+      },
+      "verdict": "PASS",
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Actual retrieved source executed in restricted VM",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Bounded retired-handler contract, not app-wide authorization"
+    },
+    {
+      "probeId": "B35-STG-DIAG-018",
+      "feature": "Retired diagnostic surface",
+      "boundary": "rapidapi-current-audit",
+      "sourceSha": "Management v23 bundle:f0025ba36c43d54f535ef71c26c1362ed43c082e07ef5620d69d76b338ae2133",
+      "environment": "Actual Staging HTTPS, anonymous/no API credentials, empty JSON",
+      "probe": "Anonymous gateway/retired endpoint readback",
+      "expected": "HTTP410",
+      "actual": {
+        "status": 410,
+        "bodyBytes": 20,
+        "bodySha256": "e5ab4c9e2bce5c7ec6d1bda8e6e9e5a4371ac7419aa4b74cbd102e2a02197cae"
+      },
+      "verdict": "PASS",
+      "reason": null,
+      "evidence": "continuation-retired-staging-diagnostic-probes.json",
+      "executionMethod": "Single non-destructive POST after source reviewed as inert; no retries, provider request or customer data",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "Dated runtime gateway/410 evidence only"
+    }
+  ],
+  "counts": {
+    "PASS": 18
+  },
+  "limits": [
+    "Separate evidence population, not added to original3096 matrix.",
+    "Retired endpoints have no actor-owned resources; no IDOR/storage/member-removal inference.",
+    "All three source snapshots read no env, perform no network operation and return410; only gateway/public status was invoked live.",
+    "Source remains outside this repo authority; no deletion or redeployment performed."
+  ]
+}

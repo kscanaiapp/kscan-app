@@ -1,0 +1,1116 @@
+{
+  "localCount": 183,
+  "remoteCount": 156,
+  "commonCount": 130,
+  "remoteOnly": [],
+  "localOnly": [
+    {
+      "version": "20260618132214",
+      "name": "create_waitlist_signups_main_backend",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260618132214_create_waitlist_signups_main_backend.sql"
+    },
+    {
+      "version": "20260722201910",
+      "name": "waitlist_email_delivery_state",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260722201910_waitlist_email_delivery_state.sql"
+    },
+    {
+      "version": "20260723021145",
+      "name": "account_deletion_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021145_account_deletion_security_hardening.sql"
+    },
+    {
+      "version": "20260723021515",
+      "name": "reconcile_account_deletion_subsystem_to_production",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021515_reconcile_account_deletion_subsystem_to_production.sql"
+    },
+    {
+      "version": "20260803214145",
+      "name": "harden_public_rpc_execution_grants",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214145_harden_public_rpc_execution_grants.sql"
+    },
+    {
+      "version": "20260803214253",
+      "name": "harden_public_rpc_execution_grants_trigger_cleanup",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql"
+    },
+    {
+      "version": "20260805120000",
+      "name": "reconcile_deletion_requests_to_production_columns",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805120000_reconcile_deletion_requests_to_production_columns.sql"
+    },
+    {
+      "version": "20260805121000",
+      "name": "legal_documents_bucket_parity",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805121000_legal_documents_bucket_parity.sql"
+    },
+    {
+      "version": "20260805130000",
+      "name": "production_live_derived_can_react_to_dressing_room_item",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805130000_production_live_derived_can_react_to_dressing_room_item.sql"
+    },
+    {
+      "version": "20260808115552",
+      "name": "harden_trigger_function_search_path",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115552_harden_trigger_function_search_path.sql"
+    },
+    {
+      "version": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115735_enforce_rpc_privilege_boundary.sql"
+    },
+    {
+      "version": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808120214_revoke_public_execute_on_saved_scans_trigger.sql"
+    },
+    {
+      "version": "20260808121216",
+      "name": "privacy_request_rate_limits",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808121216_privacy_request_rate_limits.sql"
+    },
+    {
+      "version": "20260812031312",
+      "name": "legal_acceptances_restore_ai_processing",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260812031312_legal_acceptances_restore_ai_processing.sql"
+    },
+    {
+      "version": "20260813224918",
+      "name": "backfill_legacy_pending_deletion_requests",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260813224918_backfill_legacy_pending_deletion_requests.sql"
+    },
+    {
+      "version": "20260814140000",
+      "name": "harden_wardrobe_wear_anon_privileges",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260814140000_harden_wardrobe_wear_anon_privileges.sql"
+    },
+    {
+      "version": "20260818000001",
+      "name": "add_user_stylist_preferences_display_name_customized",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260818000001_add_user_stylist_preferences_display_name_customized.sql"
+    },
+    {
+      "version": "20260819125404",
+      "name": "wearable_pairings_sessions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125404_wearable_pairings_sessions.sql"
+    },
+    {
+      "version": "20260819125700",
+      "name": "saved_scans_wearable_source",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125700_saved_scans_wearable_source.sql"
+    },
+    {
+      "version": "20260819144630",
+      "name": "widen_saved_scans_source_for_meta_wearable",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819144630_widen_saved_scans_source_for_meta_wearable.sql"
+    },
+    {
+      "version": "20260819151224",
+      "name": "wearable_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819151224_wearable_security_hardening.sql"
+    },
+    {
+      "version": "20260823120000",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823120000_scan_commerce_events_accuracy_telemetry.sql"
+    },
+    {
+      "version": "20260823170850",
+      "name": "reconcile_wearable_schema_with_staging",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823170850_reconcile_wearable_schema_with_staging.sql"
+    },
+    {
+      "version": "20260823175314",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823175314_scan_commerce_events_accuracy_telemetry.sql"
+    },
+    {
+      "version": "20260824175813",
+      "name": "create_investor_inquiries",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260824175813_create_investor_inquiries.sql"
+    },
+    {
+      "version": "20260829180000",
+      "name": "fix_grant_kplus_early_access_variable_conflict",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260829180000_fix_grant_kplus_early_access_variable_conflict.sql"
+    },
+    {
+      "version": "20260914120000",
+      "name": "close_authenticated_cross_actor_owned_item_snapshot",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260914120000_close_authenticated_cross_actor_owned_item_snapshot.sql"
+    },
+    {
+      "version": "20260915133739",
+      "name": "revoke_client_execute_on_updated_at_trigger_functions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915133739_revoke_client_execute_on_updated_at_trigger_functions.sql"
+    },
+    {
+      "version": "20260915232402",
+      "name": "signature_style_free_closet_evidence",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915232402_signature_style_free_closet_evidence.sql"
+    },
+    {
+      "version": "20260916203000",
+      "name": "reaction_counts_require_live_room_access",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916203000_reaction_counts_require_live_room_access.sql"
+    },
+    {
+      "version": "20260916233708",
+      "name": "reaction_counts_bind_anonymous_share_token",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916233708_reaction_counts_bind_anonymous_share_token.sql"
+    }
+  ],
+  "reconciledLocal": [
+    {
+      "version": "202607200001",
+      "name": "elise_generation_quota_idempotency",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260724205334"
+      ]
+    },
+    {
+      "version": "20260720120000",
+      "name": "scan_commerce_events",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260720115423"
+      ]
+    },
+    {
+      "version": "202607210001",
+      "name": "elise_generation_resilience_e2",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260724205508"
+      ]
+    },
+    {
+      "version": "20260721090920",
+      "name": "fix_elise_quota_after_generation_reservation",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260724205606"
+      ]
+    },
+    {
+      "version": "20260721170559",
+      "name": "dr3_collaborative_interactions",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260721201218"
+      ]
+    },
+    {
+      "version": "20260721183308",
+      "name": "dr4_collab_idempotency_room_scope",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260721201347"
+      ]
+    },
+    {
+      "version": "20260723040000",
+      "name": "account_deletion_crash_recovery",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260723131202"
+      ]
+    },
+    {
+      "version": "20260723050000",
+      "name": "account_deletion_rls_active_account",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260723131221"
+      ]
+    },
+    {
+      "version": "20260723060000",
+      "name": "deletion_ledger_pii_sanitizer",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260723131423"
+      ]
+    },
+    {
+      "version": "20260723070000",
+      "name": "profiles_backfill_and_active_account_hardening",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260723083904"
+      ]
+    },
+    {
+      "version": "20260724220000",
+      "name": "shared_room_recipient_read_policies",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260724221229"
+      ]
+    },
+    {
+      "version": "20260724221500",
+      "name": "shared_room_memberships_select_grant",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260724221634"
+      ]
+    },
+    {
+      "version": "20260804101903",
+      "name": "legal_acceptances",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260617000001"
+      ]
+    },
+    {
+      "version": "20260806153233",
+      "name": "dressing_room_user_blocking",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260808202108"
+      ]
+    },
+    {
+      "version": "20260808103028",
+      "name": "privacy_request_rate_limits",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260808202222"
+      ]
+    },
+    {
+      "version": "20260809120000",
+      "name": "contribution_block_enforcement",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260809102805"
+      ]
+    },
+    {
+      "version": "20260810120000",
+      "name": "apple_auth_credentials",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260816020518"
+      ]
+    },
+    {
+      "version": "20260815233353",
+      "name": "dressing_room_items_blocking",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260815233431"
+      ]
+    },
+    {
+      "version": "20260815233457",
+      "name": "content_reports_ai_output",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260809152053"
+      ]
+    },
+    {
+      "version": "20260902130000",
+      "name": "reaction_counts_honour_dressing_room_block",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260916031250"
+      ]
+    },
+    {
+      "version": "20260905170749",
+      "name": "legal_acceptances_ai_processing_consent",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260905171030"
+      ]
+    },
+    {
+      "version": "20260916125206",
+      "name": "build33_production_rpc_privilege_convergence",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260916125554"
+      ]
+    }
+  ],
+  "reconciledRemote": [
+    "20260723083904",
+    "20260723131202",
+    "20260723131221",
+    "20260723131423",
+    "20260724205334",
+    "20260724205508",
+    "20260724205606",
+    "20260724221229",
+    "20260724221634",
+    "20260808202108",
+    "20260808202222",
+    "20260809102805",
+    "20260809152053",
+    "20260815233431",
+    "20260816020518",
+    "20260905171030",
+    "20260916031250",
+    "20260916125554"
+  ],
+  "excludedRemoteOnly": [
+    "20260723021514",
+    "20260808201806",
+    "20260816020548",
+    "20260916141413",
+    "20260916160903",
+    "20261012203811",
+    "20261012203929",
+    "20261012204354"
+  ],
+  "reconciliationProblems": [],
+  "duplicates": [],
+  "ok": true,
+  "blockers": [],
+  "knownPending": [
+    {
+      "version": "20260618132214",
+      "name": "create_waitlist_signups_main_backend",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260618132214_create_waitlist_signups_main_backend.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260722201910",
+      "name": "waitlist_email_delivery_state",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260722201910_waitlist_email_delivery_state.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260723021145",
+      "name": "account_deletion_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021145_account_deletion_security_hardening.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260723021515",
+      "name": "reconcile_account_deletion_subsystem_to_production",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021515_reconcile_account_deletion_subsystem_to_production.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260803214145",
+      "name": "harden_public_rpc_execution_grants",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214145_harden_public_rpc_execution_grants.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260803214253",
+      "name": "harden_public_rpc_execution_grants_trigger_cleanup",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260805120000",
+      "name": "reconcile_deletion_requests_to_production_columns",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805120000_reconcile_deletion_requests_to_production_columns.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260805121000",
+      "name": "legal_documents_bucket_parity",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805121000_legal_documents_bucket_parity.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260805130000",
+      "name": "production_live_derived_can_react_to_dressing_room_item",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805130000_production_live_derived_can_react_to_dressing_room_item.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808115552",
+      "name": "harden_trigger_function_search_path",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115552_harden_trigger_function_search_path.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115735_enforce_rpc_privilege_boundary.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808120214_revoke_public_execute_on_saved_scans_trigger.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808121216",
+      "name": "privacy_request_rate_limits",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808121216_privacy_request_rate_limits.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260812031312",
+      "name": "legal_acceptances_restore_ai_processing",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260812031312_legal_acceptances_restore_ai_processing.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260813224918",
+      "name": "backfill_legacy_pending_deletion_requests",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260813224918_backfill_legacy_pending_deletion_requests.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260814140000",
+      "name": "harden_wardrobe_wear_anon_privileges",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260814140000_harden_wardrobe_wear_anon_privileges.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260818000001",
+      "name": "add_user_stylist_preferences_display_name_customized",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260818000001_add_user_stylist_preferences_display_name_customized.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819125404",
+      "name": "wearable_pairings_sessions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125404_wearable_pairings_sessions.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819125700",
+      "name": "saved_scans_wearable_source",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125700_saved_scans_wearable_source.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819144630",
+      "name": "widen_saved_scans_source_for_meta_wearable",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819144630_widen_saved_scans_source_for_meta_wearable.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819151224",
+      "name": "wearable_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819151224_wearable_security_hardening.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823120000",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823120000_scan_commerce_events_accuracy_telemetry.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823170850",
+      "name": "reconcile_wearable_schema_with_staging",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823170850_reconcile_wearable_schema_with_staging.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823175314",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823175314_scan_commerce_events_accuracy_telemetry.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260824175813",
+      "name": "create_investor_inquiries",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260824175813_create_investor_inquiries.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260829180000",
+      "name": "fix_grant_kplus_early_access_variable_conflict",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260829180000_fix_grant_kplus_early_access_variable_conflict.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260914120000",
+      "name": "close_authenticated_cross_actor_owned_item_snapshot",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260914120000_close_authenticated_cross_actor_owned_item_snapshot.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260915133739",
+      "name": "revoke_client_execute_on_updated_at_trigger_functions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915133739_revoke_client_execute_on_updated_at_trigger_functions.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260915232402",
+      "name": "signature_style_free_closet_evidence",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915232402_signature_style_free_closet_evidence.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260916203000",
+      "name": "reaction_counts_require_live_room_access",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916203000_reaction_counts_require_live_room_access.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260916233708",
+      "name": "reaction_counts_bind_anonymous_share_token",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916233708_reaction_counts_bind_anonymous_share_token.sql",
+      "disposition": "HOLD"
+    }
+  ],
+  "approvableKnownPending": [],
+  "hold": [
+    {
+      "version": "20260618132214",
+      "name": "create_waitlist_signups_main_backend",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260618132214_create_waitlist_signups_main_backend.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260722201910",
+      "name": "waitlist_email_delivery_state",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260722201910_waitlist_email_delivery_state.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260803214253",
+      "name": "harden_public_rpc_execution_grants_trigger_cleanup",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260812031312",
+      "name": "legal_acceptances_restore_ai_processing",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260812031312_legal_acceptances_restore_ai_processing.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260814140000",
+      "name": "harden_wardrobe_wear_anon_privileges",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260814140000_harden_wardrobe_wear_anon_privileges.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260914120000",
+      "name": "close_authenticated_cross_actor_owned_item_snapshot",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260914120000_close_authenticated_cross_actor_owned_item_snapshot.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260915133739",
+      "name": "revoke_client_execute_on_updated_at_trigger_functions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915133739_revoke_client_execute_on_updated_at_trigger_functions.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260915232402",
+      "name": "signature_style_free_closet_evidence",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260915232402_signature_style_free_closet_evidence.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260916203000",
+      "name": "reaction_counts_require_live_room_access",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916203000_reaction_counts_require_live_room_access.sql",
+      "disposition": "HOLD"
+    },
+    {
+      "version": "20260916233708",
+      "name": "reaction_counts_bind_anonymous_share_token",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260916233708_reaction_counts_bind_anonymous_share_token.sql",
+      "disposition": "HOLD"
+    }
+  ],
+  "exclude": [
+    {
+      "version": "20260723021145",
+      "name": "account_deletion_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021145_account_deletion_security_hardening.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260723021515",
+      "name": "reconcile_account_deletion_subsystem_to_production",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260723021515_reconcile_account_deletion_subsystem_to_production.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260803214145",
+      "name": "harden_public_rpc_execution_grants",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260803214145_harden_public_rpc_execution_grants.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260805120000",
+      "name": "reconcile_deletion_requests_to_production_columns",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805120000_reconcile_deletion_requests_to_production_columns.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260805121000",
+      "name": "legal_documents_bucket_parity",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805121000_legal_documents_bucket_parity.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260805130000",
+      "name": "production_live_derived_can_react_to_dressing_room_item",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260805130000_production_live_derived_can_react_to_dressing_room_item.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808115552",
+      "name": "harden_trigger_function_search_path",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115552_harden_trigger_function_search_path.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808115735_enforce_rpc_privilege_boundary.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808120214_revoke_public_execute_on_saved_scans_trigger.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260808121216",
+      "name": "privacy_request_rate_limits",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260808121216_privacy_request_rate_limits.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260813224918",
+      "name": "backfill_legacy_pending_deletion_requests",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260813224918_backfill_legacy_pending_deletion_requests.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260818000001",
+      "name": "add_user_stylist_preferences_display_name_customized",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260818000001_add_user_stylist_preferences_display_name_customized.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819125404",
+      "name": "wearable_pairings_sessions",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125404_wearable_pairings_sessions.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819125700",
+      "name": "saved_scans_wearable_source",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819125700_saved_scans_wearable_source.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819144630",
+      "name": "widen_saved_scans_source_for_meta_wearable",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819144630_widen_saved_scans_source_for_meta_wearable.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260819151224",
+      "name": "wearable_security_hardening",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260819151224_wearable_security_hardening.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823120000",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823120000_scan_commerce_events_accuracy_telemetry.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823170850",
+      "name": "reconcile_wearable_schema_with_staging",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823170850_reconcile_wearable_schema_with_staging.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260823175314",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260823175314_scan_commerce_events_accuracy_telemetry.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260824175813",
+      "name": "create_investor_inquiries",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260824175813_create_investor_inquiries.sql",
+      "disposition": "EXCLUDE"
+    },
+    {
+      "version": "20260829180000",
+      "name": "fix_grant_kplus_early_access_variable_conflict",
+      "path": "C:\\b35converge1030\\supabase\\migrations\\20260829180000_fix_grant_kplus_early_access_variable_conflict.sql",
+      "disposition": "EXCLUDE"
+    }
+  ],
+  "fulfilled": [
+    {
+      "version": "20260803020000",
+      "logicalName": "provider_request_security",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803020100",
+      "logicalName": "provider_request_security_revoke_anon",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803020200",
+      "logicalName": "provider_request_security_fix_trigger_search_path",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803160206",
+      "logicalName": "provider_request_ttl_tuning",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803220000",
+      "logicalName": "image_ingestion_quarantine_storage",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803220100",
+      "logicalName": "image_ingestion_clean_storage",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260803220200",
+      "logicalName": "image_scan_verdicts",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260804090000",
+      "logicalName": "edge_function_errors",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260814120000",
+      "logicalName": "wardrobe_wear_event_items",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260814230933",
+      "logicalName": "harden_wardrobe_wear_owner_links",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260816120000",
+      "logicalName": "user_stylist_preferences_gender_context",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260818141056",
+      "logicalName": "user_stylist_preferences_display_name_customized",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260829120000",
+      "logicalName": "kplus_entitlements",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260829203657",
+      "logicalName": "user_closet_items",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260829204635",
+      "logicalName": "user_closet_items_optimize_rls_initplan",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260829220316",
+      "logicalName": "user_closet_items_media",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830060000",
+      "logicalName": "user_style_profiles",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830070000",
+      "logicalName": "upsert_style_dna_profile_rpc",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830131956",
+      "logicalName": "signature_style_server_authority",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830140000",
+      "logicalName": "fix_recompute_signature_style_column_ambiguity",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830150000",
+      "logicalName": "user_commerce_watches",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830151500",
+      "logicalName": "user_commerce_watch_events_and_rpcs",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830161500",
+      "logicalName": "watch_push_enabled",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830162500",
+      "logicalName": "claim_watchable_commerce_watches",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830174616",
+      "logicalName": "vto_feature_control",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830190000",
+      "logicalName": "watchlist_push_token_actor_isolation",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830190500",
+      "logicalName": "watchlist_create_honours_changed_intent",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260830212508",
+      "logicalName": "user_device_push_tokens",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831000100",
+      "logicalName": "watchlist_worker_enablement",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831120000",
+      "logicalName": "watchlist_device_ownership_claim",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831120500",
+      "logicalName": "claim_user_commerce_watches_for_refresh",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831130000",
+      "logicalName": "vto_generation_reservations",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831140000",
+      "logicalName": "deleted_owner_retained_media",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260831160000",
+      "logicalName": "vto_paid_quota_attempt_counting",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260902120000",
+      "logicalName": "watchlist_device_route_and_account_state",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260902150000",
+      "logicalName": "vto_non_billable_attempt_release",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260908230000",
+      "logicalName": "deletion_status_receipt",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260909115726",
+      "logicalName": "watchlist_push_receipts",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260909170000",
+      "logicalName": "watchlist_f03_push_token_actor_isolation_reconciliation",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260915030553",
+      "logicalName": "kplus_entitlement_authority",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260915124849",
+      "logicalName": "kplus_reconcile_queue_excludes_inactive_rows",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260915181554",
+      "logicalName": "kplus_revenuecat_mirror_retirement",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260915181910",
+      "logicalName": "kplus_promotional_mirror_sources_search_path",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260915214857",
+      "logicalName": "signature_style_free_entitlement",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260916130553",
+      "logicalName": "build33_orphan_owner_media_reconciliation_rpc",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260916235651",
+      "logicalName": "dressing_room_items_dedupe_key_idempotency",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20260917163000",
+      "logicalName": "b34_fk_delete_path_indexes",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261011222213",
+      "logicalName": "build35_speech_operational_cost_controls",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261014210000",
+      "logicalName": "stylist_speech_kplus_reservation_guard",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261015214749",
+      "logicalName": "style_chat_greeting_actor_session_unique",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261016001500",
+      "logicalName": "vto_attempt_scoped_settlement",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261029125521",
+      "logicalName": "black_owned_discovery_v1",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    }
+  ],
+  "unexplainedRemote": [],
+  "unexplainedLocal": [],
+  "remoteOnlyAllowed": [
+    {
+      "version": "20260723021514",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "account_deletion_security_hardening"
+    },
+    {
+      "version": "20260808201806",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "shared_room_item_contributions"
+    },
+    {
+      "version": "20260816020548",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "apple_auth_credentials_access_hardening"
+    },
+    {
+      "version": "20260916141413",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "build33_production_commerce_telemetry_convergence"
+    },
+    {
+      "version": "20260916160903",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "build33_production_trigger_search_path_convergence"
+    },
+    {
+      "version": "20261012203811",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "build35_reaction_counts_share_token_functional_parity"
+    },
+    {
+      "version": "20261012203929",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "build35_revoke_trigger_only_client_execute_grants"
+    },
+    {
+      "version": "20261012204354",
+      "classification": "PRODUCTION_ONLY_HISTORICAL",
+      "logicalName": "build35_contain_unauthorized_kplus_early_access_grants"
+    }
+  ],
+  "approvedSelectedForExecution": 0,
+  "otherKnownPendingCount": 31,
+  "selectedMigration": "NONE",
+  "knownPendingCount": 31
+}

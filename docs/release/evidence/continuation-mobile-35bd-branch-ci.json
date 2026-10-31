@@ -1,0 +1,70 @@
+{
+  "capturedAt": "2026-10-30T21:48:39.306Z",
+  "sourceSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+  "rows": [
+    {
+      "conclusion": "success",
+      "databaseId": 41129328380,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Security - ZAP Baseline Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328384,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Build 35 iOS source certification"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328466,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328375,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Security - Promotion Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328367,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Build 35 Release Profile Guard"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328382,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Dependency Reachability Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328393,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "Security - ZAP API Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328412,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "K Scan Staging Security Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41129328394,
+      "headSha": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+      "status": "completed",
+      "workflowName": "VTO Backend E2E"
+    }
+  ],
+  "allSuccess": true
+}

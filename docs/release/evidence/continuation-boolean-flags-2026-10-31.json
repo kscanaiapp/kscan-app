@@ -1,0 +1,104 @@
+{
+  "capturedAt": "2026-10-31T13:42:14.481Z",
+  "method": "Read-only Supabase CLI secret metadata; compare only seven approved flag digests to literal true/false; no raw secret values or other secret names emitted",
+  "projects": {
+    "production": {
+      "projectRef": "wyyuqfdxucjksghsmhry",
+      "flags": [
+        {
+          "name": "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORED_PLACEMENTS_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORSHIP_SANDBOX_MODE",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORSHIP_SHADOW_MODE",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "ELISE_BRAND_VOICE_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": true,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": true,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        }
+      ]
+    },
+    "staging": {
+      "projectRef": "yzqjvdfgefveprobvvyw",
+      "flags": [
+        {
+          "name": "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": true,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": true,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORED_PLACEMENTS_V1_ENABLED",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORSHIP_SANDBOX_MODE",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "SPONSORSHIP_SHADOW_MODE",
+          "present": true,
+          "verifiedBooleanValue": false,
+          "evidence": "CLI SHA256 metadata digest (value field) matches approved literal boolean"
+        },
+        {
+          "name": "ELISE_BRAND_VOICE_V1_ENABLED",
+          "present": false,
+          "verifiedBooleanValue": null,
+          "evidence": "ABSENT"
+        },
+        {
+          "name": "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+          "present": false,
+          "verifiedBooleanValue": null,
+          "evidence": "ABSENT"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Stored secret metadata is not proof of active invocation or customer-live binary.",
+    "No flags or secrets changed."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "links": [
+    {
+      "mandatoryProbeId": "B35-MAND-2350",
+      "executedProbeId": "B35-DISC-HOOK-001",
+      "boundary": "workflow:Black-owned discovery",
+      "limitation": "Hook output/state only; no signed binary, mounted full UI, live auth or provider latency claim"
+    },
+    {
+      "mandatoryProbeId": "B35-MAND-2347",
+      "executedProbeId": "B35-DISC-HOOK-002",
+      "boundary": "workflow:Black-owned discovery",
+      "limitation": "Hook output/state only; no signed binary, mounted full UI, live auth or provider latency claim"
+    },
+    {
+      "mandatoryProbeId": "B35-MAND-2358",
+      "executedProbeId": "B35-DISC-HOOK-004",
+      "boundary": "workflow:Black-owned discovery",
+      "limitation": "Hook output/state only; no signed binary, mounted full UI, live auth or provider latency claim"
+    }
+  ],
+  "notClosed": [
+    "Whole mounted-primary hang latency",
+    "Account switch auth scope",
+    "Navigation return",
+    "Live endpoint provider failure"
+  ],
+  "counts": {
+    "PASS": 67,
+    "NOT TESTED": 3028,
+    "FAIL": 1
+  }
+}

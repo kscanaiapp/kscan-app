@@ -1,0 +1,25 @@
+﻿{
+    "method":  "read-only exact campaign tags/titles/object suffixes; no customer content",
+    "results":  {
+                    "value":  [
+                                  {
+                                      "component":  "synthetic_auth_actors",
+                                      "remaining":  0
+                                  },
+                                  {
+                                      "component":  "synthetic_rooms",
+                                      "remaining":  0
+                                  },
+                                  {
+                                      "component":  "synthetic_storage",
+                                      "remaining":  0
+                                  }
+                              ],
+                    "Count":  3
+                },
+    "runIds":  [
+                   "05d9134e3b3547598fdad030305e57ee",
+                   "abb5a45aac544bf0a7138b5ff845e199",
+                   "c36d9ff89c9e4825bb42bfa754b2afcc"
+               ]
+}

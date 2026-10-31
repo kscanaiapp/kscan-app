@@ -1,0 +1,121 @@
+﻿[
+    {
+        "flags":  [
+                      {
+                          "booleanValue":  true,
+                          "name":  "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  true,
+                          "name":  "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORED_PLACEMENTS_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORSHIP_SANDBOX_MODE",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORSHIP_SHADOW_MODE",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  null,
+                          "name":  "ELISE_BRAND_VOICE_V1_ENABLED",
+                          "present":  false
+                      },
+                      {
+                          "booleanValue":  null,
+                          "name":  "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+                          "present":  false
+                      }
+                  ],
+        "environment":  "staging",
+        "limitation":  "Only exact boolean literals or matching SHA256 boolean digests captured; null means value not read back. No deployment or invocation.",
+        "functionCount":  40,
+        "capturedAt":  "2026-10-29T23:18:13.9186323Z",
+        "migrations":  {
+                           "value":  [
+                                         {
+                                             "migration_count":  183,
+                                             "permission_migration_applied":  false,
+                                             "discovery_migration_applied":  true
+                                         }
+                                     ],
+                           "Count":  1
+                       },
+        "discovery":  [
+                          {
+                              "name":  "black-owned-discovery",
+                              "slug":  "black-owned-discovery",
+                              "version":  5,
+                              "verify_jwt":  true,
+                              "status":  "ACTIVE",
+                              "sha256":  null
+                          }
+                      ]
+    },
+    {
+        "flags":  [
+                      {
+                          "booleanValue":  false,
+                          "name":  "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORED_PLACEMENTS_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORSHIP_SANDBOX_MODE",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  false,
+                          "name":  "SPONSORSHIP_SHADOW_MODE",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  true,
+                          "name":  "ELISE_BRAND_VOICE_V1_ENABLED",
+                          "present":  true
+                      },
+                      {
+                          "booleanValue":  true,
+                          "name":  "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+                          "present":  true
+                      }
+                  ],
+        "environment":  "production",
+        "limitation":  "Only exact boolean literals or matching SHA256 boolean digests captured; null means value not read back. No deployment or invocation.",
+        "functionCount":  28,
+        "capturedAt":  "2026-10-29T23:18:14.4479369Z",
+        "migrations":  {
+                           "value":  [
+                                         {
+                                             "migration_count":  156,
+                                             "permission_migration_applied":  false,
+                                             "discovery_migration_applied":  true
+                                         }
+                                     ],
+                           "Count":  1
+                       },
+        "discovery":  [
+
+                      ]
+    }
+]

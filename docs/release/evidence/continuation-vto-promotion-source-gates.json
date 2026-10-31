@@ -1,0 +1,39 @@
+{
+  "sourceSha": "c437e04bbe5c4dfd01e3ea82fcf33ddc1916b147",
+  "results": [
+    {
+      "script": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-dependency-reachability.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "check-build35-release-profile.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "script": "enforced actual diff scope+meta",
+      "exitCode": 0
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+[
+  {
+    "endpoint": "kickscrew-sneaker-description",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "product-search-deals",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "nike-shoe-details",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "handle-user-deletion",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "stylechat-generate",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "privacy-data-export",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "privacy-correction-request",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "stylist-speech",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "shared-room-image-url",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "tryon-clothes-pro",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "search-vinted-secondhand",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "style-outfit-generate",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "apple-credential-link",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "kplus-activate",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "vto-generate",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "purchase-import-extract",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "kplus-offer-redeem",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  },
+  {
+    "endpoint": "kplus-revenuecat-pull-reconcile",
+    "probe": "anonymous caller",
+    "expected": "401/403 before handler execution",
+    "actual": 401,
+    "verdict": "PASS",
+    "scope": "Production gateway only; no authenticated/provider operation requested"
+  }
+]
