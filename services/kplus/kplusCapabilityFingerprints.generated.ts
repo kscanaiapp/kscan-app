@@ -7,7 +7,7 @@
 export const CURRENT_IMPLEMENTATION_FINGERPRINTS: Readonly<Record<string, string>> = Object.freeze({
   closet_cross_device_restore: '69ecbcf4b221529fb44a58b34c13fdbb042459b6bed239c590b7bbe2c9a3e9fe',
   closet_outbound_sync: 'fed5873f6ada1384fccfc20dc51dcb4b2e92024ed17ee336a95b8cd13fd07abe',
-  packing_generation_and_refinement: '7e9befb680cae412c347950393ab7aa6d11acaaa024e631cde6630d0f28bf71d',
+  packing_generation_and_refinement: '8646c79d01dd90da8862049319a0ff51ac989ae1a82a702c30477a5954662c6e',
   watch_provider_entitlement_boundary: '409f79f0648c8ceaa118d43695d5ee4a9547ac333d2d3bbec5203de910be8f02',
   watch_tracking: 'f5c43dab92d54095c81660e38422b03c8ea81b29ba65b0a8dd0d19dba73b3ec9',
 });
