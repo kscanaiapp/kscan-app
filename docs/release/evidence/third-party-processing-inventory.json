@@ -17,7 +17,13 @@
     "consent": "Feature-specific source gate as described; legal sufficiency and all published binary paths NOT VERIFIED",
     "logsAnalytics": "Reviewed allowlisted telemetry/bounded diagnostics only; deployed log content/retention not exhaustively inspected",
     "responsibleDisclosure": "Privacy Policy/AI disclosure/subscription or notification notice as applicable; legal-agent factual reconciliation required",
-    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence"
+    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence",
+    "imagePrivacyMetadata": {
+      "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "assessment": "continuation-privacy-source-assessment.json",
+      "facts": "Scanner native mask path; guarded Closet cloud sync uses plate-positive blocking. Metadata-only Elise/receipt and intentional PhotoVTO person paths must not inherit universal masking claims. Ten source routes inventoried. Actual native accuracy excluded and unverified.",
+      "rollout": "Current October31 metadata: permission migration absent in both projects, repaired strict backend not claimed deployed."
+    }
   },
   {
     "provider": "ElevenLabs",
@@ -137,7 +143,20 @@
     "consent": "Feature-specific source gate as described; legal sufficiency and all published binary paths NOT VERIFIED",
     "logsAnalytics": "Reviewed allowlisted telemetry/bounded diagnostics only; deployed log content/retention not exhaustively inspected",
     "responsibleDisclosure": "Privacy Policy/AI disclosure/subscription or notification notice as applicable; legal-agent factual reconciliation required",
-    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence G008 source identity-failure guard merged657; complete legal/runtime/retention/deletion evidence still required; owner maintains policy language."
+    "evidenceGaps": "Source tests and metadata are separate from deployed invocation, signed client, physical device and vendor contract evidence G008 source identity-failure guard merged657; complete legal/runtime/retention/deletion evidence still required; owner maintains policy language.",
+    "currentSourceEvidence": {
+      "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "assessment": "continuation-privacy-source-assessment.json",
+      "declaredFeatureEvents": 108,
+      "bridgedEmitterFiles": 7,
+      "astImportedEmitterCallSites": 134,
+      "sourceControls": "Seven bounded allowlists; replay/UI autocapture/error capture/surveys/remote flags/GeoIP enrichment disabled; lifecycle on when configured; raw launch URL removed for new and restored queue records; identity fence/reset source regressions pass.",
+      "identity": "Linkable Supabase UUID and scoped SDK identity; not anonymous data",
+      "consent": "defaultOptIn:true once configured; no dedicated analytics consent/opt-out authority wired; opt_out_of_sale is not repurposed",
+      "retentionDeletion": "Provider event retention, deletion propagation and approved legal basis not established by source; owner legal/provider evidence required",
+      "transport": "Configured SDK host; endpoint necessarily observes network source IP. disableGeoip is not a claim that IP is never received or retained.",
+      "ingestion": "Only four historical event names previously observed; no current signed-binary binding or complete event ingestion certification"
+    }
   },
   {
     "provider": "AILabTools via RapidAPI",

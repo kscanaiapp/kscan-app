@@ -1,0 +1,142 @@
+{
+  "observations": [
+    {
+      "disposition": "OBSERVED; public capability behavior recorded, owner-deactivation public-preview contract not established. Not classified as a security finding or PASS.",
+      "previewStatus": "available",
+      "http": 200,
+      "ownerState": "pending_deletion",
+      "boundary": "Anonymous public room preview"
+    },
+    {
+      "disposition": "OBSERVED; public capability behavior recorded, owner-deactivation public-preview contract not established. Not classified as a security finding or PASS.",
+      "previewStatus": "available",
+      "http": 200,
+      "ownerState": "locked",
+      "boundary": "Anonymous public room preview"
+    }
+  ],
+  "providerCalls": 0,
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "productionChanges": false,
+  "capturedAt": "2026-10-31T13:35:50.5750437Z",
+  "sourceContract": "Source mobile50387a2b; actual deployed Staging policies/RPCs, not local deployment parity certification",
+  "records": [
+    {
+      "probe": "active public link baseline",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-001",
+      "expected": "Anonymous public preview available for owner-created active link",
+      "actual": {
+        "http": 200,
+        "status": "available"
+      }
+    },
+    {
+      "probe": "active collaboration baseline",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-002",
+      "expected": "Joined member has authoritative collaboration access",
+      "actual": {
+        "ok": true,
+        "http": 200
+      }
+    },
+    {
+      "probe": "removed member private access",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-003",
+      "expected": "Removed member no longer has collaboration access",
+      "actual": {
+        "ok": false,
+        "http": 200
+      }
+    },
+    {
+      "probe": "removed member public capability",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-004",
+      "expected": "Explicit UI contract: anyone retaining active public link may view preview; separate link revocation required",
+      "actual": {
+        "http": 200,
+        "status": "available"
+      }
+    },
+    {
+      "probe": "pending_deletion owner private room read",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-005",
+      "expected": "Restricted account receives no private room rows despite retained JWT",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "locked owner private room read",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-006",
+      "expected": "Restricted account receives no private room rows despite retained JWT",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "revoked public capability replay",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-007",
+      "expected": "Previously available public token now unavailable",
+      "actual": {
+        "http": 200,
+        "status": "unavailable"
+      }
+    },
+    {
+      "probe": "tagged room cleanup",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-008",
+      "expected": "Only verified synthetic owned room removed",
+      "actual": {
+        "http": 200
+      }
+    },
+    {
+      "probe": "tag-verified actor cleanup",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-009",
+      "expected": "Only run-tagged synthetic identity deleted",
+      "actual": {
+        "http": 200
+      }
+    },
+    {
+      "probe": "tag-verified actor cleanup",
+      "verdict": "PASS",
+      "runId": "77be73c99d774ad8805d279e9b4c33b9",
+      "environment": "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+      "probeId": "B35-SHARE-LIFE-010",
+      "expected": "Only run-tagged synthetic identity deleted",
+      "actual": {
+        "http": 200
+      }
+    }
+  ]
+}

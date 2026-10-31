@@ -64712,26 +64712,28 @@
   {
     "endpoint": "workflow:Shared Dressing Room",
     "probe": "removed shared-room member",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "For Shared Dressing Room, full UI-to-authority removed shared-room member scenario not executed; injected source tests are indexed separately, with physical/native scenarios awaiting a signed test app and appropriate device.",
+    "expected": "Actual collaboration RPC grants joined member access, then denies the same still-authenticated member after membership removal.",
+    "actual": "HTTP200 ok:true baseline; after tagged participant left_at, HTTP200 ok:false. Active public-link preview remains separate by explicit UI contract.",
+    "verdict": "PASS",
     "probeId": "B35-MAND-2585",
     "feature": "Shared Dressing Room",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "Actual deployed Staging RPCs at 2026-10-31T13:35:50.5750437Z; local source50387a2b used to identify contract, no local/deployed byte-parity assertion",
     "sourceLocation": "feature-integration-matrix.json feature=Shared Dressing Room",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Staging synthetic tagged identities",
+    "evidence": "continuation-share-lifecycle-staging-2026-10-31.json -> B35-SHARE-LIFE-002/003",
+    "executionMethod": "share-lifecycle-staging-1031.ps1",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Real RPC membership removal verified; no storage-path or image-signer verdict inferred",
     "coverageDisposition": {
-      "category": 4,
-      "label": "Safely executable with synthetic Staging fixtures",
-      "reason": "Use synthetic actor/resource baseline and foreign/removed/expired access through actual authenticated database/Storage/RPC. No customer data or Production writes.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual Staging membership-removal boundary",
+      "reason": "Positive member baseline and removed-member denial, same synthetic actor and room, all fixtures cleaned",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {
@@ -74467,26 +74469,28 @@
   {
     "endpoint": "workflow:Backend RLS/RPC/storage",
     "probe": "removed shared-room member",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "For Backend RLS/RPC/storage, full UI-to-authority removed shared-room member scenario not executed; injected source tests are indexed separately, with physical/native scenarios awaiting a signed test app and appropriate device.",
+    "expected": "Actual collaboration RPC grants joined member access, then denies the same still-authenticated member after membership removal.",
+    "actual": "HTTP200 ok:true baseline; after tagged participant left_at, HTTP200 ok:false. Active public-link preview remains separate by explicit UI contract.",
+    "verdict": "PASS",
     "probeId": "B35-MAND-2972",
     "feature": "Backend RLS/RPC/storage",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "Actual deployed Staging RPCs at 2026-10-31T13:35:50.5750437Z; local source50387a2b used to identify contract, no local/deployed byte-parity assertion",
     "sourceLocation": "feature-integration-matrix.json feature=Backend RLS/RPC/storage",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Staging synthetic tagged identities",
+    "evidence": "continuation-share-lifecycle-staging-2026-10-31.json -> B35-SHARE-LIFE-002/003",
+    "executionMethod": "share-lifecycle-staging-1031.ps1",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Pending",
+    "reverificationStatus": "Real RPC membership removal verified; no storage-path or image-signer verdict inferred",
     "coverageDisposition": {
-      "category": 4,
-      "label": "Safely executable with synthetic Staging fixtures",
-      "reason": "Use synthetic actor/resource baseline and foreign/removed/expired access through actual authenticated database/Storage/RPC. No customer data or Production writes.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed actual Staging membership-removal boundary",
+      "reason": "Positive member baseline and removed-member denial, same synthetic actor and room, all fixtures cleaned",
+      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "previousEvidence": {
+      "verdict": "NOT TESTED",
+      "evidence": null
     }
   },
   {

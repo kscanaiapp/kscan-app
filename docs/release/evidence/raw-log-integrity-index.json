@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-31T13:33:18.427Z",
+  "capturedAt": "2026-10-31T13:43:41.367Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2402,6 +2402,36 @@
       "archiveSha256": "1afac278ce354e072f3900290f12305308b642c291f80b73254a61bccebc7046",
       "encoding": "UTF-16LE BOM",
       "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78"
+    },
+    {
+      "rawFile": "share-lifecycle-staging.log",
+      "rawBytes": 254,
+      "rawSha256": "249f9d740a0d5162efd9c56a3067a03441e739eaa7be73730ba06e013c1b76fc",
+      "archiveFile": "share-lifecycle-staging.log.gz",
+      "archiveBytes": 69,
+      "archiveSha256": "c95bcef21ea753df24175a57264b2eae098d6c9635d067363022a7e59a2cf197",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    {
+      "rawFile": "share-lifecycle-staging-final.log",
+      "rawBytes": 434,
+      "rawSha256": "34949a4b651731049b1c644c3bc76e47637ba3450363c6adbf69b4a60f20f766",
+      "archiveFile": "share-lifecycle-staging-final.log.gz",
+      "archiveBytes": 71,
+      "archiveSha256": "1e67a40e522517693ce2295f317fd1d1c7a0d1a9e2a8af462c961892e5b3c1bd",
+      "encoding": "UTF-16LE BOM",
+      "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    {
+      "rawFile": "runtime-readback-1031-raw.json",
+      "rawBytes": 79407,
+      "rawSha256": "ce9544187492a5dba467efc395b7f16f0064270a8875ef8101eb5143097d8921",
+      "archiveFile": "runtime-readback-1031-raw.json.gz",
+      "archiveBytes": 14515,
+      "archiveSha256": "dc194d4a9a1be0f899e83f575b8d49b8d9bdef331113a0be7dfc4c1993d20e1a",
+      "encoding": "UTF-8",
+      "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
     }
   ]
 }
