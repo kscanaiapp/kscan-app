@@ -1,0 +1,50 @@
+[
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/check-edge-function-parity.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  },
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/verify-backend-authority.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  },
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/check-native-config-parity.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  },
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/check-migration-provenance.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  },
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/check-dependency-reachability.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  },
+  {
+    "sourceSha": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+    "command": "node scripts/check-build35-release-profile.js",
+    "exitCode": 0,
+    "signal": null,
+    "verdict": "PASS",
+    "error": null
+  }
+]

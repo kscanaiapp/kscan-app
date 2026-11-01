@@ -1,0 +1,17 @@
+{
+  "mobile": "2d2a944f294645e031f60efbbbdb9691f502541e",
+  "reviewed": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "canonical": "3bab42e47817da8a4941efc4a509afee73879015",
+  "testedTree": "1c11387689e657dafec4458e6c71238ac1df5a3c",
+  "mergedTree": "1c11387689e657dafec4458e6c71238ac1df5a3c",
+  "exactTreeMatch": true,
+  "pr": 662,
+  "mergeMethod": "squash",
+  "premergeChecks": {
+    "pass": 34,
+    "skipping": 20
+  },
+  "ownerAuthorization": "Owner authorized fully green PR merges; separate green read and CLEAN/head verification occurred before merge; no override",
+  "branchCi": "Pending post-merge readback; not certified yet",
+  "runtime": "No deployment, migration or flag change; actual Supabase Edge runtime and device verification still separate"
+}

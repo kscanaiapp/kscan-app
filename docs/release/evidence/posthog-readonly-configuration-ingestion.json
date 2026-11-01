@@ -1,0 +1,38 @@
+{
+  "projectId": 571577,
+  "projectName": "K Scan AI",
+  "readAt": "2026-10-29T18:04:37Z",
+  "method": "Connected PostHog projects-get, project-get, read-data-schema(kind=events); property values/person records not requested",
+  "recentEventNames": [
+    "Application Opened",
+    "Application Backgrounded",
+    "kplus_early_access_viewed",
+    "closet_candidate_cleanup_failed"
+  ],
+  "window": "last 30 days in provider taxonomy",
+  "projectSettings": {
+    "ingested_event": true,
+    "anonymize_ips": false,
+    "autocapture_exceptions_opt_in": true,
+    "session_recording_opt_in": true,
+    "session_recording_retention_period": "30d"
+  },
+  "clientSource": {
+    "sessionReplay": false,
+    "autocapture": false,
+    "errorAutocapture": false,
+    "disableGeoip": true,
+    "captureAppLifecycleEvents": true,
+    "defaultOptIn": true
+  },
+  "limitations": [
+    "Project flags are not proof of native SDK collection; source explicitly disables these capture surfaces.",
+    "Recent project ingestion does not identify the current published binary, source SHA, environment, or complete intended event taxonomy.",
+    "Session-recording read scope unavailable; no claim that recordings exist or are absent.",
+    "No raw events, chat, photographs or person properties accessed.",
+    "Legal approval of unconditional configured analytics and provider retention/training terms remains unverified."
+  ],
+  "references": [
+    "https://posthog.com/docs/libraries/react-native#autocapture"
+  ]
+}

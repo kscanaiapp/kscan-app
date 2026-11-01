@@ -1,0 +1,48 @@
+{
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "canonicalSha": "3bab42e47817da8a4941efc4a509afee73879015",
+  "pr": 662,
+  "state": "OPEN, current PR checks pending; no merge claim",
+  "node": {
+    "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+    "inventoryFiles": 642,
+    "concurrency": 2,
+    "exitCode": 0,
+    "signal": null,
+    "complete": true,
+    "counts": {
+      "tests": 11448,
+      "suites": 2,
+      "pass": 11350,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 98,
+      "todo": 0
+    },
+    "verdict": "PASS"
+  },
+  "backend": {
+    "pass": 1569,
+    "fail": 0,
+    "exitCode": 0,
+    "command": "node scripts/run-backend-tests.js",
+    "log": "continuation-dns-promotion-backend-final.log.gz"
+  },
+  "typescript": {
+    "exitCode": 0,
+    "log": "continuation-dns-promotion-typescript-final.log.gz"
+  },
+  "gates": "continuation-c011-mobile-source-gates.json",
+  "focused": {
+    "pass": 118,
+    "skip": 2,
+    "fail": 0,
+    "scope": "source/governance; declared non-enforcing skips separate"
+  },
+  "limits": [
+    "Not actual Supabase Edge runtime compatibility",
+    "No physical devices available",
+    "No deployment or mobile build"
+  ],
+  "archivesVerified": 187
+}

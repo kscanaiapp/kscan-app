@@ -1,0 +1,58 @@
+{
+  "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "originalTotal": 3096,
+  "counts": {
+    "PASS": 103,
+    "NOT TESTED": 2991,
+    "FAIL": 2
+  },
+  "nonApplicable": 307,
+  "applicablePending": 2684,
+  "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
+  "limitation": "Exact malformed-body cells only; 24 records are not added as 24 independent matrix closures. Device certification excluded by owner, not PASS. Broad remaining locally executable coverage is still unfinished.",
+  "knownFailingDefects": [
+    "B35-B-004/P4",
+    "B35-C-015/P4"
+  ],
+  "additionalDefectOutsideMatrix": "G013/P1 SOURCE REPAIRED by merged663/665; no new P0-P3 in this batch",
+  "scopeExcludedDeviceCells": 4,
+  "inScopeApplicablePending": 2680,
+  "latestExecution": {
+    "records": 24,
+    "PASS": 22,
+    "FAIL": 2,
+    "exactMatrixCells": [
+      "B35-MAND-1172",
+      "B35-MAND-1174",
+      "B35-MAND-1173",
+      "B35-MAND-1129",
+      "B35-MAND-1131",
+      "B35-MAND-1130",
+      "B35-MAND-0914",
+      "B35-MAND-0916",
+      "B35-MAND-0915",
+      "B35-MAND-0742",
+      "B35-MAND-0744",
+      "B35-MAND-0743"
+    ],
+    "reverifiedSigningCell": "B35-MAND-1024"
+  },
+  "latestStagingReconciliation": {
+    "records": 10,
+    "PASS": 10,
+    "observations": 2,
+    "mappings": [
+      {
+        "probeId": "B35-MAND-2585",
+        "previous": "NOT TESTED",
+        "evidenceRecord": "B35-SHARE-LIFE-003"
+      },
+      {
+        "probeId": "B35-MAND-2972",
+        "previous": "NOT TESTED",
+        "evidenceRecord": "B35-SHARE-LIFE-003"
+      }
+    ],
+    "limitation": "Two matrix cells reference the same real membership probe; no independent-test inflation. Public inactive-owner availability is an observation, not a security PASS."
+  }
+}

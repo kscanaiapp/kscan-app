@@ -1,0 +1,36 @@
+{
+  "updatedAt": "2026-10-30T16:13:15.477Z",
+  "authorization": "Owner updates legal documents/language and website; factual metadata updates authorized. No binding legal text, store declaration, or live policy changed.",
+  "mobileSha": "d342087cef908e806c891d5f19264d4eeeb8d665",
+  "backendSha": "3bab42e47817da8a4941efc4a509afee73879015",
+  "facts": {
+    "gemini": "Images and text including Elise; revocable current-permission source merged; rollout pending, not operationally certified",
+    "scanner": "Local face/plate orchestration tested with injected native detectors; actual device accuracy/pixels/network not certified",
+    "photoVto": "Person and garment images processed by AILabTools via RapidAPI; cannot inherit universal Scanner masking claims",
+    "analytics": "PostHog explicit allowlisted events and SDK lifecycle/device data; source disables replay/UIautocapture/errors/GeoIP; project opt-ins differ; actor-failure repair merged; retention/deletion/legal basis still unverified",
+    "subscriptions": "Dated connected-store readback US0.99monthly/9.99annual with1month intro; store eligibility/cohorts/native purchase and Apple submission remain separate",
+    "deletion": "Application lifecycle source tested; all-processor propagation/retention/backups not certified",
+    "packing": "Actor-bound device-local latest-plan cache30days, not backend trip-history feature"
+  },
+  "requiredOwnerReview": [
+    "Policy/website reflect actual processor categories, triggers and content",
+    "Confirm analytics basis, retention/deletion, opt-out and store data categories",
+    "Avoid universal on-device masking/zero-retention/unpublished customer-live claims",
+    "Reconcile signed binary SDK behavior before final Nutrition Label/Data Safety submissions"
+  ],
+  "evidence": [
+    "third-party-processing-inventory.json",
+    "continuation-revenuecat-store-readback.json",
+    "posthog-readonly-configuration-ingestion.json",
+    "continuation-runtime-readback.json"
+  ],
+  "launchUrlPrivacyCorrection": {
+    "finding": "B35-G-013/P1",
+    "sourceMerged": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+    "controls": [
+      "Raw launch URL excluded before enqueue for new captures (#663)",
+      "Restored default Queue cleaned before SDK transport, cleaned cache installed; identity/order and unrelated keys preserved (#665)"
+    ],
+    "limits": "Source contracts only. Native persistent-storage encryption/deletion, historical provider ingestion and published-binary behavior remain unverified. Owner controls legal language/website; H001legal/retention/deletion remains open."
+  }
+}

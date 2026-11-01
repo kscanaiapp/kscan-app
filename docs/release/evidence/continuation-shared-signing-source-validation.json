@@ -1,0 +1,58 @@
+{
+  "sourceSha": "e9790c27028771aacf8b647750e804c5bbf8b33c",
+  "previousRuntimeCommit": "899a953f59d8b015c34a7e53fc987d4506a57d65",
+  "canonicalBase": "3bab42e47817da8a4941efc4a509afee73879015",
+  "branch": "fix/build35-shared-image-signing-schema-20261030",
+  "worktree": "C:/b35shareschema1030",
+  "status": "Final local head e979 committed; remote899 pending update after shared staging serialization; no PR yet",
+  "backend": {
+    "pass": 1571,
+    "fail": 0
+  },
+  "actualDefaultHandlerAndValidators": {
+    "pass": 18,
+    "fail": 0
+  },
+  "nodeGovernance": {
+    "pass": 54,
+    "fail": 0
+  },
+  "sourceGates": [
+    {
+      "name": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-dependency-reachability.js",
+      "exitCode": 0,
+      "error": null
+    }
+  ],
+  "nonApplicableAttempt": {
+    "checker": "check-build35-release-profile.js",
+    "reason": "Mobile-only file absent in canonical backend authority; not a backend gate",
+    "attemptedExitCode": 1,
+    "verdict": "NOT APPLICABLE, never PASS"
+  },
+  "limits": [
+    "No deployed runtime test",
+    "No policy/migration/secret change",
+    "No mobile promotion yet"
+  ]
+}

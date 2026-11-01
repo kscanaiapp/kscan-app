@@ -1,0 +1,44 @@
+﻿[
+    {
+        "name":  "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+        "present":  true,
+        "verifiedBooleanValue":  false,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+        "present":  true,
+        "verifiedBooleanValue":  false,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "SPONSORED_PLACEMENTS_V1_ENABLED",
+        "present":  true,
+        "verifiedBooleanValue":  false,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "SPONSORSHIP_SANDBOX_MODE",
+        "present":  true,
+        "verifiedBooleanValue":  false,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "SPONSORSHIP_SHADOW_MODE",
+        "present":  true,
+        "verifiedBooleanValue":  false,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "ELISE_BRAND_VOICE_V1_ENABLED",
+        "present":  true,
+        "verifiedBooleanValue":  true,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    },
+    {
+        "name":  "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+        "present":  true,
+        "verifiedBooleanValue":  true,
+        "method":  "Read-only whitelist boolean comparison; unrecognized values never emitted"
+    }
+]

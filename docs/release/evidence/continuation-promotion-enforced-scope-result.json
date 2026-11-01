@@ -1,0 +1,6 @@
+{
+  "sourceSha": "148e48d26ac390de40ec21aed0efa41f29870775",
+  "baseRef": "9c66fe50f537179046bc4e8b160ec4ddd1c463b6",
+  "exitCode": 0,
+  "command": "KSCAN_VTO_SCOPE_ENFORCE=1 KSCAN_VTO_SCOPE_BASE_REF=9c66fe50f537179046bc4e8b160ec4ddd1c463b6 node --test __tests__/vtoLiveIntegrationScope.test.js"
+}

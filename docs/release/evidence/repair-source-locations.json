@@ -1,0 +1,37 @@
+[
+  {
+    "file": "C:/b35full1029/services/blackOwnedDiscovery.ts",
+    "line": 28,
+    "needle": "function safeOptionalUrl"
+  },
+  {
+    "file": "C:/b35full1029/services/blackOwnedDiscovery.ts",
+    "line": 56,
+    "needle": "const result = data"
+  },
+  {
+    "file": "C:/b35full1029/services/blackOwnedDiscoveryHost.ts",
+    "line": 168,
+    "needle": "p.productUrl.split"
+  },
+  {
+    "file": "C:/b35int1029/services/onboardingCompletion.ts",
+    "line": 68,
+    "needle": "if (await isOnboardingComplete"
+  },
+  {
+    "file": "C:/b35int1029/services/style-chat/providers/edgeStyleChatProvider.ts",
+    "line": 364,
+    "needle": "supabase.functions.invoke"
+  },
+  {
+    "file": "C:/b35int1029/constants/legal.ts",
+    "line": 4,
+    "needle": "AI_PROCESSING_VERSION"
+  },
+  {
+    "file": "C:/b35int1029/app/onboarding/index.tsx",
+    "line": 622,
+    "needle": "Photos and text you submit"
+  }
+]

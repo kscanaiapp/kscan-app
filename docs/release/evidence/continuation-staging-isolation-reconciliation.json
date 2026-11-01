@@ -1,0 +1,186 @@
+{
+  "reconciledAt": "2026-10-30T19:37:12.211Z",
+  "reusedExecution": true,
+  "newLiveCalls": 0,
+  "sourceMigrationTree": "7c97de8d8c2a74c0d61e8ef5311f41360f6e6c53",
+  "localSourceEquivalence": {
+    "from": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+    "to": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c"
+  },
+  "sourceScriptSha256": "a313eb20df2702473a5f9e42575f7706e0f5a9762018428274d6e1b1b7d20e87",
+  "records": [
+    {
+      "probeId": "B35-MAND-1421",
+      "records": [
+        {
+          "probe": "profile A -> A",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Exactly own synthetic row",
+          "actual": "HTTP 200 rows=1",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "profile B -> B",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Exactly own synthetic row",
+          "actual": "HTTP 200 rows=1",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User A own room baseline",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "One owned synthetic room",
+          "actual": "HTTP 200 rows=1",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User A synthetic private upload baseline",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Owned fixture upload succeeds",
+          "actual": "HTTP 200",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        }
+      ]
+    },
+    {
+      "probeId": "B35-MAND-1422",
+      "records": [
+        {
+          "probe": "profile A -> B",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "No foreign rows",
+          "actual": "HTTP 200 rows=0",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "profile B -> A",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "No foreign rows",
+          "actual": "HTTP 200 rows=0",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User A cannot update User B profile",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "No changed foreign row",
+          "actual": "HTTP 200 rows=0",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User B guessed room ID without membership",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "No room rows",
+          "actual": "HTTP 200 rows=0",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User B guessed room RPC without membership",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Authoritative access decision denies",
+          "actual": "HTTP 200 ok=False",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        }
+      ]
+    },
+    {
+      "probeId": "B35-MAND-1423",
+      "records": [
+        {
+          "probe": "User B cannot read User A storage path",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Explicit denial or hidden object",
+          "actual": "HTTP 400",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User B cannot sign User A storage path",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Explicit denial",
+          "actual": "HTTP 400",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "User A cannot upload into User B storage prefix",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Explicit denial",
+          "actual": "HTTP 400",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        }
+      ]
+    },
+    {
+      "probeId": "B35-MAND-1424",
+      "records": [
+        {
+          "probe": "User B active membership RPC baseline",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Actual share join authorizes collaboration",
+          "actual": "HTTP 200 ok=True",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "Active member reads synthetic message via real RPC",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "One synthetic message",
+          "actual": "HTTP 200 count=1",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "Removed member reuses valid JWT against collaboration RPC",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Authoritative decision denies after real membership removal",
+          "actual": "HTTP 200 ok=False",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        },
+        {
+          "probe": "Removed member cannot read messages via real RPC",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Access denied without message content",
+          "actual": "HTTP 403 ok=",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        }
+      ]
+    },
+    {
+      "probeId": "B35-MAND-1462",
+      "records": [
+        {
+          "probe": "Expired signed URL replay",
+          "environment": "Staging, tagged ephemeral synthetic actors only",
+          "expected": "Initially readable, then explicit denial after expiry",
+          "actual": "before=200 after=400",
+          "verdict": "PASS",
+          "runId": "c36d9ff89c9e4825bb42bfa754b2afcc"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    "staging-isolation-results.json",
+    "staging-synthetic-cleanup-readback.json",
+    "staging-migration-comparison-current.json",
+    "staging-migration-ledger-current.json"
+  ],
+  "limits": [
+    "Current Supabase policy/function digest is not attested by a historical local source tree hash.",
+    "These five cells cover only listed profile/room/RPC/storage cases; not all app tables or UI entry points.",
+    "Membership removal RPC evidence does not certify the separate public share-token image handler or every outstanding signed URL.",
+    "No new remote call or mutation performed for this reconciliation."
+  ]
+}

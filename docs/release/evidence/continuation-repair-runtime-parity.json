@@ -1,0 +1,30 @@
+{
+  "mobile": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "backend": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af",
+  "result": [
+    {
+      "file": "supabase/functions/_shared/geminiConsent.ts",
+      "byteIdentical": true
+    },
+    {
+      "file": "supabase/migrations/20261029184000_gemini_processing_permission.sql",
+      "byteIdentical": true
+    },
+    {
+      "file": "supabase/functions/scan-identify/index.ts",
+      "byteIdentical": true
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/index.ts",
+      "byteIdentical": true
+    },
+    {
+      "file": "supabase/functions/purchase-import-extract/handler.ts",
+      "byteIdentical": true
+    },
+    {
+      "file": "supabase/functions/style-outfit-generate/index.ts",
+      "byteIdentical": true
+    }
+  ]
+}

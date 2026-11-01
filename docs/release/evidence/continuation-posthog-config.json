@@ -1,0 +1,11 @@
+{
+  "projectId": 571577,
+  "capturedAt": "2026-10-29T23:19:05.006Z",
+  "isError": false,
+  "session_recording_opt_in": "true",
+  "autocapture_opt_out": null,
+  "capture_performance_opt_in": "true",
+  "autocapture_exceptions_opt_in": "true",
+  "anonymize_ips": "false",
+  "session_recording_retention_period": "30"
+}

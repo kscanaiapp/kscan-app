@@ -1,0 +1,37 @@
+﻿[
+    {
+        "probe":  "verified actor with active profile",
+        "discoveryStatus":  "empty",
+        "environment":  "Staging synthetic tagged actor",
+        "quotaRequests":  1,
+        "status":  200,
+        "runId":  "99b18949e9464d9b964532a59e886840",
+        "expected":  "Baseline valid request",
+        "authStatus":  200
+    },
+    {
+        "probe":  "verified actor with pending_deletion profile",
+        "discoveryStatus":  "empty",
+        "environment":  "Staging synthetic tagged actor",
+        "quotaRequests":  2,
+        "status":  200,
+        "runId":  "99b18949e9464d9b964532a59e886840",
+        "expected":  "No quota/catalog work after authoritative account restriction",
+        "authStatus":  200
+    },
+    {
+        "probe":  "verified actor with locked profile",
+        "discoveryStatus":  "empty",
+        "environment":  "Staging synthetic tagged actor",
+        "quotaRequests":  3,
+        "status":  200,
+        "runId":  "99b18949e9464d9b964532a59e886840",
+        "expected":  "No quota/catalog work after authoritative account restriction",
+        "authStatus":  200
+    },
+    {
+        "status":  200,
+        "probe":  "tag-verified synthetic cleanup",
+        "runId":  "99b18949e9464d9b964532a59e886840"
+    }
+]

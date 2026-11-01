@@ -1,0 +1,73 @@
+﻿{
+    "observations":  [
+                         {
+                             "message":  "Tagged membership removal setup failed",
+                             "disposition":  "HARNESS OR SETUP ERROR",
+                             "errorType":  "RuntimeException"
+                         }
+                     ],
+    "providerCalls":  0,
+    "projectRef":  "yzqjvdfgefveprobvvyw",
+    "productionChanges":  false,
+    "capturedAt":  "2026-10-31T13:35:07.7869217Z",
+    "sourceContract":  "Source mobile50387a2b; actual deployed Staging policies/RPCs, not local deployment parity certification",
+    "records":  [
+                    {
+                        "probe":  "active public link baseline",
+                        "verdict":  "PASS",
+                        "runId":  "f57c55fdebec4a37bff68af92badfc22",
+                        "environment":  "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+                        "probeId":  "B35-SHARE-LIFE-001",
+                        "expected":  "Anonymous public preview available for owner-created active link",
+                        "actual":  {
+                                       "http":  200,
+                                       "status":  "available"
+                                   }
+                    },
+                    {
+                        "probe":  "active collaboration baseline",
+                        "verdict":  "PASS",
+                        "runId":  "f57c55fdebec4a37bff68af92badfc22",
+                        "environment":  "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+                        "probeId":  "B35-SHARE-LIFE-002",
+                        "expected":  "Joined member has authoritative collaboration access",
+                        "actual":  {
+                                       "ok":  true,
+                                       "http":  200
+                                   }
+                    },
+                    {
+                        "probe":  "tagged room cleanup",
+                        "verdict":  "PASS",
+                        "runId":  "f57c55fdebec4a37bff68af92badfc22",
+                        "environment":  "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+                        "probeId":  "B35-SHARE-LIFE-003",
+                        "expected":  "Only verified synthetic owned room removed",
+                        "actual":  {
+                                       "http":  200
+                                   }
+                    },
+                    {
+                        "probe":  "tag-verified actor cleanup",
+                        "verdict":  "PASS",
+                        "runId":  "f57c55fdebec4a37bff68af92badfc22",
+                        "environment":  "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+                        "probeId":  "B35-SHARE-LIFE-004",
+                        "expected":  "Only run-tagged synthetic identity deleted",
+                        "actual":  {
+                                       "http":  200
+                                   }
+                    },
+                    {
+                        "probe":  "tag-verified actor cleanup",
+                        "verdict":  "PASS",
+                        "runId":  "f57c55fdebec4a37bff68af92badfc22",
+                        "environment":  "Actual Staging RPC/RLS; tagged ephemeral synthetic actors only",
+                        "probeId":  "B35-SHARE-LIFE-005",
+                        "expected":  "Only run-tagged synthetic identity deleted",
+                        "actual":  {
+                                       "http":  200
+                                   }
+                    }
+                ]
+}

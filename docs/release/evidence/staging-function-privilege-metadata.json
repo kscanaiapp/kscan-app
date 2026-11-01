@@ -1,0 +1,1672 @@
+﻿[
+    {
+        "schema_name":  "internal",
+        "proname":  "dressing_room_pair_has_interacted",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "internal",
+        "proname":  "is_dressing_room_pair_blocked",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "internal",
+        "proname":  "lock_dressing_room_pair",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "append_deletion_state_transition",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "append_user_commerce_watch_event",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "apply_kplus_provider_lifetime_transition",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "apply_kplus_provider_transition",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "block_dressing_room_user",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "build_owned_item_snapshot",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "can_access_room_messages",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "can_react_to_dressing_room_item",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "cast_outfit_decision_vote",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "check_and_increment_scan_identify_daily_usage",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "check_and_increment_style_outfit_burst",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "check_and_increment_stylechat_burst",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_deletion_requests_for_purge",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_device_for_actor",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_kplus_provider_reconciliation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_retained_owner_media_for_sweep",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_user_commerce_watches_for_refresh",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_vto_reconciliation_v2",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "claim_watchable_commerce_watches",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "complete_provider_request",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "complete_vto_generation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "consume_stylechat_request_quota",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "create_dressing_room_message",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "create_look_from_dressing_room_items",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "create_look_from_owned_items",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "create_or_get_room_share",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "create_user_commerce_watch",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "delete_user_commerce_watch",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_audit_change",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_begin_sync",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_candidates",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_claim_request",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_cleanup",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_guard_sandbox_data",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_guard_verification",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_ingest",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_manage",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_primary_ownership",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_safe_url",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_sponsorship_snapshot",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_staff_authority",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_sync_failed",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_touch_revision",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "discovery_valid_pipeline_transition",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "dr3_is_uuid_v4",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "dr3_payload_hash",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public, extensions"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "enforce_dressing_room_message_flat_thread",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "enforce_minor_privacy_defaults",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "ensure_privacy_settings",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "evaluate_provider_abuse_state",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "finalize_elise_generation_operation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "finish_kplus_provider_reconciliation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "finish_speech_request",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_item_reaction_counts",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  true,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_kplus_revenuecat_product_cache",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_my_deletion_status",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_my_kplus_entitlement_summary",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_outfit_decision_vote_counts",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_public_room_decision_preview",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  true,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_public_room_preview",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  true,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "get_stylechat_daily_usage",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "grant_kplus_complimentary",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "grant_kplus_early_access",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "handle_new_user",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "handle_new_user_privacy",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "has_active_k_plus",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "heartbeat_deletion_request_lease",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "increment_style_chat_usage",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "increment_style_outfit_daily_usage",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "increment_stylechat_daily_usage",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "increment_stylechat_daily_usage_idempotent",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "is_active_account",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "join_room_via_share_token",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_effective_access_state",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_enqueue_revenuecat_mirror_retirement",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_entitlement_facts",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_entitlement_summary",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_grants_mirror_retire_tg",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_has_active_entitlement",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_promotional_mirror_sources",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_promotional_mirror_state",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_refresh_provider_verification_from_observation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_stamp_provider_reconciliation_observation",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_user_entitlement_row_is_active",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "kplus_user_entitlements_mirror_retire_tg",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_deletion_purge_candidates",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_dressing_room_blocked_users",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_dressing_room_messages",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_kplus_pending_revenuecat_sync",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_kplus_provider_grants_for_reconciliation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_kplus_revenuecat_mirror_retirements",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_orphan_owner_media",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "list_shared_rooms_for_me",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "mark_deletion_request_purged",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "mark_elise_generation_generating",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "normalize_dressing_room_note",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "pause_user_commerce_watch",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "peek_restoration_resend_by_email",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public, auth"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "prevent_inspiration_item_media_rewrite",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "preview_pending_deletion_backfill",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public, auth"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "put_kplus_revenuecat_product_cache",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "recompute_signature_style",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reconcile_kplus_provider_lifetime_transition",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reconcile_kplus_provider_transition",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reconcile_orphaned_purging_requests",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "record_retained_owner_media",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "record_vto_task_v2",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "redeem_kplus_offer_code",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "refund_stylechat_request_quota",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "refund_stylechat_request_quota_for_user",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "register_device_push_token",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "register_user_device_session",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "release_provider_request",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "release_vto_generation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "remove_shared_room_for_me",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_elise_generation_operation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_privacy_request_rate_limit",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_provider_request",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_speech_request",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_vto_generation",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "reserve_vto_generation_v2",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "resolve_dressing_room_collaboration_access",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "restore_account_by_token_hash",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "resume_user_commerce_watch",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revalidate_elise_generation_context",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revoke_device_push_token",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revoke_kplus_grant",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revoke_room_share",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revoke_user_device_sessions",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "revoke_user_sessions",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public, auth"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "rotate_restoration_token_by_email",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public, auth"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "save_shared_room_for_me",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "schedule_deletion_retry_or_fail",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_deletion_requests_updated_at",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_dressing_room_item_reaction",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_kplus_revenuecat_mirror_status",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_kplus_revenuecat_sync_status",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_outfit_decision_state",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_profiles_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_provider_request_limits_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_saved_scans_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_shared_room_memberships_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_style_objects_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_closet_items_insert_authority",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_closet_items_update_authority",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_commerce_watches_insert_authority",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_commerce_watches_update_authority",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_entitlements_updated_at",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_style_profiles_updated_at",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_user_stylist_preferences_updated_at",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "set_watch_push_enabled",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "settle_retained_owner_media",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "settle_vto_generation_v2",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "share_looks_to_outfit_decision",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "signature_style_frequency",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "touch_kplus_offer_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "touch_shared_room_for_me",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "unblock_dressing_room_user",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=pg_catalog, public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "update_look_owned_items",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "update_privacy_settings_updated_at",
+        "security_definer":  false,
+        "proconfig":  [
+                          "search_path=\"\""
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "upsert_style_dna_profile",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "upsert_style_memory_event",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  true
+    },
+    {
+        "schema_name":  "public",
+        "proname":  "watchlist_actor_is_active",
+        "security_definer":  true,
+        "proconfig":  [
+                          "search_path=public"
+                      ],
+        "anon_execute":  false,
+        "authenticated_execute":  false
+    }
+]

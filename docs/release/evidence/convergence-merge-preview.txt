@@ -1,0 +1,24 @@
+fdf75821c8e749f11a6aa9982dc3695238fa0469
+100644 75dd950b7ef1ae852ef03fa23322dfcc63754e80 1	components/scan-results/PurchaseOptionsPanel.tsx
+100644 95ad29b5b5093cc3faf936541fb719920966dc7f 2	components/scan-results/PurchaseOptionsPanel.tsx
+100644 bb03cdf3efe7101bf99e4414bdf1e5397fb15ddd 3	components/scan-results/PurchaseOptionsPanel.tsx
+100644 e7517fc9dd510e2d8afe4581e214921d3ab0c086 1	components/scan-results/ScanResultV2.tsx
+100644 1be6e2d4ac4534598fd71d99744758616a0cfad1 2	components/scan-results/ScanResultV2.tsx
+100644 450ff799c91fa701a31de7640ec2d67f7153e16e 3	components/scan-results/ScanResultV2.tsx
+100644 0a69e3ceb69c9ebb21bbc1e734c64fa0c69c0119 1	package.json
+100644 a5e035f63225a50027c31b26589a69e9d05808d8 2	package.json
+100644 77b3d23f9d1fc396897b5900dd266d566b42783e 3	package.json
+100644 efc03937d15676efb0751050c41c05b9b7c2fe02 1	services/analytics/posthogClient.core.ts
+100644 6910f8b0b989dfc9f5188384f1f1c23dc7a3354c 2	services/analytics/posthogClient.core.ts
+100644 b4c3a12de5f63bb06c9cde66c802898b85cdd26e 3	services/analytics/posthogClient.core.ts
+
+Auto-merging __tests__/iosScanResultSheetNesting.test.js
+Auto-merging components/scan-results/PurchaseOptionsPanel.tsx
+CONFLICT (content): Merge conflict in components/scan-results/PurchaseOptionsPanel.tsx
+Auto-merging components/scan-results/ScanResultV2.tsx
+CONFLICT (content): Merge conflict in components/scan-results/ScanResultV2.tsx
+Auto-merging package-lock.json
+Auto-merging package.json
+CONFLICT (content): Merge conflict in package.json
+Auto-merging services/analytics/posthogClient.core.ts
+CONFLICT (content): Merge conflict in services/analytics/posthogClient.core.ts

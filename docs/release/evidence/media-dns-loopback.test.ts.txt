@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import { createAiLabToolsProvider } from '../b35vtomedia1030/supabase/functions/vto-generate/providers/aiLabToolsProvider.ts';
+import { MOCK_VTO_RESULT_BASE64 } from '../b35vtomedia1030/supabase/functions/vto-generate/providers/mockResultAsset.ts';
+
+Deno.test('URL topology boundary must reject a loopback-resolving hostname before connecting', async () => {
+  // Bind only our own loopback listener. If443 is occupied, do not probe or
+  // disturb its owner. No real internal/metadata endpoint is contacted.
+  let listener: Deno.TcpListener;
+  try { listener = Deno.listen({ hostname: '127.0.0.1', port: 443 }); }
+  catch (e) { console.log(JSON.stringify({ disposition: 'NOT TESTED', reason: 'Controlled loopback443 listener unavailable', name: (e as Error).name })); throw e; }
+  let connections = 0, tlsBytes = 0, submitCalls = 0;
+  const accepted = (async () => {
+    try {
+      const conn = await listener.accept(); connections++;
+      try { tlsBytes = (await conn.read(new Uint8Array(64))) ?? 0; } finally { conn.close(); }
+    } catch (e) { if (!(e instanceof Deno.errors.BadResource) && !(e instanceof Deno.errors.Interrupted)) throw e; }
+  })();
+  const provider = createAiLabToolsProvider({ apiKey: 'OFFLINE-NONSECRET', fetchImpl: async (url, init) => {
+    if (url === 'https://127.0.0.1.nip.io/synthetic.png') return await fetch(url, init);
+    submitCalls++; throw new Error('Paid/provider path prohibited by this fixture');
+  } });
+  let outcome;
+  try {
+    outcome = await provider.generate({ personDataUri: `data:image/png;base64,${MOCK_VTO_RESULT_BASE64}`, garmentImageUrl: 'https://127.0.0.1.nip.io/synthetic.png', slot: 'top', canonicalCategory: 'outerwear' }, { signal: new AbortController().signal });
+  } finally { listener.close(); await accepted; }
+  console.log(JSON.stringify({ connections, tlsBytes, submitCalls, outcome, limitation: 'Actual default Deno fetch/TLS connection to our own raw loopback listener; no successful TLS/HTTP response, private data, provider call or Production egress assertion.' }));
+  assert.equal(submitCalls, 0);
+  assert.equal(connections, 0, 'A private-address hostname must be rejected before TCP/TLS contact');
+});
