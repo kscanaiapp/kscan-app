@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const canonical = 'f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee';
-const currentCanonical = '14746f6516399dafbe27ade713f392ba0fff7725';
+const currentCanonical = '19bcc5d699f878561aaef1f9bc914c998e2a0de7';
 const runner = 'scripts/run-backend-tests.js';
 const mobileBase = 'a9503e135162824ed8127f6a3066fac1deab3e67';
 const files = [
@@ -25,7 +25,7 @@ const allFiles = [runner, ...files];
 const actual = new Map(allFiles.map(file => [file, fs.readFileSync(path.join(root, file))]));
 function verify(bytes) {
   assert.equal(policy.canonicalBackend, currentCanonical);
-  assert.equal(policy.files.length, 56, '53 prior entries plus three exact lifecycle/input files; F012 bytes and runner stay pinned to their original authority');
+  assert.equal(policy.files.length, 57, '56 prior entries plus one exact restoration policy; F012 bytes and runner stay pinned to their original authority');
   assert.ok(!policy.files.some(entry => entry.file === runner), 'Preserve the mobile-owned runner difference explicitly');
   for (const file of files) {
     const row = policy.files.find(entry => entry.file === file);
