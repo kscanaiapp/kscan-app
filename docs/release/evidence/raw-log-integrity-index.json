@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T23:45:01.841Z",
+  "capturedAt": "2026-11-02T23:54:41.667Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3881,6 +3881,36 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "disposition": "ActualF024mobile d032 source focused79PASS/2explicitNAskips,84DenoPASS orTypeScriptexit0. Controlledidentity/consent/SDK/providerandlocalSQL;notliveprovider/device/rollout."
+    },
+    {
+      "rawFile": "pr683-push-project-failed-raw.log",
+      "rawBytes": 4125726,
+      "rawSha256": "b6b552c43633ed900f35922afe876ca7340c0e1d582ff388ee2589a255f078d5",
+      "archiveFile": "resume1102-pr683-push-project-failed-raw.log.gz",
+      "archiveBytes": 542780,
+      "archiveSha256": "0ef2956d63af7cd560749172f9aa550176ecd1acecffcf62873680f2923bfe97",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "ActualCIbaselinepollingfailure andcorrectpromotionrefusal;retained,notrelabelledPASS"
+    },
+    {
+      "rawFile": "pr683-promotion-gate-failed-raw.log",
+      "rawBytes": 420370,
+      "rawSha256": "3176ea40d037220ec95d0835ea66de185b08c9752d21c50315115583e32908ff",
+      "archiveFile": "resume1102-pr683-promotion-gate-failed-raw.log.gz",
+      "archiveBytes": 35310,
+      "archiveSha256": "b56010e340576f3100e49ca27cb649992ff45be25e23152e4179f932786390be",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "ActualCIbaselinepollingfailure andcorrectpromotionrefusal;retained,notrelabelledPASS"
+    },
+    {
+      "rawFile": "replay-fixture-event-sync-1102.log",
+      "rawBytes": 9320,
+      "rawSha256": "5ea8184c41380e9c85eec52814b3ddf26d58d80be8fb3c8be56902502b1e0da2",
+      "archiveFile": "resume1102-replay-fixture-event-sync-1102.log.gz",
+      "archiveBytes": 1290,
+      "archiveSha256": "f76f257f38222ab42233c6fb7fb4fbb6bde1a561bf9537250b1cd488183c0c54",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "11actualSQL/defaultadapter/handlerPASS includingforcedstartupdelayanddeliberatebadgrantnegativecontrol;controlledprovider,no runtime/providerclaim"
     }
   ]
 }

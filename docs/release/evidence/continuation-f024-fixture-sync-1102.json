@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-11-02T23:54:41.667Z",
+  "finding": "F024 regression fixture scheduling correction (not new customer finding)",
+  "mobilePr": 683,
+  "mobileHead": "d0328ac1535e0b08e84ee6905bf584810555df20",
+  "originalCi": {
+    "nodePass": 11453,
+    "nodeFail": 1,
+    "nodeSkip": 96,
+    "failure": "baseline dispatch must be established:0!==1 before replay assertions",
+    "rootCause": "100setImmediate iterations finish before asynchronous fingerprint/SQLdispatch underCIload",
+    "gate": "Correct OPERATIONALFAILURE/projectChecksCiOperationalFailure; not bypassed"
+  },
+  "canonicalTestPr": 684,
+  "head": "184395bc8899904946ce0c86e8c0a64ebef03b76",
+  "tree": "1b6dbc86d3f7fe8a4c562da5aaae65a16fa75068",
+  "change": "OneNode testfile only: await actualproviderdispatch and replay-response/second-dispatch signals with30sboundedfailure; allone-dispatch/429/settlement assertionspreserved",
+  "newControls": [
+    "Holdreservationpastold100turnpoll, then actualhandler/SQLdispatch/completionPASS",
+    "Deliberatelyrestoreoldduplicatedgrantfixture and assert observer rejectssecondproviderdispatch"
+  ],
+  "local": {
+    "focusedPass": 11,
+    "focusedFail": 0,
+    "focusedSkip": 0,
+    "canonicalSourceGates": "5exit0",
+    "edgeManifest": "current/unchanged",
+    "crossPath": "20current/unchanged"
+  },
+  "status": "684CANONICALCI PENDING;683heldreduntilcanonicaltestcorrectionpromoted",
+  "next": "Finish684greenCI/reviews/normalmerge+7branchworkflows, refresh683exactcanonicaltest/provenance whilepreserving681runtimeandC023history; fullmobileCI/merge+9branchworkflows; onlythenF025andB004."
+}

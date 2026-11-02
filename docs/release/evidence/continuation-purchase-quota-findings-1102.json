@@ -53,7 +53,7 @@
       "mergeOrder": "AfterC023canonical679/mobile680 complete. F025 andB004remainqueued; no shared-file overlap.",
       "id": "B35-F-024",
       "priority": "P2",
-      "status": "CANONICAL MERGED / MOBILE PR683 LOCALPASS / CI PENDING",
+      "status": "684CANONICALCI PENDING;683heldreduntilcanonicaltestcorrectionpromoted",
       "sourceLocation": "20260803020000_provider_request_security.sql:263-272 duplicate_replay; purchase-import-extract/handler.ts:138-144 discards reason; 275-281 dispatch gate",
       "contract": "An in-flight repeated extraction must not dispatch a second provider operation under one quota reservation.",
       "observed": "Two simultaneous same-request actual handler calls reach the controlled provider twice with one actual SQL reservation; expected one dispatch.",
@@ -77,7 +77,8 @@
       "mobilePr": 683,
       "mobileHead": "d0328ac1535e0b08e84ee6905bf584810555df20",
       "mobileTree": "c8913cd71efcda2874ef2adc6b45626af5577e3b",
-      "mobileEvidence": "continuation-f024-mobile-resume-1102.json"
+      "mobileEvidence": "continuation-f024-mobile-resume-1102.json",
+      "fixtureEvidence": "continuation-f024-fixture-sync-1102.json"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",

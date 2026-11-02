@@ -1,3 +1,9 @@
+## F024 CI fixture correction684 — source queue remains active
+
+Mobile683/d032fullpushCI:11453PASS/1FAIL/96SKIP;actualfailurewasbaseline0dispatchbefore100turnpollcompletedasyncdigest/SQL. SecurityPromotionGatecorrectlyrefusedwithprojectChecksCiOperationalFailure;rawretained. No newcustomerdefect/count. Canonical**[684](https://github.com/kscanaiapp/kscan-app/pull/684)/184395bc** corrects onlyreplaytest synchronizationusingactualdispatch/response signals. One-dispatch/429/retry/no-settle/original-completionchecksallretained;forcedstartup-delayanddeliberatelybaddispatchnegativecontrolsPASS. **11focusedPASS/0FAIL/0SKIP,fivecanonicalgates0,Edge/crosspathcurrentunchanged.** Runtimehandler/SQL/manifests/dependenciesunchanged.
+
+Nextfinish684CI/reviews/normalgreenmerge/post7,thenrefresh683exacttestbytes/provenanceandgreenCI/mobilemerge/post9. F025andB004stillunstarted;682held;W1/W2unconfirmedqueued. Authoritiesmobile892f/backend26d5unchanged. 21of23P0-P3sourceclosed;originalmatrix136PASS/1FAIL/2959NTunchanged. 396losslessarchivesverified. Thisremainsunderlyingsourceaudit,notfinalreleaseverification;no runtime/migration/device/platform/deletioncycle/Productionaction.
+
 ## Resumed underlying audit — F024 mobile683 in CI
 
 Freshrefs unchanged:mobile892f9ef0/backend26d5fae2/evidenceae2035b6. Managercommentsread andpreserved;682/99dbd1b6remainsOPEN/DRAFT/HOLD, W1/W2UNCONFIRMEDandqueuedafterrepairs. ProductionWatchlistflagONdoesnotprovesuccessfulProductionworker;managerNov2Staging200/claimed0 is boundedinvocationevidence. No runtimechange.
