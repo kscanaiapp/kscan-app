@@ -32,6 +32,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { acquireCameraLease, type CameraLease } from '../services/cameraOwnership';
 import { getLiveVtoNativeModule } from '../services/vto/liveVtoNativeModule';
@@ -54,6 +55,10 @@ import {
   type PhotorealIntentState,
 } from '../types/vtoLive';
 import type { VtoPersonInput } from '../types/vto';
+
+// Read afresh across awaits: native lifecycle events can change this value
+// while a camera-permission request is pending.
+const isApplicationBackgrounded = (): boolean => AppState.currentState === 'background';
 
 export interface UseVtoLiveSessionArgs {
   active?: boolean;
@@ -143,7 +148,8 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const enterLive = useCallback(async () => {
     // `controllerRef` alone was not enough: it is only assigned AFTER the
     // permission await below, so two taps both passed it. See VTO-HA-002.
-    if (!activeRef.current || !descriptor || controllerRef.current || enteringRef.current) return;
+    if (isApplicationBackgrounded()
+      || !activeRef.current || !descriptor || controllerRef.current || enteringRef.current) return;
     const epoch = epochRef.current;
     enteringRef.current = true;
     try {
@@ -151,7 +157,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       const permission = harness
         ? { state: harness.cameraPermission, prompted: false }
         : await ensureLiveCameraPermission();
-      if (epochRef.current !== epoch || !activeRef.current) return;
+      if (epochRef.current !== epoch || !activeRef.current || isApplicationBackgrounded()) return;
 
       if (permission.state !== 'granted') {
         // Bounded, non-fatal: the caller keeps AI Photo on offer and we do not
@@ -215,6 +221,17 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   /** Read by the preemption callback, which can fire after `exitLive` was re-created. */
   const exitLiveRef = useRef(exitLive);
   exitLiveRef.current = exitLive;
+
+  // A mounted sheet can outlive the foreground application. Release the
+  // camera and invalidate permission/capture continuations when backgrounded.
+  // Do not cancel on transient `inactive` (including an iOS permission dialog),
+  // and never restart the camera automatically when the application returns.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') exitLiveRef.current();
+    });
+    return () => subscription.remove();
+  }, []);
 
   // A garment change while Live is running is a switch, never a restart: the
   // runtime keeps the camera and swaps the asset, and the product identity
