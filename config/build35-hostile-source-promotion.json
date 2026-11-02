@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+  "canonicalBackend": "14746f6516399dafbe27ade713f392ba0fff7725",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -321,6 +321,24 @@
       "sha256": "f3ceca2f104307d5c7ac1ce6cfa25bcf84869ec4298e266a557b243cc7afd4c1",
       "source": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
       "reason": "Exact canonical PR667 B35-E-016/P3 Unicode weather-cache repair and regression promotion; no API/schema/provider/privacy/deployment authority change."
+    },
+    {
+      "file": "supabase/migrations/20261031162813_saved_scans_active_account_guard.sql",
+      "sha256": "e566bcefc905d187fce903cd91b1576be1c1a71c4ced6bf96075aa3c1cd9ee0a",
+      "source": "14746f6516399dafbe27ade713f392ba0fff7725",
+      "reason": "Exact merged canonical PR669/F017 account-state migration or PR670/C015 invalid-body source/test. Source promotion only; no migration application, deployment or activation grant."
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/index.ts",
+      "sha256": "da0ef8a3597f18e98701be672154b167bc0f4e2052b1f97bf230d51cd2f70231",
+      "source": "14746f6516399dafbe27ade713f392ba0fff7725",
+      "reason": "Exact merged canonical PR669/F017 account-state migration or PR670/C015 invalid-body source/test. Source promotion only; no migration application, deployment or activation grant."
+    },
+    {
+      "file": "supabase/functions/stylechat-generate/invalidBodyHostile.test.ts",
+      "sha256": "8c4c0f2ecab08d41fe8abe585bbec4934d89c5512df2e7251c3473e7740b6d9c",
+      "source": "14746f6516399dafbe27ade713f392ba0fff7725",
+      "reason": "Exact merged canonical PR669/F017 account-state migration or PR670/C015 invalid-body source/test. Source promotion only; no migration application, deployment or activation grant."
     }
   ],
   "sharedSigningRegressionRegistration": {
@@ -335,5 +353,10 @@
     "previousMobileSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
     "reviewedCanonicalSource": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
     "scope": "Only two exact weather source/test files from merged canonical PR667; all previous 51 grants and the mobile-owned signing runner remain unchanged."
+  },
+  "lifecycleInputPromotion": {
+    "canonicalSource": "14746f6516399dafbe27ade713f392ba0fff7725",
+    "previousMobileSha": "113a1895aac8af974b1aca18724f5286e9967237",
+    "scope": "Three exact backend files and canonical SQL regression; preserve all53 previous byte-bound grants, existing deployment refusal, mobile-owned runner and platform source differences. Retain pending migration declarations without execution approval."
   }
 }
