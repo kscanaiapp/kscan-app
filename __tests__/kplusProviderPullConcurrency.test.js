@@ -18,9 +18,16 @@ function safeDb() {
 
 async function psql(sql) {
   safeDb();
-  const { stdout } = await execFileAsync('docker', ['exec', '-i', DB, 'psql', '-U', 'postgres', '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-f', '-'], {
-    input: sql, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024,
+  const execution = execFileAsync('docker', ['exec', '-i', DB, 'psql', '-U', 'postgres', '-d', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-f', '-'], {
+    encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, windowsHide: true,
   });
+  // Async execFile has no `input` option. Explicit EOF is required by psql
+  // reading -f -, and both input and process failures must fail the test.
+  const input = new Promise((resolve, reject) => {
+    execution.child.stdin.once('error', reject);
+    execution.child.stdin.end(sql, error => error ? reject(error) : resolve());
+  });
+  const [{ stdout }] = await Promise.all([execution, input]);
   return stdout.trim();
 }
 
