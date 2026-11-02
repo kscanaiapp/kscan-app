@@ -45,6 +45,7 @@ function createMockClient({
   upsertError = null,
   insertError = null,
   updateError = null,
+  updateData = undefined,
   maybeSingleData = null,
 } = {}) {
   const calls = [];
@@ -79,11 +80,18 @@ function createMockClient({
       },
       update: (payload) => {
         calls.push({ type: 'update', tableName, payload });
-        return {
-          eq: () => ({
-            eq: () => Promise.resolve({ error: updateError }),
-          }),
+        const filters = {};
+        const result = () => ({
+          data: updateData === undefined ? { id: filters.id, deleted_at: payload.deleted_at ?? null } : updateData,
+          error: updateError,
+        });
+        const chain = {
+          eq: (key, value) => { filters[key] = value; return chain; },
+          select: (columns) => { calls.push({ type: 'mutationSelect', columns, tableName }); return chain; },
+          maybeSingle: async () => result(),
+          then: (resolve, reject) => Promise.resolve(result()).then(resolve, reject),
         };
+        return chain;
       },
     }),
   };
@@ -436,6 +444,39 @@ test('soft delete finds cloud row by localId when cloudId is unknown', async () 
 
   const maybeSingleCall = client._calls.find(c => c.type === 'maybeSingle');
   assert.ok(maybeSingleCall);
+});
+
+test('existing cloud save refuses zero-row or mismatched mutation acknowledgments', async () => {
+  for (const updateData of [null, {}, { id: 'another-row' }, { id: 42 }]) {
+    const client = createMockClient({
+      session: { user: { id: 'user-1' } },
+      maybeSingleData: { id: 'existing-id', deleted_at: null, analysis_result: {}, products: [] },
+      updateData,
+    });
+    const result = await loadService(client).saveScanToCloud(makeScanModel(), client);
+    assert.equal(result.ok, false, 'no authoritative matching row means no completed save');
+  }
+});
+
+test('soft delete refuses zero-row, foreign-row or missing tombstone acknowledgments', async () => {
+  for (const updateData of [null, {}, { id: 'foreign', deleted_at: '2026-11-02T00:00:00Z' }, { id: 'target', deleted_at: null }]) {
+    const client = createMockClient({ session: { user: { id: 'user-1' } }, updateData });
+    const result = await loadService(client).softDeleteCloudSavedScan('target', client);
+    assert.equal(result.ok, false, 'a filtered/no-op mutation must not be reported as deletion');
+  }
+});
+
+test('acknowledged existing save and repeated soft-delete request matching authoritative rows', async () => {
+  const client = createMockClient({
+    session: { user: { id: 'user-1' } },
+    maybeSingleData: { id: 'target', deleted_at: null, analysis_result: {}, products: [] },
+  });
+  const service = loadService(client);
+  assert.equal((await service.saveScanToCloud(makeScanModel(), client)).ok, true);
+  assert.equal((await service.softDeleteCloudSavedScan('target', client)).ok, true);
+  assert.equal((await service.softDeleteCloudSavedScan('target', client)).ok, true);
+  const selections = client._calls.filter(call => call.type === 'mutationSelect');
+  assert.deepEqual(selections.map(call => call.columns), ['id', 'id,deleted_at', 'id,deleted_at']);
 });
 
 // ─── Large payloads ──────────────────────────────────────────────────────────

@@ -219,12 +219,12 @@ test('mixed campaign backend exceptions are exact byte-bound promotions, not a f
     "supabase/functions/stylechat-generate/packingWeather.ts"
   ];
   assert.equal(previous.files.length, 51);
-  assert.deepEqual(campaignPromotion.files.filter(row => !weatherFiles.includes(row.file) && !["supabase/migrations/20261031162813_saved_scans_active_account_guard.sql","supabase/functions/stylechat-generate/index.ts","supabase/functions/stylechat-generate/invalidBodyHostile.test.ts"].includes(row.file)), previous.files,
+  assert.deepEqual(campaignPromotion.files.filter(row => !weatherFiles.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql' && !["supabase/migrations/20261031162813_saved_scans_active_account_guard.sql","supabase/functions/stylechat-generate/index.ts","supabase/functions/stylechat-generate/invalidBodyHostile.test.ts"].includes(row.file)), previous.files,
     'all 51 prior byte-bound grants, including F012, must remain unchanged');
   assert.deepEqual(campaignPromotion.files.filter(row => weatherFiles.includes(row.file)).map(row => row.file), weatherFiles,
     'only the two exact canonical PR667 weather files are added');
-  assert.equal(campaignPromotion.files.length, 56);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 56);
+  assert.equal(campaignPromotion.files.length, 57);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 57);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);
