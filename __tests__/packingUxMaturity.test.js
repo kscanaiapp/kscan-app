@@ -77,6 +77,7 @@ function memoryAsyncStorage(seed = {}) {
 const loadCache = (storage) =>
   loadPackingTsModule('services/packing/packingPlanCache.ts', {
     '@react-native-async-storage/async-storage': storage,
+    './packingResponse': loadPackingTsModule('services/packing/packingResponse.ts', { '../../types/packing': require('./helpers/componentRenderer').runModule('types/packing.ts', {}) }),
     '../../types/packing': {},
   });
 
@@ -109,6 +110,7 @@ const codeOf = (relative) =>
 function fakePlan(overrides = {}) {
   return {
     planId: 'plan-1',
+    trip: { destination: 'Paris', startDate: '2026-12-10', endDate: '2026-12-13', nights: 3 },
     packedItems: [
       { itemId: 'item-1', title: 'Rain Jacket', layeringRole: 'outer' },
       { itemId: 'item-2', title: 'Dark Jeans', layeringRole: 'bottom' },
@@ -353,7 +355,7 @@ test('UX-3 badges: Packing still routes no commerce of any kind', () => {
   // gap engine is shaped to avoid. Recorded as an owner decision, not shipped.
   const view = read('components/packing/PackingPlanView.tsx');
   assert.doesNotMatch(view, /Find Similar|Shop |Buy now|addToCart|openProduct/i);
-  const client = read('services/packing/packingClient.ts');
+  const client = read('services/packing/packingResponse.ts');
   // The wire parser still drops anything commerce-shaped rather than showing it.
   assert.match(client, /raw\.price != null \|\| raw\.url != null \|\| raw\.productId != null/);
 });
