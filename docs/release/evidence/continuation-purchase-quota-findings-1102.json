@@ -1,0 +1,69 @@
+{
+  "source": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "backend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+  "findings": [
+    {
+      "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
+      "canonicalBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+      "environment": "Local actual handler/default quota adapter + actual PostgreSQL migration functions inPGlite; synthetic validated identity/consent, injected Supabase SDK bridge and provider; zero network/provider cost",
+      "reproduction": "node --test purchase-quota-composed-1102.test.cjs",
+      "evidence": [
+        "purchase-quota-composed-original-before-1102-results.json",
+        "resume1102-purchase-quota-composed-before-1102.log.gz",
+        "provider-quota-readonly-equivalence-1102.json"
+      ],
+      "runtimeLimits": "No real extraction, charge, customer mutation, runtime activation or deployed handler exploit performed. Receipt UI is default-OFF with no explicit checked-in EAS enablement; current binary/dashboard flag and endpoint enablement not verified. Existing source feature still has a concrete source integration/cost contract.",
+      "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
+      "id": "B35-C-023",
+      "priority": "P2",
+      "status": "CONFIRMED / ACTIVE SOURCE REPAIR NEXT",
+      "sourceLocation": "hooks/usePurchaseImport.ts:80-83 newSessionId; purchase-import-extract/handler.ts:132-136 default reserve; 20260803020000_provider_request_security.sql:212+ p_request_id uuid",
+      "contract": "Existing accepted opaque purchase-import session/request ID must support the real client-to-handler-to-quota path.",
+      "observed": "Actual private client session-ID generator -> actual default reserve/SQL gives503/okfalse/0providerdispatch; valid UUID control gives200/oktrue/1dispatch/1completedreservation.",
+      "rootCause": "Opaque client session ID is forwarded to a UUID-only bookkeeping parameter; isolated handler tests replace the default adapter and miss the conversion error.",
+      "repairPlan": "Mint a separate backend UUID for quota bookkeeping while preserving the original opaque session ID in the stable actor-scoped fingerprint and client lineage. No client request/response or activation change."
+    },
+    {
+      "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
+      "canonicalBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+      "environment": "Local actual handler/default quota adapter + actual PostgreSQL migration functions inPGlite; synthetic validated identity/consent, injected Supabase SDK bridge and provider; zero network/provider cost",
+      "reproduction": "node --test purchase-quota-composed-1102.test.cjs",
+      "evidence": [
+        "purchase-quota-composed-original-before-1102-results.json",
+        "resume1102-purchase-quota-composed-before-1102.log.gz",
+        "provider-quota-readonly-equivalence-1102.json"
+      ],
+      "runtimeLimits": "No real extraction, charge, customer mutation, runtime activation or deployed handler exploit performed. Receipt UI is default-OFF with no explicit checked-in EAS enablement; current binary/dashboard flag and endpoint enablement not verified. Existing source feature still has a concrete source integration/cost contract.",
+      "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
+      "id": "B35-F-024",
+      "priority": "P2",
+      "status": "CONFIRMED / QUEUED AFTER C023",
+      "sourceLocation": "20260803020000_provider_request_security.sql:263-272 duplicate_replay; purchase-import-extract/handler.ts:138-144 discards reason; 275-281 dispatch gate",
+      "contract": "An in-flight repeated extraction must not dispatch a second provider operation under one quota reservation.",
+      "observed": "Two simultaneous same-request actual handler calls reach the controlled provider twice with one actual SQL reservation; expected one dispatch.",
+      "rootCause": "Quota RPC returns allowed=true for duplicate_replay and the handler adapter drops the replay reason, interpreting reuse as a fresh dispatch grant.",
+      "repairPlan": "Refuse in-flight duplicate dispatch with bounded retry response, keep original reservation untouched; regression proves one provider call/one reservation and original completion."
+    },
+    {
+      "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
+      "canonicalBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+      "environment": "Local actual handler/default quota adapter + actual PostgreSQL migration functions inPGlite; synthetic validated identity/consent, injected Supabase SDK bridge and provider; zero network/provider cost",
+      "reproduction": "node --test purchase-quota-composed-1102.test.cjs",
+      "evidence": [
+        "purchase-quota-composed-original-before-1102-results.json",
+        "resume1102-purchase-quota-composed-before-1102.log.gz",
+        "provider-quota-readonly-equivalence-1102.json"
+      ],
+      "runtimeLimits": "No real extraction, charge, customer mutation, runtime activation or deployed handler exploit performed. Receipt UI is default-OFF with no explicit checked-in EAS enablement; current binary/dashboard flag and endpoint enablement not verified. Existing source feature still has a concrete source integration/cost contract.",
+      "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
+      "id": "B35-F-025",
+      "priority": "P2",
+      "status": "CONFIRMED / QUEUED AFTER F024",
+      "sourceLocation": "20260803020000_provider_request_security.sql:341-411 complete/release SECURITYDEFINER plus authenticated grants; purchase-import-extract/handler.ts:149-156 user-context settlement",
+      "contract": "Provider cost/concurrency authority must not be reset by a caller while the governed backend still has a provider dispatch in progress.",
+      "observed": "Under actual authenticated SQL role, own release returns true during an active controlled dispatch; a distinct second request dispatches despite rolling/daily/concurrency limits of1. Foreign actor release returnsfalse (positive isolation control).",
+      "rootCause": "Identity/ownership checks authorize the caller to settle its own cost ledger, while counts exclude released rows and no trusted-server dispatch authority is required.",
+      "repairPlan": "Prepare a separate governed migration and backend-only actor-scoped settlement authority, revoke client settlement execution, preserve authenticated reservation/ownership boundaries, add real SQL and handler authority/concurrency tests. No database application or production rollout is authorized."
+    }
+  ]
+}

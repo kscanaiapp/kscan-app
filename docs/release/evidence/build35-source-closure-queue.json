@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T17:00:16.874Z",
+  "capturedAt": "2026-11-02T19:52:29.372Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -63,10 +63,20 @@
     }
   ],
   "active": {
-    "item": "Resume original remaining hostile audit — LaneF security/backend",
-    "next": "Reconcile exact existing evidence first, then execute highest-risk pending authorization/private-storage/input/provider/state probes on560028ef/canonical19bcc5d. No further deletion-cycle repairs; public-capability policy H014 closed by owner. Do not redo closed source work."
+    "item": "Original LaneF/B remaining audit — C023 receipt request-ID/UUID source mismatch",
+    "finding": "B35-C-023",
+    "next": "Create isolated canonical repair from19bcc5d, preserveopaque clientcontract/fingerprint and mint internal UUID; add actual defaultadapter/SQL regression, green canonical/mobile promotion before F024."
   },
-  "queued": [],
+  "queued": [
+    {
+      "item": "Receipt in-flight duplicate provider dispatch",
+      "finding": "B35-F-024"
+    },
+    {
+      "item": "Provider quota client settlement authority",
+      "finding": "B35-F-025"
+    }
+  ],
   "excluded": [
     "Device certification and later QA do not cause source FAIL/blocker",
     "Account-deletion-cycle repairs deferred by owner",

@@ -447,5 +447,17 @@
       "status": "BLOCKED",
       "blockers": "NOT AUDITED end-to-end for all additional routes; unmerged PR625/627/582/566 not imported by timestamp"
     }
+  },
+  {
+    "feature": "Receipt/Purchase Intelligence import",
+    "sourceMerged": "560028ef3f5327989077b19ee6ccbba34f344927",
+    "candidateSource": "app/library.tsx1075flaggedentry -> /purchase-import -> usePurchaseImport/newSessionId80 -> purchaseImportClient -> purchase-import-extract/default reserve -> provider reservation RPC -> review/explicit Closetcommit",
+    "backendDeploymentAndFlags": "Default-OFF in source; no checked-in EASenablement; current binary/dashboard/backendenablement NOTVERIFIED. No flagchange.",
+    "clientContractTests": "Actual client-ID function/defaultadapter/SQL:503beforeprovider; UUIDcontrol200; duplicate2dispatch/1reservation; ownreleasebypasseslimit1; foreignreleasefalse. Syntheticauth/consent/SDK/provider; realSQL.",
+    "deviceVerified": "OUT OF SCOPE",
+    "customerLive": "NOT VERIFIED",
+    "blockers": "C023/P2, F024/P2, F025/P2 source findings; canonical/mobile repair queue serialized",
+    "finalIntegrationStatus": "FAIL — confirmed source integration/cost-control defects when feature is enabled; no deployed exploitation or activation claim",
+    "sourceEvidence": "evidence/continuation-purchase-quota-findings-1102.json"
   }
 ]

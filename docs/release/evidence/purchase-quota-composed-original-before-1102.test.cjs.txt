@@ -1,0 +1,58 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),vm=require('vm');
+const ROOT=process.env.B35_AUDIT_SOURCE_ROOT||'C:/b35security1102';
+const {runModule}=require(path.join(ROOT,'__tests__/helpers/componentRenderer'));
+const ts=require(path.join(ROOT,'node_modules/typescript'));
+const {PGlite}=require(path.join(ROOT,'node_modules/@electric-sql/pglite'));
+const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
+const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8').replace(/\r\n/g,'\n');
+const wait=()=>new Promise(r=>setImmediate(r));
+const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
+const results=[];
+function sessionId(){const sf=ts.createSourceFile('hook.ts',read('hooks/usePurchaseImport.ts'),ts.ScriptTarget.Latest,true);const f=sf.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='newSessionId');assert.ok(f);const m={exports:{}};vm.runInNewContext(ts.transpileModule(f.getText(sf)+'\nmodule.exports=newSessionId;',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module:m,exports:m.exports,Date,Math});return m.exports();}
+async function world(){
+ const db=await PGlite.create();
+ await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);
+ create function auth.uid()returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+ grant usage on schema auth to authenticated,anon;
+ alter default privileges in schema public grant all on tables to authenticated,anon;
+ insert into auth.users values('${A}'),('${B}');`);
+ for(const name of ['20260803020000_provider_request_security.sql','20260803020100_provider_request_security_revoke_anon.sql'])await db.exec(read('supabase/migrations/'+name));
+ await db.exec(`insert into provider_request_limits(function_name,provider_category,rolling_limit,daily_limit,concurrent_limit,reservation_ttl_seconds)values('purchase-import-extract','vision_ai',1,1,1,60)on conflict(function_name)do update set rolling_limit=1,daily_limit=1,concurrent_limit=1,reservation_ttl_seconds=60;`);
+ await db.query("select set_config('request.jwt.claim.sub',$1,false)",[A]);await db.exec('set role authenticated');
+ const rpcCalls=[],providerCalls=[],gate=deferred();let hold=false;
+ const sdk={createClient:()=>({rpc:async(name,p)=>{
+   rpcCalls.push({name,p});
+   try{let r;
+    if(name==='reserve_provider_request')r=await db.query('select * from reserve_provider_request($1,$2,$3::uuid,$4,$5::numeric)',[p.p_function_name,p.p_provider_category,p.p_request_id,p.p_request_fingerprint,p.p_cost_units]);
+    else if(name==='complete_provider_request')r=await db.query('select complete_provider_request($1::uuid) value',[p.p_reservation_id]);
+    else if(name==='release_provider_request')r=await db.query('select release_provider_request($1::uuid,$2) value',[p.p_reservation_id,p.p_reason]);
+    else throw Error('unexpected RPC '+name);
+    return{data:name==='reserve_provider_request'?r.rows:r.rows[0].value,error:null};
+   }catch(e){return{data:null,error:{message:e.message,code:e.code}};}
+ }})};
+ const cache=new Map();const external={'npm:@supabase/supabase-js@2':sdk};
+ function load(rel){if(cache.has(rel))return cache.get(rel);const source=read(rel),compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const deps={...external};for(const[,s]of compiled.matchAll(/require\(["']([^"']+)["']\)/g)){if(s.startsWith('.')){const file=path.posix.normalize(path.posix.join(path.posix.dirname(rel),s));deps[s]=load(file);}else assert.ok(s in deps,'Unexpected dependency '+s);}const mod=runModule(rel,deps);cache.set(rel,mod);return mod;}
+ const previousDeno=global.Deno;global.Deno={env:{get:name=>({SUPABASE_URL:'https://synthetic.invalid',SUPABASE_ANON_KEY:'synthetic-public-key'}[name])}};
+ const handler=load('supabase/functions/purchase-import-extract/handler.ts');
+ const data=ts.createSourceFile('fixture.ts',read('supabase/functions/purchase-import-extract/handler.test.ts'),ts.ScriptTarget.Latest,true);
+ const helperText=data.statements.filter(n=>ts.isFunctionDeclaration(n)&&['modelJson','envelope'].includes(n.name?.text)).map(n=>n.getText(data)).join('\n');
+ const m={exports:{}};vm.runInNewContext(ts.transpileModule(helperText+'\nmodule.exports={modelJson,envelope};',{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module:m,exports:m.exports,JSON});
+ const responseText=m.exports.envelope(m.exports.modelJson());
+ const deps={requireUser:async()=>({id:A,accessToken:'synthetic-verified-actor',isAnonymous:false}),assertAccountActive:async()=>{},checkGeminiConsent:async()=>null,isEnabled:()=>true,
+   callProvider:async()=>{providerCalls.push('dispatch');if(hold)await gate.promise;return{ok:true,status:200,text:responseText,retryAfter:null};},sleep:async()=>{},attemptTimeoutMs:10000};
+ const request=id=>new Request('https://synthetic.invalid/purchase-import-extract',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer synthetic'},body:JSON.stringify({contractVersion:'purchase-import-v1',requestId:id,inputTier:'order_confirmation',imageBase64:'/9j/'+'A'.repeat(400)})});
+ return{db,rpcCalls,providerCalls,gate,handler,deps,hold:()=>hold=true,extract:id=>handler.handlePurchaseImportRequest(request(id),deps),async pump(n){for(let i=0;i<100&&providerCalls.length<n;i++)await wait();},async close(){gate.resolve();global.Deno=previousDeno;await db.close();}};
+}
+test('real client session ID must reach a successful actual handler/default quota adapter/SQL extraction',async()=>{
+ const w=await world();try{const id=sessionId();const r=await w.extract(id),body=await r.json();results.push({probe:'client-session-id',idShape:'actual private newSessionId function',status:r.status,ok:body.ok,providerCalls:w.providerCalls.length,rpc:w.rpcCalls.map(x=>x.name)});assert.equal(r.status,200);assert.equal(body.ok,true);assert.equal(w.providerCalls.length,1);}finally{await w.close();}
+});
+test('positive control: UUID request makes one extraction and completes one quota reservation',async()=>{
+ const w=await world();try{const r=await w.extract('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');assert.equal(r.status,200);assert.equal((await r.json()).ok,true);assert.equal(w.providerCalls.length,1);assert.equal((await w.db.query("select count(*)::int n from provider_request_reservations where status='completed'")).rows[0].n,1);results.push({probe:'valid-uuid-control',status:200,providerCalls:1,completed:1});}finally{await w.close();}
+});
+test('an in-flight same-request replay must not dispatch another extraction under one reservation',async()=>{
+ const w=await world();let first,second;try{w.hold();const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';first=w.extract(id);await w.pump(1);assert.equal(w.providerCalls.length,1,'positive dispatch established');second=w.extract(id);await w.pump(2);const rows=(await w.db.query('select count(*)::int n from provider_request_reservations')).rows[0].n;results.push({probe:'duplicate-inflight',providerCalls:w.providerCalls.length,reservations:rows});assert.equal(w.providerCalls.length,1);}finally{w.gate.resolve();await Promise.allSettled([first,second]);await w.close();}
+});
+test('client-side quota release must not free an active provider dispatch for another request',async()=>{
+ const w=await world();let first,second;try{w.hold();first=w.extract('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');await w.pump(1);assert.equal(w.providerCalls.length,1);const id=(await w.db.query("select id from provider_request_reservations where status='reserved'")).rows[0].id;const release=(await w.db.query('select release_provider_request($1,$2) value',[id,'caller-controlled-not-billable'])).rows[0].value;second=w.extract('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');await w.pump(2);results.push({probe:'client-settlement-authority',release,providerCalls:w.providerCalls.length,limit:1});assert.equal(w.providerCalls.length,1);}finally{w.gate.resolve();await Promise.allSettled([first,second]);await w.close();}
+});
+test.after(()=>fs.writeFileSync('C:/b35readback1030/purchase-quota-composed-1102-results.json',JSON.stringify({source:'560028ef3f5327989077b19ee6ccbba34f344927',environment:'Local actual SQL/handler/default quota adapter; synthetic verified identity/consent/SDK bridge/provider; zero network',results},null,2)+'\n'));

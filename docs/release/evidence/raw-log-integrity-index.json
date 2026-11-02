@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T17:00:17.573Z",
+  "capturedAt": "2026-11-02T19:52:29.365Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3581,6 +3581,26 @@
       "archiveSha256": "624fd35b46be1e397ce016d35d1683eb44b433aa0e2699cd871898b55b47f3e6",
       "encoding": "UTF-16LE BOM",
       "disposition": "Old053c gate correctly refused cancelled Project checks; operational CI refusal retained, not a newly inferred security defect"
+    },
+    {
+      "rawFile": "purchase-quota-composed-before-1102.log",
+      "rawBytes": 7080,
+      "rawSha256": "75df12e1dc433f032d632011a0860892d136545db782402cd92e957685377278",
+      "archiveFile": "resume1102-purchase-quota-composed-before-1102.log.gz",
+      "archiveBytes": 1120,
+      "archiveSha256": "7a30e5aa43d5db9269f6d3db0df407089c8cdc4360faecc1a94acbec05668264",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual source/SQL composition:1positivePASS/3distinctFAIL;0network/provider cost. No real JWT signature or deployed handler exploitation claimed."
+    },
+    {
+      "rawFile": "purchase-quota-source-controls-1102.log",
+      "rawBytes": 650,
+      "rawSha256": "e383d1cdd83865d2e6df9696b77f850ac219ea1ba4f02e682060952f45e6f93d",
+      "archiveFile": "resume1102-purchase-quota-source-controls-1102.log.gz",
+      "archiveBytes": 303,
+      "archiveSha256": "84ceac5ecab5bdc145729622394ed9b80edd08bd49e70620fb23d4ebbd34fd44",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "2source/ownership controlsPASS:4RPC bodyMD5s and rolegrants match read-only bothprojects; foreignreleasefalse/ownreleasetrue."
     }
   ]
 }
