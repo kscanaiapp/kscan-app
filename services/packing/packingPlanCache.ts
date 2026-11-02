@@ -35,6 +35,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PackingPlan } from '../../types/packing';
+import { parsePackingPlan } from './packingResponse';
 
 const CACHE_PREFIX = 'kscan/packing/plan/v1/';
 
@@ -82,14 +83,30 @@ export async function readCachedPackingPlan(
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || parsed.actorId !== actorId) return null;
-    if (!isRecord(parsed.plan)) return null;
+    const plan = parsePackingPlan(parsed.plan);
+    if (!plan) return null;
+    // Refinement highlights are local state, absent from the network contract.
+    // Preserve valid cached highlights without letting arbitrary disk values
+    // bypass the plan validator or reach the rendered Text/array operations.
+    if (isRecord(parsed.plan) && Array.isArray(parsed.plan.changes)) {
+      plan.changes = parsed.plan.changes.flatMap((change) => {
+        if (!isRecord(change) || typeof change.outfitIndex !== 'number' ||
+            !Number.isInteger(change.outfitIndex) || change.outfitIndex < 0 ||
+            change.outfitIndex >= plan.outfits.length) return [];
+        const ids = (value: unknown): string[] => Array.isArray(value)
+          ? value.filter((id): id is string => typeof id === 'string').slice(0, 6)
+          : [];
+        return [{ outfitIndex: change.outfitIndex,
+          removedItemIds: ids(change.removedItemIds), addedItemIds: ids(change.addedItemIds) }];
+      }).slice(0, 8);
+    }
     const cachedAt = typeof parsed.cachedAt === 'number' ? parsed.cachedAt : 0;
     if (!cachedAt || now() - cachedAt > MAX_AGE_MS) {
       void clearCachedPackingPlan(actorId);
       return null;
     }
     return {
-      plan: parsed.plan as unknown as PackingPlan,
+      plan,
       message: typeof parsed.message === 'string' ? parsed.message : null,
       cachedAt,
       packedOff: Array.isArray(parsed.packedOff)

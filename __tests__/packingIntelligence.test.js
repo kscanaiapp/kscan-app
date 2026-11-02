@@ -24,7 +24,7 @@ const read = (relative) => fs.readFileSync(path.join(REPO_ROOT, relative), 'utf8
 // harness over the same source. The source itself is asserted below, so the
 // harness cannot drift into testing something the app does not run.
 
-const clientSource = read('services/packing/packingClient.ts');
+const clientSource = read('services/packing/packingClient.ts') + read('services/packing/packingResponse.ts');
 
 test('client: counts are derived from the rendered plan, never read from the wire', () => {
   // A header that disagrees with the list under it is the exact inconsistency
