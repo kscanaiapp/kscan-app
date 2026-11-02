@@ -132,7 +132,9 @@ export const defaultPurchaseImportDeps: PurchaseImportDeps = {
       const outcome = await reserveProviderRequest(client as never, {
         functionName: FUNCTION_NAME,
         providerCategory: PROVIDER_CATEGORY,
-        requestId,
+        // Client session IDs are opaque (and retained in the fingerprint
+        // above). The quota ledger's separate request_id column is UUID-only.
+        requestId: crypto.randomUUID(),
         requestFingerprint: fingerprint,
         costUnits: 2,
       });
