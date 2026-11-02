@@ -219,8 +219,9 @@ test('mixed campaign backend exceptions are exact byte-bound promotions, not a f
     "supabase/functions/stylechat-generate/packingWeather.ts"
   ];
   assert.equal(previous.files.length, 51);
-  assert.deepEqual(campaignPromotion.files.filter(row => !weatherFiles.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql' && !["supabase/migrations/20261031162813_saved_scans_active_account_guard.sql","supabase/functions/stylechat-generate/index.ts","supabase/functions/stylechat-generate/invalidBodyHostile.test.ts"].includes(row.file)), previous.files,
-    'all 51 prior byte-bound grants, including F012, must remain unchanged');
+  const { expectedReceiptAdvance } = require('./helpers/receiptQuotaPromotion');
+  assert.deepEqual(campaignPromotion.files.filter(row => !weatherFiles.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql' && !["supabase/migrations/20261031162813_saved_scans_active_account_guard.sql","supabase/functions/stylechat-generate/index.ts","supabase/functions/stylechat-generate/invalidBodyHostile.test.ts"].includes(row.file)), expectedReceiptAdvance(previous.files),
+    'all 51 prior byte-bound grants, including F012, remain unchanged except the exact canonical C023 receipt handler advance');
   assert.deepEqual(campaignPromotion.files.filter(row => weatherFiles.includes(row.file)).map(row => row.file), weatherFiles,
     'only the two exact canonical PR667 weather files are added');
   assert.equal(campaignPromotion.files.length, 57);
