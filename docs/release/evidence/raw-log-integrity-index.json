@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:17:32.510Z",
+  "capturedAt": "2026-11-02T14:27:28.273Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3031,6 +3031,66 @@
       "archiveSha256": "5241c07f1666935747b8298f4e8365faa4ed6c2d8df509a4aa58a6bb0f4e5376",
       "encoding": "UTF-16LE BOM",
       "disposition": "Confirmed source evidence;7controls pass, invalid cache checks fail; one P3finding"
+    },
+    {
+      "rawFile": "packing-cache-focused-after-1102.log",
+      "rawBytes": 14174,
+      "rawSha256": "96cf78223f83cf72c1860727f05735ce877edc60b25ce142e35381c3e5a973ce",
+      "archiveFile": "resume1102-packing-cache-focused-after-1102.log.gz",
+      "archiveBytes": 3422,
+      "archiveSha256": "d79d1cc51280210c9649aef1824d045b90f4aa095bfada7a72b3f297b2a891da",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-cache-related-final-1102.log",
+      "rawBytes": 22732,
+      "rawSha256": "e233f2d801e7674d28f6dbc4c01a116d10a7f5f1772a5799eabfd3dfde662492",
+      "archiveFile": "resume1102-packing-cache-related-final-1102.log.gz",
+      "archiveBytes": 5497,
+      "archiveSha256": "73cf3a37125549ea7c08293d3fd160c14cfe6ed64983ad1cf63a5cb19eba8d74",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-cache-exact-commit-1102.log",
+      "rawBytes": 22742,
+      "rawSha256": "426c08dd07ef2f04bea08b5c4e558b043c41ed4460b70e64574c8b2e1504f1fd",
+      "archiveFile": "resume1102-packing-cache-exact-commit-1102.log.gz",
+      "archiveBytes": 5520,
+      "archiveSha256": "f1d6a98bb0b6625a949c010396e7417dd624ba14fe70cd853b8d928f2747c0d8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-cache-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-packing-cache-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-cache-source-gates-1102.log",
+      "rawBytes": 9390,
+      "rawSha256": "8c21a26cf8e9b5500b4d3b298502e8d8c9fb4804feae862204397adea18312f2",
+      "archiveFile": "resume1102-packing-cache-source-gates-1102.log.gz",
+      "archiveBytes": 2598,
+      "archiveSha256": "933798f7161822095c1d7670f16258237816c943a24ebaf7522641b93acc78f3",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-cache-enforced-scope-final-1102.log",
+      "rawBytes": 1250,
+      "rawSha256": "3dfb0b67465033ece8ba6d9658aa8bd8f68f2c4d2c0bc8839d61e64a4321c425",
+      "archiveFile": "resume1102-packing-cache-enforced-scope-final-1102.log.gz",
+      "archiveBytes": 404,
+      "archiveSha256": "58a47167abba202d367b0605a1f7e6a30cbbc844fcd3802aa14216395b83f8ec",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
     }
   ]
 }

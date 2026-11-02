@@ -2,7 +2,7 @@
   "id": "B35-E-019",
   "priority": "P3",
   "feature": "Packing Intelligence offline restoration",
-  "status": "CONFIRMED / SOURCE OPEN",
+  "status": "SOURCE REPAIRED / PR674 OPEN / CURRENT-HEAD CI PENDING",
   "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
   "sourceLocations": [
     "services/packing/packingPlanCache.ts:85-92 readCachedPackingPlan accepts any object and casts to PackingPlan",
@@ -17,5 +17,26 @@
   "rootCause": "Disk reader validates only outer plan object, unlike network parser; TypeScript cast does not enforce shape.",
   "repairPlan": "Use one transport-free pure plan validator for network and cached plans; reject malformed cache before store restoration. Preserve wire schema, valid offline plans, actor scoping and UI. Add actual mounted-screen/cache malformed and positive restoration controls.",
   "environment": "Offline real source hook/store/cache/transport/parser and mounted screen/plan/form; RN host/session/Supabase transport fixtures only",
-  "pr": null
+  "pr": 674,
+  "reviewedHead": "b86f475547e6b70b675ac61a0139e270ef8c1e6f",
+  "reviewedTree": "ef7dd267d13c54b2a63df708a99f62a06f94ca6e",
+  "after": {
+    "localTests": {
+      "pass": 128,
+      "fail": 0,
+      "skip": 0
+    },
+    "newSourceTests": 13,
+    "typeScriptExitCode": 0,
+    "sourceGates": 6,
+    "scopeGuard": "Actual committed8pathdiff checked; no VTO-owned paths; all8not judged by VTO ownership, governed by this source lane",
+    "parserMove": {
+      "unchanged": true,
+      "sha256": "a6c63652a43888283350d0d85e2b152146c28631c95f2888849c3e86deea9c0d",
+      "comparison": "Exact normalized existing parser body equals moved pure module; public client re-exports preserved"
+    },
+    "capabilityIdentity": "Packing source identity regenerated; no approvals/holds/evidence renewed"
+  },
+  "merge": "PENDING / do not merge before all required exact-head CI completes",
+  "runtime": "No rollout or database change needed for this client cache repair; no deployment/binary generated"
 }
