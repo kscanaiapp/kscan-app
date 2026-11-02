@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T21:11:14.316Z",
+  "capturedAt": "2026-11-02T23:45:01.841Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3851,6 +3851,36 @@
       "archiveSha256": "055c977f0a17baa915a4fcdd5800e0d5ea57dd69f768ffcfab0c6646e53a52b9",
       "encoding": "UTF-16LE BOM",
       "disposition": "Relevant docs terminology/governance check8PASS/0FAIL/0SKIP; no runtime source changes"
+    },
+    {
+      "rawFile": "receipt-replay-mobile-focused-1102.log",
+      "rawBytes": 21608,
+      "rawSha256": "9c5ee6a718f2b6b85fd12e002fe4dc104bcbb95ac612410c38aaa4a8139d2bb4",
+      "archiveFile": "resume1102-receipt-replay-mobile-focused-1102.log.gz",
+      "archiveBytes": 4212,
+      "archiveSha256": "88e6e06d2ea89319687c650177b89943cce9fd724036997141b4fc1087fa9372",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "ActualF024mobile d032 source focused79PASS/2explicitNAskips,84DenoPASS orTypeScriptexit0. Controlledidentity/consent/SDK/providerandlocalSQL;notliveprovider/device/rollout."
+    },
+    {
+      "rawFile": "receipt-replay-mobile-backend-1102.log",
+      "rawBytes": 27302,
+      "rawSha256": "57f30edec9f414b52fc981d493bfe68e277d88489240a6af0d996dec02946de2",
+      "archiveFile": "resume1102-receipt-replay-mobile-backend-1102.log.gz",
+      "archiveBytes": 4053,
+      "archiveSha256": "1e49729c4237624fe7b470c624769f360af2840261abf96570e9275cbfc7df6a",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "ActualF024mobile d032 source focused79PASS/2explicitNAskips,84DenoPASS orTypeScriptexit0. Controlledidentity/consent/SDK/providerandlocalSQL;notliveprovider/device/rollout."
+    },
+    {
+      "rawFile": "receipt-replay-mobile-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-receipt-replay-mobile-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "ActualF024mobile d032 source focused79PASS/2explicitNAskips,84DenoPASS orTypeScriptexit0. Controlledidentity/consent/SDK/providerandlocalSQL;notliveprovider/device/rollout."
     }
   ]
 }
