@@ -867,7 +867,7 @@ const VTO_ALLOWED_IMPORTS = {
     '../services/cameraOwnership', '../services/vto/liveVtoNativeModule', '../services/vto/vtoLiveCameraPermission',
     '../services/vto/vtoLiveHarness', '../services/vto/vtoLiveSession',
     '../services/vto/vtoPhotorealHandoff', '../types/vto', '../types/vtoLive',
-    'react',
+    'react', 'react-native',
   ],
   'components/vto/VtoModeSelector.tsx': [
     '../../constants/theme', '../../services/haptics', '../../types/vtoLive',
