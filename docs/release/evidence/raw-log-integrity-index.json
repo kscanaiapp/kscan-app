@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:39:36.870Z",
+  "capturedAt": "2026-11-02T14:51:07.120Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3151,6 +3151,66 @@
       "archiveSha256": "bc00e0cf88fa6ea45f3c062b432efa95d87dc01ff46427ee1c96cc1a98b2bc31",
       "encoding": "UTF-16LE BOM",
       "disposition": "Bounded composed actual-source tests; no live provider/native/db certification"
+    },
+    {
+      "rawFile": "packing-queue-focused-after-1102.log",
+      "rawBytes": 21018,
+      "rawSha256": "e72d96a0d21226b3c99e75468f838d09ea6b6e7de04305b559b75911f5b7ffc0",
+      "archiveFile": "resume1102-packing-queue-focused-after-1102.log.gz",
+      "archiveBytes": 5109,
+      "archiveSha256": "999c0846c0ebd5e429cb19d03f7cffac786a05f842f3500acfd2d83b475e754b",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "packing-queue-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-packing-queue-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "packing-queue-source-gates-1102.log",
+      "rawBytes": 9390,
+      "rawSha256": "bfa098150ca112a0e83fe0844975267c6c9f78410cba213545a84d166492ee00",
+      "archiveFile": "resume1102-packing-queue-source-gates-1102.log.gz",
+      "archiveBytes": 2603,
+      "archiveSha256": "438dc2b9a65f761e5f29989754067dc7d3e083c6f129743ae65f778096b82bc9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "packing-queue-enforced-scope-1102.log",
+      "rawBytes": 1250,
+      "rawSha256": "1b07b416421bcb31794588eb2540400abb15783d68570b69d46d929b37c8ca8e",
+      "archiveFile": "resume1102-packing-queue-enforced-scope-1102.log.gz",
+      "archiveBytes": 408,
+      "archiveSha256": "f6b9c647f8dcb1ec313e0739c3ec686b3797e2f1357081803ddca0607c9b4e06",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "packing-queue-exact-commit-1102.log",
+      "rawBytes": 950,
+      "rawSha256": "707f0991846aaf6ee5b0c2461cb478172eeba4e321f995410f1091ebcce8aae0",
+      "archiveFile": "resume1102-packing-queue-exact-commit-1102.log.gz",
+      "archiveBytes": 361,
+      "archiveSha256": "28b35bd016ae274309603a3513901b7faf57653be347e1031c5651e6ffd18069",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "packing-queue-composed-after-1102.log",
+      "rawBytes": 4086,
+      "rawSha256": "27515635c38164d4cf2c0a5a5fbac6d898868f21694e90c242e2a343218d94f5",
+      "archiveFile": "resume1102-packing-queue-composed-after-1102.log.gz",
+      "archiveBytes": 864,
+      "archiveSha256": "50c6978b7d7a79adad8073e3a629a0428a22eec9b82295c834f888d84a4e1cd9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
     }
   ]
 }

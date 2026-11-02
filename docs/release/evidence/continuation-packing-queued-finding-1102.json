@@ -1,7 +1,7 @@
 {
   "id": "B35-E-020",
   "priority": "P3",
-  "status": "CONFIRMED / SOURCE OPEN / serialized after674branchclosure",
+  "status": "SOURCE REPAIRED / PR675 OPEN / CURRENT-HEAD CI PENDING",
   "sourceSha": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
   "sourceLocation": "hooks/usePackingPlan.ts:264 refineWith queues a task before capturing actor scope; task reads whatever trip/session is current when dequeued",
   "contract": "Actor epoch and session intent must be captured before every asynchronous boundary; an old trip refinement cannot change a new trip.",
@@ -11,6 +11,14 @@
   "impact": "Stale user intent modifies a newly generated plan and triggers an unnecessary provider-bound request/quota use. No cross-user data access or disclosure demonstrated.",
   "repairPlan": "Capture actor epoch and original Packing session before enqueue; discard stale actor/session work before notes/exclusions or any provider-bound request. Preserve successful same-session serialization.",
   "evidence": "resume1102-packing-queued-refinement-confirmed-1102.log.gz",
-  "regression": "Actual hook/store/client with controlled delayed responses and real shared actor epoch; original two-refinement positive control remains",
-  "pr": null
+  "regression": "Four actual hook/store/client tests for departed epoch, same-actor replaced trip, valid cumulative ordering and preceding failure recovery;118relatedPASS/0FAIL/0SKIP. Original exact counterexample independently rerun andPASS:3requests, no fourth old-note request, current trip remainsready.",
+  "pr": 675,
+  "reviewedHead": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+  "reviewedTree": "47eac07753fc0f751736aca681619718482f3dca",
+  "repair": "Capture actor epoch and original session before enqueue; refuse stale actor/session work before any constraint mutation or request. Twofiles only; no wire/API/schema/copy change.",
+  "additionalComposition": "16source cases rerun on this exact changed hook:10actualhandler/UIprovider/gate cases,5timeout/cache/navigation/checklist cases and1originalcounterexample.16PASS/0FAIL/0SKIP, not added as16mandatorycells.",
+  "typeScriptExitCode": 0,
+  "sourceGates": 6,
+  "scope": "Actual committed2pathdiff,0VTO-ownedpaths; bothNOTJUDGEDbyVTOownershipgate. Fingerprintsremaincurrent; none regenerated or renewed.",
+  "mergeOrder": "674 fully merged/tree/9of9CIclosed BEFORE675source work.675stillpendinggreenmerge."
 }
