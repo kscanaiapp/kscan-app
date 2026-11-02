@@ -274,20 +274,22 @@
   },
   {
     "feature": "Packing Intelligence / interactive calendar",
-    "sourceMerged": "Build35 fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6; canonical 19bcc5d699f878561aaef1f9bc914c998e2a0de7;all17confirmedP0-P3source repairs converged",
-    "candidateSource": "app/packing; PackingDateRange/calendar components; packingClient -> stylechat; packingPlanStore/cache",
+    "sourceMerged": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
+    "candidateSource": "HomeLuxuryTechV1 -> /packing -> actual TripForm/calendar/PlanView/usePackingPlan -> packingClient/shared packingResponse -> stylechat Packing handler",
     "backendDeploymentAndFlags": "Intentional actor-bound device-local latest-plan cache (30 days), not backend trip history",
-    "clientContractTests": "Calendar iOS/Android taps/cancel/back/leap/DST; payload/weather/provenance and plan-cache contracts",
-    "deviceVerified": "OUT OF SCOPE — explicitly excluded by owner; later QA, not a source-audit FAIL/blocker",
+    "clientContractTests": "128focused/relatedPASS;13newcommittedsourcecases,10additionalhandlercompositioncases and5additionalstatecases; distinct overlapping evidence populations, no matrix inflation",
+    "deviceVerified": "EXCLUDED by owner; not a source FAIL/blocker",
     "customerLive": "Outside this source audit; no released-binary assertion",
-    "blockers": "See source-only closure queue; device certification and later QA are excluded, and runtime promotion is a separate governed stage.",
-    "finalIntegrationStatus": "NOT AUDITED — complete remaining source-level workflow/failure coverage before PASS",
+    "blockers": "E020/P3 only for this current source assessment. Runtime promotion and later QA remain separate; device certification excluded.",
+    "finalIntegrationStatus": "FAIL — confirmed E020 stale queued refinement source repair pending",
     "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
     "auditContinuation": "3096original cells:121PASS/1FAIL/2974NOT TESTED;307explicitN/A,4device scope exclusions,2663in-scope applicable pending. Source/harness/live populations remain distinct.",
     "previousReleaseAssessment": {
       "status": "BLOCKED",
       "blockers": "No backend trip-history feature claimed; device timezone/offline/restart and actual forecasts not verified; Gemini consent source merged; migration/backend rollout pending"
-    }
+    },
+    "clientIntegrated": "Source-mounted customer route; explicit build profile Packing flag true; entitlement remains server-authoritative",
+    "sourceEvidence": "../build35-packing-source-workflow-verification.md"
   },
   {
     "feature": "Smart Watchlist / monitoring",

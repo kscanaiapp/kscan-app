@@ -2,7 +2,7 @@
   "id": "B35-E-019",
   "priority": "P3",
   "feature": "Packing Intelligence offline restoration",
-  "status": "SOURCE MERGED674 / independent branchCI7of9success,2pending",
+  "status": "CLOSED IN SOURCE / MERGED674 /9of9postmergeworkflowsSUCCESS",
   "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
   "sourceLocations": [
     "services/packing/packingPlanCache.ts:85-92 readCachedPackingPlan accepts any object and casts to PackingPlan",
@@ -54,5 +54,6 @@
   "fullBackend": {
     "pass": 1591,
     "fail": 0
-  }
+  },
+  "postmergeCi": "continuation-mobile-8ffd-branch-ci.json"
 }

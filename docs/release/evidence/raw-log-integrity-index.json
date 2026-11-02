@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:36:02.096Z",
+  "capturedAt": "2026-11-02T14:39:36.870Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3111,6 +3111,46 @@
       "archiveSha256": "f4661d758ddb21714275e17c091b075a825787a333c77006f7c7ce43b41f4fc2",
       "encoding": "UTF-16LE BOM",
       "disposition": "Confirmed failing actual-source delayed queue fixture; oneP3finding; no real provider/DB activity"
+    },
+    {
+      "rawFile": "pr674-project-raw.log",
+      "rawBytes": 5289002,
+      "rawSha256": "3c1bea6da633438d963f6d8011b58eae29331f13cd27e17d22d8d11fafbe0bce",
+      "archiveFile": "resume1102-pr674-project-raw.log.gz",
+      "archiveBytes": 648671,
+      "archiveSha256": "60756edd0eead73b0fe12eb7b039381d71659d5bc93ecd90ffe0fbfbfc5e19dc",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual full Project job125331643568/testmerge3dab8ba2;11401NodePASS/0FAIL/96SKIP,1591backendPASS; exact reviewed/tested/mergedtreeef7dd267"
+    },
+    {
+      "rawFile": "packing-end-to-end-source-1102.log",
+      "rawBytes": 2714,
+      "rawSha256": "7c34a2d2196b0300bc3298296a346663a9f8782d653085a07ec5b03161203b57",
+      "archiveFile": "resume1102-packing-end-to-end-source-1102.log.gz",
+      "archiveBytes": 627,
+      "archiveSha256": "920a644e3568b1427bab0467a99be6201e6e4c04e016e147bb886ff00c038c69",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial strict-loader harness setup failure; corrected by loading actual compiled local imports, not a product defect"
+    },
+    {
+      "rawFile": "packing-end-to-end-source-final-1102.log",
+      "rawBytes": 2744,
+      "rawSha256": "9c499b915b9c983be47d97b654d31f09d5994ea62442a2dedf4fe0adf1941bf8",
+      "archiveFile": "resume1102-packing-end-to-end-source-final-1102.log.gz",
+      "archiveBytes": 410,
+      "archiveSha256": "7d51e98a96e09fad8b227ca861cd0751ac005f6c0561d6e4994886aa4aa75f02",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Bounded composed actual-source tests; no live provider/native/db certification"
+    },
+    {
+      "rawFile": "packing-remaining-state-1102.log",
+      "rawBytes": 1112,
+      "rawSha256": "75ffa870297af63c5a71158127f71703ef175819b68cce22043cf76cc0f4a119",
+      "archiveFile": "resume1102-packing-remaining-state-1102.log.gz",
+      "archiveBytes": 450,
+      "archiveSha256": "bc00e0cf88fa6ea45f3c062b432efa95d87dc01ff46427ee1c96cc1a98b2bc31",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Bounded composed actual-source tests; no live provider/native/db certification"
     }
   ]
 }
