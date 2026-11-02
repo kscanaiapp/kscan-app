@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:13:01.696Z",
+  "capturedAt": "2026-11-02T14:17:32.510Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3001,6 +3001,36 @@
       "archiveSha256": "faabc2b5ef29a0808968377fecc73235ea242b357793025ebecf16240af5294a",
       "encoding": "UTF-16LE BOM",
       "disposition": "One composed Node test PASS; seven transition records PASS; no live provider call"
+    },
+    {
+      "rawFile": "packing-source-state-before-1102.log",
+      "rawBytes": 16334,
+      "rawSha256": "38c10d02eb74e31dd11763ee94382a3e5e67f6066a5dd7e91b07289279e146d5",
+      "archiveFile": "resume1102-packing-source-state-before-1102.log.gz",
+      "archiveBytes": 1278,
+      "archiveSha256": "83509a99f86507ac9543ee3072b402e6ff8baf2c2eb0772bfd3c5b8a7dcb5303",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial harness lacked memo stub; corrected, not product defect"
+    },
+    {
+      "rawFile": "packing-source-state-before-valid-1102.log",
+      "rawBytes": 3450,
+      "rawSha256": "9da4d3a6ead075ce19679aa55f0cf7d31111168f88c7a45a0726fc716e0c30fb",
+      "archiveFile": "resume1102-packing-source-state-before-valid-1102.log.gz",
+      "archiveBytes": 1048,
+      "archiveSha256": "b5e9532fdfde1de35c22fb75537911cb19afbeb0841706bf7a353df7e2439240",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed source evidence;7controls pass, invalid cache checks fail; one P3finding"
+    },
+    {
+      "rawFile": "packing-source-state-confirmed-1102.log",
+      "rawBytes": 6434,
+      "rawSha256": "42b8c9448c34cfc5953db82443fbdbeebcb4c6ba461f9725e9134206c1d61f0c",
+      "archiveFile": "resume1102-packing-source-state-confirmed-1102.log.gz",
+      "archiveBytes": 1391,
+      "archiveSha256": "5241c07f1666935747b8298f4e8365faa4ed6c2d8df509a4aa58a6bb0f4e5376",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed source evidence;7controls pass, invalid cache checks fail; one P3finding"
     }
   ]
 }

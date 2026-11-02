@@ -1,0 +1,21 @@
+{
+  "id": "B35-E-019",
+  "priority": "P3",
+  "feature": "Packing Intelligence offline restoration",
+  "status": "CONFIRMED / SOURCE OPEN",
+  "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+  "sourceLocations": [
+    "services/packing/packingPlanCache.ts:85-92 readCachedPackingPlan accepts any object and casts to PackingPlan",
+    "services/packing/packingPlanStore.ts:229 restoreCachedPackingPlan installs unchecked plan",
+    "components/packing/PackingPlanView.tsx:293 iterates plan.packedItems"
+  ],
+  "contract": "Cache read documents revalidation of untrusted disk; a corrupt local entry must be absent, not crash the visible Packing screen.",
+  "reproduction": "node --test C:/b35readback1030/packing-source-state-1102.test.cjs (B35_AUDIT_SOURCE_ROOT current exact source)",
+  "actual": "7 positive source-state controls PASS;2 assertions FAIL for one defect. An empty plan is accepted; a plan with packedItems:null enters ready state and actual mounted PackingPlanView throws TypeError: plan.packedItems is not iterable.",
+  "evidence": "resume1102-packing-source-state-confirmed-1102.log.gz",
+  "impact": "Persisted malformed plan repeatedly crashes the user-facing Packing route on restoration instead of allowing fresh generation. No account/data leak, provider activity or database mutation demonstrated.",
+  "rootCause": "Disk reader validates only outer plan object, unlike network parser; TypeScript cast does not enforce shape.",
+  "repairPlan": "Use one transport-free pure plan validator for network and cached plans; reject malformed cache before store restoration. Preserve wire schema, valid offline plans, actor scoping and UI. Add actual mounted-screen/cache malformed and positive restoration controls.",
+  "environment": "Offline real source hook/store/cache/transport/parser and mounted screen/plan/form; RN host/session/Supabase transport fixtures only",
+  "pr": null
+}
