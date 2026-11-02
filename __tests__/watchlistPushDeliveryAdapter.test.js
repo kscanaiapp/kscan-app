@@ -93,7 +93,7 @@ test('HTTP 503 rejects without attempting JSON parsing', async () => {
   assert.equal(parsed, false);
 });
 
-test('DeviceNotRegistered ticket rejects and retires only the reported token', async () => {
+test('DeviceNotRegistered ticket rejects and marks only the reported token invalid', async () => {
   const mod = load(async () => http(200, {
     data: [{ status: 'error', details: { error: 'DeviceNotRegistered' } }],
   }));
