@@ -1,0 +1,16 @@
+{
+  "id": "B35-E-020",
+  "priority": "P3",
+  "status": "CONFIRMED / SOURCE OPEN / serialized after674branchclosure",
+  "sourceSha": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
+  "sourceLocation": "hooks/usePackingPlan.ts:264 refineWith queues a task before capturing actor scope; task reads whatever trip/session is current when dequeued",
+  "contract": "Actor epoch and session intent must be captured before every asynchronous boundary; an old trip refinement cannot change a new trip.",
+  "reproduction": "node --test packing-queued-refinement-1102.test.cjs using the retained rig on source tree ef7dd267 (reviewedb86f=merged8ffd). Generate Paris; queue2refinements; hold first; switchA-B-A; generate/completeRome; resolveoldfirst; queuedoldtask incorrectly dispatchesRome with old note.",
+  "actual": "Expected3requests, actual4. Fourthrequest destinationRome/notes[Old trip queued note], new trip changes from ready to generating. Initial fixture and captured payload outputs retained.",
+  "rootCause": "Actor authority captured only inside run after waiting for queue; refinement callback reads new session and mutates its notes before run.",
+  "impact": "Stale user intent modifies a newly generated plan and triggers an unnecessary provider-bound request/quota use. No cross-user data access or disclosure demonstrated.",
+  "repairPlan": "Capture actor epoch and original Packing session before enqueue; discard stale actor/session work before notes/exclusions or any provider-bound request. Preserve successful same-session serialization.",
+  "evidence": "resume1102-packing-queued-refinement-confirmed-1102.log.gz",
+  "regression": "Actual hook/store/client with controlled delayed responses and real shared actor epoch; original two-refinement positive control remains",
+  "pr": null
+}

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:27:28.273Z",
+  "capturedAt": "2026-11-02T14:36:02.096Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3091,6 +3091,26 @@
       "archiveSha256": "58a47167abba202d367b0605a1f7e6a30cbbc844fcd3802aa14216395b83f8ec",
       "encoding": "UTF-16LE BOM",
       "disposition": "Local source checks, not live deployment/device evidence; exact committed128test run distinguished from overlapping82focused baseline"
+    },
+    {
+      "rawFile": "packing-queued-refinement-before-1102.log",
+      "rawBytes": 1854,
+      "rawSha256": "87a020ff5dd0b1b4d1fd5abf7a14ab19f2485e6c057464da661912217f4dd3f7",
+      "archiveFile": "resume1102-packing-queued-refinement-before-1102.log.gz",
+      "archiveBytes": 608,
+      "archiveSha256": "64d3806024ebf0316a918e62100b4477ae3c128147bb5c2030fc836618af98b6",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed failing actual-source delayed queue fixture; oneP3finding; no real provider/DB activity"
+    },
+    {
+      "rawFile": "packing-queued-refinement-confirmed-1102.log",
+      "rawBytes": 2230,
+      "rawSha256": "3b7e62e143a5d6293967fb8aff679b770c77bba0b6c7e4d171c3b5c88465ee4a",
+      "archiveFile": "resume1102-packing-queued-refinement-confirmed-1102.log.gz",
+      "archiveBytes": 738,
+      "archiveSha256": "f4661d758ddb21714275e17c091b075a825787a333c77006f7c7ce43b41f4fc2",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed failing actual-source delayed queue fixture; oneP3finding; no real provider/DB activity"
     }
   ]
 }

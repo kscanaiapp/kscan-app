@@ -2,7 +2,7 @@
   "id": "B35-E-019",
   "priority": "P3",
   "feature": "Packing Intelligence offline restoration",
-  "status": "SOURCE REPAIRED / PR674 OPEN / CURRENT-HEAD CI PENDING",
+  "status": "SOURCE MERGED674 / independent branchCI7of9success,2pending",
   "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
   "sourceLocations": [
     "services/packing/packingPlanCache.ts:85-92 readCachedPackingPlan accepts any object and casts to PackingPlan",
@@ -37,6 +37,22 @@
     },
     "capabilityIdentity": "Packing source identity regenerated; no approvals/holds/evidence renewed"
   },
-  "merge": "PENDING / do not merge before all required exact-head CI completes",
-  "runtime": "No rollout or database change needed for this client cache repair; no deployment/binary generated"
+  "merge": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
+  "runtime": "No rollout or database change needed for this client cache repair; no deployment/binary generated",
+  "testedMerge": "3dab8ba295e240a7f7d2275bc9af63fe7f5c7005",
+  "currentHeadPremerge": {
+    "success": 34,
+    "conditionalSkip": 20,
+    "fail": 0,
+    "pending": 0
+  },
+  "fullNode": {
+    "pass": 11401,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  }
 }
