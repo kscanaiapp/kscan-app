@@ -1,3 +1,7 @@
+## November2 current lower-priority disposition
+
+D009/P5 andD021/P5 are SOURCE CLOSED in676and677; historical backlog descriptions below retain their original dates and are superseded. Protected Scanner B004/P4 remains documented and outside safe-P4authorization. No new customer entitlement/payment defect was demonstrated by36composedK+sourcecases.
+
 ## November2 — K+ D009/676 closed; D021 next
 
 Currentmobile **046c0f359c186365a45a0d2a06a02fa44a7395ca**, canonicalbackend19bc. D009/P5testfixture676mergedafter35success/20conditional skips, reviewed/tested/mergedtree91c76f8d, independent9/9branchCIgreen. Full11409NodePASS/0FAIL/96SKIP,1591backendPASS. No runtimepayment/API/schemachange; all19P0-P3repairsremainconverged. [K+sourceworkflow](build35-kplus-shared-source-verification.md):26composedsourcecasesPASS, includingactualexisting-useraccount-keyedSheet/Step/Parts/hooks→productionSDKadapter→actualcanonicalRPCreader/store/model. No provider-onlyunlock; repeatUIpurchase/restoreblocked; cancel/401/accountswitchhonest. SDK/session/RPC/nativehosts/capabilityavailabilityarefixtures, notcurrentstore/native/runtimecertification. Initial2mislabeledcancelcasesexcluded, correctedandstrictlyasserted; rawsource/logretained.

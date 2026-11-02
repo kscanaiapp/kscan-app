@@ -1,7 +1,7 @@
 {
   "id": "B35-D-021",
   "priority": "P5",
-  "status": "CONFIRMED / TEST-SOURCE OPEN / serialized afterD009",
+  "status": "CLOSED IN TEST SOURCE / MERGED677 /9of9branchCI",
   "location": "__tests__/kplusProviderPullConcurrency.test.js:22 psql uses promisified async execFile with unsupported input option; no stdin.end",
   "sourceSha": "0e3208f8d64605799ebfae70c0183f4383becb2e",
   "contract": "The optional concurrency runner must deliver its SQL to docker exec -i psql -f - and close stdin so the asserted database operations actually execute.",
@@ -12,5 +12,33 @@
   "priorityRationale": "P5 isolated validation-infrastructure defect; preserve P0-P3 count19.",
   "recommendedRepair": "Explicitly send SQL/EOF to returned child, observe input/process errors, add real-child regression and retain disposable-only safety guard. Separate bounded PR after known D009fixture correction.",
   "primaryReference": "https://nodejs.org/api/child_process.html#child_processexecfilefile-args-options-callback",
-  "evidence": "resume1102-kplus-sql-stdin-before-1102.log.gz"
+  "evidence": "resume1102-kplus-sql-stdin-before-1102.log.gz",
+  "reviewedHead": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+  "testedMerge": "2b7a24a161962979f0ed781a5adbb7bf3b5e3237",
+  "merge": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+  "identicalGitTree": "f11fab67be95aa74cfab79bb4df5eeef1557c0bd",
+  "premerge": {
+    "success": 35,
+    "conditionalSkip": 20,
+    "fail": 0,
+    "pending": 0
+  },
+  "fullNode": {
+    "pass": 11413,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "local": {
+    "newRegressions": 4,
+    "originalCounterexamplePass": 2,
+    "relatedPass": 37,
+    "relatedDbSkips": 32,
+    "fail": 0
+  },
+  "repair": "Explicitly write/end child stdin and await both input/process completion; preserve async execution, SQL stop-on-error and all target guards.",
+  "mergeOrder": "676 fully source/CIclosed before677implementation; separate two-file test-only PRs, no runtimepayment/API/schema change."
 }

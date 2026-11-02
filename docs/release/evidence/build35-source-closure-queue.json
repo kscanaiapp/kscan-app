@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T15:03:50.321Z",
+  "capturedAt": "2026-11-02T16:18:04.538Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -42,18 +42,27 @@
       "source": "0e3208f8d64605799ebfae70c0183f4383becb2e",
       "status": "CLOSED scoped source workflow; original generic mandatory probe remainder is explicit separate software-audit coverage",
       "evidence": "../build35-packing-source-workflow-verification.md"
+    },
+    {
+      "item": "K+ shared purchase/restore lifecycle and concurrency source verification",
+      "prs": [
+        676,
+        677
+      ],
+      "source": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+      "status": "CLOSED scoped source workflow/test-infrastructure;36composedPASS +46datedStagingrecords/6exactSQLblobs; optional5Docker cases remainexplicitunexecuted",
+      "evidence": "../build35-kplus-shared-source-verification.md"
     }
   ],
   "active": {
-    "item": "K+ shared purchase/restore lifecycle and concurrency coverage",
-    "next": "Recover existing shared purchase/restore/identity lifecycle coverage and46Staging concurrency records; establish exact current source equivalence; resolve D009 invalid optional concurrency fixture and execute missing source workflow interleavings. No prices, charges or native-device requirements."
+    "item": "Live Camera VTO full source implementation and actual user-facing reach",
+    "next": "Complete existing Live Camera VTO source implementation and actual customer reach. Trace Home/TryOnStudio -> capability/entitlement/native binding -> camera session/rendering/control lifecycle, assets and fallback. Devices excluded; do not change diagnostics into fabricated hardware certification."
   },
-  "queued": [
-    "Live Camera VTO full source implementation and actual user-facing reach"
-  ],
+  "queued": [],
   "excluded": [
     "Device certification and later QA do not cause source FAIL/blocker",
     "Account-deletion-cycle repairs deferred by owner",
     "Production rollout, EAS/binaries/store submission are not authorized"
-  ]
+  ],
+  "afterCurrentQueue": "Resume original pending source/endpoint hostile audit inF,B,C,G,D,E,H,A order; all NOTAUDITED scopes remain visible."
 }

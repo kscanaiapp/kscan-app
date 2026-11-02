@@ -205,20 +205,22 @@
   },
   {
     "feature": "K+ paywall / purchase / restore / entitlements",
-    "sourceMerged": "Build35 fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6; canonical 19bcc5d699f878561aaef1f9bc914c998e2a0de7;all17confirmedP0-P3source repairs converged",
+    "sourceMerged": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
     "candidateSource": "KPlusMembershipSheet; kplusAcquisitionSurface.ts -> RevenueCat native -> reconcile -> canonical entitlement reader",
     "backendDeploymentAndFlags": "Live project/default offering/k_plus/prod webhook; US store price/trial readback verified; Apple READY_TO_SUBMIT",
-    "clientContractTests": "Hosted paywall iOS/Android actor-switch/offer/error tests; stale provider authority, webhook/reconciliation suites;46 new bounded actual-Staging service-RPC records including19parameter input probes and concurrent normalized events; original optionalDB tests remain skipped",
+    "clientContractTests": "36newcomposedsourcePASS (16shared/10fallbackSheet/10primaryHosted); prior46realStagingauthority/concurrencyrecordslinkedby6exactSQLblobs; full11413NodePASS/0FAIL/96SKIP,1591backendPASS; populationsremainseparate",
     "deviceVerified": "OUT OF SCOPE — explicitly excluded by owner; later QA, not a source-audit FAIL/blocker",
     "customerLive": "Outside this source audit; no released-binary assertion",
-    "blockers": "See source-only closure queue; device certification and later QA are excluded, and runtime promotion is a separate governed stage.",
-    "finalIntegrationStatus": "NOT AUDITED — complete remaining source-level workflow/failure coverage before PASS",
+    "blockers": "No known customer K+P0-P3 source defect from these cases. Optional5Dockerinterleavingsunexecuted (engineunavailable); broader mandatory provider/webhook/security scopes remainseparate. Native/storeQAis laterandexcluded, not a sourceFAIL.",
+    "finalIntegrationStatus": "PASS — scoped user-facing shared purchase/restore source work; no live/native/store/runtime certification inferred",
     "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
     "auditContinuation": "3096original cells:121PASS/1FAIL/2974NOT TESTED;307explicitN/A,4device scope exclusions,2663in-scope applicable pending. Source/harness/live populations remain distinct.",
     "previousReleaseAssessment": {
       "status": "BLOCKED",
       "blockers": "Existing-user route reachability source exercised; signed native sandbox/second-device restore/billing grace NOT TESTED; no pricing change"
-    }
+    },
+    "clientIntegrated": "HomeLuxuryTechV1 privacy action -> authenticated /privacyK+membership action -> mountedSheet528; KPlusGate77also mountsSheet; sheetkeybyactor -> actualMembershipStep, primaryhostedbridge +fallback, sourcecanonicalSDK/RPCauthority",
+    "sourceEvidence": "../build35-kplus-shared-source-verification.md"
   },
   {
     "feature": "Closet / media sync / restore / saved ownership",

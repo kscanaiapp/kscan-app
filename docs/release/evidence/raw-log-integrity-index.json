@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T15:36:00.919Z",
+  "capturedAt": "2026-11-02T16:18:05.188Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3321,6 +3321,76 @@
       "archiveSha256": "dc2f62db20744a4813ae78572929a01514c3b86715837ab8ba7b965642e8c13e",
       "encoding": "UTF-16LE BOM",
       "disposition": "Source-only controlled SDK/RPC/native boundaries;16shared plus10actualmounted-sheet cases in final26case run. Intermediate populations overlap, never summed."
+    },
+    {
+      "rawFile": "pr677-project-raw.log",
+      "rawBytes": 5294278,
+      "rawSha256": "17b2a47f24e5b3824ef9573e7e80d51735b229ba62e9bc6f56bb41011af764fe",
+      "archiveFile": "resume1102-pr677-project-raw.log.gz",
+      "archiveBytes": 649413,
+      "archiveSha256": "b212e1bb4443b1f2997d087df71460f1a856538764fffe19bf008c0b19f54749",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual fullProjectjob125375792273/testmerge2b7a24a1;11413NodePASS/0FAIL/96SKIP and1591backendPASS; exacttreef11fab67equalsmerged6183"
+    },
+    {
+      "rawFile": "kplus-sql-stdin-after-1102.log",
+      "rawBytes": 3624,
+      "rawSha256": "8a32c9bc5adf84e0884b060c2dd315c1977264f999eeae6bfe1aea2914906f42",
+      "archiveFile": "resume1102-kplus-sql-stdin-after-1102.log.gz",
+      "archiveBytes": 964,
+      "archiveSha256": "eec84258b3dcedee270ea1478296cdacd1c67c048b2dfd899e3baad9214d2b06",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "kplus-sql-stdin-original-after-1102.log",
+      "rawBytes": 580,
+      "rawSha256": "b1f8176ef446a3b2b8df0b69b378e3ea0a637c9eb5439c814be598c1fa4dfca9",
+      "archiveFile": "resume1102-kplus-sql-stdin-original-after-1102.log.gz",
+      "archiveBytes": 273,
+      "archiveSha256": "fe78647745223a6d26cf9761ee6ec0d3f18fce6c39b621356c3be7a0bec97fc8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "kplus-sql-stdin-related-1102.log",
+      "rawBytes": 18076,
+      "rawSha256": "1d0cee24cd98b87b1556fa14275b5a691b39ef005ba5888315fd7fdd5ab5e3bd",
+      "archiveFile": "resume1102-kplus-sql-stdin-related-1102.log.gz",
+      "archiveBytes": 3261,
+      "archiveSha256": "462493dde9e9e76c8ad27d3249a327cbb8a4e2227bbf27bf42889bfa836fbdae",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "kplus-sql-stdin-exact-commit-1102.log",
+      "rawBytes": 952,
+      "rawSha256": "a937ec113e4cda6b37653d505cbcb4ac3686067fde0bf6d45afbd38c4e090efe",
+      "archiveFile": "resume1102-kplus-sql-stdin-exact-commit-1102.log.gz",
+      "archiveBytes": 381,
+      "archiveSha256": "0bbd9622df03fffd8b8f34415dd776c07c0d2a094f3469547081e8f34080d362",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "kplus-hosted-mounted-source-1102.log",
+      "rawBytes": 2374,
+      "rawSha256": "b7471b4f7ab5b84cf03abcd82ec3331f417064c3f7d9630511ab92b3dff55e23",
+      "archiveFile": "resume1102-kplus-hosted-mounted-source-1102.log.gz",
+      "archiveBytes": 375,
+      "archiveSha256": "3b31ae61d424319429872ef334a3c36fb5512dd57af14f17b223a3d198f73a29",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "kplus-complete-source-1102.log",
+      "rawBytes": 8448,
+      "rawSha256": "cdfc00c9ccb627a0a6ae9fe798298ab87c6a2307f2045a5587e713cd811e0640",
+      "archiveFile": "resume1102-kplus-complete-source-1102.log.gz",
+      "archiveBytes": 913,
+      "archiveSha256": "4c45ced226bdd6a6ad9889452d4be4dfa22a0e93bda4f361ff9c3172b5a09030",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
     }
   ]
 }
