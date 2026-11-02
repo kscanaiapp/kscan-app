@@ -1,0 +1,22 @@
+﻿[
+    {
+        "exitCode":  0,
+        "script":  "check-edge-function-parity.js"
+    },
+    {
+        "exitCode":  0,
+        "script":  "verify-backend-authority.js"
+    },
+    {
+        "exitCode":  0,
+        "script":  "check-native-config-parity.js"
+    },
+    {
+        "exitCode":  0,
+        "script":  "check-migration-provenance.js"
+    },
+    {
+        "exitCode":  0,
+        "script":  "verify-migration-authority.js"
+    }
+]

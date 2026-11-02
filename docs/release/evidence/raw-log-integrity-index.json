@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T19:52:29.365Z",
+  "capturedAt": "2026-11-02T20:08:27.222Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3601,6 +3601,86 @@
       "archiveSha256": "84ceac5ecab5bdc145729622394ed9b80edd08bd49e70620fb23d4ebbd34fd44",
       "encoding": "UTF-16LE BOM",
       "disposition": "2source/ownership controlsPASS:4RPC bodyMD5s and rolegrants match read-only bothprojects; foreignreleasefalse/ownreleasetrue."
+    },
+    {
+      "rawFile": "receipt-id-canonical-before-1102.log",
+      "rawBytes": 4780,
+      "rawSha256": "3622996365cb368991d01a29884db6570ed568cb17d16beb99dc1096a74a31a0",
+      "archiveFile": "resume1102-receipt-id-canonical-before-1102.log.gz",
+      "archiveBytes": 1180,
+      "archiveSha256": "61769dde7b2b685fc90262c64eb81c336700b7ad87f4eae411105bbcdc568c23",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Canonical original19bc actualadapter/SQL:2PASS/2FAIL; C023type mismatch"
+    },
+    {
+      "rawFile": "receipt-id-canonical-after-1102.log",
+      "rawBytes": 1664,
+      "rawSha256": "105a45ccdf273f56aacfcb920ac9fcd83c3ec1bf678dc15bcd651fdd7db719ae",
+      "archiveFile": "resume1102-receipt-id-canonical-after-1102.log.gz",
+      "archiveBytes": 598,
+      "archiveSha256": "b1d9d0d8c0ad29473c7d9273415496eb556453a7475fa6892dcf14e6b77714d6",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Canonical repaira1cf source/local dependency or focused tests. Actual SQL/adapter/providerfixture limits apply; no liveprovider result."
+    },
+    {
+      "rawFile": "receipt-id-canonical-clean-commit-1102.log",
+      "rawBytes": 1666,
+      "rawSha256": "4d5ce3ea037749fb2cb032a0fb3688ab243151a69bfc86d8252289a58d0c5c08",
+      "archiveFile": "resume1102-receipt-id-canonical-clean-commit-1102.log.gz",
+      "archiveBytes": 600,
+      "archiveSha256": "0d00b03c786f2dd4ff8ade56bd28ab573e07e7a231a181e56af882d7944aeb04",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Canonical repaira1cf source/local dependency or focused tests. Actual SQL/adapter/providerfixture limits apply; no liveprovider result."
+    },
+    {
+      "rawFile": "receipt-id-canonical-deno-focused-1102.log",
+      "rawBytes": 14686,
+      "rawSha256": "74fcd1e130881a38b5b5718649b4587472da8675e93bad8378b6bec5044f4c1e",
+      "archiveFile": "resume1102-receipt-id-canonical-deno-focused-1102.log.gz",
+      "archiveBytes": 2107,
+      "archiveSha256": "26c737d14af17dd29eeba14053dc594107c7c6cfa16c2eb30d757a2f679e43cd",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Canonical repaira1cf source/local dependency or focused tests. Actual SQL/adapter/providerfixture limits apply; no liveprovider result."
+    },
+    {
+      "rawFile": "receipt-id-canonical-typescript-1102.log",
+      "rawBytes": 1772,
+      "rawSha256": "69da3ee01cfbd0c6e3cb6bd44db1174d13ce7c4261bca029dd6160bf29606886",
+      "archiveFile": "resume1102-receipt-id-canonical-typescript-1102.log.gz",
+      "archiveBytes": 355,
+      "archiveSha256": "58909490f4e22edf27d999e826d2200fd058ab32158a218d87e9d8c3d3d949f1",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial incomplete reuseddependencycache:6missingmodules. Clean committed-lock npmci then exactsource typecheckexit0; no source/dependency version change"
+    },
+    {
+      "rawFile": "receipt-id-canonical-npm-ci-1102.log",
+      "rawBytes": 4096,
+      "rawSha256": "a94ee32ebcfe2faf7c4167643951803a27291c9eac9813949b5922032f216f69",
+      "archiveFile": "resume1102-receipt-id-canonical-npm-ci-1102.log.gz",
+      "archiveBytes": 848,
+      "archiveSha256": "b80aa575114eeb607ec80678023a368a71c3f4fe4d158c3d2fea42335c233834",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Canonical repaira1cf source/local dependency or focused tests. Actual SQL/adapter/providerfixture limits apply; no liveprovider result."
+    },
+    {
+      "rawFile": "receipt-id-canonical-typescript-clean-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-receipt-id-canonical-typescript-clean-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Canonical repaira1cf source/local dependency or focused tests. Actual SQL/adapter/providerfixture limits apply; no liveprovider result."
+    },
+    {
+      "rawFile": "receipt-id-verify-backend-authority.js.log",
+      "rawBytes": 765,
+      "rawSha256": "0ba433bb2e17cd6535cb017f18a98867d7ba3ffc2c36798e7716fb0ee979abb9",
+      "archiveFile": "resume1102-receipt-id-verify-backend-authority.js.log.gz",
+      "archiveBytes": 429,
+      "archiveSha256": "5587c80ef1ad8dc45088143d535a757216c9cc44b626075ff9d2ff7137a3c55a",
+      "encoding": "UTF-8",
+      "disposition": "Correct initial dirtyauthorityrefusal; committed repair then authoritygatePASS, no deployment"
     }
   ]
 }

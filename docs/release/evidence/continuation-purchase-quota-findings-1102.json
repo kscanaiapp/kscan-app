@@ -16,12 +16,21 @@
       "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
       "id": "B35-C-023",
       "priority": "P2",
-      "status": "CONFIRMED / ACTIVE SOURCE REPAIR NEXT",
+      "status": "SOURCE REPAIRED / CANONICAL PR679 OPEN / CI PENDING / MOBILE PROMOTION NEXT",
       "sourceLocation": "hooks/usePurchaseImport.ts:80-83 newSessionId; purchase-import-extract/handler.ts:132-136 default reserve; 20260803020000_provider_request_security.sql:212+ p_request_id uuid",
       "contract": "Existing accepted opaque purchase-import session/request ID must support the real client-to-handler-to-quota path.",
       "observed": "Actual private client session-ID generator -> actual default reserve/SQL gives503/okfalse/0providerdispatch; valid UUID control gives200/oktrue/1dispatch/1completedreservation.",
       "rootCause": "Opaque client session ID is forwarded to a UUID-only bookkeeping parameter; isolated handler tests replace the default adapter and miss the conversion error.",
-      "repairPlan": "Mint a separate backend UUID for quota bookkeeping while preserving the original opaque session ID in the stable actor-scoped fingerprint and client lineage. No client request/response or activation change."
+      "repairPlan": "Mint a separate backend UUID for quota bookkeeping while preserving the original opaque session ID in the stable actor-scoped fingerprint and client lineage. No client request/response or activation change.",
+      "pr": 679,
+      "reviewedHead": "a1cf4b1535f92097189d51fb4573627eb943a8d7",
+      "reviewedTree": "eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68",
+      "repair": "Separate internal crypto.randomUUID for quota request_id; keep opaque request/session ID in actor-scoped fingerprint and client lineage; no wire/API/activation change",
+      "regression": "New actualdefaultadapter/handler/SQL Node tests: before2PASS/2FAIL;after4PASS/0FAIL;negativeinvalidUUIDcontrol and stablefingerprint/one-reservation checks retained",
+      "focusedBackend": "23DenoPASS/0FAIL",
+      "typeScript": "0 after clean committed-lockfile npmci; initial reused partialcache missing6modules, no package/version change; initial error retained as environment evidence",
+      "sourceGates": "All5applicable0 fromcleancommittedtree; initialdirtyauthorityrefusal retained, correctedbycommit notweakening;4VTOunownedpathsNOTJUDGED",
+      "localTree": "C:/b35receiptid1102 clean; actualnode_modules installed fromcommittedlock; no junctiontarget modified"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",

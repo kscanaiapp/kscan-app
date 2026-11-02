@@ -1,3 +1,9 @@
+## C023 canonical repair in CI — November2
+
+Active [PR679](https://github.com/kscanaiapp/kscan-app/pull/679), revieweda1cf4b1535f92097189d51fb4573627eb943a8d7/treeeede8c68. A separate internalUUID fixes the opaque client-session/SQLUUID mismatch without changing clientwire/lineage/fingerprint, flags or provider. Actual defaultadapter/handler/SQL regressions before2PASS/2FAIL -> after4PASS/0FAIL;23focusedbackendPASS; cleancommitted-lock npmci succeeded; TypeScript0;5applicableclean-sourcegates0. Initialpartialdependencycache errors and dirtyauthorityrefusal retained and correctly resolved, notsuppressed. No schema/migration/deployment or clientsource change.
+
+Next exactfinish679mandatoryCI/reviews/normalmerge andcanonicalpostmergeCI; prepareboundedmobilepromotionfrom560028ef, retainmobileownership/runner/parity andcanonicalbytes, thenfullCI/merge/postmerge. **Do not startF024orF025 overlappinghandlerchanges before C023fullyclosed.** All20earlierrepairs remainconverged;23confirmedtotal/3sourceclosureopen.365earlierarchives plus8new=373losslessarchives rehashed/decompressed; original110preserved. EvidencePR646remainsdraft/HOLD, noauditPASS. Devicesexcluded, deletioncycledeferred, no Production/EAS/binary/store/pricing/paidprovider action.
+
 ## Remaining audit checkpoint — purchase-import source findings (November2)
 
 Previously started source-work queue is closed through678. Mobile560028ef3f5327989077b19ee6ccbba34f344927; backend19bcc5d699f878561aaef1f9bc914c998e2a0de7. All20earlierP0-P3 source repairs remain green/converged. Remaining LaneF/B source audit confirmed **three new P2s**, bringing the campaign to23confirmedP0-P3:20sourceclosed/3open (0P0/5P1/7P2/11P3). These are existing receipt-import source defects, not feature activation.
