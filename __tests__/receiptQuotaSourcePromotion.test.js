@@ -10,14 +10,14 @@ const oldManifest = JSON.parse(gitBlob('config/edge-function-manifest.json', bas
 const canonicalManifest = JSON.parse(gitBlob('config/edge-function-manifest.json'));
 const policy = json('config/build35-hostile-source-promotion.json');
 const actual = new Map(files.map(file => [file, fs.readFileSync(root + '/' + file)]));
-const expectedMeta = { canonicalSource: canonical, reviewedSource: reviewed, sourceTree: 'eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68', files };
+const expectedMeta = { canonicalSource: '214cf19efffce9b4f410b58075d4fc3c36c58bf1', reviewedSource: 'a1cf4b1535f92097189d51fb4573627eb943a8d7', sourceTree: 'eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68', files };
 function verify(p, bytes, manifest) {
   assert.equal(p.files.length, previous.files.length);
   assert.equal(p.files.length, 57);
   assert.deepEqual(p.files, expectedReceiptAdvance(previous.files), 'only the exact reviewed handler row may advance; every other grant is unchanged');
   assert.equal(p.canonicalBackend, canonical);
   assert.deepEqual(p.receiptQuotaIdPromotion, expectedMeta);
-  const priorMeta = { ...p }; delete priorMeta.receiptQuotaIdPromotion;
+  const priorMeta = { ...p }; delete priorMeta.receiptQuotaIdPromotion; delete priorMeta.receiptQuotaReplayPromotion;
   assert.deepEqual(priorMeta, { ...previous, canonicalBackend: canonical, files: expectedReceiptAdvance(previous.files) });
   assert.deepEqual(p.files.find(row => row.file === handler), approvedRow());
   const tree = sha => execFileSync('git', ['show', '-s', '--format=%T', sha], { cwd: root, encoding: 'utf8' }).trim();
@@ -27,7 +27,7 @@ function verify(p, bytes, manifest) {
   assert.deepEqual(receipt(manifest), receipt(canonicalManifest));
   assert.deepEqual(manifest.parity.functions.filter(f => f.name !== 'purchase-import-extract'), oldManifest.parity.functions.filter(f => f.name !== 'purchase-import-extract'));
 }
-test('C023 promotes only reviewed receipt source and regressions with all prior grants preserved', () => {
+test('C023 retains original provenance under the exact reviewed receipt replay advancement', () => {
   verify(policy, actual, json('config/edge-function-manifest.json'));
   const authority = json('config/backend-authority.json');
   assert.equal(authority.role, 'integration-convergence-non-authoritative');

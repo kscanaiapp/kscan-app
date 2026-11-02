@@ -139,6 +139,11 @@ export const defaultPurchaseImportDeps: PurchaseImportDeps = {
         costUnits: 2,
       });
       if (!outcome.ok) return null;
+      // Reusing a reservation is not authority to dispatch another paid call.
+      // The original request still owns completion/release of that row.
+      if (outcome.value.reason === 'duplicate_replay') {
+        return { allowed: false, reservationId: null, retryAfterSeconds: outcome.value.retryAfterSeconds ?? 15 };
+      }
       return {
         allowed: outcome.value.allowed,
         reservationId: outcome.value.reservationId,
