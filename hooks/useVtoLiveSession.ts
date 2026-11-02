@@ -56,6 +56,10 @@ import {
 } from '../types/vtoLive';
 import type { VtoPersonInput } from '../types/vto';
 
+// Read afresh across awaits: native lifecycle events can change this value
+// while a camera-permission request is pending.
+const isApplicationBackgrounded = (): boolean => AppState.currentState === 'background';
+
 export interface UseVtoLiveSessionArgs {
   active?: boolean;
   descriptor: LiveVtoGarmentDescriptor | null;
@@ -144,7 +148,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const enterLive = useCallback(async () => {
     // `controllerRef` alone was not enough: it is only assigned AFTER the
     // permission await below, so two taps both passed it. See VTO-HA-002.
-    if (AppState.currentState === 'background'
+    if (isApplicationBackgrounded()
       || !activeRef.current || !descriptor || controllerRef.current || enteringRef.current) return;
     const epoch = epochRef.current;
     enteringRef.current = true;
@@ -153,7 +157,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       const permission = harness
         ? { state: harness.cameraPermission, prompted: false }
         : await ensureLiveCameraPermission();
-      if (epochRef.current !== epoch || !activeRef.current || AppState.currentState === 'background') return;
+      if (epochRef.current !== epoch || !activeRef.current || isApplicationBackgrounded()) return;
 
       if (permission.state !== 'granted') {
         // Bounded, non-fatal: the caller keeps AI Photo on offer and we do not
