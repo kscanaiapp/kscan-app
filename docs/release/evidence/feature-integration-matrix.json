@@ -274,14 +274,14 @@
   },
   {
     "feature": "Packing Intelligence / interactive calendar",
-    "sourceMerged": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
+    "sourceMerged": "0e3208f8d64605799ebfae70c0183f4383becb2e",
     "candidateSource": "HomeLuxuryTechV1 -> /packing -> actual TripForm/calendar/PlanView/usePackingPlan -> packingClient/shared packingResponse -> stylechat Packing handler",
     "backendDeploymentAndFlags": "Intentional actor-bound device-local latest-plan cache (30 days), not backend trip history",
-    "clientContractTests": "128focused/relatedPASS;13newcommittedsourcecases,10additionalhandlercompositioncases and5additionalstatecases; distinct overlapping evidence populations, no matrix inflation",
+    "clientContractTests": "118relatedPASS,4newqueue regressions;12actual HTTP adapter composed cases PASS;16earliercomposed source cases PASS; full11405NodePASS/0FAIL/96SKIP and1591backendPASS; populations overlap",
     "deviceVerified": "EXCLUDED by owner; not a source FAIL/blocker",
     "customerLive": "Outside this source audit; no released-binary assertion",
-    "blockers": "E020/P3 only for this current source assessment. Runtime promotion and later QA remain separate; device certification excluded.",
-    "finalIntegrationStatus": "FAIL — confirmed E020 stale queued refinement source repair pending",
+    "blockers": "No known unrepaired Packing P0-P3 source defect. Runtime compatible rollout remains separate.17distinct generic mandatory Packing software cases remain explicitly NOT TESTED, not hidden under device QA.",
+    "finalIntegrationStatus": "PASS — scoped user-facing source state/failure workflow; broader mandatory HTTP/security audit17cases pending, not a whole-feature security/runtime certification",
     "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
     "auditContinuation": "3096original cells:121PASS/1FAIL/2974NOT TESTED;307explicitN/A,4device scope exclusions,2663in-scope applicable pending. Source/harness/live populations remain distinct.",
     "previousReleaseAssessment": {

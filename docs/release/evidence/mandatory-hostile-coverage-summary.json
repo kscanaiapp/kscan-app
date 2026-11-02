@@ -1,21 +1,21 @@
 {
-  "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+  "sourceSha": "0e3208f8d64605799ebfae70c0183f4383becb2e",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 121,
+    "PASS": 136,
     "FAIL": 1,
-    "NOT TESTED": 2974
+    "NOT TESTED": 2959
   },
-  "nonApplicable": 307,
-  "applicablePending": 2667,
+  "nonApplicable": 318,
+  "applicablePending": 2641,
   "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
   "limitation": "Exact malformed-body cells only; 24 records are not added as 24 independent matrix closures. Device certification excluded by owner, not PASS. Broad remaining locally executable coverage is still unfinished.",
   "knownFailingDefects": [
     "B35-B-004/P4"
   ],
-  "additionalDefectOutsideMatrix": "E016 and E018 both source repaired/converged; no confirmed P0-P3 remains source-open",
+  "additionalDefectOutsideMatrix": "E019/674 andE020/675 both source merged/verified; all19confirmedP0-P3 source-converged",
   "scopeExcludedDeviceCells": 4,
-  "inScopeApplicablePending": 2663,
+  "inScopeApplicablePending": 2637,
   "latestExecution": {
     "records": 24,
     "PASS": 22,
@@ -238,5 +238,143 @@
     "before": "FAIL preserved",
     "after": "PASS exact merged source, not deployed runtime",
     "pr": 671
+  },
+  "packingReconciliation": {
+    "changes": [
+      {
+        "probeId": "B35-MAND-2625",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-golden"
+      },
+      {
+        "probeId": "B35-MAND-2627",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2628",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2634",
+        "verdict": "PASS",
+        "evidence": "continuation-pr671-source-closure.json; resume1102-stylechat-invalid-body-merged-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2635",
+        "verdict": "PASS",
+        "evidence": "continuation-pr671-source-closure.json; resume1102-stylechat-invalid-body-merged-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2636",
+        "verdict": "PASS",
+        "evidence": "continuation-pr671-source-closure.json; resume1102-stylechat-invalid-body-merged-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2639",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2640",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2643",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2644",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2649",
+        "verdict": "PASS",
+        "evidence": "resume1102-packing-queue-composed-after-1102.log.gz; packing-remaining-state-current-source-1102.test.cjs"
+      },
+      {
+        "probeId": "B35-MAND-2650",
+        "verdict": "PASS",
+        "evidence": "__tests__/packingSourceState.test.js; __tests__/packingQueuedRefinement.test.js; resume1102-packing-queue-composed-after-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2651",
+        "verdict": "PASS",
+        "evidence": "__tests__/packingSourceState.test.js; resume1102-packing-queue-focused-after-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2652",
+        "verdict": "PASS",
+        "evidence": "__tests__/packingUxMaturity.test.js; packing-remaining-state-current-source-1102.test.cjs; resume1102-packing-queue-composed-after-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2653",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-provider500"
+      },
+      {
+        "probeId": "B35-MAND-2654",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-provider429"
+      },
+      {
+        "probeId": "B35-MAND-2655",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-timeout"
+      },
+      {
+        "probeId": "B35-MAND-2656",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-malformed; #B35-PACKING-COMPOSED-invalidModelJson"
+      },
+      {
+        "probeId": "B35-MAND-2657",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-empty"
+      },
+      {
+        "probeId": "B35-MAND-2658",
+        "verdict": "PASS",
+        "evidence": "packing-end-to-end-http-source-1102-results.json#B35-PACKING-COMPOSED-wrongSchema; #B35-PACKING-COMPOSED-envelopeWrongSchema"
+      },
+      {
+        "probeId": "B35-MAND-2659",
+        "verdict": "PASS",
+        "evidence": "__tests__/packingSourceState.test.js; resume1102-packing-queue-focused-after-1102.log.gz"
+      },
+      {
+        "probeId": "B35-MAND-2660",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2661",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2663",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2665",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      },
+      {
+        "probeId": "B35-MAND-2666",
+        "verdict": "NOT TESTED",
+        "applicability": "N/A"
+      }
+    ],
+    "pass": 15,
+    "nonApplicable": 11,
+    "remainingSoftwareNotTested": 17,
+    "limitation": "Bounded source composition only; no live provider, signedJWT/DBRLS or hardware inference. Reused input-handler tests require exact file equivalence. Duplicate/overlapping source tests and matrix rows remain distinct populations."
   }
 }

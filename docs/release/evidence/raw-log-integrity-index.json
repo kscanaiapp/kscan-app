@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T14:51:07.120Z",
+  "capturedAt": "2026-11-02T15:03:50.261Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3211,6 +3211,26 @@
       "archiveSha256": "50c6978b7d7a79adad8073e3a629a0428a22eec9b82295c834f888d84a4e1cd9",
       "encoding": "UTF-16LE BOM",
       "disposition": "Exact60d50source local verification; populations overlap and do not certify live providers/native/remoteDB"
+    },
+    {
+      "rawFile": "pr675-project-raw.log",
+      "rawBytes": 5290900,
+      "rawSha256": "6ff8390558089568f110ae034645ef3243b1f9df5d99943382006747a9dec4b3",
+      "archiveFile": "resume1102-pr675-project-raw.log.gz",
+      "archiveBytes": 649182,
+      "archiveSha256": "cfca0bf975eac4853e48860dd1c2f9f81dc189485db0b6671d34eae90a196363",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual full Projectjob125342426438;11405NodePASS/0FAIL/96SKIP,1591backendPASS;testmergecec5a27a/tree47eac077equalsmerged0e32"
+    },
+    {
+      "rawFile": "packing-end-to-end-http-source-1102.log",
+      "rawBytes": 3224,
+      "rawSha256": "20711bd68dbfba5b1480710f319154410d91b218cca55e47a9ed2fc9b7917eed",
+      "archiveFile": "resume1102-packing-end-to-end-http-source-1102.log.gz",
+      "archiveBytes": 459,
+      "archiveSha256": "357f74bcde49a0dd7ac566a988ea7de4f7ab71f823a1a4f42553f9f8b264d96d",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "12actualsourceUI/client/backend/providerHTTPadapter scenarios;fetchfixtureonly, no real provider call"
     }
   ]
 }

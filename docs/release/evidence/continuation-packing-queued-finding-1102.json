@@ -1,7 +1,7 @@
 {
   "id": "B35-E-020",
   "priority": "P3",
-  "status": "SOURCE REPAIRED / PR675 OPEN / CURRENT-HEAD CI PENDING",
+  "status": "CLOSED IN SOURCE / MERGED675 /9of9branchCI",
   "sourceSha": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
   "sourceLocation": "hooks/usePackingPlan.ts:264 refineWith queues a task before capturing actor scope; task reads whatever trip/session is current when dequeued",
   "contract": "Actor epoch and session intent must be captured before every asynchronous boundary; an old trip refinement cannot change a new trip.",
@@ -20,5 +20,24 @@
   "typeScriptExitCode": 0,
   "sourceGates": 6,
   "scope": "Actual committed2pathdiff,0VTO-ownedpaths; bothNOTJUDGEDbyVTOownershipgate. Fingerprintsremaincurrent; none regenerated or renewed.",
-  "mergeOrder": "674 fully merged/tree/9of9CIclosed BEFORE675source work.675stillpendinggreenmerge."
+  "mergeOrder": "674 fully closed before675implementation;675merged separately only after exact-head green checks and no unresolved reviews/threads",
+  "merge": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+  "testedMerge": "cec5a27a40a586739b716f3530d7ce802739f817",
+  "identicalGitTree": "47eac07753fc0f751736aca681619718482f3dca",
+  "fullNode": {
+    "pass": 11405,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "currentHeadPremerge": {
+    "success": 34,
+    "conditionalSkip": 20,
+    "fail": 0,
+    "pending": 0
+  },
+  "postmergeCi": "continuation-mobile-0e32-branch-ci.json"
 }

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T14:39:36.877Z",
+  "capturedAt": "2026-11-02T15:03:50.321Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -32,14 +32,23 @@
       "pr": 674,
       "source": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
       "status": "CLOSED SOURCE /9of9branchCI"
+    },
+    {
+      "item": "Packing remaining end-to-end source state/failure paths, including E019/E020",
+      "prs": [
+        674,
+        675
+      ],
+      "source": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+      "status": "CLOSED scoped source workflow; original generic mandatory probe remainder is explicit separate software-audit coverage",
+      "evidence": "../build35-packing-source-workflow-verification.md"
     }
   ],
   "active": {
-    "item": "Packing Intelligence remaining end-to-end state and failure paths",
-    "next": "E020/P3 epoch/session fence for queued refinements; separate bounded branch from8ffd after674fullclosure. Then complete Packing source disposition before K+ or LiveVTO."
+    "item": "K+ shared purchase/restore lifecycle and concurrency coverage",
+    "next": "Recover existing shared purchase/restore/identity lifecycle coverage and46Staging concurrency records; establish exact current source equivalence; resolve D009 invalid optional concurrency fixture and execute missing source workflow interleavings. No prices, charges or native-device requirements."
   },
   "queued": [
-    "K+ shared purchase/restore lifecycle and concurrency coverage",
     "Live Camera VTO full source implementation and actual user-facing reach"
   ],
   "excluded": [
