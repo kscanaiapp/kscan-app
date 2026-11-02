@@ -1,6 +1,6 @@
 # Build 35 audit: owner and continuation handoff — November 2, 2026
 
-**Final handoff readback:** mobile892f9ef0; backend26d5fae2; canonical681postmerge: 7/7 independent pushworkflows SUCCESS. Actual mergedProject8562NodePASS/0FAIL/65SKIP,1575backendPASS/0FAIL. 389lossless archives verified. The remainingF024work is exact mobileconvergence.
+**Final handoff readback:** mobile892f9ef0; backend26d5fae2; canonical681postmerge: 7/7 independent pushworkflows SUCCESS. Actual mergedProject8562NodePASS/0FAIL/65SKIP,1575backendPASS/0FAIL. 390lossless archives verified. The remainingF024work is exact mobileconvergence.
 
 **Verdict: AUDIT INCOMPLETE.** This is a shared-source audit and repair handoff. Device certification and later QA are explicitly excluded and do not cause this verdict. Remaining confirmed source defects and substantial software-probe execution/reconciliation remain.
 
@@ -11,16 +11,16 @@ This dated handoff supersedes historical queue/status paragraphs in older report
 | Authority | Exact source | Evidence/status at handoff |
 |---|---|---|
 | Build 35 integration | `892f9ef08b29bbce68edffb96298b0a8bf65814a` | PR680 merged; 9/9 independent push workflows SUCCESS; Node 11,447 PASS /0 FAIL /96 SKIP; backend 1,591 PASS /0 FAIL |
-| Canonical backend | `26d5fae291ffcdbb1a56e312524013c6939ab152` | PR681 just merged; reviewed head `f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4`; 32 successful/14 conditional-skipped checks; independent post-merge CI still pending at initial handoff capture |
-| Last independently green backend baseline | `214cf19efffce9b4f410b58075d4fc3c36c58bf1` | PR679; 7/7 push workflows SUCCESS; Node 8,557 PASS /0 FAIL /65 SKIP; backend 1,575 PASS /0 FAIL |
+| Canonical backend | `26d5fae291ffcdbb1a56e312524013c6939ab152` | PR681 merged; reviewed head `f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4`; 32 successful/14 conditional-skipped checks; all seven independent post-merge workflows SUCCESS |
+| Previous backend baseline, before681 | `214cf19efffce9b4f410b58075d4fc3c36c58bf1` | PR679; 7/7 push workflows SUCCESS; Node 8,557 PASS /0 FAIL /65 SKIP; backend 1,575 PASS /0 FAIL |
 | Audit evidence | PR646, `docs/build35-campaign-checkpoint-20261029` | OPEN/DRAFT/HOLD; latest handoff commit must be read from branch HEAD. Preserve all evidence and local drafts; do not blindly merge or reset this large PR |
-| Build 34 | `release/kscan-pre-freeze-v1`, prior reference `840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2` | Frozen RP-108 line; not a Build 35 repair target |
+| Build 34 | `release/kscan-pre-freeze-v1`, fresh readback `840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2` | Frozen RP-108 line; not a Build 35 repair target |
 
-PR681's reviewed full suite: **8,562 Node PASS /0 FAIL /65 SKIP; 1,575 backend PASS /0 FAIL**. Those are reviewed-tree results, not a claim that its new independent branch run has completed. Reviewed/tested-merge/final-backend trees all equal `35ae1e6aa608318ebd313d9a81178350fc0e67f0`; tested PR merge was `c344af2de6559c623429fe775d567531c4984de0`.
+PR681's reviewed and independently merged full suites each passed **8,562 Node /0 FAIL /65 SKIP; 1,575 backend /0 FAIL**. Reviewed/tested-merge/final-backend trees all equal `35ae1e6aa608318ebd313d9a81178350fc0e67f0`; tested PR merge was `c344af2de6559c623429fe775d567531c4984de0`. Actual independent Project job125549042756/run41524621274 and all seven final workflow results are retained.
 
 Current mobile892f, reviewed6c30bb34 and tested3ba139ba have identical tree `97fa919e6176c8bdfdc3c2a9e7ec88e490a2a36f`. Its predecessor560028ef and prior backend19bcc5d6 are ancestors of their respective current authorities. Earlier repairs were preserved.
 
-**23 confirmed P0–P3 findings: 0 P0 /5 P1 /7 P2 /11 P3. Of these, 21 are fully source-converged; two P2 closure items remain.** F024 is canonical-merged but awaits post-merge CI and mobile convergence. F025 is confirmed and source-unrepaired. Owner-authorized P4 B004 is also source-unrepaired. None of those statuses should be replaced by a claim of release certification.
+**23 confirmed P0–P3 findings: 0 P0 /5 P1 /7 P2 /11 P3. Of these, 21 are fully source-converged; two P2 closure items remain.** F024 is canonical-merged with independent CI verified, but awaits mobile convergence. F025 is confirmed and source-unrepaired. Owner-authorized P4 B004 is also source-unrepaired. None of those statuses should be replaced by a claim of release certification.
 
 ## 2. Recent completed work
 
@@ -56,7 +56,7 @@ The PR was merged only after32 successful/14 conditional-skipped exact-head chec
 
 Next exact closure steps:
 
-1. Read all seven independent push workflows for backend26d5fae2. Capture the actual Project job log and final counts; investigate any failure before promotion.
+1. Reuse the retained seven independent successful push workflows and actual Project log for backend26d5fae2. Refresh head identity before promotion; repeat only if source drift or an evidence gap justifies it.
 2. Fetch current heads and confirm no intervening source drift.
 3. Use the clean mobile promotion worktree below. The prepared script `C:/b35readback1030/prepare-replay-mobile-1102.cjs` has **not been executed**. It asserts base892f and merged/reviewed tree equivalence before copying only the canonical handler and new regression. Review the script before execution.
 4. Run `node C:/b35readback1030/prepare-replay-mobile-1102.cjs 26d5fae291ffcdbb1a56e312524013c6939ab152`. Regenerate the function manifest and check cross-path currency.
@@ -138,4 +138,4 @@ Use the [parallel agent task board](build35-parallel-agent-task-board-2026-11-02
 
 No source work should be described as fully operational until the corresponding runtime gate is evidenced. No audit PASS, deployment approval or store approval is implied by this handoff. **No EAS/release artifact, Production deployment/migration/flag, subscription-price change, real purchase/refund, sponsorship activation or customer-data mutation occurred.** Account-deletion-cycle repair and physical-device certification remain outside this audit by owner direction.
 
-The next lead should begin with backend26d5 independent CI, then the clean F024 mobile promotion. Do not reimplement any of the21 closed P0–P3 repairs or rerun unchanged complete baselines without a source/evidence reason.
+The next lead should begin with fresh head identity, reuse backend26d5's completed independent CI, and finish the clean F024 mobile promotion. Do not reimplement any of the21 closed P0–P3 repairs or rerun unchanged complete baselines without a source/evidence reason.

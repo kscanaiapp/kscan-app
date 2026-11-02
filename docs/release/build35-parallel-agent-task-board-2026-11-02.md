@@ -14,7 +14,7 @@ Prove suspected defects with a failing runnable case or exact code/contract argu
 
 ## Agent 1 — integration lead: finish the authorized source queue
 
-**Priority: highest; one owner.** Finish canonical681 post-merge7workflow verification, then exact mobile promotion and9workflow closure. Prepared script/worktree details are in the handoff. Review the promotion procedure, retain the original C023 provenance, and test all historical source/scope controls; do not simply change hashes until CI is green.
+**Priority: highest; one owner.** Reuse canonical681's retained seven successful post-merge workflows and exact source identity, then finish mobile promotion and9workflow closure. Prepared script/worktree details are in the handoff. Review the promotion procedure, retain the original C023 provenance, and test all historical source/scope controls; do not simply change hashes until CI is green.
 
 Then F025: trusted backend-only actor-scoped quota settlement; real SQL-role/handler regressions for own/foreign/tampered caller, in-flight completion/release, duplicate/replayed settlement and DB errors. Check every direct/helper caller and migration compatibility. Use Supabase CLI migration creation and governance declarations, without applying it. Preserve service-role isolation. Finish canonical/mobile CI and convergence before B004.
 

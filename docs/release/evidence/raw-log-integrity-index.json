@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T21:09:08.172Z",
+  "capturedAt": "2026-11-02T21:11:14.316Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3841,6 +3841,16 @@
       "archiveSha256": "f516c7a9bebceee3672b815f60a8c5e4dc1ccba7fc20a8357a626d111f50a6d7",
       "encoding": "UTF-16LE BOM",
       "disposition": "Actual reviewed or independent merged canonical681Projectjob;8562NodePASS/0FAIL/65SKIP and1575DenoPASS/0FAIL. Sourceonly,no provider/rolloutclaim"
+    },
+    {
+      "rawFile": "owner-handoff-terminology-check-1102.log",
+      "rawBytes": 1744,
+      "rawSha256": "a7fa5761efecc1582293e307da37c196fd35b783053940a2013c3f3bf75c2c3e",
+      "archiveFile": "resume1102-owner-handoff-terminology-check-1102.log.gz",
+      "archiveBytes": 689,
+      "archiveSha256": "055c977f0a17baa915a4fcdd5800e0d5ea57dd69f768ffcfab0c6646e53a52b9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Relevant docs terminology/governance check8PASS/0FAIL/0SKIP; no runtime source changes"
     }
   ]
 }

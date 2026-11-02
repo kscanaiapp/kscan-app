@@ -1,4 +1,4 @@
-> Current November2 handoff: start with [owner handoff](../build35-owner-handoff-2026-11-02.md), [parallel task board](../build35-parallel-agent-task-board-2026-11-02.md) and continuation-owner-handoff-state-1102.json. Currentmobile892f/backend26d5. 389losslessarchivesverified. Older preparedcandidate/aggregate descriptions below are historical.
+> Current November2 handoff: start with [owner handoff](../build35-owner-handoff-2026-11-02.md), [parallel task board](../build35-parallel-agent-task-board-2026-11-02.md) and continuation-owner-handoff-state-1102.json. Currentmobile892f/backend26d5. 390losslessarchivesverified. Older preparedcandidate/aggregate descriptions below are historical.
 
 # Build35 evidence index
 
