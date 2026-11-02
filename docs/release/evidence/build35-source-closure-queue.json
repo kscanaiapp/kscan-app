@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T20:49:05.652Z",
+  "capturedAt": "2026-11-02T20:55:17.352Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -75,9 +75,11 @@
     }
   ],
   "active": {
-    "item": "F024 in-flight duplicate provider dispatch",
+    "item": "F024 in-flight duplicate provider dispatch canonical/mobile source closure",
     "finding": "B35-F-024",
-    "next": "Create isolated canonical repair from214cf19e; actualSQL/defaultadapter/handler failing duplicate fixture, deny duplicate_replay before dispatch without settling firstreservation; canonical greenCI/merge/postmerge then boundedmobilepromotion/CI/merge/postmerge."
+    "pr": 681,
+    "head": "f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4",
+    "next": "Finish681exactheadCI/reviews, normalgreenmerge and7canonicalpushworkflows; boundedmobilepromotionfrom892f, exactbytes/grants/negativeregressions, mobilegreenmerge/9pushworkflows; onlythenF025."
   },
   "queued": [
     {

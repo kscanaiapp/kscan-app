@@ -1,3 +1,9 @@
+## F024 canonical source repair681 in CI — November2
+
+C023sourceclosure remains679/214cf19e →680/892f9ef0,7canonical+9mobilepostmergeworkflowsSUCCESS. Active **F024/P2 [681](https://github.com/kscanaiapp/kscan-app/pull/681),f8d7f61c**: actualSQL/defaultadapter/handler before2positivePASS/3FAIL, including11providerdispatchesunder1reservation. Five-linereturn rejectsduplicate_replay with existing429/retryenvelope and noreservationownership; firstrequest alone settles. After9focusedPASS/0FAIL,84backendPASS/0FAIL,TypeScript0,5canonicalgates0; current-headCIpending. No migration/wire/flag/provider/deploymentchange.
+
+21of23confirmedP0-P3sourceclosed;F024closureactive,F025sourceunrepaired. Owner-authorized B004/P4Scanner queuedafterF025. Completecanonical+mobilegreenclosure for681 before nextsharedhandlerrepair; no new feature expansion. Originalmatrix136PASS/1FAIL/2959NOTTESTED,2637in-scopesoftwarepending; overlappingcasesnotautoadded. 387losslessarchivesverified;original110preserved. DeviceQAexcluded,deletioncycledeferred,legal/websiteowner-owned. NoProduction/migration/EAS/binary/store/pricing/paidprovideraction.
+
 ## C023 source closure — November 2
 
 Receipt request-ID repair **679/214cf19e → 680/892f9ef0** is source-converged. Canonical7/7 and mobile9/9 independent pushworkflowsSUCCESS. Mobile reviewed6c30bb34, tested3ba139ba and merged892f9ef0 share tree97fa919e;34successful/20conditional-skipped checks, CLEAN/ready/nooutstandingreviews. Reviewed full11447NodePASS/0FAIL/96SKIP and1591backendPASS/0FAIL; retained independent postmerge raw. Original real-client-ID/defaultadapter/SQL counterexample now200/oneprovider/onecompletedreservation; no deployed/provider-paid claim. [Exact closure](evidence/continuation-c023-source-closure-1102.json).

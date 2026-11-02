@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T20:49:05.652Z",
+  "capturedAt": "2026-11-02T20:55:17.352Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3771,6 +3771,56 @@
       "archiveSha256": "b130d59a8dbb0a38e179068209bf32469cfc5a635ebce32849d46684775acb97",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independent authoritative mergedmobile exactSHA Projectjob; originalCLI/tool failures not testfailures"
+    },
+    {
+      "rawFile": "receipt-replay-before-1102.log",
+      "rawBytes": 10902,
+      "rawSha256": "1d6b515ef1e59d2428c2a4d282aaccdeb394149bae338907a8dfcb18f7e3e6e1",
+      "archiveFile": "resume1102-receipt-replay-before-1102.log.gz",
+      "archiveBytes": 1358,
+      "archiveSha256": "9f5fba2fda50530f9f385862f90891e397818a81191de47b9b251debd3abc11b",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "2positivePASS/3replayFAIL; actualSQL/defaultadapter/handler controlledprovider11dispatches/1reservation"
+    },
+    {
+      "rawFile": "receipt-replay-after-1102.log",
+      "rawBytes": 7968,
+      "rawSha256": "5911b78b6de8bb8268274af61f7c1ec8b0175ab302b0a1c711d96d4f6e3ca306",
+      "archiveFile": "resume1102-receipt-replay-after-1102.log.gz",
+      "archiveBytes": 1155,
+      "archiveSha256": "cec36e659b55ce32e26696373adfa0f802fdfbd82c8b40982bde30c04cedde41",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact repairedsource/controlledfixtures;9focused or84DenoPASS/typecheck0/VTOownershiplimits; no live-provider result"
+    },
+    {
+      "rawFile": "receipt-replay-deno-1102.log",
+      "rawBytes": 25684,
+      "rawSha256": "2d32badc61e2cecb51267433ea1c86bcbac07ab0292bc579f9de86768e602616",
+      "archiveFile": "resume1102-receipt-replay-deno-1102.log.gz",
+      "archiveBytes": 3872,
+      "archiveSha256": "75c00834bc930fedad768e07b61bb0786d3e463fd88302c9d0d1b5a934054c74",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact repairedsource/controlledfixtures;9focused or84DenoPASS/typecheck0/VTOownershiplimits; no live-provider result"
+    },
+    {
+      "rawFile": "receipt-replay-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-receipt-replay-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact repairedsource/controlledfixtures;9focused or84DenoPASS/typecheck0/VTOownershiplimits; no live-provider result"
+    },
+    {
+      "rawFile": "receipt-replay-scope-1102.log",
+      "rawBytes": 1250,
+      "rawSha256": "429e69abc723af954ba001106ab6ea9fa62c45c074690a966afb534bda26c885",
+      "archiveFile": "resume1102-receipt-replay-scope-1102.log.gz",
+      "archiveBytes": 403,
+      "archiveSha256": "add6fd6297e74f321e4d660be96272e8f0c7d3c5c0a08c952ba329e594df3f26",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact repairedsource/controlledfixtures;9focused or84DenoPASS/typecheck0/VTOownershiplimits; no live-provider result"
     }
   ]
 }

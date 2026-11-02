@@ -450,13 +450,13 @@
   },
   {
     "feature": "Receipt/Purchase Intelligence import",
-    "sourceMerged": "560028ef3f5327989077b19ee6ccbba34f344927",
+    "sourceMerged": "C023 canonical214cf19e/mobile892f9ef0; F024reviewf8d7f61c/681unmerged",
     "candidateSource": "app/library.tsx1075flaggedentry -> /purchase-import -> usePurchaseImport/newSessionId80 -> purchaseImportClient -> purchase-import-extract/default reserve -> provider reservation RPC -> review/explicit Closetcommit",
     "backendDeploymentAndFlags": "Default-OFF in source; no checked-in EASenablement; current binary/dashboard/backendenablement NOTVERIFIED. No flagchange.",
-    "clientContractTests": "Actual client-ID function/defaultadapter/SQL:503beforeprovider; UUIDcontrol200; duplicate2dispatch/1reservation; ownreleasebypasseslimit1; foreignreleasefalse. Syntheticauth/consent/SDK/provider; realSQL.",
+    "clientContractTests": "Original opaque client generator/defaultadapter/SQL now200/oneprovider/onecompletedrow. F024before11dispatch/1row; repaired9focusedPASS/84backendPASS, mandatoryCIpending. Foreignactorreleasefalse; F025ownreleaseauthorityremainsopen.",
     "deviceVerified": "OUT OF SCOPE",
     "customerLive": "NOT VERIFIED",
-    "blockers": "C023/P2, F024/P2, F025/P2 source findings; canonical/mobile repair queue serialized",
+    "blockers": "F024/P2 canonical/mobileclosureinprogress;F025/P2sourceunrepaired;C023sourceCLOSED679/680",
     "finalIntegrationStatus": "FAIL — confirmed source integration/cost-control defects when feature is enabled; no deployed exploitation or activation claim",
     "sourceEvidence": "evidence/continuation-purchase-quota-findings-1102.json"
   }

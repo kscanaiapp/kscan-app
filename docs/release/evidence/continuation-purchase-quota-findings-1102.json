@@ -50,16 +50,24 @@
         "provider-quota-readonly-equivalence-1102.json"
       ],
       "runtimeLimits": "No real extraction, charge, customer mutation, runtime activation or deployed handler exploit performed. Receipt UI is default-OFF with no explicit checked-in EAS enablement; current binary/dashboard flag and endpoint enablement not verified. Existing source feature still has a concrete source integration/cost contract.",
-      "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
+      "mergeOrder": "AfterC023canonical679/mobile680 complete. F025 andB004remainqueued; no shared-file overlap.",
       "id": "B35-F-024",
       "priority": "P2",
-      "status": "CONFIRMED / QUEUED AFTER C023",
+      "status": "CANONICAL SOURCE REPAIRED / PR681 CI PENDING / MOBILE PROMOTION REQUIRED",
       "sourceLocation": "20260803020000_provider_request_security.sql:263-272 duplicate_replay; purchase-import-extract/handler.ts:138-144 discards reason; 275-281 dispatch gate",
       "contract": "An in-flight repeated extraction must not dispatch a second provider operation under one quota reservation.",
       "observed": "Two simultaneous same-request actual handler calls reach the controlled provider twice with one actual SQL reservation; expected one dispatch.",
       "rootCause": "Quota RPC returns allowed=true for duplicate_replay and the handler adapter drops the replay reason, interpreting reuse as a fresh dispatch grant.",
       "repairPlan": "Refuse in-flight duplicate dispatch with bounded retry response, keep original reservation untouched; regression proves one provider call/one reservation and original completion.",
-      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json"
+      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json",
+      "pr": 681,
+      "reviewedHead": "f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4",
+      "reviewedTree": "35ae1e6aa608318ebd313d9a81178350fc0e67f0",
+      "repair": "Default reserve adapter rejects duplicate_replay with429/positive retry delay and nullreservation; no dispatch and no settlement of originalrow; original C023UUID/fingerprint preserved",
+      "regression": "5new actualSQL/defaultadapter/handler tests: before2PASS/3FAIL, including11dispatches/1reservation; after9combinedPASS/0FAIL. Genuine nonbillable retry and rolling quota controls retained",
+      "focusedBackend": "84PASS/0FAIL after npmcacheinitialization",
+      "typeScript": "exit0",
+      "sourceGates": "5applicablecanonicalgates0;20crosspathfilescurrent;3VTOunownedNOTJUDGED;cleancommittedtree"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
