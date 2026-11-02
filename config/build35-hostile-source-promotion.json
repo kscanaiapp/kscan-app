@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+  "canonicalBackend": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -155,9 +155,9 @@
     },
     {
       "file": "supabase/functions/purchase-import-extract/handler.ts",
-      "sha256": "d1f39898b4b49bc5cfedac72aec7a8ada2e0e9fd39a2eca1946676cd15d8f270",
-      "source": "ded0ee8dfd814c6bcfc66a3167b723a0542acbaf",
-      "reason": "Exact prepared B35-C-002 consent repair source, PR649; owner-governed merge required"
+      "sha256": "91db9e717b92ba5d466aaa9a7e5dea8084bbd91782420b3ace1e97e4a8905d58",
+      "source": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
+      "reason": "Exact merged canonical PR679/C023 opaque-session quota UUID repair; preserve client request/response, session fingerprint and all activation/deployment gates. F024/F025 remain separate repairs."
     },
     {
       "file": "supabase/functions/scan-identify/scanImageProductMission.ts",
@@ -369,5 +369,15 @@
     "canonicalSource": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
     "previousMobileSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
     "scope": "One exact migration and SQL regression plus mobile authoritative mutation acknowledgment; all56 previous grants preserved. No account-deletion-cycle, provider, schema or runtime rollout change."
+  },
+  "receiptQuotaIdPromotion": {
+    "canonicalSource": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
+    "reviewedSource": "a1cf4b1535f92097189d51fb4573627eb943a8d7",
+    "sourceTree": "eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68",
+    "files": [
+      "supabase/functions/purchase-import-extract/handler.ts",
+      "__tests__/helpers/purchaseImportQuotaWorld.js",
+      "__tests__/purchaseImportDefaultQuotaAdapter.test.js"
+    ]
   }
 }
