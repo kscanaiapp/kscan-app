@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-10-31T16:07:24.565Z",
+  "capturedAt": "2026-11-02T12:39:00.539Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2621,6 +2621,76 @@
       "archiveSha256": "1faf61339424a7f74d93656edb984ae85da58b1196b5a20c21dde100747f31a0",
       "encoding": "UTF-8",
       "scope": "As classified in linked source/CI/probe records"
+    },
+    {
+      "rawFile": "ci-pr668-final-project-job-raw.log",
+      "rawBytes": 1967164,
+      "rawSha256": "af32c1d1218910e904b7570e96dc12cef8cc2bc90d3810ba3fc449cf4d2782c0",
+      "archiveFile": "resume1102-ci-pr668-final-project-job-raw.log.gz",
+      "archiveBytes": 517714,
+      "archiveSha256": "f6bf842992cad113fffef849045accb05f543630400ae8a6358834416934ffa3",
+      "encoding": "UTF-8",
+      "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
+    },
+    {
+      "rawFile": "profile-authority-staging.log",
+      "rawBytes": 464,
+      "rawSha256": "0e8019c18c15ed88c0da6207b35171e0f695f61b2a4bfcdb3e0d92ada4f25fa5",
+      "archiveFile": "resume1102-profile-authority-staging.log.gz",
+      "archiveBytes": 71,
+      "archiveSha256": "dd3525f385c14c63188c2d316f33a3b5df6345b47e673c7e1fb4ab7794cb1beb",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
+    },
+    {
+      "rawFile": "owned-table-authority-staging.log",
+      "rawBytes": 86,
+      "rawSha256": "dad624029be311a05edda239970b6f889413c9ad7bbca936f81ed864a231c0fb",
+      "archiveFile": "resume1102-owned-table-authority-staging.log.gz",
+      "archiveBytes": 65,
+      "archiveSha256": "b6c1b599c88994710f4876ecfdf4398e7fe71b46675c285d0d1bfe7955cabbb5",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
+    },
+    {
+      "rawFile": "saved-scan-state-before.log",
+      "rawBytes": 6464,
+      "rawSha256": "251c006dbb0bc1c7eb073af5e3448811950540fd18179ce4267491d399d8feb5",
+      "archiveFile": "resume1102-saved-scan-state-before.log.gz",
+      "archiveBytes": 990,
+      "archiveSha256": "753921510606296863e59f333e43af0c5adbc264107b5ed51df3cd8993015b83",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "EXPECTED FAIL before F017 repair"
+    },
+    {
+      "rawFile": "saved-scan-state-focused.log",
+      "rawBytes": 12388,
+      "rawSha256": "7c9a7b90936c5f849be4b57652bbfdc424d0a66bd3576d494a09c5da8a678e76",
+      "archiveFile": "resume1102-saved-scan-state-focused.log.gz",
+      "archiveBytes": 2992,
+      "archiveSha256": "121b03f88b10d9765c659ebda2c89d892e3460bb0f38976aa8ded278a9c543d0",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
+    },
+    {
+      "rawFile": "expired-jwt-staging-1102.log",
+      "rawBytes": 90,
+      "rawSha256": "40d8a1fcc9aa8f78cdec6add85f7caa30125c0b134bef5843a271ab02b96f863",
+      "archiveFile": "resume1102-expired-jwt-staging-1102.log.gz",
+      "archiveBytes": 88,
+      "archiveSha256": "4e0b5a20d80bf1b9dcbc6247924600f8299bd642f94f59bf90e3aa79dff85038",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial classifier wrongly required401; real403 with explicit expiry is denial, not authentication defect"
+    },
+    {
+      "rawFile": "stylechat-invalid-body-merged-1102.log",
+      "rawBytes": 460,
+      "rawSha256": "2feee170a91b6636e406ad42802521edbc06c5f57bb1e0f65639aae41929bfed",
+      "archiveFile": "resume1102-stylechat-invalid-body-merged-1102.log.gz",
+      "archiveBytes": 257,
+      "archiveSha256": "b256a91ae502940ddee207ecaceb1cb7b0c0ca656e242226070ea0da4b1cbeab",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
     }
   ]
 }

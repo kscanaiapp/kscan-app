@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-11-02T12:39:00.558Z",
+  "rawEvidence": "continuation-expired-jwt-initial-1102.json",
+  "observed": {
+    "explicitExpiry": true,
+    "http": 403
+  },
+  "verdict": "PASS",
+  "contract": "Naturally expired, previously valid token is explicitly denied; denial need not use401 rather than403.",
+  "correction": "Initial harness incorrectly required401 and stopped before21gateway probes. Original raw result retained. No product defect and no matrix failure inferred.",
+  "gatewayProbes": "NOT TESTED: execution stopped at an overly strict Auth control; fixture subsequently tag-verified deleted. Do not infer gateway PASS.",
+  "cleanupConfirmed": true,
+  "privateEncryptedStateRemoved": true
+}

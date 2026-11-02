@@ -1,0 +1,26 @@
+{
+  "sourceSha": "113a1895aac8af974b1aca18724f5286e9967237",
+  "canonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+  "reviewed": "ced4bb37f1d03719cf0ded0f442d2ae3bd98448a",
+  "testedMerge": "88fe08096d2e6812d16a0c6b8670103c2d1d698b",
+  "tree": "1661a045d7edffa4c8a8bc47ef8e5d17efb04e0b",
+  "counts": {
+    "node": {
+      "pass": 11364,
+      "fail": 0,
+      "skip": 96,
+      "total": 11460
+    },
+    "backend": {
+      "pass": 1590,
+      "fail": 0
+    }
+  },
+  "premerge": {
+    "success": 34,
+    "conditionalSkip": 20
+  },
+  "job": 124581650397,
+  "sourceIsRunnerProvisionerCommit": false,
+  "limitation": "Commit21505ad in the log header is the hosted runner provisioner identity, not application source. Actual checkout88fe0809 is tree-equal to reviewed ced4bb37 and merged113a1895."
+}

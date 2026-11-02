@@ -3,9 +3,10 @@
   "expiresAtUtc": "2026-10-31T17:01:41.0000000Z",
   "protection": "Windows DPAPI CurrentUser; no plaintext token or password persisted",
   "createdAtUtc": "2026-10-31T16:01:42.4079902Z",
-  "state": "PENDING NATURAL EXPIRY",
+  "state": "COMPLETED: Auth explicitly denied naturally expired JWT; synthetic identity tag-verified deleted November2; encrypted private state removed",
   "scope": "One empty tagged synthetic Staging identity, no provider/purchase/deletion worker call. Finish expired JWT probes then tag-verified cleanup.",
   "projectRef": "yzqjvdfgefveprobvvyw",
   "privateState": "C:/b35readback1030/staging-expiry-fixture.dpapi",
-  "baselineAuthStatus": 200
+  "baselineAuthStatus": 200,
+  "result": "continuation-expired-jwt-disposition-1102.json"
 }

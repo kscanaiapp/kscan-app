@@ -1,0 +1,170 @@
+{
+  "providerCalls": 0,
+  "limits": "Profiles table lifecycle authority only; does not certify every RPC, account restoration capability, provider or resource",
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "productionChanges": false,
+  "errors": [],
+  "capturedAt": "2026-10-31T16:21:25.4446198Z",
+  "records": [
+    {
+      "probe": "own synthetic profile read baseline",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-001",
+      "expected": "Exactly own profile row",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      }
+    },
+    {
+      "probe": "own synthetic profile read baseline",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-002",
+      "expected": "Exactly own profile row",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      }
+    },
+    {
+      "probe": "active owner cannot self-unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-003",
+      "expected": "Client JWT cannot rewrite server-owned account lifecycle, even though generic column UPDATE privilege exists",
+      "actual": {
+        "rows": 0,
+        "unchanged": true,
+        "http": 200,
+        "authoritativeStatus": "active"
+      }
+    },
+    {
+      "probe": "active foreign actor cannot unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-004",
+      "expected": "Foreign valid actor cannot mutate synthetic target lifecycle",
+      "actual": {
+        "unchanged": true,
+        "http": 200
+      }
+    },
+    {
+      "probe": "pending_deletion owner cannot self-unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-005",
+      "expected": "Client JWT cannot rewrite server-owned account lifecycle, even though generic column UPDATE privilege exists",
+      "actual": {
+        "rows": 0,
+        "unchanged": true,
+        "http": 200,
+        "authoritativeStatus": "pending_deletion"
+      }
+    },
+    {
+      "probe": "pending_deletion foreign actor cannot unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-006",
+      "expected": "Foreign valid actor cannot mutate synthetic target lifecycle",
+      "actual": {
+        "unchanged": true,
+        "http": 200
+      }
+    },
+    {
+      "probe": "locked owner cannot self-unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-007",
+      "expected": "Client JWT cannot rewrite server-owned account lifecycle, even though generic column UPDATE privilege exists",
+      "actual": {
+        "rows": 0,
+        "unchanged": true,
+        "http": 200,
+        "authoritativeStatus": "locked"
+      }
+    },
+    {
+      "probe": "locked foreign actor cannot unlock profile",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-008",
+      "expected": "Foreign valid actor cannot mutate synthetic target lifecycle",
+      "actual": {
+        "unchanged": true,
+        "http": 200
+      }
+    },
+    {
+      "probe": "caller-controlled authority headers",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-009",
+      "expected": "Forged role/user headers cannot reveal the other synthetic profile",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "broad caller filter remains RLS-scoped",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-010",
+      "expected": "A filter naming both synthetic identities returns only the verified caller",
+      "actual": {
+        "rows": 1,
+        "foreignReturned": false,
+        "http": 200
+      }
+    },
+    {
+      "probe": "Unicode homoglyph UUID input",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-011",
+      "expected": "Invalid UUID cannot be normalized into an authorized/foreign identifier or expose records",
+      "actual": {
+        "http": 400
+      }
+    },
+    {
+      "probe": "tag-verified synthetic cleanup",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-012",
+      "expected": "Delete only the run-tagged fixture identity",
+      "actual": {
+        "http": 200
+      }
+    },
+    {
+      "probe": "tag-verified synthetic cleanup",
+      "verdict": "PASS",
+      "runId": "d534eda0e6a94e3e890ba919f63f86eb",
+      "environment": "Real Staging PostgREST/Auth, tagged synthetic actors only",
+      "probeId": "B35-PROFILE-AUTH-013",
+      "expected": "Delete only the run-tagged fixture identity",
+      "actual": {
+        "http": 200
+      }
+    }
+  ]
+}

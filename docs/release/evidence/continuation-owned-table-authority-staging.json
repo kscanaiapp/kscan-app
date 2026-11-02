@@ -1,0 +1,277 @@
+{
+  "sourceComparison": "Current mobile113a1895/canonical5df63c; deployed Staging migration/policy readback is separate runtime authority",
+  "providerCalls": 0,
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "productionChanges": false,
+  "errors": [
+    {
+      "table": "inspiration_items",
+      "http": 400,
+      "disposition": "SETUP ERROR",
+      "response": "{\"code\":\"23514\",\"details\":null,\"hint\":null,\"message\":\"new row for relation \\\"inspiration_items\\\" violates check constraint \\\"inspiration_items_media_path_owner_contract\\\"\"}"
+    }
+  ],
+  "capturedAt": "2026-10-31T16:26:51.1374104Z",
+  "records": [
+    {
+      "expected": "Own fixture readable while active",
+      "probe": "owner read baseline",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      },
+      "probeId": "B35-OWNED-AUTH-001",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "No foreign rows",
+      "probe": "foreign read IDOR",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      },
+      "probeId": "B35-OWNED-AUTH-002",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Cannot rewrite synthetic owner",
+      "probe": "foreign update IDOR",
+      "actual": {
+        "ownerUnchanged": true,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-003",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "WITH CHECK prevents reassignment to foreign actor",
+      "probe": "owner cannot transfer scope",
+      "actual": {
+        "ownerUnchanged": true,
+        "http": 403
+      },
+      "probeId": "B35-OWNED-AUTH-004",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Cannot create under another synthetic owner",
+      "probe": "foreign insert IDOR",
+      "actual": {
+        "http": 403
+      },
+      "probeId": "B35-OWNED-AUTH-005",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Own fixture readable while active",
+      "probe": "owner read baseline",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      },
+      "probeId": "B35-OWNED-AUTH-006",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "No foreign rows",
+      "probe": "foreign read IDOR",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      },
+      "probeId": "B35-OWNED-AUTH-007",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Cannot rewrite synthetic owner",
+      "probe": "foreign update IDOR",
+      "actual": {
+        "ownerUnchanged": true,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-008",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "WITH CHECK prevents reassignment to foreign actor",
+      "probe": "owner cannot transfer scope",
+      "actual": {
+        "ownerUnchanged": true,
+        "http": 403
+      },
+      "probeId": "B35-OWNED-AUTH-009",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Cannot create under another synthetic owner",
+      "probe": "foreign insert IDOR",
+      "actual": {
+        "http": 403
+      },
+      "probeId": "B35-OWNED-AUTH-010",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive account has no private data access with still-valid JWT",
+      "probe": "pending_deletion private read",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      },
+      "probeId": "B35-OWNED-AUTH-011",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive caller cannot mutate fixture",
+      "probe": "pending_deletion private mutation",
+      "actual": {
+        "mutationApplied": false,
+        "rows": 0,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-012",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive account has no private data access with still-valid JWT",
+      "probe": "pending_deletion private read",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      },
+      "probeId": "B35-OWNED-AUTH-013",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "FAIL",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive caller cannot mutate fixture",
+      "probe": "pending_deletion private mutation",
+      "actual": {
+        "mutationApplied": true,
+        "rows": 1,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-014",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "FAIL",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive account has no private data access with still-valid JWT",
+      "probe": "locked private read",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      },
+      "probeId": "B35-OWNED-AUTH-015",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive caller cannot mutate fixture",
+      "probe": "locked private mutation",
+      "actual": {
+        "mutationApplied": false,
+        "rows": 0,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-016",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.looks",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive account has no private data access with still-valid JWT",
+      "probe": "locked private read",
+      "actual": {
+        "http": 200,
+        "rows": 1
+      },
+      "probeId": "B35-OWNED-AUTH-017",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "FAIL",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Inactive caller cannot mutate fixture",
+      "probe": "locked private mutation",
+      "actual": {
+        "mutationApplied": true,
+        "rows": 1,
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-018",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.saved_scans",
+      "verdict": "FAIL",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Delete only run-tagged fixture identity",
+      "probe": "tag-verified synthetic cleanup",
+      "actual": {
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-019",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.auth.users",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    },
+    {
+      "expected": "Delete only run-tagged fixture identity",
+      "probe": "tag-verified synthetic cleanup",
+      "actual": {
+        "http": 200
+      },
+      "probeId": "B35-OWNED-AUTH-020",
+      "runId": "70d2dffd97774e70b1777f0cca4f2a2d",
+      "boundary": "public.auth.users",
+      "verdict": "PASS",
+      "environment": "Real Staging PostgREST/Auth; tagged synthetic records only"
+    }
+  ]
+}
