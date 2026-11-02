@@ -1,0 +1,11 @@
+{
+  "recordedAt": "2026-11-02T13:05:28.760Z",
+  "source": "Owner messages November2 in active campaign",
+  "rules": [
+    "Finish in-progress items before additional work; one active implementation until closure.",
+    "Device certification is excluded, not a blocker or reason for FAIL; QA follows shared source completion.",
+    "Account-deletion gaps documented and deferred for Build35; do not expand that work.",
+    "Priorities include user-facing Live Camera VTO implementation, StyleChat promotion/probe closure, Packing state/failure paths, K+ purchase lifecycle/concurrency, usable Gemini funnel."
+  ],
+  "publicShareContract": "Previously approved: keep public links active until revoked or account purged; H014 is not reopened."
+}

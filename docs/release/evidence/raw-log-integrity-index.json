@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T12:39:00.539Z",
+  "capturedAt": "2026-11-02T13:05:28.688Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2691,6 +2691,96 @@
       "archiveSha256": "b256a91ae502940ddee207ecaceb1cb7b0c0ca656e242226070ea0da4b1cbeab",
       "encoding": "UTF-16LE BOM",
       "disposition": "Raw execution evidence; see matching structured artifact for scope and source"
+    },
+    {
+      "rawFile": "pr671-initial-project-raw.log",
+      "rawBytes": 1543134,
+      "rawSha256": "f24a44f598a2415dcdb657902938470d85f2f5d5df255cde7bddc55c7a5b6ad8",
+      "archiveFile": "resume1102-pr671-initial-project-raw.log.gz",
+      "archiveBytes": 434357,
+      "archiveSha256": "554486bfc9ae451a5271f4c7ea3c25c54661a4802f6a75562b8543e0e786ae67",
+      "encoding": "UTF-8",
+      "disposition": "Initial governance/fixture failure retained; see PR671 correction record"
+    },
+    {
+      "rawFile": "pr671-final-project-raw.log",
+      "rawBytes": 1969928,
+      "rawSha256": "e5847d1a3da280797976c93b6d88ae4c96ab8726abba9017f20cc4e51be9ca38",
+      "archiveFile": "resume1102-pr671-final-project-raw.log.gz",
+      "archiveBytes": 519968,
+      "archiveSha256": "9778c9453b0d2deb7ecd3f5ad7a41f02de2055c25591fa81e8851734bd65577e",
+      "encoding": "UTF-8",
+      "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "lifecycle-promotion-focused-initial.log",
+      "rawBytes": 21656,
+      "rawSha256": "ef8e44bdd47b875d7f49258be791d745eebb082d1eb70b79ac3818f195f0d87a",
+      "archiveFile": "resume1102-lifecycle-promotion-focused-initial.log.gz",
+      "archiveBytes": 4559,
+      "archiveSha256": "0af0c21e2855c33ec89cc06b49fcee04005f7ac3bd8543b1566fa40a48f84a02",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial governance/fixture failure retained; see PR671 correction record"
+    },
+    {
+      "rawFile": "lifecycle-promotion-focused-final.log",
+      "rawBytes": 22394,
+      "rawSha256": "9df7b4a0a9213613c2f3d0f0efae4aa808c32f5368e8c69084b3b6f2070bec1a",
+      "archiveFile": "resume1102-lifecycle-promotion-focused-final.log.gz",
+      "archiveBytes": 4700,
+      "archiveSha256": "5b6baf6f005ec1360ad6bdf3c5712f0ea594afef782d68f20607624201d1dfd9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial governance/fixture failure retained; see PR671 correction record"
+    },
+    {
+      "rawFile": "lifecycle-promotion-focused-corrected.log",
+      "rawBytes": 18348,
+      "rawSha256": "078368c725378b985f9570ee4e94485d5c46c570414bddbcac3c4e662a0ef74d",
+      "archiveFile": "resume1102-lifecycle-promotion-focused-corrected.log.gz",
+      "archiveBytes": 4134,
+      "archiveSha256": "0e8fb1721096f0006e92663481d8d9ce7fab3582ee69a6acc17250b0ef6e2e21",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "lifecycle-promotion-focused-exact-ledger.log",
+      "rawBytes": 24256,
+      "rawSha256": "ac3fe28ad9185007e918eb8fa8120581c391b18365b38836e28a8290e8c08eb2",
+      "archiveFile": "resume1102-lifecycle-promotion-focused-exact-ledger.log.gz",
+      "archiveBytes": 5448,
+      "archiveSha256": "573c477366486c364529500384f621ed1540c1219bfa9c99796623106958a02f",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "lifecycle-promotion-typescript.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-lifecycle-promotion-typescript.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "saved-scan-service-staging-1102.log",
+      "rawBytes": 76,
+      "rawSha256": "cda3178362cadc6819b5c5203d3a39d516719e51ebf63939f45afad5b030f02c",
+      "archiveFile": "resume1102-saved-scan-service-staging-1102.log.gz",
+      "archiveBytes": 80,
+      "archiveSha256": "9884aa1d4ee692709d829810d4d02e58add47a6f022cf7d05c23f551679c5ca1",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "saved-scan-restore-sql.log",
+      "rawBytes": 2896,
+      "rawSha256": "27d55ce129b7d95df0aaf943e3f71d3315ae7fe934a25f36e017d235c8c13b14",
+      "archiveFile": "resume1102-saved-scan-restore-sql.log.gz",
+      "archiveBytes": 784,
+      "archiveSha256": "0498b426d9d31ffce0b9ba59c6755aedca34a02f2418934874c01ec796bfbaa9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual output; populations/source identities documented separately"
     }
   ]
 }

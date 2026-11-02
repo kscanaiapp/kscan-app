@@ -29373,25 +29373,18 @@
     "endpoint": "function:stylechat-generate",
     "probe": "null body",
     "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
-    "actual": {
-      "status": "TypeError",
-      "providerCalls": 0,
-      "writes": 0,
-      "authReads": 1,
-      "receiptReads": 1,
-      "responseBody": ""
-    },
-    "verdict": "FAIL",
+    "actual": "Top-level null returns controlled HTTP400 Invalid request body; no provider dispatch/write. Same test covers five other non-object bodies and three parse/object controls.",
+    "verdict": "PASS",
     "probeId": "B35-MAND-1173",
     "feature": "stylechat-generate",
-    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+    "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
-    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-003",
-    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
+    "environment": "Exact merged source; actual Deno Edge handler under synthetic authenticated authority/current consent, no network permission",
+    "evidence": "continuation-pr671-source-closure.json; resume1102-stylechat-invalid-body-merged-1102.log.gz; supabase/functions/stylechat-generate/invalidBodyHostile.test.ts",
+    "executionMethod": "deno test --no-config --allow-read --allow-env --no-check supabase/functions/stylechat-generate/invalidBodyHostile.test.ts",
     "linkedDefectId": "B35-C-015",
-    "repairReference": null,
-    "reverificationStatus": "Reproduced, deferred P4; no provider dispatch/write",
+    "repairReference": "Backend670/14746; mobile671/5fbccd1dbcd727827890777b9fa2d2d98c462206",
+    "reverificationStatus": "SOURCE PASS; live deployed handler NOT TESTED / deployment separate",
     "coverageDisposition": {
       "category": 1,
       "label": "Executed actual-handler contract",
@@ -29401,7 +29394,21 @@
     "previousEvidence": {
       "verdict": "NOT TESTED",
       "evidence": null
-    }
+    },
+    "previousFailure": {
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-003",
+      "actual": {
+        "status": "TypeError",
+        "providerCalls": 0,
+        "writes": 0,
+        "authReads": 1,
+        "receiptReads": 1,
+        "responseBody": ""
+      },
+      "verdict": "FAIL"
+    },
+    "reason": "Canonical670 repaired actual-handler source; independent rerun at14746 passed; identical promoted source verified in merged671 by Git trees/byte-bound tests."
   },
   {
     "endpoint": "function:stylechat-generate",

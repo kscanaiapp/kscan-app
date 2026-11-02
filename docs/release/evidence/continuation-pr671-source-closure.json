@@ -1,0 +1,41 @@
+{
+  "capturedAt": "2026-11-02T13:05:28.694Z",
+  "pr": 671,
+  "merged": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
+  "canonical": "14746f6516399dafbe27ade713f392ba0fff7725",
+  "reviewedHead": "3159c952bdf446d345f352891dea139374164866",
+  "testedMerge": "00238f9b9e26adb18f011bb51795db0a68606e41",
+  "identicalGitTree": "d1708827ce53531d88330fcf376a16be438879fa",
+  "currentHeadPremerge": {
+    "success": 35,
+    "conditionalSkips": 19,
+    "fail": 0,
+    "pending": 0
+  },
+  "fullNode": {
+    "pass": 11375,
+    "fail": 0,
+    "skip": 96,
+    "total": 11471
+  },
+  "backend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "localFocused": {
+    "pass": 130,
+    "fail": 0,
+    "conditionalSkips": 2
+  },
+  "typeScript": 0,
+  "sourceGates": 7,
+  "initialFailure": "One mobile campaign fixture omitted the newly declared exact20261031162813 version; three assertions failed. Added only that version to the campaign list, retaining unknown/version/order/replay refusals. Initial raw log retained. No product failure or weakened gate inferred.",
+  "sourceRepairs": [
+    "B35-F-017/P2 now mobile source-converged",
+    "B35-C-015/P4 now mobile source-converged"
+  ],
+  "sourceOnly": true,
+  "postmergeBranchCi": "PENDING at this checkpoint; read final9workflows before closing all governance evidence",
+  "runtime": "No migration applied and no function deployed. Runtime rollout remains separately governed.",
+  "deviceCertification": "EXCLUDED by owner; not a FAIL/blocker for this source audit."
+}

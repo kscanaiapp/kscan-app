@@ -1,20 +1,19 @@
 {
-  "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
   "originalTotal": 3096,
   "counts": {
-    "PASS": 120,
-    "NOT TESTED": 2974,
-    "FAIL": 2
+    "PASS": 121,
+    "FAIL": 1,
+    "NOT TESTED": 2974
   },
   "nonApplicable": 307,
   "applicablePending": 2667,
   "separatePopulations": "Historical886, new47shared-handler, prior46K+Staging records are overlapping/distinct evidence, never added to matrix counts.",
   "limitation": "Exact malformed-body cells only; 24 records are not added as 24 independent matrix closures. Device certification excluded by owner, not PASS. Broad remaining locally executable coverage is still unfinished.",
   "knownFailingDefects": [
-    "B35-B-004/P4",
-    "B35-C-015/P4"
+    "B35-B-004/P4"
   ],
-  "additionalDefectOutsideMatrix": "B35-E-016/P3 weather cache, canonical PR667 merged; mobile PR668 pending. G013 remains repaired.",
+  "additionalDefectOutsideMatrix": "B35-E-016/P3 repaired/converged668; B35-E-018/P3 saved-scan false success confirmed, source repair in progress",
   "scopeExcludedDeviceCells": 4,
   "inScopeApplicablePending": 2663,
   "latestExecution": {
@@ -233,5 +232,11 @@
       }
     ],
     "limit": "The same exact record may support overlapping cells; source counts are not independent live/provider/device certifications."
+  },
+  "stylechatReconciliation": {
+    "cell": "B35-MAND-1173",
+    "before": "FAIL preserved",
+    "after": "PASS exact merged source, not deployed runtime",
+    "pr": 671
   }
 }

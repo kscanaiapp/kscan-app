@@ -70,3 +70,5 @@ Owner explicitly chose: "Keep public links active until revoked or the account i
 ## H015 — UNCONFIRMED — saved-scan zero-row mutation and tombstone re-save
 
 Source: services/savedScansCloud.ts existing-row save and softDeleteCloudSavedScan updates. Actual SQL policy history filters tombstone updates; client presently inspects error without authoritative returned rows. Existing test mocks undelete success. No complete client+database reproduction yet; not a confirmed P0-P3 or repair authorization shortcut. Next: controlled service-to-PostgREST or real SQL-adapter reproduction including backend denial/zero rows, positive acknowledged mutation, stale actor and duplicate delete. If confirmed, classify impact and repair smallest complete contract; do not assert that every scan save fails. No schema/API change proposed until proof.
+
+H015 disposition November2: CONFIRMED as B35-E-018/P3 after real client-service/SDK/Staging execution. Removed from unconfirmed hypothesis status; see repair ledger. Two failed probes are one persistence/transaction-honesty defect, not two invented findings.

@@ -1,0 +1,23 @@
+{
+  "id": "B35-E-018",
+  "priority": "P3",
+  "title": "Cloud saved-scan mutations can report success without an authoritative mutation",
+  "confirmed": true,
+  "supersedesHypothesis": "H015",
+  "sourceSha": "113a1895aac8af974b1aca18724f5286e9967237",
+  "testedSourceSha": "757ad089dc1d0d2bcbc292886fcd9d2f8e9df6fa",
+  "sourceEquivalence": "services/savedScansCloud.ts is unchanged between the authoritative mobile and tested promotion source",
+  "environment": "Real Staging PostgREST through actual Supabase JS SDK; synthetic cached-session provider; two tagged synthetic accounts cleaned",
+  "reproduce": "powershell -NoProfile -ExecutionPolicy Bypass -File run-saved-scan-service-staging-1102.ps1",
+  "observed": [
+    "Re-save of own tombstone returned ok:true while the authoritative row remained deleted",
+    "Soft-delete targeting another synthetic account's scan returned ok:true while the foreign row correctly remained active",
+    "Fresh own scan save returned ok:true and the authoritative inserted row existed"
+  ],
+  "rootCause": "Existing RLS UPDATE policy excludes tombstones, although explicit save attempts to clear deleted_at. Existing-row save and soft-delete inspect only error; PostgREST zero-row filtered updates have no error and were represented as successful.",
+  "locations": ["services/savedScansCloud.ts:333-341", "services/savedScansCloud.ts:441-447", "supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql:67"],
+  "impact": "Re-saved scans do not return in cloud history and denied/stale mutations may display success. No cross-account read/write or paid-provider dispatch demonstrated.",
+  "repairPlan": "Permit explicit own scan restoration under current active-account authority; require returned matching row acknowledgment before existing-row save or soft-delete success. Preserve foreign-owner refusal and no client hard-delete policy.",
+  "status": "CONFIRMED / SOURCE REPAIR IN PROGRESS",
+  "productionChanges": false
+}
