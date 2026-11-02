@@ -15,9 +15,64 @@
     "Fresh own scan save returned ok:true and the authoritative inserted row existed"
   ],
   "rootCause": "Existing RLS UPDATE policy excludes tombstones, although explicit save attempts to clear deleted_at. Existing-row save and soft-delete inspect only error; PostgREST zero-row filtered updates have no error and were represented as successful.",
-  "locations": ["services/savedScansCloud.ts:333-341", "services/savedScansCloud.ts:441-447", "supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql:67"],
+  "locations": [
+    "services/savedScansCloud.ts: upsertSavedScanRowForAttachment existing-row UPDATE acknowledgment",
+    "services/savedScansCloud.ts: softDeleteCloudSavedScan",
+    "supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql: saved_scans_update_own_active"
+  ],
   "impact": "Re-saved scans do not return in cloud history and denied/stale mutations may display success. No cross-account read/write or paid-provider dispatch demonstrated.",
   "repairPlan": "Permit explicit own scan restoration under current active-account authority; require returned matching row acknowledgment before existing-row save or soft-delete success. Preserve foreign-owner refusal and no client hard-delete policy.",
-  "status": "CONFIRMED / SOURCE REPAIR IN PROGRESS",
-  "productionChanges": false
+  "status": "CLOSED — SOURCE REPAIRED / MERGED / CI VERIFIED; runtime migration application separately governed",
+  "productionChanges": false,
+  "canonical": {
+    "pr": 672,
+    "sha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+    "reviewed": "a2bf68e762342277a68c5846f1ad93c32029eb78",
+    "tree": "37a23c3f7e3e33b849da4ad0369a4cfc0520cab0",
+    "premerge": "33SUCCESS/13conditional skips/0FAIL/0pending",
+    "postmerge": "7/7SUCCESS",
+    "node": {
+      "pass": 8553,
+      "fail": 0,
+      "skip": 65
+    },
+    "backend": {
+      "pass": 1575,
+      "fail": 0
+    }
+  },
+  "mobile": {
+    "pr": 673,
+    "sha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+    "reviewed": "ed8c941f0457c512245fe3c980d32914b1009d08",
+    "testedMerge": "8208761860455a6090a06a8109d09e53ca0a8fe1",
+    "tree": "65f8f6714a6e13a8ba51de9db3f4f3abdddae175",
+    "premerge": "35SUCCESS/19conditional skips/0FAIL/0pending",
+    "postmerge": "9/9SUCCESS",
+    "node": {
+      "pass": 11388,
+      "fail": 0,
+      "skip": 96,
+      "total": 11484
+    },
+    "backend": {
+      "pass": 1591,
+      "fail": 0
+    },
+    "focused": {
+      "pass": 182,
+      "conditionalSkips": 2
+    },
+    "related": {
+      "pass": 165,
+      "fail": 0
+    },
+    "typeScript": 0,
+    "sourceGates": 7
+  },
+  "reverification": "Before actual service+Staging:2contract failures of1defect, fresh-save positive and2cleanups. After client source:5PASS. Actual Postgres-engine SQL proves restoration after migration. PostgREST retest still has unapplied migration and honestly rejects a filtered restore; it does not certify live restoration availability.",
+  "mergeOrder": [
+    "672 canonical restoration policy",
+    "673 exact promotion plus client acknowledgment"
+  ]
 }

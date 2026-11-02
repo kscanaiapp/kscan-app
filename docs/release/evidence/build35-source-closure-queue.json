@@ -1,0 +1,39 @@
+{
+  "capturedAt": "2026-11-02T13:45:45.115Z",
+  "principle": "Close existing source work before additional expansion; one active implementation",
+  "closed": [
+    {
+      "item": "StyleChat repair promotion and failed-probe reconciliation",
+      "pr": 671,
+      "source": "5fbccd1d",
+      "status": "CLOSED / original null cell SOURCE PASS /9of9branchCI"
+    },
+    {
+      "item": "Saved-scan restrictive RLS mobile convergence",
+      "pr": 671,
+      "status": "CLOSED IN SOURCE; database application separately governed"
+    },
+    {
+      "item": "E018 saved-scan transaction honesty and explicit restoration",
+      "prs": [
+        672,
+        673
+      ],
+      "status": "CLOSED IN SOURCE; database application separately governed"
+    }
+  ],
+  "active": {
+    "item": "Usable Gemini consent-to-processing source funnel",
+    "next": "Trace mounted consent/re-consent UI, persisted current permission and actual transmitter handoff; reuse existing consent tests/SQL proof and add only missing source workflow/failure coverage."
+  },
+  "queued": [
+    "Packing Intelligence remaining end-to-end state and failure paths",
+    "K+ shared purchase/restore lifecycle and concurrency coverage",
+    "Live Camera VTO full source implementation and actual user-facing reach"
+  ],
+  "excluded": [
+    "Device certification and later QA do not cause source FAIL/blocker",
+    "Account-deletion-cycle repairs deferred by owner",
+    "Production rollout, EAS/binaries/store submission are not authorized"
+  ]
+}

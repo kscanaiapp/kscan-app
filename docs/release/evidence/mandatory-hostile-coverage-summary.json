@@ -1,5 +1,5 @@
 {
-  "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
+  "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
   "originalTotal": 3096,
   "counts": {
     "PASS": 121,
@@ -13,7 +13,7 @@
   "knownFailingDefects": [
     "B35-B-004/P4"
   ],
-  "additionalDefectOutsideMatrix": "B35-E-016/P3 repaired/converged668; B35-E-018/P3 saved-scan false success confirmed, source repair in progress",
+  "additionalDefectOutsideMatrix": "E016 and E018 both source repaired/converged; no confirmed P0-P3 remains source-open",
   "scopeExcludedDeviceCells": 4,
   "inScopeApplicablePending": 2663,
   "latestExecution": {

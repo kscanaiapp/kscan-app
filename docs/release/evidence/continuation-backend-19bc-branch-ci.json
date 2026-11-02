@@ -1,0 +1,58 @@
+{
+  "capturedAt": "2026-11-02T13:28:00Z",
+  "sourceSha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+  "reviewedHead": "a2bf68e762342277a68c5846f1ad93c32029eb78",
+  "identicalTree": "37a23c3f7e3e33b849da4ad0369a4cfc0520cab0",
+  "runs": [
+    {
+      "id": 41452273649,
+      "name": "Security - Code and Dependencies",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273649"
+    },
+    {
+      "id": 41452273505,
+      "name": "Dependency Reachability Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273505"
+    },
+    {
+      "id": 41452273640,
+      "name": "VTO Backend E2E",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273640"
+    },
+    {
+      "id": 41452273635,
+      "name": "K Scan Staging Security Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273635"
+    },
+    {
+      "id": 41452273788,
+      "name": "Security - ZAP Baseline Staging",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273788"
+    },
+    {
+      "id": 41452273784,
+      "name": "Security - ZAP API Staging",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273784"
+    },
+    {
+      "id": 41452273880,
+      "name": "Security - Promotion Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41452273880"
+    }
+  ],
+  "scope": "Source-only E018 backend repair; no migration application or function deployment"
+}

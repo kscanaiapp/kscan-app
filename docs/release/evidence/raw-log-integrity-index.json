@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T13:05:28.688Z",
+  "capturedAt": "2026-11-02T13:45:44.748Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2781,6 +2781,206 @@
       "archiveSha256": "0498b426d9d31ffce0b9ba59c6755aedca34a02f2418934874c01ec796bfbaa9",
       "encoding": "UTF-16LE BOM",
       "disposition": "Actual output; populations/source identities documented separately"
+    },
+    {
+      "rawFile": "pr672-project-raw.log",
+      "rawBytes": 1779627,
+      "rawSha256": "7d1d5b384ff4fc4c5172f92b8c2f4c07e096297966ebacebbf8d430ea1d4c0ec",
+      "archiveFile": "e018-pr672-project-raw.log.gz",
+      "archiveBytes": 436446,
+      "archiveSha256": "c8ee16a4e093d2d23f73f16c9b92eb8537321bf8803e7331d779ec1b929e6754",
+      "encoding": "UTF-8",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "pr673-project-raw.log",
+      "rawBytes": 1967083,
+      "rawSha256": "141066530e9a00af09b2324effe860c26e8446ba6d6b823fe2ebce181bac4d80",
+      "archiveFile": "e018-pr673-project-raw.log.gz",
+      "archiveBytes": 515489,
+      "archiveSha256": "b1bdf0f363e66fc3d5a2a6ad43163a8851cc4dff3679673e6173215dc05863eb",
+      "encoding": "UTF-8",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-restore-canonical-focused.log",
+      "rawBytes": 21600,
+      "rawSha256": "af058304e3f6ebe61899ecd10a5ce6e1a7e010d43643de4aee53852e7b820dea",
+      "archiveFile": "e018-saved-scan-restore-canonical-focused.log.gz",
+      "archiveBytes": 4679,
+      "archiveSha256": "001d7207fe1deedc1863ea278a423c54349bb5177dee4e80461f18b404a38e06",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-restore-canonical-declared-focused.log",
+      "rawBytes": 21586,
+      "rawSha256": "614b8d9e0e33ce88b1389a46eb46257cab0e468f68adbc6e8f759c8a3e42b684",
+      "archiveFile": "e018-saved-scan-restore-canonical-declared-focused.log.gz",
+      "archiveBytes": 4663,
+      "archiveSha256": "6c8aeef748f4a8d40229a2b6490f702b49e17e3edafeecca8b2f98ca9d52b071",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-restore-canonical-provenance.log",
+      "rawBytes": 668,
+      "rawSha256": "ef762559346aa57c1faf023fd246af90fffb0c59488eb39759d81bb1976024ef",
+      "archiveFile": "e018-saved-scan-restore-canonical-provenance.log.gz",
+      "archiveBytes": 294,
+      "archiveSha256": "45c44c82ed6129aaa1ae425a7b0509c0c83802b3b127df1cfb75fb88d18df726",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-restore-canonical-authority.log",
+      "rawBytes": 1146,
+      "rawSha256": "ab11196e6208930e6af9dee4d1314bd903011d04c098dee6df028852736301df",
+      "archiveFile": "e018-saved-scan-restore-canonical-authority.log.gz",
+      "archiveBytes": 459,
+      "archiveSha256": "565fe6b3247eb01893b6b08f5a2476efa1102ab66499f9f40b03d5258f51e6cb",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-ack-before.log",
+      "rawBytes": 8792,
+      "rawSha256": "b8a2f23f7e62f64415fe22a695f233ee7eac6da4773e3fa908ff6d9e9bbe53ae",
+      "archiveFile": "e018-saved-scan-ack-before.log.gz",
+      "archiveBytes": 1859,
+      "archiveSha256": "d2fba5fa7ef0d5141da5f092913b239f593dae01c5d76f489efa4578f7162654",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Before-fix regression / old acknowledgment mock refusal retained"
+    },
+    {
+      "rawFile": "saved-scan-ack-focused.log",
+      "rawBytes": 9448,
+      "rawSha256": "f8e299ce74a8d6574a46f8a9e338d80fe965bd9e14f038d513d802f47528bb9c",
+      "archiveFile": "e018-saved-scan-ack-focused.log.gz",
+      "archiveBytes": 2557,
+      "archiveSha256": "bd04f06a754986383b4a07b9c988a54057ac3ccf9d71c6bf43047e25bb262c5d",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-ack-related.log",
+      "rawBytes": 28006,
+      "rawSha256": "197a73d872536af3bb52f4f46e3c8bd77ba04e93c6b255e998e801e86fd03db9",
+      "archiveFile": "e018-saved-scan-ack-related.log.gz",
+      "archiveBytes": 6478,
+      "archiveSha256": "79173541e71b811d7d9775317fc36f1ebc64d05a281a651c28e674fd542a2a21",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Before-fix regression / old acknowledgment mock refusal retained"
+    },
+    {
+      "rawFile": "saved-scan-ack-related-corrected.log",
+      "rawBytes": 26644,
+      "rawSha256": "583679aef2291db187aee2357cb7270338c5547231acd4c67682828dd8343672",
+      "archiveFile": "e018-saved-scan-ack-related-corrected.log.gz",
+      "archiveBytes": 6134,
+      "archiveSha256": "d723f77520194915371d52412ec196a0b705a94caf09773feba12949bc5553c7",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-ack-typescript.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "e018-saved-scan-ack-typescript.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-promotion-focused.log",
+      "rawBytes": 32526,
+      "rawSha256": "f899546baddbddf04177f2a10d189b406794cf9012ae981326b0fd0bb3146830",
+      "archiveFile": "e018-saved-scan-final-promotion-focused.log.gz",
+      "archiveBytes": 7292,
+      "archiveSha256": "60e7261502fba18a258eca4838245899ab1125b39ef58f84c3e3f2c1b65292fc",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-service-staging-after-1102.log",
+      "rawBytes": 76,
+      "rawSha256": "811ba070f118452e8b760d9387694a9dda3b9fc328f900fd96ae97f8ace47026",
+      "archiveFile": "e018-saved-scan-service-staging-after-1102.log.gz",
+      "archiveBytes": 80,
+      "archiveSha256": "45db589513cf1cacec2546f641a8cc2bdcbbb93eb776654bfbe93dec0dc8a632",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-actual-diff.log",
+      "rawBytes": 1256,
+      "rawSha256": "23d6a81b5f369fa9a8f2658ab1ae97aa31c54ebf2f3d81f1b3ef669da098309f",
+      "archiveFile": "e018-saved-scan-final-actual-diff.log.gz",
+      "archiveBytes": 409,
+      "archiveSha256": "23c7f66a0dd101c1329433de8bf6d50093751c1a8a5e0447ffedcb4323ca5c6e",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-check-edge-function-parity.js.log",
+      "rawBytes": 4086,
+      "rawSha256": "0e8d57c998a3b4240d9795da1853e290655673c2bfd0b057f2d466f7d33e0470",
+      "archiveFile": "e018-saved-scan-final-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 1229,
+      "archiveSha256": "aa2b2b0859f91ee80cc65fd3a95f71da1b7d3a54c62de7a0231d66b405260c27",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-verify-backend-authority.js.log",
+      "rawBytes": 1164,
+      "rawSha256": "c18805fbaec9df8fb52bfe81be9fc3de1e5d40e745d11b7384d73c4c9a3d0ff9",
+      "archiveFile": "e018-saved-scan-final-verify-backend-authority.js.log.gz",
+      "archiveBytes": 476,
+      "archiveSha256": "fc80bfa6c2c8fd46c3bbd7ab8e04ef715d573cbb1f19a197a60bd655f50962cb",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-check-native-config-parity.js.log",
+      "rawBytes": 2852,
+      "rawSha256": "2fe226079055b34bfe67aee34b6ef3a4c7ec72636c28d95969111a85252eba7d",
+      "archiveFile": "e018-saved-scan-final-check-native-config-parity.js.log.gz",
+      "archiveBytes": 792,
+      "archiveSha256": "ab6c8819963179597d02dd32840a031c6ec42dc3cbef6435dd213f7c6cc72869",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-check-migration-provenance.js.log",
+      "rawBytes": 668,
+      "rawSha256": "ef762559346aa57c1faf023fd246af90fffb0c59488eb39759d81bb1976024ef",
+      "archiveFile": "e018-saved-scan-final-check-migration-provenance.js.log.gz",
+      "archiveBytes": 294,
+      "archiveSha256": "45c44c82ed6129aaa1ae425a7b0509c0c83802b3b127df1cfb75fb88d18df726",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-verify-migration-authority.js.log",
+      "rawBytes": 100,
+      "rawSha256": "bf0f71b044309472783b88d76596e3d880301f9cfdc778d4d75716ed44068ea0",
+      "archiveFile": "e018-saved-scan-final-verify-migration-authority.js.log.gz",
+      "archiveBytes": 97,
+      "archiveSha256": "82158c6bf2aba195b0350c185a73ed17d13c4eecf63cd42784ca91c27612d492",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "saved-scan-final-check-build35-release-profile.js.log",
+      "rawBytes": 508,
+      "rawSha256": "ef88eaa981697b6e55913ad13aed519f092b780654eaef46d10d1e2ed7edd565",
+      "archiveFile": "e018-saved-scan-final-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 176,
+      "archiveSha256": "6ea4380b37caba07cef763c6d22978fbae18f1f99fe389064fcf0168029a2b74",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "E018 exact-source validation; see structured closure for scope"
     }
   ]
 }

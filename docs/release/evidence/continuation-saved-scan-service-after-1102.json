@@ -1,0 +1,62 @@
+{
+  "capturedAt": "2026-11-02T13:13:34.993Z",
+  "environment": "Real Staging PostgREST via actual Supabase JS SDK; synthetic cached-session provider only",
+  "sourceSha": "2c604fcf60b5a7fb09a37f4208edc3c39fd071df",
+  "serviceMatchesMobile113a": false,
+  "sourceRepairClientOnly": true,
+  "migrationUnapplied": true,
+  "records": [
+    {
+      "probeId": "B35-SCAN-SERVICE-001",
+      "probe": "explicit re-save of own tombstone",
+      "expected": "Success only if authoritative row becomes active",
+      "actual": {
+        "serviceOk": false,
+        "rowStillDeleted": true,
+        "http": 200
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-SCAN-SERVICE-002",
+      "probe": "stale foreign cloud id cannot produce completed deletion",
+      "expected": "Foreign target denied and success not fabricated",
+      "actual": {
+        "serviceOk": false,
+        "foreignStillActive": true
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-SCAN-SERVICE-003",
+      "probe": "positive acknowledged fresh save baseline",
+      "expected": "Active own scan exists after successful insert",
+      "actual": {
+        "serviceOk": true,
+        "rows": 1
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-SCAN-SERVICE-004",
+      "probe": "tag-verified synthetic account cleanup",
+      "expected": "delete only run-tagged actor",
+      "actual": {
+        "http": 200
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-SCAN-SERVICE-005",
+      "probe": "tag-verified synthetic account cleanup",
+      "expected": "delete only run-tagged actor",
+      "actual": {
+        "http": 200
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "error": null,
+  "productionChanges": false,
+  "providerCalls": 0
+}
