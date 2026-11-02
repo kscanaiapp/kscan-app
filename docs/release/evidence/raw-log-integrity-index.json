@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T13:45:44.748Z",
+  "capturedAt": "2026-11-02T14:13:01.696Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -2981,6 +2981,26 @@
       "archiveSha256": "6ea4380b37caba07cef763c6d22978fbae18f1f99fe389064fcf0168029a2b74",
       "encoding": "UTF-16LE BOM",
       "disposition": "E018 exact-source validation; see structured closure for scope"
+    },
+    {
+      "rawFile": "gemini-funnel-initial-esm-setup.log",
+      "rawBytes": 2844,
+      "rawSha256": "95a1a7e418862abda4447579fc987b1820c0f17433053753a337b40ca2e56a1d",
+      "archiveFile": "resume1102-gemini-funnel-initial-esm-setup.log.gz",
+      "archiveBytes": 780,
+      "archiveSha256": "331cf13d4197fe80bcfb426e27996ee6b3e8dd31ed0d95b9309c5aea65150779",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Windows dynamic-import URL setup error; corrected with pathToFileURL, not a product finding"
+    },
+    {
+      "rawFile": "gemini-funnel-source-final-1102.log",
+      "rawBytes": 422,
+      "rawSha256": "7be13d43d3a269a3bd13bc48716c73de03fa8efae2ad98301d078453b8d8f040",
+      "archiveFile": "resume1102-gemini-funnel-source-final-1102.log.gz",
+      "archiveBytes": 226,
+      "archiveSha256": "faabc2b5ef29a0808968377fecc73235ea242b357793025ebecf16240af5294a",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "One composed Node test PASS; seven transition records PASS; no live provider call"
     }
   ]
 }

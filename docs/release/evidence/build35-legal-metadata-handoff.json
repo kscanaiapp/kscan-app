@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-10-30T16:13:15.477Z",
+  "updatedAt": "2026-11-02T14:13:01.698Z",
   "authorization": "Owner updates legal documents/language and website; factual metadata updates authorized. No binding legal text, store declaration, or live policy changed.",
-  "mobileSha": "d342087cef908e806c891d5f19264d4eeeb8d665",
-  "backendSha": "3bab42e47817da8a4941efc4a509afee73879015",
+  "mobileSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+  "backendSha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
   "facts": {
-    "gemini": "Images and text including Elise; revocable current-permission source merged; rollout pending, not operationally certified",
+    "gemini": "Current acknowledgment v2_google_gemini covers submitted photos and text including Elise. Mounted onboarding persists immutable receipt; mounted Privacy control supports durable permission withdrawal and re-consent with actor/revision fences. Composed actual-source/SQL/guard test passes seven transitions. No live provider, released binary, or deployed enforcement certification; permission migration and compatible rollout remain separately governed.",
     "scanner": "Local face/plate orchestration tested with injected native detectors; actual device accuracy/pixels/network not certified",
     "photoVto": "Person and garment images processed by AILabTools via RapidAPI; cannot inherit universal Scanner masking claims",
     "analytics": "PostHog explicit allowlisted events and SDK lifecycle/device data; source disables replay/UIautocapture/errors/GeoIP; project opt-ins differ; actor-failure repair merged; retention/deletion/legal basis still unverified",
@@ -22,7 +22,9 @@
     "third-party-processing-inventory.json",
     "continuation-revenuecat-store-readback.json",
     "posthog-readonly-configuration-ingestion.json",
-    "continuation-runtime-readback.json"
+    "continuation-runtime-readback.json",
+    "gemini-funnel-source-1102-results.json",
+    "../build35-gemini-source-funnel-verification.md"
   ],
   "launchUrlPrivacyCorrection": {
     "finding": "B35-G-013/P1",

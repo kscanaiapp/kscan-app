@@ -1,0 +1,72 @@
+{
+  "sourceSha": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+  "environment": "Offline actual mounted source components + service modules + real PostgreSQL engine SQL + actual guard; host/native/Auth transport stubbed",
+  "records": [
+    {
+      "probeId": "B35-GEMINI-FUNNEL-001",
+      "probe": "legacy acknowledgment requires current consent and cannot transfer",
+      "verdict": "PASS",
+      "actual": {
+        "denial": 403,
+        "dispatches": 0
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-002",
+      "probe": "failed legal write keeps consent UI retryable and prevents transfer",
+      "verdict": "PASS",
+      "actual": {
+        "dispatches": 0,
+        "visibleError": true
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-003",
+      "probe": "mounted consent checkboxes persist current receipt and permit authorized processing",
+      "verdict": "PASS",
+      "actual": {
+        "acceptedVersion": "v2_google_gemini",
+        "dispatches": 1,
+        "nextStep": "PermissionsStepV1"
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-004",
+      "probe": "visible Privacy control durably withdraws; next transfer denied",
+      "verdict": "PASS",
+      "actual": {
+        "dispatches": 1,
+        "permission": false
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-005",
+      "probe": "failed re-consent acknowledgment is not fabricated success",
+      "verdict": "PASS",
+      "actual": {
+        "dispatches": 1,
+        "retryVisible": true
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-006",
+      "probe": "retry/reread and explicit re-consent resume processing without rewriting receipts",
+      "verdict": "PASS",
+      "actual": {
+        "dispatches": 2,
+        "receiptsUnchanged": true
+      }
+    },
+    {
+      "probeId": "B35-GEMINI-FUNNEL-007",
+      "probe": "account change cannot reuse prior consent or write under foreign actor",
+      "verdict": "PASS",
+      "actual": {
+        "dispatches": 2,
+        "priorActorRpcDispatched": false
+      }
+    }
+  ],
+  "limits": "No live Gemini call, real JWT, remote migration, physical UI/device or provider quality certification. Dispatch counter represents permission boundary only.",
+  "productionChanges": false
+}

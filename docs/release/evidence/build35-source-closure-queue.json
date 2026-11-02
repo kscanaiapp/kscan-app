@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T13:45:45.115Z",
+  "capturedAt": "2026-11-02T14:13:01.701Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -20,14 +20,19 @@
         673
       ],
       "status": "CLOSED IN SOURCE; database application separately governed"
+    },
+    {
+      "item": "Usable Gemini consent-to-processing source funnel",
+      "source": "fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6",
+      "status": "CLOSED / seven composed source transitions PASS; rollout separate",
+      "evidence": "gemini-funnel-source-1102-results.json"
     }
   ],
   "active": {
-    "item": "Usable Gemini consent-to-processing source funnel",
-    "next": "Trace mounted consent/re-consent UI, persisted current permission and actual transmitter handoff; reuse existing consent tests/SQL proof and add only missing source workflow/failure coverage."
+    "item": "Packing Intelligence remaining end-to-end state and failure paths",
+    "next": "Compose actual Packing hook, actor-scoped store/cache, Edge transport parser and mounted UI. Cover supersession, account boundary, failure/retry and restoration without repeating the unchanged weather repair."
   },
   "queued": [
-    "Packing Intelligence remaining end-to-end state and failure paths",
     "K+ shared purchase/restore lifecycle and concurrency coverage",
     "Live Camera VTO full source implementation and actual user-facing reach"
   ],
