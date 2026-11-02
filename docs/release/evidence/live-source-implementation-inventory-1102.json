@@ -1,0 +1,48 @@
+{
+  "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "customerChain": [
+    {
+      "file": "components/home/HomeLuxuryTechV1.tsx",
+      "boundary": "Mounts TryOnStudioEntry in customer Home"
+    },
+    {
+      "file": "components/home/TryOnStudioEntry.tsx",
+      "boundary": "Existing permanent button navigates /try-on-studio; actual Home entry tested separately on both source platforms"
+    },
+    {
+      "file": "app/try-on-studio.tsx",
+      "boundary": "Authenticated actor-keyed Studio; useVtoStudio -> LiveVtoPilotProduct when build/remote/native/K+ gates affirm"
+    },
+    {
+      "file": "components/vto/TryItOnEntry.tsx",
+      "boundary": "Shared eligibility and live-capability router; shared host/sheet, no parallel camera flow"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "boundary": "Actual mode selector, panel, active hook; clean capture enters Photo review; provider generation remains explicit and consent-governed"
+    },
+    {
+      "file": "hooks/useVtoLiveSession.ts",
+      "boundary": "Permission, camera lease, epoch fencing, start/pause/resume/restart/capture/dispose, background teardown repair"
+    },
+    {
+      "file": "services/vto/vtoLiveSession.ts",
+      "boundary": "Native event normalization/reducer/controller and disposal"
+    },
+    {
+      "file": "modules/kscan-live-vto-native",
+      "boundary": "Both platform implementations, compiled resources, model checks, native camera/tracking/rendering/capture; exact subtree equality to prior successful CI"
+    }
+  ],
+  "assets": {
+    "consumer": "AS Colour Staple Tee5001 Black only; exact product URL/Black variant/source-image tuple; no merchant partnership inferred",
+    "research": "Two additional bundled governed research assets are not a generalized customer catalog",
+    "unsupported": "No garment substitution; Photo fallback for unregistered products",
+    "poseSha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+    "nativeSubtree": "3253f1785cdd50357f8f507d5268de30b606eae0"
+  },
+  "scope": "Full existing authored-garment source implementation and customer route, not arbitrary-product Live asset coverage or physical camera acceptance",
+  "runtime": "No changes; Nov2 dated read-only Live enabled/categorytop remains configuration evidence only. Repaired JS is source-only, no binary produced.",
+  "executedSource": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "codeEquivalence": "593ad0f3089a320942a1c780332b4c08deb043b4"
+}

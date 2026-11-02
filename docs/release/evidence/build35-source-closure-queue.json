@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T16:39:29.902Z",
+  "capturedAt": "2026-11-02T17:00:16.874Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -52,14 +52,19 @@
       "source": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
       "status": "CLOSED scoped source workflow/test-infrastructure;36composedPASS +46datedStagingrecords/6exactSQLblobs; optional5Docker cases remainexplicitunexecuted",
       "evidence": "../build35-kplus-shared-source-verification.md"
+    },
+    {
+      "item": "Live Camera VTO authored-garment implementation and actual user-facing source workflow",
+      "pr": 678,
+      "source": "560028ef3f5327989077b19ee6ccbba34f344927",
+      "status": "CLOSED scoped source work /40composedPASS /9of9mergedbranchCI",
+      "evidence": "../build35-live-source-workflow-verification.md",
+      "limits": "One real authoredcommercial garment; otherproductsPhoto fallback; no all-catalog or native-device claim"
     }
   ],
   "active": {
-    "item": "Live Camera VTO full source implementation and actual user-facing reach",
-    "finding": "B35-C-022/P3",
-    "pr": 678,
-    "repairHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
-    "next": "Finish corrected TypeScript and exact-head CI; merge only all mandatory checks/reviews green, verify independent postmerge CI/tree, finalize Live source integration evidence. Then original remaining software audit F,B,C,G,D,E,H,A."
+    "item": "Resume original remaining hostile audit — LaneF security/backend",
+    "next": "Reconcile exact existing evidence first, then execute highest-risk pending authorization/private-storage/input/provider/state probes on560028ef/canonical19bcc5d. No further deletion-cycle repairs; public-capability policy H014 closed by owner. Do not redo closed source work."
   },
   "queued": [],
   "excluded": [

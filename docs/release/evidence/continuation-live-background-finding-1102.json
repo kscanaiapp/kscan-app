@@ -1,7 +1,7 @@
 {
   "id": "B35-C-022",
   "priority": "P3",
-  "status": "SOURCE REPAIRED / PR678 OPEN / exact-head validation in progress",
+  "status": "CLOSED IN SOURCE / MERGED678 / independent9of9branchCI",
   "sourceSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
   "sourceLocation": "hooks/useVtoLiveSession.ts:134-207 enterLive permission continuation and exitLive; 117-132 cleanup covers unmount only; no AppState listener",
   "contract": "Live camera lifecycle must stop when its application is backgrounded; late permission/capture completions must not start or hand off an inactive session. Original campaign sections 14/28 and source lifecycle/privacy contract.",
@@ -31,5 +31,30 @@
     "relatedFail": 0,
     "correctedHookPass": 46
   },
-  "typecheck": "Initial TS2367 static property narrowing caught; fresh-read helper committed d64ec062, corrected typecheck pending. No assertions relaxed."
+  "typecheck": "Corrected exact source exit0; full current-head and independent postmerge ProjectChecksSUCCESS",
+  "reviewedHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "testedMerge": "68f596eb84be583bcc380e504e7f1ce4c21eab3f",
+  "merge": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "identicalGitTree": "593ad0f3089a320942a1c780332b4c08deb043b4",
+  "premerge": {
+    "successful": 34,
+    "conditionalSkips": 20,
+    "failures": 0,
+    "pending": 0,
+    "reviews": 0,
+    "inlineThreads": 0,
+    "mergeable": "CLEAN / ready"
+  },
+  "fullNode": {
+    "pass": 11441,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "postmergeCi": "continuation-mobile-5600-branch-ci.json",
+  "additionalSourceVerification": "2actualHome/anonymous +10actualconfig/eligibility/boundary cases PASS; no new defect. Source workflow cases total40; related/hook/full suites overlap, never added together.",
+  "initialCi": "053c code workflow cancelled on correction push; old promotion correctly refused with ciOperationalFailureCancelled/Project checks cancelled, exit3. Preserved raw; not a product vulnerability and no security gate suppressed."
 }

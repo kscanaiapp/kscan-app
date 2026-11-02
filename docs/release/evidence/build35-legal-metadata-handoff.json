@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-11-02T16:18:04.541Z",
+  "updatedAt": "2026-11-02T17:00:16.879Z",
   "authorization": "Owner updates legal documents/language and website; factual metadata updates authorized. No binding legal text, store declaration, or live policy changed.",
-  "mobileSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+  "mobileSha": "560028ef3f5327989077b19ee6ccbba34f344927",
   "backendSha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
   "facts": {
     "gemini": "Current acknowledgment v2_google_gemini covers submitted photos and text including Elise. Mounted onboarding persists immutable receipt; mounted Privacy control supports durable permission withdrawal and re-consent with actor/revision fences. Composed actual-source/SQL/guard test passes seven transitions. No live provider, released binary, or deployed enforcement certification; permission migration and compatible rollout remain separately governed.",
@@ -10,7 +10,8 @@
     "analytics": "PostHog explicit allowlisted events and SDK lifecycle/device data; source disables replay/UIautocapture/errors/GeoIP; project opt-ins differ; actor-failure repair merged; retention/deletion/legal basis still unverified",
     "subscriptions": "Current source renders SDK-provided prices/periods; source purchase/restore/hosted flows require canonical Supabase access and do not unlock from RevenueCat facts alone.36composedsourcecasesPASS; onlydatedUS0.99monthly/9.99annual/1monthintro readbackretained, not a freshcurrentstorepriceclaim. Native/storeQA separate. Raw nativeSDK receipt/transaction objects are reduced at app adapter; SDK/providerprocessing/retention remains governed by provider facts/terms, not a UUID-only processing claim.",
     "deletion": "Application lifecycle source tested; all-processor propagation/retention/backups not certified",
-    "packing": "Actor-bound device-local latest-plan cache30days, not backend trip-history feature"
+    "packing": "Actor-bound device-local latest-plan cache30days, not backend trip-history feature",
+    "liveCameraVto": "Native Live uses bundled on-device pose/garment assets; JavaScript receives high-level events and explicit local capture file references, not a camera stream. Supported commercialasset sourcecoverage is presently the ASColour5001Black garment. Explicit Continue toAIPhoto captures a clean person image, sanitizes metadata, and enters separate consent-governed Photo review; it does not establish face masking or automatic generation. No current-binary/device/Production privacy certification inferred."
   },
   "requiredOwnerReview": [
     "Policy/website reflect actual processor categories, triggers and content",
@@ -26,7 +27,9 @@
     "gemini-funnel-source-1102-results.json",
     "../build35-gemini-source-funnel-verification.md",
     "continuation-kplus-complete-source-1102.json",
-    "kplus-staging-source-reconciliation-1102.json"
+    "kplus-staging-source-reconciliation-1102.json",
+    "live-source-executed-probes-1102.json",
+    "live-source-implementation-inventory-1102.json"
   ],
   "launchUrlPrivacyCorrection": {
     "finding": "B35-G-013/P1",

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T16:39:29.900Z",
+  "capturedAt": "2026-11-02T17:00:17.573Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3501,6 +3501,86 @@
       "archiveSha256": "fde46e83fc161f9ec406d77691951c19b4273f12ffba3f4ff7f457a3478bc70f",
       "encoding": "UTF-16LE BOM",
       "disposition": "Retained actual October19nativeCIrun39278661849; native subtree3253f178 byte-identical to current; not a new build"
+    },
+    {
+      "rawFile": "pr678-project-final-raw.log",
+      "rawBytes": 5303694,
+      "rawSha256": "59cbb042527dda3fe332e29e06e5e2d5a129d4cee0c2bdf53f04cff3e6e68dd8",
+      "archiveFile": "resume1102-pr678-project-final-raw.log.gz",
+      "archiveBytes": 650798,
+      "archiveSha256": "ed8ee2f8032207dce66801a2a427631a1490c2ca48a4325c2b903922f367e028",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact-source local/CI evidence; controlled native/SDK boundary limitations apply. No new build/provider/device result."
+    },
+    {
+      "rawFile": "mobile-5600-project-postmerge-raw.log",
+      "rawBytes": 5295898,
+      "rawSha256": "362b857c33fdfd076db8fefb00db945d514310f36b473f837f470d08fa876934",
+      "archiveFile": "resume1102-mobile-5600-project-postmerge-raw.log.gz",
+      "archiveBytes": 649492,
+      "archiveSha256": "a716ae394d094a4cd0c11d79c476dafaaab50ef55dd23ef1135e04c15dba4bb9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent Projectjob125413808349/run41485262853 on560028ef:11441NodePASS/0FAIL/96SKIP,1591backendPASS/0FAIL"
+    },
+    {
+      "rawFile": "live-typescript-corrected-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-live-typescript-corrected-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact-source local/CI evidence; controlled native/SDK boundary limitations apply. No new build/provider/device result."
+    },
+    {
+      "rawFile": "live-home-source-1102.log",
+      "rawBytes": 612,
+      "rawSha256": "4f7278f921965e4f4d349b82e3c260dbf4e5b5edc7d46312003895a22c408bba",
+      "archiveFile": "resume1102-live-home-source-1102.log.gz",
+      "archiveBytes": 246,
+      "archiveSha256": "b5811c16e387f9e75b3caabc278480be6142ffeb6930ab7e2227cf2de198a3e8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact-source local/CI evidence; controlled native/SDK boundary limitations apply. No new build/provider/device result."
+    },
+    {
+      "rawFile": "live-remote-source-initial-1102.log",
+      "rawBytes": 9314,
+      "rawSha256": "09175e2774c6dd532eed64a18ed1d2e33695534c3441174e48267a39fa127126",
+      "archiveFile": "resume1102-live-remote-source-initial-1102.log.gz",
+      "archiveBytes": 1098,
+      "archiveSha256": "0dcd3f414b87eaea247716c5b05bdfa475df2d8b27470b906ce52b279cf0825c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Discarded exploratory fixture: source correctly waits for asynchronous nested availability; initial fixture did not settle that effect and accidentally registered two setup cases. Corrected before any claim; not a product finding"
+    },
+    {
+      "rawFile": "live-remote-source-final-1102.log",
+      "rawBytes": 1930,
+      "rawSha256": "e77e7750e73528f2c9109953556384fc9e3ac6381299643cacd1c2d866ab86dd",
+      "archiveFile": "resume1102-live-remote-source-final-1102.log.gz",
+      "archiveBytes": 460,
+      "archiveSha256": "49fb0275f179155bdcc00f1a874f4126cd9ef51c89e5841ef4a81a7fcc44778f",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact-source local/CI evidence; controlled native/SDK boundary limitations apply. No new build/provider/device result."
+    },
+    {
+      "rawFile": "live-initial-promotion-41482835342.log",
+      "rawBytes": 7658,
+      "rawSha256": "532a56af364ba29a15c7a4de3e1dc44ac6e1be627b77605350227ee8d8dc35f6",
+      "archiveFile": "resume1102-live-initial-promotion-41482835342.log.gz",
+      "archiveBytes": 1276,
+      "archiveSha256": "22f9dbb15b81b4d7637d18921bbded6044f79f1c59f7c44150f4ade62676fdd9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Old053c gate correctly refused cancelled Project checks; operational CI refusal retained, not a newly inferred security defect"
+    },
+    {
+      "rawFile": "live-initial-promotion-41483129292.log",
+      "rawBytes": 7706,
+      "rawSha256": "6c0538d7cfabfeed04ac5112e84cd1b972619975de2530bf0bf2128e06be45e1",
+      "archiveFile": "resume1102-live-initial-promotion-41483129292.log.gz",
+      "archiveBytes": 1302,
+      "archiveSha256": "624fd35b46be1e397ce016d35d1683eb44b433aa0e2699cd871898b55b47f3e6",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Old053c gate correctly refused cancelled Project checks; operational CI refusal retained, not a newly inferred security defect"
     }
   ]
 }

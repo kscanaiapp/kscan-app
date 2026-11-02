@@ -346,20 +346,22 @@
   },
   {
     "feature": "Live Camera VTO",
-    "sourceMerged": "Build35 fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6; canonical 19bcc5d699f878561aaef1f9bc914c998e2a0de7;all17confirmedP0-P3source repairs converged",
+    "sourceMerged": "560028ef3f5327989077b19ee6ccbba34f344927",
     "candidateSource": "Try-On Studio -> native capability/session -> modules/kscan-live-vto-native",
     "backendDeploymentAndFlags": "On-device camera/pose/rendering; source native/config checks only",
-    "clientContractTests": "Native registration/resource/model digests, bridge no-frame-upload, session/capability failure source tests",
-    "deviceVerified": "OUT OF SCOPE — explicitly excluded by owner; later QA, not a source-audit FAIL/blocker",
-    "customerLive": "Outside this source audit; no released-binary assertion",
-    "blockers": "See source-only closure queue; device certification and later QA are excluded, and runtime promotion is a separate governed stage.",
-    "finalIntegrationStatus": "NOT AUDITED — complete remaining source-level workflow/failure coverage before PASS",
+    "clientContractTests": "40boundedsourcecasesPASS (28mounted,2Home/anonymous,10actualconfig/availability);918relatedPASS/0FAIL/4SKIP; full11441NodePASS/96SKIP,1591backendPASS; populations overlap",
+    "deviceVerified": "OUT OF SCOPE — owner excludes device certification; no physical camera claim",
+    "customerLive": "NOT VERIFIED — no current published artifact binding; no EAS/binary generated",
+    "blockers": "No known openP0-P3 source implementation issue in this scoped workflow. Commercialassetcoverage is one real authoredgarment, not all fashion products; unsupportedproducts retainPhoto. Original matrix/remaining software audit incomplete. DeviceQA excluded, not sourceFAIL.",
+    "finalIntegrationStatus": "PASS — existing authored-garment user-facing source workflow; broader generic software/security cells remain explicitly separate",
     "sourceCoverage": "Bounded source/contracts tested as described; complete hostile execution chain NOT AUDITED where blocked/untraced",
     "auditContinuation": "3096original cells:121PASS/1FAIL/2974NOT TESTED;307explicitN/A,4device scope exclusions,2663in-scope applicable pending. Source/harness/live populations remain distinct.",
     "previousReleaseAssessment": {
       "status": "BLOCKED",
       "blockers": "No supported physical iOS/Android execution, camera revocation/orientation/background/frame-budget verification"
-    }
+    },
+    "clientIntegrated": "Actual Home permanent entry -> /try-on-studio -> realStudio model/hook -> authoredproduct -> sharedTryItOnEntry/host/sheet -> selector/panel/nativeview/controller; exact registeredproduct and sourceimage/Blackvariant, currentK+gate and permission required",
+    "sourceEvidence": "../build35-live-source-workflow-verification.md"
   },
   {
     "feature": "Account deletion / restoration",
