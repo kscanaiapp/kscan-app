@@ -5,5 +5,19 @@
   "queued": "D021/P5 test-only SQL stdin transport, separate PR after D009closure",
   "scope": "Test infrastructure only. No app payment/auth/entitlement API, database schema, price, RevenueCat project or native/store behavior changes.",
   "priorEvidence": "46actualtaggedStagingauthority/concurrency records retained; source-equivalence check pending. Not native purchases or RevenueCat/signed-webhook calls.",
-  "environment": "DockerCLI29.6.2present; Linux engine namedpipe unavailable onNov2. Optional5container cases remain explicit skips, never relabeledPASS."
+  "environment": "DockerCLI29.6.2present; Linux engine namedpipe unavailable onNov2. Optional5container cases remain explicit skips, never relabeledPASS.",
+  "d009": {
+    "status": "TEST SOURCE REPAIRED / PR676 OPEN / current-headCIpending",
+    "reviewedHead": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+    "reviewedTree": "91c76f8df49b79eb14bf99dfb32702e8c14bce94",
+    "repair": "Only two expired fixture starts use new now-minus2days boundary; old/newproviderobservations unchanged. Actual constructors/callarguments checked by4alwaysonregressions with negative oldfixturecontrol.",
+    "local": {
+      "focusedPass": 4,
+      "focusedSkip": 5,
+      "relatedPass": 33,
+      "relatedSkip": 32,
+      "fail": 0
+    },
+    "limits": "No actual optionalDockerinterleaving executed. Dockerengineunavailable andD021stdinrunneropen; no runtimepayment/API/schema/appchange."
+  }
 }

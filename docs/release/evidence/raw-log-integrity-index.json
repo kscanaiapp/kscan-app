@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T15:11:05.456Z",
+  "capturedAt": "2026-11-02T15:20:38.968Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3241,6 +3241,26 @@
       "archiveSha256": "23afecf45a5bea5c9c0383ede694d39223c2a9308bf19bc90315b9f927287973",
       "encoding": "UTF-16LE BOM",
       "disposition": "Confirmed test-only stdin failure using actual extracted source and real child process; no Docker/DB/provider operation"
+    },
+    {
+      "rawFile": "kplus-fixture-validity-after-1102.log",
+      "rawBytes": 2878,
+      "rawSha256": "9171911b65f8553ccbfe617c81b7a5d1cd37a0466bbf8e468fa49a734cc04a97",
+      "archiveFile": "resume1102-kplus-fixture-validity-after-1102.log.gz",
+      "archiveBytes": 745,
+      "archiveSha256": "ef4f706acc37d272c0ae9fa3c378a2c46249233f7399bc0f003793a5c3dffc71",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-fixture/related tests only;4newPASS,5optionalDBskips; related33PASS/32explicitDBskips; no real purchase/DBconcurrency certification"
+    },
+    {
+      "rawFile": "kplus-fixture-related-1102.log",
+      "rawBytes": 17330,
+      "rawSha256": "0490113a8617e2f0007f3d58ea6d4715e61b86e89585ce0d38ff2e52c8b22229",
+      "archiveFile": "resume1102-kplus-fixture-related-1102.log.gz",
+      "archiveBytes": 3057,
+      "archiveSha256": "f9793b85b30d50b9e62f0040e3d41477b1a4acb7f17e81a49dceaaf039642047",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-fixture/related tests only;4newPASS,5optionalDBskips; related33PASS/32explicitDBskips; no real purchase/DBconcurrency certification"
     }
   ]
 }
