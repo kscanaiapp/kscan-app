@@ -53,7 +53,7 @@
       "mergeOrder": "AfterC023canonical679/mobile680 complete. F025 andB004remainqueued; no shared-file overlap.",
       "id": "B35-F-024",
       "priority": "P2",
-      "status": "CANONICAL SOURCE REPAIRED / PR681 CI PENDING / MOBILE PROMOTION REQUIRED",
+      "status": "CANONICAL MERGED / 7/7 independent pushworkflows SUCCESS / MOBILE PROMOTION PENDING",
       "sourceLocation": "20260803020000_provider_request_security.sql:263-272 duplicate_replay; purchase-import-extract/handler.ts:138-144 discards reason; 275-281 dispatch gate",
       "contract": "An in-flight repeated extraction must not dispatch a second provider operation under one quota reservation.",
       "observed": "Two simultaneous same-request actual handler calls reach the controlled provider twice with one actual SQL reservation; expected one dispatch.",
@@ -67,7 +67,13 @@
       "regression": "5new actualSQL/defaultadapter/handler tests: before2PASS/3FAIL, including11dispatches/1reservation; after9combinedPASS/0FAIL. Genuine nonbillable retry and rolling quota controls retained",
       "focusedBackend": "84PASS/0FAIL after npmcacheinitialization",
       "typeScript": "exit0",
-      "sourceGates": "5applicablecanonicalgates0;20crosspathfilescurrent;3VTOunownedNOTJUDGED;cleancommittedtree"
+      "sourceGates": "5applicablecanonicalgates0;20crosspathfilescurrent;3VTOunownedNOTJUDGED;cleancommittedtree",
+      "canonicalMerge": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+      "canonicalPostMergeEvidence": "continuation-backend-26d5-branch-ci.json",
+      "closureEvidence": "continuation-owner-handoff-state-1102.json",
+      "reviewedFullSuite": "32success/14conditionalSKIP;8562NodePASS/0FAIL/65SKIP;1575backendPASS/0FAIL",
+      "mobileWorktree": "C:/b35receiptreplaymobile1102",
+      "mobileState": "CLEAN / NO SOURCE EDIT / NO PR / prepared script NOT EXECUTED"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
@@ -93,5 +99,5 @@
     }
   ],
   "currentSource": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
-  "currentBackend": "214cf19efffce9b4f410b58075d4fc3c36c58bf1"
+  "currentBackend": "26d5fae291ffcdbb1a56e312524013c6939ab152"
 }

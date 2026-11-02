@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T20:55:17.352Z",
+  "capturedAt": "2026-11-02T21:09:08.172Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3821,6 +3821,26 @@
       "archiveSha256": "add6fd6297e74f321e4d660be96272e8f0c7d3c5c0a08c952ba329e594df3f26",
       "encoding": "UTF-16LE BOM",
       "disposition": "Exact repairedsource/controlledfixtures;9focused or84DenoPASS/typecheck0/VTOownershiplimits; no live-provider result"
+    },
+    {
+      "rawFile": "pr681-reviewed-project-raw.log",
+      "rawBytes": 4868176,
+      "rawSha256": "5451fe8a7ed8db1091311cbbcc7eb92ca5f0cc8128cedb11567648fe98354e15",
+      "archiveFile": "resume1102-pr681-reviewed-project-raw.log.gz",
+      "archiveBytes": 545054,
+      "archiveSha256": "d374d14b6103a84ea647d8d8ad35deaa552d261540c00e51e6fd8d1ec8729d11",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual reviewed or independent merged canonical681Projectjob;8562NodePASS/0FAIL/65SKIP and1575DenoPASS/0FAIL. Sourceonly,no provider/rolloutclaim"
+    },
+    {
+      "rawFile": "backend-26d5-project-postmerge-raw.log",
+      "rawBytes": 4953726,
+      "rawSha256": "f2234ce379effdc60a9c9419334750eab453a304ee2a541dd30d30884f59e926",
+      "archiveFile": "resume1102-backend-26d5-project-postmerge-raw.log.gz",
+      "archiveBytes": 553982,
+      "archiveSha256": "f516c7a9bebceee3672b815f60a8c5e4dc1ccba7fc20a8357a626d111f50a6d7",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual reviewed or independent merged canonical681Projectjob;8562NodePASS/0FAIL/65SKIP and1575DenoPASS/0FAIL. Sourceonly,no provider/rolloutclaim"
     }
   ]
 }

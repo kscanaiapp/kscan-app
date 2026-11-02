@@ -1,3 +1,5 @@
+> Current November2 handoff: start with [owner handoff](../build35-owner-handoff-2026-11-02.md), [parallel task board](../build35-parallel-agent-task-board-2026-11-02.md) and continuation-owner-handoff-state-1102.json. Currentmobile892f/backend26d5. 389losslessarchivesverified. Older preparedcandidate/aggregate descriptions below are historical.
+
 # Build35 evidence index
 
 Start with ../build35-full-hostile-audit-report.md and ../build35-campaign-checkpoint.md. Source/test/runtime states are distinct. final-source-state.json records prepared candidate a376f2f7; it is unmerged. Mandatory3096 cells and bounded executed records are separate denominators.

@@ -1,0 +1,65 @@
+{
+  "capturedAt": "2026-11-02T21:09:08.172Z",
+  "purpose": "Owner requested full handoff and parallel testing while waiting for usage reset; no new runtime source edits after681merge",
+  "mobile": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+  "backend": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+  "mobileCI": "9/9SUCCESS;11447NodePASS/0FAIL/96SKIP;1591backendPASS/0FAIL",
+  "backendReviewedCI": "32success/14conditionalSKIP;8562NodePASS/0FAIL/65SKIP;1575backendPASS/0FAIL",
+  "backendPostMerge": "7/7 independent pushworkflows SUCCESS",
+  "backendPostMergeProject": "125549042756/run41524621274:8562NodePASS/0FAIL/65SKIP;1575backendPASS/0FAIL;actualrawretained",
+  "findings": {
+    "confirmedP0P3": 23,
+    "sourceClosed": 21,
+    "closureOpen": 2,
+    "byPriority": {
+      "P0": 0,
+      "P1": 5,
+      "P2": 7,
+      "P3": 11
+    }
+  },
+  "active": {
+    "finding": "B35-F-024",
+    "pr": 681,
+    "canonicalMerged": true,
+    "canonicalMerge": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+    "reviewed": "f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4",
+    "testedMerge": "c344af2de6559c623429fe775d567531c4984de0",
+    "tree": "35ae1e6aa608318ebd313d9a81178350fc0e67f0",
+    "mobileWorktree": "C:/b35receiptreplaymobile1102",
+    "mobileBase": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+    "mobileStatus": "CLEAN / NO SOURCE EDIT / NO PR / prepared script NOT EXECUTED"
+  },
+  "queued": [
+    "B35-F-025/P2 trusted quota settlement; no source edits/migration",
+    "B35-B-004/P4 owner-authorized Scanner invalid body guard; no source edits"
+  ],
+  "deviceCertification": "EXCLUDED; no source FAIL/blocker",
+  "accountDeletionCycle": "Owner DEFERRED; documentation only",
+  "publicSharingPolicy": "H014 CLOSED/NOTDEFECT:retain until revoke or purge",
+  "notPerformed": [
+    "Production migration/deploy/flag/secret modification",
+    "EAS/release binary/store submission",
+    "Pricing/realpurchase/refund",
+    "Sponsorship activation/customerdata mutation"
+  ],
+  "originalMatrix": {
+    "total": 3096,
+    "verdicts": {
+      "PASS": 136,
+      "NOT TESTED": 2959,
+      "FAIL": 1
+    },
+    "notTestedDispositions": {
+      "2": 318,
+      "3": 2356,
+      "4": 272,
+      "5": 8,
+      "6": 4,
+      "7": 1
+    },
+    "reportedApplicablePending": 2637,
+    "scopeNote": "2637includes1oldartifact row: reassignlaterQA;4device excluded;318N/A. Countsareinventory notdefects. No newPASSfromsuitecounts."
+  },
+  "archivesVerified": 389
+}

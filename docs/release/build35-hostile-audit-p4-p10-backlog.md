@@ -1,3 +1,5 @@
+> November2 owner update: B35-B-004/P4 Scanner null-body repair is explicitly AUTHORIZED and queued after F024/F025 source closure. The older owner-scope deferral below is historical. No Scanner source repair has yet been made. See current handoff.
+
 ## November2 current lower-priority disposition
 
 D009/P5 andD021/P5 are SOURCE CLOSED in676and677; historical backlog descriptions below retain their original dates and are superseded. Protected Scanner B004/P4 remains documented and outside safe-P4authorization. No new customer entitlement/payment defect was demonstrated by36composedK+sourcecases.
