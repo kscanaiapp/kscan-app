@@ -1,0 +1,21 @@
+# K+ shared source workflow verification — November2
+
+Current mobile **046c0f359c186365a45a0d2a06a02fa44a7395ca**; backend **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. Existing K+ source-verification work remains active until D021 SQL-runner repair and retained concurrency evidence reconciliation close. No new customer payment/entitlement defect was demonstrated in the composed cases.
+
+## Completed source composition
+
+The final [26-case run](evidence/resume1102-kplus-shared-and-sheet-final-1102.log.gz) passes all cases, zero failures/skips. Sixteen cases compose the actual production exported commerce wiring, RevenueCat native adapter, canonical Supabase RPC reader, entitlement store and paywall model. Ten cases mount the actual existing-user MembershipSheet, account-keyed MembershipStep, actual presentation parts and both real hooks over that same chain. iOS and Android source branches both execute. Boundary fixtures supply SDK/native-host/session/RPC responses and a synthetic available-capability state; no current server capability or provider billing certification is inferred.
+
+Covered: provider success/stale entitlements cannot grant K+ without canonical access; authoritative success reveals active UI; purchase/restore overlap and synchronous repeated taps dispatch once; store cancellation stays cancellation; failed401cannotgrantaccess; restored ownership/empty restore remain distinct; actor change discards old purchase completion; actual sheet remounts by account and does not display prior account success. Synthetic SDK-provided price strings render, demonstrating source binding to provider labels rather than legacy hardcoded prices. They are not actual current prices. Closing/continuing is tested only after authoritative active state. No real charge, refund, store sandbox, network RevenueCat call, remote DB mutation or device/binary verification.
+
+Reproduction: set B35_AUDIT_SOURCE_ROOT to a checkout of the tested source with committed dependencies and B35_AUDIT_OUTPUT_DIR to a disposable output directory; run node --test for evidence/kplus-shared-source-1102.test.cjs and evidence/kplus-mounted-source-1102.test.cjs. Reviewed0e622 and merged046c share exacttree91c76f8d. Source result records retain reviewedSHA. [Shared16records](evidence/kplus-shared-source-1102-results.json); [mounted10records](evidence/kplus-mounted-source-1102-results.json).
+
+An initial UI fixture mislabeled two provider-success cases as cancellation. That initial8case population is excluded from final claims; raw log and initial script are retained. The corrected fixture injects the actual SDK cancellation rejection and explicitly asserts USER_CANCELLED. Final26cases are the authoritative result; intermediate24/8/10/16case populations overlap and are never summed. This was a test-fixture correction, not a product finding.
+
+## D009/P5 completed
+
+[PR676](https://github.com/kscanaiapp/kscan-app/pull/676) fixes the two known expired-period test fixtures by separating historical period start from provider observation time. Four new always-on tests evaluate actual source constructors/call arguments and include the original-invalid-period negative control. Existing concurrency, grants and expiry assertions remain intact. All35current-headchecks successful plus20conditional skips before merge; independent9/9branchworkflowsSUCCESS. Full11409NodePASS/0FAIL/96SKIP and1591backendPASS/0FAIL. Reviewed0e622, tested d6282221ee95146f0a208981c18f264b28a33497 and merged046c share tree91c76f8d. Related33PASS/32explicitDBskips are not a live concurrency result.
+
+## Remaining within this work item
+
+D021/P5 optional runner uses unsupported async execFile input and never delivers SQL/EOF. Actual-source/real-child failure is retained; fix separately after676closure, now complete. Docker CLI exists but its Linux-engine pipe is absent; the optional five container cases remain NOT TESTED/skipped. [46priorrealStagingrecords](evidence/continuation-kplus-bounded-coverage.json) must be reconciled against exact unchanged K+SQL before reuse; they exercised normalized provider facts, not store purchases/RevenueCat HTTP/signed webhook callbacks. No payment runtime code is being changed to clear test infrastructure. Broader mandatory security/provider audit coverage remains explicitly separate, not implicitly PASS.

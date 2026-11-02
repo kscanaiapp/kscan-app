@@ -1,13 +1,13 @@
 {
   "sourceSha": "0e3208f8d64605799ebfae70c0183f4383becb2e",
   "backendSha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
-  "active": "D009/P5 known expired-period fixture correction first",
+  "active": "D021/P5 test SQL stdin transport; implement only nowD009fullclosurecomplete",
   "queued": "D021/P5 test-only SQL stdin transport, separate PR after D009closure",
   "scope": "Test infrastructure only. No app payment/auth/entitlement API, database schema, price, RevenueCat project or native/store behavior changes.",
   "priorEvidence": "46actualtaggedStagingauthority/concurrency records retained; source-equivalence check pending. Not native purchases or RevenueCat/signed-webhook calls.",
   "environment": "DockerCLI29.6.2present; Linux engine namedpipe unavailable onNov2. Optional5container cases remain explicit skips, never relabeledPASS.",
   "d009": {
-    "status": "TEST SOURCE REPAIRED / PR676 OPEN / current-headCIpending",
+    "status": "CLOSED IN TEST SOURCE / MERGED676 /9of9postmergeworkflowSUCCESS",
     "reviewedHead": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
     "reviewedTree": "91c76f8df49b79eb14bf99dfb32702e8c14bce94",
     "repair": "Only two expired fixture starts use new now-minus2days boundary; old/newproviderobservations unchanged. Actual constructors/callarguments checked by4alwaysonregressions with negative oldfixturecontrol.",
@@ -18,6 +18,25 @@
       "relatedSkip": 32,
       "fail": 0
     },
-    "limits": "No actual optionalDockerinterleaving executed. Dockerengineunavailable andD021stdinrunneropen; no runtimepayment/API/schema/appchange."
+    "limits": "No actual optionalDockerinterleaving executed. Dockerengineunavailable andD021stdinrunneropen; no runtimepayment/API/schema/appchange.",
+    "merge": "046c0f359c186365a45a0d2a06a02fa44a7395ca",
+    "testedMerge": "d6282221ee95146f0a208981c18f264b28a33497",
+    "identicalGitTree": "91c76f8df49b79eb14bf99dfb32702e8c14bce94",
+    "premerge": {
+      "success": 35,
+      "conditionalSkips": 20,
+      "fail": 0,
+      "pending": 0
+    },
+    "fullNode": {
+      "pass": 11409,
+      "fail": 0,
+      "skip": 96
+    },
+    "fullBackend": {
+      "pass": 1591,
+      "fail": 0
+    },
+    "postmergeEvidence": "continuation-mobile-046c-branch-ci.json"
   }
 }

@@ -1,0 +1,131 @@
+{
+  "records": [
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-purchase",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 1
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-restore",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "closed": 1
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-provider-only",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-cancel",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "USER_CANCELLED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-purchase",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 1
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-restore",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "closed": 1
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-provider-only",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-cancel",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "USER_CANCELLED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-actor-switch",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual account-keyed membership sheet, shared service/native adapter/reader/store/model with controlled boundary fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "closed": 0
+      }
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-actor-switch",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Actual account-keyed membership sheet, shared service/native adapter/reader/store/model with controlled boundary fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "closed": 0
+      }
+    }
+  ],
+  "limits": "Source fallback paywall mechanics only; synthetic store labels and available-capability fixture are not current store pricing or runtime capability activation. No real purchase/device/provider certification."
+}

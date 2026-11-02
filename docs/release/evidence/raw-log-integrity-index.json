@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T15:20:38.968Z",
+  "capturedAt": "2026-11-02T15:36:00.919Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3261,6 +3261,66 @@
       "archiveSha256": "f9793b85b30d50b9e62f0040e3d41477b1a4acb7f17e81a49dceaaf039642047",
       "encoding": "UTF-16LE BOM",
       "disposition": "Source-fixture/related tests only;4newPASS,5optionalDBskips; related33PASS/32explicitDBskips; no real purchase/DBconcurrency certification"
+    },
+    {
+      "rawFile": "pr676-project-raw.log",
+      "rawBytes": 5292440,
+      "rawSha256": "49f14d76ede3c91b97d55b8004d6ff633c0cc2abf8b130d466392eaa68e981c3",
+      "archiveFile": "resume1102-pr676-project-raw.log.gz",
+      "archiveBytes": 649362,
+      "archiveSha256": "cdac83bcfa3215112722bd86250b67472bf0b5a479634de9ecf5c50d52173f04",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual fullProjectjob125359809215/testmerged6282221/tree91c76f8d equalsmerged046c;11409NodePASS/0FAIL/96SKIP,1591backendPASS"
+    },
+    {
+      "rawFile": "kplus-shared-source-1102.log",
+      "rawBytes": 4290,
+      "rawSha256": "0fabfb0a282b5fc6a5ce77fda8a524e4fd45e9774ad0961bb5d6c6e009144996",
+      "archiveFile": "resume1102-kplus-shared-source-1102.log.gz",
+      "archiveBytes": 499,
+      "archiveSha256": "9532441361b4eb4097d204a34a0bebb5eccfbf7bff0195db7613941aa82ec844",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only controlled SDK/RPC/native boundaries;16shared plus10actualmounted-sheet cases in final26case run. Intermediate populations overlap, never summed."
+    },
+    {
+      "rawFile": "kplus-mounted-source-initial-1102.log",
+      "rawBytes": 1768,
+      "rawSha256": "0678c36b30eb9e4cca9045ba2dc67cdb1c8f589f99ab701cea99216e159ac7da",
+      "archiveFile": "resume1102-kplus-mounted-source-initial-1102.log.gz",
+      "archiveBytes": 344,
+      "archiveSha256": "c54de578b98fe7cc8db298556d7d55566282093474fe1ab7ed9b4f62635b9116",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial8case fixture:2cases mislabeledcancel did not actually cancel; exclude that initial population from finalclaims. Corrected explicitUSER_CANCELLEDassertion and actual adapter rejection pass in final26case run; initial script retained."
+    },
+    {
+      "rawFile": "kplus-shared-mounted-final-1102.log",
+      "rawBytes": 5856,
+      "rawSha256": "856d1a574a7e493cf79786fe295484c715bc21d4811d745dfd547f2c50177855",
+      "archiveFile": "resume1102-kplus-shared-mounted-final-1102.log.gz",
+      "archiveBytes": 661,
+      "archiveSha256": "32704798ee46d3da9ee6c6e80049d997e4e605a046d6ea9c6327c00e4d277322",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only controlled SDK/RPC/native boundaries;16shared plus10actualmounted-sheet cases in final26case run. Intermediate populations overlap, never summed."
+    },
+    {
+      "rawFile": "kplus-mounted-sheet-final-1102.log",
+      "rawBytes": 2190,
+      "rawSha256": "7ff3e81de4413a61ef14ecc674299e62360247d8a7989a47ee2458fb3c016318",
+      "archiveFile": "resume1102-kplus-mounted-sheet-final-1102.log.gz",
+      "archiveBytes": 410,
+      "archiveSha256": "210ed637913a7c64fdbeb01425c7a738c55ac87a18f2977b5df4edcb6f178628",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only controlled SDK/RPC/native boundaries;16shared plus10actualmounted-sheet cases in final26case run. Intermediate populations overlap, never summed."
+    },
+    {
+      "rawFile": "kplus-shared-and-sheet-final-1102.log",
+      "rawBytes": 6270,
+      "rawSha256": "abf03cffdaa7f376135f15a1e44edac655ee9106e6a82b0e9b731368b69933e2",
+      "archiveFile": "resume1102-kplus-shared-and-sheet-final-1102.log.gz",
+      "archiveBytes": 733,
+      "archiveSha256": "dc2f62db20744a4813ae78572929a01514c3b86715837ab8ba7b965642e8c13e",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-only controlled SDK/RPC/native boundaries;16shared plus10actualmounted-sheet cases in final26case run. Intermediate populations overlap, never summed."
     }
   ]
 }
