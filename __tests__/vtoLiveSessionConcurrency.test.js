@@ -96,6 +96,7 @@ function createHostRuntime() {
 // ── Load the real hook with injected dependencies ───────────────────────────
 
 function loadHook(deps) {
+  deps = { 'react-native': { AppState: { currentState: 'active', addEventListener: () => ({ remove() {} }) } }, ...deps };
   const output = ts.transpileModule(read('hooks/useVtoLiveSession.ts'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText;
