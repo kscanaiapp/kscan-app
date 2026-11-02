@@ -1,0 +1,9 @@
+{
+  "sourceSha": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+  "backendSha": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+  "active": "D009/P5 known expired-period fixture correction first",
+  "queued": "D021/P5 test-only SQL stdin transport, separate PR after D009closure",
+  "scope": "Test infrastructure only. No app payment/auth/entitlement API, database schema, price, RevenueCat project or native/store behavior changes.",
+  "priorEvidence": "46actualtaggedStagingauthority/concurrency records retained; source-equivalence check pending. Not native purchases or RevenueCat/signed-webhook calls.",
+  "environment": "DockerCLI29.6.2present; Linux engine namedpipe unavailable onNov2. Optional5container cases remain explicit skips, never relabeledPASS."
+}

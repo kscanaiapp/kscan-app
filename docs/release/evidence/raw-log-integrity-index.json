@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T15:03:50.261Z",
+  "capturedAt": "2026-11-02T15:11:05.456Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3231,6 +3231,16 @@
       "archiveSha256": "357f74bcde49a0dd7ac566a988ea7de4f7ab71f823a1a4f42553f9f8b264d96d",
       "encoding": "UTF-16LE BOM",
       "disposition": "12actualsourceUI/client/backend/providerHTTPadapter scenarios;fetchfixtureonly, no real provider call"
+    },
+    {
+      "rawFile": "kplus-sql-stdin-before-1102.log",
+      "rawBytes": 2590,
+      "rawSha256": "f0cde91aaeecadeaa4d37646e58db223ab7e62990fab54b761d0b9d396bf0e77",
+      "archiveFile": "resume1102-kplus-sql-stdin-before-1102.log.gz",
+      "archiveBytes": 741,
+      "archiveSha256": "23afecf45a5bea5c9c0383ede694d39223c2a9308bf19bc90315b9f927287973",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed test-only stdin failure using actual extracted source and real child process; no Docker/DB/provider operation"
     }
   ]
 }

@@ -1,0 +1,16 @@
+{
+  "id": "B35-D-021",
+  "priority": "P5",
+  "status": "CONFIRMED / TEST-SOURCE OPEN / serialized afterD009",
+  "location": "__tests__/kplusProviderPullConcurrency.test.js:22 psql uses promisified async execFile with unsupported input option; no stdin.end",
+  "sourceSha": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+  "contract": "The optional concurrency runner must deliver its SQL to docker exec -i psql -f - and close stdin so the asserted database operations actually execute.",
+  "reproduction": "node --test kplus-sql-stdin-probe-1102.test.cjs extracts actual safeDb/psql source; substitutes only docker command with a real Node stdin consumer, preserving actual promisified execFile options. Childtimesoutafter600ms with empty stdout. Guard controlpasses for Production/Staging/ref names before dispatch.",
+  "actual": "1PASS/1FAIL. No stdin bytes/EOF delivered; child waits until bounded probe kills its own process. No Docker or database mutation.",
+  "rootCause": "input is supported by synchronous child-process APIs, not async execFile; its returned child stdin must be explicitly written/ended.",
+  "impact": "Optional real concurrency tests cannot run as written even after daemon becomes available. No demonstrated customer payment, entitlement or security defect.",
+  "priorityRationale": "P5 isolated validation-infrastructure defect; preserve P0-P3 count19.",
+  "recommendedRepair": "Explicitly send SQL/EOF to returned child, observe input/process errors, add real-child regression and retain disposable-only safety guard. Separate bounded PR after known D009fixture correction.",
+  "primaryReference": "https://nodejs.org/api/child_process.html#child_processexecfilefile-args-options-callback",
+  "evidence": "resume1102-kplus-sql-stdin-before-1102.log.gz"
+}

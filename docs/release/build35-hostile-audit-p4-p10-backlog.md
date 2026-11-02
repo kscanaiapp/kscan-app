@@ -1,3 +1,13 @@
+## November2 — K+ existing lifecycle/concurrency item active
+
+Packing source-work closed through674/675, mobile0e3208f8/backend19bc, all19P0-P3source-converged. Recovered46priorrealStagingK+records; no repetition until actual source delta or missing scope justifies it. Known **D009/P5** expiredperiodfixturestillinvalid; correct it first. New independentlyconfirmed **D021/P5** optional SQL runner never sends stdin because async execFile ignores input; actual-source/real-child probe1PASS/1FAIL captures boundedtimeout and retains unsafe-targetrefusals. This is validation infrastructure, not a customer-payment finding. Both touch the same fixture file, so serialize separatePRs: D009first, thenD021. No app payment/auth/entitlement behavior or store configuration changes. DockerCLIexists, enginepipeunavailable; optional5real-containercases remainNOTTESTED/skipped, not devicecertification failures.
+
+ExactnextprepareisolatedD009test-onlysourcebranchfrom0e32, validhistoricalexpiredStartindependentofold/newproviderobservationtimes and positive/negativefixturecontractcontrols. Then greenCI/merge/closure before nextsourcepatch. User-facing sharedpurchase/restore and Supabaseauthority integration verification stays within this same K+workitem. No Production, schema, price, realpurchase or mobilebuild action.
+
+### B35-D-021 — P5 — optional SQL runner stdin delivery
+
+CONFIRMED test-only defect. [Exact location, reproduction, impact and recommended fix](evidence/continuation-kplus-stdin-finding-1102.json). Rootcause: unsupported async execFile input; child waits onstdin. Safe bounded test-infrastructure repair is queued after D009, not deferred to device QA. No demonstrated customer payment/privacy impact.
+
 > **Owner status checkpoint (October30):** audit INCOMPLETE. Source mobile d342087c/backend531f288f; twelve confirmed P0–P3 repairs merged, C011/P3 DNS boundary repair661 prepared/unmerged. Matrix72PASS/3FAIL/3021NOTTESTED (300N/A); these are probe cells, not defect counts. See [current status report](build35-status-report-2026-10-30.md). Earlier status snapshots below are historical and superseded. No Production rollout/mobile artifact.
 
 > **Current October30 status:** see [current audit completion work](build35-audit-remaining-work.md). Build35 authority8bdcaaba, backend98c88ff1; eleven previous repairs MERGED, new C010/P3 source repair659 awaiting governed integration. Original matrix67PASS/6FAIL/3023NOTTESTED (300N/A). Full audit INCOMPLETE. Owner approves fully green merges and factual legal metadata; owner maintains policy/website language. Historical status paragraphs below retain their original dates and are superseded by this notice. No Production rollout or mobile build.
