@@ -87,16 +87,17 @@ function mockClient({ session = { user: { id: 'user-1' } }, existingRow = null }
         },
         update(payload) {
           calls.updates += 1;
-          return {
-            eq() {
-              return {
-                eq: async () => {
-                  row = row ? { ...row, ...payload } : row;
-                  return { error: null };
-                },
-              };
+          const filters = {};
+          const chain = {
+            eq(key, value) { filters[key] = value; return chain; },
+            select(columns) { assert.equal(columns, 'id'); return chain; },
+            maybeSingle: async () => {
+              if (!row || row.id !== filters.id) return { data: null, error: null };
+              row = { ...row, ...payload };
+              return { data: { id: row.id }, error: null };
             },
           };
+          return chain;
         },
         insert: async (payload) => {
           calls.inserts += 1;

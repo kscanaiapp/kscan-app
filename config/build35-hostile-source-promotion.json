@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "14746f6516399dafbe27ade713f392ba0fff7725",
+  "canonicalBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -339,6 +339,12 @@
       "sha256": "8c4c0f2ecab08d41fe8abe585bbec4934d89c5512df2e7251c3473e7740b6d9c",
       "source": "14746f6516399dafbe27ade713f392ba0fff7725",
       "reason": "Exact merged canonical PR669/F017 account-state migration or PR670/C015 invalid-body source/test. Source promotion only; no migration application, deployment or activation grant."
+    },
+    {
+      "file": "supabase/migrations/20261102125053_saved_scan_explicit_restore.sql",
+      "sha256": "3c9931f8b65eb3a41be486913c1c5690ea588f49e09362ddbaa3fa19b5f43381",
+      "source": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+      "reason": "Exact canonical E018/P3 saved-scan explicit restoration policy, with unchanged owner/current-account authority. No application/deployment grant."
     }
   ],
   "sharedSigningRegressionRegistration": {
@@ -358,5 +364,10 @@
     "canonicalSource": "14746f6516399dafbe27ade713f392ba0fff7725",
     "previousMobileSha": "113a1895aac8af974b1aca18724f5286e9967237",
     "scope": "Three exact backend files and canonical SQL regression; preserve all53 previous byte-bound grants, existing deployment refusal, mobile-owned runner and platform source differences. Retain pending migration declarations without execution approval."
+  },
+  "savedScanRestorationPromotion": {
+    "canonicalSource": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+    "previousMobileSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
+    "scope": "One exact migration and SQL regression plus mobile authoritative mutation acknowledgment; all56 previous grants preserved. No account-deletion-cycle, provider, schema or runtime rollout change."
   }
 }

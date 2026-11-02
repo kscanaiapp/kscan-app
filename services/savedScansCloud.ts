@@ -330,13 +330,16 @@ export async function upsertSavedScanRowForAttachment(
           updatePayload.purchase_options = incomingPurchaseOptions;
         }
 
-        const { error: updateError } = await client
+        const { data: updated, error: updateError } = await client
           .from('saved_scans')
           .update(updatePayload)
           .eq('id', existing.id)
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .select('id')
+          .maybeSingle();
 
         if (updateError) return networkResult();
+        if (typeof updated?.id !== 'string' || updated.id !== existing.id) return unknownResult();
         return successResult({ id: existing.id });
       }
     }
@@ -438,13 +441,18 @@ export async function softDeleteCloudSavedScan(
   if (!targetId) return { ok: false, error: 'Scan not found.', reason: 'unknown' };
 
   try {
-    const { error } = await client
+    const { data: updated, error } = await client
       .from('saved_scans')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', targetId)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .select('id,deleted_at')
+      .maybeSingle();
 
     if (error) return networkResult();
+    if (updated?.id !== targetId || typeof updated.deleted_at !== 'string' || !updated.deleted_at) {
+      return { ok: false, error: 'Scan not found.', reason: 'unknown' };
+    }
     return successResult();
   } catch {
     return unknownResult();
