@@ -73,6 +73,7 @@ function times() {
     old: new Date(now - 120000).toISOString(),
     newer: new Date(now - 60000).toISOString(),
     activeEnd: new Date(now + 86400000).toISOString(),
+    expiredStart: new Date(now - 2 * 86400000).toISOString(),
     expiredEnd: new Date(now - 86400000).toISOString(),
   };
 }
@@ -111,7 +112,7 @@ dbTest('INTERLEAVING webhook EXPIRATION || older pull ACTIVE -> final provider g
   try {
     const t = times();
     await Promise.all([
-      psql(transition({ eventId: 'evt_webhook_expiration', digest: DIGEST_A, state: 'expired', occurredAt: t.newer, periodStart: t.old, expiresAt: t.expiredEnd, willRenew: false })),
+      psql(transition({ eventId: 'evt_webhook_expiration', digest: DIGEST_A, state: 'expired', occurredAt: t.newer, periodStart: t.expiredStart, expiresAt: t.expiredEnd, willRenew: false })),
       psql(transition({ eventId: `rcpull_${'3'.repeat(64)}`, digest: DIGEST_B, occurredAt: t.old, periodStart: t.old, expiresAt: t.activeEnd })),
     ]);
     const state = await finalState();
@@ -127,7 +128,7 @@ dbTest('INTERLEAVING newer webhook RENEWAL || older pull EXPIRED -> final provid
     const t = times();
     await Promise.all([
       psql(transition({ eventId: 'evt_webhook_renewal', digest: DIGEST_A, occurredAt: t.newer, periodStart: t.newer, expiresAt: t.activeEnd })),
-      psql(transition({ eventId: `rcpull_${'4'.repeat(64)}`, digest: DIGEST_B, state: 'expired', occurredAt: t.old, periodStart: t.old, expiresAt: t.expiredEnd, willRenew: false })),
+      psql(transition({ eventId: `rcpull_${'4'.repeat(64)}`, digest: DIGEST_B, state: 'expired', occurredAt: t.old, periodStart: t.expiredStart, expiresAt: t.expiredEnd, willRenew: false })),
     ]);
     const state = await finalState();
     assert.equal(state.grants, 1);
