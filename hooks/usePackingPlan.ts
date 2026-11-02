@@ -262,9 +262,15 @@ export function usePackingPlan(): UsePackingPlanResult {
   const refineWith = useCallback(
     async (note: string) => {
       if (!available || !actorId || !note.trim()) return;
+      // A queue wait is an async boundary too. A note belongs to the actor
+      // generation and trip that queued it, never a later login or new trip.
+      const scope = captureActorScope();
+      const sessionId = getPackingSnapshotFor(actorId).sessionId;
+      if (scope.actorId !== actorId) return;
       await refinementSequenceRef.current!(async () => {
+        if (!isActorScopeCurrent(scope)) return;
         const current = getPackingSnapshotFor(actorId);
-        if (!current.trip) return;
+        if (!current.trip || current.sessionId !== sessionId) return;
 
         const intent = resolveRefinementIntent(note, current.plan);
         const notes = addPackingConstraintNote(actorId, intent.note);
