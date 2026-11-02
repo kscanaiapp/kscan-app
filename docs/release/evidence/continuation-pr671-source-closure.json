@@ -35,7 +35,8 @@
     "B35-C-015/P4 now mobile source-converged"
   ],
   "sourceOnly": true,
-  "postmergeBranchCi": "PENDING at this checkpoint; read final9workflows before closing all governance evidence",
+  "postmergeBranchCi": "9/9 SUCCESS; see continuation-mobile-5fbc-branch-ci.json",
   "runtime": "No migration applied and no function deployed. Runtime rollout remains separately governed.",
-  "deviceCertification": "EXCLUDED by owner; not a FAIL/blocker for this source audit."
+  "deviceCertification": "EXCLUDED by owner; not a FAIL/blocker for this source audit.",
+  "status": "CLOSED — source promotion, exact probe, merged tree and branch CI verified; runtime application separate"
 }
