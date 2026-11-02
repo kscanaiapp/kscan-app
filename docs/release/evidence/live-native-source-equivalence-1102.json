@@ -1,0 +1,24 @@
+{
+  "captureDate": "2026-11-02T16:39:29.213Z",
+  "currentSource": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "priorSource": "58d85e1ef6afb8b0348b045a66e4cc9f17e23a47",
+  "nativeSubtreeAtBoth": "3253f1785cdd50357f8f507d5268de30b606eae0",
+  "priorRun": 39278661849,
+  "jobs": {
+    "android": {
+      "id": 118148843124,
+      "status": "SUCCESS"
+    },
+    "swift": {
+      "id": 118148843396,
+      "status": "SUCCESS",
+      "hostTests": 86
+    },
+    "iosCompile": {
+      "id": 118149193396,
+      "status": "SUCCESS"
+    }
+  },
+  "modelSha256Both": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+  "limits": "Native module byte equality and prior native host/compiler evidence; current JS integration tested separately. Not a physical-camera, current app artifact or device certification claim. No build initiated by continuation."
+}

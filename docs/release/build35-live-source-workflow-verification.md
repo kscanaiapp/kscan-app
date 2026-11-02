@@ -1,0 +1,11 @@
+## Live VTO source checkpoint — November 2
+
+Active repair: **B35-C-022/P3**, [PR678](https://github.com/kscanaiapp/kscan-app/pull/678), source **d64ec0628dadfc7cd2defb0908e82fc5b719602a**. Actual mounted source found two background-lifecycle failures on6183; 24positive controlsPASS. Repair reuses epoch-fenced teardown on AppState background, preserves permission-dialog inactivity and explicit restart. After repair28mountedcasesPASS,46hook/composedcasesPASS, related918PASS/0FAIL/4SKIP. Six governance gates and committed four-path VTO scopePASS. InitialTypeScript narrowing failure retained; fresh-read helper correction under validation. **20confirmedP0-P3 findings:19sourceclosed,1repairPRopen**, no new P0. No deployed/runtime/hardware privacy claim.
+
+Completed existing work remains closed: StyleChat/saved-scan convergence671; saved-scan transaction/restore672–673; Gemini7transition source funnel; Packing674–675; K+36composedcases and676–677test repairs. Latest authoritative mobile6183/backend19bc unchanged until678approved-green merge. Original mandatory matrix136PASS/1FAIL/2959NOTTESTED,318N/A and4device exclusions;2637softwarecases await coverage/reconciliation. No matrix inflation from28new overlapping cases.
+
+Native subtree byte-identical to prior successful Android/Swift/iOS compile evidence58d85e1e/run39278661849; current pose model hashes match on both platforms. No native build repeated. One genuinely authored commercial Live garment is wired through customerStudio and sharedTryItOnEntry; otherproducts retainPhoto fallback. This is not an all-products Live catalog claim. 355losslessarchives rehashed/decompressed.
+
+Next exact action: finish678checks/merge/postmergeCI and close Live source work; then resume original software audit. Owner gates: no Production deployment/migration/flags, no binary/EAS/store, no device certification, account-deletion-cycle repairs deferred; legalwording/website owner-owned.
+
+Source evidence and boundary limitations are tracked in evidence/continuation-live-background-finding-1102.json, live-native-source-equivalence-1102.json and the exact-source regression fixture. Final closure will replace this in-progress assessment after governed merge and independent branch CI.

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T16:18:05.188Z",
+  "capturedAt": "2026-11-02T16:39:29.900Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3391,6 +3391,116 @@
       "archiveSha256": "4c45ced226bdd6a6ad9889452d4be4dfa22a0e93bda4f361ff9c3172b5a09030",
       "encoding": "UTF-16LE BOM",
       "disposition": "Source-only real child I/O or actual customer UI/SDK/reader/store composition; actual native/SDK/RPC boundaries controlled; explicitDBskips preserved. Populations overlap, not added to mandatorycells."
+    },
+    {
+      "rawFile": "live-mounted-initial-1102.log",
+      "rawBytes": 5084,
+      "rawSha256": "c707dc3cf9a7a06ef0f68349cd30c772edf41317ff93d578e99773790d35bfe4",
+      "archiveFile": "resume1102-live-mounted-initial-1102.log.gz",
+      "archiveBytes": 756,
+      "archiveSha256": "d6d5f207abd68c7b7267a829bd816725fbcbda93176cc4c7195ff0f43b121ffc",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Fixture setup failure resolving a directory as module; corrected to file-only, not product defect"
+    },
+    {
+      "rawFile": "live-mounted-initial2-1102.log",
+      "rawBytes": 656,
+      "rawSha256": "c6039957d0f0314592e58cc0ad0c8794d5bd7e38fb93ee123e9b0a0c7ebb6b67",
+      "archiveFile": "resume1102-live-mounted-initial2-1102.log.gz",
+      "archiveBytes": 239,
+      "archiveSha256": "bfadb56f0b26f1587e04896708f7c45da87b6bf111918ef72e7dac008ec7e3bb",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-mounted-expanded-1102.log",
+      "rawBytes": 4454,
+      "rawSha256": "26e4643684fa5cc159a56db1e4125a261ee3cf42f8bff3997b713b956c6bc9cf",
+      "archiveFile": "resume1102-live-mounted-expanded-1102.log.gz",
+      "archiveBytes": 938,
+      "archiveSha256": "390a92954c31c02b13ba79f02de103fc43ff0c7e8726ae988c886c27d66f2b90",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-background-before-1102.log",
+      "rawBytes": 7508,
+      "rawSha256": "877732dd2fc15fd6bce891703a59b4829f700fc1185b317fdd1356a053177bfd",
+      "archiveFile": "resume1102-live-background-before-1102.log.gz",
+      "archiveBytes": 1460,
+      "archiveSha256": "d438b3761abc25263cc712c887fd43f4c5fd5c6de09289881f20568483bde52d",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual mounted source on6183:24positivePASS/2backgroundFAIL, controlled native/AppState; no device claim"
+    },
+    {
+      "rawFile": "live-background-focused-after-1102.log",
+      "rawBytes": 14658,
+      "rawSha256": "c9c2930719e13936657cc76e3338a69898aa28fa78463f99bae661c77755fe6a",
+      "archiveFile": "resume1102-live-background-focused-after-1102.log.gz",
+      "archiveBytes": 3526,
+      "archiveSha256": "8824b8ecd1ad1c0c0be0becc872d42f6ebfa46dcfd43bd47c4aa94882410efe8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-mounted-exact-053c-1102.log",
+      "rawBytes": 5296,
+      "rawSha256": "1e6d14e2f69f5d034d500c628d7a879c2f1d58becf9a0cb5c859fcc1122aa1fe",
+      "archiveFile": "resume1102-live-mounted-exact-053c-1102.log.gz",
+      "archiveBytes": 1096,
+      "archiveSha256": "94cf9393cfa25767fc5bd99f80e9b068e95cdf7c0296391c0e5dee968f39d9fe",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-related-final-1102.log",
+      "rawBytes": 176474,
+      "rawSha256": "df481255b5d536fc196ab933fda502b0c21afadf11cd2f1faa93be8c89212162",
+      "archiveFile": "resume1102-live-related-final-1102.log.gz",
+      "archiveBytes": 36841,
+      "archiveSha256": "3211095a287c748705682ea5ec363b124e3b432844145a001477a55d564c08c0",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-typescript-1102.log",
+      "rawBytes": 400,
+      "rawSha256": "a721db016264a51ba07f9d45268ded7ae03d1b37a130a0c951ed094b5dc0337b",
+      "archiveFile": "resume1102-live-typescript-1102.log.gz",
+      "archiveBytes": 228,
+      "archiveSha256": "3c9b891ab0ebe12d006f6910f81c032b6c33f0d559255b265ad3578e2a4af8e8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial genuine TS2367 failure retained; fresh-read helper correction separately validated"
+    },
+    {
+      "rawFile": "live-background-corrected-final-1102.log",
+      "rawBytes": 8506,
+      "rawSha256": "8b09b6562d4ef1a54078291ff78a3533a9d275ffecfca05c59c3bb8a9c4f25b9",
+      "archiveFile": "resume1102-live-background-corrected-final-1102.log.gz",
+      "archiveBytes": 1846,
+      "archiveSha256": "25148222d13416609234308c1b1b7b28cc04223aa392a4b43857f9e8613d058d",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Source-level controlled native/AppState composition. Populations overlap and are not automatically mapped to mandatory cells."
+    },
+    {
+      "rawFile": "live-native-android-prior-raw.log",
+      "rawBytes": 553928,
+      "rawSha256": "f0980018b8508b961a658994b6d8e110ac40026daa83520172b94622bf0c171d",
+      "archiveFile": "resume1102-live-native-android-prior-raw.log.gz",
+      "archiveBytes": 67307,
+      "archiveSha256": "a368e0a27ca8f0383a845b988cde446e21cec019cb3c1a548486ab67962fe35c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Retained actual October19nativeCIrun39278661849; native subtree3253f178 byte-identical to current; not a new build"
+    },
+    {
+      "rawFile": "live-native-swift-prior-raw.log",
+      "rawBytes": 147548,
+      "rawSha256": "6d4934b678ee58a598096d83af573cc1b356da073babfac9d35c420876764cd1",
+      "archiveFile": "resume1102-live-native-swift-prior-raw.log.gz",
+      "archiveBytes": 12567,
+      "archiveSha256": "fde46e83fc161f9ec406d77691951c19b4273f12ffba3f4ff7f457a3478bc70f",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Retained actual October19nativeCIrun39278661849; native subtree3253f178 byte-identical to current; not a new build"
     }
   ]
 }

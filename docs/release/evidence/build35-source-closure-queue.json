@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T16:18:04.538Z",
+  "capturedAt": "2026-11-02T16:39:29.902Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -56,7 +56,10 @@
   ],
   "active": {
     "item": "Live Camera VTO full source implementation and actual user-facing reach",
-    "next": "Complete existing Live Camera VTO source implementation and actual customer reach. Trace Home/TryOnStudio -> capability/entitlement/native binding -> camera session/rendering/control lifecycle, assets and fallback. Devices excluded; do not change diagnostics into fabricated hardware certification."
+    "finding": "B35-C-022/P3",
+    "pr": 678,
+    "repairHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+    "next": "Finish corrected TypeScript and exact-head CI; merge only all mandatory checks/reviews green, verify independent postmerge CI/tree, finalize Live source integration evidence. Then original remaining software audit F,B,C,G,D,E,H,A."
   },
   "queued": [],
   "excluded": [

@@ -1,6 +1,10 @@
-## K+ source-work closure — November 2
+## B35-C-022 — P3 — Live app-background lifecycle (November 2)
 
-Mobile: **6183eab0958dd17e99efa659a6f4e3c0dbfef519**. Backend: **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. All **19 confirmed P0–P3 source repairs** remain converged; none is source-open. Test-only P5 repairs were serialized: **D009/#676**, then **D021/#677**. Each merged only after35successful/20conditional-skipped checks, then independent9/9branchworkflowsSUCCESS. #677 reviewedb462, tested2b7a24a1 and merged6183 share treef11fab67. Full final candidate: **11,413NodePASS /0FAIL /96SKIP**, **1,591backendPASS /0FAIL**. No runtime payment/API/schema/copy change.
+CONFIRMED / SOURCE REPAIR IN PROGRESS. Actual mounted Studio-to-native controlled boundary: 24 controls PASS, two background lifecycle regressions FAIL on 6183eab0. Late permission grant starts native session after background; active session retains camera lease/listener. Exact evidence and limits: [finding](evidence/continuation-live-background-finding-1102.json). No OS-level camera collection or privacy disclosure is asserted. Repair reuses existing epoch-fenced teardown on AppState background, without treating transient permission-dialog inactivity as a close.
+
+## K+ source-work closure â€” November 2
+
+Mobile: **6183eab0958dd17e99efa659a6f4e3c0dbfef519**. Backend: **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. All **19 confirmed P0â€“P3 source repairs** remain converged; none is source-open. Test-only P5 repairs were serialized: **D009/#676**, then **D021/#677**. Each merged only after35successful/20conditional-skipped checks, then independent9/9branchworkflowsSUCCESS. #677 reviewedb462, tested2b7a24a1 and merged6183 share treef11fab67. Full final candidate: **11,413NodePASS /0FAIL /96SKIP**, **1,591backendPASS /0FAIL**. No runtime payment/API/schema/copy change.
 
 The existing K+ source-work item is CLOSED. [Thirty-six composed source cases](evidence/continuation-kplus-complete-source-1102.json) PASS: actual existing-user membership Sheet/Step/Parts/hooks, primary hosted bridge and fallback, shared native SDK adapter, canonical RPC reader/store/model. Repeated taps/overlapping operations are fenced; stale provider success cannot unlock; account switches discard old completions; cancel/restore/401/fallback remain honest. Synthetic SKU/native/capability/session/RPC fixtures are explicitly bounded, not live billing or current provider activation. Six exact SQL blobs reconcile the46retained dated real Staging authority/concurrency records; no new remote mutation. The optional five Docker interleavings remain explicitly unexecuted because the engine is unavailable, not relabeled PASS.
 
@@ -8,19 +12,19 @@ The existing K+ source-work item is CLOSED. [Thirty-six composed source cases](e
 
 **Next active existing item: Live Camera VTO full source implementation and actual user-facing reach.** Complete that item before returning to additional original audit lanes. Devices/laterQA excluded, account-deletion-cycle repairs owner-deferred. No Production deployment/migration/flag change, binary/EASbuild, store submission, price change or real purchase. Legal wording/website remain owner-owned; factual source metadata only was refreshed.
 
-## November2 — K+ D009/676 closed; D021 next
+## November2 â€” K+ D009/676 closed; D021 next
 
-Currentmobile **046c0f359c186365a45a0d2a06a02fa44a7395ca**, canonicalbackend19bc. D009/P5testfixture676mergedafter35success/20conditional skips, reviewed/tested/mergedtree91c76f8d, independent9/9branchCIgreen. Full11409NodePASS/0FAIL/96SKIP,1591backendPASS. No runtimepayment/API/schemachange; all19P0-P3repairsremainconverged. [K+sourceworkflow](build35-kplus-shared-source-verification.md):26composedsourcecasesPASS, includingactualexisting-useraccount-keyedSheet/Step/Parts/hooks→productionSDKadapter→actualcanonicalRPCreader/store/model. No provider-onlyunlock; repeatUIpurchase/restoreblocked; cancel/401/accountswitchhonest. SDK/session/RPC/nativehosts/capabilityavailabilityarefixtures, notcurrentstore/native/runtimecertification. Initial2mislabeledcancelcasesexcluded, correctedandstrictlyasserted; rawsource/logretained.
+Currentmobile **046c0f359c186365a45a0d2a06a02fa44a7395ca**, canonicalbackend19bc. D009/P5testfixture676mergedafter35success/20conditional skips, reviewed/tested/mergedtree91c76f8d, independent9/9branchCIgreen. Full11409NodePASS/0FAIL/96SKIP,1591backendPASS. No runtimepayment/API/schemachange; all19P0-P3repairsremainconverged. [K+sourceworkflow](build35-kplus-shared-source-verification.md):26composedsourcecasesPASS, includingactualexisting-useraccount-keyedSheet/Step/Parts/hooksâ†’productionSDKadapterâ†’actualcanonicalRPCreader/store/model. No provider-onlyunlock; repeatUIpurchase/restoreblocked; cancel/401/accountswitchhonest. SDK/session/RPC/nativehosts/capabilityavailabilityarefixtures, notcurrentstore/native/runtimecertification. Initial2mislabeledcancelcasesexcluded, correctedandstrictlyasserted; rawsource/logretained.
 
 ExistingK+item remainsACTIVE: nextD021/P5stdintransporttestharnessrepair(separatePR, after676fullyclosed), then46StagingconcurrencyrecordexactSQLreconciliation and finalsourcecoverageclosure. Optional5Dockercasesnotexecutedbecauseengineunavailable; do notrelabelfixturevalidityPASSasdatabaseconcurrencyPASS. LiveVTOqueued. Devicesexcluded, deletioncycledeferred, noProduction/migration/binary/price/storeaction. 337losslessarchivesverified.
 
-## November2 — K+ D009 test correction676 in CI
+## November2 â€” K+ D009 test correction676 in CI
 
 Current canonicalmobile0e3208f8/backend19bc; all19P0-P3source-converged. Known D009/P5 source-fixture correction **0e622005fb15ca1ea236e67cc6bd66549bbc325e** in [PR676](https://github.com/kscanaiapp/kscan-app/pull/676). Two test-only files; four actualfixturecontrolsPASS, oldperiodnegativecontrolretained. Related33PASS/0FAIL/32explicitDBskips; optional5concurrencycasesnotexecuted. No expired observations or finalgrantassertions changed. No app/payment/API/database behavior touched. CIcurrentlypending; mergeonlyfullygreen. D021/P5same-file SQLstdinrepairqueuedseparatelyafter676closure. Native/storeverificationnotclaimed; sourceUI/SDK/canonicalauthoritycomposition remains in this activeK+item.
 
 Exactnextfinish676current-headCI,reviews,mergeandindependentbranchCI; then correctD021stdintransportwithreal-childpositive/error/unsafe-targetcontrols. Reconcile46retainedactualStagingrecordsbyexactSQLsourceidentity; avoidrerunningunchangedcases. Sourceworkflowverificationcontinues, no LiveVTOexpansionbeforeK+closure. Devicecertificationexcluded andaccountdeletiondeferred. 331losslessarchivesretained. No rollout, pricing, realpurchase orbinary.
 
-## November2 — K+ existing lifecycle/concurrency item active
+## November2 â€” K+ existing lifecycle/concurrency item active
 
 Packing source-work closed through674/675, mobile0e3208f8/backend19bc, all19P0-P3source-converged. Recovered46priorrealStagingK+records; no repetition until actual source delta or missing scope justifies it. Known **D009/P5** expiredperiodfixturestillinvalid; correct it first. New independentlyconfirmed **D021/P5** optional SQL runner never sends stdin because async execFile ignores input; actual-source/real-child probe1PASS/1FAIL captures boundedtimeout and retains unsafe-targetrefusals. This is validation infrastructure, not a customer-payment finding. Both touch the same fixture file, so serialize separatePRs: D009first, thenD021. No app payment/auth/entitlement behavior or store configuration changes. DockerCLIexists, enginepipeunavailable; optional5real-containercases remainNOTTESTED/skipped, not devicecertification failures.
 
@@ -28,41 +32,41 @@ ExactnextprepareisolatedD009test-onlysourcebranchfrom0e32, validhistoricalexpire
 
 ## November2 final Packing source-work closure
 
-Current mobile **0e3208f8d64605799ebfae70c0183f4383becb2e**, backend **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. E020source repair [675](https://github.com/kscanaiapp/kscan-app/pull/675) MERGED after34successful/20conditional-skipped checks; reviewed60d50d3c, testedcec5a27a and final0e32 share exact tree47eac077. Independent9/9branchworkflowsSUCCESS. Actual full **11405NodePASS/0FAIL/96SKIP**, **1591backendPASS/0FAIL**. Four new queue regressions and118relatedtestsPASS; originalcounterexample now3requests/currenttripready. Twelve additional actual provider HTTP adapter→handler→UI casesPASS, including malformed envelope/model JSON; fetch is deterministic, no external provider call.
+Current mobile **0e3208f8d64605799ebfae70c0183f4383becb2e**, backend **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. E020source repair [675](https://github.com/kscanaiapp/kscan-app/pull/675) MERGED after34successful/20conditional-skipped checks; reviewed60d50d3c, testedcec5a27a and final0e32 share exact tree47eac077. Independent9/9branchworkflowsSUCCESS. Actual full **11405NodePASS/0FAIL/96SKIP**, **1591backendPASS/0FAIL**. Four new queue regressions and118relatedtestsPASS; originalcounterexample now3requests/currenttripready. Twelve additional actual provider HTTP adapterâ†’handlerâ†’UI casesPASS, including malformed envelope/model JSON; fetch is deterministic, no external provider call.
 
-Both Packing P3repairs E019/674 thenE020/675 are individually source-closed in that merge order. All19confirmedP0–P3 source repairs converged (0P0/5P1/4P2/10P3), none source-open. Existing user-facing Packing source-work item is CLOSED; broad mandatory endpoint/security coverage is separate and still incomplete. Packing43cells:15specificsourcePASS,11explicitN/A retainedNOTTESTED,17distinct software scopes remain NOTTESTED with specific scope/reasons, never hardware excuses. Original3096matrix now136PASS/1FAIL/2959NOTTESTED;318explicitN/A,4device scope exclusions,2637in-scope applicable pending. Counts are exact matrix rows, not added suite assertions.
+Both Packing P3repairs E019/674 thenE020/675 are individually source-closed in that merge order. All19confirmedP0â€“P3 source repairs converged (0P0/5P1/4P2/10P3), none source-open. Existing user-facing Packing source-work item is CLOSED; broad mandatory endpoint/security coverage is separate and still incomplete. Packing43cells:15specificsourcePASS,11explicitN/A retainedNOTTESTED,17distinct software scopes remain NOTTESTED with specific scope/reasons, never hardware excuses. Original3096matrix now136PASS/1FAIL/2959NOTTESTED;318explicitN/A,4device scope exclusions,2637in-scope applicable pending. Counts are exact matrix rows, not added suite assertions.
 
 Next existing work item now ACTIVE: **K+ shared purchase/restore lifecycle and concurrency coverage**. Live Camera VTO source/user-facing completion remains queued. Device certification excluded, account-deletion-cycle repairs deferred. No Production/deployment/migration/binary/store/pricing action. 328losslessarchivesverified. No overall audit PASS: remaining software/security coverage remains visible.
 
-## November2 — Packing queue repair675 verified locally, CI pending
+## November2 â€” Packing queue repair675 verified locally, CI pending
 
 Canonical mobile8ffd/backend19bc unchanged; E019/674fullyclosed with9/9branchCI. E020/P3 boundedtwo-file source repair **60d50d3c5ccf17723e94b6b96c3e798c96525597** now [PR675](https://github.com/kscanaiapp/kscan-app/pull/675). 118relatedPASS/0FAIL/0SKIP; four new regressions.16additionalcomposedsourcecasesrerunbecausehookchanged, allPASS. Originalfailingqueuefixture now3requests ratherthan4 and currenttrip staysready; valid refinements stillserializeand recoverfromerror. TypeScript0,sixsourcegates0; fingerprintsunchanged/current andnoapprovalsrenewed. Current-head CI stillrunning; do notmergeuntilfullygreen.19P0-P3confirmed/18converged/1repairawaitingmerge.
 
 Lanes: E/Packing remainsactive; C/Geminifunnel closed; Fpriorconvergenceclosed; D/K+andLiveVTOqueued. Remaining originalPackingmatrix cells need exactscope/evidence reconciliation, neverblankethardwareexcuses. Devicecertification excluded, accountdeletiondeferred. No Production/deployment/migration/binary/store/pricing action. 326losslessarchivesverified. Exactnextfinish675current-headCI, mergeunderstandinggreenapproval,verifytree/postmergeCI; closescopePackingstate/failureevidence beforeK+.
 
-## November2 — Packing674 fully closed; E020 repair next
+## November2 â€” Packing674 fully closed; E020 repair next
 
 Current mobile **8ffd1ccaa552d74358071d77d499b0a4615be7c1**, canonical **19bcc5d699f878561aaef1f9bc914c998e2a0de7**. E019/P3 cache repair674CLOSED, exact reviewed/tested/mergedtreeef7dd267, current-head34successful/20conditional skips; independentbranch9/9SUCCESS. Full11401NodePASS/0FAIL/96SKIP and1591backendPASS/0FAIL. [Packing source report](build35-packing-source-workflow-verification.md):128localrelatedPASS,10actualhandler/UIcomposedcasesPASS,5additionalstatecasesPASS. These overlap and are not added to originalmatrix121PASS/1FAIL/2974NOT TESTED. 320losslessarchivesrehash/decompressverified.
 
 19confirmedP0-P3(0P0/5P1/4P2/10P3):18source-converged, **E020P3OPEN** with exact delayed-queue counterexample. Source-repair merge order674thennewE020PR, never combined. ActiveE/Packing; C/Gemini source funnel closed; Fpriorconvergence closed. D/K+ and LiveVTO queued. Exact next: fresh source worktree from8ffd, capture original actor epoch/session before refinement enqueue; stale work must mutate/dispatchnothing; keep same-sessionpositivecontrol. No other feature expansion. Devicecertification excluded, deletion-cycle work deferred, Production rollout separately gated. No migration/deployment/binary/store/pricing action.
 
-## November2 — Packing674 merged; remaining queue case E020 confirmed
+## November2 â€” Packing674 merged; remaining queue case E020 confirmed
 
 Packing cache E019 source MERGED **674/8ffd1ccaa552d74358071d77d499b0a4615be7c1**, after34successful/20conditional-skipped/no pending current-headchecks. Reviewedb86f/testmerge3dab8ba2/final8ffd share treeef7dd267. FullNode11401PASS/0FAIL/96SKIP andbackend1591PASS/0FAIL; branch7/9SUCCESS,2pending. Ten new actual UI/request-parser/backend-handler/response-parser composed scenarios PASS; five timeout/cache-race/navigation/checklist source cases PASS, separate overlapping evidence populations.
 
 One further confirmed current Packing defect **E020/P3**: A-B-A return with a newly generated trip lets an old queued refinement dispatch a fourth request to the new destination carrying an old-trip note. Exact delayed-source fixture fails, synthetic payload captured; no cross-user data leak inferred. Root cause: queue captures actor scope after its wait and reads a later session.19confirmedP0-P3 overall (0P0/5P1/4P2/10P3):18source-converged, E020OPEN. Complete674independentbranchCI before implementing E020on a fresh bounded branch. This continues the same unfinished Packing item; no K+/LiveVTO expansion. Devicecertification excluded and accountdeletion deferred.
 
-## November2 — Packing cache repair674 prepared, current-head CI pending
+## November2 â€” Packing cache repair674 prepared, current-head CI pending
 
 E019/P3 source repair at **b86f475547e6b70b675ac61a0139e270ef8c1e6f** in [PR674](https://github.com/kscanaiapp/kscan-app/pull/674), targeting unchanged currentmobilefb7b3c5b. 128localfocused/relatedPASS/0FAIL/0SKIP, TypeScript0,6sourcegates0; actual8pathdiff contains0VTO-owned paths (all8NOT JUDGED by that specific ownership gate). Thirteen new composed source tests include actual mounted iOS/Android submit/retry/offline restore, malformed cache rejection, actor epochs and supersession. Existing network parser body is exact-normalized unchanged in transport-free module; cache and client share it, public re-exports remain. Valid local refinement highlights/checklist restored. Generated Packing implementation identity refreshed without renewing any approvals/holds. No API/schema/copy/runtime change.
 
-Required CI is still running; ready PR has no requested-changes review or open inline thread at current readback. Do not merge until fully green.18confirmedP0–P3:17converged/1current source repair awaitinggreenmerge. Keep Packing active through merge, independent branchCI and remaining state/failure source checks; K+ and LiveVTO remain queued. Originalmatrix unchanged121/1/2974. Devicecertification excluded, deletion-cycle work deferred.
+Required CI is still running; ready PR has no requested-changes review or open inline thread at current readback. Do not merge until fully green.18confirmedP0â€“P3:17converged/1current source repair awaitinggreenmerge. Keep Packing active through merge, independent branchCI and remaining state/failure source checks; K+ and LiveVTO remain queued. Originalmatrix unchanged121/1/2974. Devicecertification excluded, deletion-cycle work deferred.
 
-## November2 — Packing E019 confirmed, repair active
+## November2 â€” Packing E019 confirmed, repair active
 
 Current source fb7b3c5b /backend19bcc5d6. Gemini consent workflow CLOSED with7source transitions PASS. Packing composed source tests:7PASS/2FAIL, confirming **one P3 B35-E-019**: unchecked cached plan reaches actual mounted plan view and throws \plan.packedItems is not iterable\. [Finding](evidence/continuation-packing-cache-finding-1102.json). Root cause: readCachedPackingPlan checks only object shape then casts.18confirmedP0-P3 overall (0P0/5P1/4P2/9P3):17converged, E019OPEN. No privacy/access/payment impact invented. Repair this current Packing item before K+/LiveVTO. Source-only bounded repair and real mounted malformed/valid restoration tests next; no DB/API/copy change planned. Device certification remains excluded.
 
-## Current completion checkpoint — November2, E018 CLOSED
+## Current completion checkpoint â€” November2, E018 CLOSED
 
 **Build35 fb7b3c5b2af1418dec0fc4fa43cc4841871b79c6; canonical 19bcc5d699f878561aaef1f9bc914c998e2a0de7. All17confirmedP0-P3 source repairs converged (0P0/5P1/4P2/8P3), none source-open.** E018canonical672merged19bcc5d6 after33successful/13conditional-skipped checks; reviewed a2bf68e7 tree37a23c3f exactly matches final; full8553NodePASS/0FAIL/65SKIP,1575backendPASS, branch7/7SUCCESS. Mobile673mergedfb7b3c5b after35successful/19conditional-skipped checks; revieweded8c941f/tested82087618/final share tree65f8f671. Full **11388NodePASS/0FAIL/96SKIP**, **1591backendPASS/0FAIL**,182focusedPASS/2conditional skips,165relatedPASS,TypeScript0,7source gates0; **9/9postmergeworkflowsSUCCESS**. Matching source hashes establish actual Staging tested client equivalence. No capability approvals/holds renewed and all56prior grants preserved; one exact restoration migration added.
 
@@ -74,7 +78,7 @@ Closed prior item671: StyleChat C015/P4/source null-body cell1173reconciled and 
 
 Exact next command/source: inspect services/geminiProcessingPermission.ts, the mounted AI consent gate/privacy control and all4Gemini transmitters on this current source. Match existing policy/SQL/entry-point evidence first; execute only missing end-to-end source state/failure cases. Close Gemini evidence before advancing the queue.
 
-## November2 completion-first checkpoint — source promotion671 MERGED
+## November2 completion-first checkpoint â€” source promotion671 MERGED
 
 Mobile **5fbccd1dbcd727827890777b9fa2d2d98c462206**, canonical **14746f6516399dafbe27ade713f392ba0fff7725**. PR671 merged only after35successful/19conditional-skipped exact-head checks,0fail/pending; reviewed3159c952, tested merge00238f9b and final5fbccd1d share tree d1708827. Full candidate **11375NodePASS/0FAIL/96SKIP**, **1591backendPASS/0FAIL**;130local focusedPASS/2conditional skips, TypeScript0,7source gates0. Ready-for-review checks completed before merge. Postmerge9workflow readback remains to finish this first closure item. Saved-scan F017/P2 and StyleChat C015/P4 are now mobile-source-converged; migration application and function rollout stay separate. C015originalcell1173nowSOURCE PASS with original failing evidence retained. Originalmatrix **121PASS/1FAIL/2974NOT TESTED**;307N/A,4device scope exclusions,2663in-scope applicable pending. Remaining originalFAIL is B004/P4Scanner null input; no severity inflation.
 
@@ -86,7 +90,7 @@ H014closed under owner's explicit public-link contract, H001 factual legal/provi
 
 Exact next: finish671postmergebranchCI, record it and push this existing evidence lane serially once its staging concurrency group clears. Then complete the already confirmed E018bounded source repair with meaningful tests and governed PRs; close it before advancing Gemini/Packing/K+/Live. No Production change, binary, EAS build, pricing or store action. Overall source audit **INCOMPLETE due software coverage and E018, never because devices are absent**.
 
-## November2 recovery checkpoint — authoritative current status
+## November2 recovery checkpoint â€” authoritative current status
 
 Mobile **113a1895aac8af974b1aca18724f5286e9967237**; canonical backend **14746f6516399dafbe27ade713f392ba0fff7725** independently read from GitHub. Backend669/F017 merged736ec3ba, then670/C015 merged14746f65. **16confirmedP0-P3 (0P0/5P1/4P2/7P3): all16source-repaired in their owning authorities;15mobile-converged, F017promotion pending.** C015/P4 source-repaired separately, mobile promotion pending. New migration20261031162813 remains separately governed/unapplied; runtime remediation not claimed. Mobile113a exact tree1661a045 matches reviewedced4 and tested merge88fe; full CI11364NodePASS/0FAIL/96SKIP,1590backendPASS;9/9branchworkflowsSUCCESS. Backend14746 push7/7workflowsSUCCESS freshly read; prior manager's per-check16success/7skip retained as a distinct count. No unnecessary baseline rerun.
 
@@ -100,7 +104,7 @@ Exact next: prepare bounded exact canonical669/670 promotion from113a preserving
 
 Historical dated sections below retain prior observations and are superseded by this checkpoint.
 
-## October31 — merged P4, authenticated-body probes, revised device scope
+## October31 â€” merged P4, authenticated-body probes, revised device scope
 
 Mobile authority **50387a2be4e3406b9ce43b4b0ffb56c4b82262c6** (PR666), canonical backend **f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee** (PR664). Tested mobile **2b04f5d5f53be7e72b652b8892269923ed43da78** has exactly the same Git tree. PR666 premerge34successful/20conditional-skipped/no pending; no protection bypass. Full645-file Node **11360PASS/0FAIL/98SKIP**, backend1587PASS, TypeScript/six source gates retained for unchanged runtime. P4 F012 SOURCE REPAIRED/VERIFIED; no deployment. Postmerge branch CI is still being collected. Evidence646 merged current source locally and its terminology guard passes8tests; corrected-head remote CI still needs publication.
 
@@ -110,7 +114,7 @@ Device certification is explicitly OUT OF SCOPE for this audit, not a pending ca
 
 # Current continuation repair status
 
-## Current checkpoint — source35bd/f64, P4 mobile final validation
+## Current checkpoint â€” source35bd/f64, P4 mobile final validation
 
 **All14confirmedP0-P3 source repairs are now converged** (0P0/5P1/3P2/6P3). G013new-capture fix663plus restored-queue follow-up665are merged; mobile **35bd7f42839d3711b29328dc8b0ac2db6b591960** exactly equals reviewed6da9f866f05c7d4888f724b4985f6c44b7728c47,63focusedPASS, **11358NodePASS/0FAIL/98SKIP** across644files, TypeScript0,6source gates0; fresh branchCI9/9SUCCESS. Actual SDK restored-batch before proof failed, after UUID/no-UUID/cleanup-write-failure/recovery/no-replay and unrelated-key tests pass. This is source-only; H001legal/retention/deletion/native storage/provider ingestion and current-binary gates remain unresolved. H003native masking accuracy NOT TESTED: owner confirms no devices.
 
@@ -125,7 +129,7 @@ Lane status: A source authority/RP108baseline verified, final candidate converge
 Exact next: collect Node10757result; publish bounded P4mobile PR only after full validation, wait every current check/review, merge under existing green approval, compare merged tree/branchCI and reverifyF012cell. Persist corrected646batch/merge current35source without losing local work; run its corrected CI serially. Continue high-risk applicable probes and new H014contract investigation (not a finding). Overall audit **INCOMPLETE; no release readiness PASS**. Source success does not substitute for missing runtime/device/legal evidence or the2697pending applicable matrix cells.
 
 
-## Latest checkpoint — G013 reopened by actual legacy-queue transport proof
+## Latest checkpoint â€” G013 reopened by actual legacy-queue transport proof
 
 New B35-H001-QUEUE-001 **FAIL at merged a9503e13**: actual installed SDK _flushRoute/sendBatch serializes a seeded legacy event's synthetic credential URL; before_send called0times during flush, although new captures are sanitized. SDK reset preserves Queue. No real user queue, native disk or provider read; no Production incident claim. **Same G013/P1**, not a fifteenth finding.14confirmedP0-P3,13fully source-repaired, G013partial/reopened. #663new-capture fix remains intact; follow-up repair in fresh C:/b35queueprivacy1030, branch audit/build35-posthog-legacy-queue-20261030 baseda950, no source change yet. [Failing transport proof](evidence/continuation-posthog-persisted-queue-finding.json).
 
@@ -134,7 +138,7 @@ P4F012 canonical PR **#664** now OPEN/ready at e9790c27,1571backend/54governance
 Current source authorities mobilea9503e13/backend3bab42e4; Build34isolated840ba88e. Original matrix90PASS/2FAIL/3004NT incl307N/A/2697applicable pending; G013follow-up outside original matrix. Owner has no physical devices; H003nativeaccuracy NOT TESTED. Exact next: implement bounded G013legacyQueue sanitation and actual SDK transport regressions, validate/publish through green PR; correct evidence CI metadata classification; finish664canonical/mobile convergence and continue broader probes. No deployment, production mutation, mobile build, pricing or store action.
 
 
-## Current checkpoint — analytics P1 source merged, authorized P4 ready locally
+## Current checkpoint â€” analytics P1 source merged, authorized P4 ready locally
 
 Mobile **a9503e135162824ed8127f6a3066fac1deab3e67** (#663) exactly equals testeda5b55fc56ec7289d8a182aef9d2d6b1882cf6b37;34successful/20conditional-skipped premerge checks, no pending/failure, separate CLEAN/head verification. **11353NodePASS/0FAIL/98SKIP**,643files;58focusedPASS; TypeScript/six gates0; backend unchanged, retain exact1569PASS at2d/06e. Postmerge branchCIpending. Canonical remains **3bab42e47817da8a4941efc4a509afee73879015** (7/7branchCIpreviously verified); Build34still840ba88e, fresh remote heads read. **All14confirmedP0-P3 source repairs are merged/converged** (0P0/5P1/3P2/6P3). No device/runtime/customer-live claim. H001implementation subfinding G013is SOURCE REPAIRED; policy/retention/deletion/current-binary/ingestion gates remain unresolved. Native H003accuracy NOT TESTED: owner confirms no devices.
 
@@ -145,7 +149,7 @@ Fresh read-only Supabase: Production28functions/discoveryABSENT, Staging40/disco
 Exact next: read #663postmergebranchCI, update/publish finalF012backend PR after source staginggate clears; wait every current check before merge; exact mobile promotion plus related full candidate validation; update F012matrix cell only after final authoritative proof. Persist this batch in existing646 and preserve newmobile source without overwriting uncommitted work. Continue high-risk remaining probes. Overall audit **INCOMPLETE**, no release PASS; runtime/device/legal checks and substantial local coverage remain. No Production changes, mobile builds, prices, purchases or store submission.
 
 
-## Current checkpoint — shared capability and hardware disposition
+## Current checkpoint â€” shared capability and hardware disposition
 
 Owner confirms **no physical devices available**. All26feature device fields and4native matrix cells remain NOT TESTED; native masking accuracy is not certified. Continue independent source/backend work.
 
@@ -158,7 +162,7 @@ All13P0-P3 repairs source-merged in owning authorities (4P1/3P2/6P3),12mobile-co
 Exact next: collect full Node result, run governed backend suite, review/publish a single bounded promotion PR, wait every current-head check before any merge, verify exact tested-tree parity and branchCI. Then update C011cells only after candidate convergence, continue high-risk applicable probes. Existing646evidence lane only; no new evidence PR. Owner legal copy/website work, protected runtime rollout, native store/signed-artifact gates remain separate. No Production change, build, pricing or real purchase action.
 
 
-## B35-C-011 — P3 — DNS hostname bypass of media network-topology guard
+## B35-C-011 â€” P3 â€” DNS hostname bypass of media network-topology guard
 
 - CONFIRMED controlled local reproduction on canonical531f288f source (actual adapter/default Deno fetch wrapped only to restrict the synthetic garment destination): `deno test --no-config --node-modules-dir=none --allow-env --allow-read --allow-net=127.0.0.1:443,127.0.0.1.nip.io:443 C:/b35readback1030/media-dns-loopback.test.ts` returns0PASS/1FAIL. Our own127.0.0.1:443raw listener accepts1connection/64TLSClientHello bytes. Provider submits0; outcome invalid_garment_input/non-billable. Listener is closed by the fixture; if443 is occupied it refuses to contact the existing owner.
 - Independent DNS lookup of127.0.0.1.nip.io and127.0.0.1.sslip.io returns127.0.0.1 locally; the actual pure URL guard accepts both. Metadata-alias DNS lookup returnedENOENT and is NOT presented as demonstrated metadata access.
@@ -173,7 +177,7 @@ Exact next: collect full Node result, run governed backend suite, review/publish
 
 Owner authorized merging fully green PRs. F007/#656 is MERGED in backend98c88ff1240b6596649d7967e9a180d43d7fa83e (tested treeffd3f40d identical; backend1523PASS; branch CI7/7SUCCESS). G008/#657 is MERGED in mobile9c66fe50f537179046bc4e8b160ec4ddd1c463b6 (tested37330f80 identical; Node11345PASS/0FAIL/98SKIP; branch CI9/9SUCCESS). Mobile promotion658 is in validation, head75610bc5da4e7c7ae2ba4fc0eb9a8cb8abe11f71. Its first full run correctly failed one meta-test expecting10static guard passes after an added11th control; exact count and named-test assertion were corrected without removing controls. Required full rerun/CI remain pending. Historical pending-owner statements below are superseded.
 
-### B35-C-010 — P3 — remote VTO garment bytes bypass image-integrity rejection before dispatch
+### B35-C-010 â€” P3 â€” remote VTO garment bytes bypass image-integrity rejection before dispatch
 
 - CONFIRMED by two offline executions on148e48d26ac390de40ec21aed0efa41f29870775; affected VTO source bytes equal canonical backend98c88ff1. `deno test --allow-env --allow-read C:/b35readback1030/vto-remote-image-integrity.test.ts`:2PASS/4FAIL. Zero-byte,12-byte truncated PNG, HTML labelled image/jpeg and corrupt bytes labelled image/webp each reach the real adapter's POST boundary. Declared text/html is rejected; valid2918-byte PNG is the positive control.
 - Full actual handler plus actual adapter reproduction: `deno test --allow-env --allow-read C:/b35readback1030/vto-remote-handler-integrity.test.ts`:0PASS/1FAIL. An HTML garment labelled JPEG followed by a simulated provider400 yields HTTP422/provider_rejected_input, submit1, complete-failed1, release0. Provider and quota storage are injected; no live charge, customer loss, live database mutation or paid-provider claim is made.
@@ -201,7 +205,7 @@ Repair queued in dedicated backend-authority worktree C:/b35discoveryguard1029: 
 
 > ACTIVE CONTINUATION CHECKPOINT: authorities independently verified c86bf3d0/f4df2a5a, nine prior repairs merged;110archives verified. New PostHog70/70 and discovery7/7 source probes; current Scanner nullP4 remains reproduced. H001 UNCONFIRMED/legal authority pending; H003 native accuracy not certified/ADB0targets. All3041 outstanding cells now have execution dispositions (300N/A,2443local,285Staging,8sandbox,4native,1artifact); classification is not coverage completion. See [high-risk privacy evidence](build35-high-risk-privacy-verification.md) and current checkpoint. Full campaign remains INCOMPLETE; no newP0-P3 finding or runtime repair.
 
-> **CURRENT STATUS (2026-10-29, supersedes SHA/merge statements below):** the nine P0–P3 repairs are merged under owner approval. Build 35 authority `integration/build35-v1-convergence` = `c86bf3d052806c6105ce7830a03ac2b1501d34a1` (PR #648; tree identical to candidate `751e3815`). Backend authority `rebuild/backend-authority-v2` = `f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af` (PRs #649 → #653 → #647). #644/#645/#650/#651/#652/#654/#655 are superseded by #648. Final-SHA validation: Node 11,336/0 fail/98 skip, TypeScript and six gates exit 0 at `c86bf3d0`; Deno 1,515/0 at `f4df2a5a`. No deployment, migration application, flag change or build occurred; migration `20261029184000` remains unapplied. See [final source convergence](build35-final-source-convergence.md). Open items (B35-B-004, H-001, H-003, the probe matrix and device/artifact phases) are unchanged.
+> **CURRENT STATUS (2026-10-29, supersedes SHA/merge statements below):** the nine P0â€“P3 repairs are merged under owner approval. Build 35 authority `integration/build35-v1-convergence` = `c86bf3d052806c6105ce7830a03ac2b1501d34a1` (PR #648; tree identical to candidate `751e3815`). Backend authority `rebuild/backend-authority-v2` = `f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af` (PRs #649 â†’ #653 â†’ #647). #644/#645/#650/#651/#652/#654/#655 are superseded by #648. Final-SHA validation: Node 11,336/0 fail/98 skip, TypeScript and six gates exit 0 at `c86bf3d0`; Deno 1,515/0 at `f4df2a5a`. No deployment, migration application, flag change or build occurred; migration `20261029184000` remains unapplied. See [final source convergence](build35-final-source-convergence.md). Open items (B35-B-004, H-001, H-003, the probe matrix and device/artifact phases) are unchanged.
 
 > FINAL STOP-STATE: Latest complete full Node validation:751e3815,11336 passed/0failed/98skipped,total11434; log candidate-node-permission-matrix-final.log and exit0 captured. Runtime source is unchanged froma376f2f7 (TypeScript and six source gates0), backend unchanged from53b93724 (1531/0failed). No combined-SHA runtime claim.
 
@@ -240,9 +244,9 @@ Before command node --test __tests__/uriDecoderSecurity.test.js on vulnerable lo
 
 ## Historical discovery/reproduction entries (status statements superseded above)
 
-# Build 35 P0–P3 repair ledger (source repairs prepared; owner-gated)
+# Build 35 P0â€“P3 repair ledger (source repairs prepared; owner-gated)
 
-## B35-G-001 — P2 — malformed secondary response can break primary result rendering
+## B35-G-001 â€” P2 â€” malformed secondary response can break primary result rendering
 
 - State: CONFIRMED, source repair committed; draft PR #644, unmerged and undeployed. Shared iOS/Android client.
 - Source: services/blackOwnedDiscovery.ts, requestBlackOwnedDiscovery response validation; services/blackOwnedDiscoveryHost.ts, displayableSecondary productUrl.split; components/scan-results/ScanResultV2.tsx calls displayableSecondary in render.
@@ -254,18 +258,18 @@ Before command node --test __tests__/uriDecoderSecurity.test.js on vulnerable lo
 - Regression: malformed-field fixture; focused discovery client and host tests.
 - PR #644; commit bd2827e7bb524cf149ac01ae5443f2901bbb29f6. Focused 22/22 pass. CI snapshot evidence/repair-ci.json shows green checks plus explicit skips. Merge and authoritative reverification NOT DONE.
 
-## GOV-01 — authority conflict (operational gate, no fabricated product priority)
+## GOV-01 â€” authority conflict (operational gate, no fabricated product priority)
 
 RESOLVED by existing scoped governance: RP-108 reserves pre-freeze for Build 34; Build 35 targets integration/build35-v1-convergence. The 5/512 divergence and four conflicts were reconciled in prepared PR #648, without Build 35 ancestry on pre-freeze. #644 must not merge to its original pre-freeze target; its repair is promoted with provenance into #648. No authority override or merge performed.
 
-## Runtime gate — organic discovery deployment
+## Runtime gate â€” organic discovery deployment
 
 Authenticated Production function inventory contains no black-owned-discovery slug. Source merged is verified; backend deployed is CONTRADICTED for the current readback. Protected deployment is a separate owner-approved action. No new feature or merchant data will be manufactured to hide this gap.
 
-## B35-C-001 — P1 — Gemini provider/text consent omitted and legacy acceptance remains sufficient
+## B35-C-001 â€” P1 â€” Gemini provider/text consent omitted and legacy acceptance remains sufficient
 
 - CONFIRMED on integration baseline 65a1e7cd. Reproduction: `node --test __tests__/build35GeminiConsentDisclosure.test.js` fails both assertions. Evidence: evidence/gemini-consent-before.log.
-- Exact source: app/onboarding/index.tsx:680 says only “I consent to AI image processing”; constants/legal.ts:4 retains AI_PROCESSING_VERSION=v1; services/onboardingCompletion.ts:68 accepts a matching local version marker without rechecking the ledger; services/style-chat/providers/edgeStyleChatProvider.ts:364 sends chat text to stylechat-generate, whose provider is Gemini.
+- Exact source: app/onboarding/index.tsx:680 says only â€œI consent to AI image processingâ€; constants/legal.ts:4 retains AI_PROCESSING_VERSION=v1; services/onboardingCompletion.ts:68 accepts a matching local version marker without rechecking the ledger; services/style-chat/providers/edgeStyleChatProvider.ts:364 sends chat text to stylechat-generate, whose provider is Gemini.
 - Contract violated: provider-specific disclosure and explicit consent covering Elise text, including existing-user upgrade flows, before transfer.
 - Root cause: image-only disclosure and unchanged acceptance version do not cover Gemini text processing. Existing v1 marker is accepted as current.
 - Repair scope: explicit Gemini/photos/text/Elise disclosure adjacent to the short Gemini-consent checkbox; version-bound upgrade forces existing v1 users through current acknowledgment. No binding Terms/Privacy rewrite or invented provider retention claim.
@@ -273,7 +277,7 @@ Authenticated Production function inventory contains no black-owned-discovery sl
 - PR #645; commit 8c86a9fd (full SHA in convergence record). Focused 39/39 pass; CI pending. Merge and authoritative reverification NOT DONE. Cross-platform device enforcement and direct backend consent authority remain NOT TESTED.
 - Merge order: 1 B35-G-001 (#644); 2 B35-C-001 (separate disjoint files, integration branch). Lead is sole editor; no shared-file parallel repairs.
 
-## B35-F-002 — P1 — outfit generation lifecycle check fails open
+## B35-F-002 â€” P1 â€” outfit generation lifecycle check fails open
 
 - Confirmed by source contract: backend authority `supabase/functions/style-outfit-generate/index.ts`, lifecycle block after verified `userId`, reads `.from('profiles').select('account_status').eq('id', userId).maybeSingle()` but discards the error and rejects only pending_deletion/locked. Missing/RLS-hidden rows, lookup errors and other non-active states proceed to Gemini and saved-look work.
 - Contradicts the existing server-authoritative account-active contract used by Scanner and StyleChat in `_shared/deletion/common.ts:assertAccountActive`, which fails closed and resolves missing profiles through Auth plus effective deletion state.
@@ -281,7 +285,7 @@ Authenticated Production function inventory contains no black-owned-discovery sl
 - Regression planned: missing/error/deactivated guard failures produce 403 and zero downstream work; active account proceeds; index wiring guard precedes parsing/provider/reservation.
 - Owner/merge: lead only, dedicated backend-authority repair branch/PR, separate from consent work. Status OPEN.
 
-## B35-C-002 — P1 — Gemini transfer endpoints do not enforce the consent receipt
+## B35-C-002 â€” P1 â€” Gemini transfer endpoints do not enforce the consent receipt
 
 - Source contract evidence on backend authority 3efcb6cb: scan-identify/index.ts authenticates paid inference then calls Gemini without reading legal_acceptances; stylechat-generate/index.ts has auth/account gates then Gemini/Packing dispatch without a receipt check; style-outfit-generate/index.ts and purchase-import-extract/handler.ts likewise omit it. These are the complete discovered Gemini transmitters (Packing is dispatched through stylechat).
 - This contradicts the campaign's before-transfer consent contract: PR #645 only changes onboarding, and direct authenticated clients can bypass route/onboarding state.
@@ -289,14 +293,14 @@ Authenticated Production function inventory contains no black-owned-discovery sl
 - Backend authorization behavior explicitly flagged; no Production deployment authorized by this source patch. No schema or wire-body change planned.
 - Revocation remains a distinct authority gap: legal_acceptances is an immutable receipt ledger, not a withdrawal ledger. Do not claim a version check implements revocation.
 
-## B35-COST-003 — P2 — VTO certification can misclassify an accepted paid submission as not dispatched
+## B35-COST-003 â€” P2 â€” VTO certification can misclassify an accepted paid submission as not dispatched
 
-- Reproduced on source-converged candidate 4c09c44d: full Node suite fails `vtoE2eUserGarmentProbe.test.js:598`, which proves authorization_failed can now be returned after generation began (durable settlement/receipt failure in canonical VTO-001–005 repairs).
+- Reproduced on source-converged candidate 4c09c44d: full Node suite fails `vtoE2eUserGarmentProbe.test.js:598`, which proves authorization_failed can now be returned after generation began (durable settlement/receipt failure in canonical VTO-001â€“005 repairs).
 - Exact source: scripts/vto-e2e/lib/userGarmentProbe.mjs NOT_DISPATCHED_FAILURE_CODES includes authorization_failed; dispatch classification later uses that list to set zero dispatch. Contract requires ambiguous post-submit outcomes to remain accounted, never authorize a second paid test call.
 - Planned repair: remove only authorization_failed from the zero-dispatch list and explicitly pin the conservative classification. All other zero-submit codes retain the source/adapter negative control.
 - Scope: test/certification cost accounting; no provider, billing, entitlement or quota configuration changed. Dedicated repair follows source promotion, not a weakened assertion.
 
-## B35-G-004 — P3 — ownership badges can remain visible beyond their known expiry
+## B35-G-004 â€” P3 â€” ownership badges can remain visible beyond their known expiry
 
 - Exact source: components/luxury/ProductCard.tsx renders hasVerifiedOwnership only on React renders; components/scan-results/PurchaseOptionsPanel.tsx does the same for primary rows. Neither schedules a refresh at verifiedUntil. An idle mounted result can therefore retain a verified badge after its supplied timestamp expires.
 - Reproduction executed on convergence source: `node --test __tests__/ownershipBadgeExpiry.test.js` with controlled clock and real ProductCard. A valid displayed badge schedules zero expiry updates (expected one); ordinary unrelated card control passes. Evidence badge-expiry-before.log.
@@ -367,13 +371,13 @@ Preparation order (not merges): canonical mobile discovery source -> G-001 parsi
 
 Owner update: exact PR654 Gemini control wording APPROVED; this does not authorize merging or deployment. Broader Terms/Privacy/store disclosure reconciliation remains a separate legal handoff.
 
-## Latest exact state — supersedes earlier checkpoint snapshots
+## Latest exact state â€” supersedes earlier checkpoint snapshots
 
 Mobile8bdcaaba986b169a15cb5545008ffef34c7b65f7 branch CI9/9SUCCESS; backend98c88ff1240b6596649d7967e9a180d43d7fa83e branch CI7/7SUCCESS. Source658merged and exact tested tree equality verified. C010repair659now412761fb0ea480e69bf910adad96a08dd07e592e, runtime/config byte-identical to tested7dc257bb;59focused/1531backendPASS. Initial scope CI correctly refused3new files;3exact justified declarations plus unrelated-sibling refusal added,52enforced-scopePASS/0skip. CI pending, unmerged, unpromoted, undeployed.
 
 Original matrix3096:67PASS/6FAIL/3023NOTTESTED,300N/A. Five newly reconciled failures all describe C010, not five findings; applicable pending2723, local2426/Staging284/sandbox8/native4/artifact1.150lossless archives integrity-verified. Owner legal language/website handoff and factual metadata saved. Exact next: finish659CI and governed integration, merge current source into evidence646 without overwriting uncommitted work, preserve/push this batch serially, then continue high-risk probes. The audit is INCOMPLETE, with a confirmed unrepaired-in-authorityP3 until659converges.
 
-## Owner-requested status checkpoint — October30
+## Owner-requested status checkpoint â€” October30
 
 Mobile d342087cef908e806c891d5f19264d4eeeb8d665 (#660) branchCI9/9SUCCESS; backend531f288fe52ab7ff8ef733408779d19ba4d93c6b (#659) branchCI7/7SUCCESS. C010 exact canonical/mobile promotion verified; mobile11348PASS/0FAIL/98SKIP,1547backendPASS; TypeScript/six gates0. C010 initial2Node failures were frozen governance digest/roster, independently reconciled to canonical source with original holds/refusals retained.
 
@@ -383,7 +387,7 @@ Matrix3096 now72PASS/3FAIL/3021NT,300N/A;2721applicablepending (2424local/284Sta
 
 Exact next: collect8384/661CI, repair only real gating causes, verify ordinary governed source merge conditions and runtime compatibility requirements, then exact C011 mobile promotion/source proof. Do not reset C:/b35dns1030. Continue remaining high-risk coverage; the audit is not complete. Evidence646 remains current documentation lane, now based on merged d342source. Commit/push this status batch after current source staging gate clears; do not create another evidence PR. No paid generation, production write/deployment/migration/flag change, EAS or store action.
 
-## Latest owner status cut — canonical DNS merge
+## Latest owner status cut â€” canonical DNS merge
 
 Backend now3bab42e47817da8a4941efc4a509afee73879015 (#661), exact reviewed8384tree.13repairs source-merged in owning authorities,12fully mobile-converged; C011 mobile promotion and runtime verification remain. Fresh backend branch CI5successful/2pending; mobile d342branch9/9successful.
 
@@ -391,7 +395,7 @@ PROCESS DEVIATION:661merge occurred while3ready-refreshed checks werepending, vi
 
 Exact next: inspect3babbranchCI, finish exact C011mobilepromotion/source validation, continue high-risk coverage. Owner-requested status report is build35-status-report-2026-10-30.md; current matrix72PASS/3FAIL/3021NT remains qualified until candidate C011 convergence. Evidence171archives validated. No new owner merge permission needed; production/build/store gates remain separate.
 
-## B35-F-012 — P4 — malformed storage signing response coerced into a fabricated image URL
+## B35-F-012 â€” P4 â€” malformed storage signing response coerced into a fabricated image URL
 
 **CONFIRMED, UNREPAIRED; backend/shared.** At06e1e1e source, [createSignedImageUrl](../../supabase/functions/shared-room-image-url/index.ts#L252) trusts a TypeScript assertion for external JSON, then checks truthiness and interpolates at line257. An injected200response with `{signedURL:{unexpected:'object'}}` returns200with `https://shared-fixture.invalid/storage/v1[object Object]`. Actual-handler fixture fails its no-fabricated-URL assertion (0PASS/1FAIL); no network permission, real storage or customer data. This refutes the earlier broad wrong-schema cell while preserving47positive cases. See [structured evidence](evidence/continuation-shared-signing-schema-finding.json) and [reproducer](evidence/shared-room-signing-schema.test.ts.txt).
 
@@ -399,7 +403,7 @@ Expected: reject a non-string/unusable signing path, yielding null image entry o
 
 Proposed fix: validate nonempty string and contract-valid relative signing path; regression-test object, array, number, missing/null and valid signed paths. Low complexity, localized function/tests; canonical backend ownership and exact mobile promotion apply. Safe P4 condition4fails because this service-role endpoint reads authorization/room state and signs private storage (protected RLS-facing surface). Latest continuation does not authorize unapproved protectedP4implementation. Owner source authorization is required; no runtime change prepared or deployed. Recommended grouping: next authorized bounded backend resilience repair, before final closure if owner elects; platform effect equivalent on iOS/Android. No legal-copy/design dependency.
 
-## B35-G-013 — P1 — credential-bearing launch URL accepted by analytics send filter
+## B35-G-013 â€” P1 â€” credential-bearing launch URL accepted by analytics send filter
 
 **CONFIRMED, source repair required.** Real installed SDK4.67.0 method captureAppLifecycleEvents awaits Linking.getInitialURL and emits Application Opened with raw url. Current app [before_send](../../services/analytics/posthogClient.core.ts#L96) checks actor identity but does not scrub that URL. A controlled delayed URL resolves after real app identity sync; accepted event includes synthetic OAuth code/access token. Failing1-test fixture and [structured evidence](evidence/continuation-posthog-lifecycle-finding.json) retained. Actual auth callback paths support access_token/refresh_token/token_hash (services/authDeepLink.js:30-32 and authCallbackOrigin.ts:11). No real secrets or network dispatch in probe; no Production incident/ingestion claim. P1 reflects permitted credential exposure at an analytics boundary, not an invented P0.
 
@@ -408,15 +412,15 @@ Root cause: enabled SDK lifecycle capture is outside the seven explicit feature 
 ### F012/P4 final merge order
 Canonical664 (f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee) preceded mobile666 (50387a2be4e3406b9ce43b4b0ffb56c4b82262c6), reviewed 2b04f5d5f53be7e72b652b8892269923ed43da78, identical tree b4fbf80a1af8b070ebf2d0972e4c207338c64ee1. All51 exact source grants checked; prior47 unchanged plus four canonical files. Mobile runner retains purchase-import coverage. New C015/P4 is deferred under protected scope and documented in backlog; not included in14repaired P0-P3.
 
-## B35-E-016 — P3 — Unicode destination forecast-cache collision — OPEN
+## B35-E-016 â€” P3 â€” Unicode destination forecast-cache collision â€” OPEN
 
 Source packingWeather.ts:84 strips every non-ASCII character; Tokyo and Osaka both map to |2026-09-12|2026-09-13. Actual resolver fixture returns Tokyo for the second Osaka request with only two provider calls, versus distinct forecasts/four calls. deno test --allow-read packing-weather-unicode-before.test.ts fails at exact source2b04 (tree-equivalent merged50387). Root cause and full witness: evidence/continuation-packing-weather-unicode-finding.json; red log retained. Material Packing recommendation error for non-Latin destinations, not private-data exposure. Canonical repair worktree C:/b35weather1031, fix/build35-packing-weather-unicode-20261031, startingf64d8b7f. Small Unicode-preserving normalization and resolver/cache regressions planned; no API/schema/platform/copy change. PR/commit/CI/merge/reverification PENDING. Repair order canonical first, exact mobile promotion second. Totals now15 confirmed P0-P3:0P0/5P1/3P2/7P3;14source-converged, this one OPEN. Not15separate new bugs in a green suite.
 
 ### B35-E-016 canonical repaired; mobile promotion pending
 
-Canonical667 merged5df63c05, tree71cb2270 identical reviewed28786867;20focused weatherPASS and full CI1574backendPASS/0FAIL. All32premerge checks successful/14conditional skips, canonical branch7/7green. Local four source gates passed, dependency gate correctly failed AUDIT_UNAVAILABLE after npm timeout; CI npm audit/reachability independently passed. Local broad backend attempt incomplete, not represented as a PASS. Mobile668 initial98620613 had one stale generated implementation identity, causing dependent promotion/summary red gates. The documented generator updates only the Packing hash (7e9b→8646); approval/evidence/hold records unchanged. Local155focusedPASS/0FAIL/2conditional skips. Final sourceced4bb37 is pushed, current-head CI pending; do not merge red/stale checks. No Production migration/deployment/flags or binary. Merge order canonical667 before mobile668. All14previous P0-P3 repairs and F012 preserved.
+Canonical667 merged5df63c05, tree71cb2270 identical reviewed28786867;20focused weatherPASS and full CI1574backendPASS/0FAIL. All32premerge checks successful/14conditional skips, canonical branch7/7green. Local four source gates passed, dependency gate correctly failed AUDIT_UNAVAILABLE after npm timeout; CI npm audit/reachability independently passed. Local broad backend attempt incomplete, not represented as a PASS. Mobile668 initial98620613 had one stale generated implementation identity, causing dependent promotion/summary red gates. The documented generator updates only the Packing hash (7e9bâ†’8646); approval/evidence/hold records unchanged. Local155focusedPASS/0FAIL/2conditional skips. Final sourceced4bb37 is pushed, current-head CI pending; do not merge red/stale checks. No Production migration/deployment/flags or binary. Merge order canonical667 before mobile668. All14previous P0-P3 repairs and F012 preserved.
 
-## B35-E-018 — P3 — confirmed saved-scan false-success / explicit restoration
+## B35-E-018 â€” P3 â€” confirmed saved-scan false-success / explicit restoration
 
 Reproduction: [real service Staging evidence](evidence/continuation-saved-scan-service-staging-1102.json), five records: two failures of one customer persistence contract, one positive save baseline, two cleaned synthetic identities. Source113a/unchanged tested757ad. Root cause and bounded repair plan: [finding](evidence/continuation-saved-scan-service-finding-1102.json). Source preparation only: new SQL20261102125053and meaningful actual-Postgres-engine regression in C:/b35restorebackend1102,14PASS including prior account guard; no source PR or mobile acknowledgment fix yet. Status OPEN, not merged/verified at runtime. Serialized after671closure. Not an account-deletion-cycle change; foreign resource authority held.
 

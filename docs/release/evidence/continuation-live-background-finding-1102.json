@@ -1,0 +1,35 @@
+{
+  "id": "B35-C-022",
+  "priority": "P3",
+  "status": "SOURCE REPAIRED / PR678 OPEN / exact-head validation in progress",
+  "sourceSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+  "sourceLocation": "hooks/useVtoLiveSession.ts:134-207 enterLive permission continuation and exitLive; 117-132 cleanup covers unmount only; no AppState listener",
+  "contract": "Live camera lifecycle must stop when its application is backgrounded; late permission/capture completions must not start or hand off an inactive session. Original campaign sections 14/28 and source lifecycle/privacy contract.",
+  "reproduction": "node --test C:/b35readback1030/live-mounted-source-1102.test.cjs",
+  "evidence": "live-background-before-1102.log; actual Studio/hook/entry/launch host/sheet/panel/native adapter/controller and camera lease; native methods and AppState emitter controlled, not physical camera",
+  "before": {
+    "pass": 24,
+    "fail": 2,
+    "skip": 0
+  },
+  "observed": [
+    "Background during pending permission, then grant: native start called once, expected zero.",
+    "Background during active Live/person capture: currentCameraOwner remains live_vto, expected null; listener remains installed."
+  ],
+  "rootCause": "Surface visibility/unmount teardown exists, but mounted Live does not subscribe to application background transitions.",
+  "repairPlan": "Subscribe to React Native AppState background; reuse existing epoch-fenced exitLive teardown, disallow background start and post-permission dispatch; preserve transient inactive permission dialog and require explicit restart after foreground return.",
+  "riskLimits": "No actual background camera bytes, OS privacy violation, provider dispatch, payment effect or cross-account disclosure established. Moderate source lifecycle/reliability defect, not P0.",
+  "mergeOrder": "After #677 fully source/CI closed. Lead-only edit of shared Live hook; bounded separate PR.",
+  "pr": 678,
+  "repairHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "after": {
+    "mountedPass": 28,
+    "fail": 0,
+    "skip": 0,
+    "relatedPass": 918,
+    "relatedSkip": 4,
+    "relatedFail": 0,
+    "correctedHookPass": 46
+  },
+  "typecheck": "Initial TS2367 static property narrowing caught; fresh-read helper committed d64ec062, corrected typecheck pending. No assertions relaxed."
+}
