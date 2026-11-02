@@ -1,0 +1,20 @@
+{
+  "source": "6c30bb3416bf0fcb383c5b2896dd239ecc1f90a9",
+  "environment": "Local exact mobile source/default quota adapter/actual migration SQL in PGlite; synthetic validated identity, consent, SDK transport and provider",
+  "limitations": "No live JWT, provider, database deployment, binary or activation tested",
+  "results": [
+    {
+      "probe": "original client-session-id failure",
+      "status": 200,
+      "ok": true,
+      "providerDispatches": 1,
+      "reservations": [
+        {
+          "status": "completed",
+          "n": 1
+        }
+      ],
+      "verdict": "PASS"
+    }
+  ]
+}

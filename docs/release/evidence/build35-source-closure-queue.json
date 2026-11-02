@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-02T20:28:52.036Z",
+  "capturedAt": "2026-11-02T20:49:05.652Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -60,23 +60,26 @@
       "status": "CLOSED scoped source work /40composedPASS /9of9mergedbranchCI",
       "evidence": "../build35-live-source-workflow-verification.md",
       "limits": "One real authoredcommercial garment; otherproductsPhoto fallback; no all-catalog or native-device claim"
+    },
+    {
+      "item": "Receipt opaque client ID/private quota UUID source convergence",
+      "finding": "B35-C-023",
+      "prs": [
+        679,
+        680
+      ],
+      "source": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+      "canonical": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
+      "status": "CLOSED /7canonical+9mobile independent postmerge workflowsSUCCESS",
+      "evidence": "continuation-c023-source-closure-1102.json"
     }
   ],
   "active": {
-    "item": "C023 receipt request-ID/UUID repair mobile convergence",
-    "canonicalPr": 679,
-    "canonicalSource": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
-    "canonicalPostMerge": "7/7 workflows SUCCESS; actual Project8557NodePASS/0FAIL/65SKIP,1575backendPASS/0FAIL",
-    "pr": 680,
-    "head": "f8f70fa55c4957cf6f06adda68e17178489471ce",
-    "validation": "17focusedPASS;TypeScript0;6sourcegates0",
-    "next": "Finish current-head CI/reviews, normal green merge and independent9workflow mobile CI, then F024. No overlapping handler repair started."
+    "item": "F024 in-flight duplicate provider dispatch",
+    "finding": "B35-F-024",
+    "next": "Create isolated canonical repair from214cf19e; actualSQL/defaultadapter/handler failing duplicate fixture, deny duplicate_replay before dispatch without settling firstreservation; canonical greenCI/merge/postmerge then boundedmobilepromotion/CI/merge/postmerge."
   },
   "queued": [
-    {
-      "item": "Receipt in-flight duplicate provider dispatch",
-      "finding": "B35-F-024"
-    },
     {
       "item": "Provider quota client settlement authority",
       "finding": "B35-F-025"

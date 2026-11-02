@@ -16,7 +16,7 @@
       "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
       "id": "B35-C-023",
       "priority": "P2",
-      "status": "CANONICAL MERGED / POSTMERGE CI VERIFIED / MOBILE PR680 CI PENDING",
+      "status": "SOURCE CLOSED / CANONICAL AND MOBILE MERGED / INDEPENDENT POSTMERGE CI VERIFIED",
       "sourceLocation": "hooks/usePurchaseImport.ts:80-83 newSessionId; purchase-import-extract/handler.ts:132-136 default reserve; 20260803020000_provider_request_security.sql:212+ p_request_id uuid",
       "contract": "Existing accepted opaque purchase-import session/request ID must support the real client-to-handler-to-quota path.",
       "observed": "Actual private client session-ID generator -> actual default reserve/SQL gives503/okfalse/0providerdispatch; valid UUID control gives200/oktrue/1dispatch/1completedreservation.",
@@ -35,7 +35,9 @@
       "canonicalPostMerge": "7/7 workflows SUCCESS; actual Project8557NodePASS/0FAIL/65SKIP,1575backendPASS/0FAIL",
       "mobilePr": 680,
       "mobileHead": "f8f70fa55c4957cf6f06adda68e17178489471ce",
-      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json"
+      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json",
+      "closureEvidence": "continuation-c023-source-closure-1102.json",
+      "mobileMerge": "892f9ef08b29bbce68edffb96298b0a8bf65814a"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
@@ -81,5 +83,7 @@
       "repairPlan": "Prepare a separate governed migration and backend-only actor-scoped settlement authority, revoke client settlement execution, preserve authenticated reservation/ownership boundaries, add real SQL and handler authority/concurrency tests. No database application or production rollout is authorized.",
       "ownerAuthorization": "continuation-owner-repair-authorization-1102.json"
     }
-  ]
+  ],
+  "currentSource": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+  "currentBackend": "214cf19efffce9b4f410b58075d4fc3c36c58bf1"
 }

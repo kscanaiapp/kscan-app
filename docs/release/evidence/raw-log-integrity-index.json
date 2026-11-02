@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T20:28:52.036Z",
+  "capturedAt": "2026-11-02T20:49:05.652Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3721,6 +3721,56 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "disposition": "Exact source validation or independent canonical postmerge job; no deployed-runtime/provider claim"
+    },
+    {
+      "rawFile": "pr680-project-push-failed-raw.log",
+      "rawBytes": 4370024,
+      "rawSha256": "e3508b29bfaa00427e93bdc4b2e0135d002939df7605dfe3fc9560f087fae1fa",
+      "archiveFile": "resume1102-pr680-project-push-failed-raw.log.gz",
+      "archiveBytes": 565357,
+      "archiveSha256": "9fe318a589e517910f12535505bd7ae35e69f52a413477385c82d10fd4deb782",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial exact mobilepromotion historical51-row guard refusal;2failures retained; no gate bypass"
+    },
+    {
+      "rawFile": "pr680-reviewed-project-raw.log",
+      "rawBytes": 5307190,
+      "rawSha256": "b071894f2344274f8eedd0cb300ac53bbed2c77763f410c499c510c8a410b9f2",
+      "archiveFile": "resume1102-pr680-reviewed-project-raw.log.gz",
+      "archiveBytes": 651150,
+      "archiveSha256": "67a211d9caaf4b2471a5752e359498291e55be820d8856087643d31cdd67eb7b",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Reviewed actual source/controlledfixture and exactpromotiongovernance; no live-provider claim"
+    },
+    {
+      "rawFile": "receipt-id-mobile-scope-correction-1102.log",
+      "rawBytes": 11168,
+      "rawSha256": "8f22bf8b072e4d0d9e851a293756747a073f62ba4f7f5d91ac0281c57b2da0ff",
+      "archiveFile": "resume1102-receipt-id-mobile-scope-correction-1102.log.gz",
+      "archiveBytes": 2747,
+      "archiveSha256": "d27ce1a7f9427b3baf185fd9ae5b375c56e15aa44f33e05ff346c9cea56c3b51",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Reviewed actual source/controlledfixture and exactpromotiongovernance; no live-provider claim"
+    },
+    {
+      "rawFile": "receipt-original-reverification-1102.log",
+      "rawBytes": 744,
+      "rawSha256": "7e661f45cdbc0b07407d45efc6aaa170b3c876d63509ccde2232ca090fb969ba",
+      "archiveFile": "resume1102-receipt-original-reverification-1102.log.gz",
+      "archiveBytes": 361,
+      "archiveSha256": "273bed4ec66b11caa64797ece57bb99df832fda4db3bada3fa5d6d7d12414c16",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Reviewed actual source/controlledfixture and exactpromotiongovernance; no live-provider claim"
+    },
+    {
+      "rawFile": "mobile-892f-project-postmerge-raw.log",
+      "rawBytes": 5299292,
+      "rawSha256": "3b32551401a445ebb8da147aa8f4550a89c48e2d1bffbf913e8e33ec72cb673f",
+      "archiveFile": "resume1102-mobile-892f-project-postmerge-raw.log.gz",
+      "archiveBytes": 649842,
+      "archiveSha256": "b130d59a8dbb0a38e179068209bf32469cfc5a635ebce32849d46684775acb97",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent authoritative mergedmobile exactSHA Projectjob; originalCLI/tool failures not testfailures"
     }
   ]
 }
