@@ -1,3 +1,11 @@
+## Owner-authorized repair queue — November 2
+
+The owner explicitly authorized **B004/P4, C023/P2, F024/P2 and F025/P2**. [Exact authorization and serialized order](evidence/continuation-owner-repair-authorization-1102.json). Current active C023: canonical **679/214cf19e**, seven independent branch workflows SUCCESS; actual8557NodePASS/0FAIL/65SKIP and1575backendPASS/0FAIL. Mobile **[680](https://github.com/kscanaiapp/kscan-app/pull/680)/f8f70fa5** open with17focusedPASS,TypeScript0,sixsourcegates0; current-head CI pending. All20 earlier P0–P3 source repairs preserved;23confirmedtotal,three closure-open until canonical/mobile completion.
+
+Lanes F/B active. Complete C023 mobile CI/review/merge/postmerge before editing F024; complete F024 then F025, separate governed PRs; then the newly authorized B004 Scanner validation repair with its original failing evidence and regression. No overlapping handler edit or additional feature expansion. Earlier StyleChat, saved-scan, Gemini funnel, Packing, K+ and Live source-work items remain closed; source audit is still incomplete. Original matrix136PASS/1FAIL/2959NOTTESTED,2637in-scope software cells pending; no automatic matrix reclassification from suite totals.
+
+377 lossless archives verified; original110 preserved. Initial stale mobile authority expectation and final corrected run both retained. Device certification excluded, deletion-cycle repairs deferred, owner legal/website work separate. No Production deployment/migration/flag, EAS/binary/store/pricing or paid-provider operation. Next exact: finish680 fully green and verify independent branch CI; then F024 isolated canonical source repair.
+
 ## C023 canonical repair in CI — November2
 
 Active [PR679](https://github.com/kscanaiapp/kscan-app/pull/679), revieweda1cf4b1535f92097189d51fb4573627eb943a8d7/treeeede8c68. A separate internalUUID fixes the opaque client-session/SQLUUID mismatch without changing clientwire/lineage/fingerprint, flags or provider. Actual defaultadapter/handler/SQL regressions before2PASS/2FAIL -> after4PASS/0FAIL;23focusedbackendPASS; cleancommitted-lock npmci succeeded; TypeScript0;5applicableclean-sourcegates0. Initialpartialdependencycache errors and dirtyauthorityrefusal retained and correctly resolved, notsuppressed. No schema/migration/deployment or clientsource change.

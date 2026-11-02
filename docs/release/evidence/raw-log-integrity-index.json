@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T20:08:27.222Z",
+  "capturedAt": "2026-11-02T20:28:52.036Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3681,6 +3681,46 @@
       "archiveSha256": "5587c80ef1ad8dc45088143d535a757216c9cc44b626075ff9d2ff7137a3c55a",
       "encoding": "UTF-8",
       "disposition": "Correct initial dirtyauthorityrefusal; committed repair then authoritygatePASS, no deployment"
+    },
+    {
+      "rawFile": "backend-214c-project-postmerge-raw.log",
+      "rawBytes": 4942748,
+      "rawSha256": "cd0644df99b3e38f7914ee24eb9be8efb90d3492603181c4fa6bfe048d6efa81",
+      "archiveFile": "resume1102-backend-214c-project-postmerge-raw.log.gz",
+      "archiveBytes": 549665,
+      "archiveSha256": "fc99a1e0cece80ac43717c4c8394b857cef6f8b62b4a37795d2555ecae5953d3",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact source validation or independent canonical postmerge job; no deployed-runtime/provider claim"
+    },
+    {
+      "rawFile": "receipt-id-mobile-focused-1102.log",
+      "rawBytes": 6274,
+      "rawSha256": "48e76f1badfd6c3b7c99d7448d76e00e5f2c153950087d3300dce6f3aee33dec",
+      "archiveFile": "resume1102-receipt-id-mobile-focused-1102.log.gz",
+      "archiveBytes": 1720,
+      "archiveSha256": "c2575b016884f4b8496b83b7f4db01dd5a4d6d9953bdc5dfb351dc7a5009e470",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial stale current-authority expectation refused; corrected exact pointer while retaining historical source/grant assertions; final17PASS"
+    },
+    {
+      "rawFile": "receipt-id-mobile-focused-final-1102.log",
+      "rawBytes": 4314,
+      "rawSha256": "351ef79adb11c7bffe6030184edb00f6bfc6a425f2c84b8ea6d157eb503151cd",
+      "archiveFile": "resume1102-receipt-id-mobile-focused-final-1102.log.gz",
+      "archiveBytes": 1238,
+      "archiveSha256": "76049388823b9e47cbd35103a80d21814c3e7887bc3d5537f07373dfa4ab1638",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact source validation or independent canonical postmerge job; no deployed-runtime/provider claim"
+    },
+    {
+      "rawFile": "receipt-id-mobile-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-receipt-id-mobile-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact source validation or independent canonical postmerge job; no deployed-runtime/provider claim"
     }
   ]
 }
