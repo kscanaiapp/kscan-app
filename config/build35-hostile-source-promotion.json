@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
+  "canonicalBackend": "31be5f99341b606a070bbbe0b3062588f320f089",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -155,9 +155,9 @@
     },
     {
       "file": "supabase/functions/purchase-import-extract/handler.ts",
-      "sha256": "91db9e717b92ba5d466aaa9a7e5dea8084bbd91782420b3ace1e97e4a8905d58",
-      "source": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
-      "reason": "Exact merged canonical PR679/C023 opaque-session quota UUID repair; preserve client request/response, session fingerprint and all activation/deployment gates. F024/F025 remain separate repairs."
+      "sha256": "71dfe68f87c8212195b81cbeb843ac3ac2526f7266fb573325eb5fba66176969",
+      "source": "31be5f99341b606a070bbbe0b3062588f320f089",
+      "reason": "Exact canonical PR681/F024 runtime repair plus PR684 event-synchronized regression; preserve C023 UUID/session contract and all activation/deployment gates. F025 remains separate."
     },
     {
       "file": "supabase/functions/scan-identify/scanImageProductMission.ts",
@@ -379,5 +379,16 @@
       "__tests__/helpers/purchaseImportQuotaWorld.js",
       "__tests__/purchaseImportDefaultQuotaAdapter.test.js"
     ]
+  },
+  "receiptQuotaReplayPromotion": {
+    "canonicalSource": "31be5f99341b606a070bbbe0b3062588f320f089",
+    "reviewedSource": "184395bc8899904946ce0c86e8c0a64ebef03b76",
+    "sourceTree": "1b6dbc86d3f7fe8a4c562da5aaae65a16fa75068",
+    "files": [
+      "supabase/functions/purchase-import-extract/handler.ts",
+      "__tests__/purchaseImportReplayDispatch.test.js"
+    ],
+    "runtimeRepairSource": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+    "fixtureCorrectionPr": 684
   }
 }
