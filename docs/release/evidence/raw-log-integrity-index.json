@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T13:47:44.328Z",
+  "capturedAt": "2026-11-03T13:56:54.688Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4531,6 +4531,96 @@
       "archiveSha256": "c8afb4088378e14bec4e96dec94007667b4abda6e823356e410a80822a4faa9a",
       "encoding": "UTF-8",
       "disposition": "Mobile W1 80PASS/0FAIL/2explicitN/A including actual adapter,actualSQLDDL and exact source-promotion negative controls; no real provider request"
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-full-node-1103.log",
+      "rawBytes": 2062856,
+      "rawSha256": "1a0f4c6940d4d191d1e7f534cb62390ef3739f8bd72d1d74a5588733380b9983",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-full-node-1103.log.gz",
+      "archiveBytes": 402901,
+      "archiveSha256": "7b82cd5e953b8455cc98e3e97d590b77678446c2a27e3603873ce04203b3bd0a",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-backend-1103.log",
+      "rawBytes": 496368,
+      "rawSha256": "4b491dd7a5780d318d565125a44b0f1a971429ce97315b739f600e97e6d9096c",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-backend-1103.log.gz",
+      "archiveBytes": 61732,
+      "archiveSha256": "c6e9d8c3438e77834c73e0effbc9161f1b97ef2802a4ec215f1e732a11b2ed1c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-typescript-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-typescript-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-check-edge-function-parity.js.log",
+      "rawBytes": 2135,
+      "rawSha256": "10fe31317d96fa198897f44e102a42b2b3a66f9a0115b88a378ca65f2c659a6b",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 976,
+      "archiveSha256": "1b79bb9e864df8951746f9558e059d99b204a1fec91e8359a0eecfbdecc924a4",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-verify-backend-authority.js.log",
+      "rawBytes": 659,
+      "rawSha256": "05314862d7d4e688e12baf4e7d1b16cf91d97d667d56fa3b092d5ab2259ec5cf",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-verify-backend-authority.js.log.gz",
+      "archiveBytes": 389,
+      "archiveSha256": "0185be5d9b1df2dae09f83a895152b0f9cbf0b08a63925e96ab831f511696197",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "3f2d0523aed8733f1f860126ec784bb99997911a4c3618539da0343b40c7f74e",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "026615ebe5d51c8f88458bd39d67ae42a270d8ae4d1aa80de6bcce4502954402",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-verify-migration-authority.js.log",
+      "rawBytes": 48,
+      "rawSha256": "d67bc305b65609eed4412692e4f84e66257bb9e4e537fdb09c16b7f9412ebacd",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-verify-migration-authority.js.log.gz",
+      "archiveBytes": 68,
+      "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-gate-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-gate-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
     }
   ]
 }

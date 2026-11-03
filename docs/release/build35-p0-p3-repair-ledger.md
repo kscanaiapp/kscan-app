@@ -1,3 +1,11 @@
+## Watchlist W1 merged in both source authorities — post-merge checkpoint
+
+Backend **6d96156745160d93596dd792769df6aed164e6fe** (#689),independent7/7pushworkflowSUCCESS. Mobile **2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27** (#687),reviewedabd91f4b/tested988adb05/mergedtreec36d306bidentical. FullygreenPR34SUCCESS/20conditionalSKIP/0FAIL and no review holds before merge. Independent9mobilepushworkflows still pending.
+
+Mobile11501NodePASS/0FAIL/98declaredSKIP;1604backendPASS+17handlersteps/0FAIL;80focusedPASS/2N/A;TypeScript/sixgatesexit0. Canonical8603NodePASS/67SKIP,1588backendPASS+17steps. W1sourceMerged;formal closure awaits mobilepostchecks. No deployedruntime claim. [Exact evidence](evidence/continuation-watchlist-source-convergence-1103.json).
+
+24P0-P3findings:23previouslyclosed+1newlysourceMerged/postcheckpending. Originalmatrix138PASS/0FAIL/2958NOTTESTED unchanged;467lossless archivesverified. Next collect9postchecks,closeW1thenowner-authorizedE027P4actualhandler repair. PR646draft/HOLD;688and694activationHOLD. TestSpritewaivedbyowner. No deployment,migration,realpush,customerwrite,device/build/storeaction. AUDIT IN PROGRESS.
+
 ## Watchlist W1 canonical merged; mobile convergence in validation
 
 PR689 merged only after current-head32SUCCESS/14conditionalSKIP/0FAIL,empty review threads and reviewed/tested tree identity. Backend **6d96156745160d93596dd792769df6aed164e6fe**;independent7post-merge workflows still pending. Mobile authority remains77a6b97f;existing687continuation prepared locally atabd91f4b6738f2ce9a8d15f4de8f421e11aa3204 (not yet pushed/merged). Focused80PASS/0FAIL/2N/A;sixgatesexit0;backend/TypeScript/fullNode running. Exact canonical adapter/test transfer;66prior grants retained plus1Watchlist grant. Scanner/catalog/migrations/native ownership unchanged.

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T13:14:15.718Z",
+  "capturedAt": "2026-11-03T13:56:54.688Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -113,13 +113,14 @@
     }
   ],
   "active": {
-    "item": "W1/E026 canonical ticket-acceptance source continuation",
     "finding": "B35-E-026",
     "priority": "P3",
+    "status": "SOURCE MERGED IN BOTH AUTHORITIES / MOBILE POST-MERGE VERIFICATION PENDING",
+    "canonical": "6d96156745160d93596dd792769df6aed164e6fe",
+    "mobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
     "canonicalPR": 689,
     "mobilePR": 687,
-    "status": "CONFIRMED BEFORE-FIX / MERGE CURRENT CANONICAL INTO EXISTING REPAIR NEXT",
-    "next": "Resume existing689withcurrentcanonicalparentandpreservedpatch;bodyguardW2awaitsscopeapprovalandW1serialization;688and694operationalactivationhold."
+    "next": "Collect independent9mobilepushworkflows;then closeW1and begin owner-authorized E027P4actualhandler repair. Preserve overlapping690 until replacement closure. No deployment or activation."
   },
   "queued": [
     {
