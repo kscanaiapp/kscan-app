@@ -1,0 +1,1718 @@
+{
+  "at": "2026-11-03T22:35:03.346Z",
+  "purpose": "Evidence reuse / functional source equivalence;not new application test execution or broad audit",
+  "testedMobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "targetCandidate": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+  "backend": "9047ce434e16a7b52f1f45edaeebafc2f1800757",
+  "unchangedSourceFiles": 183,
+  "records": [
+    {
+      "feature": "authConsent",
+      "file": "contexts/AuthSessionContext.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2fa4ace110f72c9d7ca571c7bea7acf555fb5afa",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2fa4ace110f72c9d7ca571c7bea7acf555fb5afa",
+      "equal": true
+    },
+    {
+      "feature": "authConsent",
+      "file": "services/authCallbackOrigin.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e70a1f548854305d097db029f5c1e0f9118f0554",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e70a1f548854305d097db029f5c1e0f9118f0554",
+      "equal": true
+    },
+    {
+      "feature": "authConsent",
+      "file": "services/authSessionBootstrap.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c6c56ea7987b490b57395d02eb794f441f983cbb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c6c56ea7987b490b57395d02eb794f441f983cbb",
+      "equal": true
+    },
+    {
+      "feature": "authConsent",
+      "file": "services/geminiProcessingPermission.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5f232f679628c4bf6e7262b3642b358ccc68ef0e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5f232f679628c4bf6e7262b3642b358ccc68ef0e",
+      "equal": true
+    },
+    {
+      "feature": "authConsent",
+      "file": "services/oauthCallbackSession.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6de825c619679a21c5d09cb7b14e50ef2d0e1005",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6de825c619679a21c5d09cb7b14e50ef2d0e1005",
+      "equal": true
+    },
+    {
+      "feature": "authConsent",
+      "file": "services/passwordReset.js",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "cb4ec732da3049e97de761ec26f251b6dc3d4c7c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "cb4ec732da3049e97de761ec26f251b6dc3d4c7c",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetCloudStatus.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "cb13bbdc724ec2c2f5d88e846ad306963c088eeb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "cb13bbdc724ec2c2f5d88e846ad306963c088eeb",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetFactsSync.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ede0d0f778a88a790dd95d01fd812bf0015bf1e3",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ede0d0f778a88a790dd95d01fd812bf0015bf1e3",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetHistoricalMigrationContract.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ce87a9f4dd00cd514f394719cc3766d91979a6d4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ce87a9f4dd00cd514f394719cc3766d91979a6d4",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "3ff7ec5c6418547c92cf650415c828b2e263d93f",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "3ff7ec5c6418547c92cf650415c828b2e263d93f",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetMediaSync.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "80933f8849d53e82c137ce30f9d2a4addde10d18",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "80933f8849d53e82c137ce30f9d2a4addde10d18",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetRestoreContract.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b6dc9bc392bb37ca62828e73d5ad7470d0dc52f0",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b6dc9bc392bb37ca62828e73d5ad7470d0dc52f0",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetRestoreEngine.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e6594529720ae26fc31817ce9f593abdd91bd579",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e6594529720ae26fc31817ce9f593abdd91bd579",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetRestoreMedia.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c67aca6a6afae2b67d27230a7eb9084c0de877ca",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c67aca6a6afae2b67d27230a7eb9084c0de877ca",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetSyncContract.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b9b5c7bb2376ea1e35c2b9920252971e993da1d7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b9b5c7bb2376ea1e35c2b9920252971e993da1d7",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetSyncCoordinator.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "debc8184e5de1693a2cb69463aeb0b8580246880",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "debc8184e5de1693a2cb69463aeb0b8580246880",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetSyncEngine.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "03fde8040529446672d0b1c3fac8f67f0f1227ee",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "03fde8040529446672d0b1c3fac8f67f0f1227ee",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closet/closetSyncStore.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "528cd6f6c89add3b6d73570e82044a983053d22d",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "528cd6f6c89add3b6d73570e82044a983053d22d",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/closetLibrary.js",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "9a61de8bbcbe14a7ba7eabda27161e71fe35dcfb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "9a61de8bbcbe14a7ba7eabda27161e71fe35dcfb",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/savedScanDestination.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "35f2380eb34ddaf615325e5bd4a9893e9597d387",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "35f2380eb34ddaf615325e5bd4a9893e9597d387",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/savedScanMedia.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c9050b3eb1eb3d30c2d205c53639a76fb20660eb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c9050b3eb1eb3d30c2d205c53639a76fb20660eb",
+      "equal": true
+    },
+    {
+      "feature": "savedScansCloset",
+      "file": "services/savedScansCloud.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "1f4cbd88123b79b128c7dfc82bf38c99a191df01",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "1f4cbd88123b79b128c7dfc82bf38c99a191df01",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/LiveVtoPilotProduct.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5a725c66d77bc073c85d1fdf6c8bb3393e460a10",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5a725c66d77bc073c85d1fdf6c8bb3393e460a10",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/TryItOnEntry.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "1bfdc10d283f94c0d62c04b2f3b963af79ef0371",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "1bfdc10d283f94c0d62c04b2f3b963af79ef0371",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "13c59007a552ef81ff6079f1f43ce9e6525caf11",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "13c59007a552ef81ff6079f1f43ce9e6525caf11",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoConsentStep.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "d036de52b5fc5a4b23e9bc7c255f8cb9346dc093",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "d036de52b5fc5a4b23e9bc7c255f8cb9346dc093",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoFirstUseCue.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "3521b46313a392e7378583711aef78f87ea95ba0",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "3521b46313a392e7378583711aef78f87ea95ba0",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoLaunchHost.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "437202dde283c3035af0c280f38483adab4a1fc6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "437202dde283c3035af0c280f38483adab4a1fc6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoLiveErrorBoundary.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "4f6f1d495a6fe38751ba9d575df767da68ea4c10",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "4f6f1d495a6fe38751ba9d575df767da68ea4c10",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoLiveNativeView.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e847a7fdee02ba85af73b678d3e0f9dd8afa267a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e847a7fdee02ba85af73b678d3e0f9dd8afa267a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoLivePanel.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "84056d8a93dcfb6a2e9825243f3052b122320311",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "84056d8a93dcfb6a2e9825243f3052b122320311",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoMinimizedPill.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7d3641f1f4cb949b11370d8ed4cf7767c502f630",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7d3641f1f4cb949b11370d8ed4cf7767c502f630",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoModeSelector.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "de5af8a9ad0f09ee92731404595029f28d959fae",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "de5af8a9ad0f09ee92731404595029f28d959fae",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoSaveToDressingRoom.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "eb0dce442fe9e5ca6a09ecaf0935734554163f58",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "eb0dce442fe9e5ca6a09ecaf0935734554163f58",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "components/vto/VtoSilhouetteGuide.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "70d51166f8a2f2743f95dc1147508c0551f21bd6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "70d51166f8a2f2743f95dc1147508c0551f21bd6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "hooks/useVtoLiveSession.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "47ff980acc9a01211701041a654c02dec8efc40b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "47ff980acc9a01211701041a654c02dec8efc40b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "hooks/useVtoStudio.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "231afc5d120d9a724603eadede5c05263411d346",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "231afc5d120d9a724603eadede5c05263411d346",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/.gitignore",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "bfa3ed43eea8977a1cde7f1e5470f0d7009fb213",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "bfa3ed43eea8977a1cde7f1e5470f0d7009fb213",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Package.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b5d9300fdf2a6b93b8b10ebdade9228b8a4d04a9",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b5d9300fdf2a6b93b8b10ebdade9228b8a4d04a9",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/GoldenFixtureDecodingTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5a4e5314a5368badfb285c68a5032cbbd52eff9c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5a4e5314a5368badfb285c68a5032cbbd52eff9c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/GoldenFixtures.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "dcbd35a062c3536401fdedeb682012bb30a93322",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "dcbd35a062c3536401fdedeb682012bb30a93322",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoBodyFrameAdapterTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "d62b3c6ba5edc32b1c6aac98d5ccac7bb538aa09",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "d62b3c6ba5edc32b1c6aac98d5ccac7bb538aa09",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoCapabilityStagesTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "dd5cce87a8eaa9bab2678264c3447c92819eb19b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "dd5cce87a8eaa9bab2678264c3447c92819eb19b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoDeformationTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "897b25519d446ae1c22339ab7a7b70e18bc64464",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "897b25519d446ae1c22339ab7a7b70e18bc64464",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoGarmentDescriptorTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "1ef062b54c6254f311f10b106ee03214db8d1533",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "1ef062b54c6254f311f10b106ee03214db8d1533",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoGeometryConformanceTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "efda38a66d79a3d5e044a3fa70d409b4987ad00c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "efda38a66d79a3d5e044a3fa70d409b4987ad00c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoRasterIntegrationTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "52c6a8a6f5cd16ed43f679e43673330699d136b1",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "52c6a8a6f5cd16ed43f679e43673330699d136b1",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoReplayRuntimeTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "0de7f847abf778f6732e672bc2986416a2d46124",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "0de7f847abf778f6732e672bc2986416a2d46124",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoRuntimeBoundaryTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "bb3e8ba7705649f11e53cbebc679bfbc82a4000d",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "bb3e8ba7705649f11e53cbebc679bfbc82a4000d",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoSessionStateTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "651e54ca3b3ec8d7caeefe1d21cfbe7a44b00e40",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "651e54ca3b3ec8d7caeefe1d21cfbe7a44b00e40",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/Tests/LiveVtoCoreTests/LiveVtoTrackingRecoveryTests.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "25d378282f48de7a3a6cabc6215d548b29d238ed",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "25d378282f48de7a3a6cabc6215d548b29d238ed",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/build.gradle",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5e586bce8cdd7867cb9ade68d7e27108c02d77db",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5e586bce8cdd7867cb9ade68d7e27108c02d77db",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/AndroidManifest.xml",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "412bfef31c25515a92aef53a4ad6993e08d43507",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "412bfef31c25515a92aef53a4ad6993e08d43507",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/ascolour-5001-black-v1/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2e9593af02eb742b32807b330c0beba4ba1c9a56",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2e9593af02eb742b32807b330c0beba4ba1c9a56",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/ascolour-5001-black-v1/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "fd599eb9332474aca71e2c69856c5385e9766286",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "fd599eb9332474aca71e2c69856c5385e9766286",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/ascolour-5001-black-v1/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "bb90f66db3eddf79f9049b16ace83ab2af404fb7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "bb90f66db3eddf79f9049b16ace83ab2af404fb7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/models/pose_landmarker_lite.task",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "09576a930167d58ba3cd759a1521a1f7b159b0f2",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "09576a930167d58ba3cd759a1521a1f7b159b0f2",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1b-fixture/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1b-fixture/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "57ec1d614c44c4ce8b8bd27d53d825635453a4d7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "57ec1d614c44c4ce8b8bd27d53d825635453a4d7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1b-fixture/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "94d6b4c4ac173d42b36bdd8a9e2f69012a67d5da",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "94d6b4c4ac173d42b36bdd8a9e2f69012a67d5da",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1c-asym-fixture/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1c-asym-fixture/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "765fbad6fc14536975ff69492abb2c0dc8321d37",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "765fbad6fc14536975ff69492abb2c0dc8321d37",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/n1c-asym-fixture/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "33205f961906523554e6737be19ebe02b2d283e4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "33205f961906523554e6737be19ebe02b2d283e4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/assets/perception/synthetic-test-frame.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6130b4d73cad84cf02691e2dc83b99e034dd868e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6130b4d73cad84cf02691e2dc83b99e034dd868e",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/KScanLiveVtoNativeModule.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "767c5a2011badce225dba2e9562b4f0bf7848aec",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "767c5a2011badce225dba2e9562b4f0bf7848aec",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoBodyFrame.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "eb96e4484a1ef045a1b42c02d51ce22ebe26b82d",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "eb96e4484a1ef045a1b42c02d51ce22ebe26b82d",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoBodyFrameAdapter.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6fdb929b9b8cc47f4e9b8160b44af17eece1288a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6fdb929b9b8cc47f4e9b8160b44af17eece1288a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoBundledAssetIntegrity.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ef6877785d7dc708c078ac31d8660f85892d4c8b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ef6877785d7dc708c078ac31d8660f85892d4c8b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoCameraController.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "34e1cc1ebf1fd09154d4293390a631749f6496c6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "34e1cc1ebf1fd09154d4293390a631749f6496c6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoCameraFrameConverter.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ef548a1e1ec560e58888e5592e075e902696e56c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ef548a1e1ec560e58888e5592e075e902696e56c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoCapabilityStages.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b65bb13e7432b7af929a9808c9e6446d722d7b01",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b65bb13e7432b7af929a9808c9e6446d722d7b01",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoDeformation.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "df9e85fa4e17e3132c200a0460cf99b1c6e428dd",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "df9e85fa4e17e3132c200a0460cf99b1c6e428dd",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGarment.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b3208bd16a02e68ecc968323b8dbc46630c8b4e4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b3208bd16a02e68ecc968323b8dbc46630c8b4e4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGarmentAttachment.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5cea21eda2fdcc6b0943126a1346eadd2143437e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5cea21eda2fdcc6b0943126a1346eadd2143437e",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGeometryPipeline.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "69bf7fca9c2a5ff6c8f2adcf5bbfb50a22eded46",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "69bf7fca9c2a5ff6c8f2adcf5bbfb50a22eded46",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGeometrySnapshot.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ada7dd23c19ecbeb70a8df55512147b2a3b91293",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ada7dd23c19ecbeb70a8df55512147b2a3b91293",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGeometrySnapshotJson.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "a594041b431738ffd563214fa2b283b2da66753d",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "a594041b431738ffd563214fa2b283b2da66753d",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoJson.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "f1db8cd06b0d9a06116acf51c6e0067b4be4205f",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "f1db8cd06b0d9a06116acf51c6e0067b4be4205f",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoMediaPipePoseProvider.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "11371adbbdff9a1905e209d9db1910b7369d579c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "11371adbbdff9a1905e209d9db1910b7369d579c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoModelIntegrity.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ecf5e8e4d3edc158dca399a0bbafae0903bbdd5b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ecf5e8e4d3edc158dca399a0bbafae0903bbdd5b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoPerceptionDriver.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c9933f65ca65716be4c2c9bd334396102b0d5b80",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c9933f65ca65716be4c2c9bd334396102b0d5b80",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoPerceptionSession.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7276041024e86d2b1b70ee11f4e5dda3f79532d5",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7276041024e86d2b1b70ee11f4e5dda3f79532d5",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoPerceptionTypes.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5898020b95c1bfe5ba8f0ad1c3a342b7cc0507fe",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5898020b95c1bfe5ba8f0ad1c3a342b7cc0507fe",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoRasterRenderer.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "69a687bfa5b6a795aa3deb88921e09ae445bf5b4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "69a687bfa5b6a795aa3deb88921e09ae445bf5b4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoReplayDriver.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "0d3d84abd393adf916b70b3373b982f14d02590b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "0d3d84abd393adf916b70b3373b982f14d02590b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoReplayRuntime.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "43ab9836489fdf17ece0ea9788ebc4f505ea7265",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "43ab9836489fdf17ece0ea9788ebc4f505ea7265",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoReplaySource.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b0e9e0ac43c8426793a214c35f5c3f79cb899b77",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b0e9e0ac43c8426793a214c35f5c3f79cb899b77",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoSessionState.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2e3e53a95ba86eff167586a3a13749e30b24b08b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2e3e53a95ba86eff167586a3a13749e30b24b08b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoTestRenderView.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "25f42ec89ee03f60d66eb9959068684d1008a4fb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "25f42ec89ee03f60d66eb9959068684d1008a4fb",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoVec2.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "fc6f20e85bfff79cacd7c00b64ca7fb4ecbd2872",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "fc6f20e85bfff79cacd7c00b64ca7fb4ecbd2872",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/BodyFrameAdapterTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c73399c39dfbc29141a08ef5d5d24e79ac59f175",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c73399c39dfbc29141a08ef5d5d24e79ac59f175",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/BodyFrameKeyframeParityTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6e0478a1bfbdc969ea438ef347b085cd879bc042",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6e0478a1bfbdc969ea438ef347b085cd879bc042",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/DeformationTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "a72372c4701b0e325bd89a2fbad020e98ac9607a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "a72372c4701b0e325bd89a2fbad020e98ac9607a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/GeometryConformanceTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "19464d265fc02100a0e7b6e4c2dc3f0fcffadbdf",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "19464d265fc02100a0e7b6e4c2dc3f0fcffadbdf",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/GoldenBodyFrames.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "16adbef1cf4f9acbe765a29cb30c0a9a9e7b6dc4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "16adbef1cf4f9acbe765a29cb30c0a9a9e7b6dc4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/LiveVtoCapabilityStagesTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c26b4f28de09394cad6f8b2903dbad4c890df4c8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c26b4f28de09394cad6f8b2903dbad4c890df4c8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/LiveVtoGarmentDescriptorTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e2ac4f1c17a0ff822fc9416e8947d92dd0410969",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e2ac4f1c17a0ff822fc9416e8947d92dd0410969",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/LiveVtoRasterIntegrationTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "90781254f880f6053731e9a3284e417c8ee7609e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "90781254f880f6053731e9a3284e417c8ee7609e",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/LiveVtoSessionStateTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "d088df6d83fd6dad384a5279afb2fc0bca9be2af",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "d088df6d83fd6dad384a5279afb2fc0bca9be2af",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/PerceptionSessionTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c8ac1be1d0548486d79453656bf894a25380c5d4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c8ac1be1d0548486d79453656bf894a25380c5d4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/ReplayRuntimeTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5e17dfe1da8609396d1ec8814015a0d87c454f1a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5e17dfe1da8609396d1ec8814015a0d87c454f1a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/android/src/test/java/expo/modules/kscanlivevtonative/RuntimeBoundaryTest.kt",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7bc2e2cd49e9ca1f7141e1a71c2b401c1e1621c2",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7bc2e2cd49e9ca1f7141e1a71c2b401c1e1621c2",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/expo-module.config.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "abfa3a51b0cce276873fdba9cfb7330e03fffbc8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "abfa3a51b0cce276873fdba9cfb7330e03fffbc8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/goldens/bodyframes.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ba31447753328380cfbb19b61cbe9c1944670be5",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ba31447753328380cfbb19b61cbe9c1944670be5",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/goldens/reference-provenance.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "cd30d7325e9b51c92c4f0beba3e6f227ff59c656",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "cd30d7325e9b51c92c4f0beba3e6f227ff59c656",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/goldens/reference-snapshots.jsonl",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "3351b89fa112092159aa89e09c711661966a3e17",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "3351b89fa112092159aa89e09c711661966a3e17",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/index.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "8420b1093fdb2f83a26e50df2bb75d893e814251",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "8420b1093fdb2f83a26e50df2bb75d893e814251",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/ascolour-5001-black-v1/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2e9593af02eb742b32807b330c0beba4ba1c9a56",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2e9593af02eb742b32807b330c0beba4ba1c9a56",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/ascolour-5001-black-v1/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "fd599eb9332474aca71e2c69856c5385e9766286",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "fd599eb9332474aca71e2c69856c5385e9766286",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/ascolour-5001-black-v1/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "bb90f66db3eddf79f9049b16ace83ab2af404fb7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "bb90f66db3eddf79f9049b16ace83ab2af404fb7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/models/pose_landmarker_lite.task",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "09576a930167d58ba3cd759a1521a1f7b159b0f2",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "09576a930167d58ba3cd759a1521a1f7b159b0f2",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1b-fixture/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1b-fixture/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "57ec1d614c44c4ce8b8bd27d53d825635453a4d7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "57ec1d614c44c4ce8b8bd27d53d825635453a4d7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1b-fixture/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "94d6b4c4ac173d42b36bdd8a9e2f69012a67d5da",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "94d6b4c4ac173d42b36bdd8a9e2f69012a67d5da",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1c-asym-fixture/alpha.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "394caf4f11783863ac87b5ece41ccab0d5c3b351",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1c-asym-fixture/manifest.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "765fbad6fc14536975ff69492abb2c0dc8321d37",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "765fbad6fc14536975ff69492abb2c0dc8321d37",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/n1c-asym-fixture/texture.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "33205f961906523554e6737be19ebe02b2d283e4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "33205f961906523554e6737be19ebe02b2d283e4",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Assets/perception/synthetic-test-frame.png",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6130b4d73cad84cf02691e2dc83b99e034dd868e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6130b4d73cad84cf02691e2dc83b99e034dd868e",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Camera/LiveVtoCameraController.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e772f656992891c7f8693c7fc3ca26bfe20f55e2",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e772f656992891c7f8693c7fc3ca26bfe20f55e2",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Camera/LiveVtoCameraFrameConverter.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "87adeadf29659483dfa7f89eabd6ee1b7fd358e1",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "87adeadf29659483dfa7f89eabd6ee1b7fd358e1",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoBodyFrame.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "902d71f257982c06088e0c9d30d80bd812556319",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "902d71f257982c06088e0c9d30d80bd812556319",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoBodyFrameAdapter.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "0889ff33aa0ca9df2448719a5003ab7c0de691ea",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "0889ff33aa0ca9df2448719a5003ab7c0de691ea",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoCapabilityStages.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6282ced15e78d248893b14d69a65545adc59bef6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6282ced15e78d248893b14d69a65545adc59bef6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoDeformation.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "29216ee1de3e8370845b2d46bbed6f94359c10e1",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "29216ee1de3e8370845b2d46bbed6f94359c10e1",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoGarment.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "acb99a0a7acdc967ddbad4067ca372ada7d67fc6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "acb99a0a7acdc967ddbad4067ca372ada7d67fc6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoGarmentAttachment.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "a9961502540667bded5c74a05a31d67ba6b0fdac",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "a9961502540667bded5c74a05a31d67ba6b0fdac",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoGeometryPipeline.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "934b585c1cc4c257f6212e07235388a90f316cfb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "934b585c1cc4c257f6212e07235388a90f316cfb",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoGeometrySnapshot.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "f079f6aef5ce16029ba958f38a190941956c1d44",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "f079f6aef5ce16029ba958f38a190941956c1d44",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoGeometrySnapshotJson.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7189a72cf1e2c07885f7833290713f75536608dd",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7189a72cf1e2c07885f7833290713f75536608dd",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoPerceptionSession.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2b871d9bc765f0ce7351118ff67bb61ff5ad286b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2b871d9bc765f0ce7351118ff67bb61ff5ad286b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoPerceptionTypes.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c4d43216cc537ceb37496bbeac585ed53664af4a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c4d43216cc537ceb37496bbeac585ed53664af4a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoReplayRuntime.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "8d6f43bec7c148c18f63d2520790790b8064c327",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "8d6f43bec7c148c18f63d2520790790b8064c327",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoReplaySource.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "71d26295e0ffc39aec44187217cfe9d91080dc09",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "71d26295e0ffc39aec44187217cfe9d91080dc09",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoSessionState.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "9589b1a7ae151d07d4d2aae3470d7b547fa2bf13",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "9589b1a7ae151d07d4d2aae3470d7b547fa2bf13",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Core/LiveVtoVec2.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c991e9ca2b631c07b6603e6cbdafddfbaba808b8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c991e9ca2b631c07b6603e6cbdafddfbaba808b8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Drivers/LiveVtoPerceptionDriver.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "144a7b61c76a8393ffb83eff600c1eeffdcc03f7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "144a7b61c76a8393ffb83eff600c1eeffdcc03f7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Drivers/LiveVtoReplayDriver.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "85a68691d57aea1708376ea98a9f3b62c6bfb03f",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "85a68691d57aea1708376ea98a9f3b62c6bfb03f",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/KScanLiveVtoNative.podspec",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b89046d6ced3b52b5afb401fba45dad01f0c198f",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b89046d6ced3b52b5afb401fba45dad01f0c198f",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/KScanLiveVtoNativeModule.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "56867a41a962569d67295215a980cc28410ebd7a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "56867a41a962569d67295215a980cc28410ebd7a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/LiveVtoAssetBundle.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5803d6ebe4923c74293a2c673124b9e242460be8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5803d6ebe4923c74293a2c673124b9e242460be8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/LiveVtoRenderView.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7494d6622e95f0326bbc51f2048f1b16e929a7dc",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7494d6622e95f0326bbc51f2048f1b16e929a7dc",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Perception/LiveVtoMediaPipePoseProvider.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "42ecf0a4ea5bed858284d64334965e5a49835fb1",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "42ecf0a4ea5bed858284d64334965e5a49835fb1",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Rendering/LiveVtoBundledAssetIntegrity.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "47639ca3411c2d7a63968a4a54ae94ac21a60c08",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "47639ca3411c2d7a63968a4a54ae94ac21a60c08",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/ios/Rendering/LiveVtoRasterRenderer.swift",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "96c66e03ac00d803dfce9ff1889675fd18a35623",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "96c66e03ac00d803dfce9ff1889675fd18a35623",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/package.json",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "f6879a6a7617e109b3e6d29dee2474fbf5277a1c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "f6879a6a7617e109b3e6d29dee2474fbf5277a1c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/src/KScanLiveVtoNativeModule.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "d994526133a84d2b620c93183b72ad0d75de90b6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "d994526133a84d2b620c93183b72ad0d75de90b6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/src/index.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "44b1046f352957f95244108cd50fc73b9f0ebe42",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "44b1046f352957f95244108cd50fc73b9f0ebe42",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/tools/compare-conformance.mjs",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7560901d52e49aa32c811df597f3dd5dda94fabd",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7560901d52e49aa32c811df597f3dd5dda94fabd",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/tools/render-snapshot.mjs",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "50fd1f1f0b660b8723231523c4f30ef7daa81497",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "50fd1f1f0b660b8723231523c4f30ef7daa81497",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "modules/kscan-live-vto-native/tools/run-reference-oracle.mjs",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "314f2aa9312d73a402860dbff5eb2fe3e9ff67cf",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "314f2aa9312d73a402860dbff5eb2fe3e9ff67cf",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/liveVtoNativeModule.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ad60b51eaf695631ac1e669e1b05862571b931a6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ad60b51eaf695631ac1e669e1b05862571b931a6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoAwareness.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ac1b50209bf9d9a5b9a7f308de2370dfb2f894ce",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ac1b50209bf9d9a5b9a7f308de2370dfb2f894ce",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoClient.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "fa0d8c1a34abfa172c5c5927f6942c26cff96eb6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "fa0d8c1a34abfa172c5c5927f6942c26cff96eb6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoCommerceGarment.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ff0626d513005f371cebc049d9d0cfa77a50ded6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ff0626d513005f371cebc049d9d0cfa77a50ded6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoConsent.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "41d79512f001c24d729dd77167c3730bb4feff47",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "41d79512f001c24d729dd77167c3730bb4feff47",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoDecisionLoop.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "172923c0ecdb3445a836f7b552bd2296ac71f7b1",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "172923c0ecdb3445a836f7b552bd2296ac71f7b1",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoDiscovery.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "37eb333312d023e18b38d74a90f5bf6f6f125eec",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "37eb333312d023e18b38d74a90f5bf6f6f125eec",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoEligibility.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "bd299da59b5b91d720c8624ecef08a4935c42dc2",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "bd299da59b5b91d720c8624ecef08a4935c42dc2",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoFailures.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "f5ad927dda896783f1b8922448b3bd62074e7e0b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "f5ad927dda896783f1b8922448b3bd62074e7e0b",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoFeatureControl.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ad7daced6b9bff88bf822d1f9f260653548de020",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ad7daced6b9bff88bf822d1f9f260653548de020",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveCameraPermission.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "82c9fd2e57c313e379569953d6610afa6e6a580a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "82c9fd2e57c313e379569953d6610afa6e6a580a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveCapability.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "ed291a62eecc77d87dad3b7d7591a2d50f31becb",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "ed291a62eecc77d87dad3b7d7591a2d50f31becb",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveGarment.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5fe4f4187310941910b6aeb7a48252dfad1c2182",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5fe4f4187310941910b6aeb7a48252dfad1c2182",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveGarmentRegistry.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b0b5ec5efa589a88c379ead9d0e1ef0843f626e8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b0b5ec5efa589a88c379ead9d0e1ef0843f626e8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveHarness.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "1d892dd589aff4e5ff092b05978b9a0506240b1a",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "1d892dd589aff4e5ff092b05978b9a0506240b1a",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLivePilotCatalog.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "8d445e24b957d9c1b8c045e9b580053facc7c9ea",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "8d445e24b957d9c1b8c045e9b580053facc7c9ea",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoLiveSession.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "2dcdcdbd0cf60daa35fc33ead01b6f0ff0e27c9c",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "2dcdcdbd0cf60daa35fc33ead01b6f0ff0e27c9c",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoMediaCache.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7fed6e937138b57df60ce8de39136efbb33debe7",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7fed6e937138b57df60ce8de39136efbb33debe7",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoOrigins.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "9091a9333bfaf41227b57cec312896e5da6d03b9",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "9091a9333bfaf41227b57cec312896e5da6d03b9",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoOwnedGarment.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "204bc7195d2a2733c25a7fef510141c08b800e15",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "204bc7195d2a2733c25a7fef510141c08b800e15",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoPersonInput.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "b4d2e6739b7e715e5bb31265e0cbc66dcdb19167",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "b4d2e6739b7e715e5bb31265e0cbc66dcdb19167",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoPhotorealHandoff.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "cf2e9fd9cc8d07598765fa5dd27e2d9060d2dc96",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "cf2e9fd9cc8d07598765fa5dd27e2d9060d2dc96",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoProgressStages.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "4841d6bef0f9736f9a09750062f43f2b40c26b9e",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "4841d6bef0f9736f9a09750062f43f2b40c26b9e",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoRequestStore.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "11d6908566de404056b895e7ce61e29397d5e5d6",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "11d6908566de404056b895e7ce61e29397d5e5d6",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoResultExport.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "64b1c25b3ec1c27b04bac333424e54df7285f970",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "64b1c25b3ec1c27b04bac333424e54df7285f970",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoStudio.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "5201340e85b5844ca12001a1bf3954f3b52334b8",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "5201340e85b5844ca12001a1bf3954f3b52334b8",
+      "equal": true
+    },
+    {
+      "feature": "liveAndPhotoVto",
+      "file": "services/vto/vtoTelemetry.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "6b6082c605ec4675685aae367537a2be8c9cfed4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "6b6082c605ec4675685aae367537a2be8c9cfed4",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "components/kplus/KPlusMembershipStep.tsx",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "7df538992e93fd21208fa66a275ec80f3d30a910",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "7df538992e93fd21208fa66a275ec80f3d30a910",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "services/kplus/kplusAcquisitionSurface.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e5762703018bc28aa27ed41ac049765e8a15fa9b",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e5762703018bc28aa27ed41ac049765e8a15fa9b",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "services/kplus/kplusCommerceService.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "c11c5062bbd6bf17e1366125b494f4ff61f1a9d4",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "c11c5062bbd6bf17e1366125b494f4ff61f1a9d4",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "services/kplus/kplusEntitlementReader.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "e064ddff63bc8c90aba0364439777030a6a37ae5",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "e064ddff63bc8c90aba0364439777030a6a37ae5",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "services/kplus/kplusEntitlementStore.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "8ded88b191c33d1fd263ec4178595e0736660ce9",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "8ded88b191c33d1fd263ec4178595e0736660ce9",
+      "equal": true
+    },
+    {
+      "feature": "acquisition",
+      "file": "services/kplus/revenueCatNative.ts",
+      "testedSource": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "testedBlob": "09ab6f8ea74130a0d393003e884766be899b2539",
+      "currentSource": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "currentBlob": "09ab6f8ea74130a0d393003e884766be899b2539",
+      "equal": true
+    }
+  ],
+  "changedAppPaths": [
+    {
+      "file": "app/packing/index.tsx",
+      "disposition": "#711 proposed-source mounted error/state/cached-plan checks;57affected PASS"
+    },
+    {
+      "file": "components/scan-results/PurchaseOptionsPanel.tsx",
+      "disposition": "#712 completed OS-link repair and commerce journey retained;combined691treeincludesexactsource"
+    },
+    {
+      "file": "components/text-scan/VoiceListeningSheet.tsx",
+      "disposition": "#708 completed Android permanent-denial Settings repair retained"
+    },
+    {
+      "file": "services/geminiConsentDenial.ts",
+      "disposition": "#707 completed consent denial UX,combined711geminiConsentDenialClients tests included"
+    },
+    {
+      "file": "services/kplus/kplusCapabilityFingerprints.generated.ts",
+      "disposition": "Generator checked;bothWatchlist/bothClosetpreserved,Packingadvanced;expiredruntimeproofsnotrenewed"
+    },
+    {
+      "file": "services/packing/packingClient.ts",
+      "disposition": "#711 plus B35-INT-001 HTTP authority correction;3beforeFAIL,11recoveryPASS,57combinedPASS"
+    },
+    {
+      "file": "services/packing/packingResponse.ts",
+      "disposition": "#711 daily-limit retry control;57affectedPASS"
+    },
+    {
+      "file": "services/scanIdentification.ts",
+      "disposition": "#707 completed denial recovery,combined711clientcontracttests included"
+    },
+    {
+      "file": "services/style-chat/providers/edgeStyleChatProvider.ts",
+      "disposition": "#707 completed denial recovery,combined711clientcontracttests included"
+    },
+    {
+      "file": "services/textScanEdge.ts",
+      "disposition": "#707 completed denial recovery,combined711clientcontracttests included"
+    }
+  ],
+  "backendRuntimeDelta": "No Edge Function source changed by713/714;operations and recovery tooling only.",
+  "retainedEvidence": {
+    "historicalRoot": "https://github.com/kscanaiapp/kscan-app/tree/28e49416e75c874f7d569c88486f8c3c7e045ac3/docs/release/evidence",
+    "nodeBaseline": "resume1103-watchlist-ticket-mobile-full-node-1103.log.gz",
+    "delegated": "#702/#704/#705 execution retained;per-cell historical rulings unchanged",
+    "savedScan": "Governed migrations and eight Stage rollback-only checks retained;no repeat",
+    "live": "Real Home->Studio/mounted controller source evidence retained;native bridge fixture is not camera accuracy",
+    "RevenueCat": "Final #706 live delivery/handler/DB evidence;no duplicate operational probe"
+  },
+  "limitations": [
+    "Identical source is a prerequisite for reusing evidence,not proof of live OAuth/email/camera/store/provider behavior.",
+    "New generated identities do not authorize renewed/Production premium marketing proofs.",
+    "No original mandatory audit cell was changed in this phase."
+  ],
+  "mergedEquivalent": {
+    "sha": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+    "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
+    "testedTreeIdentical": true
+  }
+}

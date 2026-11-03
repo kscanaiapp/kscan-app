@@ -1,0 +1,290 @@
+{
+  "at": "2026-11-03T23:21:13.481Z",
+  "phase": "Integration / Activation / Functional Verification",
+  "historicalAudit": {
+    "pr": 646,
+    "head": "28e49416e75c874f7d569c88486f8c3c7e045ac3",
+    "matrixFrozen": {
+      "total": 3096,
+      "PASS": 220,
+      "FAIL": 1,
+      "NOT_TESTED": 2875,
+      "NAIncludedInNT": 354
+    },
+    "noFurtherMatrixCampaign": true
+  },
+  "authority": {
+    "mobile": "1db2de1d6948bbec49f2b7df15b018ce3b6c29c7",
+    "backend": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
+  },
+  "activeSourceSequence": [
+    {
+      "pr": 691,
+      "head": "d2d920b1f807c8efaa3b3f35b360d540143df64a",
+      "tree": "357447c080a1b087e5d4838140273b33d421fc8a",
+      "status": "SOURCE-CLOSED /9of9 independent post-merge SUCCESS",
+      "validation": {
+        "focused": {
+          "PASS": 57,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "typescriptExit": 0,
+        "edgeParityExit": 0
+      },
+      "note": "Normal fast-forward advanced existing PR to current mobile base;no new W2 runtime implementation. Canonical byte identity retained.",
+      "merged": "40122f80e4a24a8761b22e3154f06934ae579653",
+      "preMergeCI": {
+        "SUCCESS": 30,
+        "conditionalSKIP": 17,
+        "FAIL": 0
+      },
+      "postMergeCI": {
+        "workflows": 9,
+        "SUCCESS": 9
+      },
+      "reviewHolds": 0
+    },
+    {
+      "pr": 711,
+      "reviewBase": "22160d9b8acf5794047d121448d1a1da46c814cd",
+      "status": "SOURCE-CLOSED /9of9 independent post-merge SUCCESS",
+      "finding": {
+        "id": "B35-INT-001",
+        "priority": "P3",
+        "scope": "Proposed #711 source only;not a deployed defect",
+        "rootCause": "isPackingEnvelope accepted status:success in FunctionsHttpError bodies and passed it to the normal response parser,rendering ready and caching a failed response.",
+        "source": "services/packing/packingClient.ts:isPackingEnvelope and requestPackingPlan error branch",
+        "reproduction": "node --test __tests__/packingHttpFailureAuthority.test.js",
+        "before": {
+          "PASS": 0,
+          "FAIL": 3
+        },
+        "afterIncludingOriginalRecovery": {
+          "PASS": 11,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "repair": "Only error/not_entitled/no_result are valid error-envelope recovery outcomes;other non-2xx bodies follow transport failure. Keep last plan and cache.",
+        "platform": "Shared iOS/Android source",
+        "approval": "Owner authorizes focused P0-P3 integration defect repairs;normal fully green PR governance still required.",
+        "status": "SOURCE-CLOSED / reviewed,tested,server,merged trees identical /9postchecksPASS"
+      },
+      "head": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+      "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
+      "validation": {
+        "focused": {
+          "PASS": 57,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "typescriptExit": 0,
+        "edgeParityExit": 0,
+        "capabilityFingerprints": "Both Watchlist and both Closet identities preserved;Packing only advanced"
+      },
+      "merged": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+      "preMergeCI": {
+        "SUCCESS": 34,
+        "conditionalSKIP": 20,
+        "FAIL": 0,
+        "pending": 0
+      },
+      "reviewHolds": 0,
+      "serverCandidate": "c634501c21dee1335e28bdbf1f035511e9930f07",
+      "postMergeCI": {
+        "workflows": 9,
+        "SUCCESS": 9
+      }
+    }
+  ],
+  "operationalRevenueCat": {
+    "status": "PASS at actual webhook delivery/handler/DB boundary",
+    "authority": "https://github.com/kscanaiapp/kscan-app/issues/706#issuecomment-6614912477",
+    "protectedRun": "https://github.com/kscanaiapp/kscan-app/actions/runs/41720529717",
+    "productionVersion": 18,
+    "stagingVersion": 14,
+    "bundleDigest": "fb65ff97143ac3a392f666dfaa2e1c3dd9277dd11f8e43e0c4850218bebba971",
+    "testDelivery": "Production and Sandbox200",
+    "negativeAuthAndSignatures": 401,
+    "retainedLifecycle": "Replay,foreign actor rejection,expiration;no rerun",
+    "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
+  },
+  "privacyOwner": "#703 residual source cases remain separate",
+  "next": "Publish final718documentation/evidence-only update on currentauthority1db2de1d.Requirefullygreenchecksandreviewbeforemerge.Appsource remains9af28fb0;externalgatesexplicitlyqualified.",
+  "restrictions": {
+    "noProductionChanges": true,
+    "noNewSharedMigrations": true,
+    "noPaidCalls": true,
+    "noBuilds": true,
+    "noTestSprite": true
+  },
+  "archives": [
+    {
+      "file": "w2-combined-focused.log.gz",
+      "rawBytes": 9660,
+      "rawSha256": "b7fac0d3821a991e66bac73fed6fe6a4d23f010a71397c5d87eef25f9aad36af",
+      "archiveBytes": 2413,
+      "archiveSha256": "909dc0ba451602b73edef3ec6db872528bf79e4a7a8e596ed0361ad3e492290d",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "w2-combined-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output alone is not a test result;exit code is separately recorded."
+    },
+    {
+      "file": "w2-edge-parity.log.gz",
+      "rawBytes": 4214,
+      "rawSha256": "e56ade64c48259d453ac2a72ac933e1eabf54ac5133d70a4fbf111a6f2cb3fb8",
+      "archiveBytes": 1259,
+      "archiveSha256": "5a249d8e65deb044f98fdd0dc349ab550d0736cbc0adb5c573b8ea4fb3ea53c7",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "packing-http-authority-before.log.gz",
+      "rawBytes": 5028,
+      "rawSha256": "dca3c34987e32d0f1ad2376611a466cf3da4d738e45ba0a01b002cf5c9f3cb08",
+      "archiveBytes": 717,
+      "archiveSha256": "049912304ba612af7ca9421a858751908ef018d54a082981bec6adb39c9de14e",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "packing-http-authority-after.log.gz",
+      "rawBytes": 2480,
+      "rawSha256": "4e3dfefec5702d5e07a324b308683668e6853bda640a77db835188c179fcfb54",
+      "archiveBytes": 795,
+      "archiveSha256": "7292abdf782a8253b7d925bf1105b1668f7c625fdcca01733fc5be8aa40c7770",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "packing-typescript-review.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output not proof by itself;exit0separately recorded"
+    },
+    {
+      "file": "packing-combined-focused.log.gz",
+      "rawBytes": 10796,
+      "rawSha256": "60aae1ebee2803f857bdce42458770c3df2c8db2f6e39b13edd814226ac8dcc3",
+      "archiveBytes": 2781,
+      "archiveSha256": "df6e6e8d82b394b57f3257d795c0a47075e5cf790050ca3c59d997f32205dda3",
+      "encoding": "UTF-16LE BOM",
+      "note": "Exact captured output"
+    },
+    {
+      "file": "packing-combined-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output not proof by itself;exit0separately recorded"
+    },
+    {
+      "file": "packing-combined-edge-parity.log.gz",
+      "rawBytes": 4214,
+      "rawSha256": "e56ade64c48259d453ac2a72ac933e1eabf54ac5133d70a4fbf111a6f2cb3fb8",
+      "archiveBytes": 1259,
+      "archiveSha256": "5a249d8e65deb044f98fdd0dc349ab550d0736cbc0adb5c573b8ea4fb3ea53c7",
+      "encoding": "UTF-16LE BOM",
+      "note": "Exact captured output"
+    },
+    {
+      "file": "711-reviewed-project-checks.log.gz",
+      "rawBytes": 5435166,
+      "rawSha256": "0088a0e2c360d1500db4806e706087c8ca99d0a9667820e16a6206ab14e60e51",
+      "archiveBytes": 661944,
+      "archiveSha256": "e2040e011134e4bd5d58261e576d07e0e206837e152cb2e1b67435d4b4206800",
+      "encoding": "UTF-16LE BOM",
+      "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
+      "note": "Complete public CI job output retained losslessly;includes all subsidiary counts,not independent populations."
+    },
+    {
+      "file": "trivy-installer-before-ci.log.gz",
+      "rawBytes": 116710,
+      "rawSha256": "d90b0446d623ae368c5d78a30e748e2f33000dcc8f88c1ad6dadc176b1d66e02",
+      "archiveBytes": 10885,
+      "archiveSha256": "b5bedd094e803e65d0284fc560648ddafbd0061460b9dabb6a838258cfacda56",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "trivy-installer-final-focused.log.gz",
+      "rawBytes": 916,
+      "rawSha256": "d889b39055854832d283af2ff009855491c4ed40ffc38f909f3a07c0e61d4b36",
+      "archiveBytes": 403,
+      "archiveSha256": "d01b86fa3b0a57a4d355b87011b79fc2025797aa3709518e0a6d7cb458e92a0a",
+      "encoding": "UTF-16LE BOM"
+    }
+  ],
+  "evidenceReuse": "183unchangedfunctional/native sourcefilesand10accountedappdelta;see evidence-reuse-and-source-equivalence.json",
+  "booleanReadback": "activation-boolean-readback.json",
+  "reviewedSourceCISuites": {
+    "head": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+    "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
+    "node": {
+      "total": 11638,
+      "PASS": 11542,
+      "FAIL": 0,
+      "declaredSKIP": 96
+    },
+    "backend": {
+      "PASS": 1605,
+      "steps": 34,
+      "FAIL": 0
+    },
+    "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
+    "note": "Governed CI execution read back;not manually rerun or summed with focused tests."
+  },
+  "phaseStatus": "REQUESTED SOURCE INTEGRATIONS COMPLETE / overall functional readiness PARTIAL",
+  "operationalRepairs": [
+    {
+      "id": "B35-OPS-001",
+      "priority": "P4",
+      "scope": "CI availability,not appvulnerability",
+      "pr": 719,
+      "reviewed": "24f016aca01cb6fd5d5a56a997f2a5f6c427c94c",
+      "merge": "1db2de1d6948bbec49f2b7df15b018ce3b6c29c7",
+      "tree": "ccffc7f8306736858e1a1d864b3ecf21dff5d541",
+      "preMergeCI": {
+        "SUCCESS": 34,
+        "conditionalSKIP": 20,
+        "FAIL": 0
+      },
+      "status": "SOURCE-CLOSED /9of9 independent post-merge SUCCESS",
+      "root": "Pinned upstream installer uses get.trivy.dev;independently confirmedDNSNXDOMAIN,twoinstallerexit6,no scan artifacts.",
+      "officialInstaller": "https://github.com/aquasecurity/trivy/blob/75c4dc0f45c5d7ffd05ae26df1e0c666787bdf2a/contrib/install.sh",
+      "archive": {
+        "version": "0.70.0",
+        "verifiedOfficialAssetBytes": 47748408,
+        "sha256": "8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9",
+        "executed": false
+      },
+      "focused": {
+        "PASS": 4,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "realCITrivyJobs": [
+        126266838001,
+        126266311437
+      ],
+      "note": "Sameversion/scopes/artifacts/gates;fixedchecksumandversionbeforePATH;no bypass.",
+      "postMergeCI": {
+        "workflows": 9,
+        "SUCCESS": 9
+      }
+    }
+  ],
+  "runtimeSource": "9af28fb05e1195fe8b8cbc980568b0b408e921ed"
+}
