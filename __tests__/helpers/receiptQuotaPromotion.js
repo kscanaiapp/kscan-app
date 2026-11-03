@@ -11,5 +11,5 @@ function expectedPendingAdvance(rows,ref){const approved=JSON.parse(gitBlob('con
 const discovery=require('./discoveryCatalogPromotion');
 module.exports={root,canonical,reviewed,handler,files,gitBlob,sha256,approvedRow,
   expectedReceiptAdvance:rows=>discovery.discoveryAdvance(expectedReceiptAdvance(rows)),
-  expectedNonReceiptFunctions:rows=>require('./watchlistTicketPromotion').w2Advance(discovery.discoveryFunctionAdvance(expectedNonReceiptFunctions(rows))),
+  expectedNonReceiptFunctions:rows=>require('./watchlistTicketPromotion').functionAdvance(discovery.discoveryFunctionAdvance(expectedNonReceiptFunctions(rows))),
   expectedPendingAdvance:(rows,ref)=>discovery.discoveryPendingAdvance(expectedPendingAdvance(rows,ref),ref)};
