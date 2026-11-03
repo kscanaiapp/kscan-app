@@ -19,8 +19,10 @@ const {
  * iOS shows the microphone and speech-recognition prompts once. After a denial
  * the native request resolves with canAskAgain false and no UI, so the sheet
  * lands on 'permission_denied_permanently', whose copy says "Enable it in your
- * device Settings" -- with no way there from the sheet. On iOS the sheet now
- * offers "Open Settings"; Android renders exactly what it rendered before.
+ * device Settings" -- with no way there from the sheet. The sheet offers
+ * "Open Settings". Android reaches the same state after "Don't ask again"
+ * (canAskAgain false from the native module) and gets the same path (#706
+ * platform parity).
  *
  * The real component is executed (not text-matched): Platform.OS is the only
  * input that differs between the iOS and Android renders below.
@@ -129,8 +131,9 @@ test('iOS: a denial that can still prompt, and every other reason, offer no Sett
   }
 });
 
-test('Android: the permanent-denial sheet is unchanged (no Settings button, same actions)', () => {
+test('Android: a permanent ("Don\'t ask again") denial offers the same Open Settings path', async () => {
   let opened = 0;
+  let dismissed = 0;
   const tree = renderSheet({
     platformOS: 'android',
     reason: 'permission_denied_permanently',
@@ -138,37 +141,49 @@ test('Android: the permanent-denial sheet is unchanged (no Settings button, same
       opened += 1;
       return Promise.resolve();
     },
+    onDismiss: () => {
+      dismissed += 1;
+    },
   });
-  assert.equal(settingsButton(tree).length, 0);
   assert.deepEqual(
     byTestId(tree, 'voice-scan-use-text').map((node) => node.props.title),
     ['Use Text Instead'],
   );
-  assert.equal(opened, 0);
+  const [button] = settingsButton(tree);
+  assert.ok(button, 'Open Settings is offered on Android');
+  assert.equal(button.props.title, 'Open Settings');
+  button.props.onPress();
+  await settle();
+  assert.equal(opened, 1);
+  assert.equal(dismissed, 1);
 });
 
-test('negative control: dropping the iOS branch removes the Settings path', () => {
+test('Android: a denial that can still prompt, and every other reason, offer no Settings button', () => {
+  for (const reason of ['permission_denied', 'on_device_recognition_unavailable', 'recognizer_error']) {
+    const tree = renderSheet({ platformOS: 'android', reason });
+    assert.equal(settingsButton(tree).length, 0, `${reason} must not offer Settings`);
+  }
+});
+
+test('negative control: dropping the gate removes the Settings path', () => {
   const tree = renderSheet({
     platformOS: 'ios',
     reason: 'permission_denied_permanently',
     mutate: (source) =>
-      source.replace(
-        "Platform.OS === 'ios' && reason === 'permission_denied_permanently'",
-        'false',
-      ),
+      source.replace("const offerSettings = reason === 'permission_denied_permanently';", 'const offerSettings = false;'),
   });
   assert.equal(settingsButton(tree).length, 0);
 });
 
-test('negative control: an ungated button would leak the Settings path to Android', () => {
+test('negative control: re-adding an iOS-only branch would strand Android again', () => {
   const tree = renderSheet({
     platformOS: 'android',
     reason: 'permission_denied_permanently',
     mutate: (source) =>
       source.replace(
-        "Platform.OS === 'ios' && reason === 'permission_denied_permanently'",
-        "reason === 'permission_denied_permanently'",
-      ),
+        "const offerSettings = reason === 'permission_denied_permanently';",
+        "const offerSettings = Platform.OS === 'ios' && reason === 'permission_denied_permanently';",
+      ).replace("Linking, Modal,", "Linking, Modal, Platform,"),
   });
-  assert.equal(settingsButton(tree).length, 1, 'the Android assertion above would catch this');
+  assert.equal(settingsButton(tree).length, 0, 'the Android assertion above would catch this');
 });
