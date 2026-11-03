@@ -146,6 +146,7 @@ const GUARDED_CALL_SITES = [
   'components/SecondhandShelf.tsx',
   'components/SneakerMatchCard.tsx',
   'components/scan-results/SimilarFindsShelf.tsx',
+  'components/scan-results/PurchaseOptionsPanel.tsx',
 ];
 
 for (const relativePath of GUARDED_CALL_SITES) {

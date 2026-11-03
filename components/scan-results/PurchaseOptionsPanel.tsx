@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { SectionHeader } from '../luxury/SectionHeader';
@@ -13,6 +12,7 @@ import { InlineNotice } from '../luxury/InlineNotice';
 import { canWatchPurchaseOption } from './types';
 import type { PurchaseOption, WatchCandidate } from './types';
 import { selectCommerceDestination } from '../../services/commerceDestination';
+import { openExternalUrl } from '../../services/openExternalUrl';
 // DEF-WL-07: the EXISTING Watch creation flow, reused rather than reimplemented.
 // ProductShelf keeps owning the modal and the createWatch call; this surface
 // only decides which rows may open it.
@@ -182,7 +182,7 @@ export function PurchaseOptionsPanel({
                   ) : null}
                   {destination ? (
                     <TouchableOpacity
-                      onPress={() => Linking.openURL(destination)}
+                      onPress={() => void openExternalUrl(destination)}
                       activeOpacity={0.78}
                       accessibilityRole="link"
                       accessibilityLabel={`View options for ${option.title ?? option.retailer}`}
@@ -261,7 +261,7 @@ export function PurchaseOptionsPanel({
                       origin="scan_result"
                       surface="scan_result"
                       firstUseEducation
-                      onShop={destination ? () => Linking.openURL(destination) : undefined}
+                      onShop={destination ? () => void openExternalUrl(destination) : undefined}
                       onWatch={watchlistAvailable && canWatch
                         ? () => setWatchCandidate(option.watchCandidate ?? null)
                         : undefined}
