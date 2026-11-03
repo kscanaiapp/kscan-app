@@ -8,7 +8,7 @@ import nodeAssert from 'node:assert/strict';
 import test from 'node:test';
 import { assembleStyleChatPrompt } from '../aiSecurity/styleChatPromptAssembly.ts';
 import { ACTION_TRANSITIONS, isLegalTransition, parseActionProposalOffline, type ActionState } from './actionProposal.ts';
-import { validateCorporateTaskV1 } from './contracts.ts';
+import { PROPOSED_FALLBACK_COPY, selectFallback, validateCorporateTaskV1 } from './contracts.ts';
 import {
   checkActionAndPrivacyClaimsReference,
   checkOwnershipClaimsReference,
@@ -27,22 +27,42 @@ const corpus = JSON.parse(
 
 const ASSESSORS = new Set([
   'contract_validator', 'reference_selector', 'reference_ownership', 'reference_claims',
-  'proposal_parser', 'transition_table', 'real_aisecurity_assembly',
+  'proposal_parser', 'transition_table', 'real_aisecurity_assembly', 'reference_ownership_limits', 'fallback_selector',
 ]);
 const REQUIRED_CATEGORIES: Record<string, number> = {
-  task_contract: 15, mode_selection: 8, ownership_integrity: 14, action_and_commitment: 5,
-  sensitive_data: 3, option_c_proposal: 6, prompt_isolation: 4,
+  task_contract: 90, mode_selection: 8, ownership_integrity: 26, action_and_commitment: 5,
+  sensitive_data: 3, option_c_proposal: 6, prompt_isolation: 4, oracle_limits: 10, fallback_policy: 9,
 };
 
-test('corpus hygiene: 50-75 cases, unique ids, explicit expectation + known assessor on every case', () => {
+// The corpus-size requirement was deliberately raised from 50-75 to 120-220 by the Management Checkpoint 1
+// directive (task-contract hardening). The original 74 CI-01 cases are pinned below and may not be weakened.
+const ORIGINAL_CASE_COUNT = 74;
+const ORIGINAL_EXPECTATIONS_SHA256 = 'ddc5aaec1bc37dc2a0ace5c2b9596c8f31430e7c544a7318fd7e27f5de7d90dd';
+const CORPUS_MIN = 120;
+const CORPUS_MAX = 220;
+
+test('original 74-case corpus expectations are unchanged (digest pinned; hardening cases are additive)', async () => {
+  const original = corpus.fixtures.filter((f) => !f.hardening);
+  assertEquals(original.length, ORIGINAL_CASE_COUNT);
+  const rows = original.map((f) => [
+    f.id, f.assess, f.expectOk ?? null, f.expectErrors ?? null, f.expect ?? null,
+    f.expectVerdict ?? null, f.expectReasonsInclude ?? null, f.expectLegal ?? null,
+  ]);
+  const bytes = new TextEncoder().encode(JSON.stringify(rows));
+  const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+    .map((b) => b.toString(16).padStart(2, '0')).join('');
+  assertEquals(digest, ORIGINAL_EXPECTATIONS_SHA256, 'an original expectation was changed, removed or weakened');
+});
+
+test(`corpus hygiene: ${CORPUS_MIN}-${CORPUS_MAX} cases, unique ids, explicit expectation + known assessor on every case`, () => {
   const { fixtures } = corpus;
-  assert(fixtures.length >= 50 && fixtures.length <= 75, `fixture count ${fixtures.length} outside 50-75`);
+  assert(fixtures.length >= CORPUS_MIN && fixtures.length <= CORPUS_MAX, `fixture count ${fixtures.length} outside ${CORPUS_MIN}-${CORPUS_MAX}`);
   assertEquals(new Set(fixtures.map((f) => f.id)).size, fixtures.length, 'duplicate fixture ids');
   assertEquals(new Date(corpus.clock).getTime(), FIXTURE_NOW.getTime());
   for (const f of fixtures) {
     assert(ASSESSORS.has(f.assess), `${f.id}: unknown assessor ${f.assess}`);
     if (f.assess === 'real_aisecurity_assembly') continue; // property-based; no scalar expectation
-    const hasExpectation = ['expectOk', 'expectErrors', 'expect', 'expectVerdict', 'expectLegal'].some((k) => k in f);
+    const hasExpectation = ['expectOk', 'expectErrors', 'expect', 'expectVerdict', 'expectLegal', 'requiredVerdict'].some((k) => k in f);
     assert(hasExpectation, `${f.id}: no explicit expected result`);
   }
   const counts: Record<string, number> = {};
@@ -84,6 +104,21 @@ for (const f of corpus.fixtures) {
         if (f.expectReasonsInclude && result.verdict === 'reject') {
           for (const r of f.expectReasonsInclude) assert(result.reasons.includes(r), `${f.id}: missing reason ${r}: ${result.reasons}`);
         }
+        break;
+      }
+      case 'reference_ownership_limits': {
+        // Documents where regex-only checking is WRONG. The pinned oracle verdict is asserted so any change to the
+        // oracle is a reviewed diff; requiredVerdict is what the production (record-bound) control must produce.
+        const result = checkOwnershipClaimsReference(f.output, corpus.ownershipContexts[f.context]);
+        assertEquals(result.verdict, f.oracleVerdict, `${f.id}: oracle verdict changed -- review the limitation note`);
+        assert(typeof f.limitation === 'string' && f.limitation.length > 10, `${f.id}: limitation must be documented`);
+        assert(typeof f.productionControl === 'string' && f.productionControl.length > 10, `${f.id}: production control must be named`);
+        break;
+      }
+      case 'fallback_selector': {
+        const fb = selectFallback(f.code, f.inventoryStatus);
+        assertEquals(fb, f.expect);
+        assert(fb.copyKey in PROPOSED_FALLBACK_COPY);
         break;
       }
       case 'reference_claims': {

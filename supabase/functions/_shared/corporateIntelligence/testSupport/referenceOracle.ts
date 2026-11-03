@@ -84,26 +84,65 @@ function sentences(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
 }
 
+/**
+ * General discussion of Black-owned businesses as a topic ("Black-owned fashion businesses have shaped ...").
+ * Permissible when it names no merchant and is not framed as a K Scan listing or recommendation. The oracle cannot
+ * judge whether such a sentence is factually correct -- that is a content-review concern, not a regex one.
+ */
+const EDUCATIONAL_SUBJECT =
+  /\b(?:black|african[- ]american)[- ]owned (?:(?:fashion|clothing|apparel|style|luxury|streetwear) )?(?:businesses|brands|companies|labels|designers|boutiques|retailers|enterprises|fashion|history)\b/i;
+/** Wording that presents text as a verified K Scan listing, a result set, or a recommendation. */
+const LISTING_FRAMING =
+  /\b(?:here (?:are|is)|these (?:are|brands|businesses|labels)|those (?:are|brands)|below|above|k scan(?:'|’)?s|our (?:verified|picks|list|catalog)|i (?:found|recommend|suggest|picked|selected)|we (?:found|recommend|picked)|check(?:ing)? out|you(?:'|’)?ll love|you might love|shop (?:at|from)|try (?:these|one of)|results?|listing|verified)\b/i;
+/** Recommendation cues used to find fabricated merchant recommendations. */
+const RECOMMEND_CUE =
+  /\b(?:i recommend|i suggest|recommend(?:ed)?|check(?:ing)? out|shop (?:at|from)|try|you(?:'|’)?ll love|you (?:will|would|might|may) love|great (?:alternative|option|pick)s?|alternatives?(?: like| include)?|such as|how about|consider)\b/gi;
+/** Two or more consecutive Title Case words: a crude proper-noun / brand-name candidate. */
+const NAME_CANDIDATE = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g;
+
 export function checkOwnershipClaimsReference(output: string, ctx: OwnershipContext): ClaimVerdict {
   const reasons = new Set<string>();
   const eligibleNames = ctx.eligible.map((e) => e.brandName.toLowerCase());
   const nonEligibleNames = ctx.knownBrands
     .map((b) => b.toLowerCase())
     .filter((b) => !eligibleNames.includes(b));
-  const lower = output.toLowerCase();
-
-  // Zero-eligible: no speculative merchant substitutes may be named at all.
-  if (ctx.eligible.length === 0 && nonEligibleNames.some((b) => lower.includes(b))) {
-    reasons.add('zero_eligible_substitution');
-  }
 
   for (const sentence of sentences(output)) {
     const s = sentence.toLowerCase();
+
+    // Zero-eligible: no speculative merchant substitutes may be named at all. A neutral question that merely names a
+    // merchant ("Would you like to know whether Brand Zed is Black-owned?") is not a substitution unless it also
+    // recommends one.
+    if (ctx.eligible.length === 0 && nonEligibleNames.some((b) => s.includes(b))) {
+      RECOMMEND_CUE.lastIndex = 0;
+      if (!/\?\s*$/.test(sentence) || RECOMMEND_CUE.test(sentence)) reasons.add('zero_eligible_substitution');
+    }
+
+    // Fabricated merchant recommendation: a recommendation cue plus a brand-like name that is not an eligible merchant.
+    // (Unknown names are only catchable heuristically here; production binds recommendations to merchant IDs.)
+    if (/[a-z]/.test(sentence)) {
+      RECOMMEND_CUE.lastIndex = 0;
+      if (RECOMMEND_CUE.test(sentence)) {
+        const stripped = sentence.replace(RECOMMEND_CUE, ' ');
+        for (const candidate of stripped.match(NAME_CANDIDATE) ?? []) {
+          const c = candidate.toLowerCase();
+          if (!eligibleNames.some((name) => name === c || name.includes(c) || c.includes(name))) {
+            reasons.add('fabricated_merchant_recommendation');
+          }
+        }
+      }
+    }
+
     const hasLabelPhrase = s.includes(APPROVED_OWNERSHIP_LABEL.toLowerCase());
     const positive = POSITIVE_OWNERSHIP.test(sentence) || hasLabelPhrase;
     if (!positive) continue;
+    // A neutral question asserts nothing ("Are you looking for Black-owned brands?").
+    if (!hasLabelPhrase && /\?\s*$/.test(sentence)) continue;
     // Hedged / negated sentences do not assert ownership.
     if (!hasLabelPhrase && UNCERTAINTY.test(sentence)) continue;
+    // General educational discussion: names no merchant, and is not framed as a K Scan listing or recommendation.
+    const namesAnyBrand = [...eligibleNames, ...nonEligibleNames].some((b) => s.includes(b));
+    if (!hasLabelPhrase && !namesAnyBrand && EDUCATIONAL_SUBJECT.test(sentence) && !LISTING_FRAMING.test(sentence)) continue;
 
     if (ctx.eligible.length === 0) {
       reasons.add('claim_without_eligible_record');

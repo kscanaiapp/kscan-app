@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Work package | CI-01 |
-| Status | **DRAFT — not approved.** Product/Trust approval is required before any CI-02 runtime work. The implementing agent cannot self-approve. |
+| Status | **DRAFT — not approved.** Management Checkpoint 1 approved "Corporate v2 wraps Elise v1" (flag-OFF path byte-identical) and authorized engineering development only (offline CI-02). Product/Trust review of this charter, of public verification wording, and of runtime release is **not waived**. The implementing agent cannot self-approve. |
 | Charter version (draft) | `kscan-corporate-charter-v1-draft` |
 | Baseline | `9047ce434e16a7b52f1f45edaeebafc2f1800757` on `feat/corporate-intelligence-v2` |
 | Companion documents | `CI-V2-PHASE0-SOURCE-INVENTORY.md`, `CI-V2-PHASE1-CONTRACTS.md`, `CI-V2-OPTION-C-PROPOSAL-CONTRACT.md` |

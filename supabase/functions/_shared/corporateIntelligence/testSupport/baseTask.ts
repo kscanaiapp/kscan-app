@@ -3,16 +3,22 @@
 export const FIXTURE_NOW = new Date('2026-11-03T12:00:00Z');
 
 export function baseValidTask(): Record<string, unknown> {
+  const MERCHANT = 'mrc_atelier9';
+  const PRODUCT = 'prod_0001';
+  // Merchant-scoped kinds carry merchantRef only; product-scoped kinds carry merchantRef + productRef.
   const fact = (
     factId: string,
     kind: string,
     sourceSystem: string,
     value: string,
+    scope: 'merchant' | 'product',
   ) => ({
     factId,
     kind,
     sourceSystem,
     sourceRecordRef: `rec_${factId}`,
+    merchantRef: MERCHANT,
+    ...(scope === 'product' ? { productRef: PRODUCT } : {}),
     observedAt: '2026-11-03T11:00:00Z',
     ttlSeconds: 6 * 3600,
     value,
@@ -28,12 +34,12 @@ export function baseValidTask(): Record<string, unknown> {
     brandPolicyVersion: 'kscan-corporate-charter-v1-draft',
     stylist: { displayName: 'Elise' },
     verifiedFacts: [
-      fact('f_label', 'ownership_label', 'black_owned_discovery', 'From a verified Black-owned business'),
-      fact('f_merchant', 'merchant_attribution', 'black_owned_discovery', 'Atelier Nine'),
-      fact('f_price', 'price', 'commerce_canonical', '148.00'),
-      fact('f_currency', 'currency', 'commerce_canonical', 'USD'),
-      fact('f_avail', 'availability', 'catalog', 'in_stock'),
-      fact('f_product', 'product_ref', 'black_owned_discovery', 'prod_0001'),
+      fact('f_label', 'ownership_label', 'black_owned_discovery', 'From a verified Black-owned business', 'merchant'),
+      fact('f_merchant', 'merchant_attribution', 'black_owned_discovery', 'Atelier Nine', 'merchant'),
+      fact('f_price', 'price', 'commerce_canonical', '148.00', 'product'),
+      fact('f_currency', 'currency', 'commerce_canonical', 'USD', 'product'),
+      fact('f_avail', 'availability', 'catalog', 'in_stock', 'product'),
+      fact('f_product', 'product_ref', 'black_owned_discovery', 'prod_0001', 'product'),
     ],
     visualObservations: [{ label: 'structured navy wool coat', confidence: 'medium', tier: 'untrusted_text' }],
     policyRefs: ['policy:ownership-label-v1', 'policy:no-invented-commerce-facts-v1'],
@@ -47,15 +53,26 @@ export function baseValidTask(): Record<string, unknown> {
     tokenBudget: { staticMax: 1200, dynamicMax: 1600, outputMax: 400 },
     allowedReadCapabilities: ['read_verified_facts', 'read_visual_observations', 'read_policy_refs'],
     inventory: { status: 'eligible', eligibleCount: 1 },
+    audit: { assembledAt: '2026-11-03T12:00:00Z', assemblerVersion: 'ci02-assembler-v1', factCount: 6 },
     actionContractRef: null,
     capabilities: { proposable: [], executable: [] },
   };
 }
 
 export interface MutateOp {
-  op: 'set' | 'delete';
+  /** `remove` splices an array element out (descending indexes keep later paths valid). */
+  op: 'set' | 'delete' | 'remove';
   path: string;
   value?: unknown;
+}
+
+/** JSON cannot carry non-finite numbers, so fixtures use { "$nonFinite": "NaN" | "Infinity" | "-Infinity" }. */
+function revive(value: unknown): unknown {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value) && '$nonFinite' in (value as object)) {
+    const kind = (value as { $nonFinite: string }).$nonFinite;
+    return kind === 'NaN' ? Number.NaN : kind === 'Infinity' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+  }
+  return structuredClone(value);
 }
 
 /** Applies dotted-path mutations (numeric segments index arrays). Returns a new object. */
@@ -66,7 +83,8 @@ export function applyMutations<T>(base: T, ops: MutateOp[]): T {
     let cursor: any = clone;
     for (let i = 0; i < segs.length - 1; i++) cursor = cursor[segs[i]];
     const last = segs[segs.length - 1];
-    if (op === 'set') cursor[last] = structuredClone(value);
+    if (op === 'set') cursor[last] = revive(value);
+    else if (op === 'remove') cursor.splice(Number(last), 1);
     else delete cursor[last];
   }
   return clone as T;

@@ -11,6 +11,9 @@ import { buildStylistPersonaBlock } from '../../stylechat-generate/stylistIdenti
 import { ELISE_BRAND_VOICE_SYSTEM_BLOCK, appendEliseBrandVoice } from '../../stylechat-generate/eliseBrandVoice.ts';
 import {
   CORPORATE_TASK_CONTRACT_VERSION,
+  INTEGRITY_FAILURE_CODES,
+  PROPOSED_FALLBACK_COPY,
+  selectFallback,
   TASK_VERB_POLICY,
   TASK_VERBS,
   TIER_APPLICATION_AUTHORITY,
@@ -179,13 +182,18 @@ test('baseline: appendEliseBrandVoice(base, false) returns the base unchanged fo
 
 // ── Deterministic copy must survive the legacy output sanitizer ─────────────────
 
-/** PROPOSED copy - pending Product/Legal approval. Frozen-copy catalog lives in CI-03; this guards its shape. */
-const PROPOSED_COPY = {
-  zero_eligible: 'No verified Black-owned results match this item right now. Try a different style or color.',
-  ownership_integrity_failure: 'I can only share ownership details that K Scan has verified. Here are the matches I can confirm.',
-  generic_integrity_failure: "I wasn't able to complete that response. Please try again in a moment.",
-  recovery_notice: 'Something went wrong on our side. Please try again shortly.',
-};
+// Product/Legal wording is PENDING; the strings under test are the Management Checkpoint 1 proposal.
+const PROPOSED_COPY: Record<string, string> = { ...PROPOSED_FALLBACK_COPY };
+
+test('deterministic copy: exact wording specified by Management Checkpoint 1 (changes need a reviewed diff)', () => {
+  nodeAssert.equal(PROPOSED_FALLBACK_COPY.zero_eligible, 'No matches from verified Black-owned businesses are available for this item right now.');
+  nodeAssert.equal(
+    PROPOSED_FALLBACK_COPY.ownership_integrity_failure,
+    "I can't confirm that business's ownership from its name or product images. K Scan only labels businesses that meet its verification requirements.",
+  );
+  nodeAssert.equal(PROPOSED_FALLBACK_COPY.generic_integrity_failure, "I wasn't able to complete that response. Please try again.");
+  nodeAssert.deepEqual(Object.keys(PROPOSED_FALLBACK_COPY).sort(), ['generic_integrity_failure', 'ownership_integrity_failure', 'zero_eligible']);
+});
 
 test('deterministic copy: unchanged by the legacy stripUnsafeModelOutput (defect D-1 would otherwise corrupt it)', () => {
   for (const [key, copy] of Object.entries(PROPOSED_COPY)) {
@@ -200,6 +208,38 @@ test('deterministic copy: itself passes the ownership-claim oracle under zero-el
     nodeAssert.equal(checkOwnershipClaimsReference(copy, zero).verdict, 'accept', copy);
     nodeAssert.equal(checkOwnershipClaimsReference(copy, eligible).verdict, 'accept', copy);
   }
+});
+
+test('deterministic copy: no unsupported buttons, filters or next steps; never implies verified results exist', () => {
+  // The app has no filter/browse/adjust affordance wired to these notices, so none may be promised.
+  const NEXT_STEP = /\b(?:tap|click|press|select|filter|browse|adjust|refine|explore|see (?:more|all)|view (?:more|all)|search again|button|menu|link|below|above|here (?:are|is)|we found|i found|alternatives?|similar)\b/i;
+  for (const [key, copy] of Object.entries(PROPOSED_COPY)) {
+    nodeAssert.ok(!NEXT_STEP.test(copy), `${key} promises a control, filter or next step: ${copy}`);
+  }
+  // The only instruction permitted anywhere is the generic retry in the generic failure notice.
+  nodeAssert.ok(!/try/i.test(PROPOSED_FALLBACK_COPY.zero_eligible));
+  nodeAssert.ok(!/try/i.test(PROPOSED_FALLBACK_COPY.ownership_integrity_failure));
+  // Zero-eligible copy is a negative statement: it must not read as a positive ownership claim or a result list.
+  nodeAssert.ok(/^No matches\b/.test(PROPOSED_FALLBACK_COPY.zero_eligible));
+  // Ownership-integrity copy neither asserts nor denies ownership of any named business.
+  nodeAssert.ok(!/\bis (?:not )?(?:black|verified)/i.test(PROPOSED_FALLBACK_COPY.ownership_integrity_failure));
+});
+
+test('fallback policy: every integrity failure maps to approved copy and never to another generation', () => {
+  const statuses = ['not_applicable', 'eligible', 'zero_eligible'] as const;
+  for (const code of INTEGRITY_FAILURE_CODES) {
+    for (const status of statuses) {
+      const fb = selectFallback(code, status);
+      nodeAssert.equal(fb.regenerate, false, `${code}/${status} must not trigger repair generation`);
+      nodeAssert.ok(fb.copyKey in PROPOSED_FALLBACK_COPY, `${code}/${status} -> unknown copy key ${fb.copyKey}`);
+    }
+  }
+  nodeAssert.equal(selectFallback('unsupported_ownership_claim', 'eligible').copyKey, 'ownership_integrity_failure');
+  nodeAssert.equal(selectFallback('unsupported_ownership_claim', 'zero_eligible').copyKey, 'ownership_integrity_failure');
+  nodeAssert.equal(selectFallback('fabricated_merchant_recommendation', 'zero_eligible').copyKey, 'zero_eligible');
+  nodeAssert.equal(selectFallback('fabricated_merchant_recommendation', 'eligible').copyKey, 'generic_integrity_failure');
+  nodeAssert.equal(selectFallback('unexecuted_action_claim', 'zero_eligible').copyKey, 'generic_integrity_failure');
+  nodeAssert.equal(selectFallback('sensitive_data_exposure', 'eligible').copyKey, 'generic_integrity_failure');
 });
 
 // ── Draft Employee Contract size gate (spec section 7 design target) ────────────
