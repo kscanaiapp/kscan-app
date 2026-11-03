@@ -1,3 +1,9 @@
+## Watchlist W1 canonical merged; mobile convergence in validation
+
+PR689 merged only after current-head32SUCCESS/14conditionalSKIP/0FAIL,empty review threads and reviewed/tested tree identity. Backend **6d96156745160d93596dd792769df6aed164e6fe**;independent7post-merge workflows still pending. Mobile authority remains77a6b97f;existing687continuation prepared locally atabd91f4b6738f2ce9a8d15f4de8f421e11aa3204 (not yet pushed/merged). Focused80PASS/0FAIL/2N/A;sixgatesexit0;backend/TypeScript/fullNode running. Exact canonical adapter/test transfer;66prior grants retained plus1Watchlist grant. Scanner/catalog/migrations/native ownership unchanged.
+
+[Merge/validation evidence](evidence/continuation-watchlist-canonical-merge-1103.json). 24P0-P3findings:23fullysourceclosed/1mobileconvergenceopen. Matrix138PASS/0FAIL/2958NOTTESTED unchanged. Next finishpostchecks/mobile687greenmerge,then explicitlyauthorized E027P4. OwnerwaivedTestSprite(no credits). 458lossless archivesverified. No deployment,migration,pushnotification,customerwrite,device/build/storeaction. AUDIT IN PROGRESS.
+
 ## B004 SOURCE CLOSED — original matrix failure reconciled
 
 Mobile **77a6b97f86b21bf619e051646b635e3ce26b7f73**, backend **53bf7cc2aeeeceb556ef2d01671c941038c83bfc**. [Canonical698](https://github.com/kscanaiapp/kscan-app/pull/698) and [mobile699](https://github.com/kscanaiapp/kscan-app/pull/699) merged normally after32/14and34/20successful/conditional-skippedchecks, respectively;no failedchecks or reviewthreads. Canonicalreview28321246/test260ae52c/final53bfsharede0ef02ctree;mobilereview2109b77b/test3d526c7a/final77a6share7a874ad3tree. **Seven canonical and nine mobile independent push workflows succeeded. Final actual mobile:11477NodePASS/0FAIL/96SKIP;1604backendPASS/17actualhandlersteps/0FAIL. Canonical:8581NodePASS/0FAIL/65SKIP;1588backendPASS/17steps/0FAIL.** [Exact closure](evidence/continuation-b004-source-closure-1103.json).

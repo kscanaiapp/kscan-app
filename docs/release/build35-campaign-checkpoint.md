@@ -1,3 +1,9 @@
+## Watchlist W1 canonical merged; mobile convergence in validation
+
+PR689 merged only after current-head32SUCCESS/14conditionalSKIP/0FAIL,empty review threads and reviewed/tested tree identity. Backend **6d96156745160d93596dd792769df6aed164e6fe**;independent7post-merge workflows still pending. Mobile authority remains77a6b97f;existing687continuation prepared locally atabd91f4b6738f2ce9a8d15f4de8f421e11aa3204 (not yet pushed/merged). Focused80PASS/0FAIL/2N/A;sixgatesexit0;backend/TypeScript/fullNode running. Exact canonical adapter/test transfer;66prior grants retained plus1Watchlist grant. Scanner/catalog/migrations/native ownership unchanged.
+
+[Merge/validation evidence](evidence/continuation-watchlist-canonical-merge-1103.json). 24P0-P3findings:23fullysourceclosed/1mobileconvergenceopen. Matrix138PASS/0FAIL/2958NOTTESTED unchanged. Next finishpostchecks/mobile687greenmerge,then explicitlyauthorized E027P4. OwnerwaivedTestSprite(no credits). 458lossless archivesverified. No deployment,migration,pushnotification,customerwrite,device/build/storeaction. AUDIT IN PROGRESS.
+
 ## Watchlist canonical W1 prepared and source-validated
 
 Existing PR689 updated and ready atd50b2fb3968fa305bb8ef468fe63132d5d33dc33. Tested PR merge2ed6c138454d40193c624abb716ba1f9fba7f30d has actual current backend53bf as first parent and exact reviewed tree4e9ed1080b7a35f602328672042b7329f69aef94. Canonical diff is3files; older GitHub base metadata is not used as merge authority. Node8603PASS/0FAIL/67declaredSKIP;backend1588PASS+17steps/0FAIL;24focused+8independentPASS;TypeScript/fiveclean-sourcegatesexit0. Readiness-refreshed CI pending; no merge claimed. Owner waived TestSprite(no credits); no source or CI gates waived.

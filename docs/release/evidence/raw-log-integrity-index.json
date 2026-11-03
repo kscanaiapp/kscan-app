@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T13:42:06.521Z",
+  "capturedAt": "2026-11-03T13:47:44.328Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4521,6 +4521,16 @@
       "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
       "encoding": "UTF-8",
       "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-mobile-focused-1103.log",
+      "rawBytes": 8484,
+      "rawSha256": "db2cf1f3b5575bd7f3cf2ccb54dee35f8e4160edbfc46a0b7e2ce4ca7023254d",
+      "archiveFile": "resume1103-watchlist-ticket-mobile-focused-1103.log.gz",
+      "archiveBytes": 2983,
+      "archiveSha256": "c8afb4088378e14bec4e96dec94007667b4abda6e823356e410a80822a4faa9a",
+      "encoding": "UTF-8",
+      "disposition": "Mobile W1 80PASS/0FAIL/2explicitN/A including actual adapter,actualSQLDDL and exact source-promotion negative controls; no real provider request"
     }
   ]
 }
