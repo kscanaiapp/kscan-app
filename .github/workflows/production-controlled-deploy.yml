@@ -97,6 +97,11 @@ on:
         description: Must be exactly "DEPLOY TO PRODUCTION" to proceed past preflight
         required: true
         type: string
+      rc_credential_replacement_confirmation:
+        description: Optional RevenueCat-only credential replacement; exact phrase COORDINATED RC CREDENTIAL REPLACEMENT after dashboard coordination
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -226,6 +231,20 @@ jobs:
           echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
           echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
           echo "migration_only=${MIGRATION_ONLY}" >> "$GITHUB_OUTPUT"
+
+      - name: Record optional RevenueCat credential scope
+        env:
+          RC_CONFIRMATION: ${{ inputs.rc_credential_replacement_confirmation }}
+          RC_FUNCTION: ${{ inputs.function_name }}
+          RC_JWT: ${{ inputs.verify_jwt }}
+        run: |
+          set -euo pipefail
+          if [ -n "$RC_CONFIRMATION" ]; then
+            test "$RC_CONFIRMATION" = 'COORDINATED RC CREDENTIAL REPLACEMENT'
+            test "$RC_FUNCTION" = 'kplus-revenuecat-webhook'
+            test "$RC_JWT" = 'false'
+            echo 'Approval scope includes replacement of the two RevenueCat webhook authentication credentials. Dashboard coordination is required; source rollback cannot restore old secret values.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Static precheck and migration plan (no production credentials)
         env:
@@ -581,6 +600,18 @@ jobs:
 
       - name: Install locked verification dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
+
+      - name: Configure coordinated RevenueCat credentials
+        if: inputs.rc_credential_replacement_confirmation != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+          VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
+          ROTATION_CONFIRMATION: ${{ inputs.rc_credential_replacement_confirmation }}
+          RC_PRODUCTION_AUTHORIZATION: ${{ secrets.RC_PRODUCTION_WEBHOOK_AUTHORIZATION }}
+          RC_PRODUCTION_SIGNING_SECRET: ${{ secrets.RC_PRODUCTION_WEBHOOK_SIGNING_SECRET }}
+        run: node scripts/configure-production-revenuecat.mjs
 
       - name: Verify required Edge Function secret names
         env:

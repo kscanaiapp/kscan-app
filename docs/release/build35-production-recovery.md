@@ -29,6 +29,34 @@ The recovery workflow retrieves the private reference by run/attempt/SHA, valida
 
 ## Certification boundary
 
+### Coordinated RevenueCat credential replacement
+
+The controlled deploy workflow optionally accepts
+`rc_credential_replacement_confirmation=COORDINATED RC CREDENTIAL REPLACEMENT`
+for `kplus-revenuecat-webhook` with `verify_jwt=false` only. Empty input preserves
+all existing behavior. The credential-free plan explicitly discloses the two
+secret replacements before the existing Production reviewer gate.
+
+Prepare `RC_PRODUCTION_WEBHOOK_AUTHORIZATION` and
+`RC_PRODUCTION_WEBHOOK_SIGNING_SECRET` on the GitHub Production environment
+through the owner's secure credential channel. These must exactly match the
+Production RevenueCat Authorization header and enabled HMAC signing secret.
+Both must be independent, single-line values of at least 32 characters.
+Do not copy the Staging credential. Coordinate the dashboard cutover and
+protected execution window; changing either side alone interrupts delivery.
+Original secret values cannot be recovered from Supabase inventory hashes.
+
+Only the approved job installs these two Edge secrets. Values are passed in a
+private temporary file, never argv or logs; exact hashed readback is mandatory.
+Any failure or ambiguous write stops without retrying. Product classification,
+accepted environments, customer records and other secrets are not changed.
+Source rollback cannot restore unknown prior secret values: credential recovery
+requires coordinated dashboard/Edge configuration, not a source-only rollback.
+Normal source identity, health, auth and deployment verification still run.
+
+This provisioning path needs review, green CI, merge to the current governed
+backend authority and human Production environment approval before execution.
+
 ### RevenueCat legacy restoration (#706)
 
 Run `41678583997` restored the original six-file RevenueCat tree
