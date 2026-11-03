@@ -96,6 +96,7 @@ export default function OnboardingScreen() {
   const [legalError, setLegalError] = useState<string | null>(null);
   const legalActorId = user?.id ?? null;
   const legalActorRef = useRef(legalActorId);
+  const previousLegalActorRef = useRef(legalActorId);
   const legalEpochRef = useRef(0);
   const legalBusyRef = useRef(false);
   // Fence continuations immediately on render, before an old promise settles.
@@ -125,7 +126,10 @@ export default function OnboardingScreen() {
     setAgeChecked(false);
     setLegalError(null);
     setLegalBusy(false);
-    if (legalEpochRef.current > 0) setStep(legalActorId ? 4 : 2);
+    if (previousLegalActorRef.current !== legalActorId) {
+      previousLegalActorRef.current = legalActorId;
+      setStep(legalActorId ? 4 : 2);
+    }
   }, [legalActorId]);
 
   useEffect(() => () => {
