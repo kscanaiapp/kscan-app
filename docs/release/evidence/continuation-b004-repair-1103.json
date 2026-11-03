@@ -1,0 +1,38 @@
+{
+  "capturedAt": "2026-11-03T12:15:23.965Z",
+  "finding": "B35-B-004",
+  "priority": "P4",
+  "authorization": "continuation-owner-repair-authorization-1102.json",
+  "status": "CANONICAL698 SOURCE REPAIR COMMITTED / CI PENDING / MOBILE PROMOTION REQUIRED",
+  "baseCanonical": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
+  "baseMobile": "ab26dd9b0dbe5fab9a8e06ea31deb0e5568ffedf",
+  "pr": 698,
+  "head": "28321246252babb1f2e47e18f7c5c9883691f0f1",
+  "tree": "de0ef02cabad3bd4788af937c76780449833326c",
+  "rootCause": "routeScanIdentifyRequest(unknown) classified JSONnull as legacy then dereferenced it in buildLegacyInternalRequest",
+  "location": "supabase/functions/scan-identify/v2Activation.ts:258",
+  "repair": "Existing isRecord guard at261 returns existing MALFORMED_REQUEST/400 before contract classification; no handler/auth/quota ordering change",
+  "before": {
+    "original": "9512 actualhandler nullTypeError/no provider or write;twofixtureassumptionsalsofailed;rawretained",
+    "current": "d1be actualhandler:11compatibilitystepsPASS/6nonrecordstepsFAIL/1failedparent;nullTypeError,zeroprovider/postcalls"
+  },
+  "after": {
+    "handler": "1PASS/17nestedstepsPASS/0FAIL",
+    "node": "67PASS/0FAIL",
+    "fullBackend": "1588PASS/17nestedsteps/0FAIL",
+    "typescript": "initialexit2becausepreserveddependencyarchivewasundertheincludepath;movedoutsidecheckout;unchangedsourceexit0/session51298",
+    "gates": "5exit0onclean28321246tree",
+    "manifests": "current;scanv2Activationhashonlyruntimechange;newtesttreeentry;crosspath20samefilelist"
+  },
+  "limits": "Auth/account/consent/quota transport and providers synthetic;actual handler and router;no real JWT signature/RLS/live provider/device/Production claim",
+  "matrix": {
+    "probeId": "B35-MAND-0915",
+    "status": "OriginalFAIL retained untilcanonical/mobileclosure;do not inferPASSfromunitonly"
+  },
+  "next": "698 exact-head fullCI/reviews/normalgreenmerge/post7;then exact bounded promotion onto ab26 or freshauthority preserving discovery and manifests;postmobile9;then remaining audit/Watchlist reconciliation",
+  "originalFixture": {
+    "file": "continuation-b004-original-handler-fixture-1103.ts.txt",
+    "sha256": "4d4ffa9bd947bd28325db31e9192cf10491348961de90d0c6a6ed521c4bffa06",
+    "status": "Uncommitted initial fixture preserved;twoincorrectassumptionscorrectedbeforereproduciblecurrent-sourcebefore/aftertest"
+  }
+}

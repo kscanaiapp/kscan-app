@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T02:20:38.798Z",
+  "capturedAt": "2026-11-03T12:15:23.965Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4211,6 +4211,76 @@
       "archiveSha256": "0c8149466b76195d8d0e318116eeba68e1d5c7bbe636b66c17d8a3aa65f1cf7c",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independent final6ccaProject11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL;source only"
+    },
+    {
+      "rawFile": "scanner-null-before-1102.log",
+      "rawBytes": 92302,
+      "rawSha256": "3de0ac87c74ddb4cc5b8957f0a972f3bceed64e62de4394d1bbde922c4b514ca",
+      "archiveFile": "resume1103-scanner-null-before-1102.log.gz",
+      "archiveBytes": 11492,
+      "archiveSha256": "5534833e9129fd36bbde133e634f796ce8779d2bb33efe7d66e50f45e17bf932",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Before repair;initialfixtureerrorsretainedseparatelyfromcurrent6contractfailures"
+    },
+    {
+      "rawFile": "scanner-null-current-before-1103.log",
+      "rawBytes": 34156,
+      "rawSha256": "65a0574d9af493483db074d5029283f0d79148fd4c19d2427e1a252deb3c515a",
+      "archiveFile": "resume1103-scanner-null-current-before-1103.log.gz",
+      "archiveBytes": 2613,
+      "archiveSha256": "cccff7f90ce306f9476ac6006166b7cef39e40d6c0a5c37bb874a26d60b2e7b2",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Before repair;initialfixtureerrorsretainedseparatelyfromcurrent6contractfailures"
+    },
+    {
+      "rawFile": "scanner-null-after-1103.log",
+      "rawBytes": 19064,
+      "rawSha256": "1aa7e59aa0ccb11be96306195b59a615a9134588cf3dc39998fae66535de0ed3",
+      "archiveFile": "resume1103-scanner-null-after-1103.log.gz",
+      "archiveBytes": 2126,
+      "archiveSha256": "7e3aa2165e29054f042f4aa236a587afdd82ddfd5cb6d98834cecc3843a629ec",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "B004 actualhandler/router/backend evidence;syntheticboundaries/no runtimecertification"
+    },
+    {
+      "rawFile": "scanner-null-activation-wiring-1103.log",
+      "rawBytes": 10216,
+      "rawSha256": "36ed85a984893471ab43e0284ca17bb02f938fae22baca22db4287a57361b395",
+      "archiveFile": "resume1103-scanner-null-activation-wiring-1103.log.gz",
+      "archiveBytes": 2533,
+      "archiveSha256": "3b070e170b803fa9a6ce838a4904e2c796cc0ebbb1102f7483ba83ad0469a80a",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "B004 actualhandler/router/backend evidence;syntheticboundaries/no runtimecertification"
+    },
+    {
+      "rawFile": "scanner-null-full-backend-1103.log",
+      "rawBytes": 483068,
+      "rawSha256": "0012120302dc785f920d242f5e9bbe88dbe20196db3c7e3e38834ede2c44f86d",
+      "archiveFile": "resume1103-scanner-null-full-backend-1103.log.gz",
+      "archiveBytes": 59692,
+      "archiveSha256": "858e81f82a5842c59ebe43bb002fc7c3a7a441312bb0cb97b16825e0300b9039",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "B004 actualhandler/router/backend evidence;syntheticboundaries/no runtimecertification"
+    },
+    {
+      "rawFile": "scanner-null-typescript-1103.log",
+      "rawBytes": 6826414,
+      "rawSha256": "fe546f0854e9982106714662565695ced33303f607991d02101766ad6acc5e28",
+      "archiveFile": "resume1103-scanner-null-typescript-1103.log.gz",
+      "archiveBytes": 162792,
+      "archiveSha256": "662127878599d1ee485d32328a928fdef04ca8a5a914c167a7948bd4345a21f1",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initialcache-includefailureorcorrectedemptylog;exitstatusrecordedindependently,not test count"
+    },
+    {
+      "rawFile": "scanner-null-typescript-corrected-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-scanner-null-typescript-corrected-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Initialcache-includefailureorcorrectedemptylog;exitstatusrecordedindependently,not test count"
     }
   ]
 }

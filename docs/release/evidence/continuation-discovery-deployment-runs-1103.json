@@ -1,0 +1,1987 @@
+[
+  {
+    "conclusion": "success",
+    "databaseId": 41622204067,
+    "event": "workflow_dispatch",
+    "headSha": "9b929d4134e1faf66ba04ff91fe9213e06e73c9a",
+    "jobs": [
+      {
+        "completedAt": "2026-11-03T10:47:44Z",
+        "conclusion": "success",
+        "databaseId": 125870470634,
+        "name": "Confirm intent",
+        "startedAt": "2026-11-03T10:47:42Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:47:43Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:47:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:47:43Z",
+            "conclusion": "success",
+            "name": "Require exact confirmation phrase",
+            "number": 2,
+            "startedAt": "2026-11-03T10:47:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:47:43Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:47:43Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125870470634"
+      },
+      {
+        "completedAt": "2026-11-03T10:48:21Z",
+        "conclusion": "success",
+        "databaseId": 125870506099,
+        "name": "Preflight (no production environment gate — read-only)",
+        "startedAt": "2026-11-03T10:47:47Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:47:49Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:47:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:10Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:47:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:10Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T10:48:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:14Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T10:48:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:14Z",
+            "conclusion": "success",
+            "name": "Record deployment scope",
+            "number": 5,
+            "startedAt": "2026-11-03T10:48:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:15Z",
+            "conclusion": "success",
+            "name": "Static precheck and migration plan (no production credentials)",
+            "number": 6,
+            "startedAt": "2026-11-03T10:48:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:17Z",
+            "conclusion": "success",
+            "name": "Upload preflight artifact",
+            "number": 7,
+            "startedAt": "2026-11-03T10:48:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:17Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 13,
+            "startedAt": "2026-11-03T10:48:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:17Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 14,
+            "startedAt": "2026-11-03T10:48:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:17Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-11-03T10:48:17Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125870506099"
+      },
+      {
+        "completedAt": "2026-11-03T10:48:25Z",
+        "conclusion": "success",
+        "databaseId": 125870790541,
+        "name": "Migration plan",
+        "startedAt": "2026-11-03T10:48:23Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:48:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:48:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:24Z",
+            "conclusion": "success",
+            "name": "Plan",
+            "number": 2,
+            "startedAt": "2026-11-03T10:48:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:24Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:48:24Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125870790541"
+      },
+      {
+        "completedAt": "2026-11-03T10:49:16Z",
+        "conclusion": "success",
+        "databaseId": 125870824149,
+        "name": "Source validation",
+        "startedAt": "2026-11-03T10:48:27Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:48:29Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:48:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:32Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:48:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:48:37Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T10:48:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:00Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 4,
+            "startedAt": "2026-11-03T10:48:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:00Z",
+            "conclusion": "success",
+            "name": "Validate function source exists",
+            "number": 5,
+            "startedAt": "2026-11-03T10:49:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:04Z",
+            "conclusion": "success",
+            "name": "Deno check",
+            "number": 6,
+            "startedAt": "2026-11-03T10:49:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:08Z",
+            "conclusion": "success",
+            "name": "Edge-function source parity gate",
+            "number": 7,
+            "startedAt": "2026-11-03T10:49:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:10Z",
+            "conclusion": "success",
+            "name": "Credential-free recovery and contract regression",
+            "number": 8,
+            "startedAt": "2026-11-03T10:49:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:10Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 15,
+            "startedAt": "2026-11-03T10:49:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:11Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 16,
+            "startedAt": "2026-11-03T10:49:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:49:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "startedAt": "2026-11-03T10:49:11Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125870824149"
+      },
+      {
+        "completedAt": "2026-11-03T10:48:25Z",
+        "conclusion": "skipped",
+        "databaseId": 125870825596,
+        "name": "Approved single migration",
+        "startedAt": "2026-11-03T10:48:25Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125870825596"
+      },
+      {
+        "completedAt": "2026-11-03T10:53:17Z",
+        "conclusion": "success",
+        "databaseId": 125871213765,
+        "name": "Execute approved scoped deployment",
+        "startedAt": "2026-11-03T10:51:26Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:51:28Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:51:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:51:32Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:51:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:51:32Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T10:51:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:51:37Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T10:51:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:51:40Z",
+            "conclusion": "success",
+            "name": "Setup Supabase CLI",
+            "number": 5,
+            "startedAt": "2026-11-03T10:51:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 6,
+            "startedAt": "2026-11-03T10:51:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "success",
+            "name": "Verify required Edge Function secret names",
+            "number": 7,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "skipped",
+            "name": "Validate required production variables (values never printed)",
+            "number": 8,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "skipped",
+            "name": "Live remote preflight against production (post-approval, pre-write)",
+            "number": 9,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "skipped",
+            "name": "Apply one approved migration",
+            "number": 10,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "skipped",
+            "name": "Stage scoped migration artifacts outside checkout",
+            "number": 11,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:52:17Z",
+            "conclusion": "skipped",
+            "name": "Upload migration artifact",
+            "number": 12,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:06Z",
+            "conclusion": "success",
+            "name": "Deploy function",
+            "number": 13,
+            "startedAt": "2026-11-03T10:52:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:06Z",
+            "conclusion": "success",
+            "name": "Probe deployed function",
+            "number": 14,
+            "startedAt": "2026-11-03T10:53:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:12Z",
+            "conclusion": "success",
+            "name": "Run production deployment smoke tests",
+            "number": 15,
+            "startedAt": "2026-11-03T10:53:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:12Z",
+            "conclusion": "skipped",
+            "name": "Roll back / contain deployed function",
+            "number": 16,
+            "startedAt": "2026-11-03T10:53:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:12Z",
+            "conclusion": "success",
+            "name": "Upload rollback artifact",
+            "number": 17,
+            "startedAt": "2026-11-03T10:53:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:12Z",
+            "conclusion": "success",
+            "name": "Stage deploy artifacts outside checkout",
+            "number": 18,
+            "startedAt": "2026-11-03T10:53:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:14Z",
+            "conclusion": "success",
+            "name": "Upload deploy artifacts",
+            "number": 19,
+            "startedAt": "2026-11-03T10:53:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:14Z",
+            "conclusion": "success",
+            "name": "Require complete scoped deployment success",
+            "number": 20,
+            "startedAt": "2026-11-03T10:53:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:14Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 39,
+            "startedAt": "2026-11-03T10:53:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:14Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 40,
+            "startedAt": "2026-11-03T10:53:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:14Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 41,
+            "startedAt": "2026-11-03T10:53:14Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125871213765"
+      },
+      {
+        "completedAt": "2026-11-03T10:53:21Z",
+        "conclusion": "success",
+        "databaseId": 125873098845,
+        "name": "Publish deployment artifact",
+        "startedAt": "2026-11-03T10:53:19Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:53:20Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:53:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:20Z",
+            "conclusion": "success",
+            "name": "Summary",
+            "number": 2,
+            "startedAt": "2026-11-03T10:53:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:53:20Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:53:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067/job/125873098845"
+      }
+    ],
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41622204067"
+  },
+  {
+    "conclusion": "failure",
+    "databaseId": 41623079930,
+    "event": "workflow_dispatch",
+    "headSha": "9b929d4134e1faf66ba04ff91fe9213e06e73c9a",
+    "jobs": [
+      {
+        "completedAt": "2026-11-03T10:54:11Z",
+        "conclusion": "success",
+        "databaseId": 125873467285,
+        "name": "Confirm intent",
+        "startedAt": "2026-11-03T10:54:07Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:54:08Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:54:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:08Z",
+            "conclusion": "success",
+            "name": "Require exact confirmation phrase",
+            "number": 2,
+            "startedAt": "2026-11-03T10:54:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:08Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:54:08Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125873467285"
+      },
+      {
+        "completedAt": "2026-11-03T10:54:32Z",
+        "conclusion": "success",
+        "databaseId": 125873515506,
+        "name": "Preflight (no production environment gate — read-only)",
+        "startedAt": "2026-11-03T10:54:13Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:54:15Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:54:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:24Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:54:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:24Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T10:54:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:28Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T10:54:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:28Z",
+            "conclusion": "success",
+            "name": "Record deployment scope",
+            "number": 5,
+            "startedAt": "2026-11-03T10:54:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:29Z",
+            "conclusion": "success",
+            "name": "Static precheck and migration plan (no production credentials)",
+            "number": 6,
+            "startedAt": "2026-11-03T10:54:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:30Z",
+            "conclusion": "success",
+            "name": "Upload preflight artifact",
+            "number": 7,
+            "startedAt": "2026-11-03T10:54:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:30Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 13,
+            "startedAt": "2026-11-03T10:54:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:30Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 14,
+            "startedAt": "2026-11-03T10:54:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:30Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-11-03T10:54:30Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125873515506"
+      },
+      {
+        "completedAt": "2026-11-03T10:54:37Z",
+        "conclusion": "success",
+        "databaseId": 125873682146,
+        "name": "Migration plan",
+        "startedAt": "2026-11-03T10:54:35Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:54:35Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:54:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:35Z",
+            "conclusion": "success",
+            "name": "Plan",
+            "number": 2,
+            "startedAt": "2026-11-03T10:54:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:35Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:54:35Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125873682146"
+      },
+      {
+        "completedAt": "2026-11-03T10:55:43Z",
+        "conclusion": "success",
+        "databaseId": 125873720352,
+        "name": "Source validation",
+        "startedAt": "2026-11-03T10:54:40Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:54:42Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:54:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:46Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:54:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:54:50Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T10:54:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:27Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 4,
+            "startedAt": "2026-11-03T10:54:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:27Z",
+            "conclusion": "success",
+            "name": "Validate function source exists",
+            "number": 5,
+            "startedAt": "2026-11-03T10:55:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:31Z",
+            "conclusion": "success",
+            "name": "Deno check",
+            "number": 6,
+            "startedAt": "2026-11-03T10:55:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:36Z",
+            "conclusion": "success",
+            "name": "Edge-function source parity gate",
+            "number": 7,
+            "startedAt": "2026-11-03T10:55:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:40Z",
+            "conclusion": "success",
+            "name": "Credential-free recovery and contract regression",
+            "number": 8,
+            "startedAt": "2026-11-03T10:55:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:40Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 15,
+            "startedAt": "2026-11-03T10:55:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:40Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 16,
+            "startedAt": "2026-11-03T10:55:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:55:40Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "startedAt": "2026-11-03T10:55:40Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125873720352"
+      },
+      {
+        "completedAt": "2026-11-03T10:54:37Z",
+        "conclusion": "skipped",
+        "databaseId": 125873722031,
+        "name": "Approved single migration",
+        "startedAt": "2026-11-03T10:54:38Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125873722031"
+      },
+      {
+        "completedAt": "2026-11-03T10:58:55Z",
+        "conclusion": "failure",
+        "databaseId": 125874234819,
+        "name": "Execute approved scoped deployment",
+        "startedAt": "2026-11-03T10:57:13Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:57:15Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:57:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:57:19Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T10:57:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:57:20Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T10:57:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:57:24Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T10:57:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:57:27Z",
+            "conclusion": "success",
+            "name": "Setup Supabase CLI",
+            "number": 5,
+            "startedAt": "2026-11-03T10:57:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 6,
+            "startedAt": "2026-11-03T10:57:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "success",
+            "name": "Verify required Edge Function secret names",
+            "number": 7,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "skipped",
+            "name": "Validate required production variables (values never printed)",
+            "number": 8,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "skipped",
+            "name": "Live remote preflight against production (post-approval, pre-write)",
+            "number": 9,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "skipped",
+            "name": "Apply one approved migration",
+            "number": 10,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "skipped",
+            "name": "Stage scoped migration artifacts outside checkout",
+            "number": 11,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:05Z",
+            "conclusion": "skipped",
+            "name": "Upload migration artifact",
+            "number": 12,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:49Z",
+            "conclusion": "failure",
+            "name": "Deploy function",
+            "number": 13,
+            "startedAt": "2026-11-03T10:58:05Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:49Z",
+            "conclusion": "skipped",
+            "name": "Probe deployed function",
+            "number": 14,
+            "startedAt": "2026-11-03T10:58:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:49Z",
+            "conclusion": "skipped",
+            "name": "Run production deployment smoke tests",
+            "number": 15,
+            "startedAt": "2026-11-03T10:58:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:49Z",
+            "conclusion": "skipped",
+            "name": "Roll back / contain deployed function",
+            "number": 16,
+            "startedAt": "2026-11-03T10:58:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:51Z",
+            "conclusion": "success",
+            "name": "Upload rollback artifact",
+            "number": 17,
+            "startedAt": "2026-11-03T10:58:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:51Z",
+            "conclusion": "success",
+            "name": "Stage deploy artifacts outside checkout",
+            "number": 18,
+            "startedAt": "2026-11-03T10:58:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:52Z",
+            "conclusion": "success",
+            "name": "Upload deploy artifacts",
+            "number": 19,
+            "startedAt": "2026-11-03T10:58:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:52Z",
+            "conclusion": "failure",
+            "name": "Require complete scoped deployment success",
+            "number": 20,
+            "startedAt": "2026-11-03T10:58:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:52Z",
+            "conclusion": "skipped",
+            "name": "Post Setup Node",
+            "number": 39,
+            "startedAt": "2026-11-03T10:58:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:52Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 40,
+            "startedAt": "2026-11-03T10:58:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:52Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 41,
+            "startedAt": "2026-11-03T10:58:52Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125874234819"
+      },
+      {
+        "completedAt": "2026-11-03T10:59:01Z",
+        "conclusion": "failure",
+        "databaseId": 125875691914,
+        "name": "Publish deployment artifact",
+        "startedAt": "2026-11-03T10:58:57Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T10:58:58Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T10:58:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:58Z",
+            "conclusion": "failure",
+            "name": "Summary",
+            "number": 2,
+            "startedAt": "2026-11-03T10:58:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T10:58:58Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T10:58:58Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930/job/125875691914"
+      }
+    ],
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41623079930"
+  },
+  {
+    "conclusion": "success",
+    "databaseId": 41625057235,
+    "event": "workflow_dispatch",
+    "headSha": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
+    "jobs": [
+      {
+        "completedAt": "2026-11-03T11:08:35Z",
+        "conclusion": "success",
+        "databaseId": 125880205546,
+        "name": "Confirm intent",
+        "startedAt": "2026-11-03T11:08:33Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:08:34Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:08:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:34Z",
+            "conclusion": "success",
+            "name": "Require exact confirmation phrase",
+            "number": 2,
+            "startedAt": "2026-11-03T11:08:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:34Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:08:34Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880205546"
+      },
+      {
+        "completedAt": "2026-11-03T11:08:58Z",
+        "conclusion": "success",
+        "databaseId": 125880235259,
+        "name": "Preflight (no production environment gate — read-only)",
+        "startedAt": "2026-11-03T11:08:39Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:08:40Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:08:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:49Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:08:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:49Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T11:08:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:53Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T11:08:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:53Z",
+            "conclusion": "success",
+            "name": "Record deployment scope",
+            "number": 5,
+            "startedAt": "2026-11-03T11:08:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:54Z",
+            "conclusion": "success",
+            "name": "Static precheck and migration plan (no production credentials)",
+            "number": 6,
+            "startedAt": "2026-11-03T11:08:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:55Z",
+            "conclusion": "success",
+            "name": "Upload preflight artifact",
+            "number": 7,
+            "startedAt": "2026-11-03T11:08:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:55Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 13,
+            "startedAt": "2026-11-03T11:08:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:56Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 14,
+            "startedAt": "2026-11-03T11:08:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:08:56Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 15,
+            "startedAt": "2026-11-03T11:08:56Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880235259"
+      },
+      {
+        "completedAt": "2026-11-03T11:09:03Z",
+        "conclusion": "success",
+        "databaseId": 125880414448,
+        "name": "Migration plan",
+        "startedAt": "2026-11-03T11:09:00Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:09:01Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:09:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:01Z",
+            "conclusion": "success",
+            "name": "Plan",
+            "number": 2,
+            "startedAt": "2026-11-03T11:09:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:01Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:09:01Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880414448"
+      },
+      {
+        "completedAt": "2026-11-03T11:10:13Z",
+        "conclusion": "success",
+        "databaseId": 125880459145,
+        "name": "Source validation",
+        "startedAt": "2026-11-03T11:09:12Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:09:13Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:09:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:16Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:09:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:20Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T11:09:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:58Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 4,
+            "startedAt": "2026-11-03T11:09:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:09:58Z",
+            "conclusion": "success",
+            "name": "Validate function source exists",
+            "number": 5,
+            "startedAt": "2026-11-03T11:09:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:02Z",
+            "conclusion": "success",
+            "name": "Deno check",
+            "number": 6,
+            "startedAt": "2026-11-03T11:09:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:07Z",
+            "conclusion": "success",
+            "name": "Edge-function source parity gate",
+            "number": 7,
+            "startedAt": "2026-11-03T11:10:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:11Z",
+            "conclusion": "success",
+            "name": "Credential-free recovery and contract regression",
+            "number": 8,
+            "startedAt": "2026-11-03T11:10:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:11Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 15,
+            "startedAt": "2026-11-03T11:10:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:11Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 16,
+            "startedAt": "2026-11-03T11:10:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:10:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "startedAt": "2026-11-03T11:10:11Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880459145"
+      },
+      {
+        "completedAt": "2026-11-03T11:09:03Z",
+        "conclusion": "skipped",
+        "databaseId": 125880461326,
+        "name": "Approved single migration",
+        "startedAt": "2026-11-03T11:09:04Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880461326"
+      },
+      {
+        "completedAt": "2026-11-03T11:12:40Z",
+        "conclusion": "success",
+        "databaseId": 125880999090,
+        "name": "Execute approved scoped deployment",
+        "startedAt": "2026-11-03T11:11:01Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:11:02Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:11:01Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:06Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:11:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:06Z",
+            "conclusion": "success",
+            "name": "Refuse anything but the governed branch tip",
+            "number": 3,
+            "startedAt": "2026-11-03T11:11:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:10Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 4,
+            "startedAt": "2026-11-03T11:11:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:13Z",
+            "conclusion": "success",
+            "name": "Setup Supabase CLI",
+            "number": 5,
+            "startedAt": "2026-11-03T11:11:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "success",
+            "name": "Install locked verification dependencies without lifecycle scripts",
+            "number": 6,
+            "startedAt": "2026-11-03T11:11:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "success",
+            "name": "Verify required Edge Function secret names",
+            "number": 7,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "skipped",
+            "name": "Validate required production variables (values never printed)",
+            "number": 8,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "skipped",
+            "name": "Live remote preflight against production (post-approval, pre-write)",
+            "number": 9,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "skipped",
+            "name": "Apply one approved migration",
+            "number": 10,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "skipped",
+            "name": "Stage scoped migration artifacts outside checkout",
+            "number": 11,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:11:50Z",
+            "conclusion": "skipped",
+            "name": "Upload migration artifact",
+            "number": 12,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:29Z",
+            "conclusion": "success",
+            "name": "Deploy function",
+            "number": 13,
+            "startedAt": "2026-11-03T11:11:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:30Z",
+            "conclusion": "success",
+            "name": "Probe deployed function",
+            "number": 14,
+            "startedAt": "2026-11-03T11:12:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:35Z",
+            "conclusion": "success",
+            "name": "Run production deployment smoke tests",
+            "number": 15,
+            "startedAt": "2026-11-03T11:12:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:35Z",
+            "conclusion": "skipped",
+            "name": "Roll back / contain deployed function",
+            "number": 16,
+            "startedAt": "2026-11-03T11:12:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:36Z",
+            "conclusion": "success",
+            "name": "Upload rollback artifact",
+            "number": 17,
+            "startedAt": "2026-11-03T11:12:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:36Z",
+            "conclusion": "success",
+            "name": "Stage deploy artifacts outside checkout",
+            "number": 18,
+            "startedAt": "2026-11-03T11:12:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:37Z",
+            "conclusion": "success",
+            "name": "Upload deploy artifacts",
+            "number": 19,
+            "startedAt": "2026-11-03T11:12:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:37Z",
+            "conclusion": "success",
+            "name": "Require complete scoped deployment success",
+            "number": 20,
+            "startedAt": "2026-11-03T11:12:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:37Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 39,
+            "startedAt": "2026-11-03T11:12:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:37Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 40,
+            "startedAt": "2026-11-03T11:12:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:37Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 41,
+            "startedAt": "2026-11-03T11:12:37Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125880999090"
+      },
+      {
+        "completedAt": "2026-11-03T11:12:46Z",
+        "conclusion": "success",
+        "databaseId": 125882150261,
+        "name": "Publish deployment artifact",
+        "startedAt": "2026-11-03T11:12:42Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:12:43Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:12:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:43Z",
+            "conclusion": "success",
+            "name": "Summary",
+            "number": 2,
+            "startedAt": "2026-11-03T11:12:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:12:43Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:12:43Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235/job/125882150261"
+      }
+    ],
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625057235"
+  },
+  {
+    "conclusion": "success",
+    "databaseId": 41625763567,
+    "event": "workflow_dispatch",
+    "headSha": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
+    "jobs": [
+      {
+        "completedAt": "2026-11-03T11:14:03Z",
+        "conclusion": "success",
+        "databaseId": 125882583099,
+        "name": "Preflight",
+        "startedAt": "2026-11-03T11:13:38Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:13:39Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:13:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:43Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:13:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:47Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T11:13:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:49Z",
+            "conclusion": "success",
+            "name": "Setup Supabase CLI",
+            "number": 4,
+            "startedAt": "2026-11-03T11:13:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:49Z",
+            "conclusion": "success",
+            "name": "Validate required staging variables",
+            "number": 5,
+            "startedAt": "2026-11-03T11:13:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:49Z",
+            "conclusion": "success",
+            "name": "Record deployment scope",
+            "number": 6,
+            "startedAt": "2026-11-03T11:13:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:49Z",
+            "conclusion": "skipped",
+            "name": "Require current governed tip for migration-only execution",
+            "number": 7,
+            "startedAt": "2026-11-03T11:13:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:13:59Z",
+            "conclusion": "success",
+            "name": "Run staging preflight",
+            "number": 8,
+            "startedAt": "2026-11-03T11:13:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:00Z",
+            "conclusion": "success",
+            "name": "Upload preflight artifact",
+            "number": 9,
+            "startedAt": "2026-11-03T11:13:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:00Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 17,
+            "startedAt": "2026-11-03T11:14:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:01Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-11-03T11:14:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:01Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-11-03T11:14:01Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125882583099"
+      },
+      {
+        "completedAt": "2026-11-03T11:14:08Z",
+        "conclusion": "success",
+        "databaseId": 125882793255,
+        "name": "Migration plan",
+        "startedAt": "2026-11-03T11:14:05Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:14:06Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:14:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:06Z",
+            "conclusion": "success",
+            "name": "Plan",
+            "number": 2,
+            "startedAt": "2026-11-03T11:14:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:06Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:14:06Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125882793255"
+      },
+      {
+        "completedAt": "2026-11-03T11:14:28Z",
+        "conclusion": "success",
+        "databaseId": 125882836330,
+        "name": "Source validation",
+        "startedAt": "2026-11-03T11:14:10Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:14:12Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:14:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:16Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:14:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:16Z",
+            "conclusion": "success",
+            "name": "Validate function source exists",
+            "number": 3,
+            "startedAt": "2026-11-03T11:14:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:25Z",
+            "conclusion": "success",
+            "name": "Deno check",
+            "number": 4,
+            "startedAt": "2026-11-03T11:14:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:25Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 8,
+            "startedAt": "2026-11-03T11:14:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:25Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 9,
+            "startedAt": "2026-11-03T11:14:25Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125882836330"
+      },
+      {
+        "completedAt": "2026-11-03T11:14:08Z",
+        "conclusion": "skipped",
+        "databaseId": 125882838367,
+        "name": "Approved single migration",
+        "startedAt": "2026-11-03T11:14:08Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125882838367"
+      },
+      {
+        "completedAt": "2026-11-03T11:15:10Z",
+        "conclusion": "success",
+        "databaseId": 125882995450,
+        "name": "Deploy one function",
+        "startedAt": "2026-11-03T11:14:30Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:14:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:14:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:35Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:14:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:39Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T11:14:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:14:42Z",
+            "conclusion": "success",
+            "name": "Setup Supabase CLI",
+            "number": 4,
+            "startedAt": "2026-11-03T11:14:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:07Z",
+            "conclusion": "success",
+            "name": "Deploy function",
+            "number": 5,
+            "startedAt": "2026-11-03T11:14:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:08Z",
+            "conclusion": "success",
+            "name": "Upload deploy artifacts",
+            "number": 6,
+            "startedAt": "2026-11-03T11:15:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:08Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 11,
+            "startedAt": "2026-11-03T11:15:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:08Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 12,
+            "startedAt": "2026-11-03T11:15:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:08Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 13,
+            "startedAt": "2026-11-03T11:15:08Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125882995450"
+      },
+      {
+        "completedAt": "2026-11-03T11:15:15Z",
+        "conclusion": "success",
+        "databaseId": 125883334087,
+        "name": "Health check",
+        "startedAt": "2026-11-03T11:15:12Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:15:13Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:15:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:14Z",
+            "conclusion": "success",
+            "name": "Probe deployed function",
+            "number": 2,
+            "startedAt": "2026-11-03T11:15:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:14Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:15:14Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125883334087"
+      },
+      {
+        "completedAt": "2026-11-03T11:15:31Z",
+        "conclusion": "success",
+        "databaseId": 125883378378,
+        "name": "Synthetic tests",
+        "startedAt": "2026-11-03T11:15:18Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:15:19Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:15:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:24Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-11-03T11:15:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:28Z",
+            "conclusion": "success",
+            "name": "Setup Node",
+            "number": 3,
+            "startedAt": "2026-11-03T11:15:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:29Z",
+            "conclusion": "success",
+            "name": "Run staging deployment smoke tests",
+            "number": 4,
+            "startedAt": "2026-11-03T11:15:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:29Z",
+            "conclusion": "success",
+            "name": "Post Setup Node",
+            "number": 7,
+            "startedAt": "2026-11-03T11:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:29Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 8,
+            "startedAt": "2026-11-03T11:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:29Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 9,
+            "startedAt": "2026-11-03T11:15:29Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125883378378"
+      },
+      {
+        "completedAt": "2026-11-03T11:15:46Z",
+        "conclusion": "success",
+        "databaseId": 125883504079,
+        "name": "Publish deployment artifact",
+        "startedAt": "2026-11-03T11:15:44Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-03T11:15:44Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-03T11:15:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:44Z",
+            "conclusion": "success",
+            "name": "Summary",
+            "number": 2,
+            "startedAt": "2026-11-03T11:15:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-03T11:15:45Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 3,
+            "startedAt": "2026-11-03T11:15:45Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125883504079"
+      },
+      {
+        "completedAt": "2026-11-03T11:15:32Z",
+        "conclusion": "skipped",
+        "databaseId": 125883505892,
+        "name": "Rollback on failure",
+        "startedAt": "2026-11-03T11:15:32Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567/job/125883505892"
+      }
+    ],
+    "name": "K Scan Staging Controlled Deploy",
+    "status": "completed",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41625763567"
+  }
+]

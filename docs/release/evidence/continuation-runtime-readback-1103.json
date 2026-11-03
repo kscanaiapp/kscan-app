@@ -1,0 +1,102 @@
+{
+  "capturedAt": "2026-11-03T12:05:56.726Z",
+  "method": "Connected Supabase read-only function inventory and aggregate catalog/migration/RPC metadata; no customer rows or writes",
+  "environments": [
+    {
+      "project": "wyyuqfdxucjksghsmhry",
+      "functions": [
+        {
+          "name": "commerce-watch-refresh",
+          "status": "ACTIVE",
+          "version": 16,
+          "verify_jwt": false,
+          "ezbr_sha256": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a",
+          "updated_at": 1791834655450
+        },
+        {
+          "name": "purchase-import-extract",
+          "status": "ACTIVE",
+          "version": 11,
+          "verify_jwt": true,
+          "ezbr_sha256": "819d61694b59951b274862319774e863e0ca5ed7db6b737779e5ca7c29085dd3",
+          "updated_at": 1791166340750
+        },
+        {
+          "name": "black-owned-discovery",
+          "status": "ACTIVE",
+          "version": 2,
+          "verify_jwt": true,
+          "ezbr_sha256": "a87fbdafb5e26bc4c919c66da9ab10cfafd899cc6f2935dda98a4fc45baaacce",
+          "updated_at": 1793703170110
+        },
+        {
+          "name": "black-owned-catalog-sync",
+          "status": "ACTIVE",
+          "version": 1,
+          "verify_jwt": false,
+          "ezbr_sha256": "42397c0fdbc962efc127dc4ae944130b4e2d2ad2f4aa35ed4ecb36e0bc5548e3",
+          "updated_at": 1793704335526
+        }
+      ],
+      "catalogAndF025": {
+        "brands": 0,
+        "merchants": 0,
+        "products": 0,
+        "eligible_products": 0,
+        "eligible_inventory": 0,
+        "f025_migration_applied": false,
+        "f025_rpc_present": false
+      },
+      "workerEnablement": "NOT VERIFIED; worker kill switch distinct from consumer gate",
+      "consumerFlagReadback": "NOT VERIFIED by these metadata reads"
+    },
+    {
+      "project": "yzqjvdfgefveprobvvyw",
+      "functions": [
+        {
+          "name": "commerce-watch-refresh",
+          "status": "ACTIVE",
+          "version": 26,
+          "verify_jwt": false,
+          "ezbr_sha256": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a",
+          "updated_at": 1791833254138
+        },
+        {
+          "name": "purchase-import-extract",
+          "status": "ACTIVE",
+          "version": 9,
+          "verify_jwt": true,
+          "ezbr_sha256": "696e319e19f1ef4209448c666a2622cecf1d888db2ba9344f231892019f2f59f",
+          "updated_at": 1791501259358
+        },
+        {
+          "name": "black-owned-discovery",
+          "status": "ACTIVE",
+          "version": 9,
+          "verify_jwt": true,
+          "ezbr_sha256": "a87fbdafb5e26bc4c919c66da9ab10cfafd899cc6f2935dda98a4fc45baaacce",
+          "updated_at": 1793680030236
+        },
+        {
+          "name": "black-owned-catalog-sync",
+          "status": "ACTIVE",
+          "version": 5,
+          "verify_jwt": false,
+          "ezbr_sha256": "42397c0fdbc962efc127dc4ae944130b4e2d2ad2f4aa35ed4ecb36e0bc5548e3",
+          "updated_at": 1793704505111
+        }
+      ],
+      "catalogAndF025": {
+        "brands": 0,
+        "merchants": 0,
+        "products": 0,
+        "eligible_products": 0,
+        "eligible_inventory": 0,
+        "f025_migration_applied": false,
+        "f025_rpc_present": false
+      },
+      "workerEnablement": "NOT VERIFIED; worker kill switch distinct from consumer gate",
+      "consumerFlagReadback": "NOT VERIFIED by these metadata reads"
+    }
+  ]
+}
