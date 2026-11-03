@@ -59,7 +59,9 @@ export function sanitizeGarment(value: unknown): FashionAttributes {
   const source = value as Record<string, unknown>;
   const fields = ['item_type', 'subtype', 'primary_color', 'secondary_color', 'material_estimate', 'silhouette', 'pattern', 'distinctive_features'];
   if (Object.keys(source).some((k) => !fields.includes(k))) throw new Error('unsupported_garment_field');
-  const category = normalizeCategory(text(source.item_type) ?? '');
+  // The shared normalizer keeps the plural "accessories"; the catalog taxonomy is singular.
+  const normalized = normalizeCategory(text(source.item_type) ?? '');
+  const category = normalized === 'accessories' ? 'accessory' : normalized;
   if (!CATEGORIES.has(category)) throw new Error('unsupported_category');
   const out: FashionAttributes = { item_type: category };
   for (const key of fields.slice(1, -1) as (keyof Omit<FashionAttributes, 'item_type' | 'distinctive_features'>)[]) {

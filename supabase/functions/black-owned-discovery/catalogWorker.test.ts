@@ -4,7 +4,7 @@ import { createAuthorizedJsonAdapter } from './authorizedJsonAdapter.ts';
 import { normalizeFeed, type AuthorizedMerchant, type CatalogStore, type FeedProduct } from './catalog.ts';
 import { createCatalogWorkerHandler, syncKey, WORKER_HEADER, type CatalogWorkerDependencies } from './catalogWorker.ts';
 import { rankCatalog } from './engine.ts';
-import { subtypeKey, subtypeMatchKeys } from './validation.ts';
+import { parseDiscoveryInput, subtypeKey, subtypeMatchKeys } from './validation.ts';
 import { input, row, NOW } from './fixtures.test.ts';
 
 const on = { discovery: true, badges: true, sponsored: false };
@@ -20,6 +20,12 @@ Deno.test('subtype keys canonicalize scanner phrasing without widening the head 
   assert.equal(subtypeKey('  '), null); assert.equal(subtypeKey(42), null);
   assert.deepEqual(subtypeMatchKeys('Black Leather Chelsea Boots'), ['black leather chelsea boot', 'leather chelsea boot', 'chelsea boot', 'boot']);
   assert.deepEqual(subtypeMatchKeys(undefined), []);
+});
+Deno.test('scanner category labels reach the catalog taxonomy; unsupported ones stay out', () => {
+  for (const [label, category] of [['Accessories', 'accessory'], ['sunglasses', 'accessory'], ['Jackets', 'outerwear'], ['jeans', 'pants'], ['sneakers', 'footwear']]) {
+    assert.equal(parseDiscoveryInput({ ...input, garment: { item_type: label } }).garment.item_type, category, label);
+  }
+  for (const label of ['swimwear', 'car']) assert.throws(() => parseDiscoveryInput({ ...input, garment: { item_type: label } }), label);
 });
 Deno.test('ingest stores canonical subtypes, and ranking matches scanner phrasing', () => {
   assert.equal(normalizeFeed([product], merchant)[0].subtype, 'bomber');
