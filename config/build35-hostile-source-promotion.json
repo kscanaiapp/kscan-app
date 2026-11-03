@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+  "canonicalBackend": "31be5f99341b606a070bbbe0b3062588f320f089",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -156,8 +156,8 @@
     {
       "file": "supabase/functions/purchase-import-extract/handler.ts",
       "sha256": "71dfe68f87c8212195b81cbeb843ac3ac2526f7266fb573325eb5fba66176969",
-      "source": "26d5fae291ffcdbb1a56e312524013c6939ab152",
-      "reason": "Exact merged canonical PR681/F024 duplicate-replay dispatch refusal; preserve C023 private UUID/session fingerprint, wire contracts and all deployment/activation gates. F025 remains a separate repair."
+      "source": "31be5f99341b606a070bbbe0b3062588f320f089",
+      "reason": "Exact canonical PR681/F024 runtime repair plus PR684 event-synchronized regression; preserve C023 UUID/session contract and all activation/deployment gates. F025 remains separate."
     },
     {
       "file": "supabase/functions/scan-identify/scanImageProductMission.ts",
@@ -381,12 +381,14 @@
     ]
   },
   "receiptQuotaReplayPromotion": {
-    "canonicalSource": "26d5fae291ffcdbb1a56e312524013c6939ab152",
-    "reviewedSource": "f8d7f61cf6d5f75b966d8ea44a27a3ad8d5effe4",
-    "sourceTree": "35ae1e6aa608318ebd313d9a81178350fc0e67f0",
+    "canonicalSource": "31be5f99341b606a070bbbe0b3062588f320f089",
+    "reviewedSource": "184395bc8899904946ce0c86e8c0a64ebef03b76",
+    "sourceTree": "1b6dbc86d3f7fe8a4c562da5aaae65a16fa75068",
     "files": [
       "supabase/functions/purchase-import-extract/handler.ts",
       "__tests__/purchaseImportReplayDispatch.test.js"
-    ]
+    ],
+    "runtimeRepairSource": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+    "fixtureCorrectionPr": 684
   }
 }

@@ -17,7 +17,7 @@ const previous = JSON.parse(execFileSync('git', ['show', previousMobile + ':conf
 const approved = new Map(files.map(file => [file, execFileSync('git', ['show', canonical + ':' + file], { cwd: root })]));
 const actual = new Map(files.map(file => [file, fs.readFileSync(path.join(root, file))]));
 function verify(bytes) {
-  assert.equal(policy.canonicalBackend, '26d5fae291ffcdbb1a56e312524013c6939ab152');
+  assert.equal(policy.canonicalBackend, '31be5f99341b606a070bbbe0b3062588f320f089');
   assert.equal(previous.files.length, 51);
   assert.equal(policy.files.length, 57);
   assert.equal(new Set(policy.files.map(row => row.file)).size, 57);
@@ -34,7 +34,7 @@ test('E016 Unicode weather promotion preserves canonical bytes and every prior r
   verify(actual);
   const authority = JSON.parse(fs.readFileSync(path.join(root, 'config/backend-authority.json'), 'utf8'));
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
-  assert.equal(authority.build35CampaignConvergence.sha, '26d5fae291ffcdbb1a56e312524013c6939ab152');
+  assert.equal(authority.build35CampaignConvergence.sha, '31be5f99341b606a070bbbe0b3062588f320f089');
   const local = JSON.parse(fs.readFileSync(path.join(root, 'config/edge-function-manifest.json'), 'utf8'));
   const backend = JSON.parse(execFileSync('git', ['show', '19bcc5d699f878561aaef1f9bc914c998e2a0de7:config/edge-function-manifest.json'], { cwd: root, encoding: 'utf8' }));
   const find = m => m.parity.functions.find(f => f.name === 'stylechat-generate');

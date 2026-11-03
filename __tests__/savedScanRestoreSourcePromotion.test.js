@@ -22,7 +22,7 @@ function verify(p,actual) {
   assert.deepEqual(p.files.filter(r=>r.file!==migration),expectedReceiptAdvance(before.files),'every existing56 promotion remains pinned except the exact reviewed receipt advance');
   const row=p.files.find(r=>r.file===migration);
   assert.equal(row.source,p.savedScanRestorationPromotion.canonicalSource);
-  assert.equal(p.canonicalBackend,'26d5fae291ffcdbb1a56e312524013c6939ab152');
+  assert.equal(p.canonicalBackend,'31be5f99341b606a070bbbe0b3062588f320f089');
   const tree=sha=>execFileSync('git',['show','-s','--format=%T',sha],{cwd:root,encoding:'utf8'}).trim();
   assert.equal(tree(row.source),tree(reviewed),'promoted authority tree must equal the reviewed canonical repair');
   assert.equal(row.sha256,crypto.createHash('sha256').update(git(reviewed,migration)).digest('hex'));

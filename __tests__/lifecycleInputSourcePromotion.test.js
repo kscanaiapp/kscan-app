@@ -20,7 +20,7 @@ const policy = json('config/build35-hostile-source-promotion.json');
 const prior = JSON.parse(git(mobile, 'config/build35-hostile-source-promotion.json'));
 const bytes = new Map([...files, regression].map(file => [file, read(file)]));
 function verify(p, actual) {
-  assert.equal(p.canonicalBackend, '26d5fae291ffcdbb1a56e312524013c6939ab152');
+  assert.equal(p.canonicalBackend, '31be5f99341b606a070bbbe0b3062588f320f089');
   assert.equal(prior.files.length, 53);
   assert.equal(p.files.length, 57);
   assert.equal(new Set(p.files.map(row => row.file)).size, 57);
@@ -41,7 +41,7 @@ test('F017/C015 promotion pins exact canonical bytes and every prior source gran
   verify(policy, bytes);
   const authority = json('config/backend-authority.json');
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
-  assert.equal(authority.build35CampaignConvergence.sha, '26d5fae291ffcdbb1a56e312524013c6939ab152');
+  assert.equal(authority.build35CampaignConvergence.sha, '31be5f99341b606a070bbbe0b3062588f320f089');
   const currentManifest = json('config/edge-function-manifest.json');
   const canonicalManifest = JSON.parse(git(canonical, 'config/edge-function-manifest.json'));
   const find = m => m.parity.functions.find(f => f.name === 'stylechat-generate');
