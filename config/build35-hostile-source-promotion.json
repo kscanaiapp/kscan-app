@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+  "canonicalBackend": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -42,7 +42,7 @@
     {
       "file": "supabase/functions/black-owned-discovery/adminService.ts",
       "sha256": "2c75bd444964b123f74bf23bd3492c828a3d178effa0af850525d123495fb08d",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -54,7 +54,7 @@
     {
       "file": "supabase/functions/black-owned-discovery/catalog.ts",
       "sha256": "083d64d227be5fac8eb60035d13b2eae0c784c79776c2e18b62425587fd471a6",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -72,7 +72,7 @@
     {
       "file": "supabase/functions/black-owned-discovery/engine.ts",
       "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -96,7 +96,7 @@
     {
       "file": "supabase/functions/black-owned-discovery/index.ts",
       "sha256": "553b74f829c16a30abb81f5e8170eb7c03593593d0782c424159b7f8380494ea",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -138,13 +138,13 @@
     {
       "file": "supabase/functions/black-owned-discovery/sponsorshipStore.ts",
       "sha256": "c35f3fe801879b37eca3cab88908d2e43601519056fc5aaa13c79f1162ef00d5",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/validation.ts",
       "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -349,7 +349,7 @@
     {
       "file": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
       "sha256": "a12c65e7a3afd871fdb269b28fc66f09036055670ce2d6c6514a1a957fa6272f",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
@@ -361,31 +361,31 @@
     {
       "file": "supabase/functions/black-owned-catalog-sync/index.ts",
       "sha256": "595b03c6858a2632472fe81ddf24165dad8646aafd59ae61a5ad0da645c69344",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/authorizedJsonAdapter.ts",
       "sha256": "40e2f5e2d0e48e04fade2b9b1b6db0674e8adef63cf6006f7aaf7a320f7fba73",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/catalogWorker.ts",
-      "sha256": "baa7e0981e174fa256c53331f29be808c6cef2566abc170c863d9166d1b81bbd",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "sha256": "8b3773b552f0b10c27d05172501d3457293a434383076e879daf30fce6d27d0d",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/catalogWorker.test.ts",
-      "sha256": "6f65541480b6cdc2ae71b80590cf04688f2b95be182cbc32a5be408695a703b4",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "sha256": "12cb9ce47f5ebde4fc6fd92e3992501460cce92cc1060da37468a6b04a8a450f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/migrations/20261103030000_black_owned_catalog_moderation.sql",
       "sha256": "5400a924a3d95162dea74593ff544a579e5ce4a6c77f11cc3e76bba76583f0cc",
-      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     }
   ],

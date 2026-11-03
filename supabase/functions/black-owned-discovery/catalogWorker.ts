@@ -67,6 +67,8 @@ export async function runCatalogSync(deps: CatalogWorkerDependencies): Promise<C
 export function createCatalogWorkerHandler(deps: CatalogWorkerDependencies) {
   return async (request: Request): Promise<Response> => {
     void request.body?.cancel().catch(() => undefined);
+    // Bare preflight answer (no CORS grant) so governed reachability probes see a booted function.
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
     if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
     const expected = deps.secret();
     const provided = request.headers.get(WORKER_HEADER)?.trim();

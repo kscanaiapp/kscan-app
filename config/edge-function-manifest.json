@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-03T04:14:59.326Z",
-    "generatedFromGitSha": "6ccac16c1d9aad3be9cb8a2d6437f449e5639954"
+    "generatedAtUtc": "2026-11-03T11:17:48.786Z",
+    "generatedFromGitSha": "44b069f42b8f8588f7d3766aac85d2445cdf4912"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -50,8 +50,8 @@
         ],
         "bundleFileCount": 16,
         "treeFileCount": 16,
-        "bundleHash": "e531832f90c76cc241be7d121e22014a31482c4eb89e45fab56f4a5c8c217f39",
-        "treeHash": "e531832f90c76cc241be7d121e22014a31482c4eb89e45fab56f4a5c8c217f39",
+        "bundleHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
+        "treeHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -95,7 +95,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/catalogWorker.ts",
-            "sha256": "baa7e0981e174fa256c53331f29be808c6cef2566abc170c863d9166d1b81bbd",
+            "sha256": "8b3773b552f0b10c27d05172501d3457293a434383076e879daf30fce6d27d0d",
             "bundle": true
           },
           {
@@ -144,7 +144,7 @@
         "bundleFileCount": 29,
         "treeFileCount": 43,
         "bundleHash": "7b478c3253d21866a6c8ddbb143c9d44df9b4c945878b0ec7ad3e6eb55516b13",
-        "treeHash": "2f43cff6858dd98daaf2ef39517a201baaae9fe49a494b0bbb51751c38b7baaf",
+        "treeHash": "b2df962cf5144d5c3fc39cb67a0dc9f32423636450417582903de1e22b91ee53",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -193,12 +193,12 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/catalogWorker.test.ts",
-            "sha256": "6f65541480b6cdc2ae71b80590cf04688f2b95be182cbc32a5be408695a703b4",
+            "sha256": "12cb9ce47f5ebde4fc6fd92e3992501460cce92cc1060da37468a6b04a8a450f",
             "bundle": false
           },
           {
             "path": "supabase/functions/black-owned-discovery/catalogWorker.ts",
-            "sha256": "baa7e0981e174fa256c53331f29be808c6cef2566abc170c863d9166d1b81bbd",
+            "sha256": "8b3773b552f0b10c27d05172501d3457293a434383076e879daf30fce6d27d0d",
             "bundle": false
           },
           {
