@@ -44,6 +44,7 @@ function render(props) {
     '../luxury/InlineNotice': { InlineNotice: 'InlineNotice' },
     './types': { canWatchPurchaseOption: () => false },
     '../../services/commerceDestination': { selectCommerceDestination: urls => urls.find(Boolean) ?? null },
+    '../../services/openExternalUrl': { openExternalUrl: async () => true },
     '../ProductShelf': { WatchThisModal: 'WatchThisModal' },
     '../kplus/KPlusGate': { KPlusGate: 'KPlusGate' },
     '../../services/watchlist/watchlistAvailability': { resolveWatchlistAvailable: () => false },
