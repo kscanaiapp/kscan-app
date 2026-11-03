@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T14:12:34.840Z",
+  "capturedAt": "2026-11-03T14:18:06.968Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4681,6 +4681,86 @@
       "archiveSha256": "860d8cdb2730e7535128574d3704359f535d24f41ee36371aa5c930696331bfe",
       "encoding": "UTF-16LE BOM",
       "disposition": "Actual handler/fragment before-after source evidence;syntheticAuthandRPCresponses,no liveJWT/RLS/provider/device claim"
+    },
+    {
+      "rawFile": "watchlist-body-full-node-1103.log",
+      "rawBytes": 1485808,
+      "rawSha256": "74437c24db548a6f78346c0072209bb7691874de43196cabc03087e9320de19e",
+      "archiveFile": "resume1103-watchlist-body-full-node-1103.log.gz",
+      "archiveBytes": 289898,
+      "archiveSha256": "f2483da4f1425d4dbf1f63b33bba72dfccc227698826a68d41a9994c554a8559",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-full-backend-1103.log",
+      "rawBytes": 497210,
+      "rawSha256": "cc8fd2d38f72775ec64aec36667130801f8c28a7cacffcf4929977aceb0251a4",
+      "archiveFile": "resume1103-watchlist-body-full-backend-1103.log.gz",
+      "archiveBytes": 61113,
+      "archiveSha256": "e30ed151de8f36021962c30953ef13bf3129ecea7cff0d10c64379ad848a1f62",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-typescript-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-watchlist-body-typescript-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-gate-check-edge-function-parity.js.log",
+      "rawBytes": 2135,
+      "rawSha256": "0485e184f6ec58264b5d17549c8828d5dad87fd3a6fb1b85708549a710477204",
+      "archiveFile": "resume1103-watchlist-body-gate-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 976,
+      "archiveSha256": "f8004e7791a836c442dfe10013af935c6ca8909dd25dfe1c1457c8beaa5e8a20",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-gate-verify-backend-authority.js.log",
+      "rawBytes": 645,
+      "rawSha256": "dda94b3829b2d20394750b5d25b2fa09d33ca95391ab57924c982689bb42f105",
+      "archiveFile": "resume1103-watchlist-body-gate-verify-backend-authority.js.log.gz",
+      "archiveBytes": 372,
+      "archiveSha256": "7bfc6478821b987952ec6d098ba9676c57eafdaff86de0604390b9a101bfd9b4",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-gate-check-native-config-parity.js.log",
+      "rawBytes": 1133,
+      "rawSha256": "123e5e4fce582dcb1083099570414ecb394b19f60b739b07f09b3069c0b2e4f7",
+      "archiveFile": "resume1103-watchlist-body-gate-check-native-config-parity.js.log.gz",
+      "archiveBytes": 539,
+      "archiveSha256": "e61df995f0953c57a7ac1eefd3759c67a6c034644c61a45d53bca07a54b3e964",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-gate-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "3f2d0523aed8733f1f860126ec784bb99997911a4c3618539da0343b40c7f74e",
+      "archiveFile": "resume1103-watchlist-body-gate-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "026615ebe5d51c8f88458bd39d67ae42a270d8ae4d1aa80de6bcce4502954402",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-gate-verify-migration-authority.js.log",
+      "rawBytes": 48,
+      "rawSha256": "d67bc305b65609eed4412692e4f84e66257bb9e4e537fdb09c16b7f9412ebacd",
+      "archiveFile": "resume1103-watchlist-body-gate-verify-migration-authority.js.log.gz",
+      "archiveBytes": 68,
+      "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
+      "encoding": "UTF-8",
+      "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
     }
   ]
 }

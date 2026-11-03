@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T14:12:34.840Z",
+  "capturedAt": "2026-11-03T14:18:06.968Z",
   "finding": "B35-E-027",
   "priority": "P4",
   "ownerApproval": "Authorize this bounded source repair",
@@ -7,7 +7,7 @@
   "baselineMobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
   "reviewed": "e15f2cca99315530205a01ca1c714ee61f4e59f3",
   "tree": "9b8e47f47276c929319958e64768b9eb7dc4a68e",
-  "status": "LOCAL SOURCE REPAIRED / FULL VALIDATION RUNNING / NOT PR-MERGED",
+  "status": "CANONICAL PR700 OPEN/READY / FULL SOURCE VALIDATION PASS / CI PENDING / NOT MERGED",
   "source": "supabase/functions/commerce-watch-refresh/index.ts:938",
   "rootCause": "TypeScript annotation did not validate req.json runtime value; null reaches body.action outside parsecatch",
   "repair": "Existing400invalid_body for all non-object JSON;auth and worker routing stay beforebody;allnormalobject/action/account/Kpluscontracts unchanged",
@@ -59,10 +59,40 @@
     "scope": "10bodyfragment regressions with corrected lexicaljsonbinding +24W1adapter/actualSQLDDLcontrols"
   },
   "sourceGates": 5,
-  "fullValidation": "backend,TypeScript,fullNode running;not yet final",
+  "fullValidation": {
+    "Node": {
+      "pass": 8613,
+      "fail": 0,
+      "skip": 67,
+      "total": 8680
+    },
+    "backend": {
+      "pass": 1589,
+      "handlerSteps": 34,
+      "fail": 0
+    },
+    "TypeScript": 0,
+    "sourceGates": {
+      "passed": 5,
+      "failed": 0
+    },
+    "GitHub": "current-headCIpending,no merge permitted yet"
+  },
   "fixtureCorrection": "First expanded positive control wrongly expected invalid_watch_id;actual handleRefresh first requires canonical Kplus entitlement. Retained failing fixture log;corrected explicit false-entitlement stub confirms403kplus_required;not an app defect or weakened customer assertion.",
   "scope": "Actual Deno.serve handler with synthetic verified-identity/readonly eligibility/entitlement transports;no actual JWTsignature,liveDBRLS,provider/device/deployment evidence",
   "provenance": "Same final full-handler fixture bytes executed before and after;historical initial10case fixture/log retained.",
   "evidence": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
-  "next": "Collectfullvalidation,prepare bounded newcanonicalPRthenexistingmobile691. No deployment;ownerwaivedTestSprite."
+  "next": "Finish700allchecks/reviews/testedmergetree;normalmerge/exacttree/postbranchchecks;run prepared mobile promotion with actualcanonicalmergeSHA,validateallpriorpromotionnegativecontrols,currentmanifest/premiumfingerprints,fullbackend/Node/TypeScript/gates;fastforward existing691,greenCI/merge/postchecks;thenreconcileonlymatchingoriginalmatrixcells.",
+  "canonicalPR": 700,
+  "mobilePR": 691,
+  "mobilePreparation": {
+    "worktree": "C:/b35watchbodymobile1103",
+    "branch": "promotion/build35-watchlist-body-continuation-1103",
+    "HEAD": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+    "MERGE_HEAD": "16e1532cd9ca925e4b1103044b3d615b64067639",
+    "status": "original691merged--no-commit,2stagedfiles;canonicalcopy/helper/generatorsnotexecutedyet",
+    "script": "C:/b35readback1030/prepare-watchlist-body-mobile-1103.cjs",
+    "scriptState": "syntaxchecked,NOTEXECUTED;requiresactualmergedcanonicalSHAwithreviewedtree9b8e47f4andexpectedcurrentrefs",
+    "dependencies": "junction to C:/b35sharepromote1030/node_modules with committed lockfile semantic identity verified"
+  }
 }

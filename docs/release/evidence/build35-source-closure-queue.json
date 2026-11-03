@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T14:12:34.840Z",
+  "capturedAt": "2026-11-03T14:18:06.968Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -128,16 +128,18 @@
     "alias": "W2",
     "priority": "P4",
     "pr": 691,
-    "status": "LOCAL SOURCE REPAIRED / FULL VALIDATION RUNNING / NOT PR-MERGED",
+    "status": "CANONICAL PR700 OPEN/READY / FULL SOURCE VALIDATION PASS / CI PENDING / NOT MERGED",
     "ownerAuthorization": {
       "status": "AUTHORIZED",
       "answer": "Authorize this bounded source repair",
       "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
       "sequence": "AfterW1,E026"
     },
-    "next": "Collectfullvalidation,prepare bounded newcanonicalPRthenexistingmobile691. No deployment;ownerwaivedTestSprite.",
+    "next": "Finish700allchecks/reviews/testedmergetree;normalmerge/exacttree/postbranchchecks;run prepared mobile promotion with actualcanonicalmergeSHA,validateallpriorpromotionnegativecontrols,currentmanifest/premiumfingerprints,fullbackend/Node/TypeScript/gates;fastforward existing691,greenCI/merge/postchecks;thenreconcileonlymatchingoriginalmatrixcells.",
     "reviewed": "e15f2cca99315530205a01ca1c714ee61f4e59f3",
-    "evidence": "continuation-watchlist-body-repair-1103.json"
+    "evidence": "continuation-watchlist-body-repair-1103.json",
+    "canonicalPR": 700,
+    "mobilePR": 691
   },
   "queued": [],
   "excluded": [
