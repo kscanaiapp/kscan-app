@@ -111,6 +111,9 @@ const SECURITY_REJECTIONS = new Set([
 ]);
 
 export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebhookDeps): Promise<Response> {
+  // Bare preflight answer (no CORS grant) so governed reachability probes see a
+  // booted function; it reads no secret, body or database.
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204 });
   if (req.method !== 'POST') return respond(405, { status: 'method_not_allowed' });
 
   const authorizationSecret = deps.env(REVENUECAT_WEBHOOK_AUTHORIZATION_ENV);

@@ -174,6 +174,17 @@ test('B: only POST is accepted', async () => {
   assert.equal(res.status, 405);
 });
 
+test('B: OPTIONS gets a bare 204 for reachability probes and touches nothing', async () => {
+  // Even with no secret configured: the preflight must not reveal configuration state.
+  const r = rig({ KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION: null });
+  const res = await handleRevenueCatWebhook(request('', {}, 'OPTIONS'), r.deps);
+  assert.equal(res.status, 204);
+  assert.equal(res.headers.get('access-control-allow-origin'), null, 'no CORS grant');
+  assert.equal(await res.text(), '');
+  assert.equal(r.rpcCalls.length, 0);
+  assert.equal(r.alerts.length, 0);
+});
+
 test('B: every authentication failure gets the same answer (the response does not say which part was wrong)', async () => {
   const r = rig({ KPLUS_REVENUECAT_WEBHOOK_SIGNING_SECRET: SIGNING });
   const a = await send(r, body(), { authorization: 'wrong' });
