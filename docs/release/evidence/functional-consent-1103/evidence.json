@@ -1,10 +1,10 @@
 {
-  "at": "2026-11-03T23:42:49.800Z",
+  "at": "2026-11-03T23:49:34.732Z",
   "id": "B35-INT-002",
   "priority": "P1",
   "title": "Onboarding acknowledgment crosses actor changes and duplicate continuations",
   "baseline": "e898004e64be131fa12925522699274ca1d7cc5a",
-  "repairedRuntimeSource": "1f7eb54e45578eb23d5824349ea64a192103de6f",
+  "repairedRuntimeSource": "a9db8ef736af90f7400d7937ae91c3ad5dc20ee3",
   "status": "SOURCE-REPAIRED; governed PR and final merge/CI disposition tracked in #706",
   "platform": "Shared iOS/Android source; native/auth/database transports synthetic",
   "reproduction": "node --test __tests__/onboardingMountedConsentJourney.test.js",
@@ -51,8 +51,8 @@
   "sourceFiles": [
     {
       "file": "app/onboarding/index.tsx",
-      "sha256": "91edef87bf688d88263ab0e63c9af3983a89314a5e7f820ac4a11f3ba189ae28",
-      "gitBlob": "931f20dad284d9f213ee9ee6b56968bf8dab9025"
+      "sha256": "94c3fa09428ba1bb775a7bce47ae7c8582c3b39f103647ae476aeb3f9e8efb23",
+      "gitBlob": "ce2f60fbf49da064f73684fec8ca50623f842848"
     },
     {
       "file": "services/legalAcceptance.ts",
@@ -86,10 +86,10 @@
     },
     {
       "file": "onboarding-mounted-after.log.gz",
-      "rawBytes": 8174,
-      "rawSha256": "1169e5a4e0cc4b2286ba4265dd0817c12cfa22428529be726ea66086061f5ace",
-      "archiveBytes": 2056,
-      "archiveSha256": "c3c4f9ff42e5140bd6ac305601daee0f51b60c59d998edbced34fb3d46a431d1",
+      "rawBytes": 8136,
+      "rawSha256": "044f78fca0fc84141313da93557b681a9980cfeea001974b963c319d76540b20",
+      "archiveBytes": 2037,
+      "archiveSha256": "4486271211eac91a883af984de274a674bfedcaa532f55a478a6ec921b5afae8",
       "encoding": "UTF-16LE BOM",
       "note": "Captured exact command output"
     },
