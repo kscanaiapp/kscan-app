@@ -1,3 +1,9 @@
+## F024mobile683merged — post-merge source checks pending
+
+Mobile**09f0abad**/canonical**31be5f99**.683mergednormalafter34successful/20conditional-skippedchecks;reviewf97fdbe0/testmerge089838ee/final09f0shareexacttree4dda7416. Actualreview11456NodePASS/0FAIL/96SKIPand1591backendPASS/0FAIL. Canonical7/7pushSUCCESS,8564Node/1575backendPASS. Mobile9independentpushworkflowspending;F024closureawaits them,thenF025. No newsourceworkstarted.
+
+23confirmedP0-P3/21fullycloseduntilpostCI;F025unrepaired,B004P4authorizedqueued,682held,W1W2unconfirmed. Matrix136PASS/1FAIL/2959NTunchanged. 402losslessarchivesverified. Nextfinish09f0postCI/actualProjectlogandupdateledger,thenF025trustedsettlement. UnderlyingauditINPROGRESS;noProduction/migration/flag/device/platform/deletioncycle/EAS/storeaction.
+
 ## F024 event-synchronized promotion683 refreshed
 
 Canonicaltest-only**684/31be5f99**MERGED:32successful/14conditional-skippedchecks,review184395bc/testedbf12d427/final31besharetree1b6dbc86;independent7/7pushworkflowsSUCCESS,actual8564NodePASS/0FAIL/65SKIPand1575backendPASS/0FAIL. RuntimeF024repair681unchanged.

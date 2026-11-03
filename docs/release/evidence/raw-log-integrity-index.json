@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T00:42:04.232Z",
+  "capturedAt": "2026-11-03T00:48:04.736Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3961,6 +3961,16 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "disposition": "Actualcorrectedsource/canonicalreview/postmergeormobile81focusedPASS2NAskips/TSexit0. Controlledfixtures;no deployedprovider/deviceclaim"
+    },
+    {
+      "rawFile": "pr683-event-reviewed-project-raw.log",
+      "rawBytes": 5319610,
+      "rawSha256": "e18faa06068d7d163c419c230adf672976283088d4c75e841434610def531934",
+      "archiveFile": "resume1102-pr683-event-reviewed-project-raw.log.gz",
+      "archiveBytes": 648601,
+      "archiveSha256": "3b11eedfc11e1772073d3a98a720f961e208305980e00df6cefb9fb93ea52ecd",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actualcurrent683 reviewedfull11456NodePASS/0FAIL/96SKIP;1591backendPASS/0FAIL. Syntheticprovider/sourceonly;no runtimeactivationclaim."
     }
   ]
 }
