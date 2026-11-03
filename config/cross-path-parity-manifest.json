@@ -14,7 +14,7 @@
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",
-        "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062"
+        "sha256": "07007a4ea29da14df21da73fa83350e1c150595e2af09b24cc665d7936c835ea"
       },
       {
         "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",

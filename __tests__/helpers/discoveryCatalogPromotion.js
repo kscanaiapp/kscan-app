@@ -77,4 +77,8 @@ function discoveryFunctionAdvance(rows) {
 const campaignAdvance = (text) => text.replace("'20261103011431'];", `'20261103011431', '${migrationVersion}'];`);
 const stagingAdvance = (text) => text.replace("['20261103011431', 'KNOWN_FUTURE_UNAPPLIED'],", `['20261103011431', 'KNOWN_FUTURE_UNAPPLIED'],\n      ['${migrationVersion}', 'KNOWN_FUTURE_UNAPPLIED'],`);
 
-module.exports = { root, canonical, migrationVersion, guard, files, fileCount, gitBlob, sha256, discoveryAdvance, discoveryPendingAdvance, discoveryFunctionAdvance, campaignAdvance, stagingAdvance };
+// B004 is a separate exact scan-only advance; discovery source provenance stays fixed.
+const scanner=require('./scannerNullBodyPromotion');
+module.exports = { root, canonical, currentCanonical:scanner.canonical, migrationVersion, guard, files, fileCount, gitBlob, sha256,
+  discoveryAdvance:rows=>scanner.advance(discoveryAdvance(rows)), discoveryPendingAdvance,
+  discoveryFunctionAdvance:rows=>scanner.functionAdvance(discoveryFunctionAdvance(rows)), campaignAdvance, stagingAdvance };
