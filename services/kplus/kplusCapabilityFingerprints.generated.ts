@@ -8,6 +8,6 @@ export const CURRENT_IMPLEMENTATION_FINGERPRINTS: Readonly<Record<string, string
   closet_cross_device_restore: '69ecbcf4b221529fb44a58b34c13fdbb042459b6bed239c590b7bbe2c9a3e9fe',
   closet_outbound_sync: 'fed5873f6ada1384fccfc20dc51dcb4b2e92024ed17ee336a95b8cd13fd07abe',
   packing_generation_and_refinement: '921c0bb00fa5b4e10021619ae86efcd3c37adc2971cb1974dbb73e31875c3025',
-  watch_provider_entitlement_boundary: '03cd4f11c535f830137b6c01a54dafbe03550301eb1d765d03315e3737ab0aa4',
-  watch_tracking: '9fb9fc1b0a6274fb23141210d43b461ea26daf05a7b42361d69c10680b6d8f06',
+  watch_provider_entitlement_boundary: '5cd705ccd208a4c193bec826ded1da1c33dcee92563f0846661a9faedf0387d7',
+  watch_tracking: '2cfe0981a32fe097e9bd31b29b4f6e373d1a020a4d914c71d764b656a7da3f53',
 });
