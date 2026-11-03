@@ -139,10 +139,10 @@ test('campaign VTO settlement and validation promotion preserves canonical backe
 test('discovery account-lifecycle promotion preserves reviewed canonical backend bytes', () => {
   const { execFileSync } = require('node:child_process');
   const canonical = '98c88ff1240b6596649d7967e9a180d43d7fa83e';
+  // PR692 later supersedes index.ts; its exact bytes are pinned by the PR692 control below.
   for (const file of [
     'supabase/functions/black-owned-discovery/accountAuthorization.ts',
     'supabase/functions/black-owned-discovery/accountAuthorization.test.ts',
-    'supabase/functions/black-owned-discovery/index.ts',
   ]) {
     const approved = execFileSync('git', ['show', `${canonical}:${file}`], { cwd: ROOT, encoding: 'utf8' });
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -150,6 +150,19 @@ test('discovery account-lifecycle promotion preserves reviewed canonical backend
     assert.equal(campaignPromotion.files.find((row) => row.file === file).source, canonical);
     assert.equal(verifiedCampaignPromotion(file, source), true);
     assert.equal(verifiedCampaignPromotion(file, `${source}\n// unreviewed mutation\n`), false);
+  }
+});
+
+test('PR692 discovery catalog promotion preserves exact canonical backend bytes', () => {
+  const discovery = require('./helpers/discoveryCatalogPromotion');
+  assert.equal(campaignPromotion.canonicalBackend, discovery.canonical);
+  for (const file of discovery.files) {
+    const approved = discovery.gitBlob(file).toString('utf8');
+    const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.equal(source.replace(/\r\n/g, '\n'), approved.replace(/\r\n/g, '\n'), file);
+    assert.equal(campaignPromotion.files.find((row) => row.file === file).source, discovery.canonical, file);
+    assert.equal(verifiedCampaignPromotion(file, source), true, file);
+    assert.equal(verifiedCampaignPromotion(file, `${source}\n// unreviewed mutation\n`), false, file);
   }
 });
 
@@ -199,6 +212,8 @@ test('C011 media DNS promotion preserves exact canonical bytes and refuses mutat
       assert.ok(source.includes(mobileRole), 'mobile deploy refusal must remain');
       assert.ok(!source.includes(backendRole), 'mobile must not inherit canonical deploy authority');
       compared = source.replace(mobileRole, backendRole);
+      // PR692 registers its governed worker in the parity list; C011 bytes are otherwise unchanged.
+      compared = compared.replace("    'black-owned-catalog-sync',\n", '');
     }
     assert.equal(compared, approved, file);
     if (file.startsWith('supabase/')) {
@@ -224,8 +239,8 @@ test('mixed campaign backend exceptions are exact byte-bound promotions, not a f
     'all 51 prior byte-bound grants, including F012, remain unchanged except the exact canonical C023 receipt handler advance');
   assert.deepEqual(campaignPromotion.files.filter(row => weatherFiles.includes(row.file)).map(row => row.file), weatherFiles,
     'only the two exact canonical PR667 weather files are added');
-  assert.equal(campaignPromotion.files.length, 59);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 59);
+  assert.equal(campaignPromotion.files.length, 64);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 64);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);
