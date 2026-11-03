@@ -14,7 +14,7 @@
     "noFurtherMatrixCampaign": true
   },
   "authority": {
-    "mobile": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+    "mobile": "1db2de1d6948bbec49f2b7df15b018ce3b6c29c7",
     "backend": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
   },
   "activeSourceSequence": [
@@ -110,7 +110,7 @@
     "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
   },
   "privacyOwner": "#703 residual source cases remain separate",
-  "next": "Publishfunctionalreadinessregister;retainReceiptOFFgateand703residualprivacyownership;actualstore/native/clientrolloutverificationremainsunderbuildHOLD. No broad hostile audit.",
+  "next": "Publish718updatedwith719CIcorrectionafterprecedingStagingworkflowsettles;requiregreenCIbeforemerge.Reportpartialexternalgates;no appcodechanges.",
   "restrictions": {
     "noProductionChanges": true,
     "noNewSharedMigrations": true,
@@ -209,6 +209,22 @@
       "encoding": "UTF-16LE BOM",
       "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
       "note": "Complete public CI job output retained losslessly;includes all subsidiary counts,not independent populations."
+    },
+    {
+      "file": "trivy-installer-before-ci.log.gz",
+      "rawBytes": 116710,
+      "rawSha256": "d90b0446d623ae368c5d78a30e748e2f33000dcc8f88c1ad6dadc176b1d66e02",
+      "archiveBytes": 10885,
+      "archiveSha256": "b5bedd094e803e65d0284fc560648ddafbd0061460b9dabb6a838258cfacda56",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "trivy-installer-final-focused.log.gz",
+      "rawBytes": 916,
+      "rawSha256": "d889b39055854832d283af2ff009855491c4ed40ffc38f909f3a07c0e61d4b36",
+      "archiveBytes": 403,
+      "archiveSha256": "d01b86fa3b0a57a4d355b87011b79fc2025797aa3709518e0a6d7cb458e92a0a",
+      "encoding": "UTF-16LE BOM"
     }
   ],
   "evidenceReuse": "183unchangedfunctional/native sourcefilesand10accountedappdelta;see evidence-reuse-and-source-equivalence.json",
@@ -230,5 +246,41 @@
     "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
     "note": "Governed CI execution read back;not manually rerun or summed with focused tests."
   },
-  "phaseStatus": "REQUESTED SOURCE INTEGRATIONS COMPLETE / overall functional readiness PARTIAL"
+  "phaseStatus": "REQUESTED SOURCE INTEGRATIONS COMPLETE / overall functional readiness PARTIAL",
+  "operationalRepairs": [
+    {
+      "id": "B35-OPS-001",
+      "priority": "P4",
+      "scope": "CI availability,not appvulnerability",
+      "pr": 719,
+      "reviewed": "24f016aca01cb6fd5d5a56a997f2a5f6c427c94c",
+      "merge": "1db2de1d6948bbec49f2b7df15b018ce3b6c29c7",
+      "tree": "ccffc7f8306736858e1a1d864b3ecf21dff5d541",
+      "preMergeCI": {
+        "SUCCESS": 34,
+        "conditionalSKIP": 20,
+        "FAIL": 0
+      },
+      "status": "MERGED / postchecks pending",
+      "root": "Pinned upstream installer uses get.trivy.dev;independently confirmedDNSNXDOMAIN,twoinstallerexit6,no scan artifacts.",
+      "officialInstaller": "https://github.com/aquasecurity/trivy/blob/75c4dc0f45c5d7ffd05ae26df1e0c666787bdf2a/contrib/install.sh",
+      "archive": {
+        "version": "0.70.0",
+        "verifiedOfficialAssetBytes": 47748408,
+        "sha256": "8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9",
+        "executed": false
+      },
+      "focused": {
+        "PASS": 4,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "realCITrivyJobs": [
+        126266838001,
+        126266311437
+      ],
+      "note": "Sameversion/scopes/artifacts/gates;fixedchecksumandversionbeforePATH;no bypass."
+    }
+  ],
+  "runtimeSource": "9af28fb05e1195fe8b8cbc980568b0b408e921ed"
 }
