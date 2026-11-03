@@ -1,0 +1,174 @@
+{
+  "observedAt": "2026-11-03T15:40:35.767Z",
+  "method": "Read-only authorized RevenueCat connector",
+  "project": "proj46588afb",
+  "apps": [
+    {
+      "id": "app023ebdb3db",
+      "name": "Test Store",
+      "type": "test_store",
+      "credentialsConfigured": null
+    },
+    {
+      "id": "appb329bd3c4e",
+      "name": "K Scan AI (Play Store)",
+      "type": "play_store",
+      "credentialsConfigured": {
+        "serviceAccount": true
+      }
+    },
+    {
+      "id": "appd42ef6f8f0",
+      "name": "K Scan AI (App Store)",
+      "type": "app_store",
+      "credentialsConfigured": {
+        "connect": true,
+        "subscription": true
+      }
+    }
+  ],
+  "entitlements": {
+    "object": "list",
+    "items": [
+      {
+        "state": "active",
+        "object": "entitlement",
+        "project_id": "proj46588afb",
+        "id": "entld9b580e4e5",
+        "lookup_key": "k_plus",
+        "display_name": "K+",
+        "created_at": "2026-08-29T15:45:28.761Z",
+        "products": {
+          "object": "list",
+          "items": [
+            {
+              "state": "active",
+              "object": "product",
+              "id": "prod20dbedb923",
+              "store_identifier": "kscan.kplus.annual:annual",
+              "type": "subscription",
+              "subscription": {
+                "duration": "P1Y",
+                "grace_period_duration": "P14D",
+                "trial_duration": null
+              },
+              "one_time": null,
+              "created_at": "2026-10-05T23:37:37.443Z",
+              "app_id": "appb329bd3c4e",
+              "display_name": "K+ Annual"
+            },
+            {
+              "state": "active",
+              "object": "product",
+              "id": "prod211cb2cda6",
+              "store_identifier": "kscan.kplus.monthly:monthly",
+              "type": "subscription",
+              "subscription": {
+                "duration": "P1M",
+                "grace_period_duration": "P7D",
+                "trial_duration": null
+              },
+              "one_time": null,
+              "created_at": "2026-10-05T23:37:16.109Z",
+              "app_id": "appb329bd3c4e",
+              "display_name": "K+ Monthly"
+            },
+            {
+              "state": "active",
+              "object": "product",
+              "id": "prod6fa234d5c6",
+              "store_identifier": "kscan.kplus.monthly",
+              "type": "subscription",
+              "subscription": {
+                "duration": null,
+                "grace_period_duration": null,
+                "trial_duration": null
+              },
+              "one_time": null,
+              "created_at": "2026-10-06T22:28:47.773Z",
+              "app_id": "appd42ef6f8f0",
+              "display_name": "K+ Monthly"
+            },
+            {
+              "state": "active",
+              "object": "product",
+              "id": "prodf735b4c3d4",
+              "store_identifier": "kscan.kplus.annual",
+              "type": "subscription",
+              "subscription": {
+                "duration": null,
+                "grace_period_duration": null,
+                "trial_duration": null
+              },
+              "one_time": null,
+              "created_at": "2026-10-06T22:29:49.867Z",
+              "app_id": "appd42ef6f8f0",
+              "display_name": "K+ Annual"
+            }
+          ],
+          "next_page": null,
+          "url": "https://api.revenuecat.com/v2/projects/proj46588afb/entitlements/entld9b580e4e5/products"
+        }
+      }
+    ],
+    "next_page": null,
+    "url": "https://api.revenuecat.com/v2/projects/proj46588afb/entitlements"
+  },
+  "offerings": {
+    "object": "list",
+    "items": [
+      {
+        "state": "active",
+        "object": "offering",
+        "id": "ofrng222f4dae36",
+        "lookup_key": "default",
+        "display_name": "The standard set of packages",
+        "is_current": true,
+        "created_at": "2026-08-29T15:25:44.097Z",
+        "project_id": "proj46588afb",
+        "paywall_id": "pw33de2ef97ecc44de",
+        "metadata": null
+      }
+    ],
+    "next_page": null,
+    "url": "https://api.revenuecat.com/v2/projects/proj46588afb/offerings"
+  },
+  "webhooks": {
+    "object": "list",
+    "items": [
+      {
+        "object": "webhook_integration",
+        "id": "whintgr048cedb053",
+        "project_id": "proj46588afb",
+        "name": "K Scan AI Production",
+        "url": "https://wyyuqfdxucjksghsmhry.supabase.co/functions/v1/kplus-revenuecat-webhook",
+        "environment": "production",
+        "event_types": null,
+        "app_id": null,
+        "created_at": "2026-10-06T23:43:46.977Z"
+      }
+    ],
+    "next_page": null,
+    "url": "https://api.revenuecat.com/v2/projects/proj46588afb/integrations/webhooks"
+  },
+  "packages": {
+    "offering": "ofrng222f4dae36",
+    "monthly": [
+      "prod211cb2cda6",
+      "prod6fa234d5c6",
+      "prodd7b2d9e1d5"
+    ],
+    "annual": [
+      "prod20dbedb923",
+      "prodf735b4c3d4",
+      "prod68acc2f47c"
+    ],
+    "googleEligibility": "google_sdk_ge_6"
+  },
+  "limitations": [
+    "Dashboard configuration is not store purchase evidence",
+    "Only production webhook is exposed; no sandbox webhook shown",
+    "Deployed secrets, product classification, and pull environment not inspected",
+    "No customer query, transaction, configuration mutation, or paid request"
+  ]
+}

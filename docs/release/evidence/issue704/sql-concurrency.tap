@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: INTERLEAVING pull ACTIVE || pull ACTIVE -> one grant and one deterministic transition
+ok 1 - INTERLEAVING pull ACTIVE || pull ACTIVE -> one grant and one deterministic transition
+  ---
+  duration_ms: 22051.7463
+  type: 'test'
+  ...
+# Subtest: INTERLEAVING webhook ACTIVE || pull ACTIVE -> different references converge on one provider grant
+ok 2 - INTERLEAVING webhook ACTIVE || pull ACTIVE -> different references converge on one provider grant
+  ---
+  duration_ms: 10420.8227
+  type: 'test'
+  ...
+# Subtest: INTERLEAVING webhook EXPIRATION || older pull ACTIVE -> final provider grant remains terminal
+ok 3 - INTERLEAVING webhook EXPIRATION || older pull ACTIVE -> final provider grant remains terminal
+  ---
+  duration_ms: 11500.126
+  type: 'test'
+  ...
+# Subtest: INTERLEAVING newer webhook RENEWAL || older pull EXPIRED -> final provider grant remains active
+ok 4 - INTERLEAVING newer webhook RENEWAL || older pull EXPIRED -> final provider grant remains active
+  ---
+  duration_ms: 8036.7716
+  type: 'test'
+  ...
+# Subtest: INTERLEAVING actor A || actor B -> advisory lock keys are distinct
+ok 5 - INTERLEAVING actor A || actor B -> advisory lock keys are distinct
+  ---
+  duration_ms: 2269.8359
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 54795.4703
