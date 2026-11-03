@@ -54,9 +54,9 @@ The register PR's required Trivy installation failed twice before scanning (jobs
 
 Focused [#719](https://github.com/kscanaiapp/kscan-app/pull/719) installs that exact version from its official GitHub asset, verifies hard-pinned SHA-256 `8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9`, confirms the binary version, then publishes its PATH. Both existing vulnerability/secret/misconfiguration scans and required JSON/table artifacts remain enforced. No downgrade, findings suppression or promotion-gate exception was introduced.
 
-Four failure/policy tests pass. The real official 47,748,408-byte archive matched the pinned digest without local execution. Both actual Linux CI scanner jobs passed. #719 merged as `1db2de1d` after 34 successful / 20 conditional-skipped checks, no review holds, and matching reviewed/server/merged tree `ccffc7f8306736858e1a1d864b3ecf21dff5d541`. Independent post-merge checks remain pending. This changes CI only; no application/runtime, migration, provider or commercial setting changed. Original failures remain preserved.
+Four failure/policy tests pass. The real official 47,748,408-byte archive matched the pinned digest without local execution. Both actual Linux CI scanner jobs passed. #719 merged as `1db2de1d` after 34 successful / 20 conditional-skipped checks, no review holds, and matching reviewed/server/merged tree `ccffc7f8306736858e1a1d864b3ecf21dff5d541`. All nine independent post-merge workflows succeeded. This changes CI only; no application/runtime, migration, provider or commercial setting changed. Original failures remain preserved.
 
-The original missing Contract artifact on each PR is an operational CI failure. Required cancelled validation is being recovered; no security evaluator or required check is waived. No source repair is closed until its merged authoritative tree and independent branch checks are recorded.
+The original missing Contract artifact on each PR was an operational CI failure. The cancelled validation was recovered; no security evaluator or required check is waived. No source repair is closed until its merged authoritative tree and independent branch checks are recorded.
 
 ## Integration repair B35-INT-001 — P3, proposed Packing source
 

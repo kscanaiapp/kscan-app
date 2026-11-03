@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-03T22:50:40.959Z",
+  "at": "2026-11-03T23:21:13.481Z",
   "phase": "Integration / Activation / Functional Verification",
   "historicalAudit": {
     "pr": 646,
@@ -110,7 +110,7 @@
     "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
   },
   "privacyOwner": "#703 residual source cases remain separate",
-  "next": "Publish718updatedwith719CIcorrectionafterprecedingStagingworkflowsettles;requiregreenCIbeforemerge.Reportpartialexternalgates;no appcodechanges.",
+  "next": "Publish final718documentation/evidence-only update on currentauthority1db2de1d.Requirefullygreenchecksandreviewbeforemerge.Appsource remains9af28fb0;externalgatesexplicitlyqualified.",
   "restrictions": {
     "noProductionChanges": true,
     "noNewSharedMigrations": true,
@@ -261,7 +261,7 @@
         "conditionalSKIP": 20,
         "FAIL": 0
       },
-      "status": "MERGED / postchecks pending",
+      "status": "SOURCE-CLOSED /9of9 independent post-merge SUCCESS",
       "root": "Pinned upstream installer uses get.trivy.dev;independently confirmedDNSNXDOMAIN,twoinstallerexit6,no scan artifacts.",
       "officialInstaller": "https://github.com/aquasecurity/trivy/blob/75c4dc0f45c5d7ffd05ae26df1e0c666787bdf2a/contrib/install.sh",
       "archive": {
@@ -279,7 +279,11 @@
         126266838001,
         126266311437
       ],
-      "note": "Sameversion/scopes/artifacts/gates;fixedchecksumandversionbeforePATH;no bypass."
+      "note": "Sameversion/scopes/artifacts/gates;fixedchecksumandversionbeforePATH;no bypass.",
+      "postMergeCI": {
+        "workflows": 9,
+        "SUCCESS": 9
+      }
     }
   ],
   "runtimeSource": "9af28fb05e1195fe8b8cbc980568b0b408e921ed"
