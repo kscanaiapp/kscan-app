@@ -20,10 +20,10 @@ const policy = json('config/build35-hostile-source-promotion.json');
 const prior = JSON.parse(git(mobile, 'config/build35-hostile-source-promotion.json'));
 const bytes = new Map([...files, regression].map(file => [file, read(file)]));
 function verify(p, actual) {
-  assert.equal(p.canonicalBackend, 'd1be51d64b89882324482a7d83dfc0022eeddb1c');
+  assert.equal(p.canonicalBackend, '53bf7cc2aeeeceb556ef2d01671c941038c83bfc');
   assert.equal(prior.files.length, 53);
-  assert.equal(p.files.length, 64);
-  assert.equal(new Set(p.files.map(row => row.file)).size, 64);
+  assert.equal(p.files.length, 66);
+  assert.equal(new Set(p.files.map(row => row.file)).size, 66);
   assert.deepEqual(p.files.filter(row => !files.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql'), expectedReceiptAdvance(prior.files),
     'all previous53 byte-bound grants remain unchanged');
   assert.deepEqual(p.files.filter(row => files.includes(row.file)).map(row => row.file), files);
@@ -41,7 +41,7 @@ test('F017/C015 promotion pins exact canonical bytes and every prior source gran
   verify(policy, bytes);
   const authority = json('config/backend-authority.json');
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
-  assert.equal(authority.build35CampaignConvergence.sha, 'd1be51d64b89882324482a7d83dfc0022eeddb1c');
+  assert.equal(authority.build35CampaignConvergence.sha, '53bf7cc2aeeeceb556ef2d01671c941038c83bfc');
   const currentManifest = json('config/edge-function-manifest.json');
   const canonicalManifest = JSON.parse(git(canonical, 'config/edge-function-manifest.json'));
   const find = m => m.parity.functions.find(f => f.name === 'stylechat-generate');

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
+  "canonicalBackend": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -387,6 +387,18 @@
       "sha256": "5400a924a3d95162dea74593ff544a579e5ce4a6c77f11cc3e76bba76583f0cc",
       "source": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
       "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
+    },
+    {
+      "file": "supabase/functions/scan-identify/v2Activation.ts",
+      "sha256": "07007a4ea29da14df21da73fa83350e1c150595e2af09b24cc665d7936c835ea",
+      "source": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+      "reason": "Exact owner-authorized PR698/B004 Scanner non-object routing guard and actual-handler regression. Source-only; no auth/quota policy, migration, deployment or feature activation grant."
+    },
+    {
+      "file": "supabase/functions/scan-identify/invalidBodyHostile.test.ts",
+      "sha256": "8e917b9b928564c3972033bebbfb096843c75a706363758481dd8bb2be7b6036",
+      "source": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+      "reason": "Exact owner-authorized PR698/B004 Scanner non-object routing guard and actual-handler regression. Source-only; no auth/quota policy, migration, deployment or feature activation grant."
     }
   ],
   "sharedSigningRegressionRegistration": {
