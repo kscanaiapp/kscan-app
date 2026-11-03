@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '../..');
-const canonical = 'e44c8281cf3b627b8f572496cbc0471280e3304f';
+const canonical = 'd1be51d64b89882324482a7d83dfc0022eeddb1c';
 const migrationVersion = '20261103030000';
 const guard = 'supabase/functions/scan-identify/phase2b4CrossPath.test.ts';
 const fileCount = 64;
