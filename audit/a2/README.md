@@ -97,3 +97,31 @@ node audit/a2/build-ledger-batch3.cjs <mandatory-hostile-probes.json from PR #64
 ## Limits
 
 Mock provider and mock PostgREST; default flag state (generation safety, quota idempotency, retry, normalization, Concierge and attachment flags all off). Production flag state is not asserted. Server-side storage downloads for owned attachments, the SQL RPCs themselves, and Packing are not exercised.
+
+---
+
+# Batch 4: style-outfit-generate (34 pending rows)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited. Packing, the server-side attachment/storage path and the SQL bodies of the two quota RPCs were not touched.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+deno test --no-check --allow-read --allow-env --allow-write=audit/a2/out audit/a2/outfit-batch4.test.ts   # 26 pass
+node audit/a2/mutate-outfit.cjs           # one-guard-at-a-time mutation controls; restores with git checkout
+deno test ... audit/a2/outfit-batch4.test.ts                                                               # re-run clean: the mutation run overwrites out/outfit-batch4-results.json
+node audit/a2/build-ledger-batch4.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+## Files
+
+- `outfit-world.ts`: synthetic world. Captures `Deno.serve` so the REAL `style-outfit-generate/index.ts` runs unmodified; `fetch` is fully stubbed (Auth, closet/saved_scans/inspiration tables, lifecycle, consent, the two quota RPCs, Gemini). Table stubs apply only the filters the handler puts in the query and do NOT emulate RLS. Reuses constants from `stylechat-world.ts`.
+- `outfit-batch4.test.ts`: the probes (unversioned and versioned `private-dressing-room-elise-v1` branches).
+- `mutate-outfit.cjs`, `out/outfit-batch4-mutations.json`: 24 mutations; 22 detected, 2 equivalent survivors (O23 bearer regex bypass: Auth `getUser` still rejects; O24 private early-return parse guard: the handler re-parses and returns 400 before quota or provider). Two first-run survivors (O10, O11) were weak fixtures, not product behaviour; the outfits are now structurally complete so only the guard under test can reject them.
+- `out/outfit-batch4-results.json`, `out/a2-batch4-ledger.json`, `out/outfit-run-final-clean.txt`.
+
+## Limits
+
+Mock provider and mock PostgREST; default flag state. The 15 s provider timeout is scaled to 25 ms for the timeout cell (the timeout constant is therefore not mutation-checked). The function has no persistence, entitlement lookup, Storage call or shared-room read (static scan), which is the basis for the two proposed N/A cells (1157, 1159).
