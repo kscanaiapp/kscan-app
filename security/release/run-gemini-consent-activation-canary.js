@@ -187,6 +187,38 @@ function evaluate(e) {
   return { pass: checks.every((c) => c.pass), checks };
 }
 
+/**
+ * Zero-spend mode: with a correctly deployed gate both functions refuse a
+ * withdrawn actor before any provider call. Restores the prior grant.
+ */
+async function runGates(ctx) {
+  const { key, token, rest, eliseUrl, scanUrl, restHeaders, userId, imageBase64, getPermission, setPermission, gate } = ctx;
+  const before = await getPermission();
+  if (before.granted !== true) throw Object.assign(new Error('actor not granted'), { code: 'NOT_GRANTED' });
+  const sessionId = crypto.randomUUID();
+  await fetch(`${rest}/style_chat_sessions`, {
+    method: 'POST', headers: { ...restHeaders, Prefer: 'return=minimal' },
+    body: JSON.stringify({ id: sessionId, user_id: userId, title: 'K Scan consent gate check', mode: 'general' }),
+  });
+  let withdrawn; let elise; let scan; let restored;
+  try {
+    withdrawn = await setPermission(false, before.revision);
+    elise = gate(await call(eliseUrl, key, token, { sessionId, message: ELISE_MESSAGE, contractVersion: '2' }));
+    scan = gate(await call(scanUrl, key, token, { mode: 'image', imageBase64 }));
+  } finally {
+    restored = await setPermission(true, (withdrawn?.revision ?? before.revision));
+    await fetch(`${rest}/style_chat_sessions?id=eq.${sessionId}`, { method: 'DELETE', headers: restHeaders }).catch(() => {});
+  }
+  const denied = (r) => r.httpStatus === 403 && r.errorCode === 'AI_PROCESSING_CONSENT_REQUIRED';
+  const checks = [
+    { name: 'withdraw_via_rpc', pass: withdrawn.granted === false, detail: JSON.stringify(withdrawn) },
+    { name: 'withdrawn_elise_denied_before_gemini', pass: denied(elise), detail: `http=${elise.httpStatus} code=${elise.errorCode}` },
+    { name: 'withdrawn_scan_denied_before_gemini', pass: denied(scan), detail: `http=${scan.httpStatus} code=${scan.errorCode}` },
+    { name: 'grant_restored', pass: restored.granted === true, detail: JSON.stringify(restored) },
+  ];
+  return { evidence: { before, withdrawn, gates: { elise, scan }, restored }, verdict: { pass: checks.every((c) => c.pass), checks } };
+}
+
 async function run(env = process.env) {
   assertStagingOnly(env.SUPABASE_STAGING_PROJECT_REF, env.SUPABASE_STAGING_URL);
   const missing = findMissingEnvVars(env);
@@ -214,6 +246,18 @@ async function run(env = process.env) {
     await call(`${rest}/rpc/get_ai_processing_permission`, key, token, { p_expected_user_id: expected }));
   const setPermission = async (granted, revision) => permissionOf(await call(`${rest}/rpc/set_ai_processing_permission`,
     key, token, { p_expected_user_id: userId, p_granted: granted, p_expected_revision: revision }));
+  const gate = (r) => ({ httpStatus: r.httpStatus, errorCode: errorCodeOf(r), elapsedMs: r.elapsedMs });
+
+  // Paid activation runs only on an explicit dispatch; a push runs the free gate check.
+  if (env.CANARY_MODE !== 'activation') {
+    const { evidence: gateEvidence, verdict } = await runGates({ key, token, rest, eliseUrl, scanUrl, restHeaders, userId,
+      imageBase64, getPermission, setPermission, gate });
+    const report = { probe: 'gemini-consent-gate-check-v1', environment: 'staging', startedAt: startIso, evidence: gateEvidence, verdict };
+    assertEvidencePrivacy(report);
+    fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
+    return report;
+  }
+
   const before = await getPermission();
 
   const sessionId = crypto.randomUUID();
@@ -222,7 +266,6 @@ async function run(env = process.env) {
     body: JSON.stringify({ id: sessionId, user_id: userId, title: 'K Scan consent canary', mode: 'general' }),
   });
   const eliseBody = { sessionId, message: ELISE_MESSAGE, contractVersion: '2' };
-  const gate = (r) => ({ httpStatus: r.httpStatus, errorCode: errorCodeOf(r), elapsedMs: r.elapsedMs });
 
   let evidence;
   try {
