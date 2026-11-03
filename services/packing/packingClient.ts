@@ -63,7 +63,7 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
 
     if (error) {
       if (await readGeminiConsentDenial(error)) {
-        // A saved setting, not a connection problem: retrying cannot help.
+        // A user-controlled setting, not a connection problem: retrying cannot help.
         return {
           status: 'error',
           message: GEMINI_CONSENT_REQUIRED_MESSAGE,
