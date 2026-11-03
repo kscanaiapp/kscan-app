@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T13:37:11.360Z",
+  "capturedAt": "2026-11-03T13:42:06.521Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4441,6 +4441,86 @@
       "archiveSha256": "88a9bd4514e30fd0b524eaa60cbab06366145623806eee86b02d288fc9a908b7",
       "encoding": "UTF-16LE BOM",
       "disposition": "Actual adapter and disposable SQL fixture, before/after W1 receipt-storage boundary; no live provider or database change"
+    },
+    {
+      "rawFile": "watchlist-ticket-full-node-1103.log",
+      "rawBytes": 1484848,
+      "rawSha256": "03852a237d8ef4a719747ab2ad24cfb237ffa04f48082feaded311120742d508",
+      "archiveFile": "resume1103-watchlist-ticket-full-node-1103.log.gz",
+      "archiveBytes": 290189,
+      "archiveSha256": "e5c287aace4758bfb655d813e608f58869e5f02e9599d0858f6a5db0f4077f43",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-full-backend-storage-after-1103.log",
+      "rawBytes": 483050,
+      "rawSha256": "900e5d49357d0f545f4654d468b4a9657dd54aeedac884502b6fabfb335d8ffb",
+      "archiveFile": "resume1103-watchlist-ticket-full-backend-storage-after-1103.log.gz",
+      "archiveBytes": 59567,
+      "archiveSha256": "8463cfbab166afae9ae7f57bf09dd2f49a147fd6643c762240c2b42b48ff4bb8",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-typescript-storage-after-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-watchlist-ticket-typescript-storage-after-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-gate-check-edge-function-parity.js.log",
+      "rawBytes": 2135,
+      "rawSha256": "10fe31317d96fa198897f44e102a42b2b3a66f9a0115b88a378ca65f2c659a6b",
+      "archiveFile": "resume1103-watchlist-ticket-gate-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 976,
+      "archiveSha256": "1b79bb9e864df8951746f9558e059d99b204a1fec91e8359a0eecfbdecc924a4",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-gate-verify-backend-authority.js.log",
+      "rawBytes": 642,
+      "rawSha256": "0dd8af76719e4a002b40633c5b8f2af1deeb210b7b6f672ca26a498fe34973c7",
+      "archiveFile": "resume1103-watchlist-ticket-gate-verify-backend-authority.js.log.gz",
+      "archiveBytes": 373,
+      "archiveSha256": "dd3f69ccc02396763d7ba2584bed21d715a54d2c034f7434928c7098156b2baa",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-gate-check-native-config-parity.js.log",
+      "rawBytes": 1133,
+      "rawSha256": "123e5e4fce582dcb1083099570414ecb394b19f60b739b07f09b3069c0b2e4f7",
+      "archiveFile": "resume1103-watchlist-ticket-gate-check-native-config-parity.js.log.gz",
+      "archiveBytes": 539,
+      "archiveSha256": "e61df995f0953c57a7ac1eefd3759c67a6c034644c61a45d53bca07a54b3e964",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-gate-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "3f2d0523aed8733f1f860126ec784bb99997911a4c3618539da0343b40c7f74e",
+      "archiveFile": "resume1103-watchlist-ticket-gate-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "026615ebe5d51c8f88458bd39d67ae42a270d8ae4d1aa80de6bcce4502954402",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
+    },
+    {
+      "rawFile": "watchlist-ticket-gate-verify-migration-authority.js.log",
+      "rawBytes": 48,
+      "rawSha256": "d67bc305b65609eed4412692e4f84e66257bb9e4e537fdb09c16b7f9412ebacd",
+      "archiveFile": "resume1103-watchlist-ticket-gate-verify-migration-authority.js.log.gz",
+      "archiveBytes": 68,
+      "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
+      "encoding": "UTF-8",
+      "disposition": "Reviewed canonical W1 exact-source validation; empty TypeScript log records no stdout, exit0 separately captured; no live provider/database operation"
     }
   ]
 }

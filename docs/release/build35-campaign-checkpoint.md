@@ -1,3 +1,9 @@
+## Watchlist canonical W1 prepared and source-validated
+
+Existing PR689 updated and ready atd50b2fb3968fa305bb8ef468fe63132d5d33dc33. Tested PR merge2ed6c138454d40193c624abb716ba1f9fba7f30d has actual current backend53bf as first parent and exact reviewed tree4e9ed1080b7a35f602328672042b7329f69aef94. Canonical diff is3files; older GitHub base metadata is not used as merge authority. Node8603PASS/0FAIL/67declaredSKIP;backend1588PASS+17steps/0FAIL;24focused+8independentPASS;TypeScript/fiveclean-sourcegatesexit0. Readiness-refreshed CI pending; no merge claimed. Owner waived TestSprite(no credits); no source or CI gates waived.
+
+Next: await all exact-head checks and reviews,verify merge tree,normal canonical merge/postchecks,then existingmobile687. W2P4authorized,queued afterW1. Matrix138PASS/0FAIL/2958NOTTESTED unchanged;24P0-P3findings/23closed/1open. 457lossless archives decompressed/hash-verified. No deployment,migration,real push,device/build/store action. AUDIT IN PROGRESS.
+
 ## Watchlist W1 receipt-storage boundary checkpoint — November 3
 
 Authorities backend53bf7cc2/mobile77a6b97f unchanged. W1/E026 existing PR689 repair now also rejects identifiers that cannot enter receipt storage. Actual migration DDL executed in disposable PGlite:1..200 Unicode characters accepted;201+ and NUL rejected. Before proposed guard completion20PASS/4FAIL;after24PASS/0FAIL;unchanged independent PR682 adapter tests8PASS/0FAIL. Full backend/TypeScript in progress; no merge or deployment claim. Existing schema/API/token retirement unchanged. [Exact evidence](evidence/continuation-watchlist-ticket-storage-contract-1103.json).

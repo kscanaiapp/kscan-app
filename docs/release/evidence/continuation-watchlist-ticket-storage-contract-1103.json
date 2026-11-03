@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T13:37:11.360Z",
+  "capturedAt": "2026-11-03T13:42:06.521Z",
   "finding": "B35-E-026",
   "priority": "P3",
   "baselineCanonical": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
@@ -10,7 +10,7 @@
     "canonical": 689,
     "mobile": 687
   },
-  "status": "REPAIR IN LOCAL SOURCE / FULL VALIDATION IN PROGRESS / NOT MERGED",
+  "status": "CANONICAL689 READY / CI PENDING / MOBILE687 NEXT",
   "rootCause": "Malformed HTTP200 accepted without trackable receipt. Existing draft guards still accepted ticket identifiers rejected by actual database constraint.",
   "storageContract": {
     "file": "supabase/migrations/20260909115726_watchlist_push_receipts.sql",
@@ -40,7 +40,28 @@
     }
   ],
   "repair": "bounded codepoint counting rejects NUL and >200characters; existing ticket_error response preserved, no schema or API change",
-  "fullValidation": "backend and TypeScript running, no final claim yet",
+  "fullValidation": {
+    "Node": {
+      "pass": 8603,
+      "fail": 0,
+      "skip": 67,
+      "total": 8670
+    },
+    "backend": {
+      "pass": 1588,
+      "handlerSteps": 17,
+      "fail": 0
+    },
+    "TypeScript": 0,
+    "sourceGates": {
+      "edge-function-parity": 0,
+      "backend-authority": 0,
+      "native-config-parity": 0,
+      "migration-provenance": 0,
+      "migration-authority": 0
+    },
+    "GitHub": "exact-head readiness-refreshed CI pending, not green yet"
+  },
   "ownerAuthorizedNext": "B35-E-027 P4 null-body handler repair authorized; execute only after W1 canonical/mobile closure",
   "runtime": "NO deployment, migration, push, customer mutation, device or binary operation",
   "matrix": {
@@ -49,5 +70,13 @@
     "FAIL": 0,
     "NOT_TESTED": 2958,
     "delta": 0
-  }
+  },
+  "reviewedHead": "d50b2fb3968fa305bb8ef468fe63132d5d33dc33",
+  "reviewedTree": "4e9ed1080b7a35f602328672042b7329f69aef94",
+  "testedMerge": "2ed6c138454d40193c624abb716ba1f9fba7f30d",
+  "testedMergeParents": [
+    "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+    "d50b2fb3968fa305bb8ef468fe63132d5d33dc33"
+  ],
+  "TestSprite": "Owner explicitly waived TestSprite for this campaign because the account has no credits; source tests and governed CI retained."
 }
