@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T12:15:23.965Z",
+  "capturedAt": "2026-11-03T12:34:16.495Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4281,6 +4281,66 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "disposition": "Initialcache-includefailureorcorrectedemptylog;exitstatusrecordedindependently,not test count"
+    },
+    {
+      "rawFile": "pr698-reviewed-project-raw.log",
+      "rawBytes": 4929154,
+      "rawSha256": "728f31a57d8f837d7f0309a071cda9a10ed7df9478649b6d908c21dcdaced5b6",
+      "archiveFile": "resume1103-pr698-reviewed-project-raw.log.gz",
+      "archiveBytes": 550193,
+      "archiveSha256": "fd37c46a4784a335c06cce1cc83add9bafee575e1af0e0a20a1af519db00ec14",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact B004 canonical/mobile source validation;no device/liveprovider/runtimecertification"
+    },
+    {
+      "rawFile": "backend-53bf-project-postmerge-raw.log",
+      "rawBytes": 5014158,
+      "rawSha256": "bbef49ebc63e60641f9d7a4e6e74fef93554160a374001e92349baa19d2c2042",
+      "archiveFile": "resume1103-backend-53bf-project-postmerge-raw.log.gz",
+      "archiveBytes": 558687,
+      "archiveSha256": "70d07851c22ace035c7912ef3df5f3366ae48277ca9c9d2e2b51b2e998c76de2",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact B004 canonical/mobile source validation;no device/liveprovider/runtimecertification"
+    },
+    {
+      "rawFile": "scanner-mobile-promotion-controls-1103.log",
+      "rawBytes": 60016,
+      "rawSha256": "baf7c03f7d91c28fb72bd30f3370d698c44041a20f4a9b08bd2fd302eefa7606",
+      "archiveFile": "resume1103-scanner-mobile-promotion-controls-1103.log.gz",
+      "archiveBytes": 5399,
+      "archiveSha256": "1cc7707a7a6d1964e71fbb13eba3adfaaaaa578cf8d6604f59a1c44fc85f6cb9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Original71PASS/4manifest-array-order-comparisonFAIL/2explicitNAskips;not newproductdefects"
+    },
+    {
+      "rawFile": "scanner-mobile-promotion-controls-corrected-1103.log",
+      "rawBytes": 15094,
+      "rawSha256": "6a42e5ba51413e1bce2b5e81814b57901dd0e08fc63ca65411224b721ab1ed61",
+      "archiveFile": "resume1103-scanner-mobile-promotion-controls-corrected-1103.log.gz",
+      "archiveBytes": 3496,
+      "archiveSha256": "6e80b682d34725620e6ccaf51bc9469619f36bca1210b4b16f60c63cc8fc46c9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact B004 canonical/mobile source validation;no device/liveprovider/runtimecertification"
+    },
+    {
+      "rawFile": "scanner-mobile-full-backend-1103.log",
+      "rawBytes": 495484,
+      "rawSha256": "a7fa3aaf3cd883947db5eee13b6701b6ec4d2a807f16344570b2be504f8ff867",
+      "archiveFile": "resume1103-scanner-mobile-full-backend-1103.log.gz",
+      "archiveBytes": 60731,
+      "archiveSha256": "76d1fb0a43a78fce26eb34e9e92ba06e2268b05f4dc2b50abb4c74c75bcf76c6",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact B004 canonical/mobile source validation;no device/liveprovider/runtimecertification"
+    },
+    {
+      "rawFile": "scanner-mobile-typescript-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-scanner-mobile-typescript-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Emptylog;tscexit0independentlycaptured;not test count"
     }
   ]
 }
