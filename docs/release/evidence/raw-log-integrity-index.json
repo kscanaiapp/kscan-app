@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T14:18:06.968Z",
+  "capturedAt": "2026-11-03T14:26:41.115Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4761,6 +4761,106 @@
       "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
       "encoding": "UTF-8",
       "disposition": "Exact canonicalE027e15f2cca fullsourcevalidation;originalW1gatebytespreserved/restoredindependently;TypeScript0exitrecorded,noTestSprite/deployment/provider/customer/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-body-mobile-focused-initial-1103.log",
+      "rawBytes": 31713,
+      "rawSha256": "17cba2462c74b638916921099e7c29ef2596fc45400d0c6b4413e4510df32ada",
+      "archiveFile": "resume1103-watchlist-body-mobile-focused-initial-1103.log.gz",
+      "archiveBytes": 7919,
+      "archiveSha256": "e1c4ff1f739def55d509f2d99799981ff8550493896dbca84e8e09684de7590d",
+      "encoding": "UTF-8",
+      "disposition": "Retained1historicalpromotiontestfailure:oldW1indexpinrequiredadvancetoseparatelyauthorizedexactE027canonicalblob;notanappdefect,noassertionremoved"
+    },
+    {
+      "rawFile": "watchlist-body-mobile-focused-1103.log",
+      "rawBytes": 9432,
+      "rawSha256": "ff16df7a09cc999e5715251e74f0ccc0586843c03592bd4bb400b8c043397e69",
+      "archiveFile": "resume1103-watchlist-body-mobile-focused-1103.log.gz",
+      "archiveBytes": 3228,
+      "archiveSha256": "849ad7fdd64a1c83708a16a2de7edb1179347931b57af5ac40496cadf9e04ae8",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-backend-1103.log",
+      "rawBytes": 509286,
+      "rawSha256": "3e5b02821914d0d6527009991af2d24ef40ec2fef7e8958a618c8acdee84e21f",
+      "archiveFile": "resume1103-watchlist-body-mobile-backend-1103.log.gz",
+      "archiveBytes": 61993,
+      "archiveSha256": "3806d41a47feee43f373e2ea834983e7ca8f8c3fb3e872c36887da9ed71994d4",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-typescript-1103.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1103-watchlist-body-mobile-typescript-1103.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-check-edge-function-parity.js.log",
+      "rawBytes": 2135,
+      "rawSha256": "0485e184f6ec58264b5d17549c8828d5dad87fd3a6fb1b85708549a710477204",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-check-edge-function-parity.js.log.gz",
+      "archiveBytes": 976,
+      "archiveSha256": "f8004e7791a836c442dfe10013af935c6ca8909dd25dfe1c1457c8beaa5e8a20",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-verify-backend-authority.js.log",
+      "rawBytes": 657,
+      "rawSha256": "126a18438512317255a4f1abb6bdce542907d4c03153781065572485a3cba9b3",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-verify-backend-authority.js.log.gz",
+      "archiveBytes": 391,
+      "archiveSha256": "cbba4ec181a2d4eedebcbe630ac6145faf367a5f5bc58baa412417e9153bcee9",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-check-native-config-parity.js.log",
+      "rawBytes": 1402,
+      "rawSha256": "6e05817c81dbe45780cbca90a5b2dadfa65d17799cefbc173597d98fad180810",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-check-native-config-parity.js.log.gz",
+      "archiveBytes": 621,
+      "archiveSha256": "a73bc4cb0399364e95155da91b8c6c7f7eed93e973619c31129265362dfe43fd",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-check-migration-provenance.js.log",
+      "rawBytes": 331,
+      "rawSha256": "3f2d0523aed8733f1f860126ec784bb99997911a4c3618539da0343b40c7f74e",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-check-migration-provenance.js.log.gz",
+      "archiveBytes": 230,
+      "archiveSha256": "026615ebe5d51c8f88458bd39d67ae42a270d8ae4d1aa80de6bcce4502954402",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-verify-migration-authority.js.log",
+      "rawBytes": 48,
+      "rawSha256": "d67bc305b65609eed4412692e4f84e66257bb9e4e537fdb09c16b7f9412ebacd",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-verify-migration-authority.js.log.gz",
+      "archiveBytes": 68,
+      "archiveSha256": "49c4fe58cb536d0809f36d857e8d11799ebcdc0e728591d01eaccfd7e0544bb0",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "watchlist-body-mobile-gate-check-build35-release-profile.js.log",
+      "rawBytes": 251,
+      "rawSha256": "69d4f5e45e4da97385cb09580075026258fc5c64e800275fe00872572594bb43",
+      "archiveFile": "resume1103-watchlist-body-mobile-gate-check-build35-release-profile.js.log.gz",
+      "archiveBytes": 136,
+      "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
+      "encoding": "UTF-8",
+      "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
     }
   ]
 }

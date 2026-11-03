@@ -3502,8 +3502,8 @@
     "evidence": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
     "executionMethod": "deno test --allow-env --allow-read supabase/functions/commerce-watch-refresh/invalidBodyHostile.test.ts",
     "linkedDefectId": "B35-E-027",
-    "repairReference": "Locale15f2cca;canonicalPRpending;existingmobile691",
-    "reverificationStatus": "Local17stepsPASS;authoritative source closure pending",
+    "repairReference": "Canonical700merged2846fd14;mobile691local90f07f5e",
+    "reverificationStatus": "Canonical700sourcefixed/merged2846fd14with17actualhandlerstepsPASS;mobile691local90f07f5evalidatedbutnotpushed/merged;oldbefore-failure/sourceidentityretaineduntilsourceconvergence. Runtimeundeployed.",
     "coverageDisposition": {
       "category": 3,
       "label": "Safely executable locally",
