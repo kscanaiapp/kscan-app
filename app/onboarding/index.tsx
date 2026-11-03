@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -96,15 +96,8 @@ export default function OnboardingScreen() {
   const [legalError, setLegalError] = useState<string | null>(null);
   const legalActorId = user?.id ?? null;
   const legalActorRef = useRef(legalActorId);
-  const previousLegalActorRef = useRef(legalActorId);
   const legalEpochRef = useRef(0);
   const legalBusyRef = useRef(false);
-  // Fence continuations immediately on render, before an old promise settles.
-  if (legalActorRef.current !== legalActorId) {
-    legalActorRef.current = legalActorId;
-    legalEpochRef.current += 1;
-    legalBusyRef.current = false;
-  }
 
   // Step 5: only the real Notifications registration outcome is reflected
   // here. Camera, Photos, and Microphone are requested just in time.
@@ -119,17 +112,20 @@ export default function OnboardingScreen() {
     setStep((current) => (current === 4 ? current : 4));
   }, []);
 
-  useEffect(() => {
+  // Reset at the committed actor boundary before painting another actor's form.
+  // An abandoned concurrent render must not invalidate the current actor's tap.
+  useLayoutEffect(() => {
+    if (legalActorRef.current === legalActorId) return;
+    legalActorRef.current = legalActorId;
+    legalEpochRef.current += 1;
+    legalBusyRef.current = false;
     setTermsChecked(false);
     setPrivacyChecked(false);
     setAiConsentChecked(false);
     setAgeChecked(false);
     setLegalError(null);
     setLegalBusy(false);
-    if (previousLegalActorRef.current !== legalActorId) {
-      previousLegalActorRef.current = legalActorId;
-      setStep(legalActorId ? 4 : 2);
-    }
+    setStep(legalActorId ? 4 : 2);
   }, [legalActorId]);
 
   useEffect(() => () => {
