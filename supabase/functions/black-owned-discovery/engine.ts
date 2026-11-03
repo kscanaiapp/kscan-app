@@ -4,7 +4,7 @@ import { buildCanonicalCommerce } from '../scan-identify/canonicalCommerce.ts';
 import { formatOfferPrice } from '../scan-identify/offerCurrency.ts';
 import { normalizeColor, normalizeMaterial, normalizeSilhouette } from '../scan-identify/qualityTuneNormalize.ts';
 import { DISCOVERY_VERSION, type CatalogRow, type DiscoveryFlags, type DiscoveryInput, type DiscoveryProduct, type DiscoveryResponse, type OwnershipIdentity } from './contracts.ts';
-import { safeCatalogUrl } from './validation.ts';
+import { safeCatalogUrl, subtypeKey, subtypeMatchKeys } from './validation.ts';
 
 export const DISCOVERY_TIMEOUT_MS = 1200;
 export const DISCOVERY_CACHE_MS = 30_000;
@@ -30,6 +30,7 @@ function ownershipFor(row: CatalogRow): OwnershipIdentity {
 export function rankCatalog(input: DiscoveryInput, rows: CatalogRow[], flags: DiscoveryFlags, now: number): DiscoveryProduct[] {
   const seen = new Set(input.primaryProducts.flatMap((p) => [p.id, canonicalizeUrlForIdentity(p.productUrl) ?? '']).filter(Boolean));
   const scored: { score: number; row: CatalogRow; product: DiscoveryProduct }[] = [];
+  const subtypes = new Set(subtypeMatchKeys(input.garment.subtype));
   for (const row of rows.slice(0, CANDIDATE_LIMIT)) {
     if (row.eligible_until && (!Number.isFinite(Date.parse(row.eligible_until)) || Date.parse(row.eligible_until)<=now)) continue;
     if (row.category !== input.garment.item_type || row.availability !== 'in_stock') continue;
@@ -39,9 +40,10 @@ export function rankCatalog(input: DiscoveryInput, rows: CatalogRow[], flags: Di
     const productUrl = safeCatalogUrl(row.product_url, row.approved_domains);
     const imageUrl = safeCatalogUrl(row.image_url, row.image_domains);
     if (!productUrl || !imageUrl) continue;
-    // V1 requires declared same subtype, avoiding the primary scorer's broader
+    // V1 requires the same declared head noun, avoiding the primary scorer's broader
     // within-category fallback (e.g. sandals must not stand in for boots).
-    if (!input.garment.subtype || !row.subtype || row.subtype.trim().toLowerCase() !== input.garment.subtype.trim().toLowerCase()) continue;
+    const rowSubtype = subtypeKey(row.subtype);
+    if (!rowSubtype || !subtypes.has(rowSubtype)) continue;
     const attrs = row.attributes;
     const agreements = [
       [input.garment.primary_color, attrs.primary_color, normalizeColor],

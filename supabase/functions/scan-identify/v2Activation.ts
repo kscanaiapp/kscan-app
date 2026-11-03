@@ -256,6 +256,9 @@ function contractError(code: V2ErrorCode): ScanIdentifyRoute {
  * contract and have no way to detect it.
  */
 export function routeScanIdentifyRequest(body: unknown): ScanIdentifyRoute {
+  // JSON null and primitives are not legacy requests. Reject before adapting
+  // either contract so malformed input cannot escape as a property-access error.
+  if (!isRecord(body)) return contractError('MALFORMED_REQUEST');
   const versionClass = classifyContractVersion(body);
 
   if (versionClass === 'legacy') {

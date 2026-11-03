@@ -1,3 +1,4 @@
+const { expectedReceiptAdvance, expectedPendingAdvance } = require('./helpers/receiptQuotaPromotion');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,11 +20,11 @@ const policy = json('config/build35-hostile-source-promotion.json');
 const prior = JSON.parse(git(mobile, 'config/build35-hostile-source-promotion.json'));
 const bytes = new Map([...files, regression].map(file => [file, read(file)]));
 function verify(p, actual) {
-  assert.equal(p.canonicalBackend, '19bcc5d699f878561aaef1f9bc914c998e2a0de7');
+  assert.equal(p.canonicalBackend, '6d96156745160d93596dd792769df6aed164e6fe');
   assert.equal(prior.files.length, 53);
-  assert.equal(p.files.length, 57);
-  assert.equal(new Set(p.files.map(row => row.file)).size, 57);
-  assert.deepEqual(p.files.filter(row => !files.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql'), prior.files,
+  assert.equal(p.files.length, 67);
+  assert.equal(new Set(p.files.map(row => row.file)).size, 67);
+  assert.deepEqual(p.files.filter(row => !files.includes(row.file) && row.file !== 'supabase/migrations/20261102125053_saved_scan_explicit_restore.sql'), expectedReceiptAdvance(prior.files),
     'all previous53 byte-bound grants remain unchanged');
   assert.deepEqual(p.files.filter(row => files.includes(row.file)).map(row => row.file), files);
   assert.deepEqual(p.sharedSigningRegressionRegistration, prior.sharedSigningRegressionRegistration);
@@ -40,7 +41,7 @@ test('F017/C015 promotion pins exact canonical bytes and every prior source gran
   verify(policy, bytes);
   const authority = json('config/backend-authority.json');
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
-  assert.equal(authority.build35CampaignConvergence.sha, '19bcc5d699f878561aaef1f9bc914c998e2a0de7');
+  assert.equal(authority.build35CampaignConvergence.sha, '6d96156745160d93596dd792769df6aed164e6fe');
   const currentManifest = json('config/edge-function-manifest.json');
   const canonicalManifest = JSON.parse(git(canonical, 'config/edge-function-manifest.json'));
   const find = m => m.parity.functions.find(f => f.name === 'stylechat-generate');
@@ -68,13 +69,13 @@ test('both environment declarations stay pending and preserve every previous mig
   for (const ref of ['yzqjvdfgefveprobvvyw','wyyuqfdxucjksghsmhry']) {
     const rows = current.ledgerReconciliation.environments[ref].knownPending;
     const existing = original.ledgerReconciliation.environments[ref].knownPending;
-    assert.deepEqual(rows.filter(r => !['20261031162813','20261102125053'].includes(r.localVersion)), existing);
+    assert.deepEqual(rows.filter(r => !['20261031162813','20261102125053'].includes(r.localVersion)), expectedPendingAdvance(existing,ref));
     const selected = rows.filter(r => r.localVersion === '20261031162813');
     assert.equal(selected.length,1);
     assert.deepEqual(selected[0],backend.ledgerReconciliation.environments[ref].knownPending.find(r => r.localVersion === '20261031162813'));
     assert.equal(selected[0].disposition,'KNOWN_FUTURE_UNAPPLIED');
   }
-  // Reset only the two added declarations and require the entire remaining ledger to match.
+  // Reset only the exact added declarations (including separately pinned F025) and require the entire remaining ledger to match.
   for (const ref of ['yzqjvdfgefveprobvvyw','wyyuqfdxucjksghsmhry']) current.ledgerReconciliation.environments[ref].knownPending = original.ledgerReconciliation.environments[ref].knownPending;
   assert.deepEqual(current,original);
 });

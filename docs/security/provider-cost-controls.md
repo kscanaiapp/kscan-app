@@ -1,5 +1,17 @@
 # Provider Cost Controls
 
+## Build 35 F025 source repair: trusted settlement (not deployed)
+
+Migration `20261103011431_provider_settlement_server_authority.sql` revokes client execution of both legacy settlement mutators. Its replacement, `settle_provider_request_for_actor`, is executable only by `service_role` and conditionally transitions one reserved row matching the verified actor, function and reservation. Caller-controlled claims do not confer this SQL privilege. Historical authenticated reservation and own-row read rules remain intact.
+
+The receipt extraction handler reserves with the authenticated client, then settles with a separate backend service client and the actor ID returned by `requireUser`. It does not forward the caller's bearer token to that service client. Missing credentials, RPC errors, false acknowledgments or schema/application mismatches leave conservative reserved accounting and emit only a metadata-only pending-settlement event. There is no client-settlement fallback. A successful extraction response confirms extraction, not a settlement acknowledgment.
+
+The source scan found receipt extraction as the only runtime caller of the legacy settlement helpers; old helper definitions remain for historical compatibility but client SQL execution is revoked by this migration. Repeated trusted settlement changes at most one reserved row; mismatched actor/function, null inputs and replayed state return false. The SQL fixture exercises concurrent requests on its single local connection; this is not certification of multi-connection deployment behavior.
+
+This migration is **KNOWN_FUTURE_UNAPPLIED** for Staging and Production. No database or function deployment is authorized here. Before rollout, the owner must establish actual receipt activation and old-handler usage, approve a protected drain/maintenance window if needed, apply the exact migration through governance, promote the compatible handler, and verify synthetic actor/privilege/quota behavior before separately approving activation. Revoking legacy execution while old handlers still run can leave their settlements pending and cause conservative quota denials; deploying the new handler before its RPC exists has the same fail-closed accounting consequence. Neither order should be treated as an unqualified compatible live rollout. Re-enabling client settlement is not an acceptable fallback or rollback.
+
+The older implementation/activation notes below describe the original authenticated settlement design. They do not override this source change or constitute current deployment evidence.
+
 Status: shared client module + migration file written and unit-tested; **migration not applied to any environment yet**. Requires explicit approval before `supabase db push` / `apply_migration` against staging (`yzqjvdfgefveprobvvyw`).
 
 Migration: `supabase/migrations/20260803020000_provider_request_security.sql`

@@ -1,0 +1,15 @@
+const path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
+const root=path.resolve(__dirname,'../..'),canonical='9512a1814f92796cd77baa6557a8a78a4fd016c5',reviewed='c524bcbdde072eaf0f416238f1bb3645b669eac1',handler='supabase/functions/purchase-import-extract/handler.ts',guard='supabase/functions/scan-identify/phase2b4CrossPath.test.ts',migration='supabase/migrations/20261103011431_provider_settlement_server_authority.sql';
+const files=[handler,'__tests__/helpers/purchaseImportQuotaWorld.js','__tests__/purchaseImportDefaultQuotaAdapter.test.js'];
+const gitBlob=(file,sha=canonical)=>execFileSync('git',['show',sha+':'+file],{cwd:root}),sha256=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+const approvedRow=()=>({file:handler,sha256:sha256(gitBlob(handler)),source:canonical,reason:"Exact canonical PR685/F025 trusted actor-scoped quota settlement; no client settlement fallback, migration application or deployment grant."});
+const additions=()=>[guard,migration].map(file=>({file,sha256:sha256(gitBlob(file)),source:canonical,reason:"Exact canonical PR685/F025 migration or exhaustive privilege-inventory regression. Source-only; no migration application or general backend access grant."}));
+function expectedReceiptAdvance(rows){const result=rows.map(r=>r.file===handler?approvedRow():r);for(const row of additions())if(!result.some(r=>r.file===row.file))result.push(row);return result;}
+function expectedNonReceiptFunctions(rows){return rows.filter(r=>r.name!=='purchase-import-extract').map(row=>{if(row.name!=='scan-identify')return row;const next=structuredClone(row),file=next.files.find(f=>f.path===guard);assert.ok(file);assert.equal(file.bundle,false,'only the reviewed test file may change');file.sha256=sha256(gitBlob(guard));next.treeHash=require('../../scripts/edge-function-manifest-lib').aggregateHash(next.files);return next;});}
+function expectedPendingAdvance(rows,ref){const approved=JSON.parse(gitBlob('config/migration-authority-manifest.json')).ledgerReconciliation.environments[ref].knownPending.find(r=>r.localVersion==='20261103011431');assert.ok(approved);assert.equal(approved.disposition,'KNOWN_FUTURE_UNAPPLIED');return [...rows,approved];}
+// PR692 advances after F025: compose, so every historical control keeps proving its own rows.
+const discovery=require('./discoveryCatalogPromotion');
+module.exports={root,canonical,reviewed,handler,files,gitBlob,sha256,approvedRow,
+  expectedReceiptAdvance:rows=>discovery.discoveryAdvance(expectedReceiptAdvance(rows)),
+  expectedNonReceiptFunctions:rows=>discovery.discoveryFunctionAdvance(expectedNonReceiptFunctions(rows)),
+  expectedPendingAdvance:(rows,ref)=>discovery.discoveryPendingAdvance(expectedPendingAdvance(rows,ref),ref)};

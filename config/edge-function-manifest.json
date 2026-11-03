@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-02T12:41:24.500Z",
-    "generatedFromGitSha": "113a1895aac8af974b1aca18724f5286e9967237"
+    "generatedAtUtc": "2026-11-03T13:44:56.538Z",
+    "generatedFromGitSha": "77a6b97f86b21bf619e051646b635e3ce26b7f73"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -10,6 +10,7 @@
     "expectedFunctions": [
       "apple-credential-link",
       "apple-revoke-credential",
+      "black-owned-catalog-sync",
       "black-owned-discovery",
       "commerce-watch-refresh",
       "deletion-status",
@@ -42,15 +43,108 @@
     ],
     "functions": [
       {
+        "name": "black-owned-catalog-sync",
+        "entry": "supabase/functions/black-owned-catalog-sync/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 16,
+        "treeFileCount": 16,
+        "bundleHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
+        "treeHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/net/publicHost.ts",
+            "sha256": "d49f6e6d2c7bf0230d4caa6ca1a12f4a6c52451f0fd19f8e5d3fb4092cab8009",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatWebhookAuth.ts",
+            "sha256": "6750a5e456a4cf87c946257041373ccc664fc5ea05d755f35b35b782e8f9fb78",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scanHelpers.ts",
+            "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-catalog-sync/index.ts",
+            "sha256": "595b03c6858a2632472fe81ddf24165dad8646aafd59ae61a5ad0da645c69344",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/adminService.ts",
+            "sha256": "2c75bd444964b123f74bf23bd3492c828a3d178effa0af850525d123495fb08d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/authorizedJsonAdapter.ts",
+            "sha256": "40e2f5e2d0e48e04fade2b9b1b6db0674e8adef63cf6006f7aaf7a320f7fba73",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/catalog.ts",
+            "sha256": "083d64d227be5fac8eb60035d13b2eae0c784c79776c2e18b62425587fd471a6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/catalogWorker.ts",
+            "sha256": "8b3773b552f0b10c27d05172501d3457293a434383076e879daf30fce6d27d0d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/contracts.ts",
+            "sha256": "ef6f344c5f8bd862d6d7a689f20b17e6a6feb9113f15e7dde451f7c00c96ead4",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/shopifyAdapter.ts",
+            "sha256": "5dac80b6773c1e6b545eed185fab380e61fba9b1f8571466c20584bafff3e61c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/validation.ts",
+            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+            "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/offerCurrency.ts",
+            "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/qualityTuneNormalize.ts",
+            "sha256": "04e7ced94dd2d09f7de8b3a808411b24e58eed2a529368210cb5c1af26c30713",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+            "sha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+            "bundle": true
+          }
+        ]
+      },
+      {
         "name": "black-owned-discovery",
         "entry": "supabase/functions/black-owned-discovery/index.ts",
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 29,
-        "treeFileCount": 40,
-        "bundleHash": "a632ea0d7ebbece4edf22cb2b7a8e4d35a95737a63c9748bd5f53018a6d17559",
-        "treeHash": "102bb119fddf21293d8bba75763eaccaaa1cb952bb176f179ccb9296c940aa0f",
+        "treeFileCount": 43,
+        "bundleHash": "7b478c3253d21866a6c8ddbb143c9d44df9b4c945878b0ec7ad3e6eb55516b13",
+        "treeHash": "b2df962cf5144d5c3fc39cb67a0dc9f32423636450417582903de1e22b91ee53",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -79,7 +173,12 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/adminService.ts",
-            "sha256": "0d6e80aed901b8927ed70a30404d4a8298103527ab1b9fe056d53bd6a88b4f59",
+            "sha256": "2c75bd444964b123f74bf23bd3492c828a3d178effa0af850525d123495fb08d",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/authorizedJsonAdapter.ts",
+            "sha256": "40e2f5e2d0e48e04fade2b9b1b6db0674e8adef63cf6006f7aaf7a320f7fba73",
             "bundle": false
           },
           {
@@ -89,7 +188,17 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/catalog.ts",
-            "sha256": "dbc4776d6bf2f8fc69eb264532ab1b995d2e594e092c4e25b9659bc9d39c97b7",
+            "sha256": "083d64d227be5fac8eb60035d13b2eae0c784c79776c2e18b62425587fd471a6",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/catalogWorker.test.ts",
+            "sha256": "12cb9ce47f5ebde4fc6fd92e3992501460cce92cc1060da37468a6b04a8a450f",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/catalogWorker.ts",
+            "sha256": "8b3773b552f0b10c27d05172501d3457293a434383076e879daf30fce6d27d0d",
             "bundle": false
           },
           {
@@ -104,7 +213,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/engine.ts",
-            "sha256": "533223dfd3a402a43196cad26208cf696392692e8621d98e6ad15cdfeff2dbce",
+            "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
             "bundle": true
           },
           {
@@ -124,7 +233,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/index.ts",
-            "sha256": "97c659b0bdfdc308111e135dda15fcd76a6070cc54bbaf15b6a896c157bb4cf3",
+            "sha256": "553b74f829c16a30abb81f5e8170eb7c03593593d0782c424159b7f8380494ea",
             "bundle": true
           },
           {
@@ -159,12 +268,12 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/sponsorshipStore.ts",
-            "sha256": "886a780a0715081b7da6f7438d7fe1eec9dc5a96d0a21b013ef3074bda8b8154",
+            "sha256": "c35f3fe801879b37eca3cab88908d2e43601519056fc5aaa13c79f1162ef00d5",
             "bundle": true
           },
           {
             "path": "supabase/functions/black-owned-discovery/validation.ts",
-            "sha256": "3d65d2019dafae71a7536bff8d3969c13bee50d93595a830d3d6cc70290cd44f",
+            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
             "bundle": true
           },
           {
@@ -262,8 +371,8 @@
         ],
         "bundleFileCount": 28,
         "treeFileCount": 28,
-        "bundleHash": "41a51ed95722c8275e3b0bb069b1d29aa2249b72da9ae8b54f96e70d9be2ee21",
-        "treeHash": "41a51ed95722c8275e3b0bb069b1d29aa2249b72da9ae8b54f96e70d9be2ee21",
+        "bundleHash": "090db53069f80df4b3ed42dd8ab088100ba0b5b6597295033bf45105b8828565",
+        "treeHash": "090db53069f80df4b3ed42dd8ab088100ba0b5b6597295033bf45105b8828565",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -287,7 +396,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/engine.ts",
-            "sha256": "533223dfd3a402a43196cad26208cf696392692e8621d98e6ad15cdfeff2dbce",
+            "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
             "bundle": true
           },
           {
@@ -307,12 +416,12 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/sponsorshipStore.ts",
-            "sha256": "886a780a0715081b7da6f7438d7fe1eec9dc5a96d0a21b013ef3074bda8b8154",
+            "sha256": "c35f3fe801879b37eca3cab88908d2e43601519056fc5aaa13c79f1162ef00d5",
             "bundle": true
           },
           {
             "path": "supabase/functions/black-owned-discovery/validation.ts",
-            "sha256": "3d65d2019dafae71a7536bff8d3969c13bee50d93595a830d3d6cc70290cd44f",
+            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
             "bundle": true
           },
           {
@@ -414,9 +523,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 48,
-        "treeFileCount": 84,
-        "bundleHash": "382a876a67d3c62a73a82e5150dc2775736ae7d75d68caa3b94d8d28487dbd8e",
-        "treeHash": "5c424b83fda03546462e2ca4cc62babd4ac3a09c4f28822c30d95878f09a2889",
+        "treeFileCount": 85,
+        "bundleHash": "a9ae20ff3c5152c8266e445314aa4e74438d51c271207667fa7fc88bd3ad4eec",
+        "treeHash": "b874a3824c514f1eca1ccb806a861c9339f771c2ab467a46a761642d80d917c2",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -629,6 +738,11 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/invalidBodyHostile.test.ts",
+            "sha256": "8e917b9b928564c3972033bebbfb096843c75a706363758481dd8bb2be7b6036",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.test.ts",
             "sha256": "c1ada63ea145bca96e0e386e1bf6b29a44c11d1c92b41b1e3d1360865cad993e",
             "bundle": false
@@ -675,7 +789,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "6c3b181a1c732c45a901b72d598685e7f9ec8dcecfd8c42efc33158e7062dd3e",
+            "sha256": "a12c65e7a3afd871fdb269b28fc66f09036055670ce2d6c6514a1a957fa6272f",
             "bundle": false
           },
           {
@@ -820,7 +934,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/v2Activation.ts",
-            "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062",
+            "sha256": "07007a4ea29da14df21da73fa83350e1c150595e2af09b24cc665d7936c835ea",
             "bundle": true
           },
           {
@@ -848,8 +962,8 @@
         ],
         "bundleFileCount": 17,
         "treeFileCount": 22,
-        "bundleHash": "a84549d9b470b1a263ad28ef895eba68785935d2e606f1bdbb10bea2982a211c",
-        "treeHash": "093c8142f9882daa4054d73ffcf8a805de758dee2e3d1981eeee755aa4ec99a4",
+        "bundleHash": "60e09975471264daa6ab32ece477e56b1c622a8af3c6b61e499aa2624ea4f6db",
+        "treeHash": "29923eb26bf9f6cf1fd6fdfa86f52e7687db806429d13b73a3f19d74bf6cf61f",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -883,7 +997,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
-            "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
+            "sha256": "bcbbd7ee8b66cf9487aee6ef44fee88e5084b60182e3c71c2696184996e22716",
             "bundle": true
           },
           {
@@ -2414,8 +2528,8 @@
         ],
         "bundleFileCount": 12,
         "treeFileCount": 13,
-        "bundleHash": "4b32ad33902f9692909c15c5f78fe95ee3210977937b51ac623df76335a29eb5",
-        "treeHash": "460f4ca32980c3229f0fe429c13f99c22e87c2e397f4bc6a7486031cc3be0ed4",
+        "bundleHash": "8045e51da4842954ed7e2d87fbd76f0041ac2185a577facaeb0763d3c2528bb4",
+        "treeHash": "2907e18c2de0b5d81d9c6c2bf2946ec5dc4e703097783a60fde83395428ea02b",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -2469,7 +2583,7 @@
           },
           {
             "path": "supabase/functions/purchase-import-extract/handler.ts",
-            "sha256": "d1f39898b4b49bc5cfedac72aec7a8ada2e0e9fd39a2eca1946676cd15d8f270",
+            "sha256": "dbd1255a906a08af64e409120eaf27e218fcb9e1bc8a75a006fe5e10ee104cee",
             "bundle": true
           },
           {
