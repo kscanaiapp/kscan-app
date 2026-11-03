@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-03T22:46:36.260Z",
+  "at": "2026-11-03T22:50:40.959Z",
   "phase": "Integration / Activation / Functional Verification",
   "historicalAudit": {
     "pr": 646,
@@ -48,7 +48,7 @@
     {
       "pr": 711,
       "reviewBase": "22160d9b8acf5794047d121448d1a1da46c814cd",
-      "status": "MERGED / INDEPENDENT POST-CHECKS PENDING",
+      "status": "SOURCE-CLOSED /9of9 independent post-merge SUCCESS",
       "finding": {
         "id": "B35-INT-001",
         "priority": "P3",
@@ -68,7 +68,7 @@
         "repair": "Only error/not_entitled/no_result are valid error-envelope recovery outcomes;other non-2xx bodies follow transport failure. Keep last plan and cache.",
         "platform": "Shared iOS/Android source",
         "approval": "Owner authorizes focused P0-P3 integration defect repairs;normal fully green PR governance still required.",
-        "status": "MERGED_SOURCE / POST-CHECKS PENDING"
+        "status": "SOURCE-CLOSED / reviewed,tested,server,merged trees identical /9postchecksPASS"
       },
       "head": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
       "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
@@ -90,7 +90,11 @@
         "pending": 0
       },
       "reviewHolds": 0,
-      "serverCandidate": "c634501c21dee1335e28bdbf1f035511e9930f07"
+      "serverCandidate": "c634501c21dee1335e28bdbf1f035511e9930f07",
+      "postMergeCI": {
+        "workflows": 9,
+        "SUCCESS": 9
+      }
     }
   ],
   "operationalRevenueCat": {
@@ -106,7 +110,7 @@
     "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
   },
   "privacyOwner": "#703 residual source cases remain separate",
-  "next": "Finish711independentpostchecks;publishconsolidatedfunctionalregisterwithnoapplicationdiff. Historical646matrixremainsfrozen.",
+  "next": "Publishfunctionalreadinessregister;retainReceiptOFFgateand703residualprivacyownership;actualstore/native/clientrolloutverificationremainsunderbuildHOLD. No broad hostile audit.",
   "restrictions": {
     "noProductionChanges": true,
     "noNewSharedMigrations": true,
@@ -225,5 +229,6 @@
     },
     "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
     "note": "Governed CI execution read back;not manually rerun or summed with focused tests."
-  }
+  },
+  "phaseStatus": "REQUESTED SOURCE INTEGRATIONS COMPLETE / overall functional readiness PARTIAL"
 }
