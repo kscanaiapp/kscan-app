@@ -10,7 +10,7 @@ const policy=json('config/build35-hostile-source-promotion.json'),bytes=new Map(
 const registryBefore=JSON.parse(gitBlob('config/migration-authority-manifest.json',base)),canonicalRegistry=JSON.parse(gitBlob('config/migration-authority-manifest.json'));
 const stagingPath='__tests__/staging/stagingMigrationReconciliation.test.js',stagingBefore=gitBlob(stagingPath,base).toString('utf8'),anchor="['20261102125053', 'KNOWN_FUTURE_UNAPPLIED'],";
 function verify(p,actual,manifest,registry,staging){
- assert.equal(canonical,source);assert.equal(reviewed,review);assert.equal(p.canonicalBackend,discovery.currentCanonical);assert.equal(before.files.length,57);assert.equal(p.files.length,66);assert.deepEqual(p.files,expectedReceiptAdvance(before.files));assert.deepEqual(p.trustedQuotaSettlementPromotion,meta);
+ assert.equal(canonical,source);assert.equal(reviewed,review);assert.equal(p.canonicalBackend,discovery.currentCanonical);assert.equal(before.files.length,57);assert.equal(p.files.length,67);assert.deepEqual(p.files,expectedReceiptAdvance(before.files));assert.deepEqual(p.trustedQuotaSettlementPromotion,meta);
  const prior={...p};delete prior.trustedQuotaSettlementPromotion;assert.deepEqual(prior,{...before,canonicalBackend:discovery.currentCanonical,files:expectedReceiptAdvance(before.files)},'preserve C023/F024 and all prior ownership metadata');
  for(const f of files)assert.ok(actual.get(f).equals(f===discovery.guard?discovery.gitBlob(f):gitBlob(f)),f+' must equal merged canonical bytes');
  const getTree=sha=>cp.execFileSync('git',['show','-s','--format=%T',sha],{cwd:root,encoding:'utf8'}).trim();assert.equal(getTree(source),tree);assert.equal(getTree(review),tree);

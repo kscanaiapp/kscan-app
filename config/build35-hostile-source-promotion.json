@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+  "canonicalBackend": "6d96156745160d93596dd792769df6aed164e6fe",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -399,6 +399,12 @@
       "sha256": "8e917b9b928564c3972033bebbfb096843c75a706363758481dd8bb2be7b6036",
       "source": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
       "reason": "Exact owner-authorized PR698/B004 Scanner non-object routing guard and actual-handler regression. Source-only; no auth/quota policy, migration, deployment or feature activation grant."
+    },
+    {
+      "file": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
+      "sha256": "bcbbd7ee8b66cf9487aee6ef44fee88e5084b60182e3c71c2696184996e22716",
+      "source": "6d96156745160d93596dd792769df6aed164e6fe",
+      "reason": "Exact canonical PR689/E026 Watchlist trackable Expo-ticket validation; no schema, deployment, scheduler or notification activation grant."
     }
   ],
   "sharedSigningRegressionRegistration": {

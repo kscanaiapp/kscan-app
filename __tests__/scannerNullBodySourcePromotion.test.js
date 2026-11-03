@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const cp = require('node:child_process');
 const S = require('./helpers/scannerNullBodyPromotion');
+const W = require('./helpers/watchlistTicketPromotion');
 const source = '53bf7cc2aeeeceb556ef2d01671c941038c83bfc';
 const review = '28321246252babb1f2e47e18f7c5c9883691f0f1';
 const tree = 'de0ef02cabad3bd4788af937c76780449833326c';
@@ -17,17 +18,17 @@ const actual = new Map(S.files.map(f => [f, fs.readFileSync(S.root + '/' + f)]))
 const note = ' Exact owner-authorized PR698/B004 Scanner contract-router guard and actual-handler regression; no migration, auth/quota change, deployment or activation grant.';
 function verify(p, bytes, manifest, cross, authority, migrations) {
   assert.equal(S.canonical, source); assert.equal(S.reviewed, review); assert.equal(S.tree, tree); assert.equal(S.base, base);
-  assert.equal(oldPolicy.files.length, 64); assert.equal(p.files.length, 66);
-  assert.equal(new Set(p.files.map(r => r.file)).size, 66);
-  assert.deepEqual(p, { ...oldPolicy, canonicalBackend: source, files: S.advance(oldPolicy.files) }, 'preserve every catalog/F025/earlier grant and historical metadata');
+  assert.equal(oldPolicy.files.length, 64); assert.equal(p.files.length, 67);
+  assert.equal(new Set(p.files.map(r => r.file)).size, 67);
+  assert.deepEqual(p, { ...oldPolicy, canonicalBackend: W.canonical, files: W.advance(S.advance(oldPolicy.files)) }, 'preserve every catalog/F025/earlier grant and historical metadata');
   for (const file of S.files) assert.ok(bytes.get(file).equals(S.gitBlob(file)), file + ' must be exact merged canonical bytes');
   const getTree = ref => cp.execFileSync('git', ['show', '-s', '--format=%T', ref], { cwd: S.root, encoding: 'utf8' }).trim();
   assert.equal(getTree(source), tree); assert.equal(getTree(review), tree);
-  assert.deepEqual(manifest.parity.functions, S.functionAdvance(oldManifest.parity.functions), 'only exact B004 scan runtime/test files advance; discovery and every other function remain intact');
+  assert.deepEqual(manifest.parity.functions, W.functionAdvance(S.functionAdvance(oldManifest.parity.functions)), 'only exact B004 scan runtime/test files advance; discovery and every other function remain intact');
   const expectedCross = prior('config/cross-path-parity-manifest.json');
   for (const rows of Object.values(expectedCross.groups)) for (const row of rows) if (row.path === S.files[0]) row.sha256 = S.hash(S.gitBlob(row.path));
   assert.deepEqual(cross, expectedCross, 'same twenty governed files; only the canonical router hash changes');
-  assert.deepEqual(authority, { ...oldAuthority, build35CampaignConvergence: { ...oldAuthority.build35CampaignConvergence, sha: source, note: oldAuthority.build35CampaignConvergence.note + note } });
+  assert.deepEqual(authority, { ...oldAuthority, build35CampaignConvergence: { ...oldAuthority.build35CampaignConvergence, sha: W.canonical, note: oldAuthority.build35CampaignConvergence.note + note + W.note } });
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
   assert.deepEqual(migrations, prior('config/migration-authority-manifest.json'), 'no migration execution/disposition/history change');
 }

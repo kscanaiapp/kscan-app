@@ -13,8 +13,8 @@ const policy = json('config/build35-hostile-source-promotion.json');
 const actual = new Map(files.map(file => [file, fs.readFileSync(root + '/' + file)]));
 const expectedMeta = { canonicalSource: '214cf19efffce9b4f410b58075d4fc3c36c58bf1', reviewedSource: 'a1cf4b1535f92097189d51fb4573627eb943a8d7', sourceTree: 'eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68', files };
 function verify(p, bytes, manifest) {
-  assert.equal(p.files.length, previous.files.length + 2 + 5 + 2);
-  assert.equal(p.files.length, 66);
+  assert.equal(p.files.length, previous.files.length + 2 + 5 + 2 + 1);
+  assert.equal(p.files.length, 67);
   assert.deepEqual(p.files, expectedReceiptAdvance(previous.files), 'only the exact reviewed handler row may advance; every other grant is unchanged');
   assert.equal(p.canonicalBackend, current);
   assert.deepEqual(p.receiptQuotaIdPromotion, expectedMeta);

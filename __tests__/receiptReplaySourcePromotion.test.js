@@ -6,7 +6,7 @@ const policy=json('config/build35-hostile-source-promotion.json'),actual=new Map
 function verify(p,bytes,manifest){
  // Historical F024 provenance stays fixed; current authority is independently
  // pinned by the trusted-settlement promotion and exact canonical byte checks.
- assert.equal(p.canonicalBackend,require('./helpers/discoveryCatalogPromotion').currentCanonical);assert.equal(p.files.length,66);assert.deepEqual(p.files,expectedReceiptAdvance(before.files));assert.deepEqual(p.files.find(r=>r.file===handler),approvedRow());
+ assert.equal(p.canonicalBackend,require('./helpers/discoveryCatalogPromotion').currentCanonical);assert.equal(p.files.length,67);assert.deepEqual(p.files,expectedReceiptAdvance(before.files));assert.deepEqual(p.files.find(r=>r.file===handler),approvedRow());
  assert.deepEqual(p.receiptQuotaReplayPromotion,meta);const prior={...p};delete prior.receiptQuotaReplayPromotion;delete prior.trustedQuotaSettlementPromotion;assert.deepEqual(prior,{...before,canonicalBackend:require('./helpers/discoveryCatalogPromotion').currentCanonical,files:expectedReceiptAdvance(before.files)});
  for(const f of files)assert.ok(bytes.get(f).equals(gitBlob(f)),f+' must match merged canonical source');
  const getTree=sha=>cp.execFileSync('git',['show','-s','--format=%T',sha],{cwd:root,encoding:'utf8'}).trim();assert.equal(getTree(meta.canonicalSource),meta.sourceTree);assert.equal(getTree(meta.reviewedSource),meta.sourceTree);
