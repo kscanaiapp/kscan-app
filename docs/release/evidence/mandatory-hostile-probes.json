@@ -22887,36 +22887,82 @@
   {
     "endpoint": "function:scan-identify",
     "probe": "null body",
-    "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+    "expected": "Active verified synthetic caller submitting JSONnull receives existing MALFORMED_REQUEST/400 before provider/quota/write activity",
     "actual": {
-      "status": "TypeError",
+      "status": 400,
+      "result": {
+        "status": "failed",
+        "error": {
+          "code": "MALFORMED_REQUEST",
+          "message": "Malformed request."
+        }
+      },
       "providerCalls": 0,
-      "writes": 0,
+      "postCalls": 0,
       "authReads": 1,
-      "receiptReads": 0,
-      "responseBody": ""
+      "profileReads": 1,
+      "consentReads": 0,
+      "quotas": []
     },
-    "verdict": "FAIL",
+    "verdict": "PASS",
     "probeId": "B35-MAND-0915",
     "feature": "scan-identify",
-    "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
-    "sourceLocation": "supabase/functions/scan-identify/index.ts",
-    "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
-    "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-015",
-    "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
+    "sourceSha": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
+    "sourceLocation": "supabase/functions/scan-identify/v2Activation.ts:258",
+    "environment": "Offline actual Deno.serve handler with synthetic Auth/account/consent/SDK transport;no network permission",
+    "evidence": "continuation-b004-source-closure-1103.json",
+    "executionMethod": "deno test --allow-env --allow-read supabase/functions/scan-identify/invalidBodyHostile.test.ts;node scripts/run-backend-tests.js on exact promoted source",
     "linkedDefectId": "B35-B-004",
-    "repairReference": "Owner-gated P4; no repair implemented",
-    "reverificationStatus": "Reproduced, deferred P4; no provider dispatch/write",
+    "repairReference": "698/53bf7cc2 +699/77a6b97f",
+    "reverificationStatus": "SOURCE PASS / 7canonical+9mobile independentworkflowsSUCCESS / deployment not performed",
     "coverageDisposition": {
       "category": 1,
-      "label": "Executed actual-handler contract",
-      "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
-      "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+      "label": "Executed exact boundary with retained matching evidence",
+      "reason": "Actual handler/currentaccount/JSONnull and authoritative controlled error match original cell;not inferred from a pure router unit test",
+      "reviewSourceSha": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
+      "scope": "Source handler only;not liveJWT/RLS/provider/device/runtime certification"
     },
     "previousEvidence": {
       "verdict": "FAIL",
       "evidence": "hostile-entrypoints-results.json and raw handler log"
-    }
+    },
+    "failureHistory": [
+      {
+        "endpoint": "function:scan-identify",
+        "probe": "null body",
+        "expected": "Verified active caller receives controlled failure (4xx/5xx or the existing Scanner status:failed envelope), with no provider dispatch or privileged write; HTTP 200 alone is not success",
+        "actual": {
+          "status": "TypeError",
+          "providerCalls": 0,
+          "writes": 0,
+          "authReads": 1,
+          "receiptReads": 0,
+          "responseBody": ""
+        },
+        "verdict": "FAIL",
+        "probeId": "B35-MAND-0915",
+        "feature": "scan-identify",
+        "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+        "sourceLocation": "supabase/functions/scan-identify/index.ts",
+        "environment": "Offline actual Deno.serve handler; injected verified Auth, active profile, v2 receipt/current permission; no network permission",
+        "evidence": "continuation-authenticated-body-probes.json -> B35-AUTH-BODY-015",
+        "executionMethod": "deno test --allow-env --allow-read authenticated-body-probes.test.ts",
+        "linkedDefectId": "B35-B-004",
+        "repairReference": "Owner-gated P4; no repair implemented",
+        "reverificationStatus": "Reproduced, deferred P4; no provider dispatch/write",
+        "coverageDisposition": {
+          "category": 1,
+          "label": "Executed actual-handler contract",
+          "reason": "Enabled authenticated input boundary; synthetic authority and no real JWT/DB/provider claim.",
+          "reviewSourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+        },
+        "previousEvidence": {
+          "verdict": "FAIL",
+          "evidence": "hostile-entrypoints-results.json and raw handler log"
+        }
+      }
+    ],
+    "reason": "Auth/account/consent/quota transport and providers synthetic;actual handler and router;no real JWT signature/RLS/live provider/device/Production claim"
   },
   {
     "endpoint": "function:scan-identify",

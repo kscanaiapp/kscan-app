@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T12:44:36.847Z",
+  "capturedAt": "2026-11-03T12:53:47.653Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -97,79 +97,31 @@
       "source": "6ccac16c1d9aad3be9cb8a2d6437f449e5639954",
       "status": "SOURCE CLOSED / CANONICAL685 + MOBILE686 MERGED / 7+9 INDEPENDENT WORKFLOWS SUCCESS / RUNTIME NOT VERIFIED",
       "evidence": "continuation-f025-source-closure-1102.json"
+    },
+    {
+      "item": "B004 Scanner non-object contract routing canonical/mobile closure",
+      "finding": "B35-B-004",
+      "priority": "P4",
+      "prs": [
+        698,
+        699
+      ],
+      "canonical": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+      "source": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
+      "status": "SOURCE CLOSED / CANONICAL698 + MOBILE699 MERGED / 7+9 POSTMERGE WORKFLOWS SUCCESS / DEPLOYED RUNTIME NOT VERIFIED",
+      "evidence": "continuation-b004-source-closure-1103.json"
     }
   ],
   "active": {
-    "item": "Scanner null body controlled validation error",
-    "finding": "B35-B-004",
-    "priority": "P4",
-    "authorization": "continuation-owner-repair-authorization-1102.json",
-    "after": {
-      "handler": "1PASS/17nestedstepsPASS/0FAIL",
-      "node": "67PASS/0FAIL",
-      "fullBackend": "1588PASS/17nestedsteps/0FAIL",
-      "typescript": "initialexit2becausepreserveddependencyarchivewasundertheincludepath;movedoutsidecheckout;unchangedsourceexit0/session51298",
-      "gates": "5exit0onclean28321246tree",
-      "manifests": "current;scanv2Activationhashonlyruntimechange;newtesttreeentry;crosspath20samefilelist"
-    },
-    "status": "CANONICAL698 AND MOBILE699 MERGED / MOBILE POSTMERGE CI PENDING",
-    "next": "Finish nine independent77a6pushworkflows;reconcile0915originalactual-handlernullcase;closeB004source;resumeoriginalauditandWatchlistdraftreview.",
-    "capturedAt": "2026-11-03T12:15:23.965Z",
-    "baseCanonical": "d1be51d64b89882324482a7d83dfc0022eeddb1c",
-    "baseMobile": "ab26dd9b0dbe5fab9a8e06ea31deb0e5568ffedf",
-    "pr": 698,
-    "head": "28321246252babb1f2e47e18f7c5c9883691f0f1",
-    "tree": "de0ef02cabad3bd4788af937c76780449833326c",
-    "rootCause": "routeScanIdentifyRequest(unknown) classified JSONnull as legacy then dereferenced it in buildLegacyInternalRequest",
-    "location": "supabase/functions/scan-identify/v2Activation.ts:258",
-    "repair": "Existing isRecord guard at261 returns existing MALFORMED_REQUEST/400 before contract classification; no handler/auth/quota ordering change",
-    "before": {
-      "original": "9512 actualhandler nullTypeError/no provider or write;twofixtureassumptionsalsofailed;rawretained",
-      "current": "d1be actualhandler:11compatibilitystepsPASS/6nonrecordstepsFAIL/1failedparent;nullTypeError,zeroprovider/postcalls"
-    },
-    "limits": "Auth/account/consent/quota transport and providers synthetic;actual handler and router;no real JWT signature/RLS/live provider/device/Production claim",
-    "matrix": {
-      "probeId": "B35-MAND-0915",
-      "status": "OriginalFAIL retained untilcanonical/mobileclosure;do not inferPASSfromunitonly"
-    },
-    "originalFixture": {
-      "file": "continuation-b004-original-handler-fixture-1103.ts.txt",
-      "sha256": "4d4ffa9bd947bd28325db31e9192cf10491348961de90d0c6a6ed521c4bffa06",
-      "status": "Uncommitted initial fixture preserved;twoincorrectassumptionscorrectedbeforereproduciblecurrent-sourcebefore/aftertest"
-    },
-    "updatedAt": "2026-11-03T12:44:36.847Z",
-    "canonicalMerge": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
-    "canonicalTestedMerge": "260ae52c5cb69fa82703a8197f33459a9310e141",
-    "canonicalChecks": "32SUCCESS/14conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmerge",
-    "canonicalPostmerge": "7of7pushworkflowsSUCCESS;actual8581NodePASS/0FAIL/65SKIP;1588backendPASS/17steps/0FAIL",
-    "mobile": {
-      "pr": 699,
-      "base": "ab26dd9b0dbe5fab9a8e06ea31deb0e5568ffedf",
-      "head": "2109b77b10e987fb1d6d0153526a07ea3e11f77e",
-      "tree": "7a874ad3c7b1aeea4a8151f826f744937f719703",
-      "branch": "promotion/build35-scanner-null-body-1103",
-      "worktree": "C:/b35scannullmobile1103",
-      "status": "CANONICAL698 AND MOBILE699 MERGED / MOBILE POSTMERGE CI PENDING",
-      "source": "3exactcanonicalfiles;64priorgrantsretained+2B004=66;discovery/F025historicalprovenanceunchanged;no migration/worker/UI/configrollback",
-      "validation": {
-        "initialPromotion": "71PASS/4expectedmanifestorderFAIL/2explicitNAskips;rawretained",
-        "correctedPromotion": "75PASS/0FAIL/2explicitNAskips;lexicalgeneratorordering,comparisonnotweakened",
-        "backend": "1604PASS/17handlersteps/0FAIL",
-        "typescript": "exit0/session26201;committedmobilelocksemanticsmatchsharepromote1030cache",
-        "sourceGates": "6exit0onclean2109tree",
-        "manifests": "current;20crosspathfiles"
-      },
-      "next": "699fullygreenreview/normalmerge/9postmergechecks;reconcileB35-MAND-0915actualhandlerrecord;then resume audit/independentWatchlistPRreconciliation",
-      "merge": {
-        "sha": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
-        "reviewed": "2109b77b10e987fb1d6d0153526a07ea3e11f77e",
-        "testedMerge": "3d526c7a6a8560d5ff0cc56a716d904d483e18da",
-        "tree": "7a874ad3c7b1aeea4a8151f826f744937f719703",
-        "reviewedChecks": "34SUCCESS/20conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmerge",
-        "reviewedFullSuite": "11477NodePASS/0FAIL/96SKIP;1604backendPASS/17steps/0FAIL",
-        "postmerge": "7of9SUCCESS;ProjectandPromotionGatepending"
-      }
-    }
+    "item": "Reconcile existing independent Watchlist source drafts before new repair expansion",
+    "status": "EVIDENCE/OVERLAP/CI REVIEW NEXT",
+    "prs": [
+      687,
+      689,
+      690,
+      691
+    ],
+    "next": "Read exact patches and retained failing CI;confirm or disprove W1/W2 with actual adapters/handler;canonical-first source ownership;no duplicatePR;688Production scheduler and694catalog scheduler remain gated"
   },
   "queued": [],
   "excluded": [
