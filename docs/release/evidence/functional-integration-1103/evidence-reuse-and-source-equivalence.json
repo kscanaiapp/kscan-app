@@ -1709,5 +1709,10 @@
     "Identical source is a prerequisite for reusing evidence,not proof of live OAuth/email/camera/store/provider behavior.",
     "New generated identities do not authorize renewed/Production premium marketing proofs.",
     "No original mandatory audit cell was changed in this phase."
-  ]
+  ],
+  "mergedEquivalent": {
+    "sha": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+    "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
+    "testedTreeIdentical": true
+  }
 }

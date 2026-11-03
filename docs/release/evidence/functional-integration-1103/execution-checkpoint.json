@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-03T22:40:17.865Z",
+  "at": "2026-11-03T22:46:36.260Z",
   "phase": "Integration / Activation / Functional Verification",
   "historicalAudit": {
     "pr": 646,
@@ -14,7 +14,7 @@
     "noFurtherMatrixCampaign": true
   },
   "authority": {
-    "mobile": "40122f80e4a24a8761b22e3154f06934ae579653",
+    "mobile": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
     "backend": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
   },
   "activeSourceSequence": [
@@ -48,7 +48,7 @@
     {
       "pr": 711,
       "reviewBase": "22160d9b8acf5794047d121448d1a1da46c814cd",
-      "status": "COMBINED SOURCE VALIDATED / CI RUNNING",
+      "status": "MERGED / INDEPENDENT POST-CHECKS PENDING",
       "finding": {
         "id": "B35-INT-001",
         "priority": "P3",
@@ -67,7 +67,8 @@
         },
         "repair": "Only error/not_entitled/no_result are valid error-envelope recovery outcomes;other non-2xx bodies follow transport failure. Keep last plan and cache.",
         "platform": "Shared iOS/Android source",
-        "approval": "Owner authorizes focused P0-P3 integration defect repairs;normal fully green PR governance still required."
+        "approval": "Owner authorizes focused P0-P3 integration defect repairs;normal fully green PR governance still required.",
+        "status": "MERGED_SOURCE / POST-CHECKS PENDING"
       },
       "head": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
       "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
@@ -80,7 +81,16 @@
         "typescriptExit": 0,
         "edgeParityExit": 0,
         "capabilityFingerprints": "Both Watchlist and both Closet identities preserved;Packing only advanced"
-      }
+      },
+      "merged": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+      "preMergeCI": {
+        "SUCCESS": 34,
+        "conditionalSKIP": 20,
+        "FAIL": 0,
+        "pending": 0
+      },
+      "reviewHolds": 0,
+      "serverCandidate": "c634501c21dee1335e28bdbf1f035511e9930f07"
     }
   ],
   "operationalRevenueCat": {
@@ -96,7 +106,7 @@
     "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
   },
   "privacyOwner": "#703 residual source cases remain separate",
-  "next": "Finish711exact-headCI,reviewed/tested/server-treeidentity,normalmergeandindependentpostchecks;publishonefunctional-readinessPR/register. No broad hostile campaign.",
+  "next": "Finish711independentpostchecks;publishconsolidatedfunctionalregisterwithnoapplicationdiff. Historical646matrixremainsfrozen.",
   "restrictions": {
     "noProductionChanges": true,
     "noNewSharedMigrations": true,
@@ -185,8 +195,35 @@
       "archiveSha256": "5a249d8e65deb044f98fdd0dc349ab550d0736cbc0adb5c573b8ea4fb3ea53c7",
       "encoding": "UTF-16LE BOM",
       "note": "Exact captured output"
+    },
+    {
+      "file": "711-reviewed-project-checks.log.gz",
+      "rawBytes": 5435166,
+      "rawSha256": "0088a0e2c360d1500db4806e706087c8ca99d0a9667820e16a6206ab14e60e51",
+      "archiveBytes": 661944,
+      "archiveSha256": "e2040e011134e4bd5d58261e576d07e0e206837e152cb2e1b67435d4b4206800",
+      "encoding": "UTF-16LE BOM",
+      "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
+      "note": "Complete public CI job output retained losslessly;includes all subsidiary counts,not independent populations."
     }
   ],
   "evidenceReuse": "183unchangedfunctional/native sourcefilesand10accountedappdelta;see evidence-reuse-and-source-equivalence.json",
-  "booleanReadback": "activation-boolean-readback.json"
+  "booleanReadback": "activation-boolean-readback.json",
+  "reviewedSourceCISuites": {
+    "head": "e07b606e1c1666358d0d227f76ade5d2ed47a553",
+    "tree": "f49e51fd6adc0c5459533b834be7436cdc62c20c",
+    "node": {
+      "total": 11638,
+      "PASS": 11542,
+      "FAIL": 0,
+      "declaredSKIP": 96
+    },
+    "backend": {
+      "PASS": 1605,
+      "steps": 34,
+      "FAIL": 0
+    },
+    "source": "https://github.com/kscanaiapp/kscan-app/actions/runs/41731280575/job/126248984109",
+    "note": "Governed CI execution read back;not manually rerun or summed with focused tests."
+  }
 }
