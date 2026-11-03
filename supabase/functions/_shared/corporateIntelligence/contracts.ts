@@ -583,6 +583,23 @@ export function validateCorporateTaskV1(input: unknown, now: Date = new Date()):
       if (!kinds.has('product_ref')) errors.add('unbound_merchant_reference');
       if (kinds.has('price') && !kinds.has('currency')) errors.add('price_without_currency');
     }
+    // CI-03 repair R2 (price provenance). FACT_KIND_SOURCES lets two systems price a product, but each may only price
+    // ITS OWN product, and one product's price/currency pair comes from exactly one record:
+    //   * price and currency of one product share a source system (no mixing a discovery amount with a canonical code);
+    //   * a discovery-sourced price/currency is only valid on a product whose product_ref is itself discovery-sourced,
+    //     and it must cite the SAME discovery record (the catalog row that produced the product -- see the assembler).
+    for (const f of factList) {
+      if (f.kind !== 'price' && f.kind !== 'currency') continue;
+      const siblings = factList.filter((g) => g.merchantRef === f.merchantRef && g.productRef === f.productRef);
+      const partner = siblings.find((g) => g.kind === (f.kind === 'price' ? 'currency' : 'price'));
+      if (partner && partner.sourceSystem !== f.sourceSystem) errors.add('fact_kind_source_mismatch');
+      if (f.sourceSystem === 'black_owned_discovery') {
+        const product = siblings.find((g) => g.kind === 'product_ref');
+        if (product && (product.sourceSystem !== 'black_owned_discovery' || product.sourceRecordRef !== f.sourceRecordRef)) {
+          errors.add('fact_kind_source_mismatch');
+        }
+      }
+    }
     // A labelled merchant with no product is an orphan label.
     const merchantsWithProducts = new Set([...productKinds.keys()].map((k) => k.split('|')[0]));
     for (const [merchant] of merchantLabel) if (!merchantsWithProducts.has(merchant)) errors.add('unbound_merchant_reference');

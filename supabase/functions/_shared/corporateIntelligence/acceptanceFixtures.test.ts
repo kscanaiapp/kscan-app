@@ -15,6 +15,9 @@ import {
   checkOwnershipClaimsReference,
 } from './testSupport/referenceOracle.ts';
 import { applyMutations, baseValidProposal, baseValidTask, FIXTURE_NOW, type MutateOp } from './testSupport/baseTask.ts';
+import { validateCorporateOutput } from './outputValidation.ts';
+import { finalizeCorporateResponse } from './responseFinalizer.ts';
+import { CI03_FIXTURE_CONTEXTS, CI03_NOW, stylechatTask, tasksForContext } from './testSupport/ci03Tasks.ts';
 
 const assert = (cond: unknown, msg?: string) => nodeAssert.ok(cond, msg);
 const assertEquals = (actual: unknown, expected: unknown, msg?: string) =>
@@ -28,11 +31,20 @@ const corpus = JSON.parse(
 const ASSESSORS = new Set([
   'contract_validator', 'reference_selector', 'reference_ownership', 'reference_claims',
   'proposal_parser', 'transition_table', 'real_aisecurity_assembly', 'reference_ownership_limits', 'fallback_selector',
+  'production_output',
 ]);
+// Floors only ever rise. CI-03 adds output_validation and raises task_contract for the R2 regressions.
 const REQUIRED_CATEGORIES: Record<string, number> = {
-  task_contract: 90, mode_selection: 8, ownership_integrity: 26, action_and_commitment: 5,
-  sensitive_data: 3, option_c_proposal: 6, prompt_isolation: 4, oracle_limits: 10, fallback_policy: 9,
+  task_contract: 107, mode_selection: 8, ownership_integrity: 28, action_and_commitment: 7,
+  sensitive_data: 4, option_c_proposal: 6, prompt_isolation: 4, oracle_limits: 11, fallback_policy: 9,
+  output_validation: 24,
 };
+/**
+ * Full-corpus pin (CI-03). The original-74 digest above stays the protected baseline; this one pins the complete
+ * corpus (every case, inputs and expectations) so any edit to ANY case -- not only the original 74 -- is a reviewed diff.
+ */
+const CORPUS_CASE_COUNT = 215;
+const CORPUS_FULL_SHA256 = '84387f7ba0951004bb88389ae322b332bf4789bf73800e570935dff63ef67198';
 
 // The corpus-size requirement was deliberately raised from 50-75 to 120-220 by the Management Checkpoint 1
 // directive (task-contract hardening). The original 74 CI-01 cases are pinned below and may not be weakened.
@@ -53,6 +65,32 @@ test('original 74-case corpus expectations are unchanged (digest pinned; hardeni
     .map((b) => b.toString(16).padStart(2, '0')).join('');
   assertEquals(digest, ORIGINAL_EXPECTATIONS_SHA256, 'an original expectation was changed, removed or weakened');
 });
+
+test('full corpus (all cases, inputs and expectations) is pinned; additions require a reviewed digest update', async () => {
+  assertEquals(corpus.fixtures.length, CORPUS_CASE_COUNT);
+  const bytes = new TextEncoder().encode(JSON.stringify(corpus.fixtures));
+  const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
+    .map((b) => b.toString(16).padStart(2, '0')).join('');
+  assertEquals(digest, CORPUS_FULL_SHA256, 'a fixture was added, removed or edited');
+});
+
+// ── CI-03: the PRODUCTION validator must reach the established verdict on every oracle-covered case ─────────────
+// eligibleA / zeroEligible are rebuilt as REAL assembled tasks; action/privacy cases run on a StyleChat task.
+// Oracle-limit cases are held to `requiredVerdict` (what the record-bound control must produce), not the oracle's.
+for (const f of corpus.fixtures) {
+  if (!['reference_ownership', 'reference_claims', 'reference_ownership_limits'].includes(f.assess)) continue;
+  test(`production validator :: ${f.id}`, () => {
+    const task = f.context ? (tasksForContext as Record<string, () => unknown>)[f.context]() : stylechatTask();
+    const registry = { knownMerchantNames: f.context ? corpus.ownershipContexts[f.context].knownBrands : [] };
+    const r = validateCorporateOutput({ task, candidate: { text: f.output }, registry, origin: 'primary_initial', now: CI03_NOW });
+    const expected = f.assess === 'reference_ownership_limits' ? f.requiredVerdict : f.expectVerdict;
+    assertEquals(r.verdict, expected, `${f.id}: ${JSON.stringify(r.failures)}`);
+    // Every rejection of an ownership case is classified as an ownership-integrity failure (never a generic one).
+    if (expected === 'reject' && f.category !== 'action_and_commitment' && f.category !== 'sensitive_data') {
+      assert(['unsupported_ownership_claim', 'fabricated_merchant_recommendation'].includes(String(r.primaryFailure)), `${f.id}: ${r.primaryFailure}`);
+    }
+  });
+}
 
 test(`corpus hygiene: ${CORPUS_MIN}-${CORPUS_MAX} cases, unique ids, explicit expectation + known assessor on every case`, () => {
   const { fixtures } = corpus;
@@ -165,6 +203,20 @@ for (const f of corpus.fixtures) {
         // 4. Rendered under an untrusted trust attribute.
         assert(/trust="untrusted_/.test(hostile.userEnvelopeText));
         assertEquals(hostile.ok, true);
+        break;
+      }
+      case 'production_output': {
+        const task = CI03_FIXTURE_CONTEXTS[f.context]();
+        const registry = { knownMerchantNames: ['Atelier Nine', 'Brand Zed', 'Northline Studio'] };
+        const r = validateCorporateOutput({ task, candidate: f.candidate, registry, origin: 'primary_initial', now: CI03_NOW });
+        assertEquals(r.verdict, f.expectVerdict, `${f.id}: ${JSON.stringify(r.failures)}`);
+        for (const d of f.expectDetailsInclude ?? []) assert(r.failures.some((x) => x.detail === d), `${f.id}: missing detail ${d}`);
+        if (f.expectLabels) assertEquals(r.labels.map((l) => l.merchantRef), f.expectLabels);
+        if (f.expectFinal) {
+          const final = finalizeCorporateResponse({ task, origin: 'primary_initial', outcome: { kind: 'candidate', candidate: f.candidate }, registry, now: CI03_NOW });
+          assertEquals(final.kind === 'deterministic' ? { reason: final.reason, copyKey: final.copyKey } : null, f.expectFinal);
+          assertEquals(final.regenerate, false);
+        }
         break;
       }
       default:

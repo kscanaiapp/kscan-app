@@ -19,7 +19,7 @@ import {
   VERIFIED_FACT_KINDS,
   validateCorporateTaskV1,
 } from './contracts.ts';
-import { applyMutations, baseValidTask, FIXTURE_NOW } from './testSupport/baseTask.ts';
+import { applyMutations, baseValidTask, FIXTURE_NOW, type MutateOp } from './testSupport/baseTask.ts';
 
 const assert = (cond: unknown, msg?: string) => nodeAssert.ok(cond, msg);
 const assertEquals = (actual: unknown, expected: unknown, msg?: string) => nodeAssert.deepEqual(actual, expected, msg);
@@ -166,10 +166,48 @@ test('hardening: every source system is rejected for every kind it is not author
   for (const [kind, index] of Object.entries(factIndexByKind)) {
     for (const system of FACT_SOURCE_SYSTEMS) {
       const allowed = (FACT_KIND_SOURCES as Record<string, readonly string[]>)[kind].includes(system);
-      const task = applyMutations(baseValidTask(), [{ op: 'set', path: `verifiedFacts.${index}.sourceSystem`, value: system }]);
+      // CI-03 R2: price and currency are one record's pair, so the table cell is isolated by moving the PAIR (a lone
+      // price/currency move is a provenance mix and is pinned separately below). A discovery-sourced pair also cites the
+      // discovery product record it came from.
+      const ops: MutateOp[] = kind === 'price' || kind === 'currency'
+        ? [
+          { op: 'set', path: 'verifiedFacts.2.sourceSystem', value: system },
+          { op: 'set', path: 'verifiedFacts.3.sourceSystem', value: system },
+          ...(system === 'black_owned_discovery'
+            ? [
+              { op: 'set', path: 'verifiedFacts.2.sourceRecordRef', value: 'rec_f_product' },
+              { op: 'set', path: 'verifiedFacts.3.sourceRecordRef', value: 'rec_f_product' },
+            ] as MutateOp[]
+            : []),
+        ]
+        : [{ op: 'set', path: `verifiedFacts.${index}.sourceSystem`, value: system }];
+      const task = applyMutations(baseValidTask(), ops);
       assertEquals(errorsOf(task).length === 0, allowed, `${kind} from ${system}`);
     }
   }
+});
+
+test('R2 repair: one product is priced by exactly one record of one authoritative system', () => {
+  const discoveryPair: MutateOp[] = [
+    { op: 'set', path: 'verifiedFacts.2.sourceSystem', value: 'black_owned_discovery' },
+    { op: 'set', path: 'verifiedFacts.3.sourceSystem', value: 'black_owned_discovery' },
+    { op: 'set', path: 'verifiedFacts.2.sourceRecordRef', value: 'rec_f_product' },
+    { op: 'set', path: 'verifiedFacts.3.sourceRecordRef', value: 'rec_f_product' },
+  ];
+  // The legitimate discovery shape (what the assembler emits): accepted.
+  assertEquals(errorsOf(applyMutations(baseValidTask(), discoveryPair)), []);
+  // Each of these was ACCEPTED before the repair (reproduced on 0fd392ca).
+  const one = (path: string, value: string): MutateOp[] => [{ op: 'set', path, value }];
+  assertEquals(errorsOf(applyMutations(baseValidTask(), one('verifiedFacts.2.sourceSystem', 'black_owned_discovery'))),
+    ['fact_kind_source_mismatch'], 'discovery amount + canonical currency');
+  assertEquals(errorsOf(applyMutations(baseValidTask(), one('verifiedFacts.3.sourceSystem', 'black_owned_discovery'))),
+    ['fact_kind_source_mismatch'], 'canonical amount + discovery currency');
+  assertEquals(errorsOf(applyMutations(baseValidTask(), [...discoveryPair, ...one('verifiedFacts.5.sourceSystem', 'catalog')])),
+    ['fact_kind_source_mismatch'], 'discovery price on a catalog-sourced product');
+  assertEquals(errorsOf(applyMutations(baseValidTask(), [...discoveryPair, ...one('verifiedFacts.2.sourceRecordRef', 'rec_other_row')])),
+    ['fact_kind_source_mismatch'], 'discovery price cited from another record');
+  // Canonical commerce still prices a discovery product (scan offers): unchanged.
+  assertEquals(errorsOf(baseValidTask()), []);
 });
 
 test('hardening: locale and stylist display name are bounded', () => {
