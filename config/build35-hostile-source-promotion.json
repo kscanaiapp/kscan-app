@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+  "canonicalBackend": "e44c8281cf3b627b8f572496cbc0471280e3304f",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -41,9 +41,9 @@
     },
     {
       "file": "supabase/functions/black-owned-discovery/adminService.ts",
-      "sha256": "0d6e80aed901b8927ed70a30404d4a8298103527ab1b9fe056d53bd6a88b4f59",
-      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
-      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+      "sha256": "2c75bd444964b123f74bf23bd3492c828a3d178effa0af850525d123495fb08d",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/catalog.test.ts",
@@ -53,9 +53,9 @@
     },
     {
       "file": "supabase/functions/black-owned-discovery/catalog.ts",
-      "sha256": "dbc4776d6bf2f8fc69eb264532ab1b995d2e594e092c4e25b9659bc9d39c97b7",
-      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
-      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+      "sha256": "083d64d227be5fac8eb60035d13b2eae0c784c79776c2e18b62425587fd471a6",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/contracts.ts",
@@ -71,9 +71,9 @@
     },
     {
       "file": "supabase/functions/black-owned-discovery/engine.ts",
-      "sha256": "533223dfd3a402a43196cad26208cf696392692e8621d98e6ad15cdfeff2dbce",
-      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
-      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+      "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/fixtures.test.ts",
@@ -95,9 +95,9 @@
     },
     {
       "file": "supabase/functions/black-owned-discovery/index.ts",
-      "sha256": "97c659b0bdfdc308111e135dda15fcd76a6070cc54bbaf15b6a896c157bb4cf3",
-      "source": "98c88ff1240b6596649d7967e9a180d43d7fa83e",
-      "reason": "Exact reviewed B35-F-007 account-lifecycle repair from merged canonical PR656. Source-only promotion; no migration, deployment, JWT, flag, ranking or ownership-policy change."
+      "sha256": "553b74f829c16a30abb81f5e8170eb7c03593593d0782c424159b7f8380494ea",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/sandboxShadow.test.ts",
@@ -137,15 +137,15 @@
     },
     {
       "file": "supabase/functions/black-owned-discovery/sponsorshipStore.ts",
-      "sha256": "886a780a0715081b7da6f7438d7fe1eec9dc5a96d0a21b013ef3074bda8b8154",
-      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
-      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+      "sha256": "c35f3fe801879b37eca3cab88908d2e43601519056fc5aaa13c79f1162ef00d5",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/black-owned-discovery/validation.ts",
-      "sha256": "3d65d2019dafae71a7536bff8d3969c13bee50d93595a830d3d6cc70290cd44f",
-      "source": "3efcb6cbf29eb10c1bc1510f05e9a3365755bd74",
-      "reason": "Exact existing canonical backend source/migration promotion; no deployment grant"
+      "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/functions/purchase-import-extract/handler.test.ts",
@@ -348,15 +348,45 @@
     },
     {
       "file": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-      "sha256": "2542672f3e0c108f20bfa6f74112960ee4fbcbc4b4a20b25e05d25a762ff2e7b",
-      "source": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
-      "reason": "Exact canonical PR685/F025 migration or exhaustive privilege-inventory regression. Source-only; no migration application or general backend access grant."
+      "sha256": "a12c65e7a3afd871fdb269b28fc66f09036055670ce2d6c6514a1a957fa6272f",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     },
     {
       "file": "supabase/migrations/20261103011431_provider_settlement_server_authority.sql",
       "sha256": "37e252be7783437fb8dfd3e38a93af39f444b36bef8d82e71a6865ff5bd8d2b7",
       "source": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
       "reason": "Exact canonical PR685/F025 migration or exhaustive privilege-inventory regression. Source-only; no migration application or general backend access grant."
+    },
+    {
+      "file": "supabase/functions/black-owned-catalog-sync/index.ts",
+      "sha256": "595b03c6858a2632472fe81ddf24165dad8646aafd59ae61a5ad0da645c69344",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/authorizedJsonAdapter.ts",
+      "sha256": "40e2f5e2d0e48e04fade2b9b1b6db0674e8adef63cf6006f7aaf7a320f7fba73",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/catalogWorker.ts",
+      "sha256": "baa7e0981e174fa256c53331f29be808c6cef2566abc170c863d9166d1b81bbd",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
+    },
+    {
+      "file": "supabase/functions/black-owned-discovery/catalogWorker.test.ts",
+      "sha256": "6f65541480b6cdc2ae71b80590cf04688f2b95be182cbc32a5be408695a703b4",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
+    },
+    {
+      "file": "supabase/migrations/20261103030000_black_owned_catalog_moderation.sql",
+      "sha256": "5400a924a3d95162dea74593ff544a579e5ce4a6c77f11cc3e76bba76583f0cc",
+      "source": "e44c8281cf3b627b8f572496cbc0471280e3304f",
+      "reason": "Exact canonical PR692 Black-Owned Discovery catalog operations: head-noun subtype matching, accessory alias, worker-secret catalog sync, authorized JSON feed, durable moderation migration 20261103030000 (KNOWN_FUTURE_UNAPPLIED) and governed privilege inventory. Source-only; no deployment, flag, ranking-policy or ownership-policy grant."
     }
   ],
   "sharedSigningRegressionRegistration": {

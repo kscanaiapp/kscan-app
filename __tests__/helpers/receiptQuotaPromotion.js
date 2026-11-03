@@ -7,4 +7,9 @@ const additions=()=>[guard,migration].map(file=>({file,sha256:sha256(gitBlob(fil
 function expectedReceiptAdvance(rows){const result=rows.map(r=>r.file===handler?approvedRow():r);for(const row of additions())if(!result.some(r=>r.file===row.file))result.push(row);return result;}
 function expectedNonReceiptFunctions(rows){return rows.filter(r=>r.name!=='purchase-import-extract').map(row=>{if(row.name!=='scan-identify')return row;const next=structuredClone(row),file=next.files.find(f=>f.path===guard);assert.ok(file);assert.equal(file.bundle,false,'only the reviewed test file may change');file.sha256=sha256(gitBlob(guard));next.treeHash=require('../../scripts/edge-function-manifest-lib').aggregateHash(next.files);return next;});}
 function expectedPendingAdvance(rows,ref){const approved=JSON.parse(gitBlob('config/migration-authority-manifest.json')).ledgerReconciliation.environments[ref].knownPending.find(r=>r.localVersion==='20261103011431');assert.ok(approved);assert.equal(approved.disposition,'KNOWN_FUTURE_UNAPPLIED');return [...rows,approved];}
-module.exports={root,canonical,reviewed,handler,files,gitBlob,sha256,approvedRow,expectedReceiptAdvance,expectedNonReceiptFunctions,expectedPendingAdvance};
+// PR692 advances after F025: compose, so every historical control keeps proving its own rows.
+const discovery=require('./discoveryCatalogPromotion');
+module.exports={root,canonical,reviewed,handler,files,gitBlob,sha256,approvedRow,
+  expectedReceiptAdvance:rows=>discovery.discoveryAdvance(expectedReceiptAdvance(rows)),
+  expectedNonReceiptFunctions:rows=>discovery.discoveryFunctionAdvance(expectedNonReceiptFunctions(rows)),
+  expectedPendingAdvance:(rows,ref)=>discovery.discoveryPendingAdvance(expectedPendingAdvance(rows,ref),ref)};

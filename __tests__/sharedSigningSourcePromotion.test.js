@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const canonical = 'f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee';
-const currentCanonical = '9512a1814f92796cd77baa6557a8a78a4fd016c5';
+const currentCanonical = 'e44c8281cf3b627b8f572496cbc0471280e3304f';
 const runner = 'scripts/run-backend-tests.js';
 const mobileBase = 'a9503e135162824ed8127f6a3066fac1deab3e67';
 const files = [
@@ -25,7 +25,7 @@ const allFiles = [runner, ...files];
 const actual = new Map(allFiles.map(file => [file, fs.readFileSync(path.join(root, file))]));
 function verify(bytes) {
   assert.equal(policy.canonicalBackend, currentCanonical);
-  assert.equal(policy.files.length, 59, '57 prior entries plus two exact F025 declarations; F012 bytes and runner stay pinned to their original authority');
+  assert.equal(policy.files.length, 64, '59 prior entries plus five new exact PR692 declarations; F012 bytes and runner stay pinned to their original authority');
   assert.ok(!policy.files.some(entry => entry.file === runner), 'Preserve the mobile-owned runner difference explicitly');
   for (const file of files) {
     const row = policy.files.find(entry => entry.file === file);
@@ -36,7 +36,10 @@ function verify(bytes) {
   assert.equal(policy.sharedSigningRegressionRegistration.baseMobileSha, mobileBase);
   assert.equal(policy.sharedSigningRegressionRegistration.canonicalSource, canonical);
   assert.equal(policy.sharedSigningRegressionRegistration.sha256, hash(expectedRunner));
-  assert.ok(bytes.get(runner).equals(expectedRunner), 'Only the approved registration may change the mobile runner');
+  // PR692 adds exactly one later governed registration (its catalog worker); the F012 hash above stays pinned.
+  const advancedRunner = Buffer.from(expectedRunner.toString('utf8').replace("const GOVERNED = [\n  'black-owned-discovery',\n", "const GOVERNED = [\n  'black-owned-catalog-sync',\n  'black-owned-discovery',\n"));
+  assert.ok(!advancedRunner.equals(expectedRunner), 'the PR692 registration anchor must exist');
+  assert.ok(bytes.get(runner).equals(advancedRunner), 'Only the approved registrations may change the mobile runner');
 }
 test('F012 promotion contains exact canonical source and regression coverage without deployment authority', () => {
   verify(actual);
