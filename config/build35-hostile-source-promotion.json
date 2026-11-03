@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Exact backend source promotions for Build35 hostile convergence only. No wildcard, deployment, secret or generic backend mutation grant.",
-  "canonicalBackend": "31be5f99341b606a070bbbe0b3062588f320f089",
+  "canonicalBackend": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
   "files": [
     {
       "file": "supabase/functions/_shared/geminiConsent.test.ts",
@@ -155,9 +155,9 @@
     },
     {
       "file": "supabase/functions/purchase-import-extract/handler.ts",
-      "sha256": "71dfe68f87c8212195b81cbeb843ac3ac2526f7266fb573325eb5fba66176969",
-      "source": "31be5f99341b606a070bbbe0b3062588f320f089",
-      "reason": "Exact canonical PR681/F024 runtime repair plus PR684 event-synchronized regression; preserve C023 UUID/session contract and all activation/deployment gates. F025 remains separate."
+      "sha256": "dbd1255a906a08af64e409120eaf27e218fcb9e1bc8a75a006fe5e10ee104cee",
+      "source": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+      "reason": "Exact canonical PR685/F025 trusted actor-scoped quota settlement; no client settlement fallback, migration application or deployment grant."
     },
     {
       "file": "supabase/functions/scan-identify/scanImageProductMission.ts",
@@ -345,6 +345,18 @@
       "sha256": "3c9931f8b65eb3a41be486913c1c5690ea588f49e09362ddbaa3fa19b5f43381",
       "source": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
       "reason": "Exact canonical E018/P3 saved-scan explicit restoration policy, with unchanged owner/current-account authority. No application/deployment grant."
+    },
+    {
+      "file": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
+      "sha256": "2542672f3e0c108f20bfa6f74112960ee4fbcbc4b4a20b25e05d25a762ff2e7b",
+      "source": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+      "reason": "Exact canonical PR685/F025 migration or exhaustive privilege-inventory regression. Source-only; no migration application or general backend access grant."
+    },
+    {
+      "file": "supabase/migrations/20261103011431_provider_settlement_server_authority.sql",
+      "sha256": "37e252be7783437fb8dfd3e38a93af39f444b36bef8d82e71a6865ff5bd8d2b7",
+      "source": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+      "reason": "Exact canonical PR685/F025 migration or exhaustive privilege-inventory regression. Source-only; no migration application or general backend access grant."
     }
   ],
   "sharedSigningRegressionRegistration": {
@@ -390,5 +402,21 @@
     ],
     "runtimeRepairSource": "26d5fae291ffcdbb1a56e312524013c6939ab152",
     "fixtureCorrectionPr": 684
+  },
+  "trustedQuotaSettlementPromotion": {
+    "canonicalSource": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+    "reviewedSource": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
+    "sourceTree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
+    "files": [
+      "supabase/functions/purchase-import-extract/handler.ts",
+      "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
+      "supabase/migrations/20261103011431_provider_settlement_server_authority.sql",
+      "__tests__/helpers/purchaseImportQuotaWorld.js",
+      "__tests__/providerSettlementAuthority.test.js",
+      "__tests__/purchaseImportReplayDispatch.test.js",
+      "docs/security/provider-cost-controls.md"
+    ],
+    "migrationVersion": "20261103011431",
+    "migrationDisposition": "KNOWN_FUTURE_UNAPPLIED"
   }
 }

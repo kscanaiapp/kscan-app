@@ -48,7 +48,7 @@ test('in-flight replay returns 429 without a second provider dispatch or settlin
     assert.equal(body.ok, false); assert.equal(body.errorClass, 'rate_limited');
     assert.ok(body.retryAfterSeconds > 0);
     assert.equal(denied.headers.get('Retry-After'), String(body.retryAfterSeconds));
-    assert.equal(w.rpcCalls.filter(x => /^(complete|release)_provider_request$/.test(x.name)).length, 0);
+    assert.equal(w.rpcCalls.filter(x => /^(complete_provider_request|release_provider_request|settle_provider_request_for_actor)$/.test(x.name)).length, 0);
     assert.deepEqual((await w.db.query('select status,count(*)::int n from provider_request_reservations group by status')).rows, [{ status: 'reserved', n: 1 }]);
     w.gate.resolve();
     const done = await first; assert.equal(done.status, 200); assert.equal((await done.json()).ok, true);
@@ -64,7 +64,7 @@ test('ten rapid in-flight retries preserve one provider dispatch and the active 
     const responses = await dispatch.replays(retries); assert.equal(w.providerCalls.length, 1);
     assert.ok(responses.every(r => r.status === 429));
     assert.equal((await w.db.query('select count(*)::int n from provider_request_reservations')).rows[0].n, 1);
-    assert.equal(w.rpcCalls.filter(x => /^(complete|release)_provider_request$/.test(x.name)).length, 0);
+    assert.equal(w.rpcCalls.filter(x => /^(complete_provider_request|release_provider_request|settle_provider_request_for_actor)$/.test(x.name)).length, 0);
     w.gate.resolve(); assert.equal((await first).status, 200);
   } finally { w.gate.resolve(); await Promise.allSettled([first, ...retries]); await w.close(); }
 });

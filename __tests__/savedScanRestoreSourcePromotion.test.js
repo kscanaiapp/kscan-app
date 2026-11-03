@@ -1,4 +1,4 @@
-const { expectedReceiptAdvance } = require('./helpers/receiptQuotaPromotion');
+const { expectedReceiptAdvance, expectedPendingAdvance } = require('./helpers/receiptQuotaPromotion');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -17,12 +17,12 @@ const before = JSON.parse(git(previous,'config/build35-hostile-source-promotion.
 const bytes = new Map([migration,regression].map(f=>[f,fs.readFileSync(path.join(root,f))]));
 function verify(p,actual) {
   assert.equal(before.files.length,56);
-  assert.equal(p.files.length,57);
-  assert.equal(new Set(p.files.map(r=>r.file)).size,57);
+  assert.equal(p.files.length,59);
+  assert.equal(new Set(p.files.map(r=>r.file)).size,59);
   assert.deepEqual(p.files.filter(r=>r.file!==migration),expectedReceiptAdvance(before.files),'every existing56 promotion remains pinned except the exact reviewed receipt advance');
   const row=p.files.find(r=>r.file===migration);
   assert.equal(row.source,p.savedScanRestorationPromotion.canonicalSource);
-  assert.equal(p.canonicalBackend,'31be5f99341b606a070bbbe0b3062588f320f089');
+  assert.equal(p.canonicalBackend,'9512a1814f92796cd77baa6557a8a78a4fd016c5');
   const tree=sha=>execFileSync('git',['show','-s','--format=%T',sha],{cwd:root,encoding:'utf8'}).trim();
   assert.equal(tree(row.source),tree(reviewed),'promoted authority tree must equal the reviewed canonical repair');
   assert.equal(row.sha256,crypto.createHash('sha256').update(git(reviewed,migration)).digest('hex'));
@@ -56,7 +56,7 @@ test('restoration remains pending in both environments with exactly the approved
     assert.deepEqual(selected[0],approved.ledgerReconciliation.environments[ref].knownPending.find(r=>r.localVersion==='20261102125053'));
     assert.equal(selected[0].disposition,'KNOWN_FUTURE_UNAPPLIED');
     assert.deepEqual(selected[0].applyAfter,['20261031162813']);
-    assert.deepEqual(rows.filter(r=>r.localVersion!=='20261102125053'),old.ledgerReconciliation.environments[ref].knownPending);
+    assert.deepEqual(rows.filter(r=>r.localVersion!=='20261102125053'),expectedPendingAdvance(old.ledgerReconciliation.environments[ref].knownPending,ref));
     ledger.ledgerReconciliation.environments[ref].knownPending=old.ledgerReconciliation.environments[ref].knownPending;
   }
   assert.deepEqual(ledger,old,'no other migration decision may be rewritten');

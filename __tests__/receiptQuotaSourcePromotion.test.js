@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const { root, canonical, reviewed, handler, files, gitBlob, approvedRow, expectedReceiptAdvance } = require('./helpers/receiptQuotaPromotion');
+const { root, canonical, reviewed, handler, files, gitBlob, approvedRow, expectedReceiptAdvance, expectedNonReceiptFunctions } = require('./helpers/receiptQuotaPromotion');
 const base = '560028ef3f5327989077b19ee6ccbba34f344927';
 const json = file => JSON.parse(fs.readFileSync(root + '/' + file, 'utf8'));
 const previous = JSON.parse(gitBlob('config/build35-hostile-source-promotion.json', base));
@@ -12,12 +12,12 @@ const policy = json('config/build35-hostile-source-promotion.json');
 const actual = new Map(files.map(file => [file, fs.readFileSync(root + '/' + file)]));
 const expectedMeta = { canonicalSource: '214cf19efffce9b4f410b58075d4fc3c36c58bf1', reviewedSource: 'a1cf4b1535f92097189d51fb4573627eb943a8d7', sourceTree: 'eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68', files };
 function verify(p, bytes, manifest) {
-  assert.equal(p.files.length, previous.files.length);
-  assert.equal(p.files.length, 57);
+  assert.equal(p.files.length, previous.files.length + 2);
+  assert.equal(p.files.length, 59);
   assert.deepEqual(p.files, expectedReceiptAdvance(previous.files), 'only the exact reviewed handler row may advance; every other grant is unchanged');
   assert.equal(p.canonicalBackend, canonical);
   assert.deepEqual(p.receiptQuotaIdPromotion, expectedMeta);
-  const priorMeta = { ...p }; delete priorMeta.receiptQuotaIdPromotion; delete priorMeta.receiptQuotaReplayPromotion;
+  const priorMeta = { ...p }; delete priorMeta.receiptQuotaIdPromotion; delete priorMeta.receiptQuotaReplayPromotion; delete priorMeta.trustedQuotaSettlementPromotion;
   assert.deepEqual(priorMeta, { ...previous, canonicalBackend: canonical, files: expectedReceiptAdvance(previous.files) });
   assert.deepEqual(p.files.find(row => row.file === handler), approvedRow());
   const tree = sha => execFileSync('git', ['show', '-s', '--format=%T', sha], { cwd: root, encoding: 'utf8' }).trim();
@@ -25,7 +25,7 @@ function verify(p, bytes, manifest) {
   for (const file of files) assert.ok(bytes.get(file).equals(gitBlob(file)), file + ' must be exact merged canonical bytes');
   const receipt = m => m.parity.functions.find(f => f.name === 'purchase-import-extract');
   assert.deepEqual(receipt(manifest), receipt(canonicalManifest));
-  assert.deepEqual(manifest.parity.functions.filter(f => f.name !== 'purchase-import-extract'), oldManifest.parity.functions.filter(f => f.name !== 'purchase-import-extract'));
+  assert.deepEqual(manifest.parity.functions.filter(f => f.name !== 'purchase-import-extract'), expectedNonReceiptFunctions(oldManifest.parity.functions));
 }
 test('C023 retains original provenance under the exact reviewed receipt replay advancement', () => {
   verify(policy, actual, json('config/edge-function-manifest.json'));
