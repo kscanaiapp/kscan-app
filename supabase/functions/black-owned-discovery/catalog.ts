@@ -1,4 +1,4 @@
-import { sanitizeGarment, safeCatalogUrl, text } from './validation.ts';
+import { sanitizeGarment, safeCatalogUrl, subtypeKey, text } from './validation.ts';
 import type { FashionAttributes } from './contracts.ts';
 
 export type AuthorizedMerchant = {
@@ -40,6 +40,8 @@ export function normalizeFeed(products: FeedProduct[], merchant: AuthorizedMerch
     if (!id || !title || title.length < 4 || ids.has(key) || (sku && skus.has(sku))) throw new Error('duplicate_or_invalid_product');
     ids.add(key); if (sku) skus.add(sku);
     const garment = sanitizeGarment({ ...p.attributes, item_type: p.category, ...(p.subtype ? { subtype: p.subtype } : {}) });
+    // Stored canonical so retrieval can match scanner phrasing ("Chelsea Boots").
+    if (garment.subtype) garment.subtype = subtypeKey(garment.subtype) ?? undefined;
     const destination = safeCatalogUrl(p.productUrl, merchant.approvedDomains);
     const image = p.imageUrl ? safeCatalogUrl(p.imageUrl, merchant.imageDomains) : null;
     if (!destination || (p.imageUrl && !image)) throw new Error('unsafe_catalog_url');

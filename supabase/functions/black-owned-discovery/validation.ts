@@ -28,6 +28,32 @@ export function text(value: unknown, max = 160): string | undefined {
   if (typeof value !== 'string' || value.length > max || /[\u0000-\u001f<>]/.test(value)) throw new Error('invalid_text');
   return value.trim() || undefined;
 }
+function singular(token: string): string {
+  if (token.length <= 3) return token;
+  if (token.endsWith('ies')) return `${token.slice(0, -3)}y`;
+  if (/(sses|shes|ches|xes)$/.test(token)) return token.slice(0, -2);
+  return token.endsWith('s') && !token.endsWith('ss') ? token.slice(0, -1) : token;
+}
+/** Canonical catalog subtype: "Chelsea Boots" and "chelsea-boot" both → "chelsea boot". */
+export function subtypeKey(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const tokens = value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map(singular);
+  return tokens.length && tokens.length <= 8 ? tokens.join(' ') : null;
+}
+/**
+ * Catalog subtypes a scanned subtype may match: the full key and its trailing
+ * head-noun phrases ("black leather chelsea boots" → "chelsea boot", "boot").
+ * A catalog subtype more specific than the scan never matches, and a different
+ * head noun (sandal vs boot) never matches.
+ */
+export function subtypeMatchKeys(value: unknown): string[] {
+  const key = subtypeKey(value);
+  if (!key) return [];
+  const tokens = key.split(' ');
+  const keys = [key];
+  for (let size = Math.min(3, tokens.length - 1); size >= 1; size--) keys.push(tokens.slice(-size).join(' '));
+  return [...new Set(keys)];
+}
 export function sanitizeGarment(value: unknown): FashionAttributes {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_garment');
   const source = value as Record<string, unknown>;

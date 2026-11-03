@@ -262,8 +262,10 @@ test('only explicitly governed Edge Functions exist; retained-media sweep stays 
   // Now 29: the VTO post-Kimi lane adds kplus-offer-redeem, the authenticated
   // HMAC-only offer-code ingestion boundary. Neither belongs to this sweep.
   // Secondary commerce V1 adds black-owned-discovery independently of deletion.
-  assert.equal(dirs.length, 31, 'no unexplained Edge Function has appeared');
+  // Now 32: black-owned-catalog-sync, its scheduled catalog worker, is likewise unrelated.
+  assert.equal(dirs.length, 32, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('black-owned-discovery'));
+  assert.ok(dirs.includes('black-owned-catalog-sync'));
   assert.ok(dirs.includes('sponsorship-sandbox'));
   assert.ok(dirs.includes('process-account-deletions'));
 
