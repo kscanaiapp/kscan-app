@@ -17,7 +17,7 @@
       "actual": "Exactly1 provider dispatch; duplicate429/rate_limited and positive Retry-After; no settlement call from duplicate; one reserved row remains; first then200/oktrue and exactlyone completed row",
       "verdict": "PASS",
       "test": "in-flight replay returns 429 without a second provider dispatch or settling the original reservation",
-      "sourceLocation": "__tests__/purchaseImportReplayDispatch.test.js:43",
+      "sourceLocation": "__tests__/purchaseImportReplayDispatch.test.js:39",
       "linkedDefectId": "B35-F-024",
       "relatedRepair": "681/684/683; preserved during685/686",
       "reverificationStatus": "SOURCE HARNESS PASS at exact tested source; deployed runtime not verified"
