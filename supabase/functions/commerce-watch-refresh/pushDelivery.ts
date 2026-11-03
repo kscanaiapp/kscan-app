@@ -16,6 +16,16 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const MAX_TITLE_LEN = 80;
 const MAX_BODY_LEN = 160;
 
+function isTrackableTicketId(id: string): boolean {
+  // Match watchlist_push_receipts_ticket_id_len and PostgreSQL text storage.
+  // Count Unicode characters, not UTF-16 units, without an unbounded array.
+  let characters = 0;
+  for (const character of id) {
+    if (character === '\0' || ++characters > 200) return false;
+  }
+  return characters > 0;
+}
+
 function readEnv(name: string): string | undefined {
   try {
     // deno-lint-ignore no-explicit-any
@@ -126,16 +136,26 @@ export async function sendWatchPush(
       return { attempted: true, ok: false, errorCode: `http_${response.status}` };
     }
     const payload = await response.json().catch(() => null);
-    const ticket = Array.isArray(payload?.data) ? payload.data[0] : null;
+    // A single outbound push must produce exactly one accepted/rejected
+    // ticket. HTTP 200 alone does not mean Expo accepted the message.
+    const tickets = Array.isArray(payload?.data) ? payload.data : null;
+    if (!tickets || tickets.length !== 1) {
+      return { attempted: true, ok: false, errorCode: 'ticket_error' };
+    }
+    const ticket = tickets[0];
     if (ticket?.status === 'error') {
       const code = String(ticket.details?.error ?? 'ticket_error');
       return { attempted: true, ok: false, errorCode: code, tokenInvalid: code === 'DeviceNotRegistered' };
     }
-    // NOTIF-12: an accepted ticket is NOT proof of device delivery -- it only
-    // means Expo queued it. The ticket id is what a receipt lookup is keyed
-    // on, so it is retained rather than discarded; callers must treat
-    // `ok: true` as "accepted", never as "delivered".
-    const ticketId = typeof ticket?.id === 'string' ? ticket.id : undefined;
+    // NOTIF-12: even an accepted ticket is NOT proof of device delivery.
+    // Without a non-empty id the caller cannot persist a receipt or track
+    // terminal delivery, so fail closed instead of fabricating acceptance.
+    const ticketId = ticket?.status === 'ok' && typeof ticket.id === 'string'
+      ? ticket.id.trim()
+      : '';
+    if (!isTrackableTicketId(ticketId)) {
+      return { attempted: true, ok: false, errorCode: 'ticket_error' };
+    }
     return { attempted: true, ok: true, ticketId };
   } catch {
     return { attempted: true, ok: false, errorCode: 'network_error' };
