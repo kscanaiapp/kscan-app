@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T01:39:20.725Z",
+  "capturedAt": "2026-11-03T01:46:59.269Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4081,6 +4081,16 @@
       "archiveSha256": "6cec05d87f5059198a3c3729085a6ddf057f4f95e64ce632be357f1fda911a7e",
       "encoding": "UTF-16LE BOM",
       "disposition": "Full1576DenoPASSor142relatedNodePASSafterdocumentedexactnewholderandnarrownegativeprivilegecontrols;nosuppression/noruntimeclaim"
+    },
+    {
+      "rawFile": "pr685-reviewed-project-raw.log",
+      "rawBytes": 4878016,
+      "rawSha256": "6eb6d122602f9ca3b9d919d1564985ebd9c2e9e891527795530a4af3568b3f7e",
+      "archiveFile": "resume1102-pr685-reviewed-project-raw.log.gz",
+      "archiveBytes": 546012,
+      "archiveSha256": "3a7142673fe44976ca1b15397e3685103cfe59b56a2621dc479f5b85ce7625f5",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact685reviewc524full8571NodePASS/0FAIL/65SKIPand1576DenoPASS/0FAIL;notpostmerge/deploymentclaim"
     }
   ]
 }

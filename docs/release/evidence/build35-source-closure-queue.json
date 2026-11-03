@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T01:39:20.725Z",
+  "capturedAt": "2026-11-03T01:46:59.269Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -93,7 +93,7 @@
     "pr": 685,
     "head": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
     "tree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
-    "status": "SOURCE REPAIRED / INVENTORY REVIEW DOCUMENTED / UPDATED CANONICAL CI PENDING",
+    "status": "CANONICAL MERGED / POSTMERGE CI PENDING / MOBILE CONVERGENCE REQUIRED",
     "next": "Finish685exactheadCI/reviews,normalgreenmerge,7canonicalpushchecks;exactboundedmobilepromotionand9pushchecks;thenB004. No migration application/deployment. Underlyingauditcontinues.",
     "mobilePreparation": {
       "worktree": "C:/b35settlementmobile1102",
@@ -106,9 +106,12 @@
         "PreserveC023andF024historicalmetadata;addseparateF025metadataandnegativecontrols",
         "Priorpromotiontestscurrentauthorityadvances;historical51/53/56/57rowcomparisonsmustretainallrowsplus2explicitnewgrants",
         "Scanfunctionmanifestmaychangeonlytestfilehash/treeHash;bundlehash/runtimefilesunchanged. DeriveexpectedtreewithaggregateHash andcanonicalguardfilehash,preserveallunrelatedfunctions",
-        "No mobilecopybeforecanonicalgreenmerge;noProduction/migrationapplication"
+        "No mobilecopybeforecanonicalgreenmerge;noProduction/migrationapplication",
+        "Base preflight: receipt handler/helper/replay/privilegeinventory/docs matchcanonical31be. Mobile migration-authority manifest and staging test differ; production reconciliation test is absent. DO NOT copy backend deploy governance wholesale. Append only exact canonical F025pending rows to mobile registry, surgically add migration pair in existing mobile staging test; leave absent production test absent."
       ]
-    }
+    },
+    "canonicalMerge": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+    "reviewedChecks": "33success/13conditionalSKIP;reviewsandthreadsempty;CLEANready;normalprotectedmerge"
   },
   "queued": [
     {
