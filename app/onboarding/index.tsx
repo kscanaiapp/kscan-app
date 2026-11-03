@@ -94,6 +94,16 @@ export default function OnboardingScreen() {
   const [ageChecked, setAgeChecked] = useState(false);
   const [legalBusy, setLegalBusy] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
+  const legalActorId = user?.id ?? null;
+  const legalActorRef = useRef(legalActorId);
+  const legalEpochRef = useRef(0);
+  const legalBusyRef = useRef(false);
+  // Fence continuations immediately on render, before an old promise settles.
+  if (legalActorRef.current !== legalActorId) {
+    legalActorRef.current = legalActorId;
+    legalEpochRef.current += 1;
+    legalBusyRef.current = false;
+  }
 
   // Step 5: only the real Notifications registration outcome is reflected
   // here. Camera, Photos, and Microphone are requested just in time.
@@ -106,6 +116,21 @@ export default function OnboardingScreen() {
 
   const moveToTermsOnce = useCallback(() => {
     setStep((current) => (current === 4 ? current : 4));
+  }, []);
+
+  useEffect(() => {
+    setTermsChecked(false);
+    setPrivacyChecked(false);
+    setAiConsentChecked(false);
+    setAgeChecked(false);
+    setLegalError(null);
+    setLegalBusy(false);
+    if (legalEpochRef.current > 0) setStep(legalActorId ? 4 : 2);
+  }, [legalActorId]);
+
+  useEffect(() => () => {
+    legalEpochRef.current += 1;
+    legalBusyRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -356,6 +381,15 @@ export default function OnboardingScreen() {
   // ── Step 4: Accept & Continue handler ───────────────────────────────────
 
   const handleAcceptAndContinue = useCallback(async () => {
+    const expectedUserId = user?.id;
+    if (
+      !expectedUserId || legalActorRef.current !== expectedUserId ||
+      !termsChecked || !privacyChecked || !aiConsentChecked || !ageChecked ||
+      legalBusyRef.current
+    ) return;
+    const epoch = ++legalEpochRef.current;
+    const isCurrent = () => legalEpochRef.current === epoch && legalActorRef.current === expectedUserId;
+    legalBusyRef.current = true;
     setLegalError(null);
     setLegalBusy(true);
 
@@ -372,19 +406,24 @@ export default function OnboardingScreen() {
         privacyVersion: PRIVACY_VERSION,
         minimumAgeVersion: AGE_VERSION,
         aiProcessingVersion: AI_PROCESSING_VERSION,
+        expectedUserId,
         appVersion: null, // app_version not wired — deferred until app metadata helper exists
       });
+      if (!isCurrent()) return;
       if (result.ok) {
         goToNext();
       } else {
         setLegalError(result.error ?? 'Unable to save your preferences. Please try again.');
       }
     } catch {
-      setLegalError('Unable to save your preferences. Please try again.');
+      if (isCurrent()) setLegalError('Unable to save your preferences. Please try again.');
     } finally {
-      setLegalBusy(false);
+      if (isCurrent()) {
+        legalBusyRef.current = false;
+        setLegalBusy(false);
+      }
     }
-  }, [goToNext]);
+  }, [goToNext, user?.id, termsChecked, privacyChecked, aiConsentChecked, ageChecked]);
 
   // ── Render helpers ───────────────────────────────────────────────────────
 

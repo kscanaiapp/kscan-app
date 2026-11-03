@@ -14,6 +14,8 @@ export interface RecordLegalAcceptancesInput {
   minimumAgeVersion: string;
   aiProcessingVersion: string;
   appVersion?: string | null;
+  /** Fence a pending UI acknowledgment; never used as the write's identity. */
+  expectedUserId?: string;
 }
 
 export interface RecordLegalAcceptancesResult {
@@ -77,6 +79,7 @@ export async function recordLegalAcceptances(
     minimumAgeVersion,
     aiProcessingVersion,
     appVersion,
+    expectedUserId,
   }: RecordLegalAcceptancesInput,
   client = supabase,
 ): Promise<RecordLegalAcceptancesResult> {
@@ -96,7 +99,11 @@ export async function recordLegalAcceptances(
 
   // ── Resolve authenticated user ──────────────────────────────────────────
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
-  if (sessionError || !sessionData.session?.user) {
+  if (
+    sessionError ||
+    !sessionData.session?.user ||
+    (expectedUserId !== undefined && sessionData.session.user.id !== expectedUserId)
+  ) {
     return { ok: false, error: 'Unable to save your preferences. Please try again.' };
   }
 
