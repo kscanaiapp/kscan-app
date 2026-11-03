@@ -38,3 +38,32 @@ Not mutation-checked: 0737 (expired JWT), 0764–0766 (envelope/schema), and the
 ## Limits
 
 A mock is not a live provider; the Auth server is a stub. Nothing here validates a signed live JWT, a deployed function, or real provider behaviour.
+
+---
+
+# Batch 2: Live Camera VTO (43 cells)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+B35_AUDIT_SOURCE_ROOT=$PWD node --test --test-reporter=spec audit/a2/live-batch2.test.cjs               # 9 pass
+B35_AUDIT_SOURCE_ROOT=$PWD node --test --test-reporter=spec audit/a2/live-remote-source-1102.test.cjs    # 10 pass (retained PR #646 evidence, verbatim)
+node audit/a2/build-ledger-batch2.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+## Files
+
+- `live-batch2.test.cjs`: 9 `node:test` blocks. Real `useVtoLiveSession` with injected native/permission/sanitizer fakes (2775, 2776, 2791), real governed registry and resolver (2767-2769), real entitlement mapping and Studio gate (2791 composition), static scan of the Live source graph.
+- `live-remote-source-1102.test.cjs`: verbatim copy of the retained PR #646 remote-config test (maps to 2782-2788).
+- `out/live-batch2-results.json`: per-probe input / expected / actual / side effects / limits.
+- `out/a2-batch2-ledger.json`: 43-cell mapping proposal and count reconciliation (alone and cumulative with batch 1).
+- `out/live-batch2-mutations.md`: mutation controls, including two equivalent survivors.
+- `out/live-run1-mounted-concurrency-remote.txt`: retained suites re-run at this head, 56/56. `out/live-run2-batch2-final.txt`: 9/9.
+
+## Limits
+
+Live is an on-device camera with no provider and no endpoint. Cells phrased as endpoint/provider probes are either N/A by construction (proposed) or mapped to the only remote dependency, the `app_config` availability read (2782-2788, flagged for a ruling). Nothing here is a device run; cells 2777-2780 stay device-excluded.
