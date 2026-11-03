@@ -3,6 +3,7 @@ import { createDiscoveryAuthenticator } from './accountAuthorization.ts';
 import { discoveryFlags, type CatalogRow, type OwnershipIdentity } from './contracts.ts';
 import { createDiscoveryService } from './engine.ts';
 import { createDiscoveryHandler } from './handler.ts';
+import { subtypeMatchKeys } from './validation.ts';
 import { sponsorshipSnapshot } from './sponsorshipStore.ts';
 import { createShadowEvaluator, shadowScheduler } from './sponsorshipShadow.ts';
 
@@ -18,9 +19,18 @@ const discover = createDiscoveryService({
     return rows[0].revision;
   },
   candidates: async (input, signal) => {
-    const data = await query('rpc/discovery_candidates', { p_category: input.garment.item_type, p_subtype: input.garment.subtype ?? '', p_market: input.market }, signal);
-    if (!Array.isArray(data?.rows) || data.rows.length > 160 || !Number.isSafeInteger(data.revision)) throw new Error('invalid_catalog_snapshot');
-    return { revision: data.revision as number, rows: data.rows as CatalogRow[], ownership: {} };
+    // One indexed lookup per canonical subtype key (at most four); the engine
+    // re-applies the same rule, so a row can never match on SQL alone.
+    const snapshots = await Promise.all(subtypeMatchKeys(input.garment.subtype).map((key) =>
+      query('rpc/discovery_candidates', { p_category: input.garment.item_type, p_subtype: key, p_market: input.market }, signal)));
+    const rows = new Map<string, CatalogRow>();
+    let revision: number | undefined;
+    for (const data of snapshots) {
+      if (!Array.isArray(data?.rows) || data.rows.length > 160 || !Number.isSafeInteger(data.revision)) throw new Error('invalid_catalog_snapshot');
+      revision = revision === undefined ? data.revision : Math.min(revision, data.revision);
+      for (const row of data.rows as CatalogRow[]) if (rows.size < 160 && !rows.has(row.id)) rows.set(row.id, row);
+    }
+    return { revision: revision ?? 0, rows: [...rows.values()], ownership: {} };
   },
   ownership: async (input, signal) => await query('rpc/discovery_primary_ownership', { p_products: input.primaryProducts }, signal) as Record<string, OwnershipIdentity>,
   event: (event, payload) => console.info(JSON.stringify({ event, ...payload })),

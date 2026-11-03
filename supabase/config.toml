@@ -202,5 +202,9 @@ site_url = "http://127.0.0.1:3000"
 [functions.black-owned-discovery]
 verify_jwt = true
 
+# Scheduled catalog maintenance. Worker-secret only; no JWT or customer path.
+[functions.black-owned-catalog-sync]
+verify_jwt = false
+
 [functions.sponsorship-sandbox]
 verify_jwt = true

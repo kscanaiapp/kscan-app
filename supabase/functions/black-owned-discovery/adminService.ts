@@ -28,3 +28,7 @@ export const catalogStore: CatalogStore = {
   failed: async (id, key, code, signal) => { await rpc('discovery_sync_failed', { p_merchant: id, p_key: key, p_code: code }, signal); },
 };
 export async function cleanupDiscovery(actorId: string) { await rpc('discovery_cleanup', { p_actor: actorId }); }
+/** Durable disqualification; a later feed sync cannot re-validate a rejected product. */
+export async function moderateProduct(actorId: string, productId: string, decision: 'reject' | 'restore') {
+  await rpc('discovery_moderate_product', { p_actor: actorId, p_product: productId, p_decision: decision });
+}
