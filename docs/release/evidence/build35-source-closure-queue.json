@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T02:05:54.005Z",
+  "capturedAt": "2026-11-03T02:13:12.601Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -93,8 +93,8 @@
     "pr": 685,
     "head": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
     "tree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
-    "status": "CANONICAL POSTMERGE GREEN / MOBILE686 f1930 CI PENDING",
-    "next": "686 exact-head CI/reviews/normal green merge and nine independent push workflows; then B004 authorized P4. No database/deployment action.",
+    "status": "CANONICAL AND MOBILE MERGED / MOBILE POSTMERGE CI PENDING",
+    "next": "Finish all nine6cca independent push workflows and capture actual Project log; closeF025source; then B004 authorizedP4. No migration application/deployment.",
     "mobilePreparation": {
       "worktree": "C:/b35settlementmobile1102",
       "branch": "promotion/build35-trusted-settlement-1102",
@@ -125,7 +125,17 @@
       "campaignValidation": "36focusedPASS/0FAIL;209allStagingPASS/0FAIL/58declaredSKIP;6cleanf1930sourcegatesexit0;runtime/SQL/manifestsunchanged"
     },
     "canonicalMerge": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
-    "reviewedChecks": "33success/13conditionalSKIP;reviewsandthreadsempty;CLEANready;normalprotectedmerge"
+    "reviewedChecks": "33success/13conditionalSKIP;reviewsandthreadsempty;CLEANready;normalprotectedmerge",
+    "mobileMerge": {
+      "pr": 686,
+      "sha": "6ccac16c1d9aad3be9cb8a2d6437f449e5639954",
+      "reviewed": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+      "testedMerge": "08247d8353864c34898a4391aaf1b2c1d6009c3f",
+      "tree": "b64be0e6c2b8dca8d4bc443ff05b0a190d387365",
+      "reviewedChecks": "35SUCCESS/19conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmergewithstandingownerapproval",
+      "reviewedFullSuite": "11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL",
+      "postmerge": "9independentworkflowsPENDING"
+    }
   },
   "queued": [
     {

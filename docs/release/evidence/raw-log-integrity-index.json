@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T02:05:54.005Z",
+  "capturedAt": "2026-11-03T02:13:12.601Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4191,6 +4191,16 @@
       "archiveSha256": "34ad16a167e8c29165adc88c5079bb6406669f00713957389b4e0a8207d32c7c",
       "encoding": "UTF-16LE BOM",
       "disposition": "Corrected exact explicit new migration version; no weakened unknown/order/selection controls"
+    },
+    {
+      "rawFile": "pr686-final-reviewed-project-raw.log",
+      "rawBytes": 5327386,
+      "rawSha256": "b9b5b8b3404c44e05966ca17e0314bc01398ceb3c5f226d1d384eb660e6673ca",
+      "archiveFile": "resume1102-pr686-final-reviewed-project-raw.log.gz",
+      "archiveBytes": 649796,
+      "archiveSha256": "461f242973cb788281216785132be9cefbf78694116068ee88f79d257bf4bf7c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Exact f1930 reviewed fullNode11465PASS/0FAIL/96SKIP;backend1592PASS/0FAIL;not merged-branch/runtime/device certification"
     }
   ]
 }

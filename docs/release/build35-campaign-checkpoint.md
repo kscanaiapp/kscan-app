@@ -1,3 +1,9 @@
+## F025 canonical/mobile merged — independent mobile CI pending
+
+Mobile **6ccac16c1d9aad3be9cb8a2d6437f449e5639954**, backend **9512a1814f92796cd77baa6557a8a78a4fd016c5**. [PR686](https://github.com/kscanaiapp/kscan-app/pull/686) merged normally after **35 successful / 19 conditional-skipped / zero failed checks**, CLEAN/ready, no review threads or submitted reviews. Reviewed f1930fa9, tested merge08247d83 and merged6ccac16c share tree **b64be0e6c2b8dca8d4bc443ff05b0a190d387365**. Reviewed full suite **11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL**. Backend seven independent workflows already successful; nine mobile workflows pending.
+
+F025 source closure awaits those branch checks;22of23previousP0-P3closed. Migration20261103011431 **NOT APPLIED** in either environment. Matrix137PASS/1FAIL/2958NOT TESTED; 425 lossless archives verified. B004/P4 is next after closure; #682 held, W1/W2 unconfirmed. No deployed/runtime/device/release certification, Production mutation, migration application, EAS or deletion-cycle work. Exact next: finish nine6cca workflows, capture actual merged Project evidence, close F025, then B004.
+
 ## F025 mobile686 CI correction and one exact probe reconciliation
 
 Mobile authority09f0/backend9512 unchanged. PR686 **f1930fa91425fff8a15bd083c0c33249e9e92d43**, treeb64be0e6, awaits current-head CI. First fullNodeCI11462PASS/3FAIL/96SKIP correctly refused an omitted version in the mobile-only migration campaign test. Add only20261103011431 to its exact list, retaining all single-version/order/unknown/batch/refusal controls; promotion test pins that exact diff. **36focusedPASS;209allStagingPASS/0FAIL/58declaredSKIP;sixclean-sourcegatesexit0**. Runtime/SQL/manifests unchanged from locally tested1710 (1592backendPASS,TypeScript0).

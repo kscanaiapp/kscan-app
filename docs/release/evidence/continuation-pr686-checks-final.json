@@ -1,0 +1,333 @@
+{
+  "capturedAt": "2026-11-03T02:11:46.661Z",
+  "counts": {
+    "pass": 35,
+    "skipping": 19
+  },
+  "rows": [
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125682243616",
+      "name": "Security summary",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125681994258",
+      "name": "Security summary",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125681239641",
+      "name": "Staging security gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125681028368",
+      "name": "Staging health checks",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125681028431",
+      "name": "Synthetic auth tests",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125681027839",
+      "name": "Deploy staging candidate",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125680923562",
+      "name": "Contract tests",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125680923532",
+      "name": "Migration validation",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794433/job/125680816501",
+      "name": "Classify changed surfaces",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680779243",
+      "name": "Staging security gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680705865",
+      "name": "Synthetic auth tests",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680704827",
+      "name": "Deploy staging candidate",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680705297",
+      "name": "Staging health checks",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680410148",
+      "name": "Migration validation",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330254",
+      "name": "VTO E2E — contract",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329965",
+      "name": "Semgrep Community Edition",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680410235",
+      "name": "Contract tests",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329956",
+      "name": "OSV-Scanner",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329857",
+      "name": "npm audit",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329783",
+      "name": "Gitleaks",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329734",
+      "name": "Trivy filesystem",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680350475",
+      "name": "VTO E2E — staging dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794468/job/125680328491",
+      "name": "Security promotion gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680328585",
+      "name": "VTO scope guard (enforced)",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794380/job/125680328531",
+      "name": "ZAP API staging",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794377/job/125680328417",
+      "name": "Dependency reachability gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794364/job/125680328394",
+      "name": "ZAP Baseline (staging)",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794551/job/125680329470",
+      "name": "Project checks",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794375/job/125680328427",
+      "name": "Build 35 release holds and identity",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330077",
+      "name": "VTO E2E — cleanup",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330148",
+      "name": "VTO E2E — staging full certification (paid)",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330125",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330519",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330778",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563794485/job/125680330522",
+      "name": "VTO E2E — staging dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788974/job/125680310744",
+      "name": "Build 35 release holds and identity",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789039/job/125680311633",
+      "name": "ZAP API staging",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680311333",
+      "name": "Semgrep Community Edition",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789000/job/125680310410",
+      "name": "Security promotion gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680311392",
+      "name": "VTO E2E — contract",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680311194",
+      "name": "Gitleaks",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680311245",
+      "name": "npm audit",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680311224",
+      "name": "Project checks",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680311300",
+      "name": "Trivy filesystem",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788964/job/125680310949",
+      "name": "OSV-Scanner",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789059/job/125680311347",
+      "name": "Classify changed surfaces",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789029/job/125680311158",
+      "name": "Dependency reachability gate",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "pass",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563788976/job/125680310668",
+      "name": "ZAP Baseline (staging)",
+      "state": "SUCCESS"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680313061",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680312774",
+      "name": "VTO E2E — cleanup",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680312798",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680313187",
+      "name": "VTO E2E — staging full certification (paid)",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680312456",
+      "name": "VTO scope guard (enforced)",
+      "state": "SKIPPED"
+    },
+    {
+      "bucket": "skipping",
+      "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41563789057/job/125680313126",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "state": "SKIPPED"
+    }
+  ]
+}
