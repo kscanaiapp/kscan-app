@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T01:25:55.485Z",
+  "capturedAt": "2026-11-03T01:39:20.725Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4051,6 +4051,36 @@
       "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
       "encoding": "UTF-8",
       "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
+    },
+    {
+      "rawFile": "pr685-project-failed-raw.log",
+      "rawBytes": 4864706,
+      "rawSha256": "71285c4f5aa51325fdeb53e00f44a29ce506e734d2523179b712d46729c012c3",
+      "archiveFile": "resume1102-pr685-project-failed-raw.log.gz",
+      "archiveBytes": 544502,
+      "archiveSha256": "19875cf5eeeaa32ca7c77ac55297a4f03a92356da7d4c1474d0cb4dfb5d79007",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initialcorrectservice-roleinventoryrefusal;Node8571PASS/backend1574PASS1FAILretained"
+    },
+    {
+      "rawFile": "settlement-full-backend-1102.log",
+      "rawBytes": 462490,
+      "rawSha256": "5fed81ae404c26bfbecdeea406ca1db4e486885ba1fd103e7f466918ab04e659",
+      "archiveFile": "resume1102-settlement-full-backend-1102.log.gz",
+      "archiveBytes": 57494,
+      "archiveSha256": "b0d6b820a209cd72d5649a4a2d28e343351bc4bfe1f786bb6cc1819e5b75e4a4",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Full1576DenoPASSor142relatedNodePASSafterdocumentedexactnewholderandnarrownegativeprivilegecontrols;nosuppression/noruntimeclaim"
+    },
+    {
+      "rawFile": "settlement-related-inventory-node-1102.log",
+      "rawBytes": 26384,
+      "rawSha256": "3cdecbc0ee9a56c9b5ed4ad2b9a667ac0f3cde67e53c04da425f0a49bcea0fc9",
+      "archiveFile": "resume1102-settlement-related-inventory-node-1102.log.gz",
+      "archiveBytes": 4402,
+      "archiveSha256": "6cec05d87f5059198a3c3729085a6ddf057f4f95e64ce632be357f1fda911a7e",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Full1576DenoPASSor142relatedNodePASSafterdocumentedexactnewholderandnarrownegativeprivilegecontrols;nosuppression/noruntimeclaim"
     }
   ]
 }

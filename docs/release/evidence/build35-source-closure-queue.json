@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T01:25:55.485Z",
+  "capturedAt": "2026-11-03T01:39:20.725Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -91,10 +91,24 @@
     "item": "F025 trusted actor-scoped settlement canonical/mobile closure",
     "finding": "B35-F-025",
     "pr": 685,
-    "head": "076a5f0c7fc360b56edaae037db351b623eaa28b",
-    "tree": "22cbb247d9cb56a7a92f90abcea71f29b56e770a",
-    "status": "SOURCE REPAIRED / CANONICAL CI PENDING / MOBILE CONVERGENCE REQUIRED",
-    "next": "Finish685exactheadCI/reviews,normalgreenmerge,7canonicalpushchecks;exactboundedmobilepromotionand9pushchecks;thenB004. No migration application/deployment. Underlyingauditcontinues."
+    "head": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
+    "tree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
+    "status": "SOURCE REPAIRED / INVENTORY REVIEW DOCUMENTED / UPDATED CANONICAL CI PENDING",
+    "next": "Finish685exactheadCI/reviews,normalgreenmerge,7canonicalpushchecks;exactboundedmobilepromotionand9pushchecks;thenB004. No migration application/deployment. Underlyingauditcontinues.",
+    "mobilePreparation": {
+      "worktree": "C:/b35settlementmobile1102",
+      "branch": "promotion/build35-trusted-settlement-1102",
+      "head": "09f0abad1a443c2601aaddc9c26e85b636c216c4",
+      "state": "CLEAN / NO SOURCE EDIT",
+      "requiredNotes": [
+        "Copyexactcanonicalhandler/newmigration/privilegedinventorytest/SQLfixturesandtests;regenmobilemanifest,preserveownership",
+        "57existingpromotiongrants:advanceonlyreceipthandlerandadd2explicitcanonicalrows(newmigration+phase2b4CrossPath.test.ts),total59",
+        "PreserveC023andF024historicalmetadata;addseparateF025metadataandnegativecontrols",
+        "Priorpromotiontestscurrentauthorityadvances;historical51/53/56/57rowcomparisonsmustretainallrowsplus2explicitnewgrants",
+        "Scanfunctionmanifestmaychangeonlytestfilehash/treeHash;bundlehash/runtimefilesunchanged. DeriveexpectedtreewithaggregateHash andcanonicalguardfilehash,preserveallunrelatedfunctions",
+        "No mobilecopybeforecanonicalgreenmerge;noProduction/migrationapplication"
+      ]
+    }
   },
   "queued": [
     {
