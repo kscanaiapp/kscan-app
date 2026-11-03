@@ -939,6 +939,11 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: 'invalid_body', code: 'invalid_body' }, 400);
   }
+  // Syntactically valid JSON can still be null, an array, or a primitive.
+  // Refuse those shapes before reading body.action or entering any mutation.
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return json({ error: 'invalid_body', code: 'invalid_body' }, 400);
+  }
 
   // Revalidate account state before any watch mutation. Delivery cleanup
   // remains available during deletion so a departing actor can disarm routes.
