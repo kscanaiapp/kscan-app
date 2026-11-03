@@ -1,3 +1,9 @@
+## Current lead checkpoint — November3 (supersedes historical queue/counts below)
+
+Backend6d961567/mobile2c2c9da4;F024,F025,B004andW1/E026sourceclosed. W1canonical689/mobile687fullygreenwith7+9postworkflows;duplicate690closedunmerged,evidencepreserved. Do not redo these repairs. W2/E027P4isowner-authorizedandactivelylead-owned:canonicalPR700ate15f2cca,local8613NodePASS/67SKIP,1589backendPASS+34steps,TypeScript/fivegates0;CIpending,thenexistingmobile691. Originalmatrix138PASS/1P4FAIL/2957NOTTESTED;0141actualnullfailurepreserveduntilsourceconvergence. All24confirmedP0-P3sourceclosedwithinexecutedcoverage;fullauditincomplete.
+
+Agent2coverage/sourceequivalenceandremainingAuth/provider/stateprobesremainuseful;Agent3mustnotduplicateW1/W2orreopen690;otherdisjointtestinglanesbelowremainpermitted. Centralhandlers/manifests/promotionhelpers/migrations/ledgersstaylead-serialized. No devicecertification,Productionrollout,migrations,binary/storeactions;deletioncyclerepairsdeferred;TestSpriteexplicitlywaivedbyowner(no credits). [Currentcheckpoint](build35-campaign-checkpoint.md) and [closurequeue](evidence/build35-source-closure-queue.json) overrideolderSHAs/countsbelow.
+
 # Build 35 parallel-agent task board — November 2, 2026
 
 Read the [current handoff](build35-owner-handoff-2026-11-02.md), checkpoint and retained evidence first. Audit remains incomplete. Device certification is excluded; deletion-cycle repairs are deferred. Prior completed source-work items are not to be restarted.
