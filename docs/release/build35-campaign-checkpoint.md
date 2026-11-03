@@ -1,3 +1,9 @@
+## B004 canonical/mobile merged — mobile post-merge checks pending
+
+Mobile **77a6b97f86b21bf619e051646b635e3ce26b7f73**, canonical **53bf7cc2aeeeceb556ef2d01671c941038c83bfc**.699mergednormallyafter34successful/20conditional-skippedchecks;review2109/test3d526c7a/final77a6share7a874ad3tree. Actualreview**11477NodePASS/0FAIL/96SKIP;1604backendPASS/17handlersteps/0FAIL**. Canonical7/7independentSUCCESS;mobile7/9SUCCESS,fullProjectandPromotionGatepending.
+
+B004/P4sourceclosureawaitsremainingchecks;original0915FAILretained. Matrix137PASS/1FAIL/2958NOT TESTED;23priorP0-P3sourceclosed;440archivesrehash/decompressverified. Exactnextfinish77a6postCI/raw,closeB004/reconcileoriginalnullprobe,thenoriginalaudit/Watchlistdrafts. Catalog/discoverydeploymentsandzeroinventoryseparatelyrecorded;sourceconsumerflagsstillnotruntimeverified;694DRAFT/HOLD. No deployment/migration/flag/EAS/device/deletion-cycleactionbythiscontinuation. AUDIT IN PROGRESS.
+
 ## B004 canonical698 closed — mobile699 in CI
 
 Canonical **53bf7cc2aeeeceb556ef2d01671c941038c83bfc**, mobile authority **ab26dd9b0dbe5fab9a8e06ea31deb0e5568ffedf**.698mergednormallyafter32successful/14conditional-skippedchecks;review28321246/test260ae52c/final53bfsharede0ef02ctree. **7/7 independent canonical workflowsSUCCESS;actual8581NodePASS/0FAIL/65SKIP;1588backendPASS/17steps/0FAIL.**
