@@ -16,7 +16,7 @@ import { parsePackingResponse } from './packingResponse';
 import {
   GEMINI_CONSENT_REQUIRED_CODE,
   GEMINI_CONSENT_REQUIRED_MESSAGE,
-  readGeminiConsentDenial,
+  isGeminiConsentDenial,
 } from '../geminiConsentDenial';
 export { parsePackingPlan, parseGeneralGuide, parsePackingResponse } from './packingResponse';
 
@@ -37,6 +37,37 @@ export interface PackingRequestInput {
     packLight?: boolean;
     notes?: string[];
   };
+}
+
+/**
+ * supabase-js returns a non-2xx Edge response as FunctionsHttpError whose
+ * `context` is the fetch Response. Its body can be read once, so it is read
+ * here exactly once; a consumed or non-JSON body yields null.
+ */
+async function readHttpErrorBody(error: unknown): Promise<{ status: number; body: unknown } | null> {
+  try {
+    const context = (error as { context?: unknown })?.context as
+      | { status?: unknown; json?: () => Promise<unknown> }
+      | undefined;
+    if (!context || typeof context.status !== 'number' || typeof context.json !== 'function') return null;
+    return { status: context.status, body: await context.json() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The Packing handler answers a lapsed K+ (403) and a failed usage check (500)
+ * with its own versioned envelope. That envelope explains the real cause and
+ * goes through the same validator as a 200; anything else stays a transport
+ * failure.
+ */
+function isPackingFailureEnvelope(body: unknown): body is Record<string, unknown> {
+  return !!body && typeof body === 'object' && !Array.isArray(body)
+    && typeof (body as Record<string, unknown>).contractVersion === 'string'
+    && typeof (body as Record<string, unknown>).message === 'string'
+    // An HTTP failure may explain a failure, but cannot certify a new plan.
+    && ['error', 'not_entitled', 'no_result'].includes((body as Record<string, unknown>).status as string);
 }
 
 export async function requestPackingPlan(input: PackingRequestInput): Promise<PackingResult> {
@@ -62,7 +93,10 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
     });
 
     if (error) {
-      if (await readGeminiConsentDenial(error)) {
+      // supabase-js reports our own abort as a returned fetch error, not a throw.
+      if (controller.signal.aborted) return timeoutResult();
+      const http = await readHttpErrorBody(error);
+      if (http && isGeminiConsentDenial(http.status, http.body)) {
         // A user-controlled setting, not a connection problem: retrying cannot help.
         return {
           status: 'error',
@@ -73,6 +107,7 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
           retryable: false,
         };
       }
+      if (http && isPackingFailureEnvelope(http.body)) return parsePackingResponse(http.body);
       return {
         status: 'error',
         message: 'I could not reach K Scan to build your plan. Check your connection and try again.',
@@ -85,15 +120,19 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
 
     return parsePackingResponse(data);
   } catch {
-    return {
-      status: 'error',
-      message: 'Building your plan took too long. Your trip details are still here — try again.',
-      plan: null,
-      generalGuide: null,
-      errorCode: 'PACKING_TIMEOUT',
-      retryable: true,
-    };
+    return timeoutResult();
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function timeoutResult(): PackingResult {
+  return {
+    status: 'error',
+    message: 'Building your plan took too long. Your trip details are still here — try again.',
+    plan: null,
+    generalGuide: null,
+    errorCode: 'PACKING_TIMEOUT',
+    retryable: true,
+  };
 }

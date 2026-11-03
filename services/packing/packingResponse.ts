@@ -265,6 +265,7 @@ export function parsePackingResponse(raw: unknown): PackingResult {
     plan,
     generalGuide: status === 'general_mode' ? parseGeneralGuide(raw.generalGuide) : null,
     errorCode,
-    retryable: status === 'error' || status === 'no_result',
+    // The daily limit resets tomorrow; a TRY AGAIN today can only fail again.
+    retryable: (status === 'error' || status === 'no_result') && errorCode !== 'PACKING_LIMIT_REACHED',
   };
 }
