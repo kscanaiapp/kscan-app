@@ -1,0 +1,130 @@
+{
+  "at": "2026-11-03T23:49:34.732Z",
+  "id": "B35-INT-002",
+  "priority": "P1",
+  "title": "Onboarding acknowledgment crosses actor changes and duplicate continuations",
+  "baseline": "e898004e64be131fa12925522699274ca1d7cc5a",
+  "repairedRuntimeSource": "a9db8ef736af90f7400d7937ae91c3ad5dc20ee3",
+  "status": "SOURCE-REPAIRED; governed PR and final merge/CI disposition tracked in #706",
+  "platform": "Shared iOS/Android source; native/auth/database transports synthetic",
+  "reproduction": "node --test __tests__/onboardingMountedConsentJourney.test.js",
+  "before": {
+    "tests": 9,
+    "PASS": 4,
+    "FAIL": 5,
+    "SKIP": 0
+  },
+  "afterWithRelatedOnboardingContracts": {
+    "tests": 52,
+    "PASS": 52,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "additionalRelatedControls": {
+    "tests": 68,
+    "PASS": 68,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "typescriptExit": 0,
+  "actual": [
+    "Delayed A receipt write advanced mounted B into Permissions with inherited checkbox choices.",
+    "Session resolution delayed until B produced a receipt operation attributed to B for the tap made by A.",
+    "Two callbacks before rerender created two receipt operations and could advance more than one step."
+  ],
+  "severityArgument": "Material consent attribution defect: get_ai_processing_permission in migration 20261029184000 accepts a current actor receipt plus default grant when no withdrawal state exists. A receipt written for B by the previous actor tap can therefore satisfy that authority. No live Gemini transfer or Production exploitation was executed or claimed.",
+  "rootCause": "The screen did not fence pending legal writes/continuations or reset actor-bound choices. The service derived identity after awaiting getSession without checking the identity that made the acknowledgment.",
+  "repair": "Expected actor is a comparison fence only; receipt user_id still comes from current authenticated session. Reject changed identity before upsert. Actor/request epochs discard old continuations, reset choices and serialize rapid callbacks.",
+  "boundariesPreserved": [
+    "No legal wording/version change",
+    "No backend/RLS/schema/migration change",
+    "No provider or Production call",
+    "No device/build claim",
+    "No duplicate #703 residual image cases",
+    "Historical mandatory matrix untouched"
+  ],
+  "commands": {
+    "after": "node --test __tests__/onboardingMountedConsentJourney.test.js __tests__/legalAcceptance.test.js __tests__/onboardingCompletion.test.js __tests__/onboardingHandoffRecovery.test.js __tests__/onboardingAiConsent.test.js __tests__/build35GeminiConsentDisclosure.test.js",
+    "related": "node --test __tests__/premiumCapabilityFingerprint.test.js __tests__/authPrivacy.test.js __tests__/geminiConsentDenialClients.test.js",
+    "typescript": "node node_modules/typescript/bin/tsc --noEmit"
+  },
+  "sourceFiles": [
+    {
+      "file": "app/onboarding/index.tsx",
+      "sha256": "94c3fa09428ba1bb775a7bce47ae7c8582c3b39f103647ae476aeb3f9e8efb23",
+      "gitBlob": "ce2f60fbf49da064f73684fec8ca50623f842848"
+    },
+    {
+      "file": "services/legalAcceptance.ts",
+      "sha256": "81cadc5fcd68d27a605c7ae3978ab24750d2160cf9ae1adbe93d3c5b09899e19",
+      "gitBlob": "47f29c54cd960fe1c625ac3bdf9dd1e60111f1f3"
+    },
+    {
+      "file": "__tests__/onboardingMountedConsentJourney.test.js",
+      "sha256": "11cacbf96a1ff3f5250ab6c277e442e4785e852885c61aaa06bc7db7a2998248",
+      "gitBlob": "3820f3f4056242ce37e3613c227e6e1e54f06511"
+    }
+  ],
+  "archives": [
+    {
+      "file": "onboarding-mounted-before.log.gz",
+      "rawBytes": 2642,
+      "rawSha256": "7a80de1efb880a0fd6aec7a4280872212dbeb6c45dedc0a7842dceacf7e51300",
+      "archiveBytes": 748,
+      "archiveSha256": "03a555f9809b616975cbc967db360f56fc359854364b3896a3003a1dc701be4f",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "onboarding-mounted-before-expanded.log.gz",
+      "rawBytes": 8842,
+      "rawSha256": "d41640e86a4676dc48dd7b0863a319f19128bf2f841d885b85a9227585b01411",
+      "archiveBytes": 1077,
+      "archiveSha256": "32ea23d22dd6c2a6d02c3635a3180adeaac83aa9a25690928ba736bd066c7ccd",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "onboarding-mounted-after.log.gz",
+      "rawBytes": 8136,
+      "rawSha256": "044f78fca0fc84141313da93557b681a9980cfeea001974b963c319d76540b20",
+      "archiveBytes": 2037,
+      "archiveSha256": "4486271211eac91a883af984de274a674bfedcaa532f55a478a6ec921b5afae8",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "onboarding-related-controls.log.gz",
+      "rawBytes": 11142,
+      "rawSha256": "7c588d931a7f97e1ddbe91ff91e12210d1d134cc82794a92799ae9808d0ab125",
+      "archiveBytes": 2637,
+      "archiveSha256": "c12804ce0c08c53482c55d2e9aa124dd0214385ea01b96e8969492bd7ff0eb48",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "onboarding-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output alone is not proof; exit code separately recorded as 0"
+    },
+    {
+      "file": "onboarding-typescript-final.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output alone is not proof; exit code separately recorded as 0"
+    }
+  ],
+  "priorSourceClosures": {
+    "Watchlist691": "40122f80e4a24a8761b22e3154f06934ae579653",
+    "Packing711": "9af28fb05e1195fe8b8cbc980568b0b408e921ed",
+    "Installer719": "1db2de1d6948bbec49f2b7df15b018ce3b6c29c7",
+    "Register718": "e898004e64be131fa12925522699274ca1d7cc5a"
+  }
+}
