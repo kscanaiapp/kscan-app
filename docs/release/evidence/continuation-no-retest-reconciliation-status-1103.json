@@ -1,7 +1,7 @@
 {
   "capturedAt": "2026-11-03T19:49:11.456Z",
   "directive": "https://github.com/kscanaiapp/kscan-app/pull/646#issuecomment-6612758143",
-  "phase": "RECONCILIATION COMPLETE / READY TO PUBLISH IN646 / NO NEW TESTS",
+  "phase": "BOUNDED BATCH COMPLETE / STOP AT EVIDENCE CHECKPOINT / AUDIT IN PROGRESS",
   "authorities": {
     "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
     "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
@@ -43,7 +43,7 @@
       "691WatchlistW2opendraft596e2c01;local90f07f5eoldbaselinepreserved,do not overwrite remote;preservebothpremiumfingerprintchanges"
     ]
   },
-  "next": "Publish original matrix and immutable artifact adjudication to draft646,then select at most10-20 genuinely untested release-critical original cells,excluding703 and completed evidence;one bounded batch then checkpoint.",
+  "next": "Review current #691/#711 source integration and exact-head security gate/Contract artifact failure separately;do not rerun completed suites. Await #703 evidence and #706 recovery. No next hostile test batch started by this checkpoint.",
   "adjudication": {
     "at": "2026-11-03T19:49:11.456Z",
     "status": "RECONCILED / NO NEW TEST EXECUTION",
@@ -83,5 +83,23 @@
       "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5"
     },
     "newTestsRun": 0
+  },
+  "boundedBatch": "bounded-quota-1103/batch-checkpoint.json",
+  "currentOriginalMatrix": {
+    "total": 3096,
+    "PASS": 220,
+    "NOT TESTED": 2875,
+    "FAIL": 1,
+    "NAIncludedInNT": 354,
+    "newPASS": [
+      "B35-MAND-1185",
+      "B35-MAND-1142",
+      "B35-MAND-1180"
+    ],
+    "partialStillNT": [
+      "B35-MAND-1141",
+      "B35-MAND-1184"
+    ],
+    "failureUnchanged": "B35-MAND-0141/#691"
   }
 }

@@ -31040,31 +31040,35 @@
           "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
         }
       }
+    },
+    "supplementalEvidence": {
+      "evidence": "bounded-quota-1103/batch-checkpoint.json",
+      "actual": "Real SQL two-session last-slot and optional same-key quota accounting controls pass.",
+      "remaining": "Full logical generation/provider-dispatch idempotency is not established by atomic quota accounting;default optional flags not enabled by this test."
     }
   },
   {
     "endpoint": "function:style-outfit-generate",
     "probe": "10 retries in 1 second",
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Handler honors injected limiter denials,but the quota-limiting SQL itself was substituted. The original ten-in-one-second authoritative enforcement case remains open;retain source fail-closed branch evidence.",
+    "actual": "Ten real PostgreSQL burst RPC calls in a single fixed-minute transaction:3 admitted,7 refused;stored admitted counter3;SQL elapsed0.005242s. A2 actual handler refuses blocked quota before provider.",
+    "verdict": "PASS",
+    "reason": "New previously-uncovered real SQL boundary plus retained unchanged actual-handler evidence.",
     "probeId": "B35-MAND-1142",
     "feature": "style-outfit-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
     "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Network-none disposable PostgreSQL17;synthetic auth.uid fixture and unchanged quota definitions",
+    "evidence": "bounded-quota-1103/batch-checkpoint.json#B35-QUOTA-SQL-02",
+    "executionMethod": "node quota-boundary-batch.cjs (retained first version10cases);corrected observer reruns only01/02. Never run both on shared databases.",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+    "reverificationStatus": "SOURCE SQL CONTROL PASS;RPC/SQL source composition only;no live provider/HTTP or JWT assertion;fixed window rather than sliding window.",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed matching source SQL control",
+      "reason": "RPC/SQL source composition only;no live provider/HTTP or JWT assertion;fixed window rather than sliding window.",
+      "reviewSourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c"
     },
     "evidenceAdjudication": {
       "at": "2026-11-03T19:49:11.392Z",
@@ -31094,6 +31098,66 @@
           "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
           "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
           "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        }
+      }
+    },
+    "newBoundedBatch": {
+      "caseId": "B35-QUOTA-SQL-02",
+      "at": "2026-11-03T19:58:06.454Z",
+      "prior": {
+        "endpoint": "function:style-outfit-generate",
+        "probe": "10 retries in 1 second",
+        "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+        "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+        "verdict": "NOT TESTED",
+        "reason": "Handler honors injected limiter denials,but the quota-limiting SQL itself was substituted. The original ten-in-one-second authoritative enforcement case remains open;retain source fail-closed branch evidence.",
+        "probeId": "B35-MAND-1142",
+        "feature": "style-outfit-generate",
+        "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+        "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
+        "environment": "Not executed at the requested complete boundary",
+        "evidence": null,
+        "executionMethod": "No attributed complete-boundary execution",
+        "linkedDefectId": null,
+        "repairReference": null,
+        "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+        "coverageDisposition": {
+          "category": 3,
+          "label": "Safely executable locally",
+          "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+          "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+          "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        },
+        "evidenceAdjudication": {
+          "at": "2026-11-03T19:49:11.392Z",
+          "manager": "Build35 primary audit manager",
+          "decision": "NOT TESTED",
+          "register": "delegated-no-retest-1103/manager-adjudication.json#B35-MAND-1142",
+          "prior": {
+            "endpoint": "function:style-outfit-generate",
+            "probe": "10 retries in 1 second",
+            "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+            "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+            "verdict": "NOT TESTED",
+            "reason": "Endpoint-specific 10 retries in 1 second harness and authorized valid-resource/provider fixture not implemented for style-outfit-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+            "probeId": "B35-MAND-1142",
+            "feature": "style-outfit-generate",
+            "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+            "sourceLocation": "supabase/functions/style-outfit-generate/index.ts",
+            "environment": "Not executed at the requested complete boundary",
+            "evidence": null,
+            "executionMethod": "No attributed complete-boundary execution",
+            "linkedDefectId": null,
+            "repairReference": null,
+            "reverificationStatus": "Pending",
+            "coverageDisposition": {
+              "category": 3,
+              "label": "Safely executable locally",
+              "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+              "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+              "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+            }
+          }
         }
       }
     }
@@ -32983,25 +33047,24 @@
     "endpoint": "function:stylechat-generate",
     "probe": "SQL injection per RPC parameter",
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Preserve the named missing boundary;completed related assertions are retained,not rerun.",
+    "actual": "Real latest idempotent SQL stores operation-key SQL-injection string literally;profiles table survives with2rows. Integer burst argument rejects SQL-shaped text with PostgreSQL type error. All StyleChat SDK.rpc callsites use named arguments;only requestId-derived text reaches p_operation_key under optional flag.",
+    "verdict": "PASS",
+    "reason": "New previously-uncovered real SQL boundary plus retained unchanged actual-handler evidence.",
     "probeId": "B35-MAND-1180",
     "feature": "stylechat-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Network-none disposable PostgreSQL17;synthetic auth.uid fixture and unchanged quota definitions",
+    "evidence": "bounded-quota-1103/batch-checkpoint.json#B35-QUOTA-SQL-09",
+    "executionMethod": "node quota-boundary-batch.cjs (retained first version10cases);corrected observer reruns only01/02. Never run both on shared databases.",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+    "reverificationStatus": "SOURCE SQL CONTROL PASS;Actual SQL input types and static statement control,not deployed PostgREST/WAF/JWT proof. Optional idempotency defaults off;feature enablement not inferred.",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed matching source SQL control",
+      "reason": "Actual SQL input types and static statement control,not deployed PostgREST/WAF/JWT proof. Optional idempotency defaults off;feature enablement not inferred.",
+      "reviewSourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c"
     },
     "evidenceAdjudication": {
       "at": "2026-11-03T19:49:11.391Z",
@@ -33031,6 +33094,66 @@
           "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
           "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
           "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        }
+      }
+    },
+    "newBoundedBatch": {
+      "caseId": "B35-QUOTA-SQL-09",
+      "at": "2026-11-03T19:58:06.454Z",
+      "prior": {
+        "endpoint": "function:stylechat-generate",
+        "probe": "SQL injection per RPC parameter",
+        "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+        "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+        "verdict": "NOT TESTED",
+        "reason": "Preserve the named missing boundary;completed related assertions are retained,not rerun.",
+        "probeId": "B35-MAND-1180",
+        "feature": "stylechat-generate",
+        "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+        "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
+        "environment": "Not executed at the requested complete boundary",
+        "evidence": null,
+        "executionMethod": "No attributed complete-boundary execution",
+        "linkedDefectId": null,
+        "repairReference": null,
+        "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+        "coverageDisposition": {
+          "category": 3,
+          "label": "Safely executable locally",
+          "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+          "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+          "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        },
+        "evidenceAdjudication": {
+          "at": "2026-11-03T19:49:11.391Z",
+          "manager": "Build35 primary audit manager",
+          "decision": "NOT TESTED",
+          "register": "delegated-no-retest-1103/manager-adjudication.json#B35-MAND-1180",
+          "prior": {
+            "endpoint": "function:stylechat-generate",
+            "probe": "SQL injection per RPC parameter",
+            "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+            "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+            "verdict": "NOT TESTED",
+            "reason": "Endpoint-specific SQL injection per RPC parameter harness and authorized valid-resource/provider fixture not implemented for stylechat-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+            "probeId": "B35-MAND-1180",
+            "feature": "stylechat-generate",
+            "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+            "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
+            "environment": "Not executed at the requested complete boundary",
+            "evidence": null,
+            "executionMethod": "No attributed complete-boundary execution",
+            "linkedDefectId": null,
+            "repairReference": null,
+            "reverificationStatus": "Pending",
+            "coverageDisposition": {
+              "category": 3,
+              "label": "Safely executable locally",
+              "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+              "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+              "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+            }
+          }
         }
       }
     }
@@ -33260,31 +33383,35 @@
           "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
         }
       }
+    },
+    "supplementalEvidence": {
+      "evidence": "bounded-quota-1103/batch-checkpoint.json",
+      "actual": "Real SQL two-session last-slot and optional same-key quota accounting controls pass.",
+      "remaining": "Full logical generation/provider-dispatch idempotency is not established by atomic quota accounting;default optional flags not enabled by this test."
     }
   },
   {
     "endpoint": "function:stylechat-generate",
     "probe": "10 retries in 1 second",
     "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Handler honors injected limiter denials,but the quota-limiting SQL itself was substituted. The original ten-in-one-second authoritative enforcement case remains open;retain source fail-closed branch evidence.",
+    "actual": "Ten real PostgreSQL burst RPC calls in a single fixed-minute transaction:4 admitted,6 refused;counter10;SQL elapsed0.003188s. Completed A2 source handler denial proves no provider on blocked RPC outcome.",
+    "verdict": "PASS",
+    "reason": "New previously-uncovered real SQL boundary plus retained unchanged actual-handler evidence.",
     "probeId": "B35-MAND-1185",
     "feature": "stylechat-generate",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
     "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
+    "environment": "Network-none disposable PostgreSQL17;synthetic auth.uid fixture and unchanged quota definitions",
+    "evidence": "bounded-quota-1103/batch-checkpoint.json#B35-QUOTA-SQL-01",
+    "executionMethod": "node quota-boundary-batch.cjs (retained first version10cases);corrected observer reruns only01/02. Never run both on shared databases.",
     "linkedDefectId": null,
     "repairReference": null,
-    "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+    "reverificationStatus": "SOURCE SQL CONTROL PASS;RPC/SQL source composition only;not ten HTTP requests,JWT verification,Production capacity or a sliding-window SLA. Fixed-minute edge allowance is documented product behavior.",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Executed matching source SQL control",
+      "reason": "RPC/SQL source composition only;not ten HTTP requests,JWT verification,Production capacity or a sliding-window SLA. Fixed-minute edge allowance is documented product behavior.",
+      "reviewSourceSha": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c"
     },
     "evidenceAdjudication": {
       "at": "2026-11-03T19:49:11.391Z",
@@ -33314,6 +33441,66 @@
           "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
           "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
           "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        }
+      }
+    },
+    "newBoundedBatch": {
+      "caseId": "B35-QUOTA-SQL-01",
+      "at": "2026-11-03T19:58:06.453Z",
+      "prior": {
+        "endpoint": "function:stylechat-generate",
+        "probe": "10 retries in 1 second",
+        "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+        "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+        "verdict": "NOT TESTED",
+        "reason": "Handler honors injected limiter denials,but the quota-limiting SQL itself was substituted. The original ten-in-one-second authoritative enforcement case remains open;retain source fail-closed branch evidence.",
+        "probeId": "B35-MAND-1185",
+        "feature": "stylechat-generate",
+        "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+        "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
+        "environment": "Not executed at the requested complete boundary",
+        "evidence": null,
+        "executionMethod": "No attributed complete-boundary execution",
+        "linkedDefectId": null,
+        "repairReference": null,
+        "reverificationStatus": "Related evidence reviewed;original boundary still NOT TESTED",
+        "coverageDisposition": {
+          "category": 3,
+          "label": "Safely executable locally",
+          "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+          "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+          "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        },
+        "evidenceAdjudication": {
+          "at": "2026-11-03T19:49:11.391Z",
+          "manager": "Build35 primary audit manager",
+          "decision": "NOT TESTED",
+          "register": "delegated-no-retest-1103/manager-adjudication.json#B35-MAND-1185",
+          "prior": {
+            "endpoint": "function:stylechat-generate",
+            "probe": "10 retries in 1 second",
+            "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+            "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+            "verdict": "NOT TESTED",
+            "reason": "Endpoint-specific 10 retries in 1 second harness and authorized valid-resource/provider fixture not implemented for stylechat-generate; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+            "probeId": "B35-MAND-1185",
+            "feature": "stylechat-generate",
+            "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+            "sourceLocation": "supabase/functions/stylechat-generate/index.ts",
+            "environment": "Not executed at the requested complete boundary",
+            "evidence": null,
+            "executionMethod": "No attributed complete-boundary execution",
+            "linkedDefectId": null,
+            "repairReference": null,
+            "reverificationStatus": "Pending",
+            "coverageDisposition": {
+              "category": 3,
+              "label": "Safely executable locally",
+              "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+              "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+              "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+            }
+          }
         }
       }
     }

@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T14:26:41.115Z",
+  "capturedAt": "2026-11-03T19:58:06.401Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4861,6 +4861,36 @@
       "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
       "encoding": "UTF-8",
       "disposition": "Exactmobilebodypromotionactualsourcevalidation;fullNodependingseparatefile. No provider/liveDB/device/deployment claim."
+    },
+    {
+      "rawFile": "bounded-quota-first-run-1103.log",
+      "rawBytes": 3850,
+      "rawSha256": "7bc46781de82d735fc3e3e09874c5c3c8f8f5e6bf5686f16bd7d53781c6c3707",
+      "archiveFile": "bounded-quota-first-run-1103.log.gz",
+      "archiveBytes": 978,
+      "archiveSha256": "4cd546c64e4b633a3bf645c8a435d62e488530f5f4a66d0000cb05c4e95348aa",
+      "encoding": "UTF-16LE BOM",
+      "source": "New bounded batch / first observer failure retained;not a second independent batch"
+    },
+    {
+      "rawFile": "bounded-quota-corrected-observer-1103.log",
+      "rawBytes": 1136,
+      "rawSha256": "f0d7f3d4ef6ca3c93dd78748e05eb9e802fb8073a0ffd21c2dd0ae4277b0749e",
+      "archiveFile": "bounded-quota-corrected-observer-1103.log.gz",
+      "archiveBytes": 493,
+      "archiveSha256": "91569735af141d4564c4e8d4cf2e4a6a9a81b55a60fe836a7d56d4abc6887948",
+      "encoding": "UTF-16LE BOM",
+      "source": "New bounded batch / first observer failure retained;not a second independent batch"
+    },
+    {
+      "rawFile": "delegated-evidence-terminology-guard-1103.log",
+      "rawBytes": 1946,
+      "rawSha256": "6f3c591223548bcdcf87803e387fa17edc423b96601ea6b607a292d1f437693d",
+      "archiveFile": "delegated-evidence-terminology-guard-1103.log.gz",
+      "archiveBytes": 738,
+      "archiveSha256": "a1074f50577247ec9d56b3f3d3d8aff61593b4b106542d4f8bfdcb5c4b2b3f17",
+      "encoding": "UTF-16LE BOM",
+      "source": "New bounded batch / first observer failure retained;not a second independent batch"
     }
   ]
 }
