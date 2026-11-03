@@ -450,6 +450,37 @@ test('candidate identity rejects stale source, wrong metadata and entrypoint; ex
   assert.throws(() => verifyCandidateIdentity(nextInput), /identity/);
 });
 
+test('type-only imports are erased by the bundler and are not required in the deployed closure', async (t) => {
+  const f = await fixture(t);
+  const { verifyCandidateIdentity } = await load('scripts/lib/production-candidate-identity.mjs');
+  const { digestTree, verifyCapture, buildCaptureManifest } = await load('scripts/lib/function-bundle-capture.mjs');
+  const approved = path.join(f.root, 'approved-functions');
+  const filesDir = path.join(f.original, 'files');
+  const handler = 'import type { Shape } from "./types.ts"; export type { Shape } from "./types.ts";\n' +
+    'export const handler = (): Response => new Response("ok");';
+  fs.writeFileSync(path.join(filesDir, 'scan-identify/handler.ts'), handler);
+  fs.cpSync(filesDir, approved, { recursive: true });
+  // The approved checkout has the type module; the bundle does not, exactly as a deployed ESZIP.
+  fs.writeFileSync(path.join(approved, 'scan-identify/types.ts'), 'export interface Shape { a: string }');
+  const tree = digestTree(filesDir);
+  const capture = buildCaptureManifest({ functionName: 'scan-identify', projectRef: production, liveVersion: 173,
+    verifyJwt: false, ezbrSha256: 'c'.repeat(64), status: 'ACTIVE', files: tree.files, treeDigest: tree.treeDigest,
+    bundleLayout: 'functions-root' });
+  const capturePath = path.join(f.original, 'capture.json');
+  fs.writeFileSync(capturePath, JSON.stringify(capture));
+  assert.equal(verifyCapture({ capture, captureRoot: filesDir,
+    expected: { functionName: 'scan-identify', productionRef: production } }).ok, true);
+  const deployed = { version: 173, ezbr_sha256: capture.ezbr_sha256, status: 'ACTIVE', verify_jwt: false };
+  assert.equal(verifyCandidateIdentity({ captured: { capture_path: capturePath }, deployed, prior: null, priorCapture: null,
+    sourceRoot: approved, functionName: 'scan-identify', projectRef: production, verifyJwt: false }).verified, true);
+  // A runtime import of the same missing module is still refused.
+  fs.writeFileSync(path.join(filesDir, 'scan-identify/handler.ts'), handler.replace('import type', 'import'));
+  const runtimeTree = digestTree(filesDir);
+  const runtime = { ...capture, files: runtimeTree.files, file_count: runtimeTree.files.length, tree_digest: runtimeTree.treeDigest };
+  assert.ok(verifyCapture({ capture: runtime, captureRoot: filesDir,
+    expected: { functionName: 'scan-identify', productionRef: production } }).problems.includes('captured import dependency is missing'));
+});
+
 test('ZAP baseline retains complete passive scan and reports while avoiding failing automation framework', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/zap-baseline-staging.yml'), 'utf8');
   assert.match(workflow, /zap-baseline\.py\s*\\\s*--autooff/);
