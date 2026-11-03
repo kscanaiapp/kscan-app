@@ -239,8 +239,8 @@ test('mixed campaign backend exceptions are exact byte-bound promotions, not a f
     'all 51 prior byte-bound grants, including F012, remain unchanged except the exact canonical C023 receipt handler advance');
   assert.deepEqual(campaignPromotion.files.filter(row => weatherFiles.includes(row.file)).map(row => row.file), weatherFiles,
     'only the two exact canonical PR667 weather files are added');
-  assert.equal(campaignPromotion.files.length, 66);
-  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 66);
+  assert.equal(campaignPromotion.files.length, 67);
+  assert.equal(new Set(campaignPromotion.files.map((row) => row.file)).size, 67);
   for (const row of campaignPromotion.files) {
     assert.match(row.file, /^supabase\//);
     assert.doesNotMatch(row.file, /\*|\.\./);

@@ -79,6 +79,7 @@ const stagingAdvance = (text) => text.replace("['20261103011431', 'KNOWN_FUTURE_
 
 // B004 is a separate exact scan-only advance; discovery source provenance stays fixed.
 const scanner=require('./scannerNullBodyPromotion');
-module.exports = { root, canonical, currentCanonical:scanner.canonical, migrationVersion, guard, files, fileCount, gitBlob, sha256,
-  discoveryAdvance:rows=>scanner.advance(discoveryAdvance(rows)), discoveryPendingAdvance,
-  discoveryFunctionAdvance:rows=>scanner.functionAdvance(discoveryFunctionAdvance(rows)), campaignAdvance, stagingAdvance };
+const watchlist=require('./watchlistTicketPromotion');
+module.exports = { root, canonical, currentCanonical:watchlist.canonical, migrationVersion, guard, files, fileCount, gitBlob, sha256,
+  discoveryAdvance:rows=>watchlist.advance(scanner.advance(discoveryAdvance(rows))), discoveryPendingAdvance,
+  discoveryFunctionAdvance:rows=>watchlist.functionAdvance(scanner.functionAdvance(discoveryFunctionAdvance(rows))), campaignAdvance, stagingAdvance };
