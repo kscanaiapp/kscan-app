@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-02T20:51:04.294Z",
-    "generatedFromGitSha": "214cf19efffce9b4f410b58075d4fc3c36c58bf1"
+    "generatedAtUtc": "2026-11-03T01:31:17.372Z",
+    "generatedFromGitSha": "076a5f0c7fc360b56edaae037db351b623eaa28b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -416,7 +416,7 @@
         "bundleFileCount": 48,
         "treeFileCount": 84,
         "bundleHash": "382a876a67d3c62a73a82e5150dc2775736ae7d75d68caa3b94d8d28487dbd8e",
-        "treeHash": "5c424b83fda03546462e2ca4cc62babd4ac3a09c4f28822c30d95878f09a2889",
+        "treeHash": "afd3c960f9165158d225ba572e968e5c4047c66cb6c877f07941eaa8d668bfd0",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -675,7 +675,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "6c3b181a1c732c45a901b72d598685e7f9ec8dcecfd8c42efc33158e7062dd3e",
+            "sha256": "2542672f3e0c108f20bfa6f74112960ee4fbcbc4b4a20b25e05d25a762ff2e7b",
             "bundle": false
           },
           {
@@ -2414,8 +2414,8 @@
         ],
         "bundleFileCount": 12,
         "treeFileCount": 13,
-        "bundleHash": "1811fc482650a91d2d2d03a3e6dbc5e6d3f707f01275b94074064e8ab1df2f08",
-        "treeHash": "dbfbee7236063ccaf0b8b73704f695a5537112ab35956e34ce7904880e60b0b3",
+        "bundleHash": "8045e51da4842954ed7e2d87fbd76f0041ac2185a577facaeb0763d3c2528bb4",
+        "treeHash": "2907e18c2de0b5d81d9c6c2bf2946ec5dc4e703097783a60fde83395428ea02b",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -2469,7 +2469,7 @@
           },
           {
             "path": "supabase/functions/purchase-import-extract/handler.ts",
-            "sha256": "71dfe68f87c8212195b81cbeb843ac3ac2526f7266fb573325eb5fba66176969",
+            "sha256": "dbd1255a906a08af64e409120eaf27e218fcb9e1bc8a75a006fe5e10ee104cee",
             "bundle": true
           },
           {

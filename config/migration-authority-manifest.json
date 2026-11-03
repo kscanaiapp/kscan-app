@@ -754,6 +754,16 @@
               "20261031162813"
             ],
             "evidence": "Build35 B35-E-018/P3 source repair, November2: permit explicit own saved-scan restoration while retaining canonical active-account/ownership enforcement. Source only; neither environment changed. Requires separately approved single-version application after20261031162813 and live policy verification; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261103011431",
+            "logicalName": "provider_settlement_server_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20260803020000",
+              "20260803020100"
+            ],
+            "evidence": "B35-F-025/P2 source-only repair: revoke authenticated/anon/public execution of client quota settlement and add service-role-only actor/function/reservation-scoped atomic settlement. Generated via Supabase CLI, not applied to either environment. Requires separately authorized protected migration/backend rollout and synthetic readback; no execution approval. Old deployed handlers must be accounted for before revocation; no client-authority fallback."
           }
         ]
       },
@@ -1540,6 +1550,16 @@
               "20261031162813"
             ],
             "evidence": "Build35 B35-E-018/P3 source repair, November2: permit explicit own saved-scan restoration while retaining canonical active-account/ownership enforcement. Source only; neither environment changed. Requires separately approved single-version application after20261031162813 and live policy verification; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261103011431",
+            "logicalName": "provider_settlement_server_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20260803020000",
+              "20260803020100"
+            ],
+            "evidence": "B35-F-025/P2 source-only repair: revoke authenticated/anon/public execution of client quota settlement and add service-role-only actor/function/reservation-scoped atomic settlement. Generated via Supabase CLI, not applied to either environment. Requires separately authorized protected migration/backend rollout and synthetic readback; no execution approval. Old deployed handlers must be accounted for before revocation; no client-authority fallback."
           }
         ],
         "remoteOnly": [

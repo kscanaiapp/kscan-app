@@ -672,6 +672,12 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/shared-room-image-url/index.ts':
     'Resolves an authorized room/share relationship before issuing a narrowly '
     + 'scoped private Storage signed URL.',
+  'supabase/functions/purchase-import-extract/handler.ts':
+    'B35-F-025: the verified receipt actor reserves with its bearer client. '
+    + 'A separate server service client only invokes settle_provider_request_for_actor '
+    + 'with that verified actor, function and reservation; service-only SQL denies '
+    + 'client execution and scopes the atomic transition. No privileged table, '
+    + 'Storage or Auth administration call or client-settlement fallback is allowed.',
   'supabase/functions/stylist-speech/index.ts':
     'Build 35 Speech cost controls. The bearer actor is verified with auth.getUser; '
     + 'account state and owned session/message references use the actor client. '
@@ -724,6 +730,26 @@ Deno.test('inventory: Speech service client reaches only its two cost-control RP
     'Speech privileged access must remain confined to reservation/finalization RPCs');
   assertEquals([...index.matchAll(/\bcostClient\(/g)].length, 3,
     'an additional Speech service client call needs an explicit authority review');
+});
+
+Deno.test('inventory: receipt service client is restricted to verified-actor quota settlement', () => {
+  const source = readRepoFile('supabase/functions/purchase-import-extract/handler.ts');
+  const block = source.match(/settle: async \(actorId, reservationId, billable\) => \{([\s\S]*?)\n  callProvider:/)?.[1];
+  assert(block, 'receipt settlement authority must remain explicit');
+  function verify(text: string) {
+    assertEquals([...text.matchAll(/client\.rpc\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]), ['settle_provider_request_for_actor']);
+    assertEquals(/\.from\(|\.storage\b|\.auth\b|Authorization|accessToken|body\./.test(text), false);
+    assert(/p_user_id: actorId/.test(text));
+    assert(/p_reservation_id: reservationId/.test(text));
+    assert(/p_function_name: FUNCTION_NAME/.test(text));
+  }
+  verify(block);
+  assert(/await deps\.settle\(user\.id, reservation\.reservationId, billable\)/.test(source));
+  for (const mutation of [block + "\nclient.from('profiles')", block.replace('p_user_id: actorId', 'p_user_id: body.userId'), block.replace('settle_provider_request_for_actor', 'unreviewed_rpc')]) {
+    let refused = false;
+    try { verify(mutation); } catch { refused = true; }
+    assert(refused, 'unreviewed receipt privilege expansion must be refused');
+  }
 });
 
 Deno.test('inventory: no style-intent request can reach a service-role artifact write', () => {
