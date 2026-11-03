@@ -38,6 +38,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runPrivateCapture } from './lib/private-function-capture.mjs';
+import { recoveryHealthResult } from './lib/production-recovery-health.mjs';
 import { writeJsonArtifact, ensureArtifactsDir, fail } from './lib/staging-helpers.mjs';
 import {
   planRollback,
@@ -149,7 +150,7 @@ function liveVerifyJwt(functionName) {
   }
 }
 
-async function shallowCheck(fnName) {
+async function shallowCheck(fnName, capture) {
   const base = process.env.SUPABASE_PRODUCTION_URL.replace(/\/$/, '');
   const anon = process.env.SUPABASE_PRODUCTION_ANON_KEY;
   const url = `${base}/functions/v1/${fnName}`;
@@ -160,8 +161,7 @@ async function shallowCheck(fnName) {
       signal: AbortSignal.timeout(15000),
     });
     const body = await res.text();
-    return { status: res.status, ok: [200, 204].includes(res.status) && body.length <= 8192 &&
-      !/BOOT_ERROR|service_role|eyJ[a-zA-Z0-9_-]{10}|sbp_|sb_secret_|password/i.test(body) };
+    return recoveryHealthResult(fnName, capture, res.status, body);
   } catch (err) {
     return { ok: false, error: 'Bounded recovery health check failed' };
   }
@@ -281,7 +281,7 @@ async function main() {
     }
   }
 
-  const health = await shallowCheck(fnName);
+  const health = await shallowCheck(fnName, capture);
   const authz = await authNegativeCheck(fnName);
 
   const result = {

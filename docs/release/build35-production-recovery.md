@@ -57,6 +57,30 @@ Normal source identity, health, auth and deployment verification still run.
 This provisioning path needs review, green CI, merge to the current governed
 backend authority and human Production environment approval before execution.
 
+### RevenueCat legacy restoration (#706)
+
+Run `41678583997` restored the original six-file RevenueCat tree
+`fdde08b9b39092a87ca531912e7b2d57332b3c6e22294653b75d86d560142bb4`
+with `verify_jwt=false`, but reported recovery failure because that pre-#710
+source returns OPTIONS 405. A subsequent independent private-package integrity
+check and live source download matched all captured bytes. Production v16
+retains bundle digest `75a185da43975b3b11ff1cd5c091855c4bbe5ca37fade45a4533bcba20f7ab4c`.
+Do not redeploy an already restored bundle solely to clear the historical result.
+
+The recovery-only health verifier recognizes OPTIONS 405 only for this exact
+Production function/tree/JWT combination, after the existing live source/JWT
+checks. Every other tree retains the 200/204 recovery health contract. New
+RevenueCat candidate deployment still requires OPTIONS 204. Negative-auth
+checks, body bounds and secret-leak rejection remain required. This change
+does not repair missing/invalid Edge secrets or authorize a deployment.
+
+Production configuration names exist; Staging webhook configuration is absent.
+The Production dashboard masks its saved Authorization header. Secret names
+and masked fields do not verify length, equality or signing compatibility.
+Secure configuration verification and Production environment approval are
+prerequisites for a new governed deployment. Configure the distinct Staging
+credential and matching dashboard header before creating a sandbox route.
+
 Provider-free probes contain no image, search evidence or text query. They check reachability, unauthorized commerce rejection, malformed JSON and unsupported contract errors. They do not prove an authenticated paid Scanner transaction or physical old-client behavior. Authorized actors, exact live store identities and an approved provider allocation remain necessary for those checks. Paid provider allocation for this pass is zero.
 
 The deterministic suite covers ROLLBACK-01 through ROLLBACK-10, including sibling dependencies/assets, fresh-runner reconstruction, corruption/missing files, both JWT settings, post-write failures, foreign projects, success without rollback, critical recovery failure, private storage and stderr confidentiality, and interrupted-run recovery. Local mocks never replace or deliberately break the live function.
