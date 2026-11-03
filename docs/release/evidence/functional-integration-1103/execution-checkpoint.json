@@ -1,0 +1,131 @@
+{
+  "at": "2026-11-03T21:40:28.029Z",
+  "phase": "Integration / Activation / Functional Verification",
+  "historicalAudit": {
+    "pr": 646,
+    "head": "28e49416e75c874f7d569c88486f8c3c7e045ac3",
+    "matrixFrozen": {
+      "total": 3096,
+      "PASS": 220,
+      "FAIL": 1,
+      "NOT_TESTED": 2875,
+      "NAIncludedInNT": 354
+    },
+    "noFurtherMatrixCampaign": true
+  },
+  "authority": {
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
+  },
+  "activeSourceSequence": [
+    {
+      "pr": 691,
+      "head": "d2d920b1f807c8efaa3b3f35b360d540143df64a",
+      "tree": "357447c080a1b087e5d4838140273b33d421fc8a",
+      "status": "READY / CURRENT HEAD CI PENDING",
+      "validation": {
+        "focused": {
+          "PASS": 57,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "typescriptExit": 0,
+        "edgeParityExit": 0
+      },
+      "note": "Normal fast-forward advanced existing PR to current mobile base;no new W2 runtime implementation. Canonical byte identity retained."
+    },
+    {
+      "pr": 711,
+      "reviewBase": "22160d9b8acf5794047d121448d1a1da46c814cd",
+      "status": "LOCAL PROPOSED-SOURCE REGRESSION REPAIRED / WAITING SERIAL PROMOTION AFTER691",
+      "finding": {
+        "id": "B35-INT-001",
+        "priority": "P3",
+        "scope": "Proposed #711 source only;not a deployed defect",
+        "rootCause": "isPackingEnvelope accepted status:success in FunctionsHttpError bodies and passed it to the normal response parser,rendering ready and caching a failed response.",
+        "source": "services/packing/packingClient.ts:isPackingEnvelope and requestPackingPlan error branch",
+        "reproduction": "node --test __tests__/packingHttpFailureAuthority.test.js",
+        "before": {
+          "PASS": 0,
+          "FAIL": 3
+        },
+        "afterIncludingOriginalRecovery": {
+          "PASS": 11,
+          "FAIL": 0,
+          "SKIP": 0
+        },
+        "repair": "Only error/not_entitled/no_result are valid error-envelope recovery outcomes;other non-2xx bodies follow transport failure. Keep last plan and cache.",
+        "platform": "Shared iOS/Android source",
+        "approval": "Owner authorizes focused P0-P3 integration defect repairs;normal fully green PR governance still required."
+      }
+    }
+  ],
+  "operationalRevenueCat": {
+    "status": "PASS at actual webhook delivery/handler/DB boundary",
+    "authority": "https://github.com/kscanaiapp/kscan-app/issues/706#issuecomment-6614912477",
+    "protectedRun": "https://github.com/kscanaiapp/kscan-app/actions/runs/41720529717",
+    "productionVersion": 18,
+    "stagingVersion": 14,
+    "bundleDigest": "fb65ff97143ac3a392f666dfaa2e1c3dd9277dd11f8e43e0c4850218bebba971",
+    "testDelivery": "Production and Sandbox200",
+    "negativeAuthAndSignatures": 401,
+    "retainedLifecycle": "Replay,foreign actor rejection,expiration;no rerun",
+    "actualStorePurchaseRestore": "NOT TESTED / candidate build HOLD"
+  },
+  "privacyOwner": "#703 residual source cases remain separate",
+  "next": "Finish required691CI and merge/post-checks;then integrate711withcorrectedHTTPfailureguardandcombinedfingerprints;targetedsourceverificationonly.",
+  "restrictions": {
+    "noProductionChanges": true,
+    "noNewSharedMigrations": true,
+    "noPaidCalls": true,
+    "noBuilds": true,
+    "noTestSprite": true
+  },
+  "archives": [
+    {
+      "file": "w2-combined-focused.log.gz",
+      "rawBytes": 9660,
+      "rawSha256": "b7fac0d3821a991e66bac73fed6fe6a4d23f010a71397c5d87eef25f9aad36af",
+      "archiveBytes": 2413,
+      "archiveSha256": "909dc0ba451602b73edef3ec6db872528bf79e4a7a8e596ed0361ad3e492290d",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "w2-combined-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "note": "Empty output alone is not a test result;exit code is separately recorded."
+    },
+    {
+      "file": "w2-edge-parity.log.gz",
+      "rawBytes": 4214,
+      "rawSha256": "e56ade64c48259d453ac2a72ac933e1eabf54ac5133d70a4fbf111a6f2cb3fb8",
+      "archiveBytes": 1259,
+      "archiveSha256": "5a249d8e65deb044f98fdd0dc349ab550d0736cbc0adb5c573b8ea4fb3ea53c7",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "packing-http-authority-before.log.gz",
+      "rawBytes": 5028,
+      "rawSha256": "dca3c34987e32d0f1ad2376611a466cf3da4d738e45ba0a01b002cf5c9f3cb08",
+      "archiveBytes": 717,
+      "archiveSha256": "049912304ba612af7ca9421a858751908ef018d54a082981bec6adb39c9de14e",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    },
+    {
+      "file": "packing-http-authority-after.log.gz",
+      "rawBytes": 2480,
+      "rawSha256": "4e3dfefec5702d5e07a324b308683668e6853bda640a77db835188c179fcfb54",
+      "archiveBytes": 795,
+      "archiveSha256": "7292abdf782a8253b7d925bf1105b1668f7c625fdcca01733fc5be8aa40c7770",
+      "encoding": "UTF-16LE BOM",
+      "note": "Captured exact command output"
+    }
+  ]
+}
