@@ -21,6 +21,11 @@ import { supabase } from './supabaseClient';
 import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
 import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 import { normalizeScannerVisualEvidenceResponse } from './scannerVisualEvidence';
+import {
+  GEMINI_CONSENT_REQUIRED_CODE,
+  GEMINI_CONSENT_REQUIRED_MESSAGE,
+  isGeminiConsentDenial,
+} from './geminiConsentDenial';
 import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
@@ -401,6 +406,10 @@ async function readContractError(
     if (typeof context.json !== 'function') return null;
     const body = await context.json();
     if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    // The consent gate's denial carries a top-level enum code, not `error.code`.
+    if (isGeminiConsentDenial(context.status, body)) {
+      return { httpStatus: context.status, code: GEMINI_CONSENT_REQUIRED_CODE };
+    }
     const inner = (body as Record<string, unknown>).error;
     if (!inner || typeof inner !== 'object' || Array.isArray(inner)) return null;
     const code = (inner as Record<string, unknown>).code;
@@ -637,7 +646,9 @@ export async function identifyScanImage(
       // it costs nothing on the legacy path, where 400s do not occur, and it
       // never surfaces the response body — only the enum code and the status.
       const contractError = await readContractError(error);
-      const out = failed(failureMessageForInvokeStatus(httpStatus));
+      const out = failed(contractError?.code === GEMINI_CONSENT_REQUIRED_CODE
+        ? GEMINI_CONSENT_REQUIRED_MESSAGE
+        : failureMessageForInvokeStatus(httpStatus));
       // The status travels with every HTTP failure (401/403/429/5xx), not only
       // contract errors, so callers can classify auth/quota/timeout faithfully.
       // `isUnsupportedContractVersion` still requires 400 + its exact code, so

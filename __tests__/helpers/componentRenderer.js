@@ -333,7 +333,7 @@ function transpile(rel, { jsx = true, mutate } = {}) {
 function strictRequire(modules, label) {
   return (spec) => {
     if (Object.prototype.hasOwnProperty.call(modules, spec)) return modules[spec];
-    // Only the two real Scanner commerce-contract modules, never a general fall-through.
+    // Only the real shared contract modules it names, never a general fall-through.
     const commerceContract = require('./commerceMatchContract').resolveCommerceContractImport(spec);
     if (commerceContract) return commerceContract;
     throw new Error(`Unexpected require in ${label}: ${spec}`);

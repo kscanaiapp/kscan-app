@@ -25,6 +25,11 @@ import {
 import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 import { ELISE_FASHION_CONTEXT_V2 } from '../../../types/fashionIdentificationV2';
 import { prepareContextForTransport } from '../eliseFashionContextV2';
+import {
+  GEMINI_CONSENT_REQUIRED_CODE,
+  GEMINI_CONSENT_REQUIRED_MESSAGE,
+  isGeminiConsentDenial,
+} from '../../geminiConsentDenial';
 
 const EDGE_FN      = 'stylechat-generate';
 export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
@@ -421,6 +426,12 @@ export class EdgeStyleChatProvider {
         if (ctx != null && typeof (ctx as Response).json === 'function') {
           try {
             const body = await (ctx as Response).json() as unknown;
+            // Checked before the attachment branches: a consent denial is not
+            // an attachment rejection, and the retryable-error path keeps the
+            // exact send (attachments included) without persisting a reply.
+            if (isGeminiConsentDenial(httpStatus, body)) {
+              return fallbackResult({ content: GEMINI_CONSENT_REQUIRED_MESSAGE }, GEMINI_CONSENT_REQUIRED_CODE);
+            }
             if (isRecord(body)) {
               const status = normalizeStatus(body.status);
               const bodyMessage = isRecord(body.message) ? body.message : {};

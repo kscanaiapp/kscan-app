@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { validateTextScanQuery } from './textScan';
+import { GEMINI_CONSENT_REQUIRED_MESSAGE, readGeminiConsentDenial } from './geminiConsentDenial';
 import type { TextScanProduct, TextScanProductType, TextScanResult } from './textScan';
 
 const EDGE_FN = 'scan-identify';
@@ -419,6 +420,11 @@ export async function analyzeTextWithEdge(
 
     if (error) {
       if (__DEV__) console.warn('[textScanEdge] invoke error:', error?.message);
+      if (await readGeminiConsentDenial(error)) {
+        const consentErr = new Error('TEXTSCAN_CONSENT_REQUIRED');
+        (consentErr as any).userMessage = GEMINI_CONSENT_REQUIRED_MESSAGE;
+        throw consentErr;
+      }
       const err = new Error('TEXTSCAN_ANALYSIS_FAILED');
       (err as any).userMessage = SAFE_FAILED_MESSAGE;
       throw err;

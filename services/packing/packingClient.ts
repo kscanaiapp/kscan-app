@@ -13,6 +13,11 @@
 import { supabase } from '../supabaseClient';
 import { PACKING_REQUEST_SCHEMA_VERSION, type PackingResult, type PackingTripDraft } from '../../types/packing';
 import { parsePackingResponse } from './packingResponse';
+import {
+  GEMINI_CONSENT_REQUIRED_CODE,
+  GEMINI_CONSENT_REQUIRED_MESSAGE,
+  readGeminiConsentDenial,
+} from '../geminiConsentDenial';
 export { parsePackingPlan, parseGeneralGuide, parsePackingResponse } from './packingResponse';
 
 const EDGE_FN = 'stylechat-generate';
@@ -57,6 +62,17 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
     });
 
     if (error) {
+      if (await readGeminiConsentDenial(error)) {
+        // A user-controlled setting, not a connection problem: retrying cannot help.
+        return {
+          status: 'error',
+          message: GEMINI_CONSENT_REQUIRED_MESSAGE,
+          plan: null,
+          generalGuide: null,
+          errorCode: GEMINI_CONSENT_REQUIRED_CODE,
+          retryable: false,
+        };
+      }
       return {
         status: 'error',
         message: 'I could not reach K Scan to build your plan. Check your connection and try again.',
