@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T12:53:47.653Z",
+  "capturedAt": "2026-11-03T13:14:15.718Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -113,17 +113,23 @@
     }
   ],
   "active": {
-    "item": "Reconcile existing independent Watchlist source drafts before new repair expansion",
-    "status": "EVIDENCE/OVERLAP/CI REVIEW NEXT",
-    "prs": [
-      687,
-      689,
-      690,
-      691
-    ],
-    "next": "Read exact patches and retained failing CI;confirm or disprove W1/W2 with actual adapters/handler;canonical-first source ownership;no duplicatePR;688Production scheduler and694catalog scheduler remain gated"
+    "item": "W1/E026 canonical ticket-acceptance source continuation",
+    "finding": "B35-E-026",
+    "priority": "P3",
+    "canonicalPR": 689,
+    "mobilePR": 687,
+    "status": "CONFIRMED BEFORE-FIX / MERGE CURRENT CANONICAL INTO EXISTING REPAIR NEXT",
+    "next": "Resume existing689withcurrentcanonicalparentandpreservedpatch;bodyguardW2awaitsscopeapprovalandW1serialization;688and694operationalactivationhold."
   },
-  "queued": [],
+  "queued": [
+    {
+      "finding": "B35-E-027",
+      "alias": "W2",
+      "priority": "P4",
+      "pr": 691,
+      "status": "PROTECTED-SURFACE OWNER APPROVAL PENDING / serialize afterW1"
+    }
+  ],
   "excluded": [
     "Device certification and later QA do not cause source FAIL/blocker",
     "Account-deletion-cycle repairs deferred by owner",

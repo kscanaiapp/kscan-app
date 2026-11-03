@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T12:53:47.653Z",
+  "capturedAt": "2026-11-03T13:14:15.718Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4361,6 +4361,56 @@
       "archiveSha256": "ea4aea29ab12df9e853bd6ee27fdf6dc021166969f96f0c48d48e62dcf0946cd",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independent merged77a6:11477NodePASS/0FAIL/96SKIP;1604backendPASS/17steps/0FAIL;no runtime/deviceclaim"
+    },
+    {
+      "rawFile": "watchlist-ticket-current-before-1103.log",
+      "rawBytes": 14552,
+      "rawSha256": "69279a8d0227790ecb38f65df960f0f8ad0864c0b8119190e693fc838654f31c",
+      "archiveFile": "resume1103-watchlist-ticket-current-before-1103.log.gz",
+      "archiveBytes": 1152,
+      "archiveSha256": "968c3cb4facceaad31170ac70da184427fbeea9c08164c3a05349074013828ab",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed exact current-source W1/W2 negative evidence;not a deployed/customer/device probe"
+    },
+    {
+      "rawFile": "watchlist-body-current-before-1103.log",
+      "rawBytes": 17958,
+      "rawSha256": "813f3707bab8f4b85980ac4b9dc1f42043a99c65641b892a0775de9a95c13b03",
+      "archiveFile": "resume1103-watchlist-body-current-before-1103.log.gz",
+      "archiveBytes": 1518,
+      "archiveSha256": "385945e48a855a06356a90734939535eeac29e39e6a63d87c47d0402e14ded1b",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Confirmed exact current-source W1/W2 negative evidence;not a deployed/customer/device probe"
+    },
+    {
+      "rawFile": "pr689-security-summary-failed-raw.log",
+      "rawBytes": 15006,
+      "rawSha256": "d506b7513052c08e5ffd160fcc862737e76fb264644318b9f1e6e14e80972e09",
+      "archiveFile": "resume1103-pr689-security-summary-failed-raw.log.gz",
+      "archiveBytes": 2117,
+      "archiveSha256": "df2aafb8039750c76e62722c4edd9f8a369c865c1c701c8a8a703f0fba428e25",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent PR historical CI failure/cancellation evidence retained and separately dispositioned"
+    },
+    {
+      "rawFile": "pr690-project-failed-raw.log",
+      "rawBytes": 3875402,
+      "rawSha256": "959c0511937d7a1a7529415314762bed8cdddde027841a9b6ebebba0c7cc069f",
+      "archiveFile": "resume1103-pr690-project-failed-raw.log.gz",
+      "archiveBytes": 545142,
+      "archiveSha256": "18086f2bbaf3a1f19a3f88ed5614047a47377c6b8a012dac7f183ba591dfa686",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent PR historical CI failure/cancellation evidence retained and separately dispositioned"
+    },
+    {
+      "rawFile": "pr691-project-failed-raw.log",
+      "rawBytes": 3892140,
+      "rawSha256": "52967ad2b98170c5a1864e8f8ce23943cbe57e7eb616c65e35b412768f43ef0f",
+      "archiveFile": "resume1103-pr691-project-failed-raw.log.gz",
+      "archiveBytes": 541030,
+      "archiveSha256": "6be582aaa31da94e49e5ab769f6bcc919264c49a567726773d42a8eb746bad63",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent PR historical CI failure/cancellation evidence retained and separately dispositioned"
     }
   ]
 }

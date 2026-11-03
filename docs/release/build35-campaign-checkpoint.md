@@ -1,3 +1,11 @@
+## Watchlist continuation: two hypotheses now independently confirmed
+
+B004 remains source-closed through698/699; authorities backend53bf/mobile77a6 unchanged. **B35-E-026 (W1), P3:** actual current push adapter wrongly accepts malformed Expo200 tickets;existing689tests reproduce3PASS/9FAIL,including8invalidresponsesandatrimcontrol. Caller can emitacceptedwithoutreceipt persistence. Resume existingcanonical689thenmobile687;donotduplicate690. **24confirmedP0-P3:23sourceclosed/1open** (0P0/5P1/7P2/12P3).
+
+**B35-E-027 (W2), P4:** actual WatchlistDeno handler nullTypeErrorafterAuth,zero writes/providerCalls;5invalidstepsFAIL/5controlsPASS. Existing691sourceproposalneedsprotected-surfaceP4scopeapproval;asyncownerquestionpending,notassumed. W1proceedsindependently. 689CIredfromcancellations;690staleparity/fingerprints;691sameplusjson-helper-shadowingfixtureerror. TheseCIcausesarenotadditionalcustomerdefects. [Full evidence/locations](evidence/continuation-watchlist-findings-1103.json).
+
+Matrix138PASS/0FAIL/2958NOT TESTEDunchanged:new bounded findings arenotautomaticallyoriginalcellclosures. 446archivesverified;oldfailuresretained. Exactnextmergecurrentcanonical53bfintoexisting689repairbranchwithoutdroppingB004/catalog,regenerateartifacts,runfocused/fullrequiredchecks. 688Production scheduler and694catalogschedulerremainheld;no deployment,notification,flag,migration,device,binaryorstoreaction. AUDIT IN PROGRESS.
+
 ## B004 SOURCE CLOSED — original matrix failure reconciled
 
 Mobile **77a6b97f86b21bf619e051646b635e3ce26b7f73**, backend **53bf7cc2aeeeceb556ef2d01671c941038c83bfc**. [Canonical698](https://github.com/kscanaiapp/kscan-app/pull/698) and [mobile699](https://github.com/kscanaiapp/kscan-app/pull/699) merged normally after32/14and34/20successful/conditional-skippedchecks, respectively;no failedchecks or reviewthreads. Canonicalreview28321246/test260ae52c/final53bfsharede0ef02ctree;mobilereview2109b77b/test3d526c7a/final77a6share7a874ad3tree. **Seven canonical and nine mobile independent push workflows succeeded. Final actual mobile:11477NodePASS/0FAIL/96SKIP;1604backendPASS/17actualhandlersteps/0FAIL. Canonical:8581NodePASS/0FAIL/65SKIP;1588backendPASS/17steps/0FAIL.** [Exact closure](evidence/continuation-b004-source-closure-1103.json).
