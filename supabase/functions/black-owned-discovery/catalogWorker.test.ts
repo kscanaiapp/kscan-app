@@ -101,6 +101,9 @@ Deno.test('worker refuses every non-worker caller before any catalog I/O', async
   assert.equal((await handler(post({ [WORKER_HEADER]: 'wrong' }))).status, 401);
   assert.equal((await handler(post({ Authorization: `Bearer ${SECRET}` }))).status, 401);
   assert.equal((await handler(new Request('https://fixture.invalid/x', { method: 'GET', headers: { [WORKER_HEADER]: SECRET } }))).status, 405);
+  const preflight = await handler(new Request('https://fixture.invalid/x', { method: 'OPTIONS' }));
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), null);
   assert.equal((await createCatalogWorkerHandler({ ...value, secret: () => null })(post())).status, 401);
   assert.equal(calls.merchants, 0); assert.equal(calls.fetches, 0);
 });
