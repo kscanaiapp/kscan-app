@@ -29,6 +29,34 @@ The recovery workflow retrieves the private reference by run/attempt/SHA, valida
 
 ## Certification boundary
 
+### Coordinated RevenueCat credential replacement
+
+The controlled deploy workflow optionally accepts
+`rc_credential_replacement_confirmation=COORDINATED RC CREDENTIAL REPLACEMENT`
+for `kplus-revenuecat-webhook` with `verify_jwt=false` only. Empty input preserves
+all existing behavior. The credential-free plan explicitly discloses the two
+secret replacements before the existing Production reviewer gate.
+
+Prepare `RC_PRODUCTION_WEBHOOK_AUTHORIZATION` and
+`RC_PRODUCTION_WEBHOOK_SIGNING_SECRET` on the GitHub Production environment
+through the owner's secure credential channel. These must exactly match the
+Production RevenueCat Authorization header and enabled HMAC signing secret.
+Both must be independent, single-line values of at least 32 characters.
+Do not copy the Staging credential. Coordinate the dashboard cutover and
+protected execution window; changing either side alone interrupts delivery.
+Original secret values cannot be recovered from Supabase inventory hashes.
+
+Only the approved job installs these two Edge secrets. Values are passed in a
+private temporary file, never argv or logs; exact hashed readback is mandatory.
+Any failure or ambiguous write stops without retrying. Product classification,
+accepted environments, customer records and other secrets are not changed.
+Source rollback cannot restore unknown prior secret values: credential recovery
+requires coordinated dashboard/Edge configuration, not a source-only rollback.
+Normal source identity, health, auth and deployment verification still run.
+
+This provisioning path needs review, green CI, merge to the current governed
+backend authority and human Production environment approval before execution.
+
 Provider-free probes contain no image, search evidence or text query. They check reachability, unauthorized commerce rejection, malformed JSON and unsupported contract errors. They do not prove an authenticated paid Scanner transaction or physical old-client behavior. Authorized actors, exact live store identities and an approved provider allocation remain necessary for those checks. Paid provider allocation for this pass is zero.
 
 The deterministic suite covers ROLLBACK-01 through ROLLBACK-10, including sibling dependencies/assets, fresh-runner reconstruction, corruption/missing files, both JWT settings, post-write failures, foreign projects, success without rollback, critical recovery failure, private storage and stderr confidentiality, and interrupted-run recovery. Local mocks never replace or deliberately break the live function.
