@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T00:54:11.190Z",
+  "capturedAt": "2026-11-03T01:25:55.485Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3981,6 +3981,76 @@
       "archiveSha256": "f2a5b371248dba673fb71cb4b4487728f4c73733442dfeb18c494955d5b9108f",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independent authoritative09f0Projectjob:11456NodePASS/0FAIL/96SKIP;1591backendPASS/0FAIL;notprovider/device/runtimeactivationproof"
+    },
+    {
+      "rawFile": "settlement-authority-before-1102.log",
+      "rawBytes": 5266,
+      "rawSha256": "86a79942fc8d4279b67a10f9b4e94eb46275b229e60edb0cb9d2d8d716c01644",
+      "archiveFile": "resume1102-settlement-authority-before-1102.log.gz",
+      "archiveBytes": 926,
+      "archiveSha256": "62d31c344af5d0ab36fa4fa230b7f1f7f8ac5e7d4b0c9445899c941045dae5d5",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "3actualauthorityFAILbeforeF025"
+    },
+    {
+      "rawFile": "settlement-authority-first-after-1102.log",
+      "rawBytes": 10718,
+      "rawSha256": "000a61e9a9875d8e8aec834983fd6b954e9a28487998e3ee5cb2c35c5b34e005",
+      "archiveFile": "resume1102-settlement-authority-first-after-1102.log.gz",
+      "archiveBytes": 1470,
+      "archiveSha256": "190e5a4c5f7a9b6b5dfa1099e5879b005b477d9015ca11bd16c3db6932e55e5c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
+    },
+    {
+      "rawFile": "settlement-authority-expanded-1102.log",
+      "rawBytes": 16554,
+      "rawSha256": "4be607cda03507574f6be0ca1a62de18a3bacb4574b58f4a49bc772c063212d7",
+      "archiveFile": "resume1102-settlement-authority-expanded-1102.log.gz",
+      "archiveBytes": 2336,
+      "archiveSha256": "47a345ad74ea0e82dda01a7ccaaaab36eafc3b9f6edd6d648ce6025bcb158078",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial fixtureinspection42501tableSELECTfailure,notcustomerdefect;retained;correctedbyownerinspection"
+    },
+    {
+      "rawFile": "settlement-expanded-governance-1102.log",
+      "rawBytes": 29068,
+      "rawSha256": "e10e07b0c25417fe6636e3cfd964332b8d5eda72f4a570b2cc954b3995c0495e",
+      "archiveFile": "resume1102-settlement-expanded-governance-1102.log.gz",
+      "archiveBytes": 5055,
+      "archiveSha256": "1f8ce1c3c07de0659568c00f0aee92e95b54c358cd8c8a16cd557cf0df082a1c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
+    },
+    {
+      "rawFile": "settlement-authority-final-focused-1102.log",
+      "rawBytes": 3654,
+      "rawSha256": "74d7a582ad6e96519c669ba24cd3be21ec30ee6f77c3154794d8fbf0a948cb89",
+      "archiveFile": "resume1102-settlement-authority-final-focused-1102.log.gz",
+      "archiveBytes": 862,
+      "archiveSha256": "14091e2bf3fe07e93812029b5e0efa0f29dd0d76406ae24ed1fb5d2dc485e32f",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
+    },
+    {
+      "rawFile": "settlement-backend-1102.log",
+      "rawBytes": 27658,
+      "rawSha256": "a5ab3661e1d7fe8f1af613331fc7a986cf1d42df6dd7c962fe6d420ccfdddfd5",
+      "archiveFile": "resume1102-settlement-backend-1102.log.gz",
+      "archiveBytes": 4166,
+      "archiveSha256": "4736082128e49b5962dfb8de6eac492dd10fc32b40aacf6eeaf338db48eb0bff",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
+    },
+    {
+      "rawFile": "settlement-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-settlement-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "F025sourcevalidationwithsyntheticidentity/SDK/providerandactuallocalSQLroles;no deployedclaim.EmptyTSloghasseparateexit0record."
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T00:54:11.190Z",
+  "capturedAt": "2026-11-03T01:25:55.485Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -88,11 +88,13 @@
     }
   ],
   "active": {
-    "item": "F025 trusted backend-only actor-scoped quota settlement",
+    "item": "F025 trusted actor-scoped settlement canonical/mobile closure",
     "finding": "B35-F-025",
-    "sourceBase": "31be5f99341b606a070bbbe0b3062588f320f089",
-    "status": "CONFIRMED / AUTHORIZED / SOURCE UNREPAIRED",
-    "next": "Create isolatedcanonicalworktreefrom31be; inspectallRPC/helpercallers; actualSQLroles/inflight/duplicate/completion/nonbillable/errorregressions; trustedsettlementandclientEXECUTErevocation; governnewmigrationKNOWN_FUTURE_UNAPPLIED;neverapplymigration. Canonical/mobilegreenclosurebeforeB004."
+    "pr": 685,
+    "head": "076a5f0c7fc360b56edaae037db351b623eaa28b",
+    "tree": "22cbb247d9cb56a7a92f90abcea71f29b56e770a",
+    "status": "SOURCE REPAIRED / CANONICAL CI PENDING / MOBILE CONVERGENCE REQUIRED",
+    "next": "Finish685exactheadCI/reviews,normalgreenmerge,7canonicalpushchecks;exactboundedmobilepromotionand9pushchecks;thenB004. No migration application/deployment. Underlyingauditcontinues."
   },
   "queued": [
     {

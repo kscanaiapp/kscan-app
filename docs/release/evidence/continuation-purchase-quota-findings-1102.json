@@ -97,13 +97,16 @@
       "mergeOrder": "Lead serializes: C023 request-ID adapter first; F024 in-flight replay second; F025 trusted quota settlement third. Each canonical/mobile source closure and green CI before next overlapping source repair.",
       "id": "B35-F-025",
       "priority": "P2",
-      "status": "CONFIRMED / QUEUED AFTER F024",
+      "status": "SOURCE REPAIRED / CANONICAL CI PENDING / MOBILE CONVERGENCE REQUIRED",
       "sourceLocation": "20260803020000_provider_request_security.sql:341-411 complete/release SECURITYDEFINER plus authenticated grants; purchase-import-extract/handler.ts:149-156 user-context settlement",
       "contract": "Provider cost/concurrency authority must not be reset by a caller while the governed backend still has a provider dispatch in progress.",
       "observed": "Under actual authenticated SQL role, own release returns true during an active controlled dispatch; a distinct second request dispatches despite rolling/daily/concurrency limits of1. Foreign actor release returnsfalse (positive isolation control).",
       "rootCause": "Identity/ownership checks authorize the caller to settle its own cost ledger, while counts exclude released rows and no trusted-server dispatch authority is required.",
       "repairPlan": "Prepare a separate governed migration and backend-only actor-scoped settlement authority, revoke client settlement execution, preserve authenticated reservation/ownership boundaries, add real SQL and handler authority/concurrency tests. No database application or production rollout is authorized.",
-      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json"
+      "ownerAuthorization": "continuation-owner-repair-authorization-1102.json",
+      "pr": 685,
+      "head": "076a5f0c7fc360b56edaae037db351b623eaa28b",
+      "repairEvidence": "continuation-f025-repair-1102.json"
     }
   ],
   "currentSource": "09f0abad1a443c2601aaddc9c26e85b636c216c4",

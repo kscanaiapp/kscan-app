@@ -1,3 +1,11 @@
+## F025 source repair685 prepared — canonical CI pending
+
+Freshauthoritiesmobile09f0/backend31beunchanged;F024sourceclosed. **[685](https://github.com/kscanaiapp/kscan-app/pull/685)/076a5f0c/tree22cbb247** implementsservice-role-only actor/function/reservation-scopedsettlement,revokeslegacyclientmutators,andremovesclientJWTsettlementpathwithoutfallback. Before3actualauthorityFAIL;firstafter14PASS;initialexpandedfixtureSELECTpermissionerrorretained/correctedbyownerinspection;corrected115SQL/handler/governancePASS,final7foreignactor/authorityPASS,84backendPASS,TypeScript0,fiveclean-sourcegates0. Allinputs/providerAuth/SDKarecontrolledfixtures;actualSQLrolesexecuted.
+
+Migration**20261103011431**generatedviaCLI,declaredKNOWN_FUTURE_UNAPPLIEDbothenvironments,**NOTAPPLIED**. Technicalold-handler/rolloutgatewritten,noruntimeapprovalimplied.ReadonlyStage/Prodrolesconfirmclientsarenotservice_rolemembers;norealrowschanged. SingleconnectionSQLqueuedreleasecasesarenotlivemulticonnectioncertification. 410losslessarchivesverified.
+
+22of23P0-P3sourceclosed,F025canonical/mobileclosureactive;B004P4next;682held,W1W2UNCONFIRMED. Originalmatrix136PASS/1FAIL/2959NTunchanged. Exactnext685CI/reviews/normalgreenmerge+7postchecks,thenboundedmobilepromotion+9postchecks,beforeB004. UnderlyingauditINPROGRESS;noProduction/migrationapplication/deploy/activation/device/platform/deletioncycle/EAS/store/price/customeraction.
+
 ## F024 SOURCE CLOSED — active queue advances to F025
 
 Mobile**09f0abad1a443c2601aaddc9c26e85b636c216c4**;canonical**31be5f99341b606a070bbbe0b3062588f320f089**. F024canonical681/runtime+684/testfixture→mobile683fullymergedandverified. Reviewf97fdbe0/test089838ee/final09f0sharetree4dda7416;34successful/20conditional-skippedPRchecks;independentmobile**9/9SUCCESS**,actual**11456NodePASS/0FAIL/96SKIP;1591backendPASS/0FAIL**. Canonical7/7SUCCESS,8564NodePASS/0FAIL/65SKIP,1575backendPASS/0FAIL. [Exact closure](evidence/continuation-f024-source-closure-1102.json).

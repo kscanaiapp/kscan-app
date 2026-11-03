@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-11-03T01:25:55.485Z",
+  "finding": "B35-F-025",
+  "priority": "P2",
+  "pr": 685,
+  "head": "076a5f0c7fc360b56edaae037db351b623eaa28b",
+  "tree": "22cbb247d9cb56a7a92f90abcea71f29b56e770a",
+  "baseCanonical": "31be5f99341b606a070bbbe0b3062588f320f089",
+  "mobile": "09f0abad1a443c2601aaddc9c26e85b636c216c4",
+  "status": "SOURCE REPAIRED / CANONICAL CI PENDING / MOBILE CONVERGENCE REQUIRED",
+  "before": "3authorityFAIL,actualSQL/inflightdefaultadapter2dispatchesunderlimit1;oldclientcomplete/releasecallssucceeded",
+  "repair": "Service-role-only actor/function/reservation-scoped atomicsettlement; revokelegacyPUBLIC/anon/authenticatedEXECUTE. DefaultSDKsettlementusesverifieduseridandserverkey,no callerJWT/fallback. Failedsettlementholdsconservativeaccounting.",
+  "migration": "20261103011431_provider_settlement_server_authority.sql",
+  "migrationStatus": "CLI GENERATED / BOTH ENVIRONMENTS KNOWN_FUTURE_UNAPPLIED / NOT APPLIED",
+  "validation": {
+    "firstAfter": "14PASS/0FAIL",
+    "initialExpanded": "17PASS/1fixtureinspectionFAIL:servicefixturelacksdirecttableSELECT;correctinspectionasowner,nograntsweakened",
+    "correctedExpanded": "115PASS/0FAIL/0SKIP:18SQL/handler+97migrationreconciliation",
+    "finalForeignActor": "7authorityPASS/0FAIL/0SKIPafterexplicitBactorcontrol",
+    "backend": "84PASS/0FAIL",
+    "typescript": "exit0/session47573/emptylognotatestcount",
+    "sourceGates": "5exit0/cleancommittedtree",
+    "edgeManifest": "current",
+    "crossPath": "20current"
+  },
+  "readOnlyRuntime": "Stage/Production service_rolebypassrlstrue,authenticated_memberfalse,anonymous_memberfalse;metadataonly,nocustomerrows,nomutation",
+  "limits": "ControlledAuth/SDK/provider +actualPGliteSQLroles;singleconnectionqueuedrequestsnotlivemulticonnection/JWT/provider/devicecertification",
+  "next": "Finish685exactheadCI/reviews,normalgreenmerge,7canonicalpushchecks;exactboundedmobilepromotionand9pushchecks;thenB004. No migration application/deployment. Underlyingauditcontinues."
+}
