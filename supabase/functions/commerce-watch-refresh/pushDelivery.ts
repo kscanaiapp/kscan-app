@@ -135,7 +135,15 @@ export async function sendWatchPush(
     // means Expo queued it. The ticket id is what a receipt lookup is keyed
     // on, so it is retained rather than discarded; callers must treat
     // `ok: true` as "accepted", never as "delivered".
-    const ticketId = typeof ticket?.id === 'string' ? ticket.id : undefined;
+    // A 200 transport response is not an accepted push. The receipt worker
+    // needs a real ticket id to attribute delivery and retire failed routes.
+    // Fail closed on missing/invalid tickets rather than losing receipt tracking.
+    const ticketId = ticket?.status === 'ok' && typeof ticket.id === 'string'
+      ? ticket.id.trim()
+      : '';
+    if (!ticketId || ticketId.length > 256) {
+      return { attempted: true, ok: false, errorCode: 'invalid_ticket' };
+    }
     return { attempted: true, ok: true, ticketId };
   } catch {
     return { attempted: true, ok: false, errorCode: 'network_error' };
