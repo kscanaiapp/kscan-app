@@ -7,5 +7,35 @@ const gitBlob=(f,ref=canonical)=>cp.execFileSync('git',['show',ref+':'+f],{cwd:r
 const approved={file:files[0],sha256:hash(gitBlob(files[0])),source:canonical,reason:note.trim()};
 function advance(rows){const out=rows.map(r=>({...r})),existing=out.find(r=>r.file===approved.file);if(existing)assert.deepEqual(existing,approved);else out.push({...approved});return out;}
 const canonicalWatch=JSON.parse(gitBlob('config/edge-function-manifest.json')).parity.functions.find(r=>r.name==='commerce-watch-refresh');
-function functionAdvance(rows){return rows.map(row=>{if(row.name!=='commerce-watch-refresh')return row;const next=structuredClone(row),file=next.files.find(f=>f.path===files[0]);assert.ok(file&&file.bundle===true);file.sha256=approved.sha256;const aggregate=require('../../scripts/edge-function-manifest-lib').aggregateHash;next.treeHash=aggregate(next.files);next.bundleHash=aggregate(next.files.filter(f=>f.bundle));assert.deepEqual(next,canonicalWatch,'only the exact ticket adapter may advance; preserve all other Watchlist source');return next;});}
-module.exports={root,canonical,reviewed,tree,base,files,note,approved,gitBlob,hash,advance,functionAdvance,fileCount:67};
+// W2 (#700) advances the runtime AFTER the exact W1 ticket repair.
+// Independently pin both steps so previous source grants never silently widen.
+const w2Canonical='2846fd147fc36b72404372919ee8d1e88421da75';
+const w2Index='supabase/functions/commerce-watch-refresh/index.ts';
+const w2Deno='supabase/functions/commerce-watch-refresh/invalidBodyHostile.test.ts';
+const canonicalW2Watch=JSON.parse(gitBlob('config/edge-function-manifest.json',w2Canonical)).parity.functions.find(r=>r.name==='commerce-watch-refresh');
+const aggregate=require('../../scripts/edge-function-manifest-lib').aggregateHash;
+function w2Advance(rows){return rows.map(row=>{
+ if(row.name!=='commerce-watch-refresh')return row;
+ assert.deepEqual(row,canonicalWatch,'W2 may only advance the approved W1 source');
+ const next=structuredClone(row),index=next.files.findIndex(f=>f.path===w2Index);
+ assert.ok(index>=0&&next.files[index].bundle===true,'W2 must alter the actual entrypoint');
+ assert.equal(next.files.some(f=>f.path===w2Deno),false,'W2 Deno regression added exactly once');
+ next.files[index].sha256=hash(gitBlob(w2Index,w2Canonical));
+ next.files.splice(index+1,0,{path:w2Deno,sha256:hash(gitBlob(w2Deno,w2Canonical)),bundle:false});
+ next.treeFileCount=next.files.length;
+ next.treeHash=aggregate(next.files);
+ next.bundleHash=aggregate(next.files.filter(f=>f.bundle));
+ assert.deepEqual(next,canonicalW2Watch,'W2 may advance only its exact approved runtime/test files');
+ return next;
+});}
+function functionAdvance(rows){const w1=rows.map(row=>{
+ if(row.name!=='commerce-watch-refresh')return row;
+ const next=structuredClone(row),file=next.files.find(f=>f.path===files[0]);
+ assert.ok(file&&file.bundle===true);
+ file.sha256=approved.sha256;
+ next.treeHash=aggregate(next.files);
+ next.bundleHash=aggregate(next.files.filter(f=>f.bundle));
+ assert.deepEqual(next,canonicalWatch,'only the exact W1 ticket adapter may advance');
+ return next;
+});return w2Advance(w1);}
+module.exports={root,canonical,reviewed,tree,base,files,note,approved,gitBlob,hash,advance,functionAdvance,w2Advance,w2Canonical,w2Index,w2Deno,fileCount:67};
