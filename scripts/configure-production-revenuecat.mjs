@@ -20,7 +20,7 @@ export function credentialConfiguration(env) {
   };
   for (const value of Object.values(values)) {
     if (typeof value !== 'string' || value.trim().length < 32 || value !== value.trim()
-        || /[\r\n\0]/.test(value)) throw new Error('RevenueCat credentials missing or invalid; values withheld');
+        || !/^[A-Za-z0-9_+\/=:. -]+$/.test(value)) throw new Error('RevenueCat credentials missing or invalid; values withheld');
   }
   if (values.KPLUS_REVENUECAT_WEBHOOK_AUTHORIZATION === values.KPLUS_REVENUECAT_WEBHOOK_SIGNING_SECRET) {
     throw new Error('Independent RevenueCat credentials required');
@@ -32,7 +32,7 @@ export function configure(env, run = runWinSafe) {
   const values = credentialConfiguration(env);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-rc-config-'));
   const file = path.join(dir, 'secrets.env');
-  // JSON quoting preserves spaces, quotes and dotenv metacharacters exactly.
+  // Credentials exclude dotenv interpolation/escape characters before writing.
   const serialized = Object.entries(values).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join('\n');
   try {
     fs.writeFileSync(file, serialized, { mode: 0o600 });

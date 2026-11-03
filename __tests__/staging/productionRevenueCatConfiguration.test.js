@@ -10,7 +10,7 @@ test('foreign project/function/ref, JWT and absent coordination refuse before a 
  }
 });
 test('missing/short/multiline/shared credentials refuse before a write',async()=>{
- const {configure}=await load();for(const value of ['', 'a'.repeat(31),'a'.repeat(40)+'\nINJECT=x',' '+env.RC_PRODUCTION_AUTHORIZATION,env.RC_PRODUCTION_SIGNING_SECRET]){
+ const {configure}=await load();for(const value of ['', 'a'.repeat(31),'a'.repeat(40)+'\nINJECT=x','a'.repeat(40)+'$INJECT','a'.repeat(40)+'\\escape',' '+env.RC_PRODUCTION_AUTHORIZATION,env.RC_PRODUCTION_SIGNING_SECRET]){
  let calls=0;assert.throws(()=>configure({...env,RC_PRODUCTION_AUTHORIZATION:value},()=>{calls++}));assert.equal(calls,0);}
 });
 test('only two credentials written, exact digest readback required, temporary file deleted',async()=>{
