@@ -18842,26 +18842,37 @@
   {
     "endpoint": "function:purchase-import-extract",
     "probe": "simultaneous duplicate operation",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific simultaneous duplicate operation harness and authorized valid-resource/provider fixture not implemented for purchase-import-extract; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "Second call returns controlled429/Retry-After without second dispatch or settling original reservation; first completes200 and owns settlement",
+    "actual": "Exactly1 provider dispatch; duplicate429/rate_limited and positive Retry-After; no settlement call from duplicate; one reserved row remains; first then200/oktrue and exactlyone completed row",
+    "verdict": "PASS",
+    "reason": "Actual Edge handler/default quota adapter and PostgreSQL functions/privileges in PGlite. Auth/consent/SDK/provider are controlled synthetic fixtures; single SQL connection queues requests. No cryptographically validated live JWT, independent DB connections, paid dispatch, deployment or device claim.",
     "probeId": "B35-MAND-0754",
     "feature": "purchase-import-extract",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+    "sourceSha": "1710f94cb44ac58405703233042d348a66ca273a",
     "sourceLocation": "supabase/functions/purchase-import-extract/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
-    "linkedDefectId": null,
-    "repairReference": null,
-    "reverificationStatus": "Pending",
+    "environment": "Local deterministic actual handler/default quota adapter/SQL with synthetic Auth/SDK/provider",
+    "evidence": "continuation-f025-boundary-reconciliation-1102.json",
+    "executionMethod": "node --test __tests__/providerSettlementAuthority.test.js __tests__/purchaseImportReplayDispatch.test.js __tests__/purchaseImportDefaultQuotaAdapter.test.js __tests__/staging/stagingMigrationReconciliation.test.js",
+    "linkedDefectId": "B35-F-024",
+    "repairReference": "681/684/683; trusted settlement685/686 pending mobile merge",
+    "reverificationStatus": "SOURCE HARNESS PASS at exact tested source; deployed runtime not verified",
     "coverageDisposition": {
-      "category": 3,
-      "label": "Safely executable locally",
-      "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
-      "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
-      "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      "category": 1,
+      "label": "Already executed with matching evidence",
+      "reason": "Actual source-handler duplicate operation, actor, reservation and authoritative state match; one exact cell only.",
+      "reviewSourceSha": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+      "scope": "Source harness only; no JWT/provider/runtime certification"
+    },
+    "priorCoverage": {
+      "verdict": "NOT TESTED",
+      "reason": "Endpoint-specific simultaneous duplicate operation harness and authorized valid-resource/provider fixture not implemented for purchase-import-extract; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+      "coverageDisposition": {
+        "category": 3,
+        "label": "Safely executable locally",
+        "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+        "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+        "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+      }
     }
   },
   {

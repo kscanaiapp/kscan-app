@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T01:56:40.589Z",
+  "capturedAt": "2026-11-03T02:05:54.005Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -93,13 +93,13 @@
     "pr": 685,
     "head": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
     "tree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
-    "status": "CANONICAL MERGED / 7 POSTMERGE WORKFLOWS SUCCESS / MOBILE686 CI PENDING",
+    "status": "CANONICAL POSTMERGE GREEN / MOBILE686 f1930 CI PENDING",
     "next": "686 exact-head CI/reviews/normal green merge and nine independent push workflows; then B004 authorized P4. No database/deployment action.",
     "mobilePreparation": {
       "worktree": "C:/b35settlementmobile1102",
       "branch": "promotion/build35-trusted-settlement-1102",
-      "head": "1710f94cb44ac58405703233042d348a66ca273a",
-      "state": "COMMITTED / PR686 READY FOR REVIEW / CI PENDING",
+      "head": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+      "state": "PR686 READY / CI PENDING AFTER EXACT MOBILE CAMPAIGN FIXTURE CORRECTION",
       "requiredNotes": [
         "Copyexactcanonicalhandler/newmigration/privilegedinventorytest/SQLfixturesandtests;regenmobilemanifest,preserveownership",
         "57existingpromotiongrants:advanceonlyreceipthandlerandadd2explicitcanonicalrows(newmigration+phase2b4CrossPath.test.ts),total59",
@@ -110,7 +110,7 @@
         "Base preflight: receipt handler/helper/replay/privilegeinventory/docs matchcanonical31be. Mobile migration-authority manifest and staging test differ; production reconciliation test is absent. DO NOT copy backend deploy governance wholesale. Append only exact canonical F025pending rows to mobile registry, surgically add migration pair in existing mobile staging test; leave absent production test absent."
       ],
       "pr": 686,
-      "tree": "006a0a1dbc4308e19751543616d07c5eccdd708f",
+      "tree": "b64be0e6c2b8dca8d4bc443ff05b0a190d387365",
       "validation": {
         "initialPromotion": "66PASS/6historical-count-ledgerFAIL/2explicitNAskips;negative evidence retained",
         "correctedPromotion": "72PASS/0FAIL/2explicitNAskips;only exact F025 additions admitted",
@@ -119,7 +119,10 @@
         "typescript": "exit0/session80101;emptylog not test-count evidence",
         "sourceGates": "6exit0 on clean1710 tree",
         "manifests": "Edge and crosspath20current"
-      }
+      },
+      "initialFullCI": "11462NodePASS/3migrationCampaignFAIL/96SKIP;missing exact new version in mobile-only test;backend skipped by fail-fast",
+      "campaignCorrection": "Only append20261103011431 to existing explicit list; all unknown/order/selection assertions retained; exactdiff control added",
+      "campaignValidation": "36focusedPASS/0FAIL;209allStagingPASS/0FAIL/58declaredSKIP;6cleanf1930sourcegatesexit0;runtime/SQL/manifestsunchanged"
     },
     "canonicalMerge": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
     "reviewedChecks": "33success/13conditionalSKIP;reviewsandthreadsempty;CLEANready;normalprotectedmerge"

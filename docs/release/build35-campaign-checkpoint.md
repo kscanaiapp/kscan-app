@@ -1,3 +1,9 @@
+## F025 mobile686 CI correction and one exact probe reconciliation
+
+Mobile authority09f0/backend9512 unchanged. PR686 **f1930fa91425fff8a15bd083c0c33249e9e92d43**, treeb64be0e6, awaits current-head CI. First fullNodeCI11462PASS/3FAIL/96SKIP correctly refused an omitted version in the mobile-only migration campaign test. Add only20261103011431 to its exact list, retaining all single-version/order/unknown/batch/refusal controls; promotion test pins that exact diff. **36focusedPASS;209allStagingPASS/0FAIL/58declaredSKIP;sixclean-sourcegatesexit0**. Runtime/SQL/manifests unchanged from locally tested1710 (1592backendPASS,TypeScript0).
+
+One original cell **B35-MAND-0754** now has matching executed handler/SQL duplicate-operation evidence. Matrix **137PASS / 1FAIL / 2958NOT TESTED =3096**. Auth is controlled, not live signedJWT; no other identity or one-second retry cell closed. 424 archives rehashed/decompressed; both failedCIraws retained. 22of23sourceclosed; F025merge/postCI still active, B004next,682held,W1W2unconfirmed. UnderlyingauditINPROGRESS; no deployment/migration/device/platform/Production action.
+
 ## F025 mobile promotion #686 — local validation complete, CI pending
 
 Backend **9512a1814f92796cd77baa6557a8a78a4fd016c5** has seven successful independent post-merge workflows. Mobile authority remains **09f0abad1a443c2601aaddc9c26e85b636c216c4**. [PR686](https://github.com/kscanaiapp/kscan-app/pull/686) at **1710f94cb44ac58405703233042d348a66ca273a**, tree006a0a1d, is ready for review; CI pending. Seven exact canonical files promoted, mobile governance retained, 59 bounded grants; no scan runtime bundle change.

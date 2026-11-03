@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T01:56:40.589Z",
+  "capturedAt": "2026-11-03T02:05:54.005Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4151,6 +4151,46 @@
       "archiveSha256": "dc4d251d940b10e0df5ed8d3119105b6e1dfffe87d3929a28d3b88d6333c5bec",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independentcanonical9512ProjectPASS;raw kept separate from reviewed685"
+    },
+    {
+      "rawFile": "pr686-reviewed-project-failed-raw.log",
+      "rawBytes": 4154670,
+      "rawSha256": "0c82e38cd2cbad60356551dc1e0f8a2c9e14d901793e7139f548402223d26cf5",
+      "archiveFile": "resume1102-pr686-reviewed-project-failed-raw.log.gz",
+      "archiveBytes": 549451,
+      "archiveSha256": "ab91e34b0f4fd5b497d3b78370db2a0e65e1b86acc5f6a1e52bd7ad527ba0731",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Original exact1710/fullCI11462PASS/3campaignFAIL/96SKIP;retained negative evidence"
+    },
+    {
+      "rawFile": "pr686-push-project-failed-raw.log",
+      "rawBytes": 4145600,
+      "rawSha256": "307289540e8063fbc8eec5fe150423dbd22cfcde45c11dc25884f5f9b245e88a",
+      "archiveFile": "resume1102-pr686-push-project-failed-raw.log.gz",
+      "archiveBytes": 548201,
+      "archiveSha256": "7da2767d91bc7222b4c96a3ef4f5fa92fbae362c90335b0f195855059f0150ff",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Original exact1710/fullCI11462PASS/3campaignFAIL/96SKIP;retained negative evidence"
+    },
+    {
+      "rawFile": "settlement-mobile-campaign-controls-corrected-1102.log",
+      "rawBytes": 6650,
+      "rawSha256": "a8c512c7e99a073080ae2751f18e6354557f4dd0e3f1ea9fc204b7185ecfecd9",
+      "archiveFile": "resume1102-settlement-mobile-campaign-controls-corrected-1102.log.gz",
+      "archiveBytes": 1855,
+      "archiveSha256": "8edd05376cc9c80043b695fa276466add8891f9f29cd1ce5c258c321afb31f58",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Corrected exact explicit new migration version; no weakened unknown/order/selection controls"
+    },
+    {
+      "rawFile": "settlement-mobile-all-staging-controls-final-1102.log",
+      "rawBytes": 49948,
+      "rawSha256": "d544256f47e5a4b3156fa0a3ecd87c3760270487b3e1713862043e8e1fa9afa7",
+      "archiveFile": "resume1102-settlement-mobile-all-staging-controls-final-1102.log.gz",
+      "archiveBytes": 7890,
+      "archiveSha256": "34ad16a167e8c29165adc88c5079bb6406669f00713957389b4e0a8207d32c7c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Corrected exact explicit new migration version; no weakened unknown/order/selection controls"
     }
   ]
 }

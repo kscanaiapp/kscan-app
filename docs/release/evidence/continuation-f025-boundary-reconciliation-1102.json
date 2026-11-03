@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-11-03T02:05:54.005Z",
+  "sourceSha": "1710f94cb44ac58405703233042d348a66ca273a",
+  "currentReviewHead": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+  "codeEquivalence": "f1930 changes only two source-promotion/migration-campaign test controls; handler/helper/replay/SQL bytes identical to tested1710 and merged canonical9512",
+  "command": "node --test __tests__/providerSettlementAuthority.test.js __tests__/purchaseImportReplayDispatch.test.js __tests__/purchaseImportDefaultQuotaAdapter.test.js __tests__/staging/stagingMigrationReconciliation.test.js",
+  "result": "65PASS/0FAIL/0SKIP",
+  "rawEvidence": "resume1102-settlement-mobile-sql-replay-1102.log.gz",
+  "limits": "Actual Edge handler/default quota adapter and PostgreSQL functions/privileges in PGlite. Auth/consent/SDK/provider are controlled synthetic fixtures; single SQL connection queues requests. No cryptographically validated live JWT, independent DB connections, paid dispatch, deployment or device claim.",
+  "records": [
+    {
+      "probeId": "B35-MAND-0754",
+      "feature": "purchase-import-extract",
+      "boundary": "handlePurchaseImportRequest -> default reserve adapter -> actual reserve_provider_request SQL",
+      "input": "Actor A starts extraction; hold provider response; submit second extraction with same opaque session ID while first reservation is active",
+      "expected": "Second call returns controlled429/Retry-After without second dispatch or settling original reservation; first completes200 and owns settlement",
+      "actual": "Exactly1 provider dispatch; duplicate429/rate_limited and positive Retry-After; no settlement call from duplicate; one reserved row remains; first then200/oktrue and exactlyone completed row",
+      "verdict": "PASS",
+      "test": "in-flight replay returns 429 without a second provider dispatch or settling the original reservation",
+      "sourceLocation": "__tests__/purchaseImportReplayDispatch.test.js:43",
+      "linkedDefectId": "B35-F-024",
+      "relatedRepair": "681/684/683; preserved during685/686",
+      "reverificationStatus": "SOURCE HARNESS PASS at exact tested source; deployed runtime not verified"
+    }
+  ],
+  "notMapped": [
+    {
+      "probeId": "B35-MAND-0733",
+      "reason": "Own-actor baseline source fixture passes, but this does not independently validate a signed live UserA JWT; no full identity-cell PASS inferred."
+    },
+    {
+      "probeId": "B35-MAND-0755",
+      "reason": "Ten in-flight retries are launched and denied, but the test does not measure a one-second dispatch window; retain requested timing probe as NOT TESTED."
+    }
+  ]
+}
