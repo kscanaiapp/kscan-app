@@ -39,7 +39,7 @@
       "alias": "W2",
       "priority": "P4",
       "feature": "Smart Watchlist malformed authenticated request",
-      "status": "CONFIRMED / PROTECTED-SURFACE SOURCE APPROVAL REQUESTED / NO LEAD RUNTIME EDIT",
+      "status": "OWNER AUTHORIZED / QUEUED AFTER W1 SOURCE CLOSURE",
       "source": "supabase/functions/commerce-watch-refresh/index.ts:945",
       "rootCause": "req.json acceptsnull;afterverifiedAuth,body.actiondereferencesnulloutsideparsecatch",
       "reproduction": "deno test --allow-env --allow-read C:/b35readback1030/watchlist-invalid-body-handler-1103.test.ts",
@@ -50,7 +50,12 @@
       "prs": [
         691
       ],
-      "ownerGate": "safeP4condition excludesauth/RLS-facing subsystem;async approval requested;elapsed time is not approval",
+      "ownerGate": {
+        "status": "AUTHORIZED",
+        "answer": "Authorize this bounded source repair",
+        "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
+        "sequence": "AfterW1,E026"
+      },
       "evidence": "resume1103-watchlist-body-current-before-1103.log.gz"
     }
   ],
@@ -68,5 +73,6 @@
       "actual": "StaleEdgeManifest/fingerprints plus8fragmenttestfailures:innerrouteBody(req,json) shadows suppliedouterjson and is calledwithoutjson. Fixturebindingmustbecorrectedwithoutweakeningassertions;wholehandlerbefore evidence independentlyconfirmsnullbug."
     }
   ],
-  "next": "Resume existing689withcurrentcanonicalparentandpreservedpatch;bodyguardW2awaitsscopeapprovalandW1serialization;688and694operationalactivationhold."
+  "next": "Resume existing689withcurrentcanonicalparentandpreservedpatch;bodyguardW2awaitsscopeapprovalandW1serialization;688and694operationalactivationhold.",
+  "updatedAt": "2026-11-03T13:17:38.556Z"
 }

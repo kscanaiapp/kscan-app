@@ -127,7 +127,13 @@
       "alias": "W2",
       "priority": "P4",
       "pr": 691,
-      "status": "PROTECTED-SURFACE OWNER APPROVAL PENDING / serialize afterW1"
+      "status": "OWNER AUTHORIZED / serialize after W1",
+      "ownerAuthorization": {
+        "status": "AUTHORIZED",
+        "answer": "Authorize this bounded source repair",
+        "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
+        "sequence": "AfterW1,E026"
+      }
     }
   ],
   "excluded": [
