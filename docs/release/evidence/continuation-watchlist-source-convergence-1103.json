@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T13:56:54.688Z",
+  "capturedAt": "2026-11-03T14:03:49.694Z",
   "finding": "B35-E-026",
   "priority": "P3",
   "canonical": {
@@ -367,15 +367,68 @@
       "fail": 0,
       "skip": 2
     },
-    "postMerge": "PENDING; not closed until independent branch checks complete"
+    "postMerge": {
+      "success": 9,
+      "total": 9,
+      "runs": [
+        {
+          "name": "Build 35 iOS source certification",
+          "id": 41648783637,
+          "conclusion": "success"
+        },
+        {
+          "name": "Build 35 Release Profile Guard",
+          "id": 41648783624,
+          "conclusion": "success"
+        },
+        {
+          "name": "Security - ZAP API Staging",
+          "id": 41648783643,
+          "conclusion": "success"
+        },
+        {
+          "name": "Security - ZAP Baseline Staging",
+          "id": 41648783409,
+          "conclusion": "success"
+        },
+        {
+          "name": "Dependency Reachability Gate",
+          "id": 41648783387,
+          "conclusion": "success"
+        },
+        {
+          "name": "VTO Backend E2E",
+          "id": 41648783350,
+          "conclusion": "success"
+        },
+        {
+          "name": "K Scan Staging Security Gate",
+          "id": 41648783385,
+          "conclusion": "success"
+        },
+        {
+          "name": "Security - Code and Dependencies",
+          "id": 41648783348,
+          "conclusion": "success"
+        },
+        {
+          "name": "Security - Promotion Gate",
+          "id": 41648783368,
+          "conclusion": "success"
+        }
+      ]
+    }
   },
-  "status": "SOURCE MERGED IN BOTH AUTHORITIES / MOBILE POST-MERGE VERIFICATION PENDING",
+  "status": "SOURCE-CLOSED / CANONICAL689 + MOBILE687 / CI AND POST-MERGE VERIFIED / NOT DEPLOYED",
   "runtime": "SOURCE ONLY / NOT DEPLOYED",
   "counts": {
+    "P0": 0,
+    "P1": 5,
+    "P2": 7,
+    "P3": 12,
     "P0P3": 24,
-    "closedBeforeThis": 23,
-    "additionalSourceMerged": 1,
-    "postMergePending": 1
+    "fullySourceClosed": 24,
+    "sourceOpen": 0
   },
   "matrix": {
     "total": 3096,
@@ -383,5 +436,6 @@
     "FAIL": 0,
     "NOT_TESTED": 2958
   },
-  "next": "Collect independent9mobilepushworkflows;then closeW1and begin owner-authorized E027P4actualhandler repair. Preserve overlapping690 until replacement closure. No deployment or activation."
+  "next": "Owner-authorized E027P4 Watchlist null-body repair: reproduce actual current handler, minimal guard, full-handler/fragment regression, canonical then mobile691greenintegration;no deployment.",
+  "duplicatePR690": "Closed unmerged as superseded; original body, branch, patch and failures retained. Actual 200-character SQL contract governs, not alternative256."
 }

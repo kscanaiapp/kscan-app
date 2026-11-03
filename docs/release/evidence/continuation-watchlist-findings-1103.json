@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T13:14:15.718Z",
+  "capturedAt": "2026-11-03T14:03:49.694Z",
   "baselineCanonical": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
   "baselineMobile": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
   "findingCounts": {
@@ -8,8 +8,8 @@
     "P2": 7,
     "P3": 12,
     "totalP0P3": 24,
-    "sourceClosed": 23,
-    "sourceOpen": 1
+    "sourceClosed": 24,
+    "sourceOpen": 0
   },
   "findings": [
     {
@@ -17,7 +17,7 @@
       "alias": "W1 / B35-W1",
       "priority": "P3",
       "feature": "Smart Watchlist / Expo push acceptance",
-      "status": "CONFIRMED / EXISTING CANONICAL689 REPAIR TO RESUME",
+      "status": "SOURCE-CLOSED / CANONICAL689 + MOBILE687 / CI AND POST-MERGE VERIFIED / NOT DEPLOYED",
       "source": "supabase/functions/commerce-watch-refresh/pushDelivery.ts:129",
       "consumer": "supabase/functions/commerce-watch-refresh/index.ts:231",
       "contract": "Success denotes an accepted ticket with an id for later receipt tracking, never actual handset delivery",
@@ -32,14 +32,17 @@
         687
       ],
       "evidence": "resume1103-watchlist-ticket-current-before-1103.log.gz",
-      "providerEvidence": "https://docs.expo.dev/push-notifications/sending-notifications/#push-tickets"
+      "providerEvidence": "https://docs.expo.dev/push-notifications/sending-notifications/#push-tickets",
+      "repairEvidence": "continuation-watchlist-source-convergence-1103.json",
+      "canonical": "6d96156745160d93596dd792769df6aed164e6fe",
+      "mobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27"
     },
     {
       "id": "B35-E-027",
       "alias": "W2",
       "priority": "P4",
       "feature": "Smart Watchlist malformed authenticated request",
-      "status": "OWNER AUTHORIZED / QUEUED AFTER W1 SOURCE CLOSURE",
+      "status": "CONFIRMED / OWNER AUTHORIZED / ACTIVE AFTER W1 CLOSURE",
       "source": "supabase/functions/commerce-watch-refresh/index.ts:945",
       "rootCause": "req.json acceptsnull;afterverifiedAuth,body.actiondereferencesnulloutsideparsecatch",
       "reproduction": "deno test --allow-env --allow-read C:/b35readback1030/watchlist-invalid-body-handler-1103.test.ts",
@@ -50,12 +53,7 @@
       "prs": [
         691
       ],
-      "ownerGate": {
-        "status": "AUTHORIZED",
-        "answer": "Authorize this bounded source repair",
-        "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
-        "sequence": "AfterW1,E026"
-      },
+      "ownerGate": "APPROVED: Authorize this bounded source repair. Canonical/mobilegreenPRs;fullhandlerregression;no deployment.",
       "evidence": "resume1103-watchlist-body-current-before-1103.log.gz"
     }
   ],
@@ -73,6 +71,6 @@
       "actual": "StaleEdgeManifest/fingerprints plus8fragmenttestfailures:innerrouteBody(req,json) shadows suppliedouterjson and is calledwithoutjson. Fixturebindingmustbecorrectedwithoutweakeningassertions;wholehandlerbefore evidence independentlyconfirmsnullbug."
     }
   ],
-  "next": "Resume existing689withcurrentcanonicalparentandpreservedpatch;bodyguardW2awaitsscopeapprovalandW1serialization;688and694operationalactivationhold.",
+  "next": "Owner-authorized E027P4 Watchlist null-body repair: reproduce actual current handler, minimal guard, full-handler/fragment regression, canonical then mobile691greenintegration;no deployment.",
   "updatedAt": "2026-11-03T13:17:38.556Z"
 }

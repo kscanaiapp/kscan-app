@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T13:56:54.688Z",
+  "capturedAt": "2026-11-03T14:03:49.694Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4621,6 +4621,16 @@
       "archiveSha256": "022e9c5a182e597a87d13fc4f130f50c3a421c7ed1d46c38b0ad50214dcd4b3a",
       "encoding": "UTF-8",
       "disposition": "Exact mobile W1 reviewed tree full validation; empty TypeScript log is exit0 with no stdout, not a test-count claim. No deployed/customer/device test."
+    },
+    {
+      "rawFile": "watchlist-evidence-synchronization-focused-1103.log",
+      "rawBytes": 5728,
+      "rawSha256": "819d24d3562072448f05aeff3c501bffc091096e43033d940ecb840ab2fe0970",
+      "archiveFile": "resume1103-watchlist-evidence-synchronization-focused-1103.log.gz",
+      "archiveBytes": 1661,
+      "archiveSha256": "81d6e914ba749658faa52ebb1adb5efc89b7a4768c8a78af353f24e9c20a2126",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Evidence lane synchronization:32terminology/paritycontrolsPASS; everyruntimefileequalsmobile2c2c9da4;3preexistingQA/terminologytestdifferencesretained"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-11-03T13:56:54.688Z",
+  "capturedAt": "2026-11-03T14:03:49.694Z",
   "principle": "Close existing source work before additional expansion; one active implementation",
   "closed": [
     {
@@ -110,33 +110,34 @@
       "source": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
       "status": "SOURCE CLOSED / CANONICAL698 + MOBILE699 MERGED / 7+9 POSTMERGE WORKFLOWS SUCCESS / DEPLOYED RUNTIME NOT VERIFIED",
       "evidence": "continuation-b004-source-closure-1103.json"
+    },
+    {
+      "finding": "B35-E-026",
+      "priority": "P3",
+      "status": "SOURCE-CLOSED / CANONICAL689 + MOBILE687 / CI AND POST-MERGE VERIFIED / NOT DEPLOYED",
+      "canonical": "6d96156745160d93596dd792769df6aed164e6fe",
+      "mobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+      "canonicalPR": 689,
+      "mobilePR": 687,
+      "next": "Collect independent9mobilepushworkflows;then closeW1and begin owner-authorized E027P4actualhandler repair. Preserve overlapping690 until replacement closure. No deployment or activation.",
+      "evidence": "continuation-watchlist-source-convergence-1103.json"
     }
   ],
   "active": {
-    "finding": "B35-E-026",
-    "priority": "P3",
-    "status": "SOURCE MERGED IN BOTH AUTHORITIES / MOBILE POST-MERGE VERIFICATION PENDING",
-    "canonical": "6d96156745160d93596dd792769df6aed164e6fe",
-    "mobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
-    "canonicalPR": 689,
-    "mobilePR": 687,
-    "next": "Collect independent9mobilepushworkflows;then closeW1and begin owner-authorized E027P4actualhandler repair. Preserve overlapping690 until replacement closure. No deployment or activation."
+    "finding": "B35-E-027",
+    "alias": "W2",
+    "priority": "P4",
+    "pr": 691,
+    "status": "OWNER AUTHORIZED / NEXT ACTUAL CURRENT-HANDLER REPRODUCTION",
+    "ownerAuthorization": {
+      "status": "AUTHORIZED",
+      "answer": "Authorize this bounded source repair",
+      "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
+      "sequence": "AfterW1,E026"
+    },
+    "next": "Owner-authorized E027P4 Watchlist null-body repair: reproduce actual current handler, minimal guard, full-handler/fragment regression, canonical then mobile691greenintegration;no deployment."
   },
-  "queued": [
-    {
-      "finding": "B35-E-027",
-      "alias": "W2",
-      "priority": "P4",
-      "pr": 691,
-      "status": "OWNER AUTHORIZED / serialize after W1",
-      "ownerAuthorization": {
-        "status": "AUTHORIZED",
-        "answer": "Authorize this bounded source repair",
-        "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
-        "sequence": "AfterW1,E026"
-      }
-    }
-  ],
+  "queued": [],
   "excluded": [
     "Device certification and later QA do not cause source FAIL/blocker",
     "Account-deletion-cycle repairs deferred by owner",
