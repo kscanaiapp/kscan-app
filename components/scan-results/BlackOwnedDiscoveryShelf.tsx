@@ -7,7 +7,12 @@ import { openExternalUrl } from '../../services/openExternalUrl';
 import type { SecondaryResponse, SecondaryProduct } from '../../services/blackOwnedDiscovery';
 import { trackBlackOwnedDiscovery } from '../../services/blackOwnedDiscoveryTelemetry';
 
-/** Prepared integration surface, deliberately unmounted in production routes. */
+/**
+ * Secondary shelf on the live Scan Results surface (ScanResultV2), mounted only
+ * with genuine eligible products and never in place of primary commerce. No
+ * Save control is offered: discovery products are not refreshable listings, so
+ * the existing Watch flow does not apply, and an inert button would mislead.
+ */
 export function BlackOwnedDiscoveryShelf({ enabled = false, loading = false, response, onSave }: {
   enabled?: boolean; loading?: boolean; response?: SecondaryResponse;
   onSave?: (product: SecondaryProduct) => void;

@@ -293,6 +293,13 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // Scheduled catalog worker: worker-secret only, no customer actor. Writes go
+  // through the reviewed discovery_begin_sync/ingest/sync_failed RPCs, which
+  // re-check merchant authorization inside the database.
+  'black-owned-catalog-sync': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   // Same audited common auth/REST closure, with an additional server-side
   // protected staff lookup and explicit non-production sandbox controls.
   'sponsorship-sandbox': {

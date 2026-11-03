@@ -262,7 +262,9 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // Now 29: the VTO post-Kimi lane adds kplus-offer-redeem, the authenticated
   // HMAC-only offer-code ingestion boundary. Neither belongs to this sweep.
   // 31: canonical backend PR #641 adds discovery and isolated sponsorship sandbox.
-  assert.equal(dirs.length, 31, 'no unexplained Edge Function has appeared');
+  // 32: black-owned-catalog-sync, its scheduled catalog worker, is likewise unrelated.
+  assert.equal(dirs.length, 32, 'no unexplained Edge Function has appeared');
+  assert.ok(dirs.includes('black-owned-catalog-sync'));
   assert.ok(dirs.includes('process-account-deletions'));
 
   // The count is a tripwire, not the guarantee. Prove the real invariant
