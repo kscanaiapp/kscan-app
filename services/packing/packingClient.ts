@@ -62,10 +62,12 @@ async function readHttpErrorBody(error: unknown): Promise<{ status: number; body
  * goes through the same validator as a 200; anything else stays a transport
  * failure.
  */
-function isPackingEnvelope(body: unknown): body is Record<string, unknown> {
+function isPackingFailureEnvelope(body: unknown): body is Record<string, unknown> {
   return !!body && typeof body === 'object' && !Array.isArray(body)
     && typeof (body as Record<string, unknown>).contractVersion === 'string'
-    && typeof (body as Record<string, unknown>).message === 'string';
+    && typeof (body as Record<string, unknown>).message === 'string'
+    // An HTTP failure may explain a failure, but cannot certify a new plan.
+    && ['error', 'not_entitled', 'no_result'].includes((body as Record<string, unknown>).status as string);
 }
 
 export async function requestPackingPlan(input: PackingRequestInput): Promise<PackingResult> {
@@ -105,7 +107,7 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
           retryable: false,
         };
       }
-      if (http && isPackingEnvelope(http.body)) return parsePackingResponse(http.body);
+      if (http && isPackingFailureEnvelope(http.body)) return parsePackingResponse(http.body);
       return {
         status: 'error',
         message: 'I could not reach K Scan to build your plan. Check your connection and try again.',
