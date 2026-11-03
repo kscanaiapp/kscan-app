@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T02:13:12.601Z",
+  "capturedAt": "2026-11-03T02:20:38.798Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4201,6 +4201,16 @@
       "archiveSha256": "461f242973cb788281216785132be9cefbf78694116068ee88f79d257bf4bf7c",
       "encoding": "UTF-16LE BOM",
       "disposition": "Exact f1930 reviewed fullNode11465PASS/0FAIL/96SKIP;backend1592PASS/0FAIL;not merged-branch/runtime/device certification"
+    },
+    {
+      "rawFile": "mobile-6cca-project-postmerge-raw.log",
+      "rawBytes": 5320390,
+      "rawSha256": "f17731aa3abf3e22aa6d168fd676994a061e2a7494c1cca27b2d355601728f2b",
+      "archiveFile": "resume1102-mobile-6cca-project-postmerge-raw.log.gz",
+      "archiveBytes": 651260,
+      "archiveSha256": "0c8149466b76195d8d0e318116eeba68e1d5c7bbe636b66c17d8a3aa65f1cf7c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independent final6ccaProject11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL;source only"
     }
   ]
 }

@@ -1,0 +1,286 @@
+{
+  "jobs": [
+    {
+      "completedAt": "2026-11-03T02:12:19Z",
+      "conclusion": "success",
+      "databaseId": 125682967314,
+      "name": "Classify changed surfaces",
+      "startedAt": "2026-11-03T02:12:04Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T02:12:06Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T02:12:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:15Z",
+          "conclusion": "success",
+          "name": "Checkout merge candidate",
+          "number": 2,
+          "startedAt": "2026-11-03T02:12:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:16Z",
+          "conclusion": "success",
+          "name": "Classify changed surfaces",
+          "number": 3,
+          "startedAt": "2026-11-03T02:12:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:16Z",
+          "conclusion": "success",
+          "name": "Determine enforcement level",
+          "number": 4,
+          "startedAt": "2026-11-03T02:12:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:17Z",
+          "conclusion": "success",
+          "name": "Upload classification artifact",
+          "number": 5,
+          "startedAt": "2026-11-03T02:12:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:18Z",
+          "conclusion": "success",
+          "name": "Post Checkout merge candidate",
+          "number": 10,
+          "startedAt": "2026-11-03T02:12:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:18Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T02:12:18Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125682967314"
+    },
+    {
+      "completedAt": "2026-11-03T02:12:37Z",
+      "conclusion": "success",
+      "databaseId": 125683094657,
+      "name": "Migration validation",
+      "startedAt": "2026-11-03T02:12:21Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T02:12:22Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T02:12:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:27Z",
+          "conclusion": "success",
+          "name": "Checkout",
+          "number": 2,
+          "startedAt": "2026-11-03T02:12:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:31Z",
+          "conclusion": "success",
+          "name": "Setup Node",
+          "number": 3,
+          "startedAt": "2026-11-03T02:12:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:33Z",
+          "conclusion": "success",
+          "name": "Validate migration syntax and destructive operations",
+          "number": 4,
+          "startedAt": "2026-11-03T02:12:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:34Z",
+          "conclusion": "success",
+          "name": "Upload migration validation artifact",
+          "number": 5,
+          "startedAt": "2026-11-03T02:12:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:34Z",
+          "conclusion": "success",
+          "name": "Post Setup Node",
+          "number": 9,
+          "startedAt": "2026-11-03T02:12:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:34Z",
+          "conclusion": "success",
+          "name": "Post Checkout",
+          "number": 10,
+          "startedAt": "2026-11-03T02:12:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:35Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T02:12:34Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683094657"
+    },
+    {
+      "completedAt": "2026-11-03T02:13:02Z",
+      "conclusion": "success",
+      "databaseId": 125683094730,
+      "name": "Contract tests",
+      "startedAt": "2026-11-03T02:12:21Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T02:12:22Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T02:12:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:26Z",
+          "conclusion": "success",
+          "name": "Checkout",
+          "number": 2,
+          "startedAt": "2026-11-03T02:12:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:31Z",
+          "conclusion": "success",
+          "name": "Setup Node",
+          "number": 3,
+          "startedAt": "2026-11-03T02:12:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:59Z",
+          "conclusion": "success",
+          "name": "Install dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T02:12:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:00Z",
+          "conclusion": "success",
+          "name": "Run mobile contract and security tests",
+          "number": 5,
+          "startedAt": "2026-11-03T02:12:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:00Z",
+          "conclusion": "success",
+          "name": "Post Setup Node",
+          "number": 9,
+          "startedAt": "2026-11-03T02:13:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:00Z",
+          "conclusion": "success",
+          "name": "Post Checkout",
+          "number": 10,
+          "startedAt": "2026-11-03T02:13:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:00Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T02:13:00Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683094730"
+    },
+    {
+      "completedAt": "2026-11-03T02:12:37Z",
+      "conclusion": "skipped",
+      "databaseId": 125683198258,
+      "name": "Deploy staging candidate",
+      "startedAt": "2026-11-03T02:12:37Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683198258"
+    },
+    {
+      "completedAt": "2026-11-03T02:12:37Z",
+      "conclusion": "skipped",
+      "databaseId": 125683198979,
+      "name": "Staging health checks",
+      "startedAt": "2026-11-03T02:12:37Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683198979"
+    },
+    {
+      "completedAt": "2026-11-03T02:12:37Z",
+      "conclusion": "skipped",
+      "databaseId": 125683199533,
+      "name": "Synthetic auth tests",
+      "startedAt": "2026-11-03T02:12:37Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683199533"
+    },
+    {
+      "completedAt": "2026-11-03T02:13:07Z",
+      "conclusion": "success",
+      "databaseId": 125683340503,
+      "name": "Staging security gate",
+      "startedAt": "2026-11-03T02:13:04Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T02:13:04Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T02:13:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:04Z",
+          "conclusion": "success",
+          "name": "Publish staging gate verdict",
+          "number": 2,
+          "startedAt": "2026-11-03T02:13:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:05Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 3,
+          "startedAt": "2026-11-03T02:13:04Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602331/job/125683340503"
+    }
+  ]
+}
