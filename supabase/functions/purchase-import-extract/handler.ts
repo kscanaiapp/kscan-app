@@ -43,9 +43,7 @@ import {
   resolveRoutePlan,
 } from '../_shared/llmModelRouting.ts';
 import {
-  completeProviderRequest,
   computeRequestFingerprint,
-  releaseProviderRequest,
   reserveProviderRequest,
 } from '../_shared/security/quota.ts';
 import {
@@ -99,7 +97,7 @@ export interface PurchaseImportDeps {
   assertAccountActive: typeof assertAccountActive;
   isEnabled: () => boolean;
   reserve: (accessToken: string, requestId: string, userId: string) => Promise<Reservation | null>;
-  settle: (accessToken: string, reservationId: string, billable: boolean) => Promise<void>;
+  settle: (actorId: string, reservationId: string, billable: boolean) => Promise<void>;
   callProvider: (
     model: string,
     body: unknown,
@@ -153,13 +151,23 @@ export const defaultPurchaseImportDeps: PurchaseImportDeps = {
       return null;
     }
   },
-  settle: async (accessToken, reservationId, billable) => {
+  settle: async (actorId, reservationId, billable) => {
     try {
-      const client = await userClient(accessToken);
-      if (billable) await completeProviderRequest(client as never, reservationId);
-      else await releaseProviderRequest(client as never, reservationId, 'provider_not_billable');
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const client = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      });
+      const { data, error } = await client.rpc('settle_provider_request_for_actor', {
+        p_user_id: actorId,
+        p_reservation_id: reservationId,
+        p_function_name: FUNCTION_NAME,
+        p_billable: billable,
+      });
+      if (error || data !== true) throw new Error('settlement_pending');
     } catch {
-      // The reservation TTL reclaims an unsettled reservation.
+      // Retain conservative reserved accounting; never fall back to a caller
+      // token or release an ambiguous provider operation on settlement failure.
+      logEvent('purchase_import_quota_settlement_pending', { billable });
     }
   },
   callProvider: async (model, body, signal) => {
@@ -345,7 +353,7 @@ export async function handlePurchaseImportRequest(
   } finally {
     // 9. Settle. A call that never produced a billable response is released,
     //    so a provider outage does not consume the customer's allowance.
-    await deps.settle(user.accessToken, reservation.reservationId, billable);
+    await deps.settle(user.id, reservation.reservationId, billable);
   }
 
   if (!billable) {
