@@ -1,3 +1,9 @@
+## Watchlist W1 receipt-storage boundary checkpoint — November 3
+
+Authorities backend53bf7cc2/mobile77a6b97f unchanged. W1/E026 existing PR689 repair now also rejects identifiers that cannot enter receipt storage. Actual migration DDL executed in disposable PGlite:1..200 Unicode characters accepted;201+ and NUL rejected. Before proposed guard completion20PASS/4FAIL;after24PASS/0FAIL;unchanged independent PR682 adapter tests8PASS/0FAIL. Full backend/TypeScript in progress; no merge or deployment claim. Existing schema/API/token retirement unchanged. [Exact evidence](evidence/continuation-watchlist-ticket-storage-contract-1103.json).
+
+24confirmedP0-P3:23sourceclosed/1open. Matrix138PASS/0FAIL/2958NOTTESTED unchanged. Owner explicitly authorized W2/E027 P4; serialized after W1, no repeated permission needed. Next collect full checks,commit current PR689 continuation,run clean governance and exact-head CI,then mobile687 convergence. AUDIT IN PROGRESS.
+
 ## Watchlist continuation: two hypotheses now independently confirmed
 
 B004 remains source-closed through698/699; authorities backend53bf/mobile77a6 unchanged. **B35-E-026 (W1), P3:** actual current push adapter wrongly accepts malformed Expo200 tickets;existing689tests reproduce3PASS/9FAIL,including8invalidresponsesandatrimcontrol. Caller can emitacceptedwithoutreceipt persistence. Resume existingcanonical689thenmobile687;donotduplicate690. **24confirmedP0-P3:23sourceclosed/1open** (0P0/5P1/7P2/12P3).

@@ -1,0 +1,53 @@
+{
+  "capturedAt": "2026-11-03T13:37:11.360Z",
+  "finding": "B35-E-026",
+  "priority": "P3",
+  "baselineCanonical": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+  "mobile": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
+  "worktree": "C:/b35watchticket1103",
+  "branch": "audit/build35-watchlist-ticket-continuation-1103",
+  "existingPRs": {
+    "canonical": 689,
+    "mobile": 687
+  },
+  "status": "REPAIR IN LOCAL SOURCE / FULL VALIDATION IN PROGRESS / NOT MERGED",
+  "rootCause": "Malformed HTTP200 accepted without trackable receipt. Existing draft guards still accepted ticket identifiers rejected by actual database constraint.",
+  "storageContract": {
+    "file": "supabase/migrations/20260909115726_watchlist_push_receipts.sql",
+    "constraint": "watchlist_push_receipts_ticket_id_len",
+    "characters": "1..200 Unicode codepoints",
+    "nul": "PostgreSQL text rejects NUL"
+  },
+  "executed": [
+    {
+      "log": "watchlist-ticket-storage-boundary-before-1103.log",
+      "method": "actual adapter transpiled with controlled fetch plus actual table DDL in disposable PGlite",
+      "pass": 20,
+      "fail": 4,
+      "actual": "201/256/257-character and NUL IDs falsely accepted; actual SQL rejects them"
+    },
+    {
+      "log": "watchlist-ticket-storage-boundary-after-1103.log",
+      "pass": 24,
+      "fail": 0,
+      "actual": "single ok ticket plus trimmed storage-compatible id required;200 Unicode codepoints accepted"
+    },
+    {
+      "log": "watchlist-ticket-supplementary682-storage-after-1103.log",
+      "pass": 8,
+      "fail": 0,
+      "method": "unchanged independent PR682 fixture against actual current adapter"
+    }
+  ],
+  "repair": "bounded codepoint counting rejects NUL and >200characters; existing ticket_error response preserved, no schema or API change",
+  "fullValidation": "backend and TypeScript running, no final claim yet",
+  "ownerAuthorizedNext": "B35-E-027 P4 null-body handler repair authorized; execute only after W1 canonical/mobile closure",
+  "runtime": "NO deployment, migration, push, customer mutation, device or binary operation",
+  "matrix": {
+    "total": 3096,
+    "PASS": 138,
+    "FAIL": 0,
+    "NOT_TESTED": 2958,
+    "delta": 0
+  }
+}

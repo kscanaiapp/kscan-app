@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T13:14:15.718Z",
+  "capturedAt": "2026-11-03T13:37:11.360Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4411,6 +4411,36 @@
       "archiveSha256": "6be582aaa31da94e49e5ab769f6bcc919264c49a567726773d42a8eb746bad63",
       "encoding": "UTF-16LE BOM",
       "disposition": "Independent PR historical CI failure/cancellation evidence retained and separately dispositioned"
+    },
+    {
+      "rawFile": "watchlist-ticket-storage-boundary-before-1103.log",
+      "rawBytes": 10242,
+      "rawSha256": "666cae7da84030db36d6b982cf7a71b6dbd421ddbdea57a3633be388bdf5c76e",
+      "archiveFile": "resume1103-watchlist-ticket-storage-boundary-before-1103.log.gz",
+      "archiveBytes": 1256,
+      "archiveSha256": "9c74b62a28419e455157777436f16279cd999def671c0e29fed56096f344b91d",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual adapter and disposable SQL fixture, before/after W1 receipt-storage boundary; no live provider or database change"
+    },
+    {
+      "rawFile": "watchlist-ticket-storage-boundary-after-1103.log",
+      "rawBytes": 4678,
+      "rawSha256": "46915177e91870f7e4c48df76cc64c837e81ecd6d889f160d883028b49d7278d",
+      "archiveFile": "resume1103-watchlist-ticket-storage-boundary-after-1103.log.gz",
+      "archiveBytes": 849,
+      "archiveSha256": "e47f2488ef26d83a3531fc2683674335b5097902a5aad7394a6ada9fc9a83896",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual adapter and disposable SQL fixture, before/after W1 receipt-storage boundary; no live provider or database change"
+    },
+    {
+      "rawFile": "watchlist-ticket-supplementary682-storage-after-1103.log",
+      "rawBytes": 1436,
+      "rawSha256": "9c579b3c7ff15e236de1d641d06710e804d1eebbc09e6eda5b43feb3131c44b8",
+      "archiveFile": "resume1103-watchlist-ticket-supplementary682-storage-after-1103.log.gz",
+      "archiveBytes": 542,
+      "archiveSha256": "88a9bd4514e30fd0b524eaa60cbab06366145623806eee86b02d288fc9a908b7",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual adapter and disposable SQL fixture, before/after W1 receipt-storage boundary; no live provider or database change"
     }
   ]
 }
