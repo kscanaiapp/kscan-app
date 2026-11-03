@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-11-03T00:42:04.232Z",
+  "canonical": "31be5f99341b606a070bbbe0b3062588f320f089",
+  "canonicalReview": "184395bc8899904946ce0c86e8c0a64ebef03b76",
+  "canonicalTestedMerge": "bf12d427d31c59d53b2479668b618580220fb701",
+  "canonicalTree": "1b6dbc86d3f7fe8a4c562da5aaae65a16fa75068",
+  "canonicalPr": 684,
+  "canonicalCI": "32success/14conditionalSKIP;7of7independentpushSUCCESS;8564NodePASS/0FAIL/65SKIP;1575backendPASS/0FAIL",
+  "mobile": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+  "mobilePr": 683,
+  "mobileHead": "f97fdbe0a9b809907ab06aa6908161758111223f",
+  "mobileTree": "4dda7416425a64387f9c2b97cf86e7c9a283d447",
+  "status": "EXACTCANONICALMOBILEPROMOTIONPUSHED / CURRENTHEADCI PENDING",
+  "local": {
+    "pass": 81,
+    "fail": 0,
+    "skip": 2,
+    "typescript": {
+      "command": "tsc --noEmit",
+      "exitCode": 0,
+      "toolSession": 50778,
+      "output": "empty log;exit statusrecorded,notatestcount"
+    },
+    "sourceGates": "6exit0",
+    "backend": "84priorPASSwithidenticalhandler/SQL/Denoinputs;completebackendrerunsinCI"
+  },
+  "next": "Finish683currentheadCI/reviews, normalgreenmerge, verifyreview/test/finaltree+9pushworkflows; onlythenF025andB004",
+  "limits": "No newP0-P3finding.23total/21sourceclosed/2closureopen;682held;W1W2unconfirmed;underlyingauditnotfinalverification;noRuntime/migration/deploy/Production/device/deletioncycle/EAS/storeaction"
+}

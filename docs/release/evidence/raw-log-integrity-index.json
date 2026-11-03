@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-02T23:54:41.667Z",
+  "capturedAt": "2026-11-03T00:42:04.232Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -3911,6 +3911,56 @@
       "archiveSha256": "f76f257f38222ab42233c6fb7fb4fbb6bde1a561bf9537250b1cd488183c0c54",
       "encoding": "UTF-16LE BOM",
       "disposition": "11actualSQL/defaultadapter/handlerPASS includingforcedstartupdelayanddeliberatebadgrantnegativecontrol;controlledprovider,no runtime/providerclaim"
+    },
+    {
+      "rawFile": "pr683-reviewed-project-initial-raw.log",
+      "rawBytes": 5317094,
+      "rawSha256": "2ffeb8ef80c87631fe3983262f8aa891829683b5ed8d5e5337e841adb76d1f20",
+      "archiveFile": "resume1102-pr683-reviewed-project-initial-raw.log.gz",
+      "archiveBytes": 648584,
+      "archiveSha256": "c690a80a5157fe2a5104ec3510597fec7023cf6a7101e83c984c29086d630db7",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Initial683parallelPRPASS11454whilepushfailedtimingassertion;neitherevidenceoverwrittentosuppressflakiness"
+    },
+    {
+      "rawFile": "pr684-reviewed-project-raw.log",
+      "rawBytes": 4871808,
+      "rawSha256": "88abce26de5274b610771828d2cff1e13903b1a00dc0ef7b9a6f1e7431d25afe",
+      "archiveFile": "resume1102-pr684-reviewed-project-raw.log.gz",
+      "archiveBytes": 545668,
+      "archiveSha256": "5a25d433f37ec528bd936921755c40c967838630d8d475d116d98da9b0cb68f0",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actualcorrectedsource/canonicalreview/postmergeormobile81focusedPASS2NAskips/TSexit0. Controlledfixtures;no deployedprovider/deviceclaim"
+    },
+    {
+      "rawFile": "backend-31be-project-postmerge-raw.log",
+      "rawBytes": 4956358,
+      "rawSha256": "2cef04b0d31302d1ae438f33b7409973e1d140ed2ed76fd16b8f4e687882e867",
+      "archiveFile": "resume1102-backend-31be-project-postmerge-raw.log.gz",
+      "archiveBytes": 551381,
+      "archiveSha256": "0674298c6ec9e1b8f11321836a978e163ceac93c098a73067403e6bc7565ece9",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actualcorrectedsource/canonicalreview/postmergeormobile81focusedPASS2NAskips/TSexit0. Controlledfixtures;no deployedprovider/deviceclaim"
+    },
+    {
+      "rawFile": "replay-mobile-event-focused-1102.log",
+      "rawBytes": 22948,
+      "rawSha256": "f46d60360c914d26cfea58fdacc03c2854ba3c524386f165399589c5e7b64804",
+      "archiveFile": "resume1102-replay-mobile-event-focused-1102.log.gz",
+      "archiveBytes": 4337,
+      "archiveSha256": "e3a63839754156ac6eda882dab3394da65eaee9476b30b79c534c53d398a4952",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actualcorrectedsource/canonicalreview/postmergeormobile81focusedPASS2NAskips/TSexit0. Controlledfixtures;no deployedprovider/deviceclaim"
+    },
+    {
+      "rawFile": "replay-mobile-event-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-replay-mobile-event-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Actualcorrectedsource/canonicalreview/postmergeormobile81focusedPASS2NAskips/TSexit0. Controlledfixtures;no deployedprovider/deviceclaim"
     }
   ]
 }

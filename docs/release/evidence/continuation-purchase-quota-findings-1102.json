@@ -53,7 +53,7 @@
       "mergeOrder": "AfterC023canonical679/mobile680 complete. F025 andB004remainqueued; no shared-file overlap.",
       "id": "B35-F-024",
       "priority": "P2",
-      "status": "684CANONICALCI PENDING;683heldreduntilcanonicaltestcorrectionpromoted",
+      "status": "EXACTCANONICALMOBILEPROMOTIONPUSHED / CURRENTHEADCI PENDING",
       "sourceLocation": "20260803020000_provider_request_security.sql:263-272 duplicate_replay; purchase-import-extract/handler.ts:138-144 discards reason; 275-281 dispatch gate",
       "contract": "An in-flight repeated extraction must not dispatch a second provider operation under one quota reservation.",
       "observed": "Two simultaneous same-request actual handler calls reach the controlled provider twice with one actual SQL reservation; expected one dispatch.",
@@ -75,10 +75,12 @@
       "mobileWorktree": "C:/b35receiptreplaymobile1102",
       "mobileState": "CLEAN / NO SOURCE EDIT / NO PR / prepared script NOT EXECUTED",
       "mobilePr": 683,
-      "mobileHead": "d0328ac1535e0b08e84ee6905bf584810555df20",
+      "mobileHead": "f97fdbe0a9b809907ab06aa6908161758111223f",
       "mobileTree": "c8913cd71efcda2874ef2adc6b45626af5577e3b",
       "mobileEvidence": "continuation-f024-mobile-resume-1102.json",
-      "fixtureEvidence": "continuation-f024-fixture-sync-1102.json"
+      "fixtureEvidence": "continuation-f024-fixture-sync-1102.json",
+      "canonicalTestCorrection": "31be5f99341b606a070bbbe0b3062588f320f089",
+      "evidenceCurrent": "continuation-f024-event-promotion-1102.json"
     },
     {
       "sourceSha": "560028ef3f5327989077b19ee6ccbba34f344927",
@@ -104,5 +106,5 @@
     }
   ],
   "currentSource": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
-  "currentBackend": "26d5fae291ffcdbb1a56e312524013c6939ab152"
+  "currentBackend": "31be5f99341b606a070bbbe0b3062588f320f089"
 }

@@ -1,3 +1,11 @@
+## F024 event-synchronized promotion683 refreshed
+
+Canonicaltest-only**684/31be5f99**MERGED:32successful/14conditional-skippedchecks,review184395bc/testedbf12d427/final31besharetree1b6dbc86;independent7/7pushworkflowsSUCCESS,actual8564NodePASS/0FAIL/65SKIPand1575backendPASS/0FAIL. RuntimeF024repair681unchanged.
+
+Mobile**683/f97fdbe0/tree4dda7416**updatedandpushed:exactcanonicalhandler+7-casereplaytest,81focusedPASS/0FAIL/2explicitNAskips,TypeScript0,sixclean-sourcegates0. Oldd032push11453PASS/1FAIL/96SKIPandparallelPR11454PASSretained;event-signalcorrectionkeepsallsecurityassertionsandaddsforceddelay/badgrantnegativecontrols. Current-headCIpending;no redmerge.
+
+Authoritativemobile892fstillunchangeduntil683merge.21of23P0-P3sourceclosed;F024active,F025thenB004queued;682held,W1W2unconfirmed. Originalmatrix136PASS/1FAIL/2959NTunchanged. 401losslessarchivesrehash/decompressverified,emptylogsnotcountedastests. Exactnext683CI/reviews/normalgreenmerge+9postmergeworkflows,thenF025. UnderlyingauditINPROGRESS,nofinalverification/platform/deletioncycle/Production/migration/EASaction.
+
 ## F024 CI fixture correction684 — source queue remains active
 
 Mobile683/d032fullpushCI:11453PASS/1FAIL/96SKIP;actualfailurewasbaseline0dispatchbefore100turnpollcompletedasyncdigest/SQL. SecurityPromotionGatecorrectlyrefusedwithprojectChecksCiOperationalFailure;rawretained. No newcustomerdefect/count. Canonical**[684](https://github.com/kscanaiapp/kscan-app/pull/684)/184395bc** corrects onlyreplaytest synchronizationusingactualdispatch/response signals. One-dispatch/429/retry/no-settle/original-completionchecksallretained;forcedstartup-delayanddeliberatelybaddispatchnegativecontrolsPASS. **11focusedPASS/0FAIL/0SKIP,fivecanonicalgates0,Edge/crosspathcurrentunchanged.** Runtimehandler/SQL/manifests/dependenciesunchanged.
