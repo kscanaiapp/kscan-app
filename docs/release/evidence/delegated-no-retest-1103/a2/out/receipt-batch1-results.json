@@ -1,0 +1,486 @@
+{
+  "sourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "environment": "Deno actual handler.ts; injected auth/quota/provider fixtures; stubbed fetch; zero network",
+  "results": [
+    {
+      "probeId": "B35-MAND-0745",
+      "name": "10x declared body limit",
+      "input": "POST JSON padded to 21012480 chars (10x MAX_BODY_CHARS=2101248)",
+      "expected": "413 file_too_large before auth-dependent work, reservation or provider",
+      "actual": {
+        "status": 413,
+        "errorClass": "file_too_large",
+        "control200": 200
+      },
+      "sideEffects": "reserve=0 provider=0 settle=0 (control request: reserve=1 provider=1)",
+      "limits": "Handler-level cap; Edge gateway body cap not exercised.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0746",
+      "name": "Unicode homoglyph identifier",
+      "input": "five identifier variants using Cyrillic/fullwidth/zero-width characters",
+      "expected": "400 invalid_file for every variant; nothing normalized into a valid identity; no side effects",
+      "actual": {
+        "cyrillic-a requestId": 400,
+        "fullwidth requestId": 400,
+        "zero-width requestId": 400,
+        "homoglyph contractVersion": 400,
+        "homoglyph inputTier": 400
+      },
+      "sideEffects": "reserve=0 provider=0 settle=0",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0747",
+      "name": "URL path traversal",
+      "input": "five traversal-shaped requestIds plus a request URL containing ../ and ?file=",
+      "expected": "identifier rejected 400 with no side effects; the request URL path/query is never used as a file or fetch target",
+      "actual": {
+        "../../etc/passwd": 400,
+        "..%2f..%2fetc": 400,
+        "..\\..\\windows": 400,
+        "/etc/passwd": 400,
+        "a/../../b": 400,
+        "request-url-with-traversal": 200
+      },
+      "sideEffects": "only the URL-traversal request (valid body) reached reserve=1 provider=1; the five bad ids had none",
+      "limits": "Function has no file/path operation; this proves identifier allowlist + URL inertness only.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0748",
+      "name": "SSRF metadata/local/file/gopher/DNS rebind",
+      "input": "valid body plus five URL-valued extra fields (metadata IP, localhost, file://, gopher://, rebinding host)",
+      "expected": "no caller-controlled outbound target exists; extra URL fields never reach the provider request",
+      "actual": {
+        "status": 200,
+        "providerCalls": 1,
+        "urlFieldsInProviderBody": false,
+        "fetchCallSitesInHandler": 1
+      },
+      "sideEffects": "reserve=1 provider=1 (normal request); no extra network target",
+      "limits": "Proves absence of a caller-controlled target (route has no URL input). Proposed disposition is N/A-by-construction, not an exploit PASS.",
+      "verdictOverride": "N/A-PROPOSED",
+      "verdict": "N/A-PROPOSED"
+    },
+    {
+      "probeId": "B35-MAND-0750",
+      "name": "SQL injection per RPC parameter",
+      "input": "5 SQL-metacharacter requestIds; one allowed-charset id through the real default reserve adapter",
+      "expected": "metacharacter ids rejected 400 before any RPC; accepted id reaches RPC only as UUID + SHA-256 digest",
+      "actual": {
+        "rejected": 5,
+        "rpcParamKeys": [
+          "p_cost_units",
+          "p_function_name",
+          "p_provider_category",
+          "p_request_fingerprint",
+          "p_request_id"
+        ],
+        "requestIdIsUuid": true,
+        "fingerprintIsSha256": true
+      },
+      "sideEffects": "rejected: none. accepted: exactly 1 reserve_provider_request RPC (stubbed transport)",
+      "limits": "Parameter provenance proof. The only other RPC (settle_provider_request_for_actor) takes verified actor id + server reservation id and was not re-driven here; PGlite SQL coverage exists in the retained F025 evidence.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0751",
+      "name": "MIME magic-byte mismatch",
+      "input": "six non-JPEG payloads (png,gif,pdf,webp,html,zip) with a caller claim of image/jpeg",
+      "expected": "400 invalid_file; provider never sees non-JPEG bytes",
+      "actual": {
+        "png": 400,
+        "gif": 400,
+        "pdf": 400,
+        "webp": 400,
+        "html": 400,
+        "zip": 400
+      },
+      "sideEffects": "reserve=0 provider=0 settle=0",
+      "limits": "Magic-byte prefix only; deeper JPEG validity is not decoded server-side (see B35-MAND-0752).",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0752",
+      "name": "zero-byte truncated corrupted image",
+      "input": "empty, prefix-only, odd-length, too-short and non-base64 images; plus garbage bytes behind a valid /9j/ prefix",
+      "expected": "structurally invalid images 400 with no side effects; corrupted-but-prefixed image degrades to unreadable_document without items",
+      "actual": {
+        "empty": 400,
+        "headerOnly": 400,
+        "truncatedOddLength": 400,
+        "shortValid": 400,
+        "nonBase64": 400,
+        "corruptBehindValidPrefix": {
+          "status": 200,
+          "providerCalls": 1,
+          "billableSettle": true
+        }
+      },
+      "sideEffects": "structural cases: none. corrupted-prefix case: 1 provider call, settled billable=true (mock reported success)",
+      "limits": "A corrupted image with a valid prefix reaches the paid provider (handler does not decode JPEG). Real provider behavior on corrupt bytes is untested. Cell stays NOT TESTED: structural half is proven, corrupt-content half is provider-dependent.",
+      "verdictOverride": "PARTIAL-KEEP-NOT-TESTED",
+      "verdict": "PARTIAL-KEEP-NOT-TESTED"
+    },
+    {
+      "probeId": "B35-MAND-0753",
+      "name": "lying Content-Type",
+      "input": "valid JPEG JSON body under four lying request Content-Types; PNG bytes under Content-Type image/jpeg",
+      "expected": "request Content-Type is not authority: valid body processed identically, provider mime fixed to image/jpeg; PNG still refused",
+      "actual": {
+        "text/plain": 200,
+        "image/png": 200,
+        "application/x-www-form-urlencoded": 200,
+        "multipart/form-data; boundary=x": 200,
+        "pngUnderJpegHeader": 400
+      },
+      "sideEffects": "valid cases: reserve=1 provider=1 each; PNG case: none",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0761",
+      "name": "provider 500",
+      "input": "provider HTTP 500 with secret-bearing error body",
+      "expected": "503 provider_unavailable, bounded attempts (<=2), reservation released not billed, no provider text in response",
+      "actual": {
+        "status": 503,
+        "errorClass": "provider_unavailable",
+        "providerCalls": 2,
+        "sleeps": [
+          260
+        ]
+      },
+      "sideEffects": "settle=[billable:false] x1; provider attempts=2",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0762",
+      "name": "provider 429",
+      "input": "provider HTTP 429 (transient and quota-exhausted wording) with hostile Retry-After: 9999",
+      "expected": "controlled 503 (no raw 429 passthrough), <=2 attempts, backoff bounded, reservation released not billed",
+      "actual": {
+        "transient": {
+          "status": 503,
+          "calls": 1,
+          "sleeps": []
+        },
+        "quota": {
+          "status": 503,
+          "calls": 1,
+          "sleeps": []
+        }
+      },
+      "sideEffects": "settle billable:false once per case; no sleep above 30s",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0763",
+      "name": "provider timeout",
+      "input": "provider that never answers (aborts only when handler signal fires), attempt timeout 25ms",
+      "expected": "handler aborts each attempt, <=2 attempts, 503 provider_unavailable, reservation released not billed, no hang",
+      "actual": {
+        "status": 503,
+        "attempts": 2,
+        "elapsedMs": 70
+      },
+      "sideEffects": "settle billable:false x1",
+      "limits": "Fake timers not used; real 25ms timeout. Production attempt timeout constant is 18000ms (not waited).",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0764",
+      "name": "provider malformed JSON",
+      "input": "HTTP 200 with truncated/invalid outer JSON; and valid envelope whose inner text is prose",
+      "expected": "502 schema_validation_failed, no items, no partial result, no provider text in response",
+      "actual": {
+        "outer": 502,
+        "inner": 502,
+        "calls": 2
+      },
+      "sideEffects": "settle=[{\"actor\":\"11111111-1111-4111-8111-111111111111\",\"billable\":true}] (billable:true: provider answered 200, so the reservation is completed, not released)",
+      "limits": "OBSERVATION: unusable provider output is charged against the allowance (completed, not released). Consistent with provider-cost semantics; flagged for owner, not asserted as defect.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0765",
+      "name": "provider empty body",
+      "input": "five empty provider bodies (empty string, {}, no candidates, empty parts, blank text) all HTTP 200",
+      "expected": "502 schema_validation_failed with no items for each; never an empty-success",
+      "actual": {
+        "empty-string": {
+          "status": 502,
+          "billable": true
+        },
+        "empty-object": {
+          "status": 502,
+          "billable": true
+        },
+        "no-candidates": {
+          "status": 502,
+          "billable": true
+        },
+        "empty-parts": {
+          "status": 502,
+          "billable": true
+        },
+        "blank-text": {
+          "status": 502,
+          "billable": true
+        }
+      },
+      "sideEffects": "settle billable:true each (provider returned 200); see OBSERVATION on B35-MAND-0764",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0766",
+      "name": "provider wrong schema",
+      "input": "seven wrong-schema top-level payloads; plus items array containing non-objects and objects with foreign authority keys / invalid enums",
+      "expected": "top-level wrong schema -> 502 schema_validation_failed, no items; item-level garbage cannot add keys or out-of-enum values",
+      "actual": {
+        "array": 502,
+        "nullish": 502,
+        "string": 502,
+        "noItems": 502,
+        "itemsNotArray": 502,
+        "confidenceString": 502,
+        "confidenceMissing": 502,
+        "nonObjectItemElementsBecomeZeroConfidencePlaceholders": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "sideEffects": "settle billable:true each (provider answered 200)",
+      "limits": "OBSERVATION: non-object entries inside items[] become confidence-0 placeholder rows (ok:true) rather than a schema failure; downstream must filter on confidence. Not asserted as defect.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0737",
+      "name": "expired JWT",
+      "input": "real requireUser with a stubbed Auth server that rejects an expired token; plus non-bearer, empty-bearer and missing headers; valid-token control",
+      "expected": "401 unauthorized before reservation/provider/settle for every invalid credential; valid control 200 as actor A",
+      "actual": {
+        "expired": 401,
+        "not-bearer": 401,
+        "empty-bearer": 401,
+        "missing": 401,
+        "control-valid": 200
+      },
+      "sideEffects": "invalid: reserve=0 provider=0 settle=0. control: reserve=1 as actor A",
+      "limits": "Auth server is a stub: proves the handler delegates identity to getUser and fails closed on its 401. It does NOT validate a cryptographically signed live JWT (same limit recorded for B35-MAND-0733).",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0740",
+      "name": "in-function auth with caller-controlled headers",
+      "input": "valid actor-A token plus identity-spoofing headers (x-user-id etc.) and body fields (userId/actorId/sub/role) naming actor B / service_role",
+      "expected": "identity comes only from the verified token: reserve and settle both run as A; B never appears in provider payload",
+      "actual": {
+        "status": 200,
+        "reserveActor": "11111111-1111-4111-8111-111111111111",
+        "settleActor": "11111111-1111-4111-8111-111111111111",
+        "foreignIdInProviderBody": false
+      },
+      "sideEffects": "reserve=1 (A) provider=1 settle=1 (A, billable)",
+      "limits": "Stub Auth server; proves actor derivation, not live JWT verification.",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0767",
+      "name": "Supabase 401 mid-request",
+      "input": "identity check passes, then the real default reserve adapter receives HTTP 401 PGRST301 from the quota RPC",
+      "expected": "fail closed: 503 provider_unavailable, zero provider dispatch, nothing to settle, no backend detail leaked",
+      "actual": {
+        "status": 503,
+        "errorClass": "provider_unavailable",
+        "providerCalls": 0,
+        "settleCalls": 0,
+        "backendDetailLeaked": false
+      },
+      "sideEffects": "provider=0 settle=0 (no reservation existed)",
+      "limits": "Transport stub, not a live Supabase 401. 401 on the SETTLE leg (after provider dispatch) is not exercised here; settle failures are swallowed and logged as settlement_pending by design (retained F025 evidence covers settle semantics).",
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-MAND-0734",
+      "name": "User A User B resource IDOR",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0735",
+      "name": "User A User B storage path",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0736",
+      "name": "removed shared-room member",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0770",
+      "name": "RevenueCat stale entitlement",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "Conditional on the owner confirming Receipt is intentionally NOT K+/entitlement-gated; no entitlement requirement was found in docs/receipt-intelligence decision log. If gating is intended its absence is a finding, not N/A."
+    },
+    {
+      "probeId": "B35-MAND-0772",
+      "name": "save replay",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0773",
+      "name": "deletion replay",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0774",
+      "name": "expired signed URL replay",
+      "verdict": "N/A-PROPOSED",
+      "input": "static scan of purchase-import-extract/{handler,extraction,sensitive,index}.ts at 2c2c9da4",
+      "expected": "endpoint exposes no caller-addressable resource / storage / room / entitlement / persisted record / signed URL, so the boundary has nothing to attack",
+      "actual": {
+        "storageOrSignedUrl": false,
+        "tableAccess": false,
+        "sharedRoom": false,
+        "entitlementOrRevenueCat": false,
+        "persistenceWrite": false,
+        "resourceIdFromCaller": false,
+        "deletionReference": false,
+        "rpcNames": [
+          "settle_provider_request_for_actor"
+        ],
+        "actorScopedFingerprintDistinctForSameSessionId": true
+      },
+      "sideEffects": "none (static scan + 2 stubbed reserve RPCs)",
+      "limits": "N/A-by-construction proposal; requires Codex ruling. Not a PASS. Shared quota SQL actor isolation is evidenced separately (F025)."
+    },
+    {
+      "probeId": "B35-MAND-0749",
+      "name": "prompt injection per model field",
+      "input": "instruction-override payload (2k+ chars) injected into each free-text model output field and each enum field",
+      "expected": "output stays inside the fixed schema: text bounded, enums collapse to safe values, no authority/structure change",
+      "actual": {
+        "textFields": {
+          "merchant": "string(120)",
+          "sourceLine": "string(300)",
+          "title": "string(200)",
+          "brand": "string(120)",
+          "subtype": "string(79)",
+          "primaryColor": "string(59)",
+          "sizeRaw": "string(40)",
+          "sku": null,
+          "retailerProductRef": null
+        },
+        "enumsCollapsed": true
+      },
+      "sideEffects": "none (pure sanitizer)",
+      "limits": "CONTAINMENT of model OUTPUT only. Whether the real model obeys instructions printed on a receipt image was NOT tested (needs a paid provider; excluded). Cell remains NOT TESTED; this is partial evidence.",
+      "verdictOverride": "PARTIAL-KEEP-NOT-TESTED",
+      "verdict": "PARTIAL-KEEP-NOT-TESTED"
+    }
+  ]
+}

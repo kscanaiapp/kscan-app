@@ -1,0 +1,502 @@
+[
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/README.md",
+    "gitBlob": "a757d53dd4f11fa257aa62417faf93565bdd54eb",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/README.md",
+    "bytes": 8673,
+    "sha256": "59c5778f44e17f2f8d27fe1f961ce70f779031dab3f84ef1bb97a6a7ed73e873",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/README.md",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/build-ledger-batch2.cjs",
+    "gitBlob": "4f18abaa6f284a4a48f26e94fab070a79d81834f",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/build-ledger-batch2.cjs.txt",
+    "bytes": 12471,
+    "sha256": "568ad372928f36ca939b5a0bf59c5826479277279f9c689d9444d590e59ccee6",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/build-ledger-batch2.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/build-ledger-batch3.cjs",
+    "gitBlob": "d42f2e2faff0c49b92906a58c017ac701feb2bed",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/build-ledger-batch3.cjs.txt",
+    "bytes": 14740,
+    "sha256": "c37ba81e6b813fb305051b55209ba52e71625f3493170c6b4259b2157f02b09d",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/build-ledger-batch3.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/build-ledger-batch4.cjs",
+    "gitBlob": "b2828ece58e32ccd3a92b454905ffd443e2cb7f2",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/build-ledger-batch4.cjs.txt",
+    "bytes": 17683,
+    "sha256": "51387729b8fea171dec4599c216b5bb6d0ea92dd119097349a3a98d8b90352cd",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/build-ledger-batch4.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/build-ledger.cjs",
+    "gitBlob": "ceaa916d253a8d4e91b653b5e8e6d18580925495",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/build-ledger.cjs.txt",
+    "bytes": 11565,
+    "sha256": "1b8e21d962f971712e38a445db0ae8978378518eca23e8e510c567a2d788742e",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/build-ledger.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/live-batch2.test.cjs",
+    "gitBlob": "67376617a69bf259f0baddcfff5b025329ce1e41",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/live-batch2.test.cjs.txt",
+    "bytes": 18391,
+    "sha256": "ca5be1508dfa9a9c8e0b1de6df023cb4fadcec19a45a2f1485bcc64eb0c628dc",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/live-batch2.test.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/live-remote-source-1102.test.cjs",
+    "gitBlob": "b553511d54b1da74fbf587d7b23e5be00ea5f636",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/live-remote-source-1102.test.cjs.txt",
+    "bytes": 3820,
+    "sha256": "de080abf5086969b2d57a2e706314b251a6c0c00731ae472ed6f53f10148c969",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/live-remote-source-1102.test.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/mutate-outfit.cjs",
+    "gitBlob": "d0954e4f291494a86922bc3ad063b60692ef437c",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/mutate-outfit.cjs.txt",
+    "bytes": 5272,
+    "sha256": "3c8673360da7d625655ab238336bb282a15869d5f073e793873a3d9343d28280",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/mutate-outfit.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/mutate-stylechat.cjs",
+    "gitBlob": "8709eff90c63fc20c23a8784aff2d9dfbba3e3e7",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/mutate-stylechat.cjs.txt",
+    "bytes": 3299,
+    "sha256": "ad63fa5c2fc01fead974783218e5bc4a4b1f0b864c38dfa6349bb0a77f9a3936",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/mutate-stylechat.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/a2-batch1-ledger.json",
+    "gitBlob": "614276a8775e50cba75bd0eccf9ce429cdc981c7",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/a2-batch1-ledger.json",
+    "bytes": 19200,
+    "sha256": "ffe194e93bed820603bc01100f4fed0458e94352285523f2eace6514d6d53bfd",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/a2-batch1-ledger.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/a2-batch2-ledger.json",
+    "gitBlob": "d2b703ef688d9c533c5ae205c6845222b9e058b7",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/a2-batch2-ledger.json",
+    "bytes": 33919,
+    "sha256": "647f830e737f0f5a5741113c188584290f447d215004292c505cb09a3d13596f",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/a2-batch2-ledger.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/a2-batch3-ledger.json",
+    "gitBlob": "e9b82aa37bfe4e7c7fe572f0d32c9d8eeae6d79b",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/a2-batch3-ledger.json",
+    "bytes": 26185,
+    "sha256": "03724b75e4e2247aa6a57e5336ac857bf04aba9a5391437531426e9e9682f6a6",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/a2-batch3-ledger.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/a2-batch4-ledger.json",
+    "gitBlob": "e4ce58590fc1d79eb81a055ed1ced25183177c6d",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/a2-batch4-ledger.json",
+    "bytes": 33956,
+    "sha256": "4ec4b10dfdd1af4343d088d5da198394fe0cd07c2ab15ebe0cf2029d717977f7",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/a2-batch4-ledger.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/live-batch2-mutations.md",
+    "gitBlob": "045c3720c47b93d1e022e9dcfafb2373754e1022",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/live-batch2-mutations.md",
+    "bytes": 1620,
+    "sha256": "12e4b3334094277e0ac131c425e49295889ccceb994990dc0fc13a8b972d8109",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/live-batch2-mutations.md",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/live-batch2-results.json",
+    "gitBlob": "bce9d798ce5adfaf4f59ed65f42086d9d3c73cdd",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/live-batch2-results.json",
+    "bytes": 9359,
+    "sha256": "c3745cc1aab758908fa6ff5614da2af887590a6b0c28cc485a5f8152f080932d",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/live-batch2-results.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/live-run1-mounted-concurrency-remote.txt",
+    "gitBlob": "fa346c296e05e0e39a5fef6e0c403a366a37eee1",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/live-run1-mounted-concurrency-remote.txt",
+    "bytes": 5157,
+    "sha256": "97072df93dd843d929e9f4ced12297a1d69fce0876df561102d098f887c0041e",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/live-run1-mounted-concurrency-remote.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/live-run2-batch2-final.txt",
+    "gitBlob": "1b85872f3ac6edaaea042cd5ca42d89e42997c11",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/live-run2-batch2-final.txt",
+    "bytes": 857,
+    "sha256": "38ad472a1fda1730c2a6e94bdb586da5b0adf006415e1cbdad896c12f237b930",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/live-run2-batch2-final.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/outfit-batch4-mutations.json",
+    "gitBlob": "e8daad65b37bb67e248a28a3daad1479e326f336",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/outfit-batch4-mutations.json",
+    "bytes": 4868,
+    "sha256": "911c4de16367a14fd3392292076183d50425105cea469ed7a12dbe52967b39c7",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/outfit-batch4-mutations.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/outfit-batch4-results.json",
+    "gitBlob": "eef7ee03ef0874970c2ac64af390eed0e3338bca",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/outfit-batch4-results.json",
+    "bytes": 28793,
+    "sha256": "cd823384e9388c4c0e3b86bf1a7ef5fe7fe90905e222170acf9eab63e7dd3757",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/outfit-batch4-results.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/outfit-run-final-clean.txt",
+    "gitBlob": "bc87bd9b5a2b9ac8ccbc9f616151505c1d73b25a",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/outfit-run-final-clean.txt",
+    "bytes": 1689,
+    "sha256": "155876e84835808ade3c5ed96db431292cb6100da03085509aadebcc3bcd7f92",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/outfit-run-final-clean.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/receipt-batch1-results.json",
+    "gitBlob": "afaefb7e166a3a47a99a781be64d575ec86d4663",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/receipt-batch1-results.json",
+    "bytes": 21949,
+    "sha256": "32545e4847bb00a8d5b58573c81f694e79a59aefe2a1aff9257c727db9000476",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/receipt-batch1-results.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/run1-initial-test-defect.txt",
+    "gitBlob": "c1b4f4b587be9aeec52ef3b32ae739b1ee90abc9",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/run1-initial-test-defect.txt",
+    "bytes": 12878,
+    "sha256": "0ef7733587e85f655e469ef76c628d048f1ad7ea9e2151e002fe1e2f6fed862a",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/run1-initial-test-defect.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/run2-after-regex-fix.txt",
+    "gitBlob": "45c1c02aedca8c801972be3421970968bd74ac29",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/run2-after-regex-fix.txt",
+    "bytes": 12753,
+    "sha256": "8cdec5b0c1f493147540a8f187f7c487f46c1d2cd9ef64c7404cd66170fadf2f",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/run2-after-regex-fix.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/run3-final-clean.txt",
+    "gitBlob": "7c2d99a3af3ccedbd663a30e2bf29550a8dd66ac",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/run3-final-clean.txt",
+    "bytes": 12754,
+    "sha256": "4bea82aeb870e0e88140ba4e3c1629fd7a6f380390a429576f8901ac76ea8482",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/run3-final-clean.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/stylechat-batch3-mutations.json",
+    "gitBlob": "60837ae6b811c3fa55affcfed6b33aca7b8d8eeb",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/stylechat-batch3-mutations.json",
+    "bytes": 2138,
+    "sha256": "9862f245c5eba0cba77b37c88376c8444475047a716e7da1a90e70f41a417fc4",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/stylechat-batch3-mutations.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/stylechat-batch3-results.json",
+    "gitBlob": "df88eaec9c2ebd08a836b3eac95cef1107445357",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/stylechat-batch3-results.json",
+    "bytes": 21023,
+    "sha256": "513c9b5d4dfda02964e1f1ffb597210d1c1c51687ab303a79a9e897be7e69b10",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/stylechat-batch3-results.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/out/stylechat-run-final-clean.txt",
+    "gitBlob": "fa15e88298be310cd0dfb95ce136fbc8733b3765",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/out/stylechat-run-final-clean.txt",
+    "bytes": 1535,
+    "sha256": "a0e5ac83301e7bea7e682685703401e34594d0c20791869503b4117cc16af3ad",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/out/stylechat-run-final-clean.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/outfit-batch4.test.ts",
+    "gitBlob": "8ab8402889c8e63b7cd346f746f9bbbba03b7c51",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/outfit-batch4.test.ts.txt",
+    "bytes": 68402,
+    "sha256": "7545c4d2a1a3e6a28371ae422abe6d934349990c40deefb02e375fd24e65dd96",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/outfit-batch4.test.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/outfit-world.ts",
+    "gitBlob": "0622377b9f185ba29876745c5a69c9fdd79bedb7",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/outfit-world.ts.txt",
+    "bytes": 11821,
+    "sha256": "722f8b7bad2b7abc314e272888e172635ce66a43c318289a172f1b6a20573b3e",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/outfit-world.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/receipt-batch1.test.ts",
+    "gitBlob": "64796ccc6fd8b4b4f3f2214dad4fbea037fbe16a",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/receipt-batch1.test.ts.txt",
+    "bytes": 41590,
+    "sha256": "4403460f3ea91915587ed84059097661c9e969591249d4d3477042412a9fb2d0",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/receipt-batch1.test.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/stylechat-batch3.test.ts",
+    "gitBlob": "fcc4dbdf9ef56810bbc0354b756443c4a5d04219",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/stylechat-batch3.test.ts.txt",
+    "bytes": 40968,
+    "sha256": "5b42d3474d485ceab144c514228e1a6044b3e364e7154e3acdf36d3143e23f27",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/stylechat-batch3.test.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "f829360c924b5721879165507fd00bcbb53a904a",
+    "sourcePath": "audit/a2/stylechat-world.ts",
+    "gitBlob": "1cfbacd19349e6086d267c5c89f80323f5ac1e5e",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a2/stylechat-world.ts.txt",
+    "bytes": 10838,
+    "sha256": "c1246bb0573a2b99f2f3ca6cf522c7ef32b06475a0930b065e8d7d26915d88a0",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/f829360c924b5721879165507fd00bcbb53a904a/audit/a2/stylechat-world.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/.gitattributes",
+    "gitBlob": "4f7fc3ef1406bfab189a4a14744c344f36d77d9a",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/.gitattributes",
+    "bytes": 29,
+    "sha256": "730a35ae3d558080083c3103d9ac8100c3f6561678092abe341701dfa331eb1d",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/.gitattributes",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/README.md",
+    "gitBlob": "9dbbf3bd3d715880289f24ddd07f09149d8db8a4",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/README.md",
+    "bytes": 5427,
+    "sha256": "9847668378ca643614f79e4058c58f5d08baa906f10643164ec2f0af4cd3a7b0",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/README.md",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/bootstrap.cjs",
+    "gitBlob": "607661104b92fcb6b7fb1e7816c625245ff5b794",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/bootstrap.cjs.txt",
+    "bytes": 1981,
+    "sha256": "6dde469267b235ad9897f13e573440d28c7e919afb1f8d055c2ec388eb763909",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/bootstrap.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/build-ledger.cjs",
+    "gitBlob": "b21ba3faaf3e4c4b3a7deeb60c5a29a17450af59",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/build-ledger.cjs.txt",
+    "bytes": 9888,
+    "sha256": "1e4ba974a3c4b01a1c679904ae5a532ca18a2e8225ae62780749d6cd02c6edb6",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/build-ledger.cjs",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/docker-isolation.txt",
+    "gitBlob": "4f01a234b8db141188c7b5dd23807db2ff7e0938",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/docker-isolation.txt",
+    "bytes": 156,
+    "sha256": "4e246f8ed8a6f1d405a3a482c8b39b383a6be11d5d644837b746a60d625cad28",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/docker-isolation.txt",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/hashes.json",
+    "gitBlob": "40533be033832aabb3172127fe62f17aa0067396",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/hashes.json",
+    "bytes": 1572,
+    "sha256": "fe3af43991e1171901a1665aaed1afdbaac044fe25dc6497664e052d27794323",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/hashes.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/initial-incomplete-auth-fixture.tap.gz",
+    "gitBlob": "bc2b8a0ad544c214aee328e20b2c191dd9e2e772",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/initial-incomplete-auth-fixture.tap.gz",
+    "bytes": 1057,
+    "sha256": "98961f82a99dd6505aade1d5a62e82510553a742cfe826aba11faf0df2928603",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/initial-incomplete-auth-fixture.tap.gz",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/initial-invalid-expectation.jsonl",
+    "gitBlob": "821e4c11402c7deae4e593945db252a84acf3e5e",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/initial-invalid-expectation.jsonl",
+    "bytes": 4788,
+    "sha256": "676bceb122fb3389cbdeab313feebf5e871cc87b1dd48421c88607d761ee4334",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/initial-invalid-expectation.jsonl",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/ledger.json",
+    "gitBlob": "b5438fe3f5ff1e9952083c74b15f097f808fe3ef",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/ledger.json",
+    "bytes": 42783,
+    "sha256": "905f7e99f4f74c3e1a34f7df0da3a9ed31c8a1e21f0bd8f3fd67d2ee7ca202c4",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/ledger.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/prior-inventory.json",
+    "gitBlob": "ce5b5b928840de3679dc84b66b4e33eec48d12ff",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/prior-inventory.json",
+    "bytes": 12798,
+    "sha256": "b3443cc4f98e25be82f63db3180cf79b2789acb36e963c1510f5f5c9279d8208",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/prior-inventory.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/raw.jsonl",
+    "gitBlob": "483ab12ad73164094272f446512d2dc546667f4b",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/raw.jsonl",
+    "bytes": 7380,
+    "sha256": "c93ac439a4bc2f813deafe30363398ef5e6e9c8e8f9b316aa48ca7e3263081e4",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/raw.jsonl",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/revenuecat-config.json",
+    "gitBlob": "120be5b8410221fb0d8c5b955a87863240344ec1",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/revenuecat-config.json",
+    "bytes": 5355,
+    "sha256": "cb2e29458c755667cd964522179a4f5dce265e64c879ab71081b9dd6d49a400c",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/revenuecat-config.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/run.ts",
+    "gitBlob": "f78131a98e3d13da6bb4f83d4f0d15a7f2dbfe06",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/run.ts.txt",
+    "bytes": 9909,
+    "sha256": "f9e732b5f2a5d1fd94955834d68c75c8947bd986ae90ba73f575e2305d7fc0ed",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/run.ts",
+    "executableSourcesStoredAsText": true
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/source-equivalence.json",
+    "gitBlob": "cc57054f55d7667007833804c4544123adc21dd1",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/source-equivalence.json",
+    "bytes": 2093,
+    "sha256": "576aac4aec37ded3866c7075fd287102c1412f17b08c1f067800c507f480cf39",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/source-equivalence.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/sql-bootstrap.log",
+    "gitBlob": "a68ff68bea12204fb714d6ff30a6ad9d9b2052be",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/sql-bootstrap.log",
+    "bytes": 3917,
+    "sha256": "f2cd5bb58e9e5e65eece56356c3d1dee09b692e7d9d6d85487f10530563e577b",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/sql-bootstrap.log",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/sql-cleanup-and-identities.json",
+    "gitBlob": "a5659f1b23693f99c3c6da5f9e0d8fa779282282",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/sql-cleanup-and-identities.json",
+    "bytes": 2879,
+    "sha256": "48beda11c1512bf420563234e04de84de5250d13e600984eb0fac8993835191c",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/sql-cleanup-and-identities.json",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/sql-concurrency.tap",
+    "gitBlob": "14edf50b74125ba703aa5bae5bf5c33b17f73371",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/sql-concurrency.tap",
+    "bytes": 1393,
+    "sha256": "3eccb6190f48e19b3c54b70c7f23c105d007f24cee3d3fa5914cb86bfdb9d19d",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/sql-concurrency.tap",
+    "executableSourcesStoredAsText": false
+  },
+  {
+    "sourceCommit": "13edac609c269098d5c6f00cfdf8a7b1ab234e7d",
+    "sourcePath": "docs/release/evidence/issue704/stderr.log",
+    "gitBlob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+    "storedPath": "docs/release/evidence/delegated-no-retest-1103/a4/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sourceUrl": "https://github.com/kscanaiapp/kscan-app/blob/13edac609c269098d5c6f00cfdf8a7b1ab234e7d/docs/release/evidence/issue704/stderr.log",
+    "executableSourcesStoredAsText": false
+  }
+]

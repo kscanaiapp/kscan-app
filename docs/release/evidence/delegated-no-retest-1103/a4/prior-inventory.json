@@ -1,0 +1,328 @@
+{
+  "checkpoint": "49ab7fada3639587911849080ff33c6ad17fd9df",
+  "sourceCases": [
+    {
+      "id": "B35-KPLUS-SHARED-ios-stale-provider",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-confirmed-purchase",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-purchase-restore-concurrency",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2818"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-actor-switch",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2822"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-restore-owned",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-restore-empty",
+      "verdict": "PASS",
+      "mappingCandidates": [],
+      "mappingLimit": "No exact mandatory-cell match claimed for SDK unavailable/empty restore; retained supplemental evidence only",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-cancel",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-ios-server401",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2831"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-stale-provider",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-confirmed-purchase",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-purchase-restore-concurrency",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2818"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-actor-switch",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2822"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-restore-owned",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-restore-empty",
+      "verdict": "PASS",
+      "mappingCandidates": [],
+      "mappingLimit": "No exact mandatory-cell match claimed for SDK unavailable/empty restore; retained supplemental evidence only",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-cancel",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-SHARED-android-server401",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2831"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-ios-purchase",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-ios-restore",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-ios-provider-only",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-ios-cancel",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-android-purchase",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-android-restore",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-android-provider-only",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-android-cancel",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-ios-actor-switch",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2822"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-MOUNTED-android-actor-switch",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2822"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-ios-purchased",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-ios-restored",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-ios-provider-only",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-ios-cancelled",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-ios-unavailable",
+      "verdict": "PASS",
+      "mappingCandidates": [],
+      "mappingLimit": "No exact mandatory-cell match claimed for SDK unavailable/empty restore; retained supplemental evidence only",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-android-purchased",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-android-restored",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2797"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-android-provider-only",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2834"
+      ],
+      "mappingLimit": "Overlapping supporting source evidence; collapse by original cell; only six selected cells adjudicated this batch",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-android-cancelled",
+      "verdict": "PASS",
+      "mappingCandidates": [
+        "B35-MAND-2820"
+      ],
+      "mappingLimit": "Cancellation shown, subsequent reissue not shown: no closure credit",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    },
+    {
+      "id": "B35-KPLUS-HOSTED-android-unavailable",
+      "verdict": "PASS",
+      "mappingCandidates": [],
+      "mappingLimit": "No exact mandatory-cell match claimed for SDK unavailable/empty restore; retained supplemental evidence only",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz"
+    }
+  ],
+  "stagingRecords": {
+    "total": 46,
+    "concurrency": 11,
+    "authority": 35,
+    "verdict": "PASS at recorded dated Staging execution; no new remote execution"
+  },
+  "sqlReuse": "46 dated actual normalized transition/authority records preserved; six SQL blobs compared to both current heads. No claim of current deployed state or signed webhooks."
+}

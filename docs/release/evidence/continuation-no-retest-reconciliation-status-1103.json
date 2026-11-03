@@ -1,0 +1,47 @@
+{
+  "capturedAt": "2026-11-03T19:12:55.369Z",
+  "directive": "https://github.com/kscanaiapp/kscan-app/pull/646#issuecomment-6612758143",
+  "phase": "EVIDENCE RECOVERED / PER-CASE ADJUDICATION IN PROGRESS / NO MATRIX CREDIT AWARDED YET",
+  "authorities": {
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "evidenceBase": "49ab7fada3639587911849080ff33c6ad17fd9df"
+  },
+  "completedArtifacts": 50,
+  "sourceFingerprintMatches": 45,
+  "sourceFingerprintDifferences": 0,
+  "a4HashesValidated": 17,
+  "webhookPostSourceEquivalence": true,
+  "proposalsOnly": {
+    "A2": {
+      "cells": 139,
+      "sourcePASS": 73,
+      "N_A": 30,
+      "NT": 36
+    },
+    "A4": {
+      "distinctOriginalCells": 25,
+      "sourcePASS": 20,
+      "NT": 5,
+      "supplementalSqlCases": 5
+    }
+  },
+  "baselineOriginalMatrix": {
+    "total": 3096,
+    "PASS": 138,
+    "FAIL": 1,
+    "NOT_TESTED": 2957,
+    "N_AIncludedInNT": 318
+  },
+  "newTestExecutionSinceDirective": 0,
+  "noRetest": "Do not execute imported harnesses or completedGemini/Receipt/Scanner/discovery/savedscan/Packing/RevenueCat/broadNode/backend suites. Read artifact/source equivalence;adjudicate every original ID without adding overlapping suite totals.",
+  "separateOwners": {
+    "privacy": "#703 residual<=10 image/privacy cases,not duplicated",
+    "operational": "#706 RevenueCatProductionrecoveryfailed;activation/platformartifacthold remains",
+    "integration": [
+      "#711Packingopen22160d9b,missingContractcheckartifact",
+      "691WatchlistW2opendraft596e2c01;local90f07f5eoldbaselinepreserved,do not overwrite remote;preservebothpremiumfingerprintchanges"
+    ]
+  },
+  "next": "Finish per-case A2/A4 rulings and match A7local IDs to original cells;publish reconciled original matrix in646draft. Only then select10-20highest-riskgenuinelyuncoveredoriginalcases,excluding703 and allcompletedexecution."
+}

@@ -1,0 +1,98 @@
+{
+ "muts": [
+  {
+   "name": "S1 spoofable actor (x-user-id wins)",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1170 identity-spoof headers and body fields"
+   ]
+  },
+  {
+   "name": "S2 session ownership filter removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1170 identity-spoof headers and body fields",
+    "B35-MAND-1188/1189 account switch and delayed-A supersession"
+   ]
+  },
+  {
+   "name": "S3 message length guard removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1175 10x declared body limit"
+   ]
+  },
+  {
+   "name": "S4 sessionId UUID check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1176 Unicode homoglyph identifier",
+    "B35-MAND-1177 URL path traversal"
+   ]
+  },
+  {
+   "name": "S5 burst denial ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1185 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "S6 lifecycle gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1203 deletion replay"
+   ]
+  },
+  {
+   "name": "S7 unsafe-output strip function disabled",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1179 prompt injection per model-bound field"
+   ]
+  },
+  {
+   "name": "S8 burst RPC error fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1197 Supabase 401 mid-request",
+    "B35-MAND-1203 deletion replay"
+   ]
+  },
+  {
+   "name": "S9 provider error detail echoed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1191 provider 500",
+    "B35-MAND-1192 provider 429",
+    "B35-MAND-1193 provider timeout",
+    "B35-MAND-1194 provider malformed JSON",
+    "B35-MAND-1195 provider empty body",
+    "B35-MAND-1196 provider wrong schema"
+   ]
+  },
+  {
+   "name": "S10 prompt data brackets not escaped",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1179 prompt injection per model-bound field"
+   ]
+  },
+  {
+   "name": "S11 bearer prefix check removed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  }
+ ]
+}

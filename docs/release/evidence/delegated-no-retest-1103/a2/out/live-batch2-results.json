@@ -1,0 +1,172 @@
+{
+  "sourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "environment": "node:test real hook/world/resolver source; injected native/permission/sanitizer/SDK fakes; zero network",
+  "results": [
+    {
+      "probeId": "B35-MAND-2775",
+      "name": "simultaneous duplicate operation",
+      "verdict": "PASS",
+      "input": "10 concurrent enterLive() during one permission dialog; 10 concurrent requestPhotoreal() on one Live session",
+      "expected": "ONE permission prompt, ONE controller, ONE native start; ONE capture and ONE adoption; every controller disposed on unmount",
+      "actual": {
+        "prompts": 1,
+        "controllers": 1,
+        "starts": 1,
+        "captures": 1,
+        "adoptions": 1
+      },
+      "sideEffects": "no provider call exists on this path (adoption hands a sanitized person to Photo review; no automatic submission)",
+      "limits": "Real hook with injected native/permission/sanitizer fakes; not a device. Existing HA-002/HA-003 cases cover 2-3 taps; this extends to 10."
+    },
+    {
+      "probeId": "B35-MAND-2776",
+      "name": "10 retries in 1 second",
+      "verdict": "PASS",
+      "input": "10 rapid sequential Start taps (granted); 10 after a denial; 10 enter/exit cycles - all within one second",
+      "expected": "no runtime leak or duplicate: one controller for repeated taps, none after denial, <=1 live controller across cycles, all disposed",
+      "actual": {
+        "grantedControllers": 1,
+        "grantedStarts": 1,
+        "deniedControllers": 0,
+        "cycleControllers": 10,
+        "maxLiveControllers": 1,
+        "deniedPrompts": 10,
+        "elapsedMs": 322
+      },
+      "sideEffects": "permission gate is consulted per tap after a denial (hook delegates ask-once to the camera-permission module, which is faked here)",
+      "limits": "Rate-limit semantics do not exist for an on-device camera; this proves no resource amplification under rapid retry. Ask-once-after-denial behaviour of the real permission module is not exercised."
+    },
+    {
+      "probeId": "B35-MAND-2791",
+      "name": "RevenueCat stale entitlement",
+      "verdict": "PASS",
+      "input": "real useVtoAvailability/vtoFeatureControl with the entitlement hook reporting loading/eligible/expired/unavailable/error (a stale-active grant past expiry resolves to expired client-side); active control",
+      "expected": "Live is never offered and no camera permission/native start is dispatched unless the resolved state is active/complimentary",
+      "actual": {
+        "resolving": "Live not offered, 0 native/permission calls",
+        "free": "Live not offered, 0 native/permission calls",
+        "activeControl": "Live starts once"
+      },
+      "sideEffects": "none",
+      "limits": "Tests the Live consumer of the entitlement hook only. Derivation of stale->expired lives in useKPlusEntitlement (K+ lane) and is stubbed here; no RevenueCat or Supabase traffic."
+    },
+    {
+      "probeId": "B35-MAND-2791-COMPOSITION",
+      "name": "entitlement composition",
+      "verdict": "PASS",
+      "input": "10 entitlement-state values x 3 display sources through the real resolveVtoActorKPlusState and resolveVtoStudio with every other Live gate true",
+      "expected": "Live offered only when the canonical state is exactly active; expired/eligible/loading/error/unavailable/garbage never offer Live",
+      "actual": {
+        "loading/null": "resolving -> live hidden, photo resolving",
+        "loading/complimentary": "resolving -> live hidden, photo resolving",
+        "loading/purchase": "resolving -> live hidden, photo resolving",
+        "eligible/null": "free -> live hidden, photo kplus_required",
+        "eligible/complimentary": "free -> live hidden, photo kplus_required",
+        "eligible/purchase": "free -> live hidden, photo kplus_required",
+        "active/null": "active -> live offered, photo available",
+        "active/complimentary": "complimentary -> live offered, photo available",
+        "active/purchase": "active -> live offered, photo available",
+        "expired/null": "free -> live hidden, photo kplus_required",
+        "expired/complimentary": "free -> live hidden, photo kplus_required",
+        "expired/purchase": "free -> live hidden, photo kplus_required",
+        "unavailable/null": "resolving -> live hidden, photo resolving",
+        "unavailable/complimentary": "resolving -> live hidden, photo resolving",
+        "unavailable/purchase": "resolving -> live hidden, photo resolving",
+        "error/null": "resolving -> live hidden, photo resolving",
+        "error/complimentary": "resolving -> live hidden, photo resolving",
+        "error/purchase": "resolving -> live hidden, photo resolving",
+        "null/null": "resolving -> live hidden, photo resolving",
+        "null/complimentary": "resolving -> live hidden, photo resolving",
+        "null/purchase": "resolving -> live hidden, photo resolving",
+        "undefined/null": "resolving -> live hidden, photo resolving",
+        "undefined/complimentary": "resolving -> live hidden, photo resolving",
+        "undefined/purchase": "resolving -> live hidden, photo resolving",
+        "ACTIVE/null": "resolving -> live hidden, photo resolving",
+        "ACTIVE/complimentary": "resolving -> live hidden, photo resolving",
+        "ACTIVE/purchase": "resolving -> live hidden, photo resolving",
+        "active /null": "resolving -> live hidden, photo resolving",
+        "active /complimentary": "resolving -> live hidden, photo resolving",
+        "active /purchase": "resolving -> live hidden, photo resolving"
+      },
+      "sideEffects": "none",
+      "limits": "Pure functions; the entitlement hook that produces the canonical state is the K+ lane."
+    },
+    {
+      "probeId": "B35-MAND-2767",
+      "name": "Unicode homoglyph identifier",
+      "verdict": "PASS",
+      "input": "five homoglyph/fullwidth/zero-width variants of the governed pilot product URL, image URL and productRef",
+      "expected": "never resolves ELIGIBLE and never yields a descriptor; matching is exact after URL parsing",
+      "actual": {
+        "cyrillicHostProductUrl": "NOT_FOUND",
+        "cyrillicHostImageUrl": "NOT_FOUND",
+        "fullwidthProductRef": "NOT_FOUND",
+        "zeroWidthInPath": "NOT_FOUND",
+        "homoglyphColour": "NOT_FOUND"
+      },
+      "sideEffects": "none (pure resolver)",
+      "limits": "Governed pilot registry only; Photo/commerce identifier handling belongs to other lanes."
+    },
+    {
+      "probeId": "B35-MAND-2768",
+      "name": "URL path traversal",
+      "verdict": "PASS",
+      "input": "five traversal-shaped product/image URLs derived from the governed pilot URLs",
+      "expected": "never ELIGIBLE; no descriptor",
+      "actual": {
+        "dotdotSuffix": "NOT_FOUND",
+        "encodedDotdot": "NOT_FOUND",
+        "siblingPath": "NOT_FOUND",
+        "backslash": "NOT_FOUND",
+        "imagePathTraversal": "NOT_FOUND"
+      },
+      "sideEffects": "none",
+      "limits": "Resolver only. The post-resolution opening of a product URL (openPersistedCommerceUrl) is a Commerce-lane boundary, not exercised."
+    },
+    {
+      "probeId": "B35-MAND-2769",
+      "name": "SSRF metadata/local/file/gopher/DNS rebind",
+      "verdict": "PASS",
+      "input": "nine hostile URL shapes (metadata IP, localhost, file:, gopher:, http downgrade, userinfo, port, suffix host, rebinding host) as product URL and as image URL",
+      "expected": "never ELIGIBLE; the resolver performs no network I/O at all (pure URL parsing)",
+      "actual": {
+        "product:metadataIp": "NOT_FOUND",
+        "product:localhost": "NOT_FOUND",
+        "product:fileScheme": "NOT_FOUND",
+        "product:gopher": "NOT_FOUND",
+        "product:httpDowngrade": "NOT_FOUND",
+        "product:userinfo": "NOT_FOUND",
+        "product:port": "NOT_FOUND",
+        "product:suffixHost": "NOT_FOUND",
+        "product:rebindingHost": "NOT_FOUND",
+        "image:metadataIp": "NOT_FOUND",
+        "image:localhost": "NOT_FOUND",
+        "image:fileScheme": "NOT_FOUND",
+        "image:gopher": "NOT_FOUND",
+        "image:httpDowngrade": "NOT_FOUND",
+        "image:userinfo": "NOT_FOUND",
+        "image:port": "NOT_FOUND",
+        "image:suffixHost": "NOT_FOUND",
+        "image:rebindingHost": "NOT_FOUND"
+      },
+      "sideEffects": "none; the Live source graph contains no fetch/XHR/WebSocket/functions.invoke/rpc (static scan, see ledger)",
+      "limits": "Proves the Live asset-selection boundary rejects hostile URLs and that Live itself issues no outbound request. Does not cover the native module image decode or the Commerce open-URL action."
+    },
+    {
+      "probeId": "STATIC-LIVE-SURFACE",
+      "name": "Live source graph has no network/backend surface",
+      "verdict": "PASS",
+      "input": "18 Live source files at C:/a2w",
+      "expected": "no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; only user-initiated Linking.openURL in the pilot product card",
+      "actual": {
+        "filesScanned": 18,
+        "networkHits": {},
+        "linkingFiles": [
+          "components/vto/LiveVtoPilotProduct.tsx"
+        ]
+      },
+      "sideEffects": "none",
+      "limits": "Text scan of the Live-named source files; shared modules they import (availability hook, K+ entitlement, Photo sanitizer) are other lanes' surfaces."
+    }
+  ]
+}

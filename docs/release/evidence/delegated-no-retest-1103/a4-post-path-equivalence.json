@@ -1,0 +1,10 @@
+{
+  "testedBackend": "2846fd147fc36b72404372919ee8d1e88421da75",
+  "currentBackend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+  "file": "supabase/functions/_shared/revenuecat/revenueCatWebhookHandler.ts",
+  "equivalence": "POST path byte-equivalent after removing only new OPTIONS early return/comment",
+  "oldSha256": "caad0f60e712fb09247f03199cc5d904acd46274abf60eae8ad248d68e05f5cb",
+  "currentSha256": "c6295b0199f5ab483ff6f6d636d06f9d32f89815726df82fda705e5063158c3e",
+  "excludedFromEquivalence": "OPTIONS 204 preflight;not credited from old POST tests",
+  "newTestExecution": 0
+}

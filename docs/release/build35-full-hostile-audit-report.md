@@ -1,3 +1,13 @@
+## Authoritative no-retest continuation — November3
+
+Read owner handoff [6612758143](https://github.com/kscanaiapp/kscan-app/pull/646#issuecomment-6612758143) before any new tests. Current backend **0bed36cc9e3b2879e16d0b76cae729070a0873a5**,mobile **8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c**. Older undeployed/unapplied descriptions below are historical and superseded by the supplied governed rollout evidence;no migration/deployment/canary is to be replayed. Eight referenced controlled runs/canaryshowSUCCESS;RevenueCatProductionrecovery41678583997showsFAILURE,ownedby706.
+
+Recovered50losslessGit-boundA2/A4artifacts;all45A2relevantsourcefingerprintsagreewithcurrentauthorities;all17A4providedSHA256hashesverified. CanonicalwebhookdeltaisOPTIONS-only;POSTpathbyteequivalenceestablished,notnewtestexecution. [Provenance](evidence/delegated-no-retest-1103/artifact-provenance.json),[no-retestregister](evidence/continuation-no-retest-reconciliation-status-1103.json). Executableartifactsstoredas.txttoavoidaccidentalCItestdiscovery;originalbytes/hashes/pathsretained.
+
+**Newtestsrun since directive:0.** Originalmatrixunchanged138PASS/1FAIL/2957NOTTESTED(318N/AinsideNT). A2proposes73sourcePASS/30N/Aover139cases;A4proposes20PASS/5NTover25distinctoriginalIDs;theseareproposals,notacceptedcredits. Per-caseactor/boundary/flag/sourcescopeadjudicationinprogress;A7localcaseIDsnotyetmappedandarenotmandatoryIDs.
+
+Keep703residualprivacyseparate;711Packingmerge,691WatchlistW2mergeand706Productionrecoverydistinct. Original691headadvancedto596e2c01;oldlocal90f07f5eanditsalreadycompleted11513NodePASS/98SKIParehistoricalevidence,notareasonforanotherbaselineorblindpush. No newpaidcalls,Productionactions,builds,devicecertification,TestSpriteorlegalcopychange. Nextfinishreconciliation/publish646,thenonebounded10–20genuinelyuncoveredoriginalcasebatch;stopatevidencecheckpoint. AUDIT IN PROGRESS.
+
 ## W2 canonical700 merged; exact mobile691 source prepared
 
 Backend **2846fd147fc36b72404372919ee8d1e88421da75** (#700),reviewede15f2cca/tested5d50159a/mergedtree9b8e47f4identical. Fullygreenbeforemerge32SUCCESS/14conditionalSKIP/0FAIL,no review holds. Canonicalpostworkflowscurrently5/7SUCCESS,2pending;notallgreenyet. Mobileauthorityremains **2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27**;W1stillclosed/7+9postgreen.

@@ -1,0 +1,17 @@
+✔ B35-MAND-2775 simultaneous duplicate operation (10 concurrent taps) (189.696ms)
+✔ B35-MAND-2776 10 retries in 1 second (322.3179ms)
+✔ B35-MAND-2791 RevenueCat stale entitlement (Live consumer fails closed) (1911.7374ms)
+✔ B35-MAND-2791 composition: every entitlement state through the REAL mapping and Studio gate (24.5775ms)
+✔ governed resolver control: the exact pilot URLs resolve ELIGIBLE (1.4808ms)
+✔ B35-MAND-2767 Unicode homoglyph identifier (governed garment lookup) (1.6065ms)
+✔ B35-MAND-2768 URL path traversal (governed garment lookup) (1.0533ms)
+✔ B35-MAND-2769 SSRF-shaped URL schemes/hosts (governed garment lookup) (1.5489ms)
+✔ static scan: the Live source graph has no network or backend surface (40.2261ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3178.932
