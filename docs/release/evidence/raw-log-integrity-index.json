@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T01:46:59.269Z",
+  "capturedAt": "2026-11-03T01:56:40.589Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4091,6 +4091,66 @@
       "archiveSha256": "3a7142673fe44976ca1b15397e3685103cfe59b56a2621dc479f5b85ce7625f5",
       "encoding": "UTF-16LE BOM",
       "disposition": "Exact685reviewc524full8571NodePASS/0FAIL/65SKIPand1576DenoPASS/0FAIL;notpostmerge/deploymentclaim"
+    },
+    {
+      "rawFile": "settlement-mobile-promotion-controls-1102.log",
+      "rawBytes": 98618,
+      "rawSha256": "7919a33b11207b185d14c3571ada68b0768005bddf4cedf1fff1dcca91e3731d",
+      "archiveFile": "resume1102-settlement-mobile-promotion-controls-1102.log.gz",
+      "archiveBytes": 8305,
+      "archiveSha256": "41fe8ba0b6f95c50eb8f453951b211b94ed885b337915e432017eb8dd75ec011",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "66PASS/6historical-count-ledgerFAIL/2NAskips;no customer defect count"
+    },
+    {
+      "rawFile": "settlement-mobile-promotion-controls-corrected-1102.log",
+      "rawBytes": 14380,
+      "rawSha256": "9887ae8ab86e5276f83063bf1ad5d4e93e319864b92a1da927fc546e470b3d89",
+      "archiveFile": "resume1102-settlement-mobile-promotion-controls-corrected-1102.log.gz",
+      "archiveBytes": 3377,
+      "archiveSha256": "b694cf4030390487285182e27ccedc10965dd91b80d168e9e85677a823cfde5a",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "72PASS/0FAIL/2explicitNAskips"
+    },
+    {
+      "rawFile": "settlement-mobile-sql-replay-1102.log",
+      "rawBytes": 20862,
+      "rawSha256": "f138fb6969e1ae7cb0ed44bfa96af727236054c0af3475ebbd3c4428b61f4eba",
+      "archiveFile": "resume1102-settlement-mobile-sql-replay-1102.log.gz",
+      "archiveBytes": 3423,
+      "archiveSha256": "e8690a62f98cb4364f5bcf01d81569249b577304c80d11538b16c5ab7cf65b4c",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "65actualSQL/handler/replay/governancePASS/0FAIL"
+    },
+    {
+      "rawFile": "settlement-mobile-full-backend-1102.log",
+      "rawBytes": 474500,
+      "rawSha256": "92c471ae584cc425251b42c24fdc3eea14f3841ea1720274eb750a4184f5b7b0",
+      "archiveFile": "resume1102-settlement-mobile-full-backend-1102.log.gz",
+      "archiveBytes": 58902,
+      "archiveSha256": "608ad43caf29ab1d26d0bfa62894a818d53321fc976f8268533c5259d3a28d46",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "1592backendPASS/0FAIL"
+    },
+    {
+      "rawFile": "settlement-mobile-typescript-1102.log",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveFile": "resume1102-settlement-mobile-typescript-1102.log.gz",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8",
+      "disposition": "Emptystdout;tscexit0capturedindependently;not test count"
+    },
+    {
+      "rawFile": "backend-9512-project-postmerge-raw.log",
+      "rawBytes": 4963348,
+      "rawSha256": "0ccdb69c082985ae80b27b8b212ce7e24e8d3f63bd69389119a725f4c46b4592",
+      "archiveFile": "resume1102-backend-9512-project-postmerge-raw.log.gz",
+      "archiveBytes": 554645,
+      "archiveSha256": "dc4d251d940b10e0df5ed8d3119105b6e1dfffe87d3929a28d3b88d6333c5bec",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Independentcanonical9512ProjectPASS;raw kept separate from reviewed685"
     }
   ]
 }

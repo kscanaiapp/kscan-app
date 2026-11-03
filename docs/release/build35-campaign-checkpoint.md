@@ -1,3 +1,11 @@
+## F025 mobile promotion #686 — local validation complete, CI pending
+
+Backend **9512a1814f92796cd77baa6557a8a78a4fd016c5** has seven successful independent post-merge workflows. Mobile authority remains **09f0abad1a443c2601aaddc9c26e85b636c216c4**. [PR686](https://github.com/kscanaiapp/kscan-app/pull/686) at **1710f94cb44ac58405703233042d348a66ca273a**, tree006a0a1d, is ready for review; CI pending. Seven exact canonical files promoted, mobile governance retained, 59 bounded grants; no scan runtime bundle change.
+
+Local: **72 promotion/VTO PASS / 0 FAIL / 2 explicit N/A skips; 65 SQL/handler/replay/governance PASS / 0 FAIL; 1592 backend PASS / 0 FAIL; TypeScript exit0; six clean-tree source gates exit0; manifests current.** First promotion run66PASS/6historical-count-ledgerFAIL/2skips retained; corrected tests admit only exact F025 additions and preserve negative controls. 420 lossless archives rehashed and decompressed.
+
+22 of23 confirmed P0-P3 source-closed; F025 mobile closure active, B004/P4 next, #682 held, W1/W2 unconfirmed. Matrix136PASS/1FAIL/2959NOT TESTED unchanged. Exact next:686 green CI/reviews/normal merge/post9; then B004. No migration application, deployment, activation, device/platform certification, EAS or deletion-cycle work. Underlying audit IN PROGRESS.
+
 ## F025 canonical685 merged — mobile closure remains
 
 Canonical**9512a1814f92796cd77baa6557a8a78a4fd016c5**,mobile09f0unchanged.685mergednormalafter33successful/13conditional-skippedchecks;reviewc524/testeb688/final9512share102f117atree;reviews/threadsnone,CLEANready. Actualreview8571NodePASS/0FAIL/65SKIP,1576backendPASS/0FAIL. SevenindependentcanonicalpushworkflowsPENDING. Migration20261103011431NOTAPPLIED;sourceonly.
