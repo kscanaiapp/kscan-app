@@ -1,0 +1,586 @@
+{
+ "lane": "A2 batch 3 (issue #702) - StyleChat (stylechat-generate)",
+ "mobileSourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+ "matrixSnapshot": "PR #646 head 49ab7fada3639587911849080ff33c6ad17fd9df docs/release/evidence/mandatory-hostile-probes.json",
+ "fingerprintKind": "git blob ids at the tested commit",
+ "sourceFingerprints": {
+  "supabase/functions/stylechat-generate/index.ts": "29e39f3e61dd020c1813cbfc4a93fc74a497eb67",
+  "supabase/functions/stylechat-generate/activeContext.ts": "b901b938433b67130d991f89e63a2d2e01242122",
+  "supabase/functions/stylechat-generate/promptHardening.ts": "728c250eee3897e6f9302b87a4f7a88589e1f859",
+  "supabase/functions/stylechat-generate/eliseConfig.ts": "b8aa49419176055668d0a60a30fbee2f88b09aa1",
+  "supabase/functions/_shared/geminiConsent.ts": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+  "supabase/functions/_shared/deletion/common.ts": "194f43281d3aea58da4e30e5284932836db06099"
+ },
+ "rowsInScope": 43,
+ "alreadyPass": [
+  "B35-MAND-1162",
+  "B35-MAND-1168",
+  "B35-MAND-1169",
+  "B35-MAND-1172",
+  "B35-MAND-1173",
+  "B35-MAND-1174"
+ ],
+ "alreadyNA_cat2_not_reproposed": [
+  "B35-MAND-1198",
+  "B35-MAND-1199",
+  "B35-MAND-1201"
+ ],
+ "cellsEvaluated": 34,
+ "proposedBreakdown": {
+  "PASS (source harness, proposed)": 20,
+  "PASS (source harness, analog - needs Codex ruling)": 2,
+  "NOT TESTED (kept)": 12
+ },
+ "mutationControls": [
+  {
+   "name": "S1 spoofable actor (x-user-id wins)",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1170 identity-spoof headers and body fields"
+   ]
+  },
+  {
+   "name": "S2 session ownership filter removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1170 identity-spoof headers and body fields",
+    "B35-MAND-1188/1189 account switch and delayed-A supersession"
+   ]
+  },
+  {
+   "name": "S3 message length guard removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1175 10x declared body limit"
+   ]
+  },
+  {
+   "name": "S4 sessionId UUID check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1176 Unicode homoglyph identifier",
+    "B35-MAND-1177 URL path traversal"
+   ]
+  },
+  {
+   "name": "S5 burst denial ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1185 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "S6 lifecycle gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1203 deletion replay"
+   ]
+  },
+  {
+   "name": "S7 unsafe-output strip function disabled",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1179 prompt injection per model-bound field"
+   ]
+  },
+  {
+   "name": "S8 burst RPC error fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1197 Supabase 401 mid-request",
+    "B35-MAND-1203 deletion replay"
+   ]
+  },
+  {
+   "name": "S9 provider error detail echoed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1191 provider 500",
+    "B35-MAND-1192 provider 429",
+    "B35-MAND-1193 provider timeout",
+    "B35-MAND-1194 provider malformed JSON",
+    "B35-MAND-1195 provider empty body",
+    "B35-MAND-1196 provider wrong schema"
+   ]
+  },
+  {
+   "name": "S10 prompt data brackets not escaped",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1179 prompt injection per model-bound field"
+   ]
+  },
+  {
+   "name": "S11 bearer prefix check removed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  }
+ ],
+ "countsBefore": {
+  "PASS": 138,
+  "FAIL": 1,
+  "NOT_TESTED": 2957,
+  "total": 3096,
+  "naCategory2": 318,
+  "deviceCategory6": 4,
+  "applicablePending": 2639,
+  "inScopeApplicablePending": 2635
+ },
+ "countsBatch3Alone": {
+  "allProposalsAccepted": {
+   "PASS": 160,
+   "FAIL": 1,
+   "NOT_TESTED": 2935,
+   "total": 3096,
+   "naCategory2": 318,
+   "deviceCategory6": 4,
+   "applicablePending": 2617,
+   "inScopeApplicablePending": 2613
+  },
+  "analogPassRejected_stays_NT": {
+   "PASS": 158,
+   "FAIL": 1,
+   "NOT_TESTED": 2937,
+   "total": 3096,
+   "naCategory2": 318,
+   "deviceCategory6": 4,
+   "applicablePending": 2619,
+   "inScopeApplicablePending": 2615
+  }
+ },
+ "countsCumulativeAllBatchesAccepted": {
+  "PASS": 188,
+  "FAIL": 1,
+  "NOT_TESTED": 2907,
+  "total": 3096,
+  "naCategory2": 346,
+  "deviceCategory6": 4,
+  "applicablePending": 2561,
+  "inScopeApplicablePending": 2557
+ },
+ "cells": [
+  {
+   "probeId": "B35-MAND-1167",
+   "probe": "expired JWT",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Expired/empty/non-bearer/missing credentials => 401 with only the Auth check executed; valid control still served. Mutation S11 (bearer prefix check) survived as an equivalent mutant: a second guard (Auth getUser) fails closed.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1167",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-MAND-1168/1169 are Production-gateway PASSes for malformed/tampered JWT; expired JWT had no record"
+   ],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. No live signed-JWT validation."
+  },
+  {
+   "probeId": "B35-MAND-1170",
+   "probe": "in-function auth with caller-controlled headers",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Seven identity headers and userId/user_id/actorId body fields naming actor B with actor A token: refused on B session (404), served as A on A session, no downstream call carries B id. Mutations S1, S2 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1170",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Stub does not emulate RLS, so the handler-side ownership filter is what is observed."
+  },
+  {
+   "probeId": "B35-MAND-1175",
+   "probe": "10x declared body limit",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "500 chars accepted; 501, 5,000 and 500,000 => 400 before quota/provider. Mutation S3 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1175",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATION: no raw byte cap in the handler (a 2 MB unknown field is parsed and ignored); the request-size bound is the platform gateway."
+  },
+  {
+   "probeId": "B35-MAND-1176",
+   "probe": "Unicode homoglyph identifier",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Six homoglyph/zero-width/fullwidth variants of a valid sessionId => 400 with zero downstream calls. Mutation S4 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1176",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. requestId/sourceMessageId are free text (80-char bounded) and not an authority."
+  },
+  {
+   "probeId": "B35-MAND-1177",
+   "probe": "URL path traversal",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Traversal/query-injection shaped sessionId values => 400 before any query; no traversal sequence reaches a downstream URL. Mutation S4 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1177",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. No file/storage path operation exists in the text-chat path; V2 attachment storage resolution not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1178",
+   "probe": "SSRF metadata/local/file/gopher/DNS rebind",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Six SSRF-shaped URLs injected into message, requestId, sourceMessageId, weather locale, every activeContext text field and unknown URL fields: outbound hosts limited to the Supabase fixture, Gemini and the fixed weather host.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1178",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Server-side storage downloads for owned attachments and Open-Meteo responses not exercised. Not mutation-checked (no single guard to break)."
+  },
+  {
+   "probeId": "B35-MAND-1179",
+   "probe": "prompt injection per model field",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Delimiter-breaking injection in 10 model-bound fields: no [SYSTEM] header, markup or fences reach the system prompt; closed enum/number fields (gender, style signals, weather) have no free-text path; message stays in the user turn; hostile model output is stripped. Mutations S7, S10 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1179",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Proves prompt STRUCTURE only; obedience of a real model needs a paid provider (excluded), same as 0749. Free-text Closet/attachment fields not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1183",
+   "probe": "lying Content-Type",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Same body under Content-Type image/png, multipart, text/plain, octet-stream and empty gives the identical outcome as the honest request.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1183",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1185",
+   "probe": "10 retries in 1 second",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten rapid requests: first 4 served, 6 denied with 429 + Retry-After 37; denied attempts reach neither the provider nor the daily quota; malformed limiter payload fails closed. Mutation S5 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1185",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. The limiter itself (check_and_increment_stylechat_burst) is SQL and not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1188",
+   "probe": "switch account in flight",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Actor B token naming actor A session => 404, zero quota, zero provider; concurrent A/B requests never cross text or history queries.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1188",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Client session-switch UX is a device/client concern. Mutation S2 detected."
+  },
+  {
+   "probeId": "B35-MAND-1189",
+   "probe": "A then B delayed A supersession",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Slow A provider reply released after B completes: each reply returned only to its own request; no cross-actor text in provider requests.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1189",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Client-side supersession (UI discarding a late reply) not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1190",
+   "probe": "cross-user shared cache poisoning",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Only module-level cache in the handler is weatherCache (rounded coordinates -> public weather). Actor A message and id never appear in actor B request; actor-scoped reads carry B id only.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1190",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. K+ entitlement and Signature Style caches belong to other lanes."
+  },
+  {
+   "probeId": "B35-MAND-1191",
+   "probe": "provider 500",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 500 => HTTP 200 status:error with the fixed fallback copy, no provider detail, 1 attempt, no write. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1191",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one daily message."
+  },
+  {
+   "probeId": "B35-MAND-1192",
+   "probe": "provider 429",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 429 (hostile Retry-After 9999) => same controlled fallback, 1 attempt (retry flag off), no write. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1192",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Same quota observation as 1191."
+  },
+  {
+   "probeId": "B35-MAND-1193",
+   "probe": "provider timeout",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider that never answers is aborted by the attempt timeout (12 s scaled to 25 ms in the harness) => same controlled fallback, no hang. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1193",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Same quota observation as 1191; real 12 s not waited."
+  },
+  {
+   "probeId": "B35-MAND-1194",
+   "probe": "provider malformed JSON",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "HTTP 200 non-JSON body => same controlled fallback; no raw text echoed. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1194",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Same quota observation."
+  },
+  {
+   "probeId": "B35-MAND-1195",
+   "probe": "provider empty body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "HTTP 200 empty body => same controlled fallback. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1195",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Same quota observation."
+  },
+  {
+   "probeId": "B35-MAND-1196",
+   "probe": "provider wrong schema",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Wrong-schema payloads (candidates not an array; parts with non-string text) => same controlled fallback. Mutation S9 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1196",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Same quota observation. Only the first-attempt variant was driven because one attempt is made."
+  },
+  {
+   "probeId": "B35-MAND-1197",
+   "probe": "Supabase 401 mid-request",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Auth ok then 401 on burst RPC or daily-quota RPC => 500 \"Usage check failed\", zero provider. Mutation S8 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1197",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATION: a 401 on the session lookup is returned to the client as 404 \"Session not found\" (error and absence are not distinguished)."
+  },
+  {
+   "probeId": "B35-MAND-1203",
+   "probe": "deletion replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten replays from a pending_deletion account => 403 ACCOUNT_PENDING_DELETION before consent, session, quota or provider; RPC lifecycle guard also yields 403. Mutation S6 detected.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1203",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. SQL deletion state machine is another lane."
+  },
+  {
+   "probeId": "B35-MAND-1181",
+   "probe": "MIME magic-byte mismatch",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "The text-chat request has no byte-upload field: PNG bytes labelled jpeg, zero-byte and truncated image payloads placed in the chat request are rejected (400 ACTIVE_CONTEXT_INVALID) or dropped, and never forwarded to the provider.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1181",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed: PASS-scoped vs N/A-by-construction. The real gap for byte-level cells is the server-side download of OWNED storage objects (attachment / visual-context pipeline), which is not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1182",
+   "probe": "zero-byte truncated corrupted image",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "As 1181 for zero-byte/truncated payloads.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1182",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Same ruling and same server-side download gap as 1181."
+  },
+  {
+   "probeId": "B35-MAND-1163",
+   "probe": "User A own resource",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4 (Staging fixture). Own-session success is shown by the harness control, but no signed live actor JWT exists. Supplementary only, no credit.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs Staging synthetic actor via a Codex-queued workflow."
+  },
+  {
+   "probeId": "B35-MAND-1164",
+   "probe": "User A User B resource IDOR",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. Handler-level refusal of B on A session is shown (1188), but the cell requires a real two-actor Staging fixture with RLS. Supplementary only, no credit.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs two Staging actors."
+  },
+  {
+   "probeId": "B35-MAND-1165",
+   "probe": "User A User B storage path",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. The text-chat path touches no storage path; storage-path IDOR belongs to the attachment resolver, which is not exercised.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs the V2 attachment path with two Staging actors."
+  },
+  {
+   "probeId": "B35-MAND-1166",
+   "probe": "removed shared-room member",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. Shared-room membership resolution (fetchSharedRoomAccess) is behind sharedRoomEvidenceV1 and needs real membership rows.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs Staging rooms and flag state."
+  },
+  {
+   "probeId": "B35-MAND-1171",
+   "probe": "client service-role reachability",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Feature-independent client-bundle control; only the response-side control was observed (no service-role or provider key in response/headers).",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1171",
+   "harnessVerdict": "OBSERVATION",
+   "overlapRefs": [],
+   "remainingGap": "Needs one cross-feature client-bundle scan owner (same as 0741/2762)."
+  },
+  {
+   "probeId": "B35-MAND-1180",
+   "probe": "SQL injection per RPC parameter",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "OBSERVATION only. Flag off: no caller text reaches any RPC. With quotaIdempotencyV1 on, up to 80 chars of raw requestId are concatenated into p_operation_key and sent as a JSON-bound RPC parameter; whether the SQL function is injection-safe is unproven here.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1180",
+   "harnessVerdict": "OBSERVATION",
+   "overlapRefs": [],
+   "remainingGap": "Needs a real-Postgres proof of increment_stylechat_daily_usage_idempotent."
+  },
+  {
+   "probeId": "B35-MAND-1184",
+   "probe": "simultaneous duplicate operation",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "OBSERVATION only. With default flags ten concurrent identical requests spend ten quota units and ten provider calls; suppression exists only behind generationSafetyV1/quotaIdempotencyV1 in SQL.",
+   "evidence": "audit/a2/out/stylechat-batch3-results.json#B35-MAND-1184",
+   "harnessVerdict": "OBSERVATION",
+   "overlapRefs": [],
+   "remainingGap": "Needs Production flag state and a real concurrent SQL run."
+  },
+  {
+   "probeId": "B35-MAND-1186",
+   "probe": "cancel then reissue",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cancel-then-reissue is client behaviour (AbortController in the StyleChat service); the server cannot observe a client cancel.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Client lane or device."
+  },
+  {
+   "probeId": "B35-MAND-1187",
+   "probe": "navigate away then return",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Navigate-away-and-return is client navigation behaviour.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Client lane or device."
+  },
+  {
+   "probeId": "B35-MAND-1200",
+   "probe": "RevenueCat stale entitlement",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Not attempted. K+ entitlement is consulted only behind closetWardrobeContextV1 (has_active_k_plus); stale-entitlement behaviour of that gate was not driven.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Could be added with the flag on and has_active_k_plus false/error."
+  },
+  {
+   "probeId": "B35-MAND-1202",
+   "probe": "save replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Not attempted. Assistant persistence is server-side only behind generationSafetyV1 (persistAssistantOnce, SQL idempotency); with default flags the handler writes nothing.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs flag state and real SQL for idempotency."
+  },
+  {
+   "probeId": "B35-MAND-1204",
+   "probe": "expired signed URL replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. The text-chat path issues no signed URLs; attachment signed-URL handling is not exercised.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs the V2 attachment path in Staging."
+  }
+ ],
+ "notCovered": "style-outfit-generate (43 matrix rows, 37 pending) is a separate Edge function and was not touched. Packing (served by the same stylechat-generate index.ts under schemaVersion) belongs to Agent 7 and was not exercised: every request here is the ordinary chat path.",
+ "dedupe": "Not additive with the 886 executed records (stylechat-generate holds B35-EXEC-0005/0027/0028/0217-0222: auth and body shape only; none overlap these cells), the 47 shared-handler or 46 K+ Staging records. 23 Deno test blocks evaluated 37 pending rows; only cells marked PASS change a verdict."
+}

@@ -67,3 +67,33 @@ node audit/a2/build-ledger-batch2.cjs <mandatory-hostile-probes.json from PR #64
 ## Limits
 
 Live is an on-device camera with no provider and no endpoint. Cells phrased as endpoint/provider probes are either N/A by construction (proposed) or mapped to the only remote dependency, the `app_config` availability read (2782-2788, flagged for a ruling). Nothing here is a device run; cells 2777-2780 stay device-excluded.
+
+---
+
+# Batch 3: StyleChat (`stylechat-generate`, 37 pending rows)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited. `style-outfit-generate` (a separate function with its own 43 matrix rows) and Packing (served by the same `index.ts` under `schemaVersion`) were not touched.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+deno test --no-check --allow-read --allow-env --allow-write=audit/a2/out audit/a2/stylechat-batch3.test.ts   # 24 pass (23 probe blocks + results writer)
+node audit/a2/mutate-stylechat.cjs        # one-guard-at-a-time mutation controls; restores with git checkout
+node audit/a2/build-ledger-batch3.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+`--no-check` is required: the handler tree has 12 pre-existing TS2339/TS2322 diagnostics under the default config (unrelated to behaviour, untouched).
+`mutate-stylechat.cjs` re-runs the suite, which overwrites `out/stylechat-batch3-results.json` with the last mutated run. Re-run the suite clean afterwards (the committed results file is from a clean run).
+
+## Files
+
+- `stylechat-world.ts`: synthetic world. Captures `Deno.serve` so the REAL `index.ts` runs unmodified; `fetch` is fully stubbed (Supabase Auth, PostgREST tables, RPCs, Gemini, Open-Meteo). Table stubs apply only the filters the handler puts in the query and do NOT emulate RLS, so a removed handler-side ownership filter is observable.
+- `stylechat-batch3.test.ts`: the probes.
+- `mutate-stylechat.cjs`, `out/stylechat-batch3-mutations.json`: 11 mutations; 10 detected, 1 equivalent survivor (S11: bearer-prefix check removed; Auth `getUser` still rejects).
+- `out/stylechat-batch3-results.json`, `out/a2-batch3-ledger.json`, `out/stylechat-run-final-clean.txt`.
+
+## Limits
+
+Mock provider and mock PostgREST; default flag state (generation safety, quota idempotency, retry, normalization, Concierge and attachment flags all off). Production flag state is not asserted. Server-side storage downloads for owned attachments, the SQL RPCs themselves, and Packing are not exercised.
