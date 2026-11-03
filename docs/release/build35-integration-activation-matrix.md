@@ -1,12 +1,33 @@
 ## No-retest reconciliation and bounded SQL batch checkpoint — November 3
 
-**AUDIT IN PROGRESS.** Original3,096 cases now **220 PASS /1 FAIL /2,875 NOT TESTED**;**354 N/A** remain explicitly inside NOT TESTED,never PASS. Completed #702/#704/#705 evidence reconciled in [f728c4bf](https://github.com/kscanaiapp/kscan-app/commit/f728c4bfc2acd2b22593ce5455483fc2a1c07452):79source-controlPASS/36N/A/53retainedNT across168reviewedIDs. Four A7 credits are distinct properties of one composed case,not four new executions.
+**AUDIT IN PROGRESS — bounded batch complete.** The original 3,096 cases now contain **220 PASS, 1 FAIL and 2,875 NOT TESTED**. Of NOT TESTED, **354 are explicitly N/A**; none receives PASS credit. The delegated #702/#704/#705 review added 79 source-control PASS results and 36 N/A dispositions across 168 reviewed original IDs. It retained 53 as NOT TESTED. Four A7 credits describe distinct properties of one composed case, not four independent executions.
 
-The subsequent **ten-case bounded real PostgreSQL batch is complete:10PASS/0FAIL/0SKIP** after fixing only two observer errors (first8PASS/2FAIL;only those2rerun). Initial fixture incorrectly read RLS-hidden burst counters as the authenticated caller;the corrected local observer reads after commit. No product/SQL/policy change. Old failures preserved. Three newly matched original source controls:1180RPCparameterSQLinjection,1185StyleChat rapidcounter,1142Outfit rapidcounter. SQL counters admitted4/10and3/10 within0.003188s/0.005242s;not a ten-HTTP-request or sliding-window benchmark. Two-session last-slot/optional same-key quota controls are supplemental:1141/1184remainNT for complete logical provider-dispatch idempotency. [Full results and limitations](evidence/bounded-quota-1103/batch-checkpoint.json).
+The subsequent ten-case PostgreSQL batch finished **10 PASS / 0 FAIL / 0 SKIP**. Its first attempt was 8 PASS / 2 FAIL because the test incorrectly tried to observe RLS-hidden burst rows as an authenticated actor. Only those two cases were rerun with a local observer connection after commit; all initial failures remain preserved. No application, quota function or policy was changed.
 
-Mobile **8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c** /backend **0bed36cc9e3b2879e16d0b76cae729070a0873a5**. No runtime repair or new app test suite;9focused terminology-guard checks pass for the two newly imported historical wire-key lines.494indexed losslessarchives:491priorverificationreused,3newlogsroundtrip/hashchecked.
+The batch closes three original source controls: **1180** (RPC SQL input safety), **1185** (StyleChat rapid quota enforcement) and **1142** (outfit rapid quota enforcement). Ten same-window SQL calls admitted 4 and 3 respectively, taking 0.003188s and 0.005242s inside PostgreSQL. This is not an HTTP throughput or sliding-window benchmark. Two-session last-slot and optional same-key quota tests are supplemental; **1141 and 1184 remain NOT TESTED** for complete logical provider-dispatch idempotency. [Detailed results, commands and limitations](evidence/bounded-quota-1103/batch-checkpoint.json).
 
-**0141remainsFAIL pending691.** Separate lanes:711Packing/691WatchlistW2source integration;703residualprivacy;706ProductionRevenueCat recovery/activation. Completed governed migrations/deployments/canaries in authoritative handoff supersede older pending statements below;none rerun. No Production action,shared DB application,paid call,customer write,device/artifact test,EAS/build/store operation or TestSprite. Evidence646DRAFT/HOLD. **Stop at this bounded evidence checkpoint:**next address exact source-integration/security-check artifact gaps and receive703/706evidence,without restarting completed suites.
+Audited authorities remain mobile **8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c** and backend **0bed36cc9e3b2879e16d0b76cae729070a0873a5**. Source fingerprints were compared before execution. Nine focused terminology-guard checks passed after classifying two exact immutable wire-key quotations in imported evidence. The 491 prior raw-log verifications were reused; three new logs were compressed and round-trip hash-checked, bringing the index to 494 archives.
+
+**Original failure 0141 is unchanged, pending #691.** Keep #711 Packing and #691 Watchlist W2 source integration separate from #703 residual privacy and #706 Production RevenueCat recovery. Both source PRs currently fail the security evaluator because the required Contract tests artifact is missing; the logs report OPERATIONAL FAILURE, not a demonstrated application regression. No gate was weakened or rerun by this batch.
+
+The authoritative no-retest handoff supersedes historical pending-deployment statements below. Completed migrations, deployments, canaries and broad suites were not repeated. There were no Production actions, shared-database changes, paid calls, customer writes, builds, device tests or TestSprite runs. Device certification remains outside this source audit.
+
+**Checkpoint and stop:** no second hostile batch has started. Next address the exact-head source-integration/CI-artifact gaps, then receive #703 and #706 evidence. PR #646 remains draft and held. No release-readiness verdict is granted.
+
+### Current boundaries and owners
+
+| Surface | Source evidence | Runtime / customer boundary | Remaining gate |
+|---|---|---|---|
+| Scanner and Gemini | Earlier guards and denial UX merged; actual Scanner route mounts ScanResultV2 | Governed gated deployment and prior paid canaries retained; installed v1-only clients cannot satisfy v2 consent | #706 compatible client activation; no repeated canary |
+| Elise / outfit quotas | Actual handlers retained; new real SQL burst / atomic counters pass | No new provider invocation or claim that optional idempotency flags are active | Full logical duplicate-dispatch cases 1141/1184 remain NT |
+| Black-owned secondary discovery | Actual route invokes hook and optional shelf; failures do not await or reorder primary | Discovery and catalog worker deployed; real catalog legitimately empty | Merchant/feed onboarding; #694 scheduler gates separate |
+| Packing Intelligence | #705 mounted tests reproduced four root categories; repairs in #711 | Fix is not yet on mobile authority | #711 missing Contract artifact / green integration |
+| Watchlist | W1 source closed; W2 canonical guard merged | Mobile W2 not yet merged; original 0141 still FAIL; no new push/deployment test | #691 source integration; #688 owner automation configuration |
+| K+ | #704 source and SQL evidence adjudicated with limitations | Failed Production recovery remains NOT CERTIFIED; no store sandbox event route proof | #706 operational recovery and sandbox routing |
+| Receipt extraction | F025 source and governed security rollout retained | Extraction kill switch remains OFF | #706 consent / activation, not security suite rerun |
+| Saved scans | Source and governed migration / rollback-only checks retained | No new migration or live RLS probe needed for this batch | Do not repeat completed migration / baseline tests |
+| Image privacy | Existing source orchestration evidence retained | Residual source transport / race cases not certified here | #703 owns its bounded residual cases; native accuracy is later QA |
+
 
 ## Manager reconciliation of completed delegated evidence — November 3
 
