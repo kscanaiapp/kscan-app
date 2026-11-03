@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Linking, Modal, Platform, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, Linking, Modal, StyleSheet, Text, View } from 'react-native';
 import { softImpact } from '../../services/haptics';
 import { PrimaryButton, SecondaryButton } from '../luxury';
 import { VoiceScanIcon } from '../icons/kscan';
@@ -163,11 +163,11 @@ export function VoiceListeningSheet({
 
     const reason = unavailableReason ?? 'recognizer_error';
     const copy = UNAVAILABLE_COPY[reason];
-    // iOS shows the microphone and speech prompts once; after a denial the
-    // request resolves with no UI, so the copy's "Enable it in your device
-    // Settings" had no way there from this sheet. iOS only: Android's
-    // behaviour here is unchanged.
-    const offerSettings = Platform.OS === 'ios' && reason === 'permission_denied_permanently';
+    // A permanent denial resolves with no system prompt on both platforms (iOS
+    // after the first denial, Android after "Don't ask again", both reported as
+    // canAskAgain false), so the copy's "Enable it in your device Settings"
+    // needs a way there. Linking.openSettings opens this app's page on each.
+    const offerSettings = reason === 'permission_denied_permanently';
     return (
       <>
         <Text style={styles.eyebrow}>VOICE SCAN</Text>
