@@ -203,7 +203,10 @@ export function verifyCapture({ capture, captureRoot, expected }) {
       if (!/\.(?:[cm]?[jt]s|[jt]sx)$/.test(current)) continue;
       const source = ts.createSourceFile(current, fs.readFileSync(absolute, 'utf8'), ts.ScriptTarget.Latest, true);
       const visit = (node) => {
-        const specifier = ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier :
+        // `import type` / `export type` are erased before bundling, so the deployed closure never contains them.
+        const typeOnly = (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly) ||
+          (ts.isExportDeclaration(node) && node.isTypeOnly);
+        const specifier = typeOnly ? null : ts.isImportDeclaration(node) || ts.isExportDeclaration(node) ? node.moduleSpecifier :
           ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : null;
         if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.')) {
           const dependency = path.posix.normalize(path.posix.join(path.posix.dirname(current), specifier.text));
