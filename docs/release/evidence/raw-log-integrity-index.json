@@ -1,6 +1,6 @@
 {
   "purpose": "Lossless captured raw logs including failures/invalid fixtures; original files retained",
-  "capturedAt": "2026-11-03T14:03:49.694Z",
+  "capturedAt": "2026-11-03T14:12:34.840Z",
   "records": [
     {
       "rawFile": "apple-source-readiness-current.log",
@@ -4631,6 +4631,56 @@
       "archiveSha256": "81d6e914ba749658faa52ebb1adb5efc89b7a4768c8a78af353f24e9c20a2126",
       "encoding": "UTF-16LE BOM",
       "disposition": "Evidence lane synchronization:32terminology/paritycontrolsPASS; everyruntimefileequalsmobile2c2c9da4;3preexistingQA/terminologytestdifferencesretained"
+    },
+    {
+      "rawFile": "watchlist-body-current-portable-before-1103.log",
+      "rawBytes": 18666,
+      "rawSha256": "d853c2214e8183d7f5a703ca14d433a7f547a567cba508adf0552caa3d75cf30",
+      "archiveFile": "resume1103-watchlist-body-current-portable-before-1103.log.gz",
+      "archiveBytes": 1539,
+      "archiveSha256": "536bcc6e95a4ab95967ff8e557c3c3769db01af8300027d4ad893ebda0e7b7d4",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual handler/fragment before-after source evidence;syntheticAuthandRPCresponses,no liveJWT/RLS/provider/device claim"
+    },
+    {
+      "rawFile": "watchlist-body-expanded-before-1103.log",
+      "rawBytes": 30038,
+      "rawSha256": "a8f9f5fcb89e0964f6b1c9c414b29d52927f1ed5997730c6ab8f83a0736b5bba",
+      "archiveFile": "resume1103-watchlist-body-expanded-before-1103.log.gz",
+      "archiveBytes": 2121,
+      "archiveSha256": "3de87a56f015b40e1e348de6bfb94b58d54f56eba70a64e9c7ebeb1cc8fed77e",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Retained mixed7realinvalid-bodyfailures+1testfixtureincorrectKplusorderingexpectation;fixtureerrorisnotanotherappfinding"
+    },
+    {
+      "rawFile": "watchlist-body-expanded-corrected-before-1103.log",
+      "rawBytes": 28516,
+      "rawSha256": "5013aa36eb7809a8b9816257acebe08fa3f93a45e5c825af8d3950601a301df2",
+      "archiveFile": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
+      "archiveBytes": 2091,
+      "archiveSha256": "c7f08bef3cfe403672c1fd07ba9cf3504b66277ea12b759c7e5d6be58ce4a0e6",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual handler/fragment before-after source evidence;syntheticAuthandRPCresponses,no liveJWT/RLS/provider/device claim"
+    },
+    {
+      "rawFile": "watchlist-body-handler-after-1103.log",
+      "rawBytes": 13722,
+      "rawSha256": "dc74f46461024b295820eb8cc55504bbde41273da2c5407c8d20c04e5f8b59f1",
+      "archiveFile": "resume1103-watchlist-body-handler-after-1103.log.gz",
+      "archiveBytes": 1510,
+      "archiveSha256": "df4a414a664cb4762f33440e4bcdfcf992258de705201a0727ee25536b36fe15",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual handler/fragment before-after source evidence;syntheticAuthandRPCresponses,no liveJWT/RLS/provider/device claim"
+    },
+    {
+      "rawFile": "watchlist-body-node-focused-1103.log",
+      "rawBytes": 6012,
+      "rawSha256": "b4dfdbfb42ddf17bce5e5de5221967f00e561afc55cc7c0a66183b31bc93204f",
+      "archiveFile": "resume1103-watchlist-body-node-focused-1103.log.gz",
+      "archiveBytes": 1091,
+      "archiveSha256": "860d8cdb2730e7535128574d3704359f535d24f41ee36371aa5c930696331bfe",
+      "encoding": "UTF-16LE BOM",
+      "disposition": "Actual handler/fragment before-after source evidence;syntheticAuthandRPCresponses,no liveJWT/RLS/provider/device claim"
     }
   ]
 }

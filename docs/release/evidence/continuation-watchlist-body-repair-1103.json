@@ -1,0 +1,68 @@
+{
+  "capturedAt": "2026-11-03T14:12:34.840Z",
+  "finding": "B35-E-027",
+  "priority": "P4",
+  "ownerApproval": "Authorize this bounded source repair",
+  "baselineCanonical": "6d96156745160d93596dd792769df6aed164e6fe",
+  "baselineMobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "reviewed": "e15f2cca99315530205a01ca1c714ee61f4e59f3",
+  "tree": "9b8e47f47276c929319958e64768b9eb7dc4a68e",
+  "status": "LOCAL SOURCE REPAIRED / FULL VALIDATION RUNNING / NOT PR-MERGED",
+  "source": "supabase/functions/commerce-watch-refresh/index.ts:938",
+  "rootCause": "TypeScript annotation did not validate req.json runtime value; null reaches body.action outside parsecatch",
+  "repair": "Existing400invalid_body for all non-object JSON;auth and worker routing stay beforebody;allnormalobject/action/account/Kpluscontracts unchanged",
+  "files": 4,
+  "before": {
+    "parentFail": 1,
+    "failedSteps": 7,
+    "passedSteps": 10,
+    "null": {
+      "body": "null",
+      "authenticated": true,
+      "forgedWorker": false,
+      "actual": {
+        "status": "TypeError",
+        "result": {},
+        "authReads": 1,
+        "actorReads": 0,
+        "entitlementReads": 0,
+        "writes": 0,
+        "providerCalls": 0
+      }
+    }
+  },
+  "after": {
+    "parentPass": 1,
+    "passedSteps": 17,
+    "failed": 0,
+    "null": {
+      "body": "null",
+      "authenticated": true,
+      "forgedWorker": false,
+      "actual": {
+        "status": 400,
+        "result": {
+          "error": "invalid_body",
+          "code": "invalid_body"
+        },
+        "authReads": 1,
+        "actorReads": 0,
+        "entitlementReads": 0,
+        "writes": 0,
+        "providerCalls": 0
+      }
+    }
+  },
+  "NodeFocused": {
+    "pass": 34,
+    "fail": 0,
+    "scope": "10bodyfragment regressions with corrected lexicaljsonbinding +24W1adapter/actualSQLDDLcontrols"
+  },
+  "sourceGates": 5,
+  "fullValidation": "backend,TypeScript,fullNode running;not yet final",
+  "fixtureCorrection": "First expanded positive control wrongly expected invalid_watch_id;actual handleRefresh first requires canonical Kplus entitlement. Retained failing fixture log;corrected explicit false-entitlement stub confirms403kplus_required;not an app defect or weakened customer assertion.",
+  "scope": "Actual Deno.serve handler with synthetic verified-identity/readonly eligibility/entitlement transports;no actual JWTsignature,liveDBRLS,provider/device/deployment evidence",
+  "provenance": "Same final full-handler fixture bytes executed before and after;historical initial10case fixture/log retained.",
+  "evidence": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
+  "next": "Collectfullvalidation,prepare bounded newcanonicalPRthenexistingmobile691. No deployment;ownerwaivedTestSprite."
+}

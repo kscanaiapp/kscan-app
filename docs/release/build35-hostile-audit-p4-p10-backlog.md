@@ -1,3 +1,11 @@
+## W2 P4 actual-handler repair prepared; original matrix cell reconciled
+
+W1remainsclosedinbothauthorities/backend6d961567/mobile2c2c9da4,7+9postworkflowsSUCCESS. Owner-authorized **B35-E-027/W2P4** now locallyrepaired ate15f2cca99315530205a01ca1c714ee61f4e59f3 inC:/b35watchbody1103. Minimalguardrejectsnull/arrays/primitives viaexisting400invalid_body afterAuth and trustedworker routing. Actualsamefixturebefore10controlstepsPASS/7invalidstepsFAIL;after1parentPASS/17stepsPASS;34NodefocusedPASS;fivecleangatesexit0. Fullbackend/TypeScript/Node pending. NoPRmergeor deployment claimed.
+
+Original **B35-MAND-0141** preciselymatchesexecutedauthenticatednullhandlerandisnowFAIL(P4),withpriorN/Tsnapshotretained. Matrix **138PASS/1FAIL/2957NOTTESTED=3096**. Localafter-fixPASSdoesnoteraseunrepaired-authorityfailure. 24P0-P3findingsallsourceclosedwithinexecutedcoverage;W2remainsP4,noseverityinflation. [Before/afterevidence](evidence/continuation-watchlist-body-repair-1103.json). 473archivesfullyverified. InitialexpandedpositivefixtureexpectedIDvalidationbeforeKplus;correctedfixturetestsentitlementordering;oldmixedfailurelogretained,notanotherdefect. W2gateoutputsinitiallyusedW1scratchnames;copiedtodistinctW2namesandoriginalW1scratchbytesrestoredfromimmutableverifiedarchives,noevidenceloss.
+
+Next collectfullchecks,newboundedcanonicalPRthenexistingmobile691exactpromotion/greenCI/merge/postchecks. PR646draftHOLD;TestSpritewaived;no deployment,migration,flag,customerwrite,realpush,device/build/storeaction. AUDIT IN PROGRESS.
+
 ## Watchlist continuation: two hypotheses now independently confirmed
 
 B004 remains source-closed through698/699; authorities backend53bf/mobile77a6 unchanged. **B35-E-026 (W1), P3:** actual current push adapter wrongly accepts malformed Expo200 tickets;existing689tests reproduce3PASS/9FAIL,including8invalidresponsesandatrimcontrol. Caller can emitacceptedwithoutreceipt persistence. Resume existingcanonical689thenmobile687;donotduplicate690. **24confirmedP0-P3:23sourceclosed/1open** (0P0/5P1/7P2/12P3).

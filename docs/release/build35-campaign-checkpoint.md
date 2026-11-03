@@ -1,3 +1,11 @@
+## W2 P4 actual-handler repair prepared; original matrix cell reconciled
+
+W1remainsclosedinbothauthorities/backend6d961567/mobile2c2c9da4,7+9postworkflowsSUCCESS. Owner-authorized **B35-E-027/W2P4** now locallyrepaired ate15f2cca99315530205a01ca1c714ee61f4e59f3 inC:/b35watchbody1103. Minimalguardrejectsnull/arrays/primitives viaexisting400invalid_body afterAuth and trustedworker routing. Actualsamefixturebefore10controlstepsPASS/7invalidstepsFAIL;after1parentPASS/17stepsPASS;34NodefocusedPASS;fivecleangatesexit0. Fullbackend/TypeScript/Node pending. NoPRmergeor deployment claimed.
+
+Original **B35-MAND-0141** preciselymatchesexecutedauthenticatednullhandlerandisnowFAIL(P4),withpriorN/Tsnapshotretained. Matrix **138PASS/1FAIL/2957NOTTESTED=3096**. Localafter-fixPASSdoesnoteraseunrepaired-authorityfailure. 24P0-P3findingsallsourceclosedwithinexecutedcoverage;W2remainsP4,noseverityinflation. [Before/afterevidence](evidence/continuation-watchlist-body-repair-1103.json). 473archivesfullyverified. InitialexpandedpositivefixtureexpectedIDvalidationbeforeKplus;correctedfixturetestsentitlementordering;oldmixedfailurelogretained,notanotherdefect. W2gateoutputsinitiallyusedW1scratchnames;copiedtodistinctW2namesandoriginalW1scratchbytesrestoredfromimmutableverifiedarchives,noevidenceloss.
+
+Next collectfullchecks,newboundedcanonicalPRthenexistingmobile691exactpromotion/greenCI/merge/postchecks. PR646draftHOLD;TestSpritewaived;no deployment,migration,flag,customerwrite,realpush,device/build/storeaction. AUDIT IN PROGRESS.
+
 ## W1 source closed; W2 authorized continuation active
 
 Backend **6d96156745160d93596dd792769df6aed164e6fe** (#689),7/7independentpushworkflowsSUCCESS. Mobile **2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27** (#687),9/9SUCCESS. All required current-headPRchecks passed before merges (canonical32SUCCESS/14SKIP;mobile34SUCCESS/20SKIP),with no review holds and exact reviewed/tested/merged trees. W1/E026P3 **SOURCE-CLOSED, NOT DEPLOYED**. Duplicate690closedunmerged/superseded,originalproposal/evidence/branchpreserved.

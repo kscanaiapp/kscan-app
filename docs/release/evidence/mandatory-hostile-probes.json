@@ -3490,27 +3490,54 @@
   {
     "endpoint": "function:commerce-watch-refresh",
     "probe": "null body",
-    "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
-    "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
-    "verdict": "NOT TESTED",
-    "reason": "Endpoint-specific null body harness and authorized valid-resource/provider fixture not implemented for commerce-watch-refresh; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+    "expected": "After verified user identity,reject top-level JSONnull with controlled400invalid_body before eligibility RPC,writes or providers",
+    "actual": "Actual current canonical handler throws TypeError after1syntheticAuthread;0actorreads/0writes/0providercalls. Localrepair17stepsPASS,butauthoritative6d961handlerisstillunrepaireduntilgovernedmerge.",
+    "verdict": "FAIL",
+    "reason": "ConfirmedP4E027,owner-authorized source repair nowlocal at e15f2cca;preservebeforeevidence untilcanonical/mobileconvergence",
     "probeId": "B35-MAND-0141",
     "feature": "commerce-watch-refresh",
-    "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
-    "sourceLocation": "supabase/functions/commerce-watch-refresh/index.ts",
-    "environment": "Not executed at the requested complete boundary",
-    "evidence": null,
-    "executionMethod": "No attributed complete-boundary execution",
-    "linkedDefectId": null,
-    "repairReference": null,
-    "reverificationStatus": "Pending",
+    "sourceSha": "6d96156745160d93596dd792769df6aed164e6fe",
+    "sourceLocation": "supabase/functions/commerce-watch-refresh/index.ts:945",
+    "environment": "Local actual Deno.serve handler;synthetic identity/RPCtransport,no network grant",
+    "evidence": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
+    "executionMethod": "deno test --allow-env --allow-read supabase/functions/commerce-watch-refresh/invalidBodyHostile.test.ts",
+    "linkedDefectId": "B35-E-027",
+    "repairReference": "Locale15f2cca;canonicalPRpending;existingmobile691",
+    "reverificationStatus": "Local17stepsPASS;authoritative source closure pending",
     "coverageDisposition": {
       "category": 3,
       "label": "Safely executable locally",
       "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
       "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
       "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
-    }
+    },
+    "coverageHistory": [
+      {
+        "endpoint": "function:commerce-watch-refresh",
+        "probe": "null body",
+        "expected": "Reject unauthorized/invalid input; preserve actor and operation authority; fail without fabricated success or leaked data. Refine to endpoint contract before execution.",
+        "actual": "Requested complete-boundary probe not yet executed. Separate bounded contract/handler evidence is indexed in executed-hostile-probes.json; no automatic cell closure.",
+        "verdict": "NOT TESTED",
+        "reason": "Endpoint-specific null body harness and authorized valid-resource/provider fixture not implemented for commerce-watch-refresh; offline invalid-auth handler cases are separate, real customer/paid/destructive Production requests excluded.",
+        "probeId": "B35-MAND-0141",
+        "feature": "commerce-watch-refresh",
+        "sourceSha": "Prepared candidate c1348ed4 unless deployed gateway evidence explicitly cited",
+        "sourceLocation": "supabase/functions/commerce-watch-refresh/index.ts",
+        "environment": "Not executed at the requested complete boundary",
+        "evidence": null,
+        "executionMethod": "No attributed complete-boundary execution",
+        "linkedDefectId": null,
+        "repairReference": null,
+        "reverificationStatus": "Pending",
+        "coverageDisposition": {
+          "category": 3,
+          "label": "Safely executable locally",
+          "reason": "Implement or reconcile endpoint-specific actual-source adapter/handler fixture; provider/DB responses may be injected. This is outstanding executable work, not an external blocker.",
+          "reviewSourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+          "scope": "Execution venue/coverage classification only; preserves original verdict. Category1 includes prior FAIL, never converts it to PASS."
+        }
+      }
+    ]
   },
   {
     "endpoint": "function:commerce-watch-refresh",
