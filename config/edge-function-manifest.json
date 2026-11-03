@@ -848,8 +848,8 @@
         ],
         "bundleFileCount": 17,
         "treeFileCount": 22,
-        "bundleHash": "cbbfcdb0909acb1cf2e964a3830ed9b812c113dca9f5b6a4dee30b8098f5f2f1",
-        "treeHash": "35084daa10275f7caff245481bddb4aa96ba898f2c34c5f3c8eff04e71262cec",
+        "bundleHash": "6881ff3ee2bf73faeba992965c65553cb82df51cca4efa8fa93e6ef826caed55",
+        "treeHash": "fe925f09002821a04b01332c1426721a5e6da08cd5e95bad32a006657809ce79",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -878,7 +878,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "d988a9f566585bf0454142f7c81e74cf075af5e3e5b7673cc2a2e1d4474aed33",
+            "sha256": "e7a99fac86f584edb185e8a56c356c49b68d0191a93793f7a4513ecba5ec6f1c",
             "bundle": true
           },
           {
