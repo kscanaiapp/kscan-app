@@ -1,0 +1,51 @@
+{
+  "_note": "Synthetic K Scan STAGING fixture feed for the Black-Owned Discovery live probe. Not a real business, product or ownership claim. Never used in Production.",
+  "complete": true,
+  "products": [
+    {
+      "sourceProductId": "staging-fixture-bomber",
+      "variantId": "M",
+      "sku": "kscan-staging-fixture-m",
+      "title": "K Scan staging fixture - synthetic cropped leather bomber",
+      "category": "outerwear",
+      "subtype": "Bomber Jackets",
+      "attributes": { "primary_color": "black", "material_estimate": "leather", "silhouette": "cropped" },
+      "imageUrl": "https://kscan.app/staging-fixture/images/synthetic-bomber.jpg",
+      "productUrl": "https://kscan.app/staging-fixture/products/synthetic-bomber",
+      "priceAmount": "120.00",
+      "currency": "USD",
+      "availability": "in_stock",
+      "sizes": ["M"],
+      "markets": ["US"]
+    },
+    {
+      "sourceProductId": "staging-fixture-bomber",
+      "variantId": "L",
+      "sku": "kscan-staging-fixture-l",
+      "title": "K Scan staging fixture - synthetic cropped leather bomber",
+      "category": "outerwear",
+      "subtype": "Bomber Jackets",
+      "attributes": { "primary_color": "black", "material_estimate": "leather", "silhouette": "cropped" },
+      "imageUrl": "https://kscan.app/staging-fixture/images/synthetic-bomber.jpg",
+      "productUrl": "https://kscan.app/staging-fixture/products/synthetic-bomber",
+      "priceAmount": "120.00",
+      "currency": "USD",
+      "availability": "in_stock",
+      "sizes": ["L"],
+      "markets": ["US"]
+    },
+    {
+      "sourceProductId": "staging-fixture-bucket-hat",
+      "title": "K Scan staging fixture - synthetic black cotton bucket hat",
+      "category": "accessories",
+      "subtype": "Bucket Hats",
+      "attributes": { "primary_color": "black", "material_estimate": "cotton", "silhouette": "structured" },
+      "imageUrl": "https://kscan.app/staging-fixture/images/synthetic-bucket-hat.jpg",
+      "productUrl": "https://kscan.app/staging-fixture/products/synthetic-bucket-hat",
+      "priceAmount": "45.00",
+      "currency": "USD",
+      "availability": "in_stock",
+      "markets": ["US"]
+    }
+  ]
+}
