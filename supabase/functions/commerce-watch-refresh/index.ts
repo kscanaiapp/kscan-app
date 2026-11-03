@@ -935,7 +935,13 @@ Deno.serve(async (req: Request) => {
 
   let body: UserActionBody;
   try {
-    body = await req.json();
+    const parsed: unknown = await req.json();
+    // JSON null, arrays and primitives are valid JSON but not valid action
+    // objects. Reject before dereferencing body.action or dispatching writes.
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return json({ error: 'invalid_body', code: 'invalid_body' }, 400);
+    }
+    body = parsed as UserActionBody;
   } catch {
     return json({ error: 'invalid_body', code: 'invalid_body' }, 400);
   }
