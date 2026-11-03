@@ -1,0 +1,107 @@
+[
+  {
+    "caseId": "A7-PK-01",
+    "originalIds": [],
+    "disposition": "Supplemental consent-denial UX;not a JWT signature case.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-02",
+    "originalIds": [
+      "B35-MAND-2662"
+    ],
+    "disposition": "Retain NT: canonical denial UX is not stale RevenueCat producer proof;#711 pending.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-03",
+    "originalIds": [
+      "B35-MAND-2653"
+    ],
+    "disposition": "Existing PASS covers failure containment;non-2xx copy defect in #711 pending;no extra credit.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-04",
+    "originalIds": [
+      "B35-MAND-2647"
+    ],
+    "disposition": "Retain NT: one daily-quota envelope is not ten authoritative timed requests.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-05",
+    "originalIds": [
+      "B35-MAND-2647"
+    ],
+    "disposition": "Retain NT: one burst-quota envelope is not ten authoritative timed requests.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-06",
+    "originalIds": [
+      "B35-MAND-2656",
+      "B35-MAND-2657",
+      "B35-MAND-2658"
+    ],
+    "disposition": "Existing PASS response-shape controls;HTML string is not a raw invalid HTTP JSON body;no extra credit.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-07",
+    "originalIds": [
+      "B35-MAND-2655"
+    ],
+    "disposition": "Existing PASS covers bounded failure;timeout wording repair #711 pending;not a measured real 30s SLA.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-PK-08",
+    "originalIds": [
+      "B35-MAND-2653"
+    ],
+    "disposition": "Existing PASS no fake persisted plan;failed narration over kept plan fixed only in pending #711.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-01",
+    "originalIds": [],
+    "disposition": "Supplemental MODE B three-offer mapper/mounted CTA positive control;not a real resource-owner test.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-02",
+    "originalIds": [],
+    "disposition": "Supplemental outbound client URI guard;not backend SSRF or path traversal execution.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-03",
+    "originalIds": [],
+    "disposition": "Supplemental currency/price honesty;no exact original cell.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-04",
+    "originalIds": [],
+    "disposition": "Supplemental OS-link rejection containment;source repair #712 merged. Not HTTP provider500.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-05",
+    "originalIds": [],
+    "disposition": "Supplemental MODE B empty/provider_error/502/abort;not every upstream provider fault.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  },
+  {
+    "caseId": "A7-CM-06",
+    "originalIds": [
+      "B35-MAND-2352",
+      "B35-MAND-2354",
+      "B35-MAND-2357",
+      "B35-MAND-2316"
+    ],
+    "disposition": "Four distinct original properties supported by one composed source case;not four independent executions.",
+    "evidence": "https://github.com/kscanaiapp/kscan-app/issues/705#issuecomment-6611030602"
+  }
+]
