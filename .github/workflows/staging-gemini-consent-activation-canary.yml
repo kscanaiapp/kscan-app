@@ -15,12 +15,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: gates (zero-spend consent gate check) or activation (paid, owner-approved)
+        description: gates (zero-spend consent gate check), commerce (one MODE B request, no Gemini) or activation (paid, owner-approved)
         required: true
         default: gates
         type: choice
         options:
           - gates
+          - commerce
           - activation
   push:
     branches:

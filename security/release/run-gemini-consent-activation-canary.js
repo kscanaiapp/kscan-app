@@ -40,6 +40,13 @@ const FIXTURE = path.join(REPO_ROOT, 'assets', 'qa_fixtures', 'top.jpg');
 const REPORT_FILE = 'gemini-consent-activation-canary-report.json';
 const ELISE_MESSAGE = 'What shoes would work with wide-leg navy trousers for a dinner out?';
 const CONSENT_VERSION = 'v2_google_gemini';
+// The identification Staging returned for top.jpg (run 41655013295), minus free text.
+const COQ_HOODIE_IDENTIFICATION = Object.freeze({
+  item_type: 'hoodie', subtype: 'pullover hoodie', primary_color: 'white', pattern: 'graphic print',
+  material_estimate: 'cotton blend', silhouette: 'relaxed', fit: 'relaxed fit', length: 'hip length',
+  sleeve_length: 'long sleeve', neckline_or_lapel: 'hooded with drawstrings', closure: 'pullover',
+  visible_brand_text: 'COQ', brand_guess: 'COQ', logo_detected: true, non_fashion: false, confidence_score: 0.92,
+});
 
 // Operator-held key; only the matching private key (never committed) can open the sealed reply.
 const REPLY_SEAL_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
@@ -121,6 +128,7 @@ function summarizeScan(r) {
     shoppingMetaKeys: b.shoppingMeta && typeof b.shoppingMeta === 'object' ? Object.keys(b.shoppingMeta).slice(0, 20) : [],
     products: listing(b.products),
     purchaseOptions: listing(b.purchaseOptions),
+    recommendedProducts: listing(b.recommendedProducts),
     similarityMatches: listing(b.similarityMatches),
   };
 }
@@ -247,6 +255,41 @@ async function run(env = process.env) {
   const setPermission = async (granted, revision) => permissionOf(await call(`${rest}/rpc/set_ai_processing_permission`,
     key, token, { p_expected_user_id: userId, p_granted: granted, p_expected_revision: revision }));
   const gate = (r) => ({ httpStatus: r.httpStatus, errorCode: errorCodeOf(r), elapsedMs: r.elapsedMs });
+
+  // MODE B shopping continuation: exactly ONE commerce_only request, built as
+  // services/commerceHydration.ts buildCommerceOnlyBody does, from the
+  // identification Staging returned for top.jpg in run 41655013295. No image,
+  // no enrich, so no Gemini call; the log check below proves that.
+  if (env.CANARY_MODE === 'commerce') {
+    const evidence = { requestMode: 'commerce_only', identification: COQ_HOODIE_IDENTIFICATION };
+    const res = await call(scanUrl, key, token, evidence);
+    let query = { ok: false, rows: [] };
+    let logs = parseActivationRows([]);
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+      query = await queryLogs(env.SUPABASE_STAGING_PROJECT_REF, env.SUPABASE_ACCESS_TOKEN, startIso);
+      logs = parseActivationRows(query.rows);
+    }
+    const scan = summarizeScan(res);
+    const meta = res.body?.shoppingMeta && typeof res.body.shoppingMeta === 'object' ? res.body.shoppingMeta : {};
+    const shoppingMeta = Object.fromEntries(Object.entries(meta)
+      .filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v)).map(([k, v]) => [k, SHORT(v, 60)]));
+    // Same precedence as normalizeCommerceHydrationResponse.
+    const offers = res.body && Array.isArray(res.body.purchaseOptions) ? scan.purchaseOptions : scan.recommendedProducts;
+    const checks = [
+      { name: 'commerce_only_http_200', pass: res.httpStatus === 200, detail: `http=${res.httpStatus} code=${scan.errorCode}` },
+      { name: 'commerce_only_made_no_gemini_call', pass: logs.geminiStart.length === 0 && logs.imageMission.length === 0,
+        detail: `gemini_start=${logs.geminiStart.length} image_mission=${logs.imageMission.length} logQueryOk=${query.ok}` },
+      { name: 'commerce_only_not_deferred_again', pass: shoppingMeta.deferred !== true, detail: JSON.stringify(shoppingMeta) },
+      { name: 'offers_have_https_merchant_hosts', pass: offers.every((p) => typeof p.host === 'string' && p.host.length > 0),
+        detail: `offers=${offers.length} hosts=${[...new Set(offers.map((p) => p.host))].join(',')}` },
+    ];
+    const report = { probe: 'mode-b-commerce-continuation-v1', environment: 'staging', startedAt: startIso,
+      evidence: { scan, shoppingMeta, logs }, verdict: { pass: checks.every((c) => c.pass), checks } };
+    assertEvidencePrivacy(report);
+    fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}\n`);
+    return report;
+  }
 
   // Paid activation runs only on an explicit dispatch; a push runs the free gate check.
   if (env.CANARY_MODE !== 'activation') {
