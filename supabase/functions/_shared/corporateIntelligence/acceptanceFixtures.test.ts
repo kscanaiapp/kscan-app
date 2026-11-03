@@ -8,11 +8,11 @@ import nodeAssert from 'node:assert/strict';
 import test from 'node:test';
 import { assembleStyleChatPrompt } from '../aiSecurity/styleChatPromptAssembly.ts';
 import { ACTION_TRANSITIONS, isLegalTransition, parseActionProposalOffline, type ActionState } from './actionProposal.ts';
+import { selectCommunicationMode } from './modeSelector.ts';
 import { PROPOSED_FALLBACK_COPY, selectFallback, validateCorporateTaskV1 } from './contracts.ts';
 import {
   checkActionAndPrivacyClaimsReference,
   checkOwnershipClaimsReference,
-  selectModeReference,
 } from './testSupport/referenceOracle.ts';
 import { applyMutations, baseValidProposal, baseValidTask, FIXTURE_NOW, type MutateOp } from './testSupport/baseTask.ts';
 
@@ -94,7 +94,7 @@ for (const f of corpus.fixtures) {
         break;
       }
       case 'reference_selector': {
-        const result = selectModeReference(f.state);
+        const result = selectCommunicationMode(f.state);
         assertEquals(result, f.expect);
         break;
       }

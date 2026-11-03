@@ -164,8 +164,10 @@ export const FACT_KIND_SOURCES: Readonly<Record<VerifiedFactKind, readonly FactS
   ownership_label: ['black_owned_discovery'],
   merchant_attribution: ['black_owned_discovery'],
   product_ref: ['black_owned_discovery', 'catalog'],
-  price: ['commerce_canonical'],
-  currency: ['commerce_canonical'],
+  // Scan offers are priced by canonical commerce; a Black-owned discovery product is priced by the discovery catalog row that
+  // produced it. Either owns its own product's price -- no other system does.
+  price: ['commerce_canonical', 'black_owned_discovery'],
+  currency: ['commerce_canonical', 'black_owned_discovery'],
   availability: ['catalog', 'black_owned_discovery'],
   action_state: ['application_state'],
 });

@@ -8,58 +8,7 @@
  *
  * Phrase matching here is a style/claim tripwire, not proof of factual correctness (spec section 6, Stage 3).
  */
-import { TASK_VERB_POLICY, type CommunicationMode, type PresentationRegister, type TaskVerb } from '../contracts.ts';
-
-// ── Deterministic mode selection (trusted inputs only) ──────────────────────────
-
-export interface TrustedTaskState {
-  /** Server route/surface that originated the request. Never derived from model or customer text. */
-  route: 'stylechat' | 'scan_result' | 'discovery' | 'privacy_center' | 'unknown';
-  /** Server-resolved advice intent (e.g. compatibility / wardrobe-gap), not a model label. */
-  adviceIntentResolved?: 'analysis' | 'none';
-  discoveryStatus?: 'ready' | 'empty' | 'unavailable';
-  /** Stable server error class attached to the request; absent means no grounded recovery state. */
-  groundedErrorClass?: string;
-  /** Present only so fixtures can prove it is IGNORED. */
-  customerTone?: string;
-  /** Present only so fixtures can prove a model self-assertion is IGNORED. */
-  modelRequestedMode?: string;
-}
-
-const GROUNDED_ERROR_CLASSES = new Set(['RATE_LIMIT', 'PROVIDER_TIMEOUT', 'PROVIDER_UNAVAILABLE', 'CATALOG_UNAVAILABLE']);
-
-export type ModeSelection =
-  | { ok: true; taskVerb: TaskVerb; mode: CommunicationMode; register: PresentationRegister }
-  | { ok: false; reason: 'unknown_task' | 'ungrounded_error' };
-
-export function selectModeReference(state: TrustedTaskState): ModeSelection {
-  const finish = (taskVerb: TaskVerb): ModeSelection => ({
-    ok: true,
-    taskVerb,
-    mode: TASK_VERB_POLICY[taskVerb].mode,
-    register: TASK_VERB_POLICY[taskVerb].registers[0],
-  });
-  if (state.groundedErrorClass !== undefined) {
-    return GROUNDED_ERROR_CLASSES.has(state.groundedErrorClass)
-      ? finish('grounded_error_recovery')
-      : { ok: false, reason: 'ungrounded_error' };
-  }
-  switch (state.route) {
-    case 'stylechat':
-      return finish(state.adviceIntentResolved === 'analysis' ? 'stylechat_analysis' : 'stylechat_conversation');
-    case 'scan_result':
-      return finish('scan_result_summary');
-    case 'discovery':
-      if (state.discoveryStatus === 'empty') return finish('discovery_empty_state');
-      if (state.discoveryStatus === 'unavailable') return finish('grounded_error_recovery');
-      if (state.discoveryStatus === 'ready') return finish('merchant_discovery_explanation');
-      return { ok: false, reason: 'unknown_task' };
-    case 'privacy_center':
-      return finish('privacy_trust_question');
-    default:
-      return { ok: false, reason: 'unknown_task' };
-  }
-}
+// Deterministic mode selection moved to ../modeSelector.ts (CI-02); this file keeps only the claim oracles.
 
 // ── Ownership-claim integrity ───────────────────────────────────────────────────
 
