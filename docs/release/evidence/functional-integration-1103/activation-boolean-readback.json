@@ -1,0 +1,126 @@
+{
+  "at": "2026-11-03T22:39:33.833Z",
+  "method": "Read-only CLI secret listing;only allowlisted non-sensitive boolean conclusions retained. No provider invocation. Other metadata and any returned values are not retained.",
+  "environments": [
+    {
+      "environment": "staging",
+      "project": "yzqjvdfgefveprobvvyw",
+      "flags": [
+        {
+          "name": "ELISE_PACKING_INTELLIGENCE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "ELISE_BRAND_VOICE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORED_PLACEMENTS_V1_ENABLED",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORSHIP_SANDBOX_MODE",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORSHIP_SHADOW_MODE",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "PURCHASE_IMPORT_EXTRACT_ENABLED",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        }
+      ]
+    },
+    {
+      "environment": "production",
+      "project": "wyyuqfdxucjksghsmhry",
+      "flags": [
+        {
+          "name": "ELISE_PACKING_INTELLIGENCE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "ELISE_BRAND_VOICE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SCAN_IMAGE_PRODUCT_MISSION_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "BLACK_OWNED_DISCOVERY_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "VERIFIED_OWNERSHIP_BADGE_V1_ENABLED",
+          "present": true,
+          "state": "true",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORED_PLACEMENTS_V1_ENABLED",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORSHIP_SANDBOX_MODE",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "SPONSORSHIP_SHADOW_MODE",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        },
+        {
+          "name": "PURCHASE_IMPORT_EXTRACT_ENABLED",
+          "present": true,
+          "state": "false",
+          "verification": "known-boolean digest equality"
+        }
+      ]
+    }
+  ]
+}
