@@ -286,7 +286,9 @@ export default function PackingScreen() {
                   ) : null}
                   <PackingPlanView
                     plan={packing.plan}
-                    message={packing.message}
+                    // A failed refresh's message belongs to the error card above,
+                    // never to the plan as if Elise had narrated it.
+                    message={packing.status === 'failed' ? null : packing.message}
                     resolveImage={resolveImage}
                     packedOff={packing.packedOff}
                     onToggleItemPacked={packing.toggleItemPacked}
