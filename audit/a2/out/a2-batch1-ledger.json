@@ -1,0 +1,425 @@
+{
+ "lane": "A2 batch 1 (issue #702)",
+ "mobileSourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+ "matrixSnapshot": "PR #646 head 49ab7fada3639587911849080ff33c6ad17fd9df docs/release/evidence/mandatory-hostile-probes.json",
+ "sourceFingerprints": {
+  "supabase/functions/purchase-import-extract/handler.ts": "23bba52e7b67aa4ce68ecd8c63d622efc609cd46",
+  "supabase/functions/purchase-import-extract/extraction.ts": "2e94697463cca6d807e5578609a0d6bc161d4855",
+  "supabase/functions/purchase-import-extract/sensitive.ts": "2e50519c6ccbafaf816309e64a2d17bed74812c5",
+  "supabase/functions/purchase-import-extract/index.ts": "47fcd33ceda99ee50bd871b4b9c166d347bd63a4"
+ },
+ "fingerprintKind": "git blob ids at the tested commit",
+ "cellsEvaluated": 28,
+ "proposedBreakdown": {
+  "PASS (source harness, proposed)": 15,
+  "N/A (proposed, needs Codex ruling)": 8,
+  "NOT TESTED (kept)": 5
+ },
+ "countsBefore": {
+  "PASS": 138,
+  "FAIL": 1,
+  "NOT_TESTED": 2957,
+  "total": 3096,
+  "naCategory2": 318,
+  "deviceCategory6": 4,
+  "applicablePending": 2639,
+  "inScopeApplicablePending": 2635
+ },
+ "countsIfAllProposalsAccepted": {
+  "PASS": 153,
+  "FAIL": 1,
+  "NOT_TESTED": 2942,
+  "total": 3096,
+  "naCategory2": 326,
+  "deviceCategory6": 4,
+  "applicablePending": 2616,
+  "inScopeApplicablePending": 2612
+ },
+ "cells": [
+  {
+   "probeId": "B35-MAND-0737",
+   "feature": "purchase-import-extract",
+   "probe": "expired JWT",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Real requireUser + stubbed Auth server rejects expired/non-bearer/empty/missing credentials with 401 and zero side effects; valid control reserves as actor A.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0737",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-MAND-0738/0739 are Production-gateway PASSes for malformed/tampered JWT; expired JWT had no executed record"
+   ],
+   "remainingGap": "Stubbed Auth server: no live signed-JWT validation."
+  },
+  {
+   "probeId": "B35-MAND-0740",
+   "feature": "purchase-import-extract",
+   "probe": "in-function auth with caller-controlled headers",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Identity-spoof headers/body fields naming actor B never change reserve/settle actor (A) nor reach provider payload; mutation M6 (header-sourced actor) is detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0740",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth server."
+  },
+  {
+   "probeId": "B35-MAND-0745",
+   "feature": "purchase-import-extract",
+   "probe": "10x declared body limit",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Body 10x MAX_BODY_CHARS => 413 before any side effect; control request still 200. Mutation M1 (guard removed) detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0745",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0586 hit the 2MB image bound (image_size branch), not the body_size branch; no credit shared"
+   ],
+   "remainingGap": "Handler cap only; gateway cap not exercised."
+  },
+  {
+   "probeId": "B35-MAND-0746",
+   "feature": "purchase-import-extract",
+   "probe": "Unicode homoglyph identifier",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Cyrillic/fullwidth/zero-width identifiers and homoglyph contract/tier values all 400 with zero side effects. Mutation M4 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0746",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": null
+  },
+  {
+   "probeId": "B35-MAND-0747",
+   "feature": "purchase-import-extract",
+   "probe": "URL path traversal",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Five traversal-shaped requestIds 400; traversal in request URL path/query is inert. Mutation M4 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0747",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0586 requestId \"../../etc\" (one value); this adds 4 more shapes + request-URL inertness"
+   ],
+   "remainingGap": "No file/path operation exists; proves identifier allowlist + URL inertness."
+  },
+  {
+   "probeId": "B35-MAND-0750",
+   "feature": "purchase-import-extract",
+   "probe": "SQL injection per RPC parameter",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Metacharacter requestIds rejected before any RPC; real default reserve adapter sends only server UUID + SHA-256 digest, never the caller identifier. Mutation M4 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0750",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Settle RPC params not re-driven (server-derived); PGlite SQL coverage lives in retained F025 evidence."
+  },
+  {
+   "probeId": "B35-MAND-0751",
+   "feature": "purchase-import-extract",
+   "probe": "MIME magic-byte mismatch",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "png/gif/pdf/webp/html/zip payloads with caller mime claim => 400, provider never sees them. Mutation M2 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0751",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0586 PNG prefix (one value); this adds gif/pdf/webp/html/zip + caller mime claim"
+   ],
+   "remainingGap": "Magic-byte prefix only."
+  },
+  {
+   "probeId": "B35-MAND-0753",
+   "feature": "purchase-import-extract",
+   "probe": "lying Content-Type",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Request Content-Type is not authority (4 lying values processed identically, provider mime fixed image/jpeg); PNG under image/jpeg header still refused. Mutation M2 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0753",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": null
+  },
+  {
+   "probeId": "B35-MAND-0761",
+   "feature": "purchase-import-extract",
+   "probe": "provider 500",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 500 => 503 provider_unavailable, <=2 attempts, released not billed, secret provider text not echoed. Mutation M3 (always billable) detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0761",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0588 (503 transient) exercises the same retry branch; status differs (500)"
+   ],
+   "remainingGap": "Mock provider."
+  },
+  {
+   "probeId": "B35-MAND-0762",
+   "feature": "purchase-import-extract",
+   "probe": "provider 429",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 429 (transient + quota wording, hostile Retry-After 9999) => controlled 503, <=2 attempts, backoff <=30s, released. Mutation M3 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0762",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Mock provider."
+  },
+  {
+   "probeId": "B35-MAND-0763",
+   "feature": "purchase-import-extract",
+   "probe": "provider timeout",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Non-answering provider aborted by attempt timeout, <=2 attempts, 503, released, no hang. Mutation M3 detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0763",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "25ms test timeout; production constant 18000ms not waited."
+  },
+  {
+   "probeId": "B35-MAND-0764",
+   "feature": "purchase-import-extract",
+   "probe": "provider malformed JSON",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "HTTP 200 with truncated outer JSON or prose inner text => 502 schema_validation_failed, no partial items.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0764",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0592 sanitize-level malformed envelope; this is handler-level incl. billing side effect"
+   ],
+   "remainingGap": "OBSERVATION: unusable provider output is settled billable=true (completed, not released). Flag for owner; not asserted as defect."
+  },
+  {
+   "probeId": "B35-MAND-0765",
+   "feature": "purchase-import-extract",
+   "probe": "provider empty body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Five empty provider shapes (empty string, {}, no candidates, empty parts, blank text) all 502 schema_validation_failed, never empty-success.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0765",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [],
+   "remainingGap": "Same billable=true observation as 0764."
+  },
+  {
+   "probeId": "B35-MAND-0766",
+   "feature": "purchase-import-extract",
+   "probe": "provider wrong schema",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Seven wrong-schema payloads => 502 no items; item-level garbage cannot add foreign keys or out-of-enum values.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0766",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0592 (unit), B35-EXEC-0591 (enum collapse)"
+   ],
+   "remainingGap": "OBSERVATION: non-object entries in items[] become confidence-0 placeholder rows with ok:true; downstream must filter on confidence."
+  },
+  {
+   "probeId": "B35-MAND-0767",
+   "feature": "purchase-import-extract",
+   "probe": "Supabase 401 mid-request",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Real default reserve adapter receives 401 PGRST301 => fail closed 503, zero provider dispatch, no backend detail leaked. Mutation M5 (fail open) detected.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0767",
+   "harnessVerdict": "PASS",
+   "overlapRefs": [
+    "B35-EXEC-0587 uses reserve=>null stub; this drives the REAL default reserve adapter with a 401 transport"
+   ],
+   "remainingGap": "Transport stub; 401 on the SETTLE leg after dispatch not exercised (settle failures are swallowed by design)."
+  },
+  {
+   "probeId": "B35-MAND-0748",
+   "feature": "purchase-import-extract",
+   "probe": "SSRF metadata/local/file/gopher/DNS rebind",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Request contract has no caller-controlled outbound target; URL-valued extra fields never reach provider body; handler has exactly one fetch to the fixed Gemini base.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0748",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed: N/A-by-construction vs PASS."
+  },
+  {
+   "probeId": "B35-MAND-0734",
+   "feature": "purchase-import-extract",
+   "probe": "User A User B resource IDOR",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Static scan: no caller-addressable resource id, table access or storage; actor-scoped fingerprint differs for the same session id across actors (behavioural companion).",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0734",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed."
+  },
+  {
+   "probeId": "B35-MAND-0735",
+   "feature": "purchase-import-extract",
+   "probe": "User A User B storage path",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Static scan: no storage path input, no storage client, no signed-URL code.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0735",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed."
+  },
+  {
+   "probeId": "B35-MAND-0736",
+   "feature": "purchase-import-extract",
+   "probe": "removed shared-room member",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Static scan: no shared-room/room-member concept in handler/extraction/sensitive.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0736",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed."
+  },
+  {
+   "probeId": "B35-MAND-0770",
+   "feature": "purchase-import-extract",
+   "probe": "RevenueCat stale entitlement",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Static scan: no entitlement/RevenueCat/K+ dependency in the route; receipt decision log has no K+ gating requirement.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0770",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "CONDITIONAL on owner confirming Receipt is intentionally not entitlement-gated; if gating is intended, its absence is a finding, not N/A."
+  },
+  {
+   "probeId": "B35-MAND-0772",
+   "feature": "purchase-import-extract",
+   "probe": "save replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Handler header declares no persistence; static scan found no insert/upsert/update/delete/write.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0772",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Client-side save of extracted items belongs to a different lane."
+  },
+  {
+   "probeId": "B35-MAND-0773",
+   "feature": "purchase-import-extract",
+   "probe": "deletion replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Route stores no record; only the account-active guard touches deletion state.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0773",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed; deletion-cycle work is deferred by owner scope."
+  },
+  {
+   "probeId": "B35-MAND-0774",
+   "feature": "purchase-import-extract",
+   "probe": "expired signed URL replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Route issues and accepts no signed URLs (static scan).",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0774",
+   "harnessVerdict": "N/A-PROPOSED",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed."
+  },
+  {
+   "probeId": "B35-MAND-0749",
+   "feature": "purchase-import-extract",
+   "probe": "prompt injection per model field",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Output containment proven (text bounded, enums collapse, no structure/authority change) but whether the real model obeys instructions printed on a receipt image needs a paid provider (excluded).",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0749",
+   "harnessVerdict": "PARTIAL-KEEP-NOT-TESTED",
+   "overlapRefs": [],
+   "remainingGap": "Needs authorized real-provider injection fixture."
+  },
+  {
+   "probeId": "B35-MAND-0752",
+   "feature": "purchase-import-extract",
+   "probe": "zero-byte truncated corrupted image",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Structural invalid images (empty/prefix-only/odd-length/non-base64) refused 400, but corrupted bytes behind a valid /9j/ prefix reach the paid provider; real provider behaviour untested.",
+   "evidence": "audit/a2/out/receipt-batch1-results.json#B35-MAND-0752",
+   "harnessVerdict": "PARTIAL-KEEP-NOT-TESTED",
+   "overlapRefs": [],
+   "remainingGap": "Needs provider-side corrupt-image fixture, or owner ruling that structural validation suffices."
+  },
+  {
+   "probeId": "B35-MAND-0733",
+   "feature": "purchase-import-extract",
+   "probe": "User A own resource",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Own-actor baseline passes with synthetic identity but no signed live User A JWT/authorized fixture exists (as already recorded by F025 reconciliation).",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [
+    "continuation-f025-boundary-reconciliation-1102.json notMapped (kept NOT TESTED)"
+   ],
+   "remainingGap": "Needs Staging synthetic actor via Codex-queued workflow."
+  },
+  {
+   "probeId": "B35-MAND-0741",
+   "feature": "purchase-import-extract",
+   "probe": "client service-role reachability",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Feature-independent control (client bundle must not contain the service-role key); not attributable to this route. Within the route, service role is used only in settle with a server-derived actor, but that is not the cell as written.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs one cross-feature client-bundle scan owner."
+  },
+  {
+   "probeId": "B35-MAND-0755",
+   "feature": "purchase-import-extract",
+   "probe": "10 retries in 1 second",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "F025 tests launch 10 in-flight retries but do not measure a one-second dispatch window; no new timing harness in this batch.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "overlapRefs": [
+    "continuation-f025-boundary-reconciliation-1102.json notMapped (kept NOT TESTED)"
+   ],
+   "remainingGap": "Needs real concurrent quota SQL (independent connections) or owner-accepted fake-clock equivalent."
+  }
+ ],
+ "dedupe": "Not additive with the 886 executed records, the 47 shared-handler or 46 K+ Staging records. 19 Deno test blocks evaluated 28 matrix cells; only cells marked PASS (source harness, proposed) would change a matrix verdict. No suite totals are counted."
+}
