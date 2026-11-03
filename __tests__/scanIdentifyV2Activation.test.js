@@ -156,6 +156,18 @@ test('a request with no contractVersion routes to legacy', () => {
   assert.equal(route.internal.contractPath, 'legacy');
 });
 
+test('B004: non-record input is a bounded malformed request, never a legacy fallback', () => {
+  for (const body of [null, undefined, [], [{}], 17, true, 'fixture']) {
+    const route = A.routeScanIdentifyRequest(body);
+    assert.equal(route.kind, 'contract_error');
+    assert.equal(route.httpStatus, 400);
+    assert.equal(route.body.status, 'failed');
+    assert.equal(route.body.error.code, 'MALFORMED_REQUEST');
+    assert.equal(route.body.error.message, 'Malformed request.');
+    assert.equal('internal' in route, false);
+  }
+});
+
 test('a v2 request routes to v2 and adapts to the internal shape', () => {
   const route = A.routeScanIdentifyRequest(v2Request());
   assert.equal(route.kind, 'v2');
