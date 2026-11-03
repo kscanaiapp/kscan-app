@@ -94,6 +94,8 @@ function loadProvider(invoke) {
         },
       };
     }
+    const sharedContract = require('./helpers/commerceMatchContract').resolveCommerceContractImport(specifier);
+    if (sharedContract) return sharedContract;
     throw new Error(`Unexpected provider import: ${specifier}`);
   };
   const mod = { exports: {} };

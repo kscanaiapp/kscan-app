@@ -22,6 +22,8 @@ function loadPortable(relativePath) {
 function resolveCommerceContractImport(id) {
   if (id === '../supabase/functions/scan-identify/matchTier' || id === '../../supabase/functions/scan-identify/matchTier') return loadPortable('supabase/functions/scan-identify/matchTier.ts');
   if (id === './scannerVisualEvidence') return loadPortable('services/scannerVisualEvidence.ts');
+  // The Gemini consent-denial contract every gated client shares (no imports).
+  if (/^(\.\/|(\.\.\/)+)geminiConsentDenial$/.test(id)) return loadPortable('services/geminiConsentDenial.ts');
   return undefined;
 }
 module.exports = { loadPortable, resolveCommerceContractImport };
