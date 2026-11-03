@@ -438,7 +438,9 @@ test('the chain is capture -> verify -> deploy -> validate -> restore -> validat
     rollback.indexOf('restoreCapturedBundle(') < rollback.indexOf('liveVerifyJwt(fnName)'),
     'the posture check happens after the restore',
   );
-  assert.match(rollback, /shallowCheck\(fnName\)/);
+  assert.match(rollback, /shallowCheck\(fnName, capture\)/);
+  assert.ok(rollback.indexOf('restoredCapture.tree_digest !== capture.tree_digest')
+    < rollback.indexOf('const health = await shallowCheck'), 'exact restored identity precedes version-aware health');
   assert.match(rollback, /authNegativeCheck\(fnName\)/);
 });
 
