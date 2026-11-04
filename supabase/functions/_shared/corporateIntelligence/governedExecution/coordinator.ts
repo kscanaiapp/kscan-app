@@ -275,11 +275,13 @@ export function createGovernedWatchExecutor(deps: Dependencies) {
     return await tx(async (sql) => {
       gate();
       await store.lockAuthorizationScope(sql, a);
+      // Status/reconciliation lock policy before ledger. Preserve that order here
+      // too: the actor lock alone does not serialize those read/recovery paths.
+      await account(sql, a);
       // The OC-02 actor lock serializes reserve and mutation before either row lock.
       const existing = await store.ledger(sql, a, c.proposalId);
       if (existing) {
         verifyCommand(existing, a, c);
-        await account(sql, a);
         return existing;
       }
       await authorizationProof(sql, a, c);

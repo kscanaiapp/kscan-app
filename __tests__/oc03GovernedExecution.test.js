@@ -5,6 +5,25 @@ async function rejects(p, code) {
   await assert.rejects(p, (e) => e.code === code);
 }
 
+test("OC-04 an approved save cannot restore a removed Watch", async () => {
+  const w = await world();
+  try {
+    await w.legacyWatch();
+    const c = await w.approved();
+    await w.db.query(
+      "select public.delete_user_commerce_watch($1,id) from public.user_commerce_watches where user_id=$1 and deleted_at is null",
+      [A],
+    );
+    const result = await w.executor.execute(w.request(), c);
+    assert.equal(result.canClaimCompletion, false);
+    assert.equal(result.reason, "existing_watch_change_requires_approval");
+    assert.equal(await w.count(), 0);
+    assert.equal(w.rpcCalls, 0);
+  } finally {
+    await w.close();
+  }
+});
+
 test("OC-03 actual Watchlist save, authoritative completion, concurrent requests and replay create exactly one watch", async () => {
   const w = await world();
   try {

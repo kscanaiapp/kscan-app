@@ -98,6 +98,14 @@ export async function applyWatch(
     );
     return { watch: existing, effect: "already_watched" };
   }
+  // A later deletion is customer intent too. The current approval binds a save,
+  // not restoration; without a tombstone baseline in that contract, fail closed.
+  // The caller holds the legacy-writer fence while checking and inserting.
+  const removed = await sql.query(
+    "select id from public.user_commerce_watches where user_id=$1 and canonical_url=$2 and deleted_at is not null limit 1",
+    [actorId, spec.canonicalUrl],
+  );
+  ensure(removed.rows.length === 0, "existing_watch_change_requires_approval");
   const count = (await sql.query<{ count: number }>(
     "select count(*)::int as count from public.user_commerce_watches where user_id=$1 and deleted_at is null",
     [actorId],
