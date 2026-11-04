@@ -63,6 +63,22 @@ import {
 import type { EliseOperationReservation } from './eliseGenerationTypes.ts';
 import { ELISE_GROUNDING_VERSION } from './eliseGenerationTypes.ts';
 import { stripUnsafeModelOutput } from './promptHardening.ts';
+import {
+  type CorporateFinalized,
+  type CorporatePrepared,
+  correlationIdFor,
+  corporateTelemetry,
+  discoveryBrandNamesFetcher,
+  finalizeCorporateStyleChatText,
+  type GenerationOrigin,
+  loadServerMerchantRegistry,
+  type MerchantNameRegistry,
+  observationsFromFashionContext,
+  prepareCorporateStyleChatTurn,
+  resolveCorporateIntelligenceV2,
+  withUntrustedSections,
+} from './corporateIntelligenceV2.ts';
+import { rest as serviceRest } from '../_shared/deletion/common.ts';
 import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
 import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
 import {
@@ -2757,7 +2773,39 @@ Deno.serve(async (req) => {
     );
   }
 
-  const geminiBody = buildGeminiBody(systemTextWithAttachments, turns);
+  // ── CI-04 Corporate Intelligence v2 (server-side; default OFF) ───────────────
+  // Resolved on EVERY request, so the kill switch takes effect on the next
+  // request. OFF: nothing below runs, no registry query, and the Gemini body is
+  // built from the exact legacy system text and turns (golden-tested).
+  const ciV2Flag = resolveCorporateIntelligenceV2(readTrimmedEnv);
+  const ciV2StartedAt = Date.now();
+  let ciV2Prepared: CorporatePrepared | null = null;
+  let ciV2Registry: MerchantNameRegistry = { knownMerchantNames: [] };
+  let ciV2RegistrySource = 'not_loaded';
+  let ciV2Origin: GenerationOrigin = 'primary_initial';
+  let ciV2FinishReason: string | undefined;
+  let ciV2PreSanitizerText: string | undefined;
+  let ciV2Finalized: CorporateFinalized | null = null;
+  let ciV2Passes = 0;
+  if (ciV2Flag.enabled) {
+    const loaded = await loadServerMerchantRegistry(discoveryBrandNamesFetcher(serviceRest), Date.now());
+    ciV2Registry = loaded.registry;
+    ciV2RegistrySource = loaded.source;
+    ciV2Prepared = prepareCorporateStyleChatTurn({
+      correlationId: correlationIdFor(requestId),
+      locale: 'en',
+      stylistDisplayName,
+      route: 'stylechat',
+      adviceIntentResolved: advicePromptBlock !== null,
+      visualObservations: observationsFromFashionContext(fashionContextV2?.groundable),
+      legacySystemText: systemTextWithAttachments,
+      now: new Date(),
+    });
+  }
+  // One system text and one turn list feed BOTH the initial and the retry body.
+  const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextWithAttachments;
+  const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turns, ciV2Prepared.untrustedUserSections) : turns;
+  const geminiBody = buildGeminiBody(geminiSystemText, geminiTurns);
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
 
@@ -2770,6 +2818,36 @@ Deno.serve(async (req) => {
   let usedFallback   = false;
   let providerRetryCount = 0;
   let stableErrorClass: string | null = null;
+
+  /**
+   * CI-04: the single integrity boundary while Corporate Intelligence v2 is ON.
+   * Every customer-visible text below — model candidates of every origin and
+   * every deterministic fallback — is passed through here with the SAME task.
+   * Never called when the flag is OFF.
+   */
+  const ciV2Finalize = (displayedText: string, providerFailure: boolean, preSanitizer?: string): CorporateFinalized => {
+    ciV2Passes += 1;
+    const result = finalizeCorporateStyleChatText({
+      prepared: ciV2Prepared ?? { ok: false, reason: 'not_prepared' },
+      origin: ciV2Origin,
+      displayedText,
+      ...(preSanitizer !== undefined ? { preSanitizerText: preSanitizer } : {}),
+      ...(whyThisWorks ? { whyThisWorks } : {}),
+      ...(ciV2FinishReason ? { finishReason: ciV2FinishReason } : {}),
+      providerFailure,
+      failureClass: stableErrorClass,
+      registry: ciV2Registry,
+      now: new Date(),
+    });
+    ciV2Finalized = result;
+    console.log('[stylechat-generate] ci_v2 %s', JSON.stringify(corporateTelemetry({
+      flag: ciV2Flag, prepared: ciV2Prepared, finalized: result, registrySource: ciV2RegistrySource,
+      passes: ciV2Passes, elapsedMs: Date.now() - ciV2StartedAt,
+    })));
+    return result;
+  };
+  const ciV2FallbackText = (): string =>
+    ciV2Flag.enabled ? ciV2Finalize(buildStyleChatFallback(), true).text : buildStyleChatFallback();
 
   if (generationReservation) {
     const marked = await markGenerationGenerating(userClient, generationReservation.operationId);
@@ -2785,7 +2863,7 @@ Deno.serve(async (req) => {
         status: 'error',
         message: {
           sender: 'assistant',
-          content: buildStyleChatFallback(),
+          content: ciV2FallbackText(),
           model: modelName,
           tokenEstimate: 0,
         },
@@ -2822,6 +2900,8 @@ Deno.serve(async (req) => {
   try {
     const initial = await callGeminiWithOptionalRetry(geminiBody, 'initial');
     assistantText = initial.text;
+    ciV2Origin = providerRetryCount > 0 ? 'primary_provider_retry' : 'primary_initial';
+    ciV2FinishReason = initial.finishReason;
     tokenEstimate = initial.tokenEstimate;
     whyThisWorks  = initial.whyThisWorks;
 
@@ -2851,7 +2931,7 @@ Deno.serve(async (req) => {
         initial.finishReason || 'none',
       );
 
-      const retryBody = buildGeminiBody(systemTextWithAttachments, buildRetryTurns(turns));
+      const retryBody = buildGeminiBody(geminiSystemText, buildRetryTurns(geminiTurns));
 
       try {
         const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
@@ -2877,12 +2957,16 @@ Deno.serve(async (req) => {
         if (!retryIncompleteReason) {
           // Retry produced a complete answer — use it.
           assistantText = retry.text;
+          ciV2Origin = 'completeness_retry';
+          ciV2FinishReason = retry.finishReason;
           tokenEstimate = retry.tokenEstimate;
           whyThisWorks  = retry.whyThisWorks;
         } else if (retryIncompleteReason !== 'max_tokens' && retryHasText) {
           // Best-effort: retry text is non-empty and was NOT truncated by MAX_TOKENS, but
           // the heuristic still flags it. Prefer real Gemini guidance over a generic fallback.
           assistantText = retry.text;
+          ciV2Origin = 'best_effort_after_retry';
+          ciV2FinishReason = retry.finishReason;
           tokenEstimate = retry.tokenEstimate;
           whyThisWorks  = retry.whyThisWorks;
           usedFallback = false;
@@ -2915,6 +2999,8 @@ Deno.serve(async (req) => {
           // Retry failed entirely, but the initial reply was usable and NOT truncated by
           // MAX_TOKENS. Return it as best-effort rather than discarding real guidance.
           assistantText = initial.text;
+          ciV2Origin = 'best_effort_initial_after_retry_failure';
+          ciV2FinishReason = initial.finishReason;
           tokenEstimate = initial.tokenEstimate;
           whyThisWorks  = initial.whyThisWorks;
           usedFallback = false;
@@ -2969,7 +3055,7 @@ Deno.serve(async (req) => {
       status: 'error',
       message: {
         sender: 'assistant',
-        content: buildStyleChatFallback(),
+        content: ciV2FallbackText(),
         model: modelName,
         tokenEstimate: 0,
       },
@@ -3014,6 +3100,7 @@ Deno.serve(async (req) => {
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
   // substitute the generic fallback so we never return whitespace as success.
+  if (ciV2Flag.enabled) ciV2PreSanitizerText = assistantText;
   assistantText = stripUnsafeModelOutput(assistantText);
   if (!usedFallback && assistantText.trim().length === 0) {
     usedFallback = true;
@@ -3025,6 +3112,19 @@ Deno.serve(async (req) => {
       modelName,
       elapsedMs,
     );
+  }
+
+  // CI-04: validate the text AS IT WILL BE PERSISTED AND DISPLAYED (after the
+  // legacy sanitizer), before persistence, so a reload can never show text the
+  // integrity boundary did not see.
+  if (ciV2Flag.enabled) {
+    const finalized = ciV2Finalize(assistantText, usedFallback, usedFallback ? undefined : ciV2PreSanitizerText);
+    assistantText = finalized.text;
+    whyThisWorks = finalized.whyThisWorks;
+    if (finalized.deterministic && !usedFallback) {
+      // Integrity fallback: frozen server copy, no model explanation or actions.
+      validatedActions = [];
+    }
   }
 
   // E-2: revalidate actor/session/source before any persistence or success return.
@@ -3058,7 +3158,7 @@ Deno.serve(async (req) => {
         status: 'error',
         message: {
           sender: 'assistant',
-          content: buildStyleChatFallback(),
+          content: ciV2FallbackText(),
           model: modelName,
           tokenEstimate: 0,
         },
@@ -3290,6 +3390,18 @@ Deno.serve(async (req) => {
         conflictCodes: verdict.conflictCodes.join('|').slice(0, 160),
         shortlistSize: adviceShortlistForProseSafety.length,
       });
+    }
+  }
+
+  // CI-04: prose safety can only remove sentences or substitute neutral server
+  // copy, but the boundary must see exactly what is displayed, so any change is
+  // re-finalized against the same task.
+  if (ciV2Flag.enabled && assistantTextSafe !== assistantText) {
+    const refinalized = ciV2Finalize(assistantTextSafe, false);
+    assistantTextSafe = refinalized.text;
+    if (refinalized.deterministic) {
+      whyThisWorks = undefined;
+      validatedActions = [];
     }
   }
 
