@@ -80,6 +80,18 @@ import {
   withUntrustedSections,
 } from './corporateIntelligenceV2.ts';
 import { rest as serviceRest } from '../_shared/deletion/common.ts';
+import {
+  CLIENT_CAPABILITIES_HEADER,
+  clientAdvertisesOc01,
+  enforceOc01CommerceProse,
+  geminiPlannerCall,
+  oc01Telemetry,
+  type Oc01TurnOutcome,
+  proseAuthorityFor,
+  resolveOc01Flag,
+  runOc01Turn,
+} from './eliseCommerceTools.ts';
+import { blackOwnedLaneAllowed, getOc01Broker, oc01Permits, ownershipLabelsAllowed } from './eliseCommerceWiring.ts';
 import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
 import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
 import {
@@ -185,7 +197,7 @@ import { resolvePackingWeather } from './packingWeather.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kscan-client-capabilities',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -2783,6 +2795,37 @@ Deno.serve(async (req) => {
     );
   }
 
+  // ── OC-01 read-only commerce tools (server-side; default OFF) ───────────────
+  // Independent of Corporate Intelligence v2. Resolved per request (master,
+  // kill switch, cohort, client capability). OFF: nothing runs and the system
+  // text, turns and response below are exactly the legacy ones. Runs only after
+  // consent, burst and daily quota have passed for this request; at most one
+  // planner call and one broker turn (<= 2 tool requests) per HTTP request.
+  // Only a client that can render `oc01-products-v1` cards advertises it (request header).
+  const oc01Flag = resolveOc01Flag(readTrimmedEnv, userId, clientAdvertisesOc01(req.headers.get(CLIENT_CAPABILITIES_HEADER)));
+  let oc01: Oc01TurnOutcome | null = null;
+  if (oc01Flag.enabled) {
+    oc01 = await runOc01Turn({
+      request: req,
+      actorId: userId,
+      conversationId: sessionId,
+      message,
+      envGet: readTrimmedEnv,
+      broker: getOc01Broker(),
+      planner: geminiPlannerCall(modelName, geminiKey),
+      grantTurnPermit: (actorId) => oc01Permits.grant(actorId),
+      blackOwnedAllowed: () => blackOwnedLaneAllowed(userId),
+      ownershipLabelsAllowed: ownershipLabelsAllowed(),
+    });
+  }
+  if (oc01Flag.reason !== 'off') {
+    console.log('[stylechat-generate] oc01 %s', JSON.stringify(oc01Telemetry(oc01Flag, oc01)));
+  }
+  const systemTextForTurn = oc01?.systemAddendum
+    ? [systemTextWithAttachments, oc01.systemAddendum].join('\n\n')
+    : systemTextWithAttachments;
+  const turnsForTurn = oc01?.untrustedSection ? withUntrustedSections(turns, oc01.untrustedSection) : turns;
+
   // ── CI-04 Corporate Intelligence v2 (server-side; default OFF) ───────────────
   // Resolved on EVERY request, so the kill switch takes effect on the next
   // request. OFF: nothing below runs, no registry query, and the Gemini body is
@@ -2816,7 +2859,11 @@ Deno.serve(async (req) => {
   }
   if (ciV2Flag.enabled) {
     const loaded = await loadServerMerchantRegistry(discoveryBrandNamesFetcher(serviceRest), Date.now());
-    ciV2Registry = loaded.registry;
+    ciV2Registry = oc01?.merchantNames.length
+      // OC-01: merchant labels of THIS turn's server-held broker results are
+      // server facts too; model text may name them, nothing else widens.
+      ? { knownMerchantNames: [...new Set([...loaded.registry.knownMerchantNames, ...oc01.merchantNames])] }
+      : loaded.registry;
     ciV2RegistrySource = loaded.source;
     ciV2Prepared = prepareCorporateStyleChatTurn({
       correlationId: correlationIdFor(requestId),
@@ -2825,13 +2872,13 @@ Deno.serve(async (req) => {
       route: 'stylechat',
       adviceIntentResolved: advicePromptBlock !== null,
       visualObservations: observationsFromFashionContext(fashionContextV2?.groundable),
-      legacySystemText: systemTextWithAttachments,
+      legacySystemText: systemTextForTurn,
       now: new Date(),
     });
   }
   // One system text and one turn list feed BOTH the initial and the retry body.
-  const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextWithAttachments;
-  const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turns, ciV2Prepared.untrustedUserSections) : turns;
+  const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextForTurn;
+  const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turnsForTurn, ciV2Prepared.untrustedUserSections) : turnsForTurn;
   const geminiBody = buildGeminiBody(geminiSystemText, geminiTurns);
 
   // ── 8. Call Gemini ────────────────────────────────────────────────────────────
@@ -3142,6 +3189,21 @@ Deno.serve(async (req) => {
       modelName,
       elapsedMs,
     );
+  }
+
+  // OC-01: on a product-tool turn, price/availability prose must match this
+  // turn's server-held records. Runs before persistence and before CI-03
+  // finalization, so both see the guarded text. No-op on every other turn.
+  if (oc01?.clientPayload && !usedFallback) {
+    const authority = proseAuthorityFor(oc01, oc01.budgetUsd);
+    if (authority) {
+      const guarded = enforceOc01CommerceProse(assistantText, authority);
+      if (guarded.removed > 0) {
+        assistantText = guarded.text;
+        if (guarded.fallback) whyThisWorks = undefined;
+        console.log('[stylechat-generate] oc01_prose %s', JSON.stringify({ removed: guarded.removed, fallback: guarded.fallback, status: authority.status }));
+      }
+    }
   }
 
   // CI-04: validate the text AS IT WILL BE PERSISTED AND DISPLAYED (after the
@@ -3540,6 +3602,7 @@ Deno.serve(async (req) => {
             adviceMetadata,
           }
         : {}),
+      ...(oc01?.clientPayload ? { commerceResults: oc01.clientPayload } : {}),
     });
   }
 
@@ -3564,5 +3627,6 @@ Deno.serve(async (req) => {
           adviceMetadata,
         }
       : {}),
+    ...(oc01?.clientPayload ? { commerceResults: oc01.clientPayload } : {}),
   });
 });

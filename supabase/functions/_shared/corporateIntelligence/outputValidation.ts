@@ -624,9 +624,10 @@ function checkMerchantRecommendations(raw: string, authority: AuthorityView, kno
   }
 }
 
-const MONEY =
+/** Exported read-only for the OC-01 commerce prose guard (one source of truth); never relaxed there. */
+export const MONEY =
   /(?:(?:\b(US|CA|A|AU|NZ|HK|MX))?([$€£¥])\s?([0-9][0-9,]*(?:\.[0-9]{1,2})?))|(?:\b([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s?(USD|EUR|GBP|JPY|CAD|AUD|dollars?|euros?|pounds?)\b)/gi;
-const AVAILABILITY_CLAIM =
+export const AVAILABILITY_CLAIM =
   /\b(?:in stock|available (?:now|today|to (?:buy|order)|for purchase)|ready to ship|ships? (?:today|tomorrow|now|in \d+|within)|only \d+ left|selling fast|sold out|out of stock|back in stock|low stock|limited stock|on sale|discounted|\d+% off|price (?:drop|cut))\b/i;
 
 function moneyCurrency(prefix: string | undefined, symbol: string | undefined, word: string | undefined): string | null {
