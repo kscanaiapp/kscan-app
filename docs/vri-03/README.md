@@ -11,6 +11,39 @@ Companion documents:
 * [failure-set-spec.md](failure-set-spec.md) — failure-set construction spec, taxonomy, strata, manifest shape (B)
 * [instrumentation-spec.md](instrumentation-spec.md) — system baselines and per-stage attribution spec (D, H)
 
+## Owner approval status (2026-11-03): collection + $20 Gemini ceiling
+
+The approval arrived and was acted on within its scope. **Actual spend: $0.00. Gemini calls: 0. Provider calls: 0.**
+Nothing was enabled, merged or deployed. CI-03 and `_shared/corporateIntelligence/` are untouched.
+
+Built (offline, $0, tested, in no deployed bundle):
+
+| Piece | File | Enforces |
+|---|---|---|
+| Budget guard | `supabase/functions/_shared/vri03/benchmark/budgetGuard.ts` | $20 hard ceiling in code (cannot be raised). Worst-case **reservation before every attempt** (aborts before crossing). Cost settled from `usageMetadata` (thinking billed as output). Missing usage is charged worst case. The ledger carries spend across runs. Provider calls counted exactly; provider cost always INSUFFICIENT_EVIDENCE. |
+| Manifest gate | `…/benchmark/manifestGate.ts` | ≥15 valid items, consent record per item, two reviewers, human-recorded Google evidence (never inferred), strata. Fails on any identifier-shaped key or value. |
+| Metrics | `…/benchmark/metrics.ts` | The owner's four criteria per arm and per stratum (exact recall separate), the fabrication audit, latency p95, cost per scan. Keep/revert rule: recall win required; no exact, identification, fabrication, latency (+5%) or cost (+5%) regression; anything unmeasured is REVERTED. |
+| Preflight | `…/benchmark/preflight.ts` | NO-GO unless: gate passes, target is Staging, Production ref supplied and refused, Staging-scoped key present, test-actor consent id, image root mounted, owner spend confirmation in the operator session, worst case ≤ remaining budget. The planned 24 × 2 × 3 arms × 3 repeats run (432 attempts) has a worst case of about $10.5. |
+| Collection kit | [`collection-kit/`](collection-kit/README.md) | Owner instructions, `intake.csv`, manifest template, `results-labeling.csv` |
+
+**Why no call was made.** Preflight is NO-GO on the current state, for these reasons:
+
+1. **No items.** Real consented scans and the Google-surfaced product for each are human inputs. They are requested
+   from the owner via the collection kit, not guessed.
+2. **Missing credentials.** No Staging-scoped Gemini key or dedicated test actor is available to this session. That is a
+   stop condition.
+3. **The spend confirmation came through another session.** Per this session's rules, a relayed answer to a pending
+   question is not taken as the user's own approval. Preflight requires the owner's confirmation in the operator
+   session before the first billed call.
+
+**Next code step once inputs exist.** H1 and H2 arms must exercise the *real* prompt and schema without a deploy. That
+needs the prompt and schema constants in `scan-identify/index.ts` moved to an importable module. The move is
+byte-identical in behavior, but it changes the `scan-identify` bundle, so it needs a manifest regeneration and its
+own review. It was deliberately not done while there is nothing to measure.
+
+Latency provenance: a local harness measures **harness-observed** scan-to-results time (Gemini + provider round trips
+from the operator machine). That is not deployed Edge latency, and the report must label it that way.
+
 ## Owner acceptance criteria (real-product retrieval impact)
 
 The owner asked for measured retrieval impact, not test passes. **Kept changes: none**, so there is no per-change row.
@@ -22,7 +55,7 @@ evidence of retrieval improvement.**
 | 1 | Item identification: correct item + category at attribute extraction, per stratum (single/multi-object, garment/accessory), incl. multi-object target selection | — | — | **INSUFFICIENT EVIDENCE** | 0 labeled items; there are no recorded Gemini responses for real scans, and producing them needs billed calls (budget $0) |
 | 2 | Candidate recall: true or labeled-acceptable product in retrieved candidates and in final shown results; exact-match recall separate | — | — | **INSUFFICIENT EVIDENCE** | 0 labeled items; no recorded provider pools; live provider calls not made |
 | 3 | No fabricated merchant results; 0 ownership labels on ineligible items | — | — | **INSUFFICIENT EVIDENCE (measured)**; structural evidence only, see below | No result sets were produced to audit |
-| 4 | Latency p95 and token/API cost per scan, with provenance | — | — | **INSUFFICIENT EVIDENCE** | No cohort was run. Token cost is unmeasurable today because `scan-identify` never reads Gemini `usageMetadata` (instrumentation spec §2a) |
+| 4 | Latency p95 and token/API cost per scan, with provenance | — | — | **INSUFFICIENT EVIDENCE** | No run was made (preflight NO-GO). The harness settles Gemini cost from `usageMetadata` directly; deployed `scan-identify` still never reads it. Provider cost stays INSUFFICIENT EVIDENCE (no prices). Actual spend $0.00, 0 Gemini calls, 0 provider calls |
 
 **Criterion 3, what was checked (structure, not measurement).** Read the current default code paths:
 

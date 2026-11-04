@@ -47,10 +47,10 @@ separately so a similar-match gain cannot hide an exact-match regression.
 
 ## 4. Strata (every item carries all of them)
 
-| Dimension | Values | Minimum per value |
+| Dimension | Values | Target per value |
 |---|---|---|
-| Scene | `single_object` / `multi_object` | 8 each |
-| Type | `garment` / `accessory` (bags, footwear, jewelry, eyewear, hats) | 8 each |
+| Scene | `single_object` / `multi_object` | ≥8 each (reported `underpowered` below 8; gate needs ≥1 each) |
+| Type | `garment` / `accessory` (bags, footwear, jewelry, eyewear, hats) | ≥8 each (reported `underpowered` below 8; gate needs ≥1 each) |
 | Brand visibility | `brand_visible` / `brand_not_visible` | report only |
 | Black-owned relevance | Google's product is from a brand in the authorized Black-owned inventory: `yes` / `no` / `unknown` | report only |
 
