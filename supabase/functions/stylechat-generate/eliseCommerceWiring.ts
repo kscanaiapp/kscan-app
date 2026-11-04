@@ -45,21 +45,27 @@ const discovery: DiscoveryDependencies = {
 
 const envGet = (k: string) => Deno.env.get(k) ?? undefined;
 export const oc01Permits = createTurnPermits();
-let broker: ReturnType<typeof createOc01Broker> | null = null;
+const store = createSupabaseReferenceStore(rest);
 
+/**
+ * One broker PER REQUEST. The broker's "one outstanding retrieval" bound then
+ * applies to that customer's turn, so one customer's slow or repeated search
+ * can never make search unavailable for others sharing the isolate (review
+ * P2-3). Accumulation stays bounded by the provider timeouts and the
+ * existing per-actor burst/daily limits that gate this path.
+ */
 export function getOc01Broker() {
-  broker ??= createOc01Broker({
+  return createOc01Broker({
     envGet,
     authenticate: requireUser,
     assertActive: assertAccountActive,
     consentCurrent: async (actorId) => (await requireGeminiConsent(actorId)) === null,
     permits: oc01Permits,
     discovery,
-    store: createSupabaseReferenceStore(rest),
+    store,
     // Broker metadata is closed codes/counts/durations only (no text, ids, titles or URLs).
     emit: (m) => console.log('[stylechat-generate] oc01_tool %s', JSON.stringify(m)),
   });
-  return broker;
 }
 
 /** The discovery lane's own rollout policy plus its existing per-actor rate limit. */

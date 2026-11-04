@@ -486,7 +486,7 @@ Deno.test('stored records are re-validated: tampered rows are dropped, ownership
 });
 
 Deno.test('prose guard: listed prices and the customer budget pass; invented prices and stock claims are removed', () => {
-  const authority = { status: 'ready' as const, prices: [{ amount: 89, currency: 'USD' }], budgetUsd: 100 };
+  const authority = { status: 'ready' as const, prices: [{ amount: 89, currency: 'USD' }], budgetUsd: 100, ownershipLabelsShown: false };
   const ok = 'The first bomber is listed at $89.00 and fits your under $100 budget. Wear it with dark denim.';
   assert.deepEqual(enforceOc01CommerceProse(ok, authority), { text: ok, removed: 0, fallback: false });
   const mixed = enforceOc01CommerceProse('The second one is only $59 today. It is in stock and ships today. Pair it with white sneakers for an easy weekend look.', authority);
@@ -499,4 +499,29 @@ Deno.test('prose guard: listed prices and the customer budget pass; invented pri
   for (const copy of Object.values(OC01_FALLBACK_COPY)) {
     assert.doesNotMatch(copy, /\$\d|in stock|black-owned|approv|confirm/i);
   }
+});
+
+Deno.test('review P2-2/P2-4: prose guard catches alternate price forms, currency mismatch, claim-questions and unverified ownership', () => {
+  const authority = { status: 'ready' as const, prices: [{ amount: 89, currency: 'USD' }], budgetUsd: null, ownershipLabelsShown: false };
+  for (const bad of [
+    'It is USD 59 at the moment.', 'Grab it for 59$ while you can.', 'Only 59 bucks.', 'It costs fifty-nine dollars.',
+    'Only $\u0665\u0669 here.', 'It is \u20ac89 in Europe.', 'It is $1\u200B59 now.', 'It\'s in stock right now, want similar ones?',
+    'This label is Black-owned and worth supporting.', 'A woman-owned studio makes this one.',
+  ]) {
+    assert.equal(enforceOc01CommerceProse(`${bad} Pair it with dark denim for a sharp look.`, authority).removed, 1, bad);
+  }
+  for (const ok of ['The first one is listed at $89.00.', 'Is it in stock in your size?', 'Would you like Black-owned options too?']) {
+    assert.equal(enforceOc01CommerceProse(ok, authority).removed, 0, ok);
+  }
+  const labelled = { ...authority, ownershipLabelsShown: true };
+  assert.equal(enforceOc01CommerceProse('These verified Black-owned labels are shown on the cards.', labelled).removed, 0);
+});
+
+Deno.test('review P3-1/P3-4: sparse card numbering and no tool I/O for long ordinary messages', () => {
+  const prev = [{ ref: 'p_00000001-0000-4000-8000-000000000000' }, undefined, { ref: 'p_00000003-0000-4000-8000-000000000000' }] as unknown as (Product | undefined)[];
+  const cmp = toToolRequests({ action: 'compare', resultNumbers: [1, 3] }, prev, true);
+  assert.ok(cmp.kind === 'compare');
+  assert.deepEqual((cmp.requests[0] as { arguments: { productRefs: string[] } }).arguments.productRefs, [prev[0]!.ref, prev[2]!.ref]);
+  assert.equal(toToolRequests({ action: 'compare', resultNumbers: [1, 2] }, prev, true).kind, 'not_actionable');
+  assert.equal(preFilterCommerceIntent('I have a wedding in June and want to feel elegant but comfortable, with a look that works for a garden ceremony and an evening reception, and I usually wear soft neutrals, cream tailoring and delicate gold jewelry every day.', true), 'none');
 });

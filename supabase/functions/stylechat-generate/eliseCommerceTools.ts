@@ -214,8 +214,8 @@ export function parsePlannerOutput(raw: string): PlannedIntent | null {
 }
 
 /** The planner sees only the latest result titles/merchants, numbered — never refs, URLs or provenance. */
-export function buildPlannerUserText(message: string, previous: readonly Product[]): string {
-  const list = previous.slice(0, 8).map((p, i) => ({ number: i + 1, title: p.title, merchant: p.merchant, ...(p.price ? { listedPrice: p.price } : {}) }));
+export function buildPlannerUserText(message: string, previous: readonly (Product | undefined)[]): string {
+  const list = previous.slice(0, 8).flatMap((p, i) => p ? [{ number: i + 1, title: p.title, merchant: p.merchant, ...(p.price ? { listedPrice: p.price } : {}) }] : []);
   return JSON.stringify({ previous_results: list, customer_message: message.slice(0, 600) });
 }
 
@@ -270,7 +270,8 @@ export type TurnKind = 'find' | 'refine' | 'compare' | 'black_owned';
 
 export function toToolRequests(
   plan: PlannedIntent,
-  previous: readonly Product[],
+  /** Indexed by card position (may be sparse). */
+  previous: readonly (Product | undefined)[],
   blackOwnedAvailable: boolean,
 ): { kind: TurnKind; requests: unknown[]; refinedAsFreshSearch: boolean } | { kind: 'not_actionable'; reason: 'compare_needs_results' | 'black_owned_unavailable' | 'no_intent' } {
   const market = 'US';
@@ -288,7 +289,9 @@ export function toToolRequests(
       if (!blackOwnedAvailable) return { kind: 'not_actionable', reason: 'black_owned_unavailable' };
       return { kind: 'black_owned', requests: [{ version: TOOL_VERSION, capability: 'discover_black_owned', arguments: { garment: { ...plan.garment! }, market } }], refinedAsFreshSearch: false };
     case 'refine': {
-      const refs = plan.resultNumbers?.length ? pick(plan.resultNumbers) : previous.slice(0, 8).map((p) => p.ref);
+      const refs = plan.resultNumbers?.length
+        ? pick(plan.resultNumbers)
+        : previous.slice(0, 8).flatMap((p) => p ? [p.ref] : []);
       if (refs.length === 0) {
         // No live earlier result (expired after 30 s, or none): a new authorized search with the refined attributes.
         return { kind: 'refine', requests: [{ version: TOOL_VERSION, capability: 'discover_products', arguments: search(plan.garment!) }], refinedAsFreshSearch: true };
@@ -304,7 +307,9 @@ export function toToolRequests(
       };
     }
     case 'compare': {
-      const refs = pick(plan.resultNumbers?.length ? plan.resultNumbers : previous.slice(0, 2).map((_, i) => i + 1));
+      const refs = plan.resultNumbers?.length
+        ? pick(plan.resultNumbers)
+        : previous.slice(0, 8).flatMap((p) => p ? [p.ref] : []).slice(0, 2);
       if (refs.length < 2) return { kind: 'not_actionable', reason: 'compare_needs_results' };
       return { kind: 'compare', requests: [{ version: TOOL_VERSION, capability: 'compare_products', arguments: { productRefs: refs.slice(0, 8) } }], refinedAsFreshSearch: false };
     }
@@ -463,9 +468,19 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
     });
   };
 
+  // A message that cannot be a shopping turn even inside a live follow-up
+  // window does no tool I/O at all (review P3-4).
+  if (preFilterCommerceIntent(deps.message, true) === 'none') return notRun('none', usage, started, now);
   let session: Awaited<ReturnType<typeof deps.broker.openSession>>;
   try {
-    session = await deps.broker.openSession(deps.request, { conversationId: deps.conversationId });
+    // Bounded: re-authentication must never hang the Elise request (review P3-4).
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    session = await Promise.race([
+      deps.broker.openSession(deps.request, { conversationId: deps.conversationId }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('open_session_timeout')), 2_000);
+      }),
+    ]).finally(() => clearTimeout(timer));
   } catch {
     // Disabled mid-flight, or the actor no longer authenticates/active: legacy path.
     return notRun('none', usage, started, now);
@@ -475,13 +490,14 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
   timings.referencesMs = Math.round(now() - tRefs);
   // Numbering follows the most recently shown result set (newest batch, card order).
   const latestBatchAt = stored.length ? stored[0].batchAt : '';
-  const previous = stored
-    .filter((r) => r.batchAt === latestBatchAt)
-    .sort((a, b) => a.position - b.position)
-    .map((r) => r.product)
-    .slice(0, 8);
+  // Indexed by CARD position (sparse when a record could not be stored), so
+  // "compare 1 and 3" always means the first and third cards the customer saw.
+  const previous: (Product | undefined)[] = [];
+  for (const r of stored) {
+    if (r.batchAt === latestBatchAt && r.position >= 1 && r.position <= 8) previous[r.position - 1] = r.product;
+  }
 
-  const preFilter = preFilterCommerceIntent(deps.message, previous.length > 0);
+  const preFilter = preFilterCommerceIntent(deps.message, previous.some(Boolean));
   if (preFilter === 'none') return notRun(preFilter, usage, started, now);
   if (preFilter === 'unsupported_action') return decline(preFilter, 'not_run');
 
@@ -578,7 +594,13 @@ export const OC01_FALLBACK_COPY: Record<ClientStatus, string> = {
   unsupported_action: 'I can\'t buy, save or add items for you in this release. You can open a product card to visit the merchant\'s site yourself.',
 };
 
-export type ProseAuthority = { status: ClientStatus; prices: { amount: number; currency: string }[]; budgetUsd: number | null };
+export type ProseAuthority = {
+  status: ClientStatus;
+  prices: { amount: number; currency: string }[];
+  budgetUsd: number | null;
+  /** True only on a ready verified-catalog turn whose cards carry server ownership labels. */
+  ownershipLabelsShown: boolean;
+};
 
 export function proseAuthorityFor(outcome: Pick<Oc01TurnOutcome, 'clientPayload'>, budgetUsd: number | null): ProseAuthority | null {
   const p = outcome.clientPayload;
@@ -587,33 +609,90 @@ export function proseAuthorityFor(outcome: Pick<Oc01TurnOutcome, 'clientPayload'
     const parsed = x.listedPrice ? parsePriceValue(x.listedPrice, x.currency) : null;
     return parsed ? [parsed] : [];
   });
-  return { status: p.status, prices, budgetUsd };
+  const ownershipLabelsShown = p.status === 'ready' && p.kind === 'black_owned' && p.products.some((x) => x.ownershipIdentity);
+  return { status: p.status, prices, budgetUsd, ownershipLabelsShown };
+}
+
+const NUM = '([0-9][0-9,]*(?:\\.[0-9]{1,2})?)';
+/** Forms CI-03's MONEY does not read (review P2-2): "USD 59", "59$", "59 bucks". */
+const CODE_BEFORE = new RegExp(`\\b(USD|US\\$|EUR|GBP|JPY|CAD|AUD)\\s?${NUM}`, 'gi');
+const SYMBOL_AFTER = new RegExp(`${NUM}\\s?([$€£¥])`, 'g');
+const SLANG = new RegExp(`${NUM}\\s?(bucks|quid)\\b`, 'gi');
+const NUMBER_WORD = '(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)';
+/** A spelled-out price cannot be checked against a listed price, so it is never allowed. */
+const WORD_PRICE = new RegExp(`\\b${NUMBER_WORD}(?:[\\s-]+(?:and\\s+)?${NUMBER_WORD})*\\s+(?:dollars?|bucks|euros?|pounds?|quid)\\b`, 'i');
+const CURRENCY_MARK = /[$€£¥]|\b(?:usd|eur|gbp|jpy|cad|aud|dollars?|bucks|euros?|pounds?|quid)\b/i;
+/** Digits NFKC does not fold to ASCII (e.g. Arabic-Indic); never verifiable next to a currency. */
+const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
+/** Identity-ownership predicates; only server labels may carry these facts (review P2-4). */
+const OWNERSHIP_CLAIM =
+  /\b(?:black|african[- ]american|minority|bipoc|women|woman|female|latin[ao]x?|hispanic|asian|indigenous|native|veteran|lgbtq\+?|queer)[- ]?(?:owned|founded|led|run|operated)\b|\b(?:verified|certified) (?:owner(?:ship)?|black|minority)\b/i;
+const TRUE_QUESTION = /^(?:is|are|do|does|did|would|could|should|can|will|want|have|has|which|what|how)\b[^.!]*\?\s*$/i;
+
+function codeCurrency(code: string): string {
+  const c = code.toUpperCase();
+  return c === 'US$' ? 'USD' : c;
+}
+function symbolCurrency(symbol: string, prefix = ''): string | null {
+  if (symbol === '$') {
+    const p = prefix.toUpperCase();
+    return p === '' || p === 'US' ? 'USD' : 'OTHER';
+  }
+  return symbol === '€' ? 'EUR' : symbol === '£' ? 'GBP' : symbol === '¥' ? 'JPY' : null;
+}
+
+/** Every money amount stated in the sentence, with its currency when stated (null = unstated, e.g. "dollars"). */
+function moneyClaims(sentence: string): { amount: number; currency: string | null }[] {
+  const out: { amount: number; currency: string | null }[] = [];
+  const n = (v: string) => Number(v.replace(/,/g, ''));
+  for (const m of sentence.matchAll(new RegExp(MONEY.source, 'gi'))) {
+    const amount = n(m[3] ?? m[4] ?? '');
+    const currency = m[2] ? symbolCurrency(m[2], m[1]) : /^dollars?$/i.test(m[5] ?? '') ? null : codeCurrency(m[5] ?? '');
+    out.push({ amount, currency });
+  }
+  for (const m of sentence.matchAll(CODE_BEFORE)) out.push({ amount: n(m[2]), currency: codeCurrency(m[1]) });
+  for (const m of sentence.matchAll(SYMBOL_AFTER)) out.push({ amount: n(m[1]), currency: symbolCurrency(m[2]) });
+  for (const m of sentence.matchAll(SLANG)) out.push({ amount: n(m[1]), currency: m[2].toLowerCase() === 'quid' ? 'GBP' : 'USD' });
+  return out;
 }
 
 /**
- * Removes sentences that state a price that is not a listed price of THIS
- * turn's server-held products (or the customer's own validated budget), and
- * every stock/availability/discount claim (OC-01 holds no availability fact).
- * Questions are left alone. If nothing safe remains, deterministic copy.
- * Mirrors CI-03's commerce rules (shared MONEY/AVAILABILITY_CLAIM patterns),
- * because CI-03 enforces them only inside its discovery scope.
+ * Removes sentences that (a) state a price that is not a listed price of THIS
+ * turn's server-held products in the same currency (or the customer's own
+ * validated USD budget), (b) state a price in a form that cannot be verified
+ * (spelled out, non-ASCII digits), (c) make any stock/availability/discount
+ * claim (OC-01 holds no availability fact), or (d) assert an identity-based
+ * ownership fact unless this is a ready verified-catalog turn whose cards carry
+ * server ownership labels. Only genuine questions are exempt. If nothing safe
+ * remains, deterministic copy. Mirrors CI-03's commerce rules (shared
+ * MONEY/AVAILABILITY_CLAIM patterns), because CI-03 enforces them only inside
+ * its discovery scope; it runs whether CI-v2 is ON or OFF.
  */
 export function enforceOc01CommerceProse(text: string, authority: ProseAuthority): { text: string; removed: number; fallback: boolean } {
   const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
   const kept: string[] = [];
   let removed = 0;
-  for (const sentence of sentences) {
-    const question = /\?\s*$/.test(sentence);
+  for (const raw of sentences) {
+    const sentence = raw.normalize('NFKC').replace(/[​-‍⁠﻿]/g, '');
+    const question = TRUE_QUESTION.test(sentence);
     let unsafe = !question && new RegExp(AVAILABILITY_CLAIM.source, 'i').test(sentence);
-    for (const m of sentence.normalize('NFKC').matchAll(new RegExp(MONEY.source, 'gi'))) {
-      const amount = Number((m[3] ?? m[4] ?? '').replace(/,/g, ''));
-      if (!Number.isFinite(amount)) continue;
-      const listed = authority.prices.some((p) => Math.abs(p.amount - amount) < 0.005);
-      const budget = authority.budgetUsd !== null && Math.abs(authority.budgetUsd - amount) < 0.005;
+    if (!question && OWNERSHIP_CLAIM.test(sentence) && !authority.ownershipLabelsShown) unsafe = true;
+    if (WORD_PRICE.test(sentence)) unsafe = true;
+    if (NON_ASCII_DIGIT.test(sentence) && CURRENCY_MARK.test(sentence)) unsafe = true;
+    for (const claim of moneyClaims(sentence)) {
+      if (!Number.isFinite(claim.amount)) {
+        unsafe = true;
+        continue;
+      }
+      const listed = authority.prices.some((p) =>
+        Math.abs(p.amount - claim.amount) < 0.005 && (claim.currency === null || claim.currency === p.currency)
+      );
+      const budget = authority.budgetUsd !== null && Math.abs(authority.budgetUsd - claim.amount) < 0.005 &&
+        (claim.currency === null || claim.currency === 'USD');
       if (!listed && !budget) unsafe = true;
     }
     if (unsafe) removed += 1;
-    else kept.push(sentence);
+    else kept.push(raw);
   }
   if (removed === 0) return { text, removed: 0, fallback: false };
   const safe = kept.join(' ').trim();

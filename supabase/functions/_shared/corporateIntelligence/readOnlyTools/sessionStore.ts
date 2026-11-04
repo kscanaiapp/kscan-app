@@ -148,7 +148,15 @@ export function createSupabaseReferenceStore(
         position: (i % 8) + 1,
         expiresAtMs: Math.min(p.provenance.expiresAt, p.provenance.observedAt + MAX_REFERENCE_LIFETIME_MS),
         record: p,
-      }));
+      }))
+        // A record the store (4096 bytes) or restoreProduct would refuse is skipped,
+        // never allowed to abort the whole batch (review P3-1). Fail closed: that
+        // one card simply cannot be referenced by a follow-up.
+        .filter((r) =>
+          JSON.stringify(r.record).length <= 3_800 &&
+          restoreProduct(r.record, now()) !== null
+        );
+      if (records.length === 0) return;
       const res = await rest("rpc/elise_commerce_refs_store", {
         method: "POST",
         body: JSON.stringify({ p_actor: actorId, p_session: conversationId, p_records: records }),
