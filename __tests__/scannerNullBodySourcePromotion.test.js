@@ -27,7 +27,12 @@ function verify(p, bytes, manifest, cross, authority, migrations) {
   assert.deepEqual(manifest.parity.functions, W.functionAdvance(S.functionAdvance(oldManifest.parity.functions)), 'only exact B004 scan runtime/test files advance; discovery and every other function remain intact');
   const expectedCross = prior('config/cross-path-parity-manifest.json');
   for (const rows of Object.values(expectedCross.groups)) for (const row of rows) if (row.path === S.files[0]) row.sha256 = S.hash(S.gitBlob(row.path));
-  assert.deepEqual(cross, expectedCross, 'same twenty governed files; only the canonical router hash changes');
+  // PR723 adds the independently tested actor-bound Scanner dispatch guard.
+  // Permit only these exact reviewed bytes, never the current arbitrary hash.
+  const scannerHash = 'a94d3a76ddbb550edabb9f069bde610874ba9426b6a1fe417a8a80133c7532d7';
+  assert.equal(S.hash(fs.readFileSync(S.root + '/services/scannerScanRequest.ts')), scannerHash);
+  expectedCross.groups.scannerIntent.find(row => row.path === 'services/scannerScanRequest.ts').sha256 = scannerHash;
+  assert.deepEqual(cross, expectedCross, 'same twenty governed files; only B004 router and PR723 Scanner dispatch advance');
   assert.deepEqual(authority, { ...oldAuthority, build35CampaignConvergence: { ...oldAuthority.build35CampaignConvergence, sha: W.canonical, note: oldAuthority.build35CampaignConvergence.note + note + W.note } });
   assert.equal(authority.role, 'integration-convergence-non-authoritative');
   assert.deepEqual(migrations, prior('config/migration-authority-manifest.json'), 'no migration execution/disposition/history change');
@@ -58,4 +63,9 @@ test('B004 refuses unrelated grants, historical provenance, source changes, depl
   assert.throws(() => verify(policy, actual, ...authority), assert.AssertionError);
   const migration = inputs(); migration[3].ledgerReconciliation.environments.yzqjvdfgefveprobvvyw.knownPending[0].disposition = 'APPLY';
   assert.throws(() => verify(policy, actual, ...migration), assert.AssertionError);
+  for (const path of ['services/scannerScanRequest.ts', 'services/fashionEvidenceGateway.ts']) {
+    const bad = inputs();
+    Object.values(bad[1].groups).flat().find(row => row.path === path).sha256 = '0'.repeat(64);
+    assert.throws(() => verify(policy, actual, ...bad), assert.AssertionError);
+  }
 });

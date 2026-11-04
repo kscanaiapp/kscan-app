@@ -9,8 +9,22 @@ function verify(p,b,m,a,migrations,cross){
  const tree=ref=>cp.execFileSync('git',['show','-s','--format=%T',ref],{cwd:W.root,encoding:'utf8'}).trim();assert.equal(tree(W.canonical),W.tree);assert.equal(tree(W.reviewed),W.tree);
  assert.deepEqual(m.parity.functions,W.functionAdvance(oldManifest.parity.functions),'only exact Watchlist adapter advances; Scanner/catalog/receipt and all other functions remain intact');
  assert.deepEqual(a,{...oldAuthority,build35CampaignConvergence:{...oldAuthority.build35CampaignConvergence,sha:W.canonical,note:oldAuthority.build35CampaignConvergence.note+W.note}});assert.equal(a.role,'integration-convergence-non-authoritative');
- assert.deepEqual(migrations,prior('config/migration-authority-manifest.json'),'no migration approval or application');assert.deepEqual(cross,prior('config/cross-path-parity-manifest.json'));
+ assert.deepEqual(migrations,prior('config/migration-authority-manifest.json'),'no migration approval or application');
+ // PR723's exact actor-bound Scanner dispatch is the only later cross-path delta.
+ const expectedCross=prior('config/cross-path-parity-manifest.json');
+ const scannerHash='a94d3a76ddbb550edabb9f069bde610874ba9426b6a1fe417a8a80133c7532d7';
+ assert.equal(W.hash(fs.readFileSync(W.root+'/services/scannerScanRequest.ts')),scannerHash);
+ expectedCross.groups.scannerIntent.find(r=>r.path==='services/scannerScanRequest.ts').sha256=scannerHash;
+ assert.deepEqual(cross,expectedCross);
 }
 const inputs=()=>[json('config/edge-function-manifest.json'),json('config/backend-authority.json'),json('config/migration-authority-manifest.json'),json('config/cross-path-parity-manifest.json')];
+test('E026 still rejects an altered Scanner fingerprint and unrelated cross-path changes',()=>{
+ const p=json('config/build35-hostile-source-promotion.json');
+ for(const path of ['services/scannerScanRequest.ts','services/fashionEvidenceGateway.ts']){
+  const bad=inputs();
+  Object.values(bad[3].groups).flat().find(r=>r.path===path).sha256='0'.repeat(64);
+  assert.throws(()=>verify(p,bytes,...bad),assert.AssertionError);
+ }
+});
 test('E026 promotes exact canonical ticket repair while retaining every prior source and platform authority',()=>{verify(json('config/build35-hostile-source-promotion.json'),bytes,...inputs());for(const f of ['app.json','eas.json','supabase/config.toml','scripts/run-backend-tests.js','supabase/functions/scan-identify/v2Activation.ts'])assert.equal(fs.readFileSync(W.root+'/'+f,'utf8').replace(/\r\n/g,'\n'),W.gitBlob(f,W.base).toString().replace(/\r\n/g,'\n'),f+' unchanged');for(const f of [W.w2Index,W.w2Deno,'__tests__/watchlistInvalidBodyGuard.test.js'])assert.ok(fs.readFileSync(W.root+'/'+f).equals(W.gitBlob(f,W.w2Canonical)),f+' must match exact canonical W2');});
 test('E026 refuses changed source, unrelated grants, ownership changes and deployment/migration authority',()=>{const p=json('config/build35-hostile-source-promotion.json');for(const f of W.files){const bad=new Map(bytes);bad.set(f,Buffer.concat([bad.get(f),Buffer.from('\n// unauthorized\n')]));assert.throws(()=>verify(p,bad,...inputs()),assert.AssertionError);}for(const mutate of [p=>p.files.push({file:'supabase/unapproved.sql'}),p=>p.files[0].sha256='0'.repeat(64),p=>p.files.find(r=>r.file===W.files[0]).source='*',p=>p.trustedQuotaSettlementPromotion.canonicalSource=W.canonical]){const bad=structuredClone(p);mutate(bad);assert.throws(()=>verify(bad,bytes,...inputs()),assert.AssertionError);}for(const mutate of [x=>x[0].parity.functions.find(r=>r.name==='scan-identify').bundleHash='0'.repeat(64),x=>x[0].parity.functions.find(r=>r.name==='commerce-watch-refresh').files.find(r=>r.path.endsWith('/index.ts')).sha256='0'.repeat(64),x=>x[1].role='canonical',x=>x[2].ledgerReconciliation.environments.yzqjvdfgefveprobvvyw.knownPending[0].disposition='APPLY']){const x=inputs();mutate(x);assert.throws(()=>verify(p,bytes,...x),assert.AssertionError);}});
