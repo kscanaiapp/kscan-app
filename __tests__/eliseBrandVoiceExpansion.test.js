@@ -74,8 +74,12 @@ test('conversational Gemini primary and retry paths receive the same prompt', ()
   assert.match(handlerSource, /buildStylistPersonaBlock\(stylistDisplayName\)/);
   // CI-04 (docs/build36/corporate-intelligence-v2/CI-V2-CI04-STYLECHAT-INTEGRATION.md): both bodies share ONE system
   // text and ONE turn list, which are exactly the legacy values unless Corporate Intelligence v2 prepared a task.
-  assert.match(handlerSource, /const geminiSystemText = ciV2Prepared\?\.ok \? ciV2Prepared\.systemText : systemTextWithAttachments;/);
-  assert.match(handlerSource, /const geminiTurns = ciV2Prepared\?\.ok \? withUntrustedSections\(turns, ciV2Prepared\.untrustedUserSections\) : turns;/);
+  // OC-01 (own default-OFF flag) may append ONE trusted guidance block and ONE untrusted commerce_context section;
+  // with no OC-01 outcome both are exactly the legacy values, and both bodies still share them.
+  assert.match(handlerSource, /\? \[systemTextWithAttachments, oc01\.systemAddendum\]\.join\('\\n\\n'\)\n\s+: systemTextWithAttachments;/);
+  assert.match(handlerSource, /const turnsForTurn = oc01\?\.untrustedSection \? withUntrustedSections\(turns, oc01\.untrustedSection\) : turns;/);
+  assert.match(handlerSource, /const geminiSystemText = ciV2Prepared\?\.ok \? ciV2Prepared\.systemText : systemTextForTurn;/);
+  assert.match(handlerSource, /const geminiTurns = ciV2Prepared\?\.ok \? withUntrustedSections\(turnsForTurn, ciV2Prepared\.untrustedUserSections\) : turnsForTurn;/);
   assert.match(handlerSource, /buildGeminiBody\(geminiSystemText, geminiTurns\)/);
   assert.match(handlerSource, /buildGeminiBody\(geminiSystemText, buildRetryTurns\(geminiTurns\)\)/);
   assert.match(handlerSource, /system_instruction: \{ parts: \[\{ text: systemText \}\] \}/);
