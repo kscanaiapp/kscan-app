@@ -47,13 +47,28 @@ async function* walk(dir: URL): AsyncGenerator<URL> {
 
 // ── Option B isolation ──────────────────────────────────────────────────────────
 
-test('Option B: no Edge Function or other shared module imports corporateIntelligence (no runtime wiring before the gate)', async () => {
-  const offenders: string[] = [];
+// CI-04 authority (docs/build36/corporate-intelligence-v2/CI-V2-CI04-STYLECHAT-INTEGRATION.md): runtime wiring is
+// authorized ONLY through the StyleChat orchestration module, behind the default-OFF server flag. The importer set is
+// exact: any additional Edge Function or shared module that reaches corporateIntelligence fails this test on purpose.
+const CI04_AUTHORIZED_IMPORTERS = [
+  'stylechat-generate/corporateIntelligenceV2.handler.test.ts',
+  'stylechat-generate/corporateIntelligenceV2.test.ts',
+  'stylechat-generate/corporateIntelligenceV2.ts',
+  'stylechat-generate/index.ts',
+];
+
+test('Option B: corporateIntelligence is reached only through the CI-04 StyleChat orchestration module (exact importer set)', async () => {
+  const importers: string[] = [];
   for await (const file of walk(functionsRoot)) {
     if (file.pathname.includes('/_shared/corporateIntelligence/')) continue;
-    if (/corporateIntelligence/.test(await Deno.readTextFile(file))) offenders.push(file.pathname);
+    if (/corporateIntelligence/.test(await Deno.readTextFile(file))) {
+      importers.push(file.pathname.slice(file.pathname.indexOf('/functions/') + '/functions/'.length));
+    }
   }
-  nodeAssert.deepEqual(offenders, [], `runtime wiring is not authorized: ${offenders.join(', ')}`);
+  nodeAssert.deepEqual(importers.sort(), CI04_AUTHORIZED_IMPORTERS, `unauthorized runtime wiring: ${importers.join(', ')}`);
+  // index.ts reaches the CI modules only via the orchestration module, never directly.
+  const index = await read('stylechat-generate/index.ts');
+  assert(!/from '\.\.\/_shared\/corporateIntelligence\//.test(index), 'index.ts must import CI-v2 only through corporateIntelligenceV2.ts');
 });
 
 test('Option B: the action-proposal module is imported only by tests', async () => {
@@ -145,7 +160,12 @@ test('baseline: StyleChat Gemini call-site inventory is unchanged (parity guard)
   // initial (via callGeminiWithOptionalRetry), provider-retry, completeness retry
   nodeAssert.equal((index.match(/await callGemini\(/g) ?? []).length, 3);
   // Both bodies are built from the SAME assembled system text (primary/retry prompt parity by construction).
-  nodeAssert.equal((index.match(/buildGeminiBody\(systemTextWithAttachments/g) ?? []).length, 2);
+  // CI-04: that shared text is `geminiSystemText`, which is exactly the legacy `systemTextWithAttachments` unless the
+  // Corporate Intelligence v2 task was prepared (flag ON). The legacy chain itself is unchanged.
+  nodeAssert.equal((index.match(/buildGeminiBody\(geminiSystemText,/g) ?? []).length, 2);
+  nodeAssert.equal((index.match(/buildGeminiBody\(/g) ?? []).length, 3, 'definition + initial + retry only');
+  assert(index.includes('const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextWithAttachments;'));
+  assert(index.includes('const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turns, ciV2Prepared.untrustedUserSections) : turns;'));
   nodeAssert.equal((index.match(/appendEliseBrandVoice\(/g) ?? []).length, 1);
   // FINDING F1: the configured fallback model is never invoked in this function. If someone wires a provider
   // fallback, this fails on purpose: the new path must receive the same task brief, validation and consent controls.

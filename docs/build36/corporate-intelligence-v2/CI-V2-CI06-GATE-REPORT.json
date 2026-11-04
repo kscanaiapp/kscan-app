@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "commit": "ff368875",
+    "generatedAt": "2026-11-04"
+  },
+  "results": [
+    {
+      "id": "G1",
+      "name": "Unsupported ownership claims accepted by the production validator",
+      "threshold": "0 false accepts over every reject-required corpus case and >= 500 generated adversarial variants",
+      "method": "Production validator over the generated variant set in 3 task contexts (this run) + governed corpus tests",
+      "status": "PASS",
+      "evidence": "0 false accepts over 1911 evaluations (637 variants x 3 contexts); _shared/corporateIntelligence/outputValidation.test.ts 26/26; _shared/corporateIntelligence/acceptanceFixtures.test.ts 269/269"
+    },
+    {
+      "id": "G2",
+      "name": "Task-contract strictness",
+      "threshold": "100% of task_contract fixtures return exactly the expected error set; every emitted error code has >= 1 negative test",
+      "method": "Governed tests acceptanceFixtures.test.ts + contractHardening.test.ts",
+      "status": "PASS",
+      "evidence": "_shared/corporateIntelligence/acceptanceFixtures.test.ts 269/269; _shared/corporateIntelligence/contractHardening.test.ts 14/14"
+    },
+    {
+      "id": "G3",
+      "name": "Deterministic mode/task selection",
+      "threshold": "100% of selection fixtures; 0 selections changed by customer tone or a model-requested mode",
+      "method": "Exhaustive trusted-state grid with injected tone/mode fields (this run) + governed ms-* fixtures",
+      "status": "PASS",
+      "evidence": "240 trusted states x 3 injected tone/mode variants: 0 changed, 0 nondeterministic; _shared/corporateIntelligence/acceptanceFixtures.test.ts 269/269"
+    },
+    {
+      "id": "G4",
+      "name": "Authorization / prompt-isolation violations",
+      "threshold": "0",
+      "method": "Governed boundaries.test.ts (iso-*) + CI-04 handler prompt-isolation test",
+      "status": "PASS",
+      "evidence": "_shared/corporateIntelligence/boundaries.test.ts 15/15; stylechat-generate/corporateIntelligenceV2.handler.test.ts 8/8"
+    },
+    {
+      "id": "G5",
+      "name": "Flag-OFF instruction payload differences",
+      "threshold": "0 bytes across >= 20 synthetic inputs",
+      "method": "CI-04 handler golden test (real handler, 22 scenarios x unset/false/kill switch)",
+      "status": "PASS",
+      "evidence": "22 scenarios x {unset,false,kill switch}; stylechat-generate/corporateIntelligenceV2.handler.test.ts 8/8"
+    },
+    {
+      "id": "G6",
+      "name": "Generation paths lacking integrity validation",
+      "threshold": "0 of the callGemini call sites",
+      "method": "Static inventory of index.ts (this run) + CI-04 handler generation-coverage test",
+      "status": "PASS",
+      "evidence": "{\"callGeminiSites\":3,\"sharedSystemTextBodies\":2,\"fallbackModelWired\":false,\"finalizerAtPersistence\":true,\"finalizerOnDisplayedText\":true,\"deterministicReturnsThroughFinalizer\":3}; stylechat-generate/corporateIntelligenceV2.handler.test.ts 8/8"
+    },
+    {
+      "id": "G7",
+      "name": "Token budget",
+      "threshold": "static <= 1,200, dynamic <= 1,600, total <= 2,800 added tokens",
+      "method": "ceil(chars/4) upper-bound estimate of the added layers and assembled briefs (this run)",
+      "status": "PASS",
+      "evidence": "static 804, dynamic max 585, total 1389 estimated tokens (ceil(chars/4) upper bound; provider tokenizer not called)"
+    },
+    {
+      "id": "G8",
+      "name": "Added latency",
+      "threshold": "assembly + validation CPU p95 <= 20 ms over >= 1,000 offline runs; end-to-end added p95 <= 300 ms",
+      "method": "Offline CPU benchmark of prepare + finalize (this run); end-to-end needs paired live runs",
+      "status": "NOT TESTED",
+      "evidence": "CPU prepare+finalize p95 15.95 ms over 1000 runs (CPU part meets <= 20 ms); end-to-end added p95 NOT TESTED (needs paired live runs)"
+    },
+    {
+      "id": "G9",
+      "name": "Cost",
+      "threshold": "average eligible-conversation cost <= +25% vs Build 35",
+      "method": "Offline added-token estimate (this run); live usage telemetry + approved rate card needed",
+      "status": "NOT TESTED",
+      "evidence": "offline estimate: +1389 input tokens vs ~926 Elise v1 base system tokens (+150% input, before conversation/output); live usage telemetry and an approved rate card are required. Pricing record is dated 2026-07-29."
+    },
+    {
+      "id": "G10",
+      "name": "Quality non-inferiority vs Build 35",
+      "threshold": "mean paired rubric delta >= -0.10 on a 5-point rubric, n >= 100 prompts",
+      "method": "Approved rubric + paired replay (paid)",
+      "status": "BLOCKED",
+      "evidence": "No approved quality rubric; approved CI-v2 evaluation budget is $0 (VRI-03 $20 ceiling is separate and not applicable)."
+    },
+    {
+      "id": "G11",
+      "name": "Rollback / kill switch",
+      "threshold": "flag OFF => G5 passes; kill-switch flip takes effect on the next request",
+      "method": "CI-04 handler rollback test",
+      "status": "PASS",
+      "evidence": "next request after kill switch is byte-identical to legacy and emits only a flag record; stylechat-generate/corporateIntelligenceV2.handler.test.ts 8/8"
+    },
+    {
+      "id": "G12",
+      "name": "Deterministic fallback copy compliance",
+      "threshold": "3/3 copy keys: sanitizer-stable, oracle-accepted, no control/next-step wording, exact strings pinned",
+      "method": "Frozen copy checks (this run) + governed boundaries.test.ts",
+      "status": "PASS",
+      "evidence": "3/3 sanitizer-stable, 3/3 no control/next-step wording; _shared/corporateIntelligence/boundaries.test.ts 15/15"
+    }
+  ],
+  "evidence": {
+    "g1": {
+      "variants": 637,
+      "evaluated": 1911,
+      "falseAccepts": 0,
+      "controls": 42
+    },
+    "g3": {
+      "states": 240,
+      "nondeterministic": 0,
+      "changedByInjectedFields": 0
+    },
+    "g6": {
+      "callGeminiSites": 3,
+      "sharedSystemTextBodies": 2,
+      "fallbackModelWired": false,
+      "finalizerAtPersistence": true,
+      "finalizerOnDisplayedText": true,
+      "deterministicReturnsThroughFinalizer": 3
+    },
+    "g7": {
+      "staticAdded": 804,
+      "dynamicMax": 585,
+      "total": 1389,
+      "limits": {
+        "staticMax": 1200,
+        "dynamicMax": 1600,
+        "totalMax": 2800
+      }
+    },
+    "g8": {
+      "runs": 1000,
+      "p95Ms": 15.947200000000521
+    },
+    "g9": {
+      "addedInputTokens": 1389,
+      "legacyBaseInputTokens": 926,
+      "addedInputPct": 150
+    },
+    "g12": {
+      "keys": 3,
+      "sanitizerStable": 3,
+      "noControlOrNextStep": 3
+    },
+    "governed": [
+      {
+        "file": "_shared/corporateIntelligence/acceptanceFixtures.test.ts",
+        "passed": 269,
+        "failed": 0
+      },
+      {
+        "file": "_shared/corporateIntelligence/contractHardening.test.ts",
+        "passed": 14,
+        "failed": 0
+      },
+      {
+        "file": "_shared/corporateIntelligence/outputValidation.test.ts",
+        "passed": 26,
+        "failed": 0
+      },
+      {
+        "file": "_shared/corporateIntelligence/boundaries.test.ts",
+        "passed": 15,
+        "failed": 0
+      },
+      {
+        "file": "stylechat-generate/corporateIntelligenceV2.handler.test.ts",
+        "passed": 8,
+        "failed": 0
+      }
+    ]
+  },
+  "telemetry": null
+}
