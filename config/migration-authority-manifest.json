@@ -782,6 +782,15 @@
               "20261103030000"
             ],
             "evidence": "OC-01 Elise read-only commerce tools: additive service-role-only reference store (table elise_commerce_session_refs, RPCs elise_commerce_refs_load/elise_commerce_refs_store) so refine/compare survive separate Edge Function requests. Actor + owned-conversation binding, 30-second maximum lifetime, 32 references per conversation, 16 per write, RLS enabled with no policy, no anon/authenticated grant, cascade on conversation/account deletion. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing the migration. Requires the governed single-version migration path; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261104220528",
+            "logicalName": "elise_commerce_session_refs_v2",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104193023"
+            ],
+            "evidence": "OC-01 reference store v2 (owner decision 2026-11-04: maximum reference lifetime 2 minutes). Additive: new service-role-only table elise_commerce_session_refs_v2 with the same RLS/grant posture and the two existing RPCs re-pointed via CREATE OR REPLACE (same signatures). No DROP or destructive ALTER; the empty v1 table is left unused. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing both migrations. Requires the governed single-version migration path; this declaration is not execution approval."
           }
         ]
       },
@@ -1596,6 +1605,15 @@
               "20261103030000"
             ],
             "evidence": "OC-01 Elise read-only commerce tools: additive service-role-only reference store (table elise_commerce_session_refs, RPCs elise_commerce_refs_load/elise_commerce_refs_store) so refine/compare survive separate Edge Function requests. Actor + owned-conversation binding, 30-second maximum lifetime, 32 references per conversation, 16 per write, RLS enabled with no policy, no anon/authenticated grant, cascade on conversation/account deletion. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing the migration. Requires the governed single-version migration path; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261104220528",
+            "logicalName": "elise_commerce_session_refs_v2",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104193023"
+            ],
+            "evidence": "OC-01 reference store v2 (owner decision 2026-11-04: maximum reference lifetime 2 minutes). Additive: new service-role-only table elise_commerce_session_refs_v2 with the same RLS/grant posture and the two existing RPCs re-pointed via CREATE OR REPLACE (same signatures). No DROP or destructive ALTER; the empty v1 table is left unused. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing both migrations. Requires the governed single-version migration path; this declaration is not execution approval."
           }
         ],
         "remoteOnly": [

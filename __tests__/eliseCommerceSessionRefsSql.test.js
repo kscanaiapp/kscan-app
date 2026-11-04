@@ -4,10 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const migration = fs.readFileSync(
-  path.join(__dirname, '../supabase/migrations/20261104193023_elise_commerce_session_refs.sql'),
-  'utf8',
-);
+const read = (name) => fs.readFileSync(path.join(__dirname, '../supabase/migrations', name), 'utf8');
+const migration = read('20261104193023_elise_commerce_session_refs.sql');
+const migrationV2 = read('20261104220528_elise_commerce_session_refs_v2.sql');
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const CONV_A = 'cccccccc-cccc-4ccc-8ccc-cccccccccc01';
@@ -25,6 +24,7 @@ async function database() {
     insert into auth.users values('${A}'),('${B}');
     insert into public.style_chat_sessions values('${CONV_A}','${A}'),('${CONV_B}','${B}');`);
   await db.exec(migration);
+  await db.exec(migrationV2);
   await db.exec('set role service_role');
   return db;
 }
@@ -54,20 +54,20 @@ test('owner round-trip; another actor or another conversation reads nothing', as
   await assert.rejects(store(db, B, CONV_A, [record()]), /conversation not owned by actor/);
 });
 
-test('lifetime is capped at 30 seconds whatever the caller requests; expired rows are invisible and cleaned', async () => {
+test('lifetime is capped at 2 minutes whatever the caller requests; expired rows are invisible and cleaned', async () => {
   const db = await database();
   await store(db, A, CONV_A, [record(3_600_000)]);
   const [row] = await load(db, A, CONV_A);
   const lifetime = new Date(row.expires_at) - new Date(row.created_at);
-  assert.ok(lifetime <= 30_000, `lifetime ${lifetime}`);
+  assert.ok(lifetime <= 120_000 && lifetime > 30_000, `lifetime ${lifetime}`);
   // A row whose requested expiry is already past is not stored at all.
   await store(db, A, CONV_A, [record(-1)]);
   assert.equal((await load(db, A, CONV_A)).length, 1);
   // Expire it and confirm load hides and removes it.
-  await db.exec("reset role; update public.elise_commerce_session_refs set created_at = now() - interval '40 seconds', expires_at = now() - interval '10 seconds'; set role service_role");
+  await db.exec("reset role; update public.elise_commerce_session_refs_v2 set created_at = now() - interval '130 seconds', expires_at = now() - interval '10 seconds'; set role service_role");
   assert.equal((await load(db, A, CONV_A)).length, 0);
   await db.exec('reset role');
-  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs')).rows[0].c, 0);
+  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs_v2')).rows[0].c, 0);
 });
 
 test('bounded: at most 16 records per write and the newest 32 per conversation', async () => {
@@ -76,7 +76,7 @@ test('bounded: at most 16 records per write and the newest 32 per conversation',
   for (let i = 0; i < 5; i++) await store(db, A, CONV_A, Array.from({ length: 8 }, () => record()));
   assert.equal((await load(db, A, CONV_A)).length, 32);
   await db.exec('reset role');
-  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs')).rows[0].c, 32);
+  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs_v2')).rows[0].c, 32);
 });
 
 test('records are size-bounded and refs are opaque broker refs', async () => {
@@ -92,7 +92,7 @@ test('anon and authenticated can neither read the table nor execute either RPC',
   await store(db, A, CONV_A, [record()]);
   for (const role of ['anon', 'authenticated']) {
     await db.exec(`reset role; set role ${role}`);
-    await assert.rejects(db.query('select * from public.elise_commerce_session_refs'), /permission denied/, role);
+    await assert.rejects(db.query('select * from public.elise_commerce_session_refs_v2'), /permission denied/, role);
     await assert.rejects(db.query('select * from public.elise_commerce_refs_load($1,$2)', [A, CONV_A]), /permission denied/, role);
     await assert.rejects(store(db, A, CONV_A, [record()]), /permission denied/, role);
   }
@@ -103,5 +103,17 @@ test('deleting the conversation or the account removes its references', async ()
   await store(db, A, CONV_A, [record()]);
   await store(db, B, CONV_B, [record()]);
   await db.exec(`reset role; delete from public.style_chat_sessions where id = '${CONV_A}'; delete from auth.users where id = '${B}'`);
+  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs_v2')).rows[0].c, 0);
+});
+
+test('v2 is additive: the v1 table is no longer written and stays service-role only', async () => {
+  const db = await database();
+  await store(db, A, CONV_A, [record(90_000)]);
+  await db.exec('reset role');
   assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs')).rows[0].c, 0);
+  assert.equal((await db.query('select count(*)::int as c from public.elise_commerce_session_refs_v2')).rows[0].c, 1);
+  for (const role of ['anon', 'authenticated']) {
+    await db.exec(`reset role; set role ${role}`);
+    await assert.rejects(db.query('select * from public.elise_commerce_session_refs'), /permission denied/, role);
+  }
 });

@@ -107,10 +107,10 @@ automatic tool-response-generation loop is implemented here.
 
 - Maximum two requests per `executeTurn`, no same-turn reference chaining.
 - One outstanding retrieval per broker/isolate; contention fails with `busy`.
-- 2,500 ms total turn response deadline, including reauthorization. No broker retry.
+- 2,500 ms retrieval deadline (provider/catalog work). Per-turn re-authorization runs first under its own 1,000 ms bound (Build 35 integration, live evidence: ~0.9 s of re-authorization inside the deadline starved the primary shopping provider). No broker retry.
 - Eight returned shopping candidates and eight products per tool; the existing
   catalog engine retains its 160-row candidate ceiling.
-- At most 32 cached records per session, retained at most 30 seconds. Catalog
+- At most 32 cached records per session, retained at most 2 minutes (owner decision 2026-11-04, raised from 30 seconds; persisted server-side by the integration, migration 20261104220528). Catalog
   records expire sooner at inventory, synchronization, ownership or eligibility
   horizons. References are isolated even between two sessions for the same actor.
 - Comparison uses that bounded snapshot, not a live availability guarantee.

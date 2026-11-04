@@ -7,6 +7,13 @@ import { canonicalizeUrlForIdentity } from "../../../scan-identify/qualityTuneCo
 import type { OwnershipIdentity } from "../../../black-owned-discovery/contracts.ts";
 import type { Provider } from "./adapters.ts";
 
+/**
+ * Maximum lifetime of a session product reference. Owner decision 2026-11-04
+ * (Build 35): 2 minutes, raised from 30 s so a customer can read the cards and
+ * then ask to refine/compare. Catalog eligibility horizons still shorten it.
+ */
+export const RECORD_TTL_MS = 120_000;
+
 export type Product = {
   ref: string;
   title: string;
@@ -41,7 +48,7 @@ export function normalizeProduct(
   const productUrl = normalizeUrl(p.productUrl);
   if (!productUrl) return null;
   let ownership: OwnershipIdentity | undefined;
-  let expiresAt = now + 30_000;
+  let expiresAt = now + RECORD_TTL_MS;
   if (provider === "eligible_catalog") {
     const o = p.ownershipIdentity as OwnershipIdentity | undefined;
     const verified = Date.parse(o?.verifiedUntil ?? "");

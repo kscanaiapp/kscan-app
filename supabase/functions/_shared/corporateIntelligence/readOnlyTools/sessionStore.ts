@@ -12,10 +12,10 @@
  * corrupted row can only ever shrink what a follow-up can reference.
  */
 import { normalizeImageUrl, normalizeUrl } from "../../../scan-identify/shoppingProvider.ts";
-import type { Product } from "./products.ts";
+import { type Product, RECORD_TTL_MS } from "./products.ts";
 
-/** Hard ceiling from the OC-01 contract (Addendum A8). */
-export const MAX_REFERENCE_LIFETIME_MS = 30_000;
+/** Hard ceiling (Addendum A8, raised to 2 minutes by owner decision 2026-11-04). */
+export const MAX_REFERENCE_LIFETIME_MS = RECORD_TTL_MS;
 export const MAX_STORED_REFERENCES = 32;
 
 /** `batchAt` is the store write time shared by one result set; `position` is its card order. */
