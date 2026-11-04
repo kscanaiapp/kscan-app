@@ -2816,6 +2816,10 @@ Deno.serve(async (req) => {
       grantTurnPermit: (actorId) => oc01Permits.grant(actorId),
       blackOwnedAllowed: () => blackOwnedLaneAllowed(userId),
       ownershipLabelsAllowed: ownershipLabelsAllowed(),
+      recentCustomerMessages: (historyMessages as { sender: string; content: string }[])
+        .filter((m) => m.sender === 'user' && typeof m.content === 'string')
+        .map((m) => m.content)
+        .slice(-3),
     });
   }
   if (oc01Flag.reason !== 'off') {

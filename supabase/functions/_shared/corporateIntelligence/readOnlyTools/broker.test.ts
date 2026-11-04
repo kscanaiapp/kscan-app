@@ -408,7 +408,7 @@ Deno.test("real existing shopping adapter uses normalized attributes and explici
   assert.ok(query.includes("black"));
   assert.ok(query.includes("bomber"));
   assert.ok(query.includes("US"));
-  assert.equal(timeout, 1000);
+  assert.equal(timeout, 1850, "primary provider gets the remaining budget less PRIMARY_MARGIN_MS");
   assert.equal(b.providerCallCeiling, 2);
   assert.equal(b.cacheHit, null);
 });

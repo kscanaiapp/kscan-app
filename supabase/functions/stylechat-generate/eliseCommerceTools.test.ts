@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   clientAdvertisesOc01,
   createOc01Broker,
+  buildPlannerUserText,
   createTurnPermits,
   enforceOc01CommerceProse,
   OC01_FALLBACK_COPY,
@@ -524,4 +525,12 @@ Deno.test('review P3-1/P3-4: sparse card numbering and no tool I/O for long ordi
   assert.deepEqual((cmp.requests[0] as { arguments: { productRefs: string[] } }).arguments.productRefs, [prev[0]!.ref, prev[2]!.ref]);
   assert.equal(toToolRequests({ action: 'compare', resultNumbers: [1, 2] }, prev, true).kind, 'not_actionable');
   assert.equal(preFilterCommerceIntent('I have a wedding in June and want to feel elegant but comfortable, with a look that works for a garden ceremony and an evening reception, and I usually wear soft neutrals, cream tailoring and delicate gold jewelry every day.', true), 'none');
+});
+
+Deno.test('live repair: the planner sees at most the last 3 earlier customer messages, bounded, never refs or URLs', () => {
+  const text = buildPlannerUserText('ones in brown instead', [], ['hi', 'Find me a black leather bomber jacket', 'x'.repeat(500), 'thanks']);
+  const parsed = JSON.parse(text);
+  assert.deepEqual(parsed.recent_customer_messages.map((m: string) => m.length), [37, 300, 6]);
+  assert.equal(parsed.customer_message, 'ones in brown instead');
+  assert.deepEqual(parsed.previous_results, []);
 });

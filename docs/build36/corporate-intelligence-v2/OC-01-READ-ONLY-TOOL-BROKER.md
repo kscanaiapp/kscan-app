@@ -126,8 +126,11 @@ automatic tool-response-generation loop is implemented here.
   ownership lookup is needed with an empty primary-product list. Cross-request
   catalog caching is deliberately not added here.
 - The legacy shopping service has fixed Serper → Brave fallback and its own
-  timeout controls, but no outer AbortSignal input. The adapter halves the
-  remaining timeout for each of those maximum two provider attempts. On broker
+  timeout controls, but no outer AbortSignal input. The adapter gives the
+  primary provider the remaining turn budget less `PRIMARY_MARGIN_MS` (150 ms);
+  halving it left Serper ~1 s and it timed out in the Build 35 Staging probe,
+  while the web-search fallback's page results did not survive relevance. A
+  fallback attempt can therefore end at the broker deadline (`deadline`). On broker
   timeout, the response ends but its concurrency slot stays occupied until that
   underlying service settles. No further shopping work can accumulate in that
   broker. Catalog dependency transports must honor their AbortSignal, as the
