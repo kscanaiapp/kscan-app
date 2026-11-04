@@ -8,7 +8,7 @@ import {
   VRI03_MASTER_ENV,
   VRI03_SUB_FLAG_ENV,
   VRI03_SUB_FLAGS,
-} from './vri03ScanImprovementsFlag.ts';
+} from './scanImprovementsFlag.ts';
 
 const envOf = (vars: Record<string, string>) => (key: string) => vars[key];
 const ALL_SUBS_ON = Object.fromEntries(Object.values(VRI03_SUB_FLAG_ENV).map((k) => [k, 'true']));
@@ -81,8 +81,8 @@ Deno.test('vri03 flag: contract is not yet wired into the scan path (Phase A BEN
   // Phase A did not pass its gate, so no change may be routed through this flag
   // yet. Wiring a sub-flag must come with its own benchmark row; update this
   // assertion in that same change.
-  for (const file of ['./index.ts', './scanCommerceRouter.ts', './qualityTuneCommerce.ts', './commerceRelevanceQueries.ts', './scannerQualityGate.ts']) {
+  for (const file of ['../../scan-identify/index.ts', '../../scan-identify/scanCommerceRouter.ts', '../../scan-identify/qualityTuneCommerce.ts', '../../scan-identify/commerceRelevanceQueries.ts', '../../scan-identify/scannerQualityGate.ts', '../../black-owned-discovery/index.ts', '../../black-owned-discovery/engine.ts']) {
     const src = await Deno.readTextFile(new URL(file, import.meta.url));
-    assert(!src.includes('vri03ScanImprovementsFlag'), `${file} must not import the VRI-03 flag yet`);
+    assert(!src.includes('vri03/scanImprovementsFlag'), `${file} must not import the VRI-03 flag yet`);
   }
 });

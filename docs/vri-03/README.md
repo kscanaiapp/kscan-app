@@ -16,8 +16,12 @@ Companion documents:
 * Branch `ci/vri-03-instruction-retrieval`, created from `ci/ci-03-validation-opus` @ `dd82d40d` (CI-03, draft PR #721),
   which stacks on CI-02 (#717, `0fd392ca`) and CI-01 (#715, `b0aaff17`).
 * No file under `supabase/functions/_shared/corporateIntelligence/` is touched.
-* Files added: this folder, plus `supabase/functions/scan-identify/vri03ScanImprovementsFlag.ts` and its test. The flag
-  module is **not imported** by any scan-path file (a test asserts this), so it is not part of any deployed bundle.
+* Files added: this folder, plus `supabase/functions/_shared/vri03/scanImprovementsFlag.ts` and its test. The flag
+  module is **not imported** by any scan-path or Black-owned discovery file (a test asserts this), so it is in no
+  deployed bundle and `config/edge-function-manifest.json` is unchanged. It sits in `_shared/` rather than in
+  `scan-identify/` because the parity gate tracks every file inside a function tree but only bundle-reachable
+  `_shared` files. Wiring it into `scan-identify` later will make it bundle-reachable and require a manifest
+  regeneration in that same change.
 
 ## B. Failure set
 

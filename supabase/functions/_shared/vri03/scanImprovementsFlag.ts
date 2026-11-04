@@ -5,7 +5,7 @@
  * each change can be attributed in a benchmark row and reverted on its own.
  *
  * STATUS: contract only. Nothing in the scan path imports this module yet
- * (asserted by vri03ScanImprovementsFlag.test.ts). VRI-03 Phase A did not pass
+ * (asserted by scanImprovementsFlag.test.ts). VRI-03 Phase A did not pass
  * its benchmark gate (no labeled failure set exists), so no Phase B change has
  * been built, and an unmeasured change must not land. A later change wires a
  * sub-flag here only together with its own before/after benchmark row.
