@@ -15,6 +15,7 @@ import {
   TOOL_VERSION,
   ToolError,
 } from "./request.ts";
+import type { ReferenceStore, StoredReference } from "./sessionStore.ts";
 
 export const LIMITS = Object.freeze({
   requestsPerTurn: 2,
@@ -53,6 +54,14 @@ export type Dependencies = {
   allowedMarkets: readonly string[];
   adapters: Adapters;
   emit?: (metadata: Metadata) => void;
+  /**
+   * Optional server-side reference store (OC-01 integration). Without it the
+   * session keeps its records in memory only, exactly as before. With it, a
+   * session opened for a verified actor + owned conversation also sees that
+   * conversation's unexpired references from earlier HTTP requests, and
+   * persists the products it returns. Never constructed from client/model data.
+   */
+  store?: ReferenceStore;
 };
 const response = (
   status: Result["status"],
@@ -67,13 +76,31 @@ export function createReadOnlyBroker(deps: Dependencies) {
   );
   let occupied = false;
   return {
-    async openSession(request: Request) {
+    async openSession(
+      request: Request,
+      options: { conversationId?: string } = {},
+    ) {
       if (deps.enabled() !== true) throw new ToolError("disabled");
       const actor = await authenticate(request);
       if (!actor.id || actor.isAnonymous) throw new ToolError("unauthorized");
       const records = new Map<string, Product>();
+      const conversationId = options.conversationId;
+      const store = deps.store && conversationId ? deps.store : undefined;
+      let loaded: Promise<StoredReference[]> | null = null;
+      /** Stored references of THIS actor's conversation, loaded once per session. Failure reads as none (fail closed). */
+      const references = (): Promise<StoredReference[]> => {
+        if (!store) return Promise.resolve([]);
+        loaded ??= store.load(
+          actor.id,
+          conversationId!,
+          AbortSignal.any([request.signal, AbortSignal.timeout(1_000)]),
+        ).catch(() => []);
+        return loaded;
+      };
       // This object, and all result refs, stay on the server. It must never be deserialized from a request.
       return {
+        /** Server-held, validated references available to this turn (for numbering follow-ups). */
+        references,
         async executeTurn(inputs: readonly unknown[]): Promise<Result[]> {
           const started = performance.now();
           const deadline = started + LIMITS.deadlineMs;
@@ -89,8 +116,12 @@ export function createReadOnlyBroker(deps: Dependencies) {
           const abort = () => controller.abort();
           request.signal.addEventListener("abort", abort, { once: true });
           if (request.signal.aborted) controller.abort();
+          const persisted = await references();
           const existing = new Map(
-            [...records].filter(([, p]) => p.provenance.expiresAt > Date.now()),
+            [
+              ...persisted.map((r) => [r.product.ref, r.product] as const),
+              ...records,
+            ].filter(([, p]) => p.provenance.expiresAt > Date.now()),
           );
           records.clear();
           existing.forEach((p, k) => records.set(k, p));
@@ -254,6 +285,13 @@ export function createReadOnlyBroker(deps: Dependencies) {
                       records.delete(records.keys().next().value!);
                     }
                     records.set(p.ref, structuredClone(p));
+                  }
+                  if (store && products.length > 0) {
+                    // Persistence failure never fails the result; it only means a
+                    // later follow-up sees no reference (fail closed).
+                    await bounded(
+                      store.save(actor.id, conversationId!, products, controller.signal),
+                    ).catch(() => {});
                   }
                 }
                 meta.resultCount = products.length;

@@ -50,10 +50,17 @@ async function* walk(dir: URL): AsyncGenerator<URL> {
 // CI-04 authority (docs/build36/corporate-intelligence-v2/CI-V2-CI04-STYLECHAT-INTEGRATION.md): runtime wiring is
 // authorized ONLY through the StyleChat orchestration module, behind the default-OFF server flag. The importer set is
 // exact: any additional Edge Function or shared module that reaches corporateIntelligence fails this test on purpose.
+// OC-01 (Build 35 integration, docs/build36/corporate-intelligence-v2/OC-01-READ-ONLY-TOOL-BROKER.md): the read-only
+// broker is reached ONLY through the StyleChat OC-01 orchestration (eliseCommerceTools.ts) and its isolate wiring
+// (eliseCommerceWiring.ts), behind its own default-OFF flag. Never OC-02/OC-03 modules.
 const CI04_AUTHORIZED_IMPORTERS = [
   'stylechat-generate/corporateIntelligenceV2.handler.test.ts',
   'stylechat-generate/corporateIntelligenceV2.test.ts',
   'stylechat-generate/corporateIntelligenceV2.ts',
+  'stylechat-generate/eliseCommerceTools.handler.test.ts',
+  'stylechat-generate/eliseCommerceTools.test.ts',
+  'stylechat-generate/eliseCommerceTools.ts',
+  'stylechat-generate/eliseCommerceWiring.ts',
   'stylechat-generate/index.ts',
 ];
 
@@ -164,8 +171,14 @@ test('baseline: StyleChat Gemini call-site inventory is unchanged (parity guard)
   // Corporate Intelligence v2 task was prepared (flag ON). The legacy chain itself is unchanged.
   nodeAssert.equal((index.match(/buildGeminiBody\(geminiSystemText,/g) ?? []).length, 2);
   nodeAssert.equal((index.match(/buildGeminiBody\(/g) ?? []).length, 3, 'definition + initial + retry only');
-  assert(index.includes('const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextWithAttachments;'));
-  assert(index.includes('const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turns, ciV2Prepared.untrustedUserSections) : turns;'));
+  // OC-01: a product-tool turn (own default-OFF flag) appends ONE trusted guidance block and ONE untrusted
+  // commerce_context section; with no OC-01 outcome both are exactly the legacy values.
+  assert(index.includes(String.raw`? [systemTextWithAttachments, oc01.systemAddendum].join('\n\n')` + '\n    : systemTextWithAttachments;'));
+  assert(index.includes('const turnsForTurn = oc01?.untrustedSection ? withUntrustedSections(turns, oc01.untrustedSection) : turns;'));
+  assert(index.includes('const geminiSystemText = ciV2Prepared?.ok ? ciV2Prepared.systemText : systemTextForTurn;'));
+  assert(index.includes('const geminiTurns = ciV2Prepared?.ok ? withUntrustedSections(turnsForTurn, ciV2Prepared.untrustedUserSections) : turnsForTurn;'));
+  // OC-01 planner: the only other Gemini call, one bounded structured call, wired once.
+  nodeAssert.equal((index.match(/geminiPlannerCall\(/g) ?? []).length, 1);
   nodeAssert.equal((index.match(/appendEliseBrandVoice\(/g) ?? []).length, 1);
   // FINDING F1: the configured fallback model is never invoked in this function. If someone wires a provider
   // fallback, this fails on purpose: the new path must receive the same task brief, validation and consent controls.
