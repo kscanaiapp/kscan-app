@@ -36,6 +36,7 @@ import { TOOL_VERSION } from '../_shared/corporateIntelligence/readOnlyTools/req
 import type { ReferenceStore, StoredReference } from '../_shared/corporateIntelligence/readOnlyTools/sessionStore.ts';
 import type { DiscoveryDependencies } from '../black-owned-discovery/engine.ts';
 import { AVAILABILITY_CLAIM, MONEY, parsePriceValue } from '../_shared/corporateIntelligence/outputValidation.ts';
+import { classifyDestination } from '../scan-identify/shoppingProvider.ts';
 
 export const OC01_INTEGRATION_VERSION = 'oc01-stylechat-integration-v1' as const;
 /** Additive, versioned mobile response contract (Addendum A11). */
@@ -172,23 +173,33 @@ const word = (v: unknown): string | undefined => {
 };
 
 /** Closed validation of the planner's JSON. Anything unexpected reads as no shopping intent. */
-export function parsePlannerOutput(raw: string): PlannedIntent | null {
+export type PlannerRejectReason = 'json' | 'shape' | 'unknown_key' | 'action' | 'item_type';
+
+/**
+ * Closed validation of the planner's JSON. Unknown keys, an unknown action or a
+ * missing/unknown item type reject the plan (`reason`). An invalid OPTIONAL
+ * field (filler 0 price, out-of-range numbers, null) is dropped instead of
+ * discarding a valid intent (live Staging evidence: a whole find was lost).
+ */
+export function parsePlannerOutputDetailed(raw: string): { plan: PlannedIntent | null; reason: PlannerRejectReason | null; dropped: number } {
+  const reject = (reason: PlannerRejectReason) => ({ plan: null, reason, dropped: 0 });
   let v: unknown;
   try {
     v = JSON.parse(raw);
   } catch {
-    return null;
+    return reject('json');
   }
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return reject('shape');
   const o = v as Record<string, unknown>;
   const known = ['action', 'item_type', 'subtype', 'primary_color', 'material', 'silhouette', 'max_price_usd', 'result_numbers', 'exclude_previous_merchants'];
-  if (Object.keys(o).some((k) => !known.includes(k))) return null;
+  if (Object.keys(o).some((k) => !known.includes(k))) return reject('unknown_key');
   const actions: PlannerAction[] = ['none', 'find', 'refine', 'compare', 'black_owned', 'unsupported_action'];
-  if (!actions.includes(o.action as PlannerAction)) return null;
+  if (!actions.includes(o.action as PlannerAction)) return reject('action');
   const action = o.action as PlannerAction;
   const out: PlannedIntent = { action };
+  let dropped = 0;
   if (action === 'find' || action === 'refine' || action === 'black_owned') {
-    if (!PLANNER_ITEM_TYPES.includes(o.item_type as (typeof PLANNER_ITEM_TYPES)[number])) return null;
+    if (!PLANNER_ITEM_TYPES.includes(o.item_type as (typeof PLANNER_ITEM_TYPES)[number])) return reject('item_type');
     const g: NonNullable<PlannedIntent['garment']> = { item_type: o.item_type as (typeof PLANNER_ITEM_TYPES)[number] };
     const subtype = word(o.subtype), color = word(o.primary_color), material = word(o.material), silhouette = word(o.silhouette);
     if (subtype) g.subtype = subtype;
@@ -196,22 +207,25 @@ export function parsePlannerOutput(raw: string): PlannedIntent | null {
     if (material) g.material_estimate = material;
     if (silhouette) g.silhouette = silhouette;
     out.garment = g;
-    if (o.max_price_usd !== undefined) {
-      if (typeof o.max_price_usd !== 'number' || !Number.isFinite(o.max_price_usd) || o.max_price_usd <= 0 || o.max_price_usd > 100_000) return null;
-      out.maxPriceUsd = Math.round(o.max_price_usd * 100) / 100;
+    const price = o.max_price_usd;
+    if (price !== undefined && price !== null) {
+      if (typeof price === 'number' && Number.isFinite(price) && price > 0 && price <= 100_000) out.maxPriceUsd = Math.round(price * 100) / 100;
+      else dropped += 1;
     }
   }
-  if (o.result_numbers !== undefined) {
-    if (!Array.isArray(o.result_numbers) || o.result_numbers.length > 8) return null;
-    const nums = o.result_numbers.filter((n) => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 8) as number[];
-    if (nums.length !== o.result_numbers.length || new Set(nums).size !== nums.length) return null;
-    out.resultNumbers = nums;
+  if ((action === 'refine' || action === 'compare') && Array.isArray(o.result_numbers)) {
+    const nums = [...new Set(o.result_numbers.filter((n) => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 8) as number[])].slice(0, 8);
+    if (nums.length !== o.result_numbers.length) dropped += 1;
+    if (nums.length) out.resultNumbers = nums;
+  } else if (o.result_numbers !== undefined && o.result_numbers !== null && !(Array.isArray(o.result_numbers) && o.result_numbers.length === 0)) {
+    dropped += 1;
   }
-  if (o.exclude_previous_merchants !== undefined) {
-    if (typeof o.exclude_previous_merchants !== 'boolean') return null;
-    out.excludePreviousMerchants = o.exclude_previous_merchants;
-  }
-  return out;
+  if (action === 'refine' && o.exclude_previous_merchants === true) out.excludePreviousMerchants = true;
+  return { plan: out, reason: null, dropped };
+}
+
+export function parsePlannerOutput(raw: string): PlannedIntent | null {
+  return parsePlannerOutputDetailed(raw).plan;
 }
 
 /** The planner sees only the latest result titles/merchants, numbered — never refs, URLs or provenance. */
@@ -338,6 +352,12 @@ export type ClientProduct = {
   listedPrice?: string;
   currency?: string;
   source: 'shopping_provider' | 'verified_catalog';
+  /**
+   * 'merchant' = a direct retailer page. 'shopping_search' = a public shopping
+   * search/aggregator page (e.g. Google Shopping), shared Scanner policy: still
+   * eligible, but never presented as the merchant's own product page.
+   */
+  destinationKind: 'merchant' | 'shopping_search';
   observedAt: string;
   ownershipIdentity?: {
     brandId: string;
@@ -365,6 +385,7 @@ export function projectProductsForClient(products: readonly Product[], ownership
     ...(p.price ? { listedPrice: p.price } : {}),
     ...(p.currency ? { currency: p.currency } : {}),
     source: p.provenance.provider === 'eligible_catalog' ? 'verified_catalog' : 'shopping_provider',
+    destinationKind: classifyDestination(p.productUrl) === 'search_handoff' ? 'shopping_search' : 'merchant',
     observedAt: new Date(p.provenance.observedAt).toISOString(),
     // Ownership labels only from an eligible catalog record AND only while the badge lane is on.
     ...(ownershipLabels && p.ownership && p.provenance.provider === 'eligible_catalog'
@@ -447,12 +468,18 @@ export type Oc01TurnOutcome = {
   refinedAsFreshSearch: boolean;
   /** The customer's server-validated budget for this turn (prose guard may repeat it). */
   budgetUsd: number | null;
+  /** Closed planner rejection code (metadata only), or null. */
+  plannerReject: PlannerRejectReason | 'call_failed' | null;
+  /** Number of invalid optional planner fields dropped. */
+  plannerDropped: number;
 };
 
 const notRun = (preFilter: PreFilter, usage: Oc01Usage, started: number, now: () => number): Oc01TurnOutcome => ({
   ran: false, preFilter, plannerAction: 'not_run', kind: null, clientPayload: null, untrustedSection: '', systemAddendum: '',
   merchantNames: [], usage, toolMetadata: [], timings: { referencesMs: 0, plannerMs: 0, brokerMs: 0, totalMs: now() - started }, refinedAsFreshSearch: false,
   budgetUsd: null,
+  plannerReject: null,
+  plannerDropped: 0,
 });
 
 /**
@@ -466,9 +493,11 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
   const timings = { referencesMs: 0, plannerMs: 0, brokerMs: 0, totalMs: 0 };
   const toolMetadata: ToolSummary[] = [];
   let budgetUsd: number | null = null;
-  const finish = (o: Omit<Oc01TurnOutcome, 'usage' | 'toolMetadata' | 'timings' | 'budgetUsd'>): Oc01TurnOutcome => {
+  let plannerReject: PlannerRejectReason | 'call_failed' | null = null;
+  let plannerDropped = 0;
+  const finish = (o: Omit<Oc01TurnOutcome, 'usage' | 'toolMetadata' | 'timings' | 'budgetUsd' | 'plannerReject' | 'plannerDropped'>): Oc01TurnOutcome => {
     timings.totalMs = Math.round(now() - started);
-    return { ...o, usage, toolMetadata, timings, budgetUsd };
+    return { ...o, usage, toolMetadata, timings, budgetUsd, plannerReject, plannerDropped };
   };
   const decline = (preFilter: PreFilter, plannerAction: Oc01TurnOutcome['plannerAction']) => {
     const payload: ClientCommerceResults = { version: OC01_PRODUCTS_CONTRACT, kind: 'action', status: 'unsupported_action', reasonCode: 'read_only_release', products: [] };
@@ -523,9 +552,13 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
       usage.outputTokens += out.usage.outputTokens;
       usage.thoughtsTokens += out.usage.thoughtsTokens ?? 0;
     }
-    plan = parsePlannerOutput(out.text);
+    const parsed = parsePlannerOutputDetailed(out.text);
+    plan = parsed.plan;
+    plannerReject = parsed.reason;
+    plannerDropped = parsed.dropped;
   } catch {
     plan = null;
+    plannerReject = 'call_failed';
   }
   timings.plannerMs = Math.round(now() - tPlan);
   budgetUsd = plan?.maxPriceUsd ?? null;
@@ -766,6 +799,8 @@ export function oc01Telemetry(flag: Oc01FlagState, o: Oc01TurnOutcome | null): R
     cohort: flag.cohort,
     preFilter: o?.preFilter ?? 'not_run',
     plannerAction: o?.plannerAction ?? 'not_run',
+    plannerReject: o?.plannerReject ?? null,
+    plannerDropped: o?.plannerDropped ?? 0,
     kind: o?.kind ?? null,
     clientStatus: o?.clientPayload?.status ?? null,
     reasonCode: o?.clientPayload?.reasonCode ?? null,
