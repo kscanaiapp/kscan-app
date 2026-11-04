@@ -67,6 +67,7 @@ import {
   type CorporateFinalized,
   type CorporatePrepared,
   correlationIdFor,
+  corporateFlagTelemetry,
   corporateTelemetry,
   discoveryBrandNamesFetcher,
   finalizeCorporateStyleChatText,
@@ -467,6 +468,7 @@ interface GeminiResponse {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
     totalTokenCount?: number;
+    thoughtsTokenCount?: number;
   };
 }
 
@@ -504,6 +506,8 @@ interface GeminiCallResult {
   tokenEstimate: number;
   finishReason: string;
   whyThisWorks?: string;
+  /** CI-06: provider token counts (null when not reported). Additive; unused by the legacy path. */
+  usage: { promptTokens: number | null; outputTokens: number | null; thoughtsTokens: number | null };
 }
 
 function buildGeminiBody(systemText: string, contents: GeminiTurn[]): GeminiBody {
@@ -706,11 +710,17 @@ async function callGemini(
       elapsedMs,
     );
 
+    const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
     return {
       text: assistantText,
       tokenEstimate,
       finishReason,
       whyThisWorks,
+      usage: {
+        promptTokens: count(usage?.promptTokenCount),
+        outputTokens: count(usage?.candidatesTokenCount),
+        thoughtsTokens: count(usage?.thoughtsTokenCount),
+      },
     };
   } finally {
     clearTimeout(timer);
@@ -2787,6 +2797,23 @@ Deno.serve(async (req) => {
   let ciV2PreSanitizerText: string | undefined;
   let ciV2Finalized: CorporateFinalized | null = null;
   let ciV2Passes = 0;
+  // CI-06: provider token counts across every attempt of this request (counts only).
+  const ciV2Usage = { attempts: 0, promptTokens: 0, outputTokens: 0, thoughtsTokens: 0, unreported: 0 };
+  const ciV2RecordUsage = (u: GeminiCallResult['usage']) => {
+    if (!ciV2Flag.enabled) return;
+    ciV2Usage.attempts += 1;
+    if (u.promptTokens === null || u.outputTokens === null) {
+      ciV2Usage.unreported += 1;
+      return;
+    }
+    ciV2Usage.promptTokens += u.promptTokens;
+    ciV2Usage.outputTokens += u.outputTokens;
+    ciV2Usage.thoughtsTokens += u.thoughtsTokens ?? 0;
+  };
+  if (ciV2Flag.reason === 'kill_switch') {
+    // CI-06 rollback evidence: metadata only, and nothing else of CI-v2 runs.
+    console.log('[stylechat-generate] ci_v2_flag %s', JSON.stringify(corporateFlagTelemetry(ciV2Flag)));
+  }
   if (ciV2Flag.enabled) {
     const loaded = await loadServerMerchantRegistry(discoveryBrandNamesFetcher(serviceRest), Date.now());
     ciV2Registry = loaded.registry;
@@ -2842,6 +2869,7 @@ Deno.serve(async (req) => {
     ciV2Finalized = result;
     console.log('[stylechat-generate] ci_v2 %s', JSON.stringify(corporateTelemetry({
       flag: ciV2Flag, prepared: ciV2Prepared, finalized: result, registrySource: ciV2RegistrySource,
+      usage: ciV2Usage, model: modelName, providerRetries: providerRetryCount,
       passes: ciV2Passes, elapsedMs: Date.now() - ciV2StartedAt,
     })));
     return result;
@@ -2902,6 +2930,7 @@ Deno.serve(async (req) => {
     assistantText = initial.text;
     ciV2Origin = providerRetryCount > 0 ? 'primary_provider_retry' : 'primary_initial';
     ciV2FinishReason = initial.finishReason;
+    ciV2RecordUsage(initial.usage);
     tokenEstimate = initial.tokenEstimate;
     whyThisWorks  = initial.whyThisWorks;
 
@@ -2935,6 +2964,7 @@ Deno.serve(async (req) => {
 
       try {
         const retry = await callGemini(geminiUrl, retryBody, 'retry', modelName);
+        ciV2RecordUsage(retry.usage);
         const retryIncompleteReason = incompleteReasonFor(
           retry.text,
           message,

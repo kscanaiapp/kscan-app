@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-04T11:48:01.202Z",
-    "generatedFromGitSha": "446f40edff2483f737735ddd5818159d2f5e7e5f"
+    "generatedAtUtc": "2026-11-04T11:56:43.353Z",
+    "generatedFromGitSha": "4db2d44aee93e21d73121f730696e945f94e75e1"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1131,8 +1131,8 @@
         ],
         "bundleFileCount": 67,
         "treeFileCount": 95,
-        "bundleHash": "81ff2b651ccdc90319f731d5f24db055d6e7680f49321420ca00cf5e5586ea65",
-        "treeHash": "837fe0a83e3ed246e3cbe7aa81952b66d22c29634f97e1856dab4e36910986e8",
+        "bundleHash": "76e087fa9d51a738a084f8a6439dcb7300cca9edb7c2aa53b1f9ae41774f73c6",
+        "treeHash": "282f27cf16a74d5ff5c8ac02fa71c50a393ce790f36bfbe014de1c8c26d17729",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -1261,7 +1261,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.handler.test.ts",
-            "sha256": "8ce9f1913b346e3ad5779354e21336cf8b9d67b11a72e4ff0225e8c63b3a0c10",
+            "sha256": "a195a10ecdc2b035d4f5648e6ef4d27b5ce717d9e7c1ea99777b5dababe05835",
             "bundle": false
           },
           {
@@ -1271,7 +1271,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.ts",
-            "sha256": "bab88464ad04b03ff07bacdbc595ca73016247b8da437a5926684e557b8fc032",
+            "sha256": "9f7a3f31be0f44cea77ea45a1444cdbc31c331281aff50ba3d9bf413ab3e76b5",
             "bundle": true
           },
           {
@@ -1486,7 +1486,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "7c1707c0eda908054b43f2fb972355ff929a2a7e65bb6f12e50f029ab857ee3a",
+            "sha256": "535d1f3453606e0c1f53f7cca308aeff799312ffc68ea5ca138197447dc51c98",
             "bundle": true
           },
           {
