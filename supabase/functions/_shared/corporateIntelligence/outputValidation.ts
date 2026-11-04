@@ -680,6 +680,10 @@ const ACTION_DONE: readonly RegExp[] = [
   /\b(?:it(?:'s| is)|they(?:'re| are)) (?:now |already )?(?:saved )?(?:in|on|to) your (?:closet|watchlist|cart|bag|wishlist|saved items|favou?rites)\b/i,
   /\bi(?:'ll| will) (?:go ahead and|save|add|buy|order|purchase|book|reserve|remove|delete|cancel|subscribe|check ?out|update your|change your)\b/i,
   /\bsuccessfully (?:saved|added|purchased|ordered|booked|placed|updated|removed)\b/i,
+  // CI-05 finding: completed EXTERNAL effects (messages to third parties, registrations). Bound to an external party
+  // or a registration verb so ordinary prose ("I've shared a few ideas") is unaffected.
+  /\b(?:i|we)(?:'ve| have)?(?: just| already| now)?\s+(?:sent|messaged|emailed|texted|contacted|notified|forwarded)\b[^.!?]{0,30}?\b(?:the |your |a |an )?(?:merchant|brand|store|shop|retailer|seller|business|boutique|designer|support|customer service|team|owner|founder)s?\b/i,
+  /\b(?:i|we)(?:'ve| have)?(?: just| already| now)?\s+(?:registered|enrolled|signed (?:you |them )?up|onboarded)\b/i,
 ];
 const CAPABILITY_OFFER =
   /\b(?:let me|i can|i could|shall i|should i|want me to|would you like me to|do you want me to)\s+(?:save|add|buy|order|purchase|book|reserve|check ?out|update your|change your|cancel|subscribe)\b/i;
