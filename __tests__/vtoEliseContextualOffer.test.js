@@ -2133,6 +2133,8 @@ function createConversation(world, o = {}) {
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: world.env.actorId } }) },
     '../services/actorScope': world.actorScope,
     '../services/style-chat/eliseConversationFrame': frame,
+    // OC-01 product results: not under test here (covered by eliseCommerceResults.test.js).
+    '../services/style-chat/eliseCommerceResults': { parseEliseCommerceResults: () => null, toEliseCommerceBlock: (r) => r },
     '../services/style-chat/eliseConversationTelemetry': runModule(
       'services/style-chat/eliseConversationTelemetry.ts', {}, { jsx: false },
     ),

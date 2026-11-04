@@ -461,6 +461,9 @@ function loadBubble(world, graph, { mutate } = {}) {
       // Elise contextual Try It On: the bubble routes its app-owned block to
       // this component. Not under test here, so it renders nothing.
       './EliseVtoOffer': { EliseVtoOffer: () => null },
+      // OC-01 product results: not under test here (covered by eliseCommerceResults.test.js).
+      './EliseCommerceResultsBlock': { EliseCommerceResultsBlock: () => null },
+      '../../services/style-chat/eliseCommerceResults': { ELISE_COMMERCE_BLOCK_TYPE: 'elise_commerce_results', parseEliseCommerceBlock: () => null },
       '../../services/style-chat/eliseVtoOffer': runModule(
         'services/style-chat/eliseVtoOffer.ts',
         {},
