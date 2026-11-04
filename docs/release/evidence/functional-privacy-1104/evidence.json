@@ -1,0 +1,201 @@
+{
+  "at": "2026-11-04T11:24:52.882Z",
+  "phase": "Bounded residual #703 / Integration and functional verification",
+  "baseline": "6e187a3c7ab41988ef1abcc5b986ca54eb8ce3e1",
+  "baselineTree": "69e4ba99e1d8487b38b673829df89a2104009dfc",
+  "scannerRuntimeSource": "4c8d903b3b59506e4bb53bc6b77224212deb43be",
+  "batch": {
+    "uniqueNewCases": 10,
+    "scanner": 7,
+    "elise": 3,
+    "canonicalBefore": {
+      "PASS": 2,
+      "FAIL": 8
+    },
+    "note": "Eight split cases plus two additional distinct SDK/missing-token cases on the same baseline; populations overlap intermediate logs and are never summed."
+  },
+  "findings": [
+    {
+      "id": "B35-INT-003",
+      "priority": "P1",
+      "feature": "Scanner",
+      "status": "SOURCE REPAIRED / governed PR and merged CI pending",
+      "observed": "A image crosses invoke after actor/epoch change; cached proof remains usable for B; preparation returns a proof after actor changes. Actual locked Supabase SDK can attach B token to A payload while resolving its fetch token.",
+      "expected": "No preflight/cached/preparation dispatch for a changed generation; once an authorized request starts its token cannot change identity.",
+      "root": "Proof bound only to bytes; no actor fence around local prep or auth await; SDK chooses default authorization asynchronously.",
+      "repair": "Bind proof to actor generation, fence asynchronous preparation and preflight, recheck every send/fallback, require and pin the preflight token.",
+      "newCasesAfter": {
+        "PASS": 7,
+        "FAIL": 0
+      },
+      "relatedAfter": {
+        "PASS": 178,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "typescriptExit": 0
+    },
+    {
+      "id": "B35-INT-004",
+      "priority": "P2",
+      "feature": "Elise direct-image staging",
+      "status": "CONFIRMED / next serialized source repair",
+      "observed": "Encoding begins for A; later stageSanitizedEliseDirectImage captures current B and requests a B-owned candidate for A derivative. A-B-A likewise captures a later epoch.",
+      "expected": "Capture origin before preparation; reject changed epoch before staging and discard derivative.",
+      "source": "services/style-chat/eliseDirectImageAttachment.ts:prepareEliseDirectImage and stageSanitizedEliseDirectImage",
+      "evidence": "Two real service-producer cases request candidate persistence in the wrong generation; candidate storage itself is synthetic. Actual createClosetCandidate resolves ownership from the passed actor request.",
+      "proposedRepair": "Capture canonical actor request before prepareImageForPrivacyUpload, revalidate before candidate stage, preserve cleanup and existing candidate library authority."
+    }
+  ],
+  "sdk": {
+    "locked": "2.105.4",
+    "installed": "2.105.4",
+    "actualPublicCreateClientUsed": true,
+    "network": "Injected fetch only; synthetic tokens, no real network"
+  },
+  "sourceFiles": [
+    {
+      "file": "services/scanIdentification.ts",
+      "sha256": "cb4e735ee324c1f6dadbdbc6d3294bf6cb11f71f691a2409f25e0101f5977b1f",
+      "blob": "930c41f5526f59e44a99900229f078c26c5ac99d"
+    },
+    {
+      "file": "services/scannerScanRequest.ts",
+      "sha256": "a94d3a76ddbb550edabb9f069bde610874ba9426b6a1fe417a8a80133c7532d7",
+      "blob": "76e01c59a8bfdec981420306c576f7e73f83c6fe"
+    },
+    {
+      "file": "services/privacy/scannerDispatchGuard.ts",
+      "sha256": "cda9a2c051e510e2eeb4aa61dc36c180cf8f1470a554782e69d47272aafeed84",
+      "blob": "c3e82e99414e38f3a7818aa2c202dc2e03afcd1b"
+    },
+    {
+      "file": "services/privacy/scannerImagePreparation.ts",
+      "sha256": "f45635bc2236bb9a460c3ed520af604b6391e06ad491c7a7b8d4e13eeb8d4e8f",
+      "blob": "fe7f0b6ce37a752f1df67bacabe86f57da9fc1a3"
+    }
+  ],
+  "sessionFixtureChanges": [
+    {
+      "file": "__tests__\\imageUploadRegression.test.js",
+      "count": 3,
+      "beforeSha256": "80df1d49c51c95fe452a332b224f362bd91c7c3461f02bb1298e841a82970c5a",
+      "afterSha256": "34bf724b686a2db56d501f36d0eb833e5255e3a5a0eb74265217c8073331f8f7"
+    },
+    {
+      "file": "__tests__\\imageUploadSourceCoverage.test.js",
+      "count": 1,
+      "beforeSha256": "a4fc20a2db46fbd003afa2756dc79a0506b51d94fb993065a2b13c06433a02db",
+      "afterSha256": "790167d3d927c4eee7b28449b28f80aee177d289893d1dc73c084dbbf3e7ea40"
+    },
+    {
+      "file": "__tests__\\scanIdentification.test.js",
+      "count": 12,
+      "beforeSha256": "484949932ccdb48568850df5dc3e3e316ab2d80ac13b1b742d7b8977844e85ba",
+      "afterSha256": "ea2fc1a71ce610160cdeb0dda156eb4ce1b700aed0f156b0c5d499755d3224dc"
+    }
+  ],
+  "assertionsRemovedOrChanged": 0,
+  "archives": [
+    {
+      "file": "703-residual-actors-before.log.gz",
+      "rawBytes": 8586,
+      "rawSha256": "01d3eab720c1543c8f0b93d02210630864c891a4ca54275e193e4df874a783b0",
+      "archiveBytes": 1082,
+      "archiveSha256": "1ab5f707b4e9640b771413e1fe79aba0e2dd2dbc291ea9260b06c56251dadaee",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-residual-actors-before-valid-fixture.log.gz",
+      "rawBytes": 7132,
+      "rawSha256": "e47a926fdb2c4cd72d1322e027c80538ebec5eff81cef1c6aeeb1977229b76c4",
+      "archiveBytes": 949,
+      "archiveSha256": "b9eb0002fdfcc7e92e5257d4b10b5b95f15324c05e7709904f39d08de094bf5a",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-residual-actors-eight-before.log.gz",
+      "rawBytes": 10096,
+      "rawSha256": "917513ed25f6c68f433c0f2cb08d0ebfcf28e7d069f32e4d0108629c2be846f9",
+      "archiveBytes": 1197,
+      "archiveSha256": "e8c85b93330cc0c93b32528d093f823f0ce624c1c4920d379b959a0d5c6f230b",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-restored-split-baseline-before.log.gz",
+      "rawBytes": 10124,
+      "rawSha256": "7c12bf44b4e6feb769b2eb80568395e32fee5f541b71b2c1a1b918151da04dcb",
+      "archiveBytes": 1204,
+      "archiveSha256": "ddbddf3675770a6a717493e7b09c155e7107c39d92ed4ba988034f281ea3efa9",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-sdk-token-before.log.gz",
+      "rawBytes": 2934,
+      "rawSha256": "0b7c7696600a63ec8b99224b1bd00763f8520c7520b47764879efa4b57f6cc84",
+      "archiveBytes": 764,
+      "archiveSha256": "9fe3c9e5a488df45c03baaa500c8e3d0b1ef555203227b23512e1b6c2110fcb7",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-sdk-token-before-valid-fixture.log.gz",
+      "rawBytes": 2230,
+      "rawSha256": "d536d526422b3a838dc4e6c5153623c483de83dc82470a118a7855638b2c06cc",
+      "archiveBytes": 678,
+      "archiveSha256": "074ad90d466cb3204345638e56ae6dab97d3cb4f719fde93638e22a63c9c9980",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-missing-token-before.log.gz",
+      "rawBytes": 1754,
+      "rawSha256": "d6072b85e5bf5a3c2119450d2f68bf0ba3a792fcc92a22f8f5906a202f275ed5",
+      "archiveBytes": 605,
+      "archiveSha256": "fc3d8d35f134fefd3bf891812819c9cfaf40be86412a07bf3816e12c8c53b3dc",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-two-new-canonical-before.log.gz",
+      "rawBytes": 3832,
+      "rawSha256": "f55599fe73f5c38d49401becc33a18f27a8b7153336fdbee09046d1e5a3ca642",
+      "archiveBytes": 858,
+      "archiveSha256": "51fd99cae08b955e9bf045b88192642b5bd846986982f69c5e26f293a02b018b",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-final-focused.log.gz",
+      "rawBytes": 30384,
+      "rawSha256": "9ff67fadf33f402fb757aa7f4d89447dcbb008f9db096946d69e82d7ef26d0d6",
+      "archiveBytes": 6392,
+      "archiveSha256": "0ba86c6b88efdf7100144e9a49f5dcdd74690340bfcef3999976ed0140ec9435",
+      "encoding": "UTF-16LE BOM"
+    },
+    {
+      "file": "703-scanner-typescript-final.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archiveBytes": 20,
+      "archiveSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63",
+      "encoding": "UTF-8"
+    }
+  ],
+  "reuse": {
+    "nativeAccuracy": "NOT TESTED / later platform QA; native APIs supplied by fixtures.",
+    "existingMaskingAndFailClosed": "Existing actual boundary/native-adapter orchestration evidence retained; related Scanner suite rerun only because this repair changes its actor contract.",
+    "consent": "Existing deployed Gemini grant/withdrawal/denial canaries retained; no provider or migration replay.",
+    "closet": "Existing sanitized primary/thumbnail and source-only cloud tests retained; no source mutation in that subsystem.",
+    "historicalMatrix": "Frozen 220PASS/1FAIL/2875NT, including354N/A; no matrix counts changed."
+  },
+  "harnessCorrections": [
+    "Initial Scanner positive fixture omitted required attributes.category; corrected before defect confirmation. No application finding from that failure.",
+    "SDK private internal import path did not exist in this installed SDK; replaced by actual public createClient path. No application finding from module error.",
+    "A shell fixture-splitting command failed; original logs retained. Split fixtures were restored from recorded patches and baseline failures reproduced on identical original source.",
+    "Initial154-case after log did not include the five not-yet-restored new cases; only the later final178-case log is final acceptance."
+  ],
+  "restrictions": [
+    "No Production/privacy-provider call",
+    "No real image/customer data",
+    "No new build/TestSprite",
+    "No account-deletion-cycle work",
+    "W1/W2 Production approval separately controlled under #706"
+  ]
+}
