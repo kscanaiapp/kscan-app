@@ -11,6 +11,34 @@ Companion documents:
 * [failure-set-spec.md](failure-set-spec.md) — failure-set construction spec, taxonomy, strata, manifest shape (B)
 * [instrumentation-spec.md](instrumentation-spec.md) — system baselines and per-stage attribution spec (D, H)
 
+## Owner acceptance criteria (real-product retrieval impact)
+
+The owner asked for measured retrieval impact, not test passes. **Kept changes: none**, so there is no per-change row.
+The aggregate is "no change", and every before/after number below is unavailable. **No test pass in this PR is
+evidence of retrieval improvement.**
+
+| # | Criterion | Before | After | Status | Why it could not be measured |
+|---|---|---|---|---|---|
+| 1 | Item identification: correct item + category at attribute extraction, per stratum (single/multi-object, garment/accessory), incl. multi-object target selection | — | — | **INSUFFICIENT EVIDENCE** | 0 labeled items; there are no recorded Gemini responses for real scans, and producing them needs billed calls (budget $0) |
+| 2 | Candidate recall: true or labeled-acceptable product in retrieved candidates and in final shown results; exact-match recall separate | — | — | **INSUFFICIENT EVIDENCE** | 0 labeled items; no recorded provider pools; live provider calls not made |
+| 3 | No fabricated merchant results; 0 ownership labels on ineligible items | — | — | **INSUFFICIENT EVIDENCE (measured)**; structural evidence only, see below | No result sets were produced to audit |
+| 4 | Latency p95 and token/API cost per scan, with provenance | — | — | **INSUFFICIENT EVIDENCE** | No cohort was run. Token cost is unmeasurable today because `scan-identify` never reads Gemini `usageMetadata` (instrumentation spec §2a) |
+
+**Criterion 3, what was checked (structure, not measurement).** Read the current default code paths:
+
+* Shown products come only from provider mappers (`shoppingProvider.ts` `mapSerperItems`, Poshmark mapper) and are
+  then only filtered, deduped and reordered (`qualityTuneCommerce.ts:507-666`). Nothing in that path synthesizes a
+  product or merchant.
+* A Black-owned ownership label (`ownershipIdentity`) is attached only to catalog rows that pass every eligibility
+  check in `black-owned-discovery/engine.ts:35-42`: eligibility window, in stock, expiry, `verified_until`, sync
+  freshness, market and approved domains. It is attached at `engine.ts:64`, and only when the badges flag is on.
+  Existing test `engine.test.ts:27` covers rejection of stale, future, withdrawn, expired, invalid-link and
+  wrong-market rows.
+
+This PR changes none of those files. When the failure set exists, criterion 3 is measured by auditing every shown
+result: its URL and merchant must match a row in the recorded provider pool or catalog snapshot, and every
+`ownershipIdentity` must belong to a row eligible at capture time. The pass condition is 0 violations.
+
 ## A. Branch, SHAs, stacking
 
 * Branch `ci/vri-03-instruction-retrieval`, created from `ci/ci-03-validation-opus` @ `dd82d40d` (CI-03, draft PR #721),
