@@ -192,6 +192,8 @@ function createHarness(options = {}) {
     },
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: actorId } }) },
     '../services/actorScope': actorScope,
+    // OC-01 product results: not under test here (covered by eliseCommerceResults.test.js).
+    '../services/style-chat/eliseCommerceResults': { parseEliseCommerceResults: () => null, toEliseCommerceBlock: (r) => r },
     '../services/style-chat/eliseConversationFrame': loadTsModule(
       'services/style-chat/eliseConversationFrame.ts',
       {},

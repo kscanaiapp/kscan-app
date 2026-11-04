@@ -6,6 +6,11 @@ import { ELISE_CONVERSATION_NOTICE_BLOCK_TYPE } from '../../services/style-chat/
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
+import { EliseCommerceResultsBlock } from './EliseCommerceResultsBlock';
+import {
+  ELISE_COMMERCE_BLOCK_TYPE,
+  parseEliseCommerceBlock,
+} from '../../services/style-chat/eliseCommerceResults';
 import { EliseVtoOffer } from './EliseVtoOffer';
 import {
   ELISE_VTO_OFFER_BLOCK_TYPE,
@@ -267,6 +272,16 @@ export function StyleChatBubble({
 
               if (block?.type === ELISE_CONVERSATION_NOTICE_BLOCK_TYPE) {
                 return <EliseConversationNotice key={`elise-notice-${i}`} block={block} />;
+              }
+
+              // OC-01 product results. Re-validated on render (stored blocks are
+              // display data); an unreadable block renders nothing, never as
+              // the generic block view.
+              if (block?.type === ELISE_COMMERCE_BLOCK_TYPE) {
+                const results = parseEliseCommerceBlock(block);
+                return results ? (
+                  <EliseCommerceResultsBlock key={`commerce-${i}`} results={results} />
+                ) : null;
               }
 
               if (block?.type === 'stylechat_actions') {

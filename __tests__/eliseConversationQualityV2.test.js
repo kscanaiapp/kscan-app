@@ -738,6 +738,8 @@ function createHookHarness({ history = [], reply = 'Loafers keep it polished.', 
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: ACTOR } }) },
     '../services/actorScope': actorScope,
     '../services/style-chat/eliseConversationFrame': frameModule,
+    // OC-01 product results: not under test here (covered by eliseCommerceResults.test.js).
+    '../services/style-chat/eliseCommerceResults': { parseEliseCommerceResults: () => null, toEliseCommerceBlock: (r) => r },
     '../services/style-chat/eliseConversationTelemetry': telemetryModule,
     '../services/commerceHydration': {
       fetchDeferredCommerce: async () => { throw new Error('Commerce transport must not be reached directly'); },

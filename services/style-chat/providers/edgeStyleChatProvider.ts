@@ -106,7 +106,21 @@ export interface EdgeChatResult {
    */
   weatherContext?: unknown;
   weatherContextVersion?: number;
+  /**
+   * OC-01 read-only product results (`oc01-products-v1`). Passed through
+   * UNVALIDATED and untyped, exactly like `weatherContext`: the hook's
+   * `parseEliseCommerceResults` is the single validation point. Absent on
+   * ordinary replies and from any backend that predates the contract.
+   */
+  commerceResults?: unknown;
 }
+
+/**
+ * Capability header: the server runs Elise product tools only for a client
+ * that can render `oc01-products-v1` cards (services/style-chat/eliseCommerceResults.ts).
+ */
+export const ELISE_CLIENT_CAPABILITIES_HEADER = 'X-KScan-Client-Capabilities';
+export const ELISE_CLIENT_CAPABILITIES = 'oc01-products-v1';
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
 
@@ -367,6 +381,8 @@ export class EdgeStyleChatProvider {
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
+        // Header, not body: every request body keeps its exact existing shape.
+        headers: { [ELISE_CLIENT_CAPABILITIES_HEADER]: ELISE_CLIENT_CAPABILITIES },
         body: {
           sessionId: input.sessionId,
           message: input.message,
@@ -634,6 +650,7 @@ export class EdgeStyleChatProvider {
       // than being half-checked here and trusted downstream. A backend that
       // predates this field simply omits it and nothing changes.
       const rawWeather = (data as unknown as Record<string, unknown>).weatherContext;
+      const rawCommerce = (data as unknown as Record<string, unknown>).commerceResults;
       const weatherContextVersion = (data as unknown as Record<string, unknown>)
         .weatherContextVersion;
 
@@ -656,6 +673,7 @@ export class EdgeStyleChatProvider {
                 : {}),
             }
           : {}),
+        ...(isRecord(rawCommerce) ? { commerceResults: rawCommerce } : {}),
       };
 
     } catch (err: unknown) {

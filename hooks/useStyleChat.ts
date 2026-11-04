@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { parseEliseCommerceResults, toEliseCommerceBlock } from '../services/style-chat/eliseCommerceResults';
 import { EdgeStyleChatProvider } from '../services/style-chat/providers/edgeStyleChatProvider';
 import { ELISE_CONCIERGE_V1 } from '../constants/featureFlags';
 import { buildConciergeResult } from '../services/concierge/conciergeModel';
@@ -836,6 +837,17 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         if (replyViolations?.length) {
           explanationBlocks.push(
             ...(buildEliseConversationNotices({ violations: replyViolations }) as unknown as StyleChatUiBlock[]),
+          );
+        }
+
+        // OC-01 product results. Validated HERE (single point; unknown version or
+        // malformed payload -> nothing rendered, reply unchanged), then persisted
+        // as display data in the existing ui_blocks column like the blocks below.
+        // The server never trusts it back: follow-ups use server-held refs.
+        const commerceResults = parseEliseCommerceResults(result.commerceResults);
+        if (commerceResults) {
+          explanationBlocks.push(
+            toEliseCommerceBlock(commerceResults) as unknown as StyleChatUiBlock,
           );
         }
 
