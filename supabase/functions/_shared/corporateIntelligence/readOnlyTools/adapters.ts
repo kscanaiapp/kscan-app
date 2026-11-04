@@ -18,6 +18,8 @@ import type {
 import { type Search, ToolError } from "./request.ts";
 
 export type Provider = "serper" | "brave" | "eligible_catalog";
+/** Reserved for normalization/response after the shopping service returns. */
+export const PRIMARY_MARGIN_MS = 150;
 export type Batch = {
   provider: Provider | "none";
   products: unknown[];
@@ -59,7 +61,12 @@ export function createExistingAdapters(deps: {
         await (deps.shopping ?? getShoppingResults)({
           query,
           limit: 8,
-          timeoutMs: Math.max(1, Math.floor(timeoutMs / 2)),
+          // Live Staging evidence (Build 35 probe): halving the remaining turn
+          // budget left the primary provider ~1 s and it timed out, while the
+          // web-search fallback's page results never survive relevance.
+          // The primary now gets the remaining budget less a small margin; the
+          // broker's 2,500 ms deadline still bounds the whole turn.
+          timeoutMs: Math.max(1, Math.floor(timeoutMs - PRIMARY_MARGIN_MS)),
         });
       if (signal.aborted) throw new ToolError("deadline");
       if (!result || !Array.isArray(result.products)) {
