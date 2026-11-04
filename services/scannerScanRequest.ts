@@ -125,7 +125,15 @@ export async function runScannerIdentification(
       identificationV2: null, candidates: [], fallbackUsed: false,
     };
   }
-  const send = input.transport ?? identifyScanImage;
+  const transport = input.transport ?? identifyScanImage;
+  // Recheck for each dispatch, including the permitted legacy retry. An actor
+  // transition while the first response arrives invalidates the same proof.
+  const send: NonNullable<RunScannerIdentificationInput['transport']> = async (image, options) => {
+    if (!assertScannerImageReadyForDispatch(image, input.privacyProof)) {
+      return { status: 'failed', recommendedProducts: [], userMessage: 'The selected image could not be prepared securely.' };
+    }
+    return transport(image, options);
+  };
   const legacyOptions = legacyOptionsFor(input);
 
   // Flag off → the legacy path, unchanged. The session-latched value is used,

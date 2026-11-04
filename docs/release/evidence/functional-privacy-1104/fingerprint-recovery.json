@@ -1,0 +1,34 @@
+{
+  "previousHead": "3d9d2fe577615e97a1e3bded7b6cbeacc5027042",
+  "run": 41823735918,
+  "job": 126553069950,
+  "failures": [
+    "B004 exact cross-path manifest expectation",
+    "E026 exact cross-path manifest expectation"
+  ],
+  "rootCause": "Both historical promotion tests compared the full cross-path manifest with pre-PR723 Scanner dispatch bytes. New dispatch fingerprint is correct and generator currency already passes.",
+  "repair": "Keep exact20-file comparisons and every old negative control. Explicitly pin only scannerScanRequest to independently reviewed a94d3a76ddbb550edabb9f069bde610874ba9426b6a1fe417a8a80133c7532d7, verify actual file bytes against that literal, and add mutated approved-row/unrelated-row refusal controls.",
+  "testCommand": "node --test __tests__/scannerNullBodySourcePromotion.test.js __tests__/watchlistTicketSourcePromotion.test.js",
+  "results": {
+    "pass": 5,
+    "fail": 0,
+    "skip": 0
+  },
+  "runtimeChanged": false,
+  "securityException": false,
+  "initialFailuresPreserved": true,
+  "archives": [
+    {
+      "file": "723-ci-second-failure.log.gz",
+      "rawBytes": 4198224,
+      "rawSha256": "97dce6d3b041fb99934b98da410e7ce7ff62d0dfdaacec63791b4047e654cf7c",
+      "gzipSha256": "2ff66fbe363520594b4f5ec7600bcffd33565f5a94d2022330200adb18e3b58f"
+    },
+    {
+      "file": "723-promotion-fingerprints.log.gz",
+      "rawBytes": 1394,
+      "rawSha256": "4bcbc31163d0e4155509f943a4435cb5a6337bf8c072aebd9c21e08cd05606b1",
+      "gzipSha256": "6745d3eb11fd39f4a1a5ea87c504ae23646128abe1d960acda77c196804d3cd3"
+    }
+  ]
+}

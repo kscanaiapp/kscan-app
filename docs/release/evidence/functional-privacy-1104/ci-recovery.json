@@ -1,0 +1,82 @@
+{
+  "at": "2026-11-04T11:46:47.800Z",
+  "pr": 723,
+  "source": "1f4abe8b31b8a663ec00517d12b7914d35756909",
+  "sourceTree": "486afc3b6db3b16b2694c0c350121f4e3879e57a",
+  "previousHead": "2170ebc6ecb98005a7a2273a7b77bfa2182c97d2",
+  "originalCI": {
+    "run": 41820831425,
+    "job": 126543229416,
+    "tests": 11658,
+    "pass": 11479,
+    "fail": 83,
+    "skip": 96
+  },
+  "disposition": [
+    "Positive mounted Scanner auth fixtures omitted access_token. Added synthetic token; assertions unchanged.",
+    "Gemini denial fixed-map loader did not execute newly imported actorContext. Resolve the real authority.",
+    "Static auth contract requires the original separate no-session guard. Preserve it before additional actor/token validation.",
+    "Regenerated the existing cross-path fingerprint for scannerScanRequest; no scope or refusal changes.",
+    "Two dry-local certification fixtures lacked tokens. liveEdge now supplies its already configured getToken result to auth preflight. No live provider run."
+  ],
+  "recovery": {
+    "focused": {
+      "tests": 275,
+      "pass": 273,
+      "fail": 2,
+      "skip": 0
+    },
+    "onlyRemainingTwoAfterCorrection": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    },
+    "typescriptExit": 0,
+    "parityCheck": "PASS",
+    "diffCheckExit": 0,
+    "assertionsChanged": 0,
+    "overlap": "Earlier178 tests and recovery populations overlap; do not add them as unique coverage."
+  },
+  "commands": [
+    "node --test <12 affected test files listed in recovery log>",
+    "node --test --test-name-pattern=\"first-attempt commerce timeout|planned phases fit\" __tests__/scannerLiveCertificationHarness.test.js",
+    "node node_modules/typescript/bin/tsc --noEmit",
+    "node scripts/generate-cross-path-parity-manifest.js --check"
+  ],
+  "archives": [
+    {
+      "file": "723-ci-before.log.gz",
+      "rawBytes": 4586830,
+      "rawSha256": "e7d4e286bf6485d3c29ce8dac931bca2ad68eb2db696f397e2e75452299acc01",
+      "gzipBytes": 580380,
+      "gzipSha256": "000adc9422bd48b4f439d555a4d2a99f3d5d50d0b7aab036ef957a6f4f4c39ac"
+    },
+    {
+      "file": "723-ci-recovery-focused.log.gz",
+      "rawBytes": 60234,
+      "rawSha256": "290dfccab4c40798eaa7ddaa2a123f0d6fe56e154e33d4949e3b632fddee3925",
+      "gzipBytes": 11127,
+      "gzipSha256": "543d27b5b4c9e3cb031c570683fa3df62351c149eefa32b8f423ea5314c6506d"
+    },
+    {
+      "file": "723-ci-recovery-two-fixtures.log.gz",
+      "rawBytes": 580,
+      "rawSha256": "0fd06b342dbadd2e67e3c4bc24a2205fac5b26fe812f0ea30b1fda245d430dc3",
+      "gzipBytes": 285,
+      "gzipSha256": "8fbec930d62bfe6e1ef35d311eceb05d0257781a3756b262d470bde61657b600"
+    },
+    {
+      "file": "723-ci-recovery-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipBytes": 20,
+      "gzipSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63"
+    }
+  ],
+  "restrictions": [
+    "No paid/provider/Production request",
+    "No new distinct #703 cases beyond the recorded10",
+    "Final exact-head CI still required before merge"
+  ]
+}

@@ -102,7 +102,7 @@ function buildScannerChain(uriRegistry) {
   const adapter = loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': {
       supabase: {
-        auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+        auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
         functions: {
           invoke: async (fn, opts) => {
             calls.push({ fn, body: opts.body });

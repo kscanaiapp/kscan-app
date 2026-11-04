@@ -4,6 +4,7 @@ import { prepareImageForDispatch, PrivacyDispatchBlockedError } from './privacyB
 import type { PrivacyProof } from './privacyProof';
 import { compressSanitizedImageForAnalysis, cleanupSanitizedImage } from '../privacyImageUpload';
 import { registerScannerImageForDispatch } from './scannerDispatchGuard';
+import { createActorRequest, isActorRequestCurrent } from '../actorContext';
 
 export type PreparedPrivateScannerImage = {
   imageBase64: string;
@@ -17,6 +18,7 @@ export async function prepareScannerImageForDispatch(
   localUri: string,
   options: { maxDimension?: number; quality?: number; signal?: { aborted: boolean } } = {},
 ): Promise<PreparedPrivateScannerImage> {
+  const actorRequest = createActorRequest();
   if (typeof localUri !== 'string' || !/^(file|content):\/\//.test(localUri)) {
     throw new PrivacyDispatchBlockedError('SOURCE_ACCESS_FAILED');
   }
@@ -33,7 +35,8 @@ export async function prepareScannerImageForDispatch(
   let encodedUri: string | undefined;
   try {
     const { proof, width, height } = boundary;
-    if (!proof.processingCompleted || !proof.outputVerified || !proof.metadataStripped ||
+    if (!isActorRequestCurrent(actorRequest) ||
+        !proof.processingCompleted || !proof.outputVerified || !proof.metadataStripped ||
         !proof.faceDetectionPerformed || !proof.plateDetectionPerformed ||
         !Number.isSafeInteger(width) || !Number.isSafeInteger(height) ||
         !width || !height || options.signal?.aborted) {
@@ -45,7 +48,8 @@ export async function prepareScannerImageForDispatch(
       width: maxDimension, quality, sourceWidth: width, sourceHeight: height,
     });
     encodedUri = encoded.uri;
-    if (!encodedUri || encodedUri === localUri || encodedUri === boundary.sanitizedUri ||
+    if (!isActorRequestCurrent(actorRequest) ||
+        !encodedUri || encodedUri === localUri || encodedUri === boundary.sanitizedUri ||
         !encodedUri.startsWith('file://') ||
         !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(encoded.base64) ||
         encoded.base64.length > 8 * 1024 * 1024 || options.signal?.aborted) {

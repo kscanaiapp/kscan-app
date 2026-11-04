@@ -246,7 +246,7 @@ function mountUseKScan(options = {}) {
   const preparedFailures = options.compress ?? {};
 
   const supabase = {
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'actor-a' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-scanner-hook-token', user: { id: 'actor-a' } } } }) },
     functions: { invoke: (name, payload) => edge.invoke(name, payload) },
   };
 
