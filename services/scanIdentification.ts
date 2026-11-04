@@ -566,7 +566,8 @@ export async function identifyScanImage(
   let authorization: string;
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session || !isActorRequestCurrent(actorRequest) ||
+    if (!session) return failed(SIGN_IN_REQUIRED_MESSAGE);
+    if (!isActorRequestCurrent(actorRequest) ||
         (actorRequest.actorId !== null && actorRequest.actorId !== session.user?.id) ||
         typeof session.access_token !== 'string' || !session.access_token.trim()) {
       return failed(SIGN_IN_REQUIRED_MESSAGE);

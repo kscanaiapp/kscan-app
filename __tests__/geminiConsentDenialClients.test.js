@@ -24,6 +24,7 @@ function loadTsModule(relativePath, requireMap = {}) {
     require: (spec) => {
       if (spec in requireMap) return requireMap[spec];
       if (/(^|\/)geminiConsentDenial$/.test(spec)) return loadTsModule('services/geminiConsentDenial.ts');
+      if (/(^|\/)actorContext$/.test(spec)) return loadTsModule('services/actorContext.js');
       return {};
     },
     __DEV__: false,

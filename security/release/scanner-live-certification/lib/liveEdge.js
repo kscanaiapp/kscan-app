@@ -295,7 +295,7 @@ function createLiveEdge({
   }
 
   const supabase = {
-    auth: { getSession: async () => ({ data: { session: { user: { id: actorId ?? 'actor-a' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: await getToken(), user: { id: actorId ?? 'actor-a' } } } }) },
     functions: { invoke },
   };
 
