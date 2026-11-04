@@ -167,7 +167,7 @@ test('ready results render merchant cards that open only the merchant link', asy
   assert.equal(cards[0].props.title, 'Black leather bomber jacket 1');
   assert.equal(cards[0].props.subtitle, 'Nordline');
   assert.equal(cards[0].props.price, '$89.00');
-  assert.match(cards[0].props.accessibilityLabel, /Opens the merchant's site/);
+  assert.match(cards[0].props.accessibilityLabel, /Opens in your browser/, 'no destinationKind: never claimed as the merchant page');
   cards[1].props.onPress();
   await settle();
   assert.deepEqual(opened, ['https://www.nordline.shop/p/2']);
@@ -198,4 +198,20 @@ test('empty, expired, unavailable and declined states render deterministic notic
     assert.equal(notices.length, 1);
     assert.equal(notices[0].props.body, expected);
   }
+});
+
+test('destination kind: merchant pages and shopping-search handoffs are labelled honestly', () => {
+  const parsed = contract.parseEliseCommerceResults(payload({ products: [
+    product(1, { destinationKind: 'merchant' }),
+    product(2, { destinationKind: 'shopping_search', productUrl: 'https://www.google.com/shopping/product/2' }),
+    product(3, { destinationKind: 'bogus' }),
+  ] }));
+  assert.deepEqual(parsed.products.map((p) => p.destinationKind), ['merchant', 'shopping_search', undefined]);
+  const { tree } = renderBlock(parsed);
+  const cards = findAll(tree, (n) => n.type === 'ProductCard');
+  assert.match(cards[0].props.accessibilityLabel, /Opens the merchant's site/);
+  assert.equal(cards[0].props.subtitle, 'Nordline');
+  assert.match(cards[1].props.accessibilityLabel, /shopping search results/);
+  assert.equal(cards[1].props.subtitle, 'Nordline · via shopping search');
+  assert.match(cards[2].props.accessibilityLabel, /Opens in your browser/);
 });

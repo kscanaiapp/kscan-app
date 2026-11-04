@@ -30,6 +30,12 @@ export interface EliseCommerceProduct {
   listedPrice?: string;
   currency?: string;
   source: 'shopping_provider' | 'verified_catalog';
+  /**
+   * 'merchant' = a direct retailer page; 'shopping_search' = a public shopping
+   * search page (e.g. Google Shopping) that is never shown as the merchant's
+   * own page. Absent (older server) is treated as unknown, never as 'merchant'.
+   */
+  destinationKind?: 'merchant' | 'shopping_search';
   observedAt: string;
   ownershipIdentity?: OwnershipIdentity;
 }
@@ -77,6 +83,9 @@ function parseProduct(value: unknown, index: number): EliseCommerceProduct | nul
     : undefined;
   const listedPrice = boundedText(value.listedPrice, 24) ?? undefined;
   const currency = typeof value.currency === 'string' && /^[A-Z]{3}$/.test(value.currency) ? value.currency : undefined;
+  const destinationKind = value.destinationKind === 'merchant' || value.destinationKind === 'shopping_search'
+    ? value.destinationKind
+    : undefined;
   // Ownership only on a verified-catalog record, and only while verified.
   const identity = source === 'verified_catalog' && isRecord(value.ownershipIdentity)
     ? (value.ownershipIdentity as unknown as OwnershipIdentity)
@@ -91,6 +100,7 @@ function parseProduct(value: unknown, index: number): EliseCommerceProduct | nul
     ...(listedPrice ? { listedPrice } : {}),
     ...(currency ? { currency } : {}),
     source,
+    ...(destinationKind ? { destinationKind } : {}),
     observedAt,
     ...(ownershipIdentity ? { ownershipIdentity } : {}),
   };
