@@ -70,12 +70,18 @@ function recallOf(items: readonly ItemRun[]) {
   const anyShown = items.filter((i) => i.shown.some((c) => ACCEPTABLE.has(c.label))).length;
   const exactShown = items.filter((i) => i.shown.some((c) => c.label === 'exact_match')).length;
   const unlabeled = items.reduce((s, i) => s + [...i.candidates, ...i.shown].filter((c) => c.label === 'unlabeled').length, 0);
+  // Exact and visually-similar are reported as disjoint buckets as well, so a
+  // similar-match gain can never be read as (or mask) an exact-match change.
   return {
     n,
+    /** exact OR visually-similar-acceptable (union) */
     candidateAcceptable: rate(anyCand, n),
     candidateExact: rate(exactCand, n),
+    /** visually-similar-acceptable present AND no exact match (disjoint from exact) */
+    candidateSimilarOnly: rate(anyCand - exactCand, n),
     shownAcceptable: rate(anyShown, n),
     shownExact: rate(exactShown, n),
+    shownSimilarOnly: rate(anyShown - exactShown, n),
     unlabeledResults: unlabeled,
   };
 }
@@ -118,7 +124,36 @@ export function auditFabrication(items: readonly ItemRun[]) {
   return { shownChecked, ownershipLabelsChecked, unsourcedShown, ineligibleOwnershipLabels, violations, pass: violations.length === 0 };
 }
 
-export function computeArmMetrics(arm: string, items: readonly ItemRun[]) {
+export class CohortError extends Error {
+  constructor(message: string) {
+    super(`VRI-03 cohort: ${message}`);
+    this.name = 'CohortError';
+  }
+}
+
+/**
+ * One result per item, matching the expected item list exactly. Duplicate,
+ * missing or extra results make the arm unusable rather than silently skewed.
+ */
+export function validateCohort(arm: string, items: readonly ItemRun[], expectedItemIds?: readonly string[]): string[] {
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const i of items) {
+    if (seen.has(i.itemId)) problems.push(`${arm}: duplicate result for ${i.itemId}`);
+    seen.add(i.itemId);
+  }
+  if (expectedItemIds) {
+    const expected = new Set(expectedItemIds);
+    if (expected.size !== expectedItemIds.length) problems.push(`${arm}: expected item list has duplicates`);
+    for (const id of expected) if (!seen.has(id)) problems.push(`${arm}: missing result for ${id}`);
+    for (const id of seen) if (!expected.has(id)) problems.push(`${arm}: unexpected result for ${id}`);
+  }
+  return problems;
+}
+
+export function computeArmMetrics(arm: string, items: readonly ItemRun[], expectedItemIds?: readonly string[]) {
+  const cohortProblems = validateCohort(arm, items, expectedItemIds);
+  if (cohortProblems.length) throw new CohortError(cohortProblems.join('; '));
   const strataKeys = [
     ['single_object', (i: ItemRun) => i.strata.scene === 'single_object'],
     ['multi_object', (i: ItemRun) => i.strata.scene === 'multi_object'],
@@ -136,6 +171,7 @@ export function computeArmMetrics(arm: string, items: readonly ItemRun[]) {
   return {
     arm,
     n: items.length,
+    itemIds: items.map((i) => i.itemId).sort(),
     identification: identificationOf(items),
     recall: recallOf(items),
     byStratum,
@@ -165,7 +201,9 @@ export type ArmMetrics = ReturnType<typeof computeArmMetrics>;
 export function decideKeep(before: ArmMetrics, after: ArmMetrics, limits = { latencyPct: 5, costPct: 5 }) {
   const reasons: string[] = [];
   const b = before.recall, a = after.recall;
-  if (before.n !== after.n || before.n === 0) reasons.push('arms are not on the same non-empty item set');
+  if (before.n === 0) reasons.push('baseline cohort is empty');
+  if (before.itemIds.join('\n') !== after.itemIds.join('\n')) reasons.push('baseline and treatment item IDs differ');
+  if (!before.fabrication.pass) reasons.push('baseline fabrication audit failed (comparison is untrustworthy)');
   if (a.unlabeledResults > 0 || b.unlabeledResults > 0) reasons.push('unlabeled results remain');
   if (a.shownAcceptable === null || b.shownAcceptable === null || !(a.shownAcceptable > b.shownAcceptable)) {
     reasons.push('no gain in shown acceptable-match recall');
