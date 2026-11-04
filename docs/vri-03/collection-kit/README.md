@@ -28,9 +28,9 @@ stratum but reports them as `underpowered`.
 
 | File | Use |
 |---|---|
-| `intake.csv` | One row per item while collecting (spreadsheet-friendly) |
+| `intake.csv.txt` (CSV; `.txt` because the repo ignores `*.csv`) | One row per item while collecting (spreadsheet-friendly) |
 | `failure-set.manifest.template.json` | The manifest shape the gate validates; `items[]` is filled from the intake sheet |
-| `results-labeling.csv` | After each benchmark arm, two reviewers label every retrieved candidate and shown result: `exact_match`, `visually_similar_acceptable`, `wrong_category` or `no_result` |
+| `results-labeling.csv.txt` | After each benchmark arm, two reviewers label every retrieved candidate and shown result: `exact_match`, `visually_similar_acceptable`, `wrong_category` or `no_result` |
 
 ## Must not appear anywhere in the manifest
 

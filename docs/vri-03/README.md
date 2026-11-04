@@ -24,7 +24,7 @@ Built (offline, $0, tested, in no deployed bundle):
 | Manifest gate | `…/benchmark/manifestGate.ts` | ≥15 valid items, consent record per item, two reviewers, human-recorded Google evidence (never inferred), strata. Fails on any identifier-shaped key or value. |
 | Metrics | `…/benchmark/metrics.ts` | The owner's four criteria per arm and per stratum (exact recall separate), the fabrication audit, latency p95, cost per scan. Keep/revert rule: recall win required; no exact, identification, fabrication, latency (+5%) or cost (+5%) regression; anything unmeasured is REVERTED. |
 | Preflight | `…/benchmark/preflight.ts` | NO-GO unless: gate passes, target is Staging, Production ref supplied and refused, Staging-scoped key present, test-actor consent id, image root mounted, owner spend confirmation in the operator session, worst case ≤ remaining budget. The planned 24 × 2 × 3 arms × 3 repeats run (432 attempts) has a worst case of about $10.5. |
-| Collection kit | [`collection-kit/`](collection-kit/README.md) | Owner instructions, `intake.csv`, manifest template, `results-labeling.csv` |
+| Collection kit | [`collection-kit/`](collection-kit/README.md) | Owner instructions, `intake.csv.txt` (CSV; `.txt` because the repo ignores `*.csv`), manifest template, `results-labeling.csv.txt` |
 
 **Why no call was made.** Preflight is NO-GO on the current state, for these reasons:
 
