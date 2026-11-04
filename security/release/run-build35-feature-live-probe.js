@@ -334,7 +334,52 @@ async function run(env = process.env) {
   return report;
 }
 
-if (require.main === module) {
+/** Zero-spend: summarize the last N days of shopping-provider telemetry already in Staging logs. */
+async function serperHistory(env = process.env, days = 7) {
+  assertStagingOnly(env.SUPABASE_STAGING_PROJECT_REF, env.SUPABASE_STAGING_URL);
+  process.stderr.write(`${maskLine(env.SUPABASE_ACCESS_TOKEN)}
+`);
+  const out = {};
+  for (let d = days - 1; d >= 0; d -= 1) {
+    const start = new Date(Date.now() - (d + 1) * 86_400_000).toISOString();
+    const end = new Date(Date.now() - d * 86_400_000).toISOString();
+    const sql = "select timestamp, event_message from logs where source = 'function_logs' and event_message like '%[shopping] provider=%' order by timestamp asc limit 1000";
+    const url = new URL(`https://api.supabase.com/v1/projects/${env.SUPABASE_STAGING_PROJECT_REF}/analytics/endpoints/logs`);
+    url.searchParams.set('sql', sql);
+    url.searchParams.set('iso_timestamp_start', start);
+    url.searchParams.set('iso_timestamp_end', end);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}` } });
+    const body = res.ok ? await res.json().catch(() => ({})) : {};
+    const rows = Array.isArray(body?.result) ? body.result : [];
+    for (const row of rows) {
+      const k = kv(String(row.event_message ?? ''));
+      const key = `${start.slice(0, 10)}:${k.provider}`;
+      const b = (out[key] ??= { calls: 0, ok: 0, timeout: 0, other: 0, latencies: [] });
+      b.calls += 1;
+      if (k.status === '200') b.ok += 1; else if (k.error === 'timeout') b.timeout += 1; else b.other += 1;
+      if (k.status === '200') b.latencies.push(Number(k.latencyMs));
+    }
+  }
+  const summary = Object.fromEntries(Object.entries(out).map(([k, b]) => {
+    const l = b.latencies.sort((x, y) => x - y);
+    const q = (p) => (l.length ? l[Math.min(l.length - 1, Math.floor(p * l.length))] : null);
+    return [k, { calls: b.calls, ok: b.ok, timeout: b.timeout, other: b.other, okLatencyMedianMs: q(0.5), okLatencyMaxMs: l.length ? l[l.length - 1] : null }];
+  }));
+  const report = { probe: 'build35-serper-history-v1', environment: 'staging', days, summary };
+  assertEvidencePrivacy(report);
+  fs.writeFileSync(REPORT_FILE, `${JSON.stringify(report, null, 2)}
+`);
+  return report;
+}
+
+if (require.main === module && process.env.PROBE_MODE === 'serper_history') {
+  serperHistory().then((r) => process.stdout.write(`${JSON.stringify(r.summary)}
+`)).catch((e) => {
+    process.stderr.write(`history failed: ${e.code ?? 'ERROR'}
+`);
+    process.exitCode = 1;
+  });
+} else if (require.main === module) {
   run().then((r) => {
     process.stdout.write(`verdict=${r.verdict.pass ? 'PASS' : 'FAIL'} billable=${r.ledger?.billable} usd=${r.ledger?.estimatedUsd}\n`);
     process.exitCode = r.verdict.pass ? 0 : 1;

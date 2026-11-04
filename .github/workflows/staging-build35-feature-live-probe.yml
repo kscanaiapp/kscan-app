@@ -9,7 +9,16 @@
 name: K Scan Staging Build 35 Feature Live Probe
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: paid = bounded paid probe; serper_history = zero-spend log summary
+        required: true
+        default: serper_history
+        type: choice
+        options:
+          - serper_history
+          - paid
   push:
     branches:
       - test/build35-feature-live-probe-v1
@@ -41,6 +50,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
           STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          PROBE_MODE: ${{ inputs.mode }}
         run: node security/release/run-build35-feature-live-probe.js
 
       - name: Print sanitized evidence
