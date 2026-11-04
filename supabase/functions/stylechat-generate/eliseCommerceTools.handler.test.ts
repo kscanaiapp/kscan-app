@@ -221,3 +221,16 @@ Deno.test('ordinary styling message with OC-01 ON costs nothing extra', T, async
   assert.equal('commerceResults' in r.json, false);
   assert.equal(oc01Logs(r.logs)[0].preFilter, 'none');
 });
+
+Deno.test('review P2-1: an unsafe why_this_works explanation is dropped on a product turn', T, async () => {
+  flags('off', 'on');
+  const previous = state.replyText;
+  state.replyText = '<content>These bombers suit a clean weekend look.</content><why_this_works>At $49 and in stock, it is a steal.</why_this_works>';
+  try {
+    const r = await send('Find me a leather bomber jacket', CAP);
+    assert.equal(r.json.message.content, 'These bombers suit a clean weekend look.');
+    assert.equal('why_this_works' in r.json.message, false);
+  } finally {
+    state.replyText = previous;
+  }
+});

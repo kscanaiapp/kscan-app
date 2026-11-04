@@ -289,8 +289,12 @@ export function createReadOnlyBroker(deps: Dependencies) {
                   if (store && products.length > 0) {
                     // Persistence failure never fails the result; it only means a
                     // later follow-up sees no reference (fail closed).
-                    await bounded(
-                      store.save(actor.id, conversationId!, products, controller.signal),
+                    // Own 1 s budget: a slow search must not leave the save no time (P3-3).
+                    await store.save(
+                      actor.id,
+                      conversationId!,
+                      products,
+                      AbortSignal.any([request.signal, AbortSignal.timeout(1_000)]),
                     ).catch(() => {});
                   }
                 }

@@ -3203,6 +3203,12 @@ Deno.serve(async (req) => {
         if (guarded.fallback) whyThisWorks = undefined;
         console.log('[stylechat-generate] oc01_prose %s', JSON.stringify({ removed: guarded.removed, fallback: guarded.fallback, status: authority.status }));
       }
+      // The optional explanation is model text too (review P2-1): any unsafe
+      // sentence drops the whole explanation rather than showing part of it.
+      if (whyThisWorks && enforceOc01CommerceProse(whyThisWorks, authority).removed > 0) {
+        whyThisWorks = undefined;
+        console.log('[stylechat-generate] oc01_prose %s', JSON.stringify({ field: 'why_this_works', dropped: true, status: authority.status }));
+      }
     }
   }
 

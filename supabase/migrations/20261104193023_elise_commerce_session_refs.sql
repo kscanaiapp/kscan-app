@@ -61,7 +61,7 @@ end $$;
 create function public.elise_commerce_refs_store(p_actor uuid, p_session uuid, p_records jsonb)
 returns int
 language plpgsql security invoker set search_path = '' as $$
-declare item jsonb; stored int := 0; requested timestamptz;
+declare item jsonb; stored int := 0; requested timestamptz; batch_at timestamptz;
 begin
   if p_actor is null or p_session is null then raise exception 'actor and session required' using errcode = '22023'; end if;
   if jsonb_typeof(p_records) <> 'array' or jsonb_array_length(p_records) > 16 then raise exception 'record limit exceeded' using errcode = '22023'; end if;
@@ -69,13 +69,15 @@ begin
     raise exception 'conversation not owned by actor' using errcode = '42501';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('elise_commerce_refs:' || p_actor::text || ':' || p_session::text, 0));
+  -- Taken AFTER the lock, so concurrent writes for one conversation keep their real order.
+  batch_at := clock_timestamp();
   delete from public.elise_commerce_session_refs r where r.actor_id = p_actor and r.expires_at <= now();
   for item in select value from jsonb_array_elements(p_records) loop
     if jsonb_typeof(item) <> 'object' or jsonb_typeof(item->'record') <> 'object' then raise exception 'invalid record' using errcode = '22023'; end if;
     requested := to_timestamp((item->>'expiresAtMs')::double precision / 1000.0);
-    if requested <= now() then continue; end if;
+    if requested <= batch_at then continue; end if;
     insert into public.elise_commerce_session_refs (actor_id, session_id, ref, batch_position, record, created_at, expires_at)
-      values (p_actor, p_session, item->>'ref', (item->>'position')::smallint, item->'record', now(), least(requested, now() + interval '30 seconds'))
+      values (p_actor, p_session, item->>'ref', (item->>'position')::smallint, item->'record', batch_at, least(requested, batch_at + interval '30 seconds'))
       on conflict (actor_id, session_id, ref) do nothing;
     stored := stored + 1;
   end loop;
