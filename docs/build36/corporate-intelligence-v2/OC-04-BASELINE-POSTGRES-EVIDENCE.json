@@ -1,0 +1,549 @@
+{
+  "version": "oc04-pg-v1",
+  "generatedAt": "2026-11-04T18:38:06.166Z",
+  "checks": [
+    {
+      "name": "real physical connections, transaction ownership and rollback",
+      "status": "FAIL",
+      "durationMs": 1167.6014000000005,
+      "error": "The input did not match the regular expression /rollback probe/. Input:\n\n'error: permission denied for table fixture_products'\n",
+      "code": "ERR_ASSERTION"
+    },
+    {
+      "name": "concurrent duplicate execution and fresh request IDs have one durable effect",
+      "status": "PASS",
+      "durationMs": 2862.3985000000002,
+      "physicalConnections": 6,
+      "completed": 6,
+      "effects": 1
+    },
+    {
+      "name": "approval and revocation contend atomically",
+      "status": "PASS",
+      "durationMs": 1165.3979,
+      "winnerState": "approved"
+    },
+    {
+      "name": "reserve/status opposing lock order does not deadlock",
+      "status": "FAIL",
+      "durationMs": 1410.5820000000003,
+      "error": "Real PostgreSQL detected reserve/status lock-order deadlock\n\n1 !== 0\n",
+      "code": "ERR_ASSERTION"
+    }
+  ],
+  "environment": {
+    "platform": "win32",
+    "node": "v24.14.0",
+    "hostCpu": "13th Gen Intel(R) Core(TM) i7-1360P",
+    "hostLogicalCpus": 16,
+    "hostMemoryBytes": 16718417920,
+    "containerCpuLimit": 2,
+    "containerMemoryBytes": 1073741824,
+    "poolMax": 8,
+    "image": "postgres:17",
+    "samples": [],
+    "driverEvents": [
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 78
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 78
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 80
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 80
+      },
+      {
+        "phase": "rollback",
+        "outcome": "rolled_back",
+        "elapsedMs": 12
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 32
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 15
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 16
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 12
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 34
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 19
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 149
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 19
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 118
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 14
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 12
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 12
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 20
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 17
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 12
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 15
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 19
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 36
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 29
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 106
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 122
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 196
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 171
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 216
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 229
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 127
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 139
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 83
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 302
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 304
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 317
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 160
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 164
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 519
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 628
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 694
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 30
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 11
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 11
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 27
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 96
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 15
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 35
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 9
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 11
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 101
+      },
+      {
+        "phase": "rollback",
+        "outcome": "rolled_back",
+        "elapsedMs": 93
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 44
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 21
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 16
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 9
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 15
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 40
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 107
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 11
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 83
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 8
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 7
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 7
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 16
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 13
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 20
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 18
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 16
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 44
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 17
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 57
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 10
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 14
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 41
+      },
+      {
+        "phase": "rollback",
+        "outcome": "rolled_back",
+        "elapsedMs": 131
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 188
+      },
+      {
+        "phase": "commit",
+        "outcome": "committed",
+        "elapsedMs": 10
+      }
+    ],
+    "queryErrors": [
+      {
+        "code": "42501",
+        "statement": "insert into public.fixture_products"
+      },
+      {
+        "code": "40P01",
+        "statement": "select * from"
+      }
+    ],
+    "poolHighWater": 6,
+    "waitingHighWater": 0,
+    "physicalConnections": [
+      69,
+      70,
+      71,
+      72,
+      75,
+      78,
+      77,
+      76,
+      79,
+      80,
+      83,
+      84,
+      87,
+      88
+    ],
+    "lockSamples": [
+      69.626,
+      48.123,
+      25.471,
+      10.177,
+      37.88,
+      23.875,
+      29.852,
+      260.492,
+      245.499,
+      14.116,
+      218.371,
+      269.84,
+      453.514,
+      14.713,
+      24.9,
+      203.007,
+      127.364,
+      76.38,
+      95.867,
+      62.89
+    ],
+    "imageId": "sha256:7958605b474b3d264a969cb3a123d6aa00ad1e1fe9da8a69984dabb704d93317",
+    "postgres": "PostgreSQL 17.10 (Debian 17.10-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "settings": [
+      {
+        "name": "deadlock_timeout",
+        "setting": "100",
+        "unit": "ms"
+      },
+      {
+        "name": "fsync",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "max_connections",
+        "setting": "40",
+        "unit": null
+      },
+      {
+        "name": "shared_buffers",
+        "setting": "16384",
+        "unit": "8kB"
+      },
+      {
+        "name": "synchronous_commit",
+        "setting": "on",
+        "unit": null
+      }
+    ],
+    "cleanup": "verified owned container removed"
+  },
+  "verdict": "FAIL"
+}

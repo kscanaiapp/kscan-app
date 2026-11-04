@@ -48,6 +48,12 @@ function loadModules() {
     ...load(
       path.join(
         base,
+        "_shared/corporateIntelligence/governedExecution/transactionDriver.ts",
+      ),
+    ),
+    ...load(
+      path.join(
+        base,
         "_shared/corporateIntelligence/customerAuthorization/repository.ts",
       ),
     ),
@@ -65,13 +71,16 @@ function loadModules() {
     ),
   };
 }
-async function world({ disk = false, reopenPath } = {}) {
-  const { PGlite } = await import("@electric-sql/pglite");
+async function world(
+  { disk = false, reopenPath, databaseFactory, environment = {} } = {},
+) {
   const location = reopenPath ??
     (disk
       ? await fsp.mkdtemp(path.join(os.tmpdir(), "kscan-oc03-"))
       : undefined);
-  const db = await PGlite.create(location);
+  const db = databaseFactory
+    ? await databaseFactory()
+    : await (await import("@electric-sql/pglite")).PGlite.create(location);
   let currentActor = { actorId: A, accountId: A, anonymous: false };
   let principal = true;
   let channel = true;
@@ -90,6 +99,7 @@ async function world({ disk = false, reopenPath } = {}) {
         FARFETCH3_ENABLED: "true",
         KICKSCREW_ENABLED: "true",
         WATCHLIST_MAX_ACTIVE_WATCHES_PER_ACTOR: "2",
+        ...environment,
       }[key]),
     },
   };
@@ -243,7 +253,7 @@ async function world({ disk = false, reopenPath } = {}) {
   async function lockProduct(sql, a, target) {
     if (resolverFailure) throw Error("SECRET_PROVIDER_ERROR");
     const p = (await sql.query(
-      "select * from public.fixture_products where record_id=$1 and (owner_id is null or owner_id=$2) for update",
+      "select *,floor(extract(epoch from clock_timestamp())*1000)::float8 as observed_ms from public.fixture_products where record_id=$1 and (owner_id is null or owner_id=$2) for update",
       [target.recordId, a.actorId],
     )).rows[0];
     if (!p) throw Error("product_not_found");
@@ -254,7 +264,7 @@ async function world({ disk = false, reopenPath } = {}) {
         productId: p.product_id,
         accountId: p.owner_id,
         revision: p.revision,
-        checkedAt: Date.now(),
+        checkedAt: Math.min(Date.now(), Number(p.observed_ms)),
         validUntil: Date.parse(p.valid_until),
         provenance: { provider: "serper", sourceId: p.source_id },
       },
@@ -410,4 +420,4 @@ async function world({ disk = false, reopenPath } = {}) {
     },
   };
 }
-module.exports = { world, A, B, URL, REF };
+module.exports = { world, loadModules, A, B, URL, REF };

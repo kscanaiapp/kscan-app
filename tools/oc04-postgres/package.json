@@ -1,0 +1,8 @@
+{
+  "name": "kscan-oc04-disposable-postgres-verification",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Explicit local Docker-only OC-04 verification; never accepts an external database URL",
+  "scripts": { "verify": "node run.cjs" },
+  "dependencies": { "pg": "8.23.1" }
+}
