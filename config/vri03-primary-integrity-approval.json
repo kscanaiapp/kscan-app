@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "vri03-primary-integrity-approval-v1",
+  "baseCommit": "dd82d40d99a885d163c859a462c7bc30f9755eaf",
+  "note": "A VRI-03 feature-branch-only, exact-digest exception for intentional H1-H4b scanner changes. It does not alter the immutable historical Black-owned-discovery primary baseline. New scanner changes must be reviewed and explicitly re-pinned. This is not deployment/activation or Android/iOS parity certification.",
+  "approvedFiles": {
+    "supabase/functions/scan-identify/index.ts": {
+      "historicalSha256": "27352dee0b94c3f959781c8aca618b1da8adec379fe3b8a1f4d4a210e388e440",
+      "vri03Sha256": "055ff53842f3ba5896b286e030cd484bbc5de8b3ba26baece2855c4a2abd2fe4",
+      "reason": "Default-OFF H1/H2 prompts/schema, H3 quality gate, H3/H4 commerce options and count-only telemetry."
+    },
+    "supabase/functions/scan-identify/scanCommerceRouter.ts": {
+      "historicalSha256": "717bec5a58bd3e8d4d283da38c23cd0977933789da65cfe78a5042d87e70eb4f",
+      "vri03Sha256": "0b287974764feb154d5aff2e17e470d1d788c22bd021afdad6e7d1b3fdcb0273",
+      "reason": "Default-OFF H3 bounded query fallback and H4 full bounded-pool ranking."
+    }
+  },
+  "consentPromotion": {
+    "historicalPriorEntrypointSha256": "f28e0c8759f8129d3648dd7c62bb23c83c19d729dee83abe26eeba0a2c6773af",
+    "vri03ConsentStrippedSha256": "a68b6b3cfcf027d018d3d7fae300006872d04767e0eae9af1c684f3944f52649"
+  },
+  "releaseRestrictions": [
+    "All VRI-03 environment flags remain OFF",
+    "No production/staging deployment or mobile submission",
+    "Synchronize cross-path parity manifest on both mobile lines before promoting changes to release branches"
+  ]
+}
