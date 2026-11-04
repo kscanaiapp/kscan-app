@@ -114,7 +114,7 @@ test('identifyScanImage attaches auth session and invokes scan-identify', async 
   const adapter = loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': {
       supabase: {
-        auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+        auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
         functions: {
           invoke: async (fn, opts) => {
             invokedFn = fn;
@@ -164,7 +164,7 @@ test('identifyScanImage: oversized payload rejected as 413-class client guard', 
   const adapter = loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': {
       supabase: {
-        auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+        auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
         functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
       },
     },
@@ -197,7 +197,7 @@ test('already-aborted signal short-circuits request ownership', async () => {
   const adapter = loadTsModule('services/scanIdentification.ts', {
     './supabaseClient': {
       supabase: {
-        auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+        auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
         functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
       },
     },

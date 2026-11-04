@@ -12,7 +12,11 @@ function loadScannerDispatchGuard(root) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   const mod = { exports: {} };
-  vm.runInNewContext(output, { module: mod, exports: mod.exports });
+  vm.runInNewContext(output, { module: mod, exports: mod.exports, require(id) {
+    const dependency = require('./commerceMatchContract').resolveCommerceContractImport(id);
+    if (dependency) return dependency;
+    throw new Error(`Unexpected Scanner guard import: ${id}`);
+  } });
   return mod.exports;
 }
 function fixtureInput(guard, input) {

@@ -18,6 +18,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { createActorRequest, isActorRequestCurrent } from './actorContext';
 import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
 import { normalizeCommerceMatchMetadata } from '../supabase/functions/scan-identify/matchTier';
 import { normalizeScannerVisualEvidenceResponse } from './scannerVisualEvidence';
@@ -550,6 +551,7 @@ export async function identifyScanImage(
   image: string,
   options: IdentifyScanOptions = {},
 ): Promise<ScanIdentifyResponse> {
+  const actorRequest = createActorRequest();
   if (!image || typeof image !== 'string') return failed();
 
   const imageBase64 = toRawBase64(image);
@@ -561,9 +563,15 @@ export async function identifyScanImage(
   }
 
   // Authenticated calls only (default stance). Short-circuit before the network.
+  let authorization: string;
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return failed(SIGN_IN_REQUIRED_MESSAGE);
+    if (!session || !isActorRequestCurrent(actorRequest) ||
+        (actorRequest.actorId !== null && actorRequest.actorId !== session.user?.id) ||
+        typeof session.access_token !== 'string' || !session.access_token.trim()) {
+      return failed(SIGN_IN_REQUIRED_MESSAGE);
+    }
+    authorization = `Bearer ${session.access_token}`;
   } catch {
     return failed(SIGN_IN_REQUIRED_MESSAGE);
   }
@@ -632,6 +640,9 @@ export async function identifyScanImage(
     const { data, error } = await supabase.functions.invoke(EDGE_FN, {
       body: requestBody,
       signal: ac.signal,
+      // The SDK may resolve its default token asynchronously. Keep this image
+      // bound to the session that authorized it, even if auth changes in fetch.
+      headers: { Authorization: authorization },
     });
 
     if (error) {

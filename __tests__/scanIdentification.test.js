@@ -203,7 +203,7 @@ test('identifyScanImage: no session → sign-in failure, no invoke', async () =>
 test('identifyScanImage: oversized payload → too large, no invoke', async () => {
   let invoked = false;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: { invoke: async () => { invoked = true; return { data: null, error: null }; } },
   });
   const big = 'data:image/jpeg;base64,' + 'A'.repeat(2 * 1024 * 1024 + 10);
@@ -217,7 +217,7 @@ test('identifyScanImage: success path returns normalized completed', async () =>
   let sentBody = null;
   let invokedFn = null;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async (fn, opts) => {
         invokedFn = fn;
@@ -248,7 +248,7 @@ test('identifyScanImage: success path returns normalized completed', async () =>
 test('camera and gallery uploads use the same Scanner request schema', async () => {
   const bodies = [];
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async (_fn, opts) => {
         bodies.push(JSON.parse(JSON.stringify(opts.body)));
@@ -276,7 +276,7 @@ test('camera and gallery uploads use the same Scanner request schema', async () 
 test('identifyScanImage: multi-item Scanner flow sends multiItemDetection true', async () => {
   let sentBody = null;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async (_fn, opts) => {
         sentBody = opts.body;
@@ -300,7 +300,7 @@ test('identifyScanImage: multi-item Scanner flow sends multiItemDetection true',
 test('identifyScanImage: selected-item body preserves session, digest, candidate, and bounds', async () => {
   let sentBody = null;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async (_fn, opts) => {
         sentBody = opts.body;
@@ -338,7 +338,7 @@ test('identifyScanImage: selected-item body preserves session, digest, candidate
 test('identifyScanImage: malformed multiItemDetection option does not send true', async () => {
   let sentBody = null;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async (_fn, opts) => {
         sentBody = opts.body;
@@ -361,7 +361,7 @@ test('identifyScanImage: malformed multiItemDetection option does not send true'
 
 test('identifyScanImage: invoke error → failed', async () => {
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: { invoke: async () => ({ data: null, error: { message: 'boom' } }) },
   });
   const out = await adapter.identifyScanImage(TINY_DATA_URI, {
@@ -387,7 +387,7 @@ function httpInvokeError(status, body) {
 
 async function identifyWithInvokeError(error) {
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: { invoke: async () => ({ data: null, error }) },
   });
   return adapter.identifyScanImage(TINY_DATA_URI, { source: 'camera', localPrivacyFiltered: true });
@@ -461,7 +461,7 @@ test('identifyScanImage: widening httpStatus cannot trigger the legacy-contract 
 test('identifyScanImage: proceeds without pixel-masking proof when local preparation is attested', async () => {
   let invoked = false;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async () => {
         invoked = true;
@@ -485,7 +485,7 @@ test('identifyScanImage: proceeds without pixel-masking proof when local prepara
 test('identifyScanImage: already-aborted external signal short-circuits before invoke', async () => {
   let invoked = false;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async () => {
         invoked = true;
@@ -514,7 +514,7 @@ test('identifyScanImage: already-aborted external signal short-circuits before i
 test('identifyScanImage: external abort during request cancels the invoke', async () => {
   let receivedSignal = null;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: (_fn, opts) =>
         new Promise((_resolve, reject) => {
@@ -550,7 +550,7 @@ test('identifyScanImage: external abort during request cancels the invoke', asyn
 test('identifyScanImage: successful request with external signal still completes', async () => {
   let invoked = false;
   const adapter = loadAdapter({
-    auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-session-token', user: { id: 'u1' } } } }) },
     functions: {
       invoke: async () => {
         invoked = true;
