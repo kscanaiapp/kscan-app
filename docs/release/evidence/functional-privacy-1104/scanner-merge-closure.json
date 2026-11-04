@@ -1,0 +1,487 @@
+{
+  "reviewedHead": "d3a85732c66be6592eb58ba4d6cd940554cfe52c",
+  "reviewedTree": "e03b2d21e07d70b69a4add13e4fea962b02cb92e",
+  "merge": "acbbff9dc6cecf8deb5db0ea541cb34a8b8644ab",
+  "mergedTree": "e03b2d21e07d70b69a4add13e4fea962b02cb92e",
+  "ci": {
+    "success": 34,
+    "conditionalSkip": 20,
+    "fail": 0
+  },
+  "node": {
+    "pass": 11563,
+    "fail": 0,
+    "skip": 96
+  },
+  "backend": {
+    "pass": 1605,
+    "steps": 34,
+    "fail": 0
+  },
+  "reviews": [],
+  "threads": [],
+  "prRuns": [
+    {
+      "run": 41824862755,
+      "jobs": [
+        {
+          "id": 126556887505,
+          "name": "Trivy filesystem",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556887590,
+          "name": "Gitleaks",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556887826,
+          "name": "npm audit",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556887836,
+          "name": "Semgrep Community Edition",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556887882,
+          "name": "Project checks",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556887956,
+          "name": "OSV-Scanner",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126560499364,
+          "name": "Security summary",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862701,
+      "jobs": [
+        {
+          "id": 126556886916,
+          "name": "Security promotion gate",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862648,
+      "jobs": [
+        {
+          "id": 126556886984,
+          "name": "Dependency reachability gate",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862694,
+      "jobs": [
+        {
+          "id": 126556886535,
+          "name": "VTO scope guard (enforced)",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556886802,
+          "name": "VTO E2E — contract",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126556888274,
+          "name": "VTO E2E — cleanup",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126556888491,
+          "name": "VTO E2E — staging full certification (paid)",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126556888530,
+          "name": "VTO E2E — user-supplied garment log audit",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126556888573,
+          "name": "VTO E2E — staging dry run",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126556888618,
+          "name": "VTO E2E — user-supplied garment dry run",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126556950333,
+          "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+          "conclusion": "skipped",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862716,
+      "jobs": [
+        {
+          "id": 126556887187,
+          "name": "ZAP API staging",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862683,
+      "jobs": [
+        {
+          "id": 126556886797,
+          "name": "ZAP Baseline (staging)",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862677,
+      "jobs": [
+        {
+          "id": 126556886211,
+          "name": "Build 35 release holds and identity",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "run": 41824862812,
+      "jobs": [
+        {
+          "id": 126557573725,
+          "name": "Classify changed surfaces",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126557692842,
+          "name": "Contract tests",
+          "conclusion": "success",
+          "status": "completed"
+        },
+        {
+          "id": 126557694485,
+          "name": "Migration validation",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126557695567,
+          "name": "Deploy staging candidate",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126557696073,
+          "name": "Staging health checks",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126557698114,
+          "name": "Synthetic auth tests",
+          "conclusion": "skipped",
+          "status": "completed"
+        },
+        {
+          "id": 126557989828,
+          "name": "Staging security gate",
+          "conclusion": "success",
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "pushRuns": [
+    {
+      "run": 41824853183,
+      "jobs": [
+        {
+          "id": 126556856671,
+          "name": "ZAP API staging",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853226,
+      "jobs": [
+        {
+          "id": 126556856647,
+          "name": "ZAP Baseline (staging)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853248,
+      "jobs": [
+        {
+          "id": 126556857055,
+          "name": "Build 35 release holds and identity",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853492,
+      "jobs": [
+        {
+          "id": 126556858521,
+          "name": "Dependency reachability gate",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853112,
+      "jobs": [
+        {
+          "id": 126556858844,
+          "name": "Classify changed surfaces",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556991018,
+          "name": "Contract tests",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556991043,
+          "name": "Migration validation",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126557188957,
+          "name": "Staging health checks",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126557189490,
+          "name": "Deploy staging candidate",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126557190086,
+          "name": "Synthetic auth tests",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126557536641,
+          "name": "Staging security gate",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853096,
+      "jobs": [
+        {
+          "id": 126556856172,
+          "name": "VTO E2E — contract",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857880,
+          "name": "VTO E2E — user-supplied garment dry run",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556858001,
+          "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556858045,
+          "name": "VTO E2E — user-supplied garment log audit",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556858338,
+          "name": "VTO E2E — cleanup",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556858542,
+          "name": "VTO E2E — staging dry run",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556858643,
+          "name": "VTO E2E — staging full certification (paid)",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "id": 126556859550,
+          "name": "VTO scope guard (enforced)",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run": 41824853172,
+      "jobs": [
+        {
+          "id": 126556856947,
+          "name": "Security promotion gate",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "run": 41824853284,
+      "jobs": [
+        {
+          "id": 126556857210,
+          "name": "OSV-Scanner",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857587,
+          "name": "Semgrep Community Edition",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857653,
+          "name": "Gitleaks",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857677,
+          "name": "Trivy filesystem",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857694,
+          "name": "npm audit",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126556857883,
+          "name": "Project checks",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 126560186953,
+          "name": "Security summary",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "postmerge": [
+    {
+      "id": 41833263754,
+      "name": "Security - Promotion Gate",
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "id": 41833263827,
+      "name": "Security - Code and Dependencies",
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "id": 41833263794,
+      "name": "Build 35 Release Profile Guard",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263832,
+      "name": "VTO Backend E2E",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263732,
+      "name": "K Scan Staging Security Gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263908,
+      "name": "Security - ZAP API Staging",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263755,
+      "name": "Dependency Reachability Gate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263809,
+      "name": "Security - ZAP Baseline Staging",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 41833263753,
+      "name": "Build 35 iOS source certification",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

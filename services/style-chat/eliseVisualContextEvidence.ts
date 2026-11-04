@@ -56,6 +56,7 @@ import {
 } from './eliseIdentificationV2';
 import { currentIdentificationPlatform } from './eliseDirectImageIdentification';
 import { projectV2ToVisualContextFields } from './eliseVisualContextV2Projection';
+import { createActorRequest, isActorRequestCurrent } from '../actorContext';
 
 /** Structured, server-safe descriptive fields derived from identification. */
 export type VisualContextEvidenceFields = Omit<EliseVisualContextInput, 'source'>;
@@ -194,7 +195,10 @@ async function finishVisualContextEvidence(input: {
   sanitizedUri: string;
   previewUri?: string;
   signal?: AbortSignal;
+  actorRequest: ReturnType<typeof createActorRequest>;
+  isCurrent: () => boolean;
 }): Promise<VisualContextEvidenceResult> {
+  if (!input.isCurrent()) return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
   const projected = projectV2ToVisualContextFields(input.identification);
   if (!projected || !input.identification) {
     // Canonical identity with no category AND no subtype cannot title a reference.
@@ -208,6 +212,7 @@ async function finishVisualContextEvidence(input: {
       input.sanitizedUri,
       'photo_library',
       input.previewUri,
+      input.actorRequest,
     );
   } catch {
     return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
@@ -270,8 +275,11 @@ export async function prepareVisualContextEvidence(input: {
   isCurrent?: () => boolean;
 }): Promise<VisualContextEvidenceResult> {
   const { sanitizedUri, signal } = input;
+  const actorRequest = createActorRequest();
+  const isCurrent = () => isActorRequestCurrent(actorRequest) && !signal?.aborted &&
+    (input.isCurrent ? input.isCurrent() === true : true);
 
-  if (signal?.aborted) {
+  if (!isCurrent()) {
     return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
   }
 
@@ -288,7 +296,7 @@ export async function prepareVisualContextEvidence(input: {
     };
   }
 
-  if (signal?.aborted) {
+  if (!isCurrent()) {
     return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
   }
 
@@ -322,9 +330,10 @@ export async function prepareVisualContextEvidence(input: {
         policy: 'outfit',
         ...(signal ? { signal } : {}),
         ...(input.transport ? { transport: input.transport } : {}),
-        ...(input.isCurrent ? { isCurrent: input.isCurrent } : {}),
+        isCurrent,
       });
 
+      if (!isCurrent()) return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
       if (outcome.state === 'cancelled') {
         return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
       }
@@ -341,6 +350,8 @@ export async function prepareVisualContextEvidence(input: {
           sanitizedUri,
           previewUri: input.previewUri,
           signal,
+          actorRequest,
+          isCurrent,
         });
       }
       if (outcome.state === 'technical_failure') {
@@ -372,7 +383,7 @@ export async function prepareVisualContextEvidence(input: {
     signal,
   });
 
-  if (signal?.aborted) {
+  if (!isCurrent()) {
     return { ok: false, reason: 'cancelled', message: CANCELLED_MESSAGE };
   }
 
@@ -416,6 +427,7 @@ export async function prepareVisualContextEvidence(input: {
       sanitizedUri,
       'photo_library',
       input.previewUri,
+      actorRequest,
     );
   } catch {
     return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };

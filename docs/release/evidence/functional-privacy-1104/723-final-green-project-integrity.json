@@ -1,0 +1,15 @@
+{
+  "rawBytes": 2032853,
+  "rawSha256": "7bd3f666297f04d871fcb657d18bed0fafab8637550646f71da592b369b75960",
+  "gzipSha256": "e8f155bd802a9dfe1cd516e85e3fe703f6b0d8d91bb67d0c513c4efbc3925b3c",
+  "source": "GitHub job126556887882 decoded UTF8, line endings normalized by patch transfer",
+  "node": {
+    "pass": 11563,
+    "fail": 0,
+    "skip": 96
+  },
+  "backend": {
+    "pass": 1605,
+    "fail": 0
+  }
+}

@@ -49,6 +49,7 @@ function loadTsModule(relativePath, requireMap = {}) {
     module: mod,
     require: (spec) => {
       if (spec in requireMap) return requireMap[spec];
+      if (spec === '../actorContext') return loadTsModule('services/actorContext.js');
       throw new Error(`Unexpected import in ${relativePath}: ${spec}`);
     },
   };
