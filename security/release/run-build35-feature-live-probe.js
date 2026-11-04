@@ -159,7 +159,7 @@ const jsonAfter = (msg, marker) => {
   if (j < 0) return null;
   try { return JSON.parse(msg.slice(j)); } catch { return null; }
 };
-const kv = (msg) => Object.fromEntries([...msg.matchAll(/([a-z_]+)=([^\s]+)/gi)].map((m) => [m[1], m[2]]));
+const kv = (msg) => Object.fromEntries([...msg.matchAll(/([a-z0-9_]+)=([^\s]+)/gi)].map((m) => [m[1], m[2]]));
 
 /** Metadata-only telemetry → ledger of billable calls and token totals. */
 function ledgerFrom(rows) {
@@ -247,7 +247,16 @@ async function run(env = process.env) {
   let ledger = null;
   try {
     // ── Priority 1–3: OC-01 find → refine → compare, separate HTTP requests, CI-v2 + OC-01 ON ──
-    const elise = (message, headers = CAPABILITY_HEADER) => call(eliseUrl, key, token, { sessionId, message, requestId: `b35probe-${crypto.randomUUID()}` }, headers);
+    // Mirrors the app's text send: persist the customer's message first (so the
+    // server's conversation history holds it), then generate with its id.
+    const elise = async (message, headers = CAPABILITY_HEADER) => {
+      const saved = await fetch(`${rest}/style_chat_messages`, {
+        method: 'POST', headers: { ...restHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify({ session_id: sessionId, user_id: userId, sender: 'user', content: message }),
+      }).then((r) => r.json()).catch(() => null);
+      const sourceMessageId = Array.isArray(saved) && typeof saved[0]?.id === 'string' ? saved[0].id : undefined;
+      return call(eliseUrl, key, token, { sessionId, message, requestId: `b35probe-${crypto.randomUUID()}`, ...(sourceMessageId ? { sourceMessageId } : {}) }, headers);
+    };
     const t0 = Date.now();
     scenarios.oc01_find = summarizeElise(await elise('Find me a black leather bomber jacket'));
     scenarios.oc01_refine = summarizeElise(await elise('Show me ones in brown instead'));
