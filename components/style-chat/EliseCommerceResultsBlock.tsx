@@ -24,6 +24,12 @@ interface Props {
  * verified-identity path. Tapping a card opens the merchant page through the
  * shared external-URL guard; nothing is bought, saved or tracked.
  */
+function destinationHint(kind: 'merchant' | 'shopping_search' | undefined): string {
+  if (kind === 'merchant') return "Opens the merchant's site.";
+  if (kind === 'shopping_search') return 'Opens shopping search results for this item.';
+  return 'Opens in your browser.';
+}
+
 export function EliseCommerceResultsBlock({ results, testID = 'elise-commerce-results' }: Props) {
   const [linkFailed, setLinkFailed] = useState(false);
 
@@ -73,11 +79,11 @@ export function EliseCommerceResultsBlock({ results, testID = 'elise-commerce-re
             key={`${p.number}-${p.productUrl}`}
             imageUrl={p.imageUrl}
             title={p.title}
-            subtitle={p.merchant}
+            subtitle={p.destinationKind === 'shopping_search' ? `${p.merchant} · via shopping search` : p.merchant}
             price={p.listedPrice}
             ownershipIdentity={p.ownershipIdentity}
             onPress={() => open(p.productUrl)}
-            accessibilityLabel={`${p.number}. ${p.title} from ${p.merchant}${p.listedPrice ? `, listed at ${p.listedPrice}` : ''}. Opens the merchant's site.`}
+            accessibilityLabel={`${p.number}. ${p.title} from ${p.merchant}${p.listedPrice ? `, listed at ${p.listedPrice}` : ''}. ${destinationHint(p.destinationKind)}`}
             style={styles.card}
           />
         ))}
