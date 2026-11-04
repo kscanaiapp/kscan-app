@@ -414,6 +414,13 @@ export function finalizeCorporateStyleChatText(input: CorporateFinalizeInput): C
   };
 }
 
+export const CI_V2_TELEMETRY_VERSION = 'ci06-telemetry-v1' as const;
+
+/** Rollback evidence (kill switch engaged): flag state only. */
+export function corporateFlagTelemetry(flag: CorporateV2FlagState): Record<string, string> {
+  return { telemetryVersion: CI_V2_TELEMETRY_VERSION, integration: CI_V2_INTEGRATION_VERSION, flag: flag.reason };
+}
+
 /** Metadata-only CI-06 log line. No text, prompt, user id, merchant name or evidence. */
 export function corporateTelemetry(state: {
   flag: CorporateV2FlagState;
@@ -422,9 +429,21 @@ export function corporateTelemetry(state: {
   registrySource?: string;
   passes: number;
   elapsedMs: number;
+  usage?: { attempts: number; promptTokens: number; outputTokens: number; thoughtsTokens: number; unreported: number };
+  model?: string;
+  providerRetries?: number;
 }): Record<string, string | number | boolean | null> {
   const t = state.finalized?.trace ?? null;
+  const u = state.usage;
   return {
+    telemetryVersion: CI_V2_TELEMETRY_VERSION,
+    model: typeof state.model === 'string' && /^[a-z0-9.-]{1,40}$/.test(state.model) ? state.model : null,
+    providerAttempts: u?.attempts ?? 0,
+    providerRetries: state.providerRetries ?? 0,
+    promptTokens: u ? u.promptTokens : null,
+    outputTokens: u ? u.outputTokens : null,
+    thoughtsTokens: u ? u.thoughtsTokens : null,
+    usageUnreported: u?.unreported ?? 0,
     integration: CI_V2_INTEGRATION_VERSION,
     flag: state.flag.reason,
     prepared: state.prepared ? (state.prepared.ok ? 'ok' : state.prepared.reason) : 'not_run',

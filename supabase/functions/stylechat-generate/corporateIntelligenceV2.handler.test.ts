@@ -119,7 +119,8 @@ async function send(message: string, replies: GeminiReply[] = [], extra: Record<
   }
 }
 
-const ciLogs = (logs: string[]) => logs.filter((l) => l.includes('[stylechat-generate] ci_v2')).map((l) => JSON.parse(l.slice(l.indexOf('{'))));
+const ciLogs = (logs: string[]) => logs.filter((l) => l.includes('[stylechat-generate] ci_v2 %s')).map((l) => JSON.parse(l.slice(l.indexOf('{'))));
+const flagLogs = (logs: string[]) => logs.filter((l) => l.includes('[stylechat-generate] ci_v2_flag %s')).map((l) => JSON.parse(l.slice(l.indexOf('{'))));
 const stripVolatile = (j: Record<string, unknown>) => JSON.parse(JSON.stringify(j, (k, v) => (k === 'resetAt' ? null : v)));
 const T = { sanitizeOps: false, sanitizeResources: false };
 
@@ -302,6 +303,9 @@ Deno.test({
     assert.deepEqual(next.gemini, legacy.gemini);
     assert.deepEqual(stripVolatile(next.json), stripVolatile(legacy.json));
     assert.equal(ciLogs(next.logs).length, 0);
+    // CI-06 rollback evidence: exactly one metadata-only flag line, nothing else.
+    assert.deepEqual(flagLogs(next.logs).map((l) => l.flag), ['kill_switch']);
+    assert.equal(flagLogs(legacy.logs).length, 0, 'plain OFF emits nothing at all');
     // Elise itself is unaffected by the kill switch.
     assert.equal(next.json.status, 'success');
     Deno.env.delete(CI_V2_KILL_SWITCH_ENV);
@@ -343,8 +347,13 @@ Deno.test({
     const [log] = ciLogs(r.logs);
     assert.deepEqual(Object.keys(log).sort(), [
       'copyKey', 'elapsedMs', 'eligibleCount', 'failureCodes', 'fallbackReason', 'finalizationPasses', 'flag', 'integration',
-      'labelsRendered', 'mode', 'origin', 'prepared', 'register', 'registrySource', 'sanitizerCorruption', 'stage', 'taskVerb', 'validator',
+      'labelsRendered', 'mode', 'model', 'origin', 'outputTokens', 'prepared', 'promptTokens', 'providerAttempts', 'providerRetries',
+      'register', 'registrySource', 'sanitizerCorruption', 'stage', 'taskVerb', 'telemetryVersion', 'thoughtsTokens', 'usageUnreported', 'validator',
     ]);
+    // Token counts come from the provider's usageMetadata (mock: 100 prompt / 20 output per attempt).
+    assert.equal(log.providerAttempts, 1);
+    assert.equal(log.promptTokens, 100);
+    assert.equal(log.outputTokens, 20);
     setFlag('unset');
   },
 });
