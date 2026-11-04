@@ -14,7 +14,7 @@ import {
   cleanupSanitizedImage,
   prepareImageForPrivacyUpload,
 } from '../privacyImageUpload';
-import { createActorRequest } from '../actorContext';
+import { createActorRequest, isActorRequestCurrent } from '../actorContext';
 import {
   createClosetCandidate,
   deleteClosetCandidate,
@@ -62,17 +62,20 @@ export async function stageSanitizedEliseDirectImage(
   sanitizedUri: string,
   source: 'camera' | 'photo_library',
   previewUri?: string,
+  actorRequest = createActorRequest(),
 ): Promise<PreparedDirectImage> {
   if (!sanitizedUri || typeof sanitizedUri !== 'string') throw new Error('No image selected.');
+  if (!isActorRequestCurrent(actorRequest)) throw new Error('Attachment cancelled.');
 
   const operationId = newOperationId();
-  const staged = await createClosetCandidate(createActorRequest(), {
+  const staged = await createClosetCandidate(actorRequest, {
     sourceUri: sanitizedUri,
     sourceType: source === 'camera' ? 'camera' : 'gallery',
     sourceLineageId: `elise:${operationId}`,
     draft: { title: 'Photo' },
   });
   if (
+    !isActorRequestCurrent(actorRequest) ||
     staged.kind === 'rejected' ||
     staged.kind === 'already_in_closet' ||
     !('candidate' in staged) ||
@@ -100,13 +103,14 @@ export async function prepareEliseDirectImage(
   source: 'camera' | 'photo_library',
 ): Promise<PreparedDirectImage> {
   if (!localUri || typeof localUri !== 'string') throw new Error('No image selected.');
+  const actorRequest = createActorRequest();
 
   const prepared = await prepareImageForPrivacyUpload(localUri, {
     maxDimension: SCANNER_IMAGE_MAX_WIDTH,
     quality: SCANNER_IMAGE_JPEG_QUALITY,
   });
   try {
-    const staged = await stageSanitizedEliseDirectImage(prepared.sanitizedUri, source);
+    const staged = await stageSanitizedEliseDirectImage(prepared.sanitizedUri, source, undefined, actorRequest);
     return { ...staged, width: prepared.width, height: prepared.height };
   } catch (error) {
     await cleanupSanitizedImage(prepared.sanitizedUri);
