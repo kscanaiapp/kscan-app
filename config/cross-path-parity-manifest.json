@@ -22,7 +22,7 @@
       },
       {
         "path": "supabase/functions/stylechat-generate/index.ts",
-        "sha256": "7c1707c0eda908054b43f2fb972355ff929a2a7e65bb6f12e50f029ab857ee3a"
+        "sha256": "535d1f3453606e0c1f53f7cca308aeff799312ffc68ea5ca138197447dc51c98"
       }
     ],
     "contract": [
