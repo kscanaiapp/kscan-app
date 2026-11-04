@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-04T15:27:21.820Z",
-    "generatedFromGitSha": "67e2e477be500008ecf3559eb5d5fb78bab2673b"
+    "generatedAtUtc": "2026-11-04T15:34:05.106Z",
+    "generatedFromGitSha": "35436e4483f6437cccf3690cd52c9aa75f46edae"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1132,7 +1132,7 @@
         "bundleFileCount": 67,
         "treeFileCount": 96,
         "bundleHash": "6469019cdb6a580fa42bc344669d189d6bcdbcfca2a79bc63d760107ed999f1e",
-        "treeHash": "4807b666cecf5bed6ccdace21eaf9bc238dd0a643e9d1d1747dde4f5b527b71c",
+        "treeHash": "1b29b55084c78d25e650a2311f5e875c5c069ae283a53a607ec7406a5a8da99a",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -1261,7 +1261,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.handler.test.ts",
-            "sha256": "a195a10ecdc2b035d4f5648e6ef4d27b5ce717d9e7c1ea99777b5dababe05835",
+            "sha256": "79014135a9ba3dfdd3d81e7d2e6c058bb2a7728c6b7280de1646c63878f2695e",
             "bundle": false
           },
           {

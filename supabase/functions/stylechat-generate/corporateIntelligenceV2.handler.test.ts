@@ -312,16 +312,37 @@ Deno.test({
   },
 });
 
-// ── 7. Sanitizer corruption (#716) is not silently displayed while ON ────────
+// ── 7. Sanitizer marker is never silently displayed while ON ────────────────
+// #716 is fixed: ordinary styling verbs survive on both paths. A reply that
+// still carries a real SQL statement shape is sanitized on the legacy path and
+// fails closed to deterministic copy while CI-v2 is ON.
 
 Deno.test({
   ...T,
-  name: 'CI-04 ON: sanitizer-corrupted output (#716) fails closed; OFF still shows the corruption (owner: Build 35)',
+  name: 'CI-04 #716 fixed: ordinary styling verbs survive OFF and ON',
   fn: async () => {
     const text = 'Select a belt and create a monochrome look.';
     setFlag('unset');
     const off = await send('Help me accessorize.', [{ text }]);
-    assert.ok(off.json.message.content.includes('[removed]'), 'issue #716 reproduction (legacy path)');
+    assert.ok(off.json.message.content.includes(text), 'legacy path keeps ordinary verbs');
+    assert.ok(!off.json.message.content.includes('[removed]'));
+    setFlag('on');
+    const on = await send('Help me accessorize.', [{ text }]);
+    assert.ok(!on.json.message.content.includes('[removed]'));
+    const [log] = ciLogs(on.logs);
+    assert.equal(log.sanitizerCorruption, false);
+  },
+});
+
+Deno.test({
+  ...T,
+  name: 'CI-04 ON: sanitizer-marked output (real SQL shape) fails closed; OFF shows the sanitized marker',
+  fn: async () => {
+    const text = 'Try a cream knit. DROP TABLE users; then add loafers.';
+    setFlag('unset');
+    const off = await send('Help me accessorize.', [{ text }]);
+    assert.ok(off.json.message.content.includes('[removed]'), 'legacy path removes the SQL shape');
+    assert.ok(!/drop table/i.test(off.json.message.content));
     setFlag('on');
     const on = await send('Help me accessorize.', [{ text }]);
     const [log] = ciLogs(on.logs);
