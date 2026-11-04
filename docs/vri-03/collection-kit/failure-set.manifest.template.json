@@ -1,0 +1,36 @@
+{
+  "setId": "vri-03-failure-set",
+  "version": "0.0.0",
+  "status": "AWAITING_OWNER_COLLECTION",
+  "consentPolicyId": "<existing image-consent policy id>",
+  "gate": "supabase/functions/_shared/vri03/benchmark/manifestGate.ts (needs >= 15 valid items)",
+  "exampleItem": {
+    "itemId": "vri03-0001",
+    "imageDigest": "sha256:<64 lowercase hex of the stored, identifier-stripped image>",
+    "consent": {
+      "policyId": "<existing image-consent policy id>",
+      "evidenceId": "<opaque consent record id, not a person's name or email>",
+      "consentedAt": "YYYY-MM-DD"
+    },
+    "strata": {
+      "scene": "single_object | multi_object",
+      "type": "garment | accessory",
+      "brandVisible": false,
+      "blackOwnedRelevance": "yes | no | unknown"
+    },
+    "targetDescription": "multi_object only: which item is the target, e.g. 'the red shoulder bag, lower left'",
+    "googleEvidence": {
+      "retailerDomain": "retailer.example",
+      "productTitle": "<product title exactly as shown on the product page>",
+      "capturedAt": "YYYY-MM-DD",
+      "market": "US",
+      "purchasable": true
+    },
+    "groundTruth": {
+      "category": "<e.g. outerwear | top | pants | dress | footwear | bag | accessory>",
+      "subtype": "<e.g. moto jacket>",
+      "reviewers": 2
+    }
+  },
+  "items": []
+}

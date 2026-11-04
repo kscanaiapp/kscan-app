@@ -12,6 +12,7 @@ import {
 } from '../_shared/scanHelpers.ts';
 import { isGenericFashionLabel } from './qualityTuneNormalize.ts';
 import { resolveScannerBrandEvidence } from './brandEvidence.ts';
+import { preserveModelSearchQueries } from './vri03ScanImprovements.ts';
 import {
   type IdentityConfidence,
   type IdentityGrade,
@@ -99,6 +100,11 @@ export type ScannerQualityGateOptions = {
   commerceIdentityEnabled?: boolean;
   /** Request scope only: false preserves pre-repair Elise/TextScan brand behavior. */
   useClassifiedBrandEvidence?: boolean;
+  /**
+   * VRI-03 H3 (default OFF): keep up to two of Gemini's own brand-safe search
+   * phrasings AFTER the quality label instead of overwriting them.
+   */
+  vri03PreserveModelQueries?: boolean;
 };
 
 /** Static O(1) subtype families accepted per catalog category — module-load init. */
@@ -723,7 +729,19 @@ export function applyScannerQualityGate(
   if (Array.isArray(identification.search_queries) || qualityBand !== 'low') {
     const q = label.toLowerCase();
     if (q && !isGenericFashionLabel(q)) {
-      identification.search_queries = [q];
+      if (options?.vri03PreserveModelQueries) {
+        // Block every brand the input named unless it is the brand that
+        // survived verification above. Preservation never reintroduces a
+        // suppressed brand.
+        const finalBrand = typeof identification.brand_guess === 'string' ? collapseSpaces(identification.brand_guess).toLowerCase() : '';
+        const src = (identificationIn ?? {}) as Record<string, unknown>;
+        const blocked = [src.brand_guess, src.logo_brand, src.visible_brand_text, src.brand]
+          .filter((v): v is string => typeof v === 'string' && !!collapseSpaces(v))
+          .filter((v) => collapseSpaces(v).toLowerCase() !== finalBrand);
+        identification.search_queries = [q, ...preserveModelSearchQueries(src.search_queries, q, blocked)];
+      } else {
+        identification.search_queries = [q];
+      }
     }
   }
 

@@ -1,0 +1,2 @@
+itemId,arm,stage,rank,canonicalUrl,merchant,label,reviewer1Label,reviewer2Label,adjudicatedLabel
+vri03-0001,baseline,shown,1,,,unlabeled,,,
