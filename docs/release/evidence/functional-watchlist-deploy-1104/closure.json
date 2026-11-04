@@ -1,0 +1,187 @@
+{
+  "at": "2026-11-04T11:56:54.528Z",
+  "status": "DEPLOYED EXACT SOURCE / HEALTH AND SMOKE PASS",
+  "canonical": "9047ce434e16a7b52f1f45edaeebafc2f1800757",
+  "staging": {
+    "run": 41813090774,
+    "version": 30
+  },
+  "production": {
+    "run": 41820352202,
+    "version": 19,
+    "approvals": [
+      {
+        "reviewer": "kscanaiapp",
+        "state": "approved",
+        "environments": [
+          "production"
+        ]
+      }
+    ]
+  },
+  "bundleDigest": "323a723e1e1553b61658f87e0943e718f0b3b589a065da90e6c6d4ef4dd08520",
+  "verifyJwt": false,
+  "exactFilesEach": "17/17",
+  "scope": "Only commerce-watch-refresh and canonical dependencies; W1/W2 and existing public-host/destination guard. No Scanner function deployment.",
+  "job": {
+    "id": 126542356510,
+    "status": "completed",
+    "conclusion": "success",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Checkout",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Refuse anything but the governed branch tip",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Setup Node",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Setup Supabase CLI",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Install locked verification dependencies without lifecycle scripts",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Configure coordinated RevenueCat credentials",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Verify required Edge Function secret names",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Validate required production variables (values never printed)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Live remote preflight against production (post-approval, pre-write)",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Apply one approved migration",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Stage scoped migration artifacts outside checkout",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Upload migration artifact",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Deploy function",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Probe deployed function",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Run production deployment smoke tests",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Roll back / contain deployed function",
+        "status": "completed",
+        "conclusion": "skipped"
+      },
+      {
+        "name": "Upload rollback artifact",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Stage deploy artifacts outside checkout",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Upload deploy artifacts",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Require complete scoped deployment success",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Setup Node",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Post Checkout",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "rollback": "Existing exact prior-bundle recovery retained; rollback correctly skipped on successful promotion. No rollback execution claimed.",
+  "noChange": [
+    "migrations",
+    "flags",
+    "secrets",
+    "scheduler",
+    "prices",
+    "customer data"
+  ],
+  "behavior": "Retained actual-handler W1/W2 regressions plus exact deployed source and workflow health/smoke. No real push delivery or repeated paid/provider malformed-response test.",
+  "tracking": "https://github.com/kscanaiapp/kscan-app/issues/706#issuecomment-6629472277",
+  "sources": [
+    {
+      "file": "watchlist-deployed-source-readback.json.gz",
+      "rawBytes": 395319,
+      "rawSha256": "212b90ca4581fb6117947f498ea0a851fc3e4cc25aef76ad6c1af0fe43c1b291",
+      "gzipBytes": 108747,
+      "gzipSha256": "5d142bf11bcc64bb60b11a52563086f9823dbefead14fe5c7386cdeb6eeb1696"
+    },
+    {
+      "file": "watchlist-staging-after-source.json.gz",
+      "rawBytes": 202969,
+      "rawSha256": "c48d443b05649cec451a77af66bd292471469ef55e2508140f36852ddbdccf44",
+      "gzipBytes": 56802,
+      "gzipSha256": "bb709c9f68ab0e988f109c92ecf47bcb924db11e6bd8a59c86afc197a3f8afbb"
+    },
+    {
+      "file": "watchlist-production-after-source.json.gz",
+      "rawBytes": 202946,
+      "rawSha256": "40567f3f73989783cff57d60693edfac3e49f2dd3ed1299b37562fad93ed8905",
+      "gzipBytes": 56788,
+      "gzipSha256": "b643eb9e2faca9d11b6d2532561e924abb815acec7b8d61105a086d74ef87118"
+    }
+  ]
+}

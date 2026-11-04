@@ -1,0 +1,118 @@
+{
+  "at": "2026-11-04T13:00:17.981Z",
+  "source": "be3c0495867a156e57bf7feb5c6a4d996f1c6225",
+  "baseline": "acbbff9dc6cecf8deb5db0ea541cb34a8b8644ab",
+  "finding": "B35-INT-004",
+  "priority": "P2",
+  "status": "IMPLEMENTED / targeted tests PASS / governed PR pending",
+  "rootCause": "prepareEliseDirectImage captured candidate actor only after asynchronous metadata preparation. Both header-gallery branches likewise staged with current identity after awaited compression/analysis; legacy ignored isCurrent.",
+  "repair": "Capture actor before preparation, pass it through the existing internal stage helper, reject stale generations and cleanup derivatives. Header paths compose canonical actor, abort and revision authority before dispatch/staging. Candidate store authority remains unchanged.",
+  "cases": {
+    "originalDiscovery": 3,
+    "before": {
+      "pass": 1,
+      "fail": 2
+    },
+    "after": {
+      "pass": 3,
+      "fail": 0
+    },
+    "additionalSameRepairHeaderRegressions": 4,
+    "headerBefore": {
+      "pass": 0,
+      "fail": 4
+    },
+    "headerAfter": {
+      "pass": 4,
+      "fail": 0
+    },
+    "note": "Original bounded discovery population stays10. Four additional repair controls exercise affected legacy/V2 callers of this same confirmed boundary; no matrix credit or new broad batch."
+  },
+  "tests": {
+    "affected": {
+      "pass": 36,
+      "fail": 0,
+      "skip": 0
+    },
+    "related": {
+      "pass": 200,
+      "fail": 0,
+      "skip": 0
+    },
+    "typescriptExit": 0,
+    "parity": "PASS, unchanged20 governed files",
+    "diffCheckExit": 0
+  },
+  "harnessFailures": [
+    "Header baseline first fixture lacked candidate read/update methods and failed before its assertion; retained as harness-only. Corrected fixture yields4 explicit wrong-owner write assertion failures.",
+    "Initial affected V2 fixed-map loader lacked newly imported actorContext; corrected to execute real actor authority, not an always-current stub. Existing assertions retained."
+  ],
+  "sourceFiles": [
+    {
+      "file": "services/style-chat/eliseDirectImageAttachment.ts",
+      "originalBlob": "9a9f71cec62abce745c3450f2eb748bbc2e17a80",
+      "baselineBlob": "9a9f71cec62abce745c3450f2eb748bbc2e17a80",
+      "headerBeforeBlob": "9a9f71cec62abce745c3450f2eb748bbc2e17a80",
+      "repairedBlob": "3901db1586e112e335826dea7b8a175c24901b44",
+      "repairedSha256": "685ccf8b68496ed0157c843bb436eaf2ff31b7bac639e748c4e68ae153611130"
+    },
+    {
+      "file": "services/style-chat/eliseVisualContextEvidence.ts",
+      "originalBlob": "97e2c66c8bf9119fb8feb1b1047fdd5fe3972d5d",
+      "baselineBlob": "97e2c66c8bf9119fb8feb1b1047fdd5fe3972d5d",
+      "headerBeforeBlob": "97e2c66c8bf9119fb8feb1b1047fdd5fe3972d5d",
+      "repairedBlob": "10ce4d5cf9bbc01a23d7880ac2f371b66022a76f",
+      "repairedSha256": "895fa881afe9b0c63a58c750ba9f3b4f8b8ba4e361ac7a6d1cc28b81697a8d54"
+    }
+  ],
+  "archives": [
+    {
+      "file": "703-elise-header-before.log.gz",
+      "rawBytes": 6678,
+      "rawSha256": "2cac1504eb35fcf375a0d50d9fa3c66f6c3f50095b1d6c22dc2e6c3e37117fcd",
+      "gzipBytes": 739,
+      "gzipSha256": "b5c6b2b97f1a1e963b755ed9eec8c4fe4f974ac9eed9258f9c0b777efef07016"
+    },
+    {
+      "file": "703-elise-header-before-valid-fixture.log.gz",
+      "rawBytes": 6474,
+      "rawSha256": "b280e1eda6eeb782c2209731175c01481c02334a350a2e45dd35df4671c881ea",
+      "gzipBytes": 747,
+      "gzipSha256": "ffae44bd56e990db7984f2463ecb78321887eac249f1d49a3be7fcce9cc956d2"
+    },
+    {
+      "file": "703-elise-affected-first.log.gz",
+      "rawBytes": 12898,
+      "rawSha256": "c567a63473ad06d23f8821c86129985957f9d96c972301058e3fbad4383fa10a",
+      "gzipBytes": 2144,
+      "gzipSha256": "eff81cc11bc5237cda641f9e5ab2d5cd90808ce53fc12ac754cc033fb9d7a556"
+    },
+    {
+      "file": "703-elise-affected-final.log.gz",
+      "rawBytes": 6446,
+      "rawSha256": "0e990d5d1aff8ab23b78310784f6ddbc006e241f220f03b7fc10390d025c3ddc",
+      "gzipBytes": 1652,
+      "gzipSha256": "3bf6ac3a5079646dffcb9ba8014de6c2801fae0e13e60b51ea7717bf58bd59db"
+    },
+    {
+      "file": "703-elise-related.log.gz",
+      "rawBytes": 32574,
+      "rawSha256": "91f3c7fb2b9f94ac92a5886ff84367058fd7145d3acb66b90df1577448d8a837",
+      "gzipBytes": 7682,
+      "gzipSha256": "b15bbd0e0789921c8e35401757c28891b451e577c2ddec444d5fe744b53ce047"
+    },
+    {
+      "file": "703-elise-typescript.log.gz",
+      "rawBytes": 0,
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "gzipBytes": 20,
+      "gzipSha256": "9e72928e7a01615b4cf090daa617b4ca9d68531748f887f323f695eb4ca3ef63"
+    }
+  ],
+  "restrictions": [
+    "Synthetic images/tokens/codec/storage/network only",
+    "No device accuracy or cloud RLS certification inferred",
+    "No consent wording, policy, pricing, ranking, migration or deployment change",
+    "Historical646 matrix remains frozen"
+  ]
+}

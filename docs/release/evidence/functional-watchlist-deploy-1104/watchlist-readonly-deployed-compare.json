@@ -1,0 +1,573 @@
+{
+  "at": "2026-11-03T23:58:47.238Z",
+  "method": "Read-only Supabase get_edge_function; no invocation, notification or provider call",
+  "canonical": "9047ce434e16a7b52f1f45edaeebafc2f1800757",
+  "deployments": [
+    {
+      "environment": "prod",
+      "status": "ACTIVE",
+      "version": 18,
+      "verify_jwt": false,
+      "bundleDigest": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a",
+      "files": [
+        {
+          "path": "supabase/functions/commerce-watch-refresh/index.ts",
+          "sha256": "d988a9f566585bf0454142f7c81e74cf075af5e3e5b7673cc2a2e1d4474aed33",
+          "canonicalSha256": "fc1214e35dd8d5e19815c57a8fef8825c4f5257ea395de9a8725ad90a17e8256",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "canonicalSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+          "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
+          "canonicalSha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/scan-identify/offerCurrency.ts",
+          "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+          "canonicalSha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+          "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+          "canonicalSha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/watchlistCapability.ts",
+          "sha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960",
+          "canonicalSha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
+          "sha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
+          "canonicalSha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+          "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+          "canonicalSha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/changeEngine.ts",
+          "sha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
+          "canonicalSha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchCurrency.ts",
+          "sha256": "9a0e59509897a4b6be5554a38b37dd1cb294dd67f74c8c20e3552928d56de7fe",
+          "canonicalSha256": "9a0e59509897a4b6be5554a38b37dd1cb294dd67f74c8c20e3552928d56de7fe",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts",
+          "sha256": "97bbade135480fab236a09aed677cfe52bb1aba104f50a33548831f736434721",
+          "canonicalSha256": "97bbade135480fab236a09aed677cfe52bb1aba104f50a33548831f736434721",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts",
+          "sha256": "5efcbd090067d503333cbd66a6e8b4c81ab9003d754d4af1d031955887c202bf",
+          "canonicalSha256": "5efcbd090067d503333cbd66a6e8b4c81ab9003d754d4af1d031955887c202bf",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
+          "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
+          "canonicalSha256": "bcbbd7ee8b66cf9487aee6ef44fee88e5084b60182e3c71c2696184996e22716",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
+          "sha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
+          "canonicalSha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
+          "sha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
+          "canonicalSha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushObservability.ts",
+          "sha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+          "canonicalSha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+          "equal": true
+        }
+      ],
+      "canonical": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
+    },
+    {
+      "environment": "stage",
+      "status": "ACTIVE",
+      "version": 29,
+      "verify_jwt": false,
+      "bundleDigest": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a",
+      "files": [
+        {
+          "path": "supabase/functions/commerce-watch-refresh/index.ts",
+          "sha256": "d988a9f566585bf0454142f7c81e74cf075af5e3e5b7673cc2a2e1d4474aed33",
+          "canonicalSha256": "fc1214e35dd8d5e19815c57a8fef8825c4f5257ea395de9a8725ad90a17e8256",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "canonicalSha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+          "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
+          "canonicalSha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/scan-identify/offerCurrency.ts",
+          "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+          "canonicalSha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+          "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+          "canonicalSha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/watchlistCapability.ts",
+          "sha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960",
+          "canonicalSha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
+          "sha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
+          "canonicalSha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+          "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+          "canonicalSha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/changeEngine.ts",
+          "sha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
+          "canonicalSha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchCurrency.ts",
+          "sha256": "9a0e59509897a4b6be5554a38b37dd1cb294dd67f74c8c20e3552928d56de7fe",
+          "canonicalSha256": "9a0e59509897a4b6be5554a38b37dd1cb294dd67f74c8c20e3552928d56de7fe",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts",
+          "sha256": "97bbade135480fab236a09aed677cfe52bb1aba104f50a33548831f736434721",
+          "canonicalSha256": "97bbade135480fab236a09aed677cfe52bb1aba104f50a33548831f736434721",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts",
+          "sha256": "5efcbd090067d503333cbd66a6e8b4c81ab9003d754d4af1d031955887c202bf",
+          "canonicalSha256": "5efcbd090067d503333cbd66a6e8b4c81ab9003d754d4af1d031955887c202bf",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
+          "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
+          "canonicalSha256": "bcbbd7ee8b66cf9487aee6ef44fee88e5084b60182e3c71c2696184996e22716",
+          "equal": false
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
+          "sha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
+          "canonicalSha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
+          "sha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
+          "canonicalSha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
+          "equal": true
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushObservability.ts",
+          "sha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+          "canonicalSha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+          "equal": true
+        }
+      ],
+      "canonical": "9047ce434e16a7b52f1f45edaeebafc2f1800757"
+    }
+  ],
+  "differences": [
+    {
+      "file": "supabase/functions/commerce-watch-refresh/index.ts",
+      "changes": [
+        {
+          "side": "canonical",
+          "line": 938,
+          "text": "    const parsed: unknown = await req.json();"
+        },
+        {
+          "side": "canonical",
+          "line": 939,
+          "text": "    // JSON null, arrays and primitives are valid JSON but not valid action"
+        },
+        {
+          "side": "canonical",
+          "line": 940,
+          "text": "    // objects. Reject before dereferencing body.action or dispatching writes."
+        },
+        {
+          "side": "canonical",
+          "line": 941,
+          "text": "    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {"
+        },
+        {
+          "side": "canonical",
+          "line": 942,
+          "text": "      return json({ error: 'invalid_body', code: 'invalid_body' }, 400);"
+        },
+        {
+          "side": "canonical",
+          "line": 943,
+          "text": "    }"
+        },
+        {
+          "side": "canonical",
+          "line": 944,
+          "text": "    body = parsed as UserActionBody;"
+        },
+        {
+          "side": "deployed",
+          "line": 938,
+          "text": "    body = await req.json();"
+        }
+      ]
+    },
+    {
+      "file": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
+      "changes": [
+        {
+          "side": "canonical",
+          "line": 19,
+          "text": "function isTrackableTicketId(id: string): boolean {"
+        },
+        {
+          "side": "canonical",
+          "line": 20,
+          "text": "  // Match watchlist_push_receipts_ticket_id_len and PostgreSQL text storage."
+        },
+        {
+          "side": "canonical",
+          "line": 21,
+          "text": "  // Count Unicode characters, not UTF-16 units, without an unbounded array."
+        },
+        {
+          "side": "canonical",
+          "line": 22,
+          "text": "  let characters = 0;"
+        },
+        {
+          "side": "canonical",
+          "line": 23,
+          "text": "  for (const character of id) {"
+        },
+        {
+          "side": "canonical",
+          "line": 24,
+          "text": "    if (character === '\\0' || ++characters > 200) return false;"
+        },
+        {
+          "side": "canonical",
+          "line": 25,
+          "text": "  }"
+        },
+        {
+          "side": "canonical",
+          "line": 26,
+          "text": "  return characters > 0;"
+        },
+        {
+          "side": "canonical",
+          "line": 27,
+          "text": "}"
+        },
+        {
+          "side": "canonical",
+          "line": 28,
+          "text": ""
+        },
+        {
+          "side": "canonical",
+          "line": 139,
+          "text": "    // A single outbound push must produce exactly one accepted/rejected"
+        },
+        {
+          "side": "canonical",
+          "line": 140,
+          "text": "    // ticket. HTTP 200 alone does not mean Expo accepted the message."
+        },
+        {
+          "side": "canonical",
+          "line": 141,
+          "text": "    const tickets = Array.isArray(payload?.data) ? payload.data : null;"
+        },
+        {
+          "side": "canonical",
+          "line": 142,
+          "text": "    if (!tickets || tickets.length !== 1) {"
+        },
+        {
+          "side": "canonical",
+          "line": 143,
+          "text": "      return { attempted: true, ok: false, errorCode: 'ticket_error' };"
+        },
+        {
+          "side": "canonical",
+          "line": 144,
+          "text": "    }"
+        },
+        {
+          "side": "canonical",
+          "line": 145,
+          "text": "    const ticket = tickets[0];"
+        },
+        {
+          "side": "deployed",
+          "line": 129,
+          "text": "    const ticket = Array.isArray(payload?.data) ? payload.data[0] : null;"
+        },
+        {
+          "side": "canonical",
+          "line": 150,
+          "text": "    // NOTIF-12: even an accepted ticket is NOT proof of device delivery."
+        },
+        {
+          "side": "canonical",
+          "line": 151,
+          "text": "    // Without a non-empty id the caller cannot persist a receipt or track"
+        },
+        {
+          "side": "canonical",
+          "line": 152,
+          "text": "    // terminal delivery, so fail closed instead of fabricating acceptance."
+        },
+        {
+          "side": "canonical",
+          "line": 153,
+          "text": "    const ticketId = ticket?.status === 'ok' && typeof ticket.id === 'string'"
+        },
+        {
+          "side": "canonical",
+          "line": 154,
+          "text": "      ? ticket.id.trim()"
+        },
+        {
+          "side": "canonical",
+          "line": 155,
+          "text": "      : '';"
+        },
+        {
+          "side": "canonical",
+          "line": 156,
+          "text": "    if (!isTrackableTicketId(ticketId)) {"
+        },
+        {
+          "side": "canonical",
+          "line": 157,
+          "text": "      return { attempted: true, ok: false, errorCode: 'ticket_error' };"
+        },
+        {
+          "side": "canonical",
+          "line": 158,
+          "text": "    }"
+        },
+        {
+          "side": "deployed",
+          "line": 134,
+          "text": "    // NOTIF-12: an accepted ticket is NOT proof of device delivery -- it only"
+        },
+        {
+          "side": "deployed",
+          "line": 135,
+          "text": "    // means Expo queued it. The ticket id is what a receipt lookup is keyed"
+        },
+        {
+          "side": "deployed",
+          "line": 136,
+          "text": "    // on, so it is retained rather than discarded; callers must treat"
+        },
+        {
+          "side": "deployed",
+          "line": 137,
+          "text": "    // `ok: true` as \"accepted\", never as \"delivered\"."
+        },
+        {
+          "side": "deployed",
+          "line": 138,
+          "text": "    const ticketId = typeof ticket?.id === 'string' ? ticket.id : undefined;"
+        }
+      ]
+    },
+    {
+      "file": "supabase/functions/scan-identify/shoppingProvider.ts",
+      "changes": [
+        {
+          "side": "canonical",
+          "line": 12,
+          "text": "import { isNonPublicHost } from '../_shared/net/publicHost.ts';"
+        },
+        {
+          "side": "canonical",
+          "line": 113,
+          "text": "  return isNonPublicHost(host);"
+        },
+        {
+          "side": "deployed",
+          "line": 112,
+          "text": "  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;"
+        },
+        {
+          "side": "deployed",
+          "line": 113,
+          "text": "  if (/^127\\./.test(host) || /^10\\./.test(host) || /^192\\.168\\./.test(host)) return true;"
+        },
+        {
+          "side": "deployed",
+          "line": 114,
+          "text": "  if (/^172\\.(1[6-9]|2\\d|3[01])\\./.test(host)) return true;"
+        },
+        {
+          "side": "deployed",
+          "line": 115,
+          "text": "  // Link-local, including the cloud metadata endpoint."
+        },
+        {
+          "side": "deployed",
+          "line": 116,
+          "text": "  if (/^169\\.254\\./.test(host)) return true;"
+        },
+        {
+          "side": "deployed",
+          "line": 117,
+          "text": "  return false;"
+        },
+        {
+          "side": "canonical",
+          "line": 462,
+          "text": "/**"
+        },
+        {
+          "side": "canonical",
+          "line": 463,
+          "text": " * How actionable a destination is, by URL alone."
+        },
+        {
+          "side": "canonical",
+          "line": 464,
+          "text": " *   direct          a public https page on a host that is not a search middleman"
+        },
+        {
+          "side": "canonical",
+          "line": 465,
+          "text": " *   search_handoff  a public https search/aggregator page (for example Google"
+        },
+        {
+          "side": "canonical",
+          "line": 466,
+          "text": " *                   Shopping). It still lets the customer reach the offers, so it"
+        },
+        {
+          "side": "canonical",
+          "line": 467,
+          "text": " *                   stays eligible, but it is ranked below direct retailer links,"
+        },
+        {
+          "side": "canonical",
+          "line": 468,
+          "text": " *                   can never earn an Exact Match, and is never presented as a"
+        },
+        {
+          "side": "canonical",
+          "line": 469,
+          "text": " *                   verified product page."
+        },
+        {
+          "side": "canonical",
+          "line": 470,
+          "text": " *   invalid         not a usable destination (non-https, private, credentialed)"
+        },
+        {
+          "side": "canonical",
+          "line": 471,
+          "text": " * Retailer-neutral: no retailer is named here."
+        },
+        {
+          "side": "canonical",
+          "line": 472,
+          "text": " */"
+        },
+        {
+          "side": "canonical",
+          "line": 473,
+          "text": "export type DestinationKind = 'direct' | 'search_handoff' | 'invalid';"
+        },
+        {
+          "side": "canonical",
+          "line": 474,
+          "text": "export function classifyDestination(url: unknown): DestinationKind {"
+        },
+        {
+          "side": "canonical",
+          "line": 475,
+          "text": "  const normalized = normalizeUrl(url);"
+        },
+        {
+          "side": "canonical",
+          "line": 476,
+          "text": "  if (!normalized) return 'invalid';"
+        },
+        {
+          "side": "canonical",
+          "line": 477,
+          "text": "  return isAggregatorDestination(normalized) ? 'search_handoff' : 'direct';"
+        },
+        {
+          "side": "canonical",
+          "line": 478,
+          "text": "}"
+        },
+        {
+          "side": "canonical",
+          "line": 479,
+          "text": ""
+        }
+      ]
+    }
+  ],
+  "disposition": "Previously source-repaired W1/W2 remain absent from these deployed snapshots. No new source defect or duplicate finding. Promotion separately governed; no deployment performed.",
+  "digestMethod": "SHA-256 UTF-8 with independent canonical Node crypto digests; standard empty/abc self-checks",
+  "limitations": [
+    "Deployed bundle digest is distinct from canonical per-file source hashes.",
+    "No live invalid-body or malformed-ticket probe was repeated.",
+    "No delivery or customer-device certification inferred."
+  ]
+}
