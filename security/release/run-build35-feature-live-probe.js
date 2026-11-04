@@ -276,13 +276,17 @@ async function run(env = process.env) {
     // ── Priority 5: Scanner single-item identification (H1/H2) ── (1 Gemini expected)
     if (remaining >= 1) {
       const imageBase64 = fs.readFileSync(FIXTURE).toString('base64');
-      scenarios.scanner_single_item = summarizeScan(await call(scanUrl, key, token, { mode: 'image', imageBase64 }));
+      const scanRaw = await call(scanUrl, key, token, { mode: 'image', imageBase64 });
+      scenarios.scanner_single_item = summarizeScan(scanRaw);
       ledger = await settledLedger(env, startIso, ledger.billable + 1);
       remaining = MAX_BILLABLE - ledger.billable;
       // ── Priority 6: Mode B commerce continuation (H3/H4) ── (1–2 shopping calls expected)
-      const ident = scenarios.scanner_single_item.identification;
+      // Faithful Mode B continuation: the FULL identification the scan returned,
+      // as the app's buildCommerceOnlyBody sends it (held in memory only; the
+      // report keeps the truncated summary).
+      const ident = scanRaw.body && typeof scanRaw.body.identification === 'object' ? scanRaw.body.identification : null;
       if (remaining >= 2 && scenarios.scanner_single_item.httpStatus === 200 && ident && ident.item_type) {
-        const identification = Object.fromEntries(Object.entries(ident).filter(([k]) => !['explanation', 'summary', 'description'].includes(k)));
+        const identification = ident;
         scenarios.scanner_commerce = summarizeScan(await call(scanUrl, key, token, { requestMode: 'commerce_only', identification }));
         ledger = await settledLedger(env, startIso, ledger.billable + 1);
       } else skipped.push({ scenario: 'scanner_commerce', reason: remaining < 2 ? 'BUDGET' : 'NO_IDENTIFICATION' });
