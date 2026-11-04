@@ -4,10 +4,11 @@
  * Server-side, default OFF, per-cohort, with ONE sub-flag per Phase B change so
  * each change can be attributed in a benchmark row and reverted on its own.
  *
- * STATUS: H1–H4b are wired into the two request entry points but default OFF.
- * Effectiveness has not been established: no labeled customer failure set or
- * live-model before/after comparison exists. Do not enable, deploy or promote
- * these flags without separate release/effectiveness authorization.
+ * STATUS: contract only. Nothing in the scan path imports this module yet
+ * (asserted by scanImprovementsFlag.test.ts). VRI-03 Phase A did not pass
+ * its benchmark gate (no labeled failure set exists), so no Phase B change has
+ * been built, and an unmeasured change must not land. A later change wires a
+ * sub-flag here only together with its own before/after benchmark row.
  *
  * Effective state of a sub-flag = master ON && caller in cohort && sub-flag ON.
  * Every malformed or missing value resolves to OFF (fail closed).
