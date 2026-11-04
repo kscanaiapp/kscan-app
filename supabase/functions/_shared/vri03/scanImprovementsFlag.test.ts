@@ -77,12 +77,19 @@ Deno.test('vri03 flag: cohort bucket is deterministic and in range', () => {
   assert(inCohort > 200 && inCohort < 400, String(inCohort));
 });
 
-Deno.test('vri03 flag: contract is not yet wired into the scan path (Phase A BENCHMARK PENDING)', async () => {
-  // Phase A did not pass its gate, so no change may be routed through this flag
-  // yet. Wiring a sub-flag must come with its own benchmark row; update this
-  // assertion in that same change.
-  for (const file of ['../../scan-identify/index.ts', '../../scan-identify/scanCommerceRouter.ts', '../../scan-identify/qualityTuneCommerce.ts', '../../scan-identify/commerceRelevanceQueries.ts', '../../scan-identify/scannerQualityGate.ts', '../../black-owned-discovery/index.ts', '../../black-owned-discovery/engine.ts']) {
+Deno.test('vri03 flag: wired only at the two request entry points, cohorted on a verified actor', async () => {
+  // ADDENDUM 04 (build-first) authorizes wiring. The flag is resolved ONCE per
+  // request at each entry point, never from env reads scattered in the path.
+  const scan = await Deno.readTextFile(new URL('../../scan-identify/index.ts', import.meta.url));
+  assert(scan.includes("from '../_shared/vri03/scanImprovementsFlag.ts'"));
+  assertEquals(scan.match(/resolveVri03Flags\(/g)?.length, 1);
+  assert(/cohortKey: auth\.isAuthenticated && !auth\.isAnonymous \? userId : null/.test(scan), 'scan-identify must cohort on a verified, non-anonymous user only');
+  const discovery = await Deno.readTextFile(new URL('../../black-owned-discovery/index.ts', import.meta.url));
+  assertEquals(discovery.match(/resolveVri03Flags\(/g)?.length, 1);
+  assert(discovery.includes('resolveVri03Flags({ cohortKey: actorId })'));
+  // Internal modules never resolve the flag themselves.
+  for (const file of ['../../scan-identify/scanCommerceRouter.ts', '../../scan-identify/scannerQualityGate.ts', '../../scan-identify/vri03ScanImprovements.ts', '../../black-owned-discovery/engine.ts']) {
     const src = await Deno.readTextFile(new URL(file, import.meta.url));
-    assert(!src.includes('vri03/scanImprovementsFlag'), `${file} must not import the VRI-03 flag yet`);
+    assert(!/from ['"][^'"]*vri03\/scanImprovementsFlag/.test(src), `${file} must take flags as arguments`);
   }
 });

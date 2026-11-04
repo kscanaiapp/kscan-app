@@ -7,6 +7,8 @@ export type HandlerDependencies<T = DiscoveryResponse> = {
   authenticate: (request: Request) => Promise<{ id: string; isAnonymous: boolean }>;
   claim: (id: string, signal: AbortSignal) => Promise<boolean>;
   discover: (input: DiscoveryInput, flags: DiscoveryFlags, signal: AbortSignal) => Promise<T>;
+  /** Optional per-request flag refinement (VRI-03 cohorting). Omitted → process flags unchanged. */
+  resolveRequestFlags?: (flags: DiscoveryFlags, actorId: string) => DiscoveryFlags;
   completed?: (input: DiscoveryInput) => void;
 };
 const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
@@ -65,7 +67,8 @@ export function createDiscoveryHandler<T = DiscoveryResponse>(deps: HandlerDepen
         catch { return json({ error: 'invalid_discovery_request' }, 400); }
         if (controller.signal.aborted) return json(emptyResponse('unavailable', Date.now()));
         if (!await deps.claim(user.id, controller.signal)) return json({ error: 'rate_limited' }, 429);
-        const result = await deps.discover(input, flags, controller.signal);
+        const requestFlags = deps.resolveRequestFlags ? deps.resolveRequestFlags(flags, user.id) : flags;
+        const result = await deps.discover(input, requestFlags, controller.signal);
         const response = json(result);
         // A scheduler only: background policy work must never be awaited here.
         try { deps.completed?.(input); } catch { /* shadow work cannot affect payload */ }

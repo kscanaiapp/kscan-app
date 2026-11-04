@@ -1,6 +1,10 @@
 # VRI-03 — Visual Retrieval Intelligence (Phase A report)
 
-**Verdict: `BENCHMARK PENDING`.** Phase A gate condition (a), at least 15 labeled items, fails: no qualifying failure set
+> **Update (ADDENDUM 04, build-first):** H1–H4b are now implemented behind default-OFF sub-flags. See
+> [IMPLEMENTATION.md](IMPLEMENTATION.md). The benchmark below is no longer a prerequisite, but its result stands:
+> **no real-product retrieval improvement has been measured**, so effectiveness remains unclaimed.
+
+**Measurement verdict: `BENCHMARK PENDING`.** Phase A gate condition (a), at least 15 labeled items, fails: no qualifying failure set
 exists, and building one needs consented real scans, human Google-lookup labeling and billed Staging scans, none of
 which are available in this session (Gemini budget is zero). Condition (b), a per-stage baseline, fails as a
 consequence. Per the brief, Phase A is committed and Phase B was **not started**. No scan behavior changes in this PR.

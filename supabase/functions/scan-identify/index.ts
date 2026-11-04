@@ -172,6 +172,8 @@ import {
   applyScannerQualityGate,
   type QualityGateResult,
 } from './scannerQualityGate.ts';
+import { resolveVri03Flags } from '../_shared/vri03/scanImprovementsFlag.ts';
+import { withVri03Instruction, withVri03SelectedItemSchema } from './vri03ScanImprovements.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
@@ -2004,6 +2006,13 @@ Deno.serve(async (req) => {
   const userId = auth.userId;
   const isAnonymousImageAnalysis = mode !== 'text' && !auth.isAuthenticated;
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
+  // VRI-03 (default OFF): master × cohort × sub-flag, cohorted on the verified,
+  // non-anonymous user id only. Every sub-flag is false unless explicitly on.
+  const vri03 = resolveVri03Flags({
+    cohortKey: auth.isAuthenticated && !auth.isAnonymous ? userId : null,
+  });
+  const vri03H3 = vri03.subFlags.h3_query_normalization;
+  const vri03H4 = vri03.subFlags.h4_filter_rerank;
 
   console.log(
     '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s supabaseAnon=%s',
@@ -2174,6 +2183,7 @@ Deno.serve(async (req) => {
 
     const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
       commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+      ...(vri03H3 ? { vri03PreserveModelQueries: true } : {}),
     });
     // Must match the inline MODE A call exactly (see the `commerceCategoryRoute`
     // resolution on the image route): `selected_item` without a
@@ -2215,10 +2225,21 @@ Deno.serve(async (req) => {
           commerceRetrievalEnabled: commerceRetrievalEnabledForCommerceOnly,
         }
         : {}),
+      ...(vri03H3 || vri03H4 ? { vri03: { h3: vri03H3, h4: vri03H4 } } : {}),
     }).catch((err) => {
       console.warn('[scan-identify] commerce_only provider error:', err);
       return null;
     });
+    if (vri03.inCohort) {
+      // Privacy-safe customer-testing telemetry: counts and timings only —
+      // never the query text, product titles, image or user id.
+      console.log(
+        '[scan-identify] vri03_commerce h3=%s h4=%s shelf=%d provider_calls=%d fallback_used=%s pool_before_filter=%d durationMs=%d',
+        String(vri03H3), String(vri03H4), fast?.products.length ?? 0, fast?.providersTried.length ?? 0,
+        String(fast?.qualityTune?.fallbackUsed ?? false), fast?.qualityTune?.productsBeforeFilter ?? 0,
+        Date.now() - commerceOnlyStarted,
+      );
+    }
 
     if (!fast) {
       // Commerce failure is never a scan failure — the caller already has a
@@ -2850,11 +2871,20 @@ Deno.serve(async (req) => {
     return prompt;
   };
 
-  const identifyPrompt = withQualityAndRoute(IDENTIFY_PROMPT);
-  const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
+  // VRI-03 H1/H2 (default OFF). The existing prompts and schemas above are the
+  // fallback constants; the sub-flags only append to / extend them, and only
+  // for image mode. TextScan is untouched.
+  const vri03H1 = mode === 'image' && vri03.subFlags.h1_instruction;
+  const vri03H2 = mode === 'image' && vri03.subFlags.h2_schema_parser;
+  const identifyPrompt = withVri03Instruction(withQualityAndRoute(IDENTIFY_PROMPT), 'legacy_single_item', vri03H1);
+  const multiItemPrompt = withVri03Instruction(withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT), 'multi_item_detection', vri03H1);
   const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
   const selectedItemPrompt = selectedCandidate
-    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled))
+    ? withVri03Instruction(
+      withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled)),
+      'selected_item',
+      vri03H1,
+    )
     : '';
 
   // Scanner camera/gallery and other image-entry missions are separate from
@@ -2911,8 +2941,13 @@ Deno.serve(async (req) => {
             ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
             : useSelectedItemProvider
             ? {
+              // VRI-03 H2 extends the schema before brand scoping (it adds no
+              // brand field); OFF returns the same schema object.
               responseSchema: scopeScannerBrandSchema(
-                commerceIdentityEnabled ? SELECTED_ITEM_RESPONSE_SCHEMA_V124 : SELECTED_ITEM_RESPONSE_SCHEMA,
+                withVri03SelectedItemSchema(
+                  commerceIdentityEnabled ? SELECTED_ITEM_RESPONSE_SCHEMA_V124 : SELECTED_ITEM_RESPONSE_SCHEMA,
+                  vri03H2,
+                ),
                 scannerBrandEvidenceEnabled, commerceIdentityEnabled,
               ),
             }
@@ -3053,6 +3088,17 @@ Deno.serve(async (req) => {
       return json(normalized('failed', safeFailed), 200);
     }
 
+    if (vri03.inCohort) {
+      // VRI-03 cost instrumentation: token COUNTS from the response already in
+      // hand (no extra call, no prompt or output text). Billed per dated pricing.
+      const usage = (data as { usageMetadata?: Record<string, unknown> }).usageMetadata ?? {};
+      const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : -1);
+      console.log(
+        '[scan-identify] vri03_gemini_usage request_mode=%s model=%s attempts=%d prompt_tokens=%d output_tokens=%d thoughts_tokens=%d elapsedMs=%d h1=%s h2=%s',
+        requestModeForRoute, servedModel, attempt, n(usage.promptTokenCount), n(usage.candidatesTokenCount),
+        n(usage.thoughtsTokenCount), elapsedMs, String(vri03H1), String(vri03H2),
+      );
+    }
     const blockReason = data.promptFeedback?.blockReason;
     const text = extractGeminiText(data);
     if (!text) {
@@ -3238,6 +3284,7 @@ Deno.serve(async (req) => {
             const gated = applyScannerQualityGate(tuned.identification, tuned.attributes, {
               commerceIdentityEnabled,
               useClassifiedBrandEvidence: scannerBrandEvidenceEnabled,
+              ...(vri03H3 ? { vri03PreserveModelQueries: true } : {}),
             });
             tuned = {
               ...tuned,
@@ -3282,6 +3329,7 @@ Deno.serve(async (req) => {
           intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes, {
             commerceIdentityEnabled,
             useClassifiedBrandEvidence: scannerBrandEvidenceEnabled,
+            ...(vri03H3 ? { vri03PreserveModelQueries: true } : {}),
           });
           tuned = {
             ...tuned,

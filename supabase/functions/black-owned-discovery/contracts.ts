@@ -55,7 +55,11 @@ export type CatalogRow = {
   brand_name: string; verified_until: string; approved_domains: string[]; image_domains: string[];
   eligible_until?: string;
 };
-export type DiscoveryFlags = { discovery: boolean; badges: boolean; sponsored: boolean };
+export type DiscoveryFlags = {
+  discovery: boolean; badges: boolean; sponsored: boolean;
+  /** VRI-03 H4b (default OFF, per request): synonym subtype matching. Relevance only — never eligibility or ownership. */
+  vri03SubtypeSynonyms?: boolean;
+};
 
 /** Owner-directed defaults (2026-10-29): organic discovery and badges ON.
  * Explicit false is the independent rollback; malformed values fail closed. */

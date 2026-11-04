@@ -4,7 +4,7 @@ import { buildCanonicalCommerce } from '../scan-identify/canonicalCommerce.ts';
 import { formatOfferPrice } from '../scan-identify/offerCurrency.ts';
 import { normalizeColor, normalizeMaterial, normalizeSilhouette } from '../scan-identify/qualityTuneNormalize.ts';
 import { DISCOVERY_VERSION, type CatalogRow, type DiscoveryFlags, type DiscoveryInput, type DiscoveryProduct, type DiscoveryResponse, type OwnershipIdentity } from './contracts.ts';
-import { safeCatalogUrl, subtypeKey, subtypeMatchKeys } from './validation.ts';
+import { discoverySubtypeKeys, safeCatalogUrl, subtypeKey } from './validation.ts';
 
 export const DISCOVERY_TIMEOUT_MS = 1200;
 export const DISCOVERY_CACHE_MS = 30_000;
@@ -14,7 +14,7 @@ type Snapshot = { revision: number; rows: CatalogRow[]; ownership: Record<string
 export type DiscoveryDependencies = {
   // The SQL RPC revalidates eligibility on every request, including cache hits.
   revision: (signal: AbortSignal) => Promise<number>;
-  candidates: (input: DiscoveryInput, signal: AbortSignal) => Promise<Snapshot>;
+  candidates: (input: DiscoveryInput, signal: AbortSignal, flags?: DiscoveryFlags) => Promise<Snapshot>;
   ownership: (input: DiscoveryInput, signal: AbortSignal) => Promise<Record<string, OwnershipIdentity>>;
   now?: () => number;
   event?: (event: string, payload: { lane: 'black_owned'; count: number }) => void;
@@ -30,7 +30,7 @@ function ownershipFor(row: CatalogRow): OwnershipIdentity {
 export function rankCatalog(input: DiscoveryInput, rows: CatalogRow[], flags: DiscoveryFlags, now: number): DiscoveryProduct[] {
   const seen = new Set(input.primaryProducts.flatMap((p) => [p.id, canonicalizeUrlForIdentity(p.productUrl) ?? '']).filter(Boolean));
   const scored: { score: number; row: CatalogRow; product: DiscoveryProduct }[] = [];
-  const subtypes = new Set(subtypeMatchKeys(input.garment.subtype));
+  const subtypes = new Set(discoverySubtypeKeys(input.garment.subtype, flags.vri03SubtypeSynonyms));
   for (const row of rows.slice(0, CANDIDATE_LIMIT)) {
     if (row.eligible_until && (!Number.isFinite(Date.parse(row.eligible_until)) || Date.parse(row.eligible_until)<=now)) continue;
     if (row.category !== input.garment.item_type || row.availability !== 'in_stock') continue;
@@ -105,14 +105,15 @@ export function createDiscoveryService(deps: DiscoveryDependencies) {
       emit('black_owned_discovery_requested');
       const response = emptyResponse('empty', now());
       if (flags.discovery) {
-        const key = JSON.stringify([input.garment, input.market]);
+        // VRI-03 cohorts get their own cache entries (key unchanged when OFF).
+        const key = JSON.stringify(flags.vri03SubtypeSynonyms ? [input.garment, input.market, 'vri03'] : [input.garment, input.market]);
         const revision = await deps.revision(controller.signal);
         const cached = cache.get(key);
         let rows: CatalogRow[];
         if (cached && cached.until > now() && cached.revision === revision) rows = cached.rows;
         else {
           emit('black_owned_catalog_searched');
-          const snapshot = await deps.candidates(input, controller.signal);
+          const snapshot = await deps.candidates(input, controller.signal, flags);
           rows = snapshot.rows;
           if (!controller.signal.aborted) {
             if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!);
