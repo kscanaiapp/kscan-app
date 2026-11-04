@@ -3,7 +3,7 @@
  *
  * Two independent broker instances sharing one store model two Edge isolates:
  * refine/compare must survive a separate HTTP request on a DIFFERENT instance,
- * and must never cross actors, conversations or the 30-second lifetime.
+ * and must never cross actors, conversations or the 2-minute lifetime.
  */
 import assert from 'node:assert/strict';
 import {
@@ -76,7 +76,7 @@ function sqlStore(clock: () => number) {
       products.forEach((p, i) => {
         const requested = Math.min(p.provenance.expiresAt, p.provenance.observedAt + MAX_REFERENCE_LIFETIME_MS);
         if (requested <= now) return;
-        rows.push({ actor, session, ref: p.ref, position: (i % 8) + 1, record: JSON.parse(JSON.stringify(p)), createdAt: now, expiresAt: Math.min(requested, now + 30_000) });
+        rows.push({ actor, session, ref: p.ref, position: (i % 8) + 1, record: JSON.parse(JSON.stringify(p)), createdAt: now, expiresAt: Math.min(requested, now + 120_000) });
       });
       const mine = rows.filter((r) => r.actor === actor && r.session === session).sort((x, y) => y.createdAt - x.createdAt || x.position - y.position);
       for (const stale of mine.slice(32)) rows.splice(rows.indexOf(stale), 1);
@@ -298,7 +298,7 @@ Deno.test('find → refine → compare across separate requests on DIFFERENT bro
   }
 });
 
-Deno.test('references expire at 30 s: compare reports expired, refine becomes a fresh search', T, async () => {
+Deno.test('references expire after 2 minutes: compare reports expired, refine becomes a fresh search', T, async () => {
   const w = world();
   try {
     const planner = plannerReturning(
@@ -307,7 +307,7 @@ Deno.test('references expire at 30 s: compare reports expired, refine becomes a 
       { action: 'refine', item_type: 'outerwear', subtype: 'bomber', primary_color: 'brown' },
     );
     await turn(w, 0, A, CONV_A, 'Find a bomber jacket', planner);
-    w.advance(31_000);
+    w.advance(121_000);
     const compare = await turn(w, 1, A, CONV_A, 'compare 1 and 2', planner);
     assert.equal(compare.clientPayload?.status, 'expired');
     assert.equal(compare.clientPayload?.products.length, 0);
@@ -484,7 +484,8 @@ Deno.test('stored records are re-validated: tampered rows are dropped, ownership
   assert.ok(restoreProduct(good, now));
   assert.equal(restoreProduct({ ...good, productUrl: 'javascript:alert(1)' }, now), null);
   assert.equal(restoreProduct({ ...good, extra: 1 }, now), null);
-  assert.equal(restoreProduct({ ...good, provenance: { ...good.provenance, expiresAt: now + 60_000 } }, now), null, 'lifetime > 30 s');
+  assert.ok(restoreProduct({ ...good, provenance: { ...good.provenance, expiresAt: now + 110_000 } }, now), 'within 2 minutes');
+  assert.equal(restoreProduct({ ...good, provenance: { ...good.provenance, expiresAt: now + 130_000 } }, now), null, 'lifetime > 2 minutes');
   assert.equal(restoreProduct({ ...good, provenance: { ...good.provenance, expiresAt: now - 1 } }, now), null);
   assert.equal(restoreProduct({ ...good, ownership: { brandId: 'b', brandName: 'Shop', ownershipVerificationStatus: 'verified', publicOwnershipLabelAllowed: true, verifiedUntil: new Date(now + 1e6).toISOString() } }, now), null, 'ownership on a provider record');
   assert.equal(restoreProduct({ ...good, provenance: { ...good.provenance, trust: 'eligible_server_record' } }, now), null);

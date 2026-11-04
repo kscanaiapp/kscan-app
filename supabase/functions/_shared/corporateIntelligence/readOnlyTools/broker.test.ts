@@ -211,7 +211,7 @@ Deno.test("expired and fabricated comparison refs are rejected without I/O", asy
   const [r] = await s.executeTurn([req()]);
   const original = Date.now;
   try {
-    Date.now = () => original() + 31_000;
+    Date.now = () => original() + 121_000; // past the 2-minute reference lifetime
     assert.equal(
       (await s.executeTurn([
         req("compare_products", { productRefs: r.products.map((p) => p.ref) }),

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-04T21:41:47.788Z",
-    "generatedFromGitSha": "42c87a0a8059ae8011ba0bacc5a2ae168b2a101c"
+    "generatedAtUtc": "2026-11-04T22:07:04.603Z",
+    "generatedFromGitSha": "8ced307e086f4a3042ba87ed3a5d037cd81634a8"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1131,8 +1131,8 @@
         ],
         "bundleFileCount": 100,
         "treeFileCount": 131,
-        "bundleHash": "e953ebfb8b367ed62de2f48c1634bdb5536ca5c07387d2b8da6192211060be35",
-        "treeHash": "9a04af1236d07062c1c1ed777e8d3119f045138a0b6fb122cdc401d09ac54b85",
+        "bundleHash": "c0230dc518285eddb61a3250cc1e2cc8f080cdd8fee6dd6e2ad9eda057072173",
+        "treeHash": "4a9361e2ed79cee5bf73041d7d72daf937fe8551e059c00fde250f0d0df92e74",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -1196,7 +1196,7 @@
           },
           {
             "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/broker.ts",
-            "sha256": "6955717995d5c0e77c478859eb1fe5cf90d616fe9653d98ce3f0ede4cb4b682c",
+            "sha256": "94de4127bdde4a24a2661b12ec979db51be5ad65c837e71fb24192a56f7be91d",
             "bundle": true
           },
           {
@@ -1206,7 +1206,7 @@
           },
           {
             "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/products.ts",
-            "sha256": "b6b92891fe4e1b3853dfaa6f91a195dec8caf2d72df0a86c6b1d4f2ab317951c",
+            "sha256": "938303ac5278a7106810923257d0e90069a62e15a78062cf02c46bd72aee75b5",
             "bundle": true
           },
           {
@@ -1216,7 +1216,7 @@
           },
           {
             "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/sessionStore.ts",
-            "sha256": "f07f47a23cccb125e839aab22e8f57e352a9a1092d0419b44fea68517dd36dd2",
+            "sha256": "702c79f8829d4ca24cadb4c416c23f81f14def5606668727aa042cfd944db9d6",
             "bundle": true
           },
           {
@@ -1486,12 +1486,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseCommerceTools.test.ts",
-            "sha256": "fe4a52d7b616ca36a7f4cef48f4d26f886291da6869d36ff6782c7efd12d81e0",
+            "sha256": "c28e15e954b574f61be97bf4bb62b5f62ee07f86df869ce905d659d07c04c36d",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseCommerceTools.ts",
-            "sha256": "e4bfab7ad0efe23799c27b628596047e5b9c64106b2c71d425d9de7b3ce5b8ae",
+            "sha256": "fb660735ef49b55d695547c00c429695dabcbd5cf1153d8f81f469878be7711c",
             "bundle": true
           },
           {

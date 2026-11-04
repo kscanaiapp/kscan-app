@@ -112,7 +112,7 @@ export function preFilterCommerceIntent(message: string, hasLiveReferences: bool
   const m = message.slice(0, 600);
   if (UNSUPPORTED_ACTION.test(m)) return 'unsupported_action';
   if (SHOPPING_SIGNAL.test(m)) return 'candidate';
-  // Within the 30-second reference window, a short reply ("only the black ones",
+  // Within the 2-minute reference window, a short reply ("only the black ones",
   // "compare the first two") is a likely follow-up; the planner decides.
   if (hasLiveReferences && m.trim().length > 0 && m.length <= 200) return 'candidate';
   return 'none';
@@ -315,7 +315,7 @@ export function toToolRequests(
         ? pick(plan.resultNumbers)
         : previous.slice(0, 8).flatMap((p) => p ? [p.ref] : []);
       if (refs.length === 0) {
-        // No live earlier result (expired after 30 s, or none): a new authorized search with the refined attributes.
+        // No live earlier result (expired after 2 minutes, or none): a new authorized search with the refined attributes.
         return { kind: 'refine', requests: [{ version: TOOL_VERSION, capability: 'discover_products', arguments: search(plan.garment!) }], refinedAsFreshSearch: true };
       }
       return {

@@ -7,6 +7,7 @@ import {
   identity,
   normalizeProduct,
   type Product,
+  RECORD_TTL_MS,
 } from "./products.ts";
 import {
   type Capability,
@@ -20,10 +21,13 @@ import type { ReferenceStore, StoredReference } from "./sessionStore.ts";
 export const LIMITS = Object.freeze({
   requestsPerTurn: 2,
   concurrency: 1,
+  /** Retrieval deadline (provider/catalog work), unchanged at 2,500 ms. */
   deadlineMs: 2500,
+  /** Separate bound for per-turn re-authorization, which precedes any provider call. */
+  authorizationMs: 1000,
   candidates: 8,
   sessionRecords: 32,
-  recordTtlMs: 30_000,
+  recordTtlMs: RECORD_TTL_MS,
 });
 export type Metadata = {
   version: typeof TOOL_VERSION;
@@ -102,16 +106,35 @@ export function createReadOnlyBroker(deps: Dependencies) {
         /** Server-held, validated references available to this turn (for numbering follow-ups). */
         references,
         async executeTurn(inputs: readonly unknown[]): Promise<Result[]> {
-          const started = performance.now();
-          const deadline = started + LIMITS.deadlineMs;
           const controller = new AbortController();
-          let timer: ReturnType<typeof setTimeout> | undefined;
-          const timeout = new Promise<never>((_, reject) => {
-            timer = setTimeout(() => {
+          // Re-authorization (identity, account state, consent/permit) runs
+          // first under its OWN bound; the 2,500 ms retrieval deadline starts
+          // only once it has passed, so it bounds provider work alone (live
+          // Staging evidence: ~0.9 s of re-authorization left the primary
+          // shopping provider less than its normal successful latency).
+          let authTimer: ReturnType<typeof setTimeout> | undefined;
+          const authTimeout = new Promise<never>((_, reject) => {
+            authTimer = setTimeout(() => {
               controller.abort();
               reject(new ToolError("deadline"));
-            }, LIMITS.deadlineMs);
+            }, LIMITS.authorizationMs);
           });
+          authTimeout.catch(() => {});
+          const authBounded = <T>(p: Promise<T>) => Promise.race([p, authTimeout]);
+          let deadline = Infinity;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          let timeout: Promise<never> = new Promise<never>(() => {});
+          const startRetrievalClock = () => {
+            clearTimeout(authTimer);
+            deadline = performance.now() + LIMITS.deadlineMs;
+            timeout = new Promise<never>((_, reject) => {
+              timer = setTimeout(() => {
+                controller.abort();
+                reject(new ToolError("deadline"));
+              }, LIMITS.deadlineMs);
+            });
+            timeout.catch(() => {});
+          };
           const bounded = <T>(p: Promise<T>) => Promise.race([p, timeout]);
           const abort = () => controller.abort();
           request.signal.addEventListener("abort", abort, { once: true });
@@ -154,12 +177,13 @@ export function createReadOnlyBroker(deps: Dependencies) {
               if (deps.enabled() !== true || controller.signal.aborted) {
                 throw new ToolError("disabled");
               }
-              const current = await bounded(authenticate(request));
+              const current = await authBounded(authenticate(request));
               authorized = current.id === actor.id && !current.isAnonymous &&
-                await bounded(deps.permitTurn(actor.id));
+                await authBounded(deps.permitTurn(actor.id));
             } catch {
               authorized = false;
             }
+            startRetrievalClock();
             for (const input of inputs) {
               const t = performance.now();
               const meta: Metadata = {
@@ -332,6 +356,7 @@ export function createReadOnlyBroker(deps: Dependencies) {
             }
             return outputs;
           } finally {
+            clearTimeout(authTimer);
             clearTimeout(timer);
             controller.abort();
             request.signal.removeEventListener("abort", abort);
