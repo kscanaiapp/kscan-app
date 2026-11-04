@@ -55,6 +55,12 @@ import {
   providerDeadlineMs,
 } from './commerceFunnelConfig.ts';
 import { collectBounded } from './commerceFastPath.ts';
+import {
+  chooseVri03FallbackQuery,
+  type Vri03CommerceFlags,
+  vri03CacheSuffix,
+  VRI03_MIN_FALLBACK_BUDGET_MS,
+} from './vri03ScanImprovements.ts';
 import { normalizeCategory } from '../_shared/scanHelpers.ts';
 import {
   buildCommerceCacheKey,
@@ -73,6 +79,8 @@ export type ScanCommerceInput = {
   originalText?: string;
   mode: 'image' | 'text';
   limit?: number;
+  /** VRI-03 H3/H4 (fast path only). Omit for exact v127 behavior. */
+  vri03?: Vri03CommerceFlags;
   /** Internal: prevent recursive quality-tune fallback loops. */
   disableQualityFallback?: boolean;
   /** v121 intelligence — omit for exact v120 commerce query construction */
@@ -1048,7 +1056,8 @@ export async function getFastCommerceResults(
     currency: input.market?.currency ?? null,
     country: input.market?.country ?? null,
   };
-  const cacheKey = buildCommerceCacheKey(cacheKeyInput);
+  // VRI-03 cohorts must never read or write a non-cohort shelf (or vice versa).
+  const cacheKey = buildCommerceCacheKey(cacheKeyInput) + vri03CacheSuffix(input.vri03);
   const cacheStarted = Date.now();
   const lookup = commerceCacheGet(cacheKey);
   const cacheLookupMs = Date.now() - cacheStarted;
@@ -1174,21 +1183,76 @@ export async function getFastCommerceResults(
   const poshmarkProducts = poshmarkSettled.products.map((p) =>
     normalizeToRecommendedProduct(p, resolved.identityEnabled)
   );
-  const pool = dedupeProductsByUrl([...shoppingSettled.products, ...poshmarkProducts]);
+  let pool = dedupeProductsByUrl([...shoppingSettled.products, ...poshmarkProducts]);
+  const vri03 = input.vri03;
 
   // ── 3. Unchanged v124 ranking ─────────────────────────────────────────────
-  let merged = pool.slice(0, MAX_RESULTS);
+  // VRI-03 H4 (default OFF): score the whole bounded pool (≤ 2 providers ×
+  // limit) BEFORE truncating, instead of cutting to 10 in provider order first.
+  let merged = vri03?.h4 ? pool : pool.slice(0, MAX_RESULTS);
   let qualityTune: FastCommerceResult['qualityTune'];
+  let vri03FallbackUsed = false;
   if (resolved.qualityEnabled) {
-    const filtered = filterAndDedupeProducts(
+    let filtered = filterAndDedupeProducts(
       merged,
       input.identification || {},
       resolved.relevanceOpts,
     );
     merged = filtered.products.slice(0, MAX_RESULTS);
+
+    // VRI-03 H3 (default OFF): the fast path used to compute a fallback query
+    // and never send it. On a thin shelf, send exactly ONE fallback query to
+    // the primary shopping provider, bounded by what remains of the existing
+    // fast-path deadline. Products still come only from the provider.
+    if (vri03?.h3 && merged.length < QUALITY_TUNE_MIN_VALID_PRODUCTS && remaining() >= VRI03_MIN_FALLBACK_BUDGET_MS) {
+      const choice = chooseVri03FallbackQuery({
+        primary: query,
+        searchQueries: Array.isArray(input.identification?.search_queries)
+          ? input.identification.search_queries as unknown[]
+          : input.searchQueries,
+        computedFallback: resolved.fallbackQuery,
+        isWeak: isWeakQuery,
+      });
+      if (choice) {
+        const fbBudget = providerDeadlineMs(remaining(), FAST_COMMERCE_DEADLINE_MS);
+        providersTried.push('serper');
+        const fbStarted = Date.now();
+        const fb = await withDeadline(
+          getShoppingResults({ query: choice.query, limit, timeoutMs: fbBudget }),
+          fbBudget,
+          { products: [], provider: 'none' as const, query: choice.query, errorType: 'timeout' },
+        );
+        providers.push({
+          provider: 'serper',
+          durationMs: Date.now() - fbStarted,
+          resultCount: fb.products.length,
+          outcome: providerOutcomeFor(fb.errorType, fb.products.length, fb.errorType === 'timeout'),
+        });
+        if (fb.products.length > 0) {
+          vri03FallbackUsed = true;
+          // Without H4, keep the primary's original top-10 window and add the
+          // fallback's results to it; with H4, score everything retrieved.
+          const rescoring = vri03.h4
+            ? dedupeProductsByUrl([...pool, ...fb.products])
+            : dedupeProductsByUrl([...pool.slice(0, MAX_RESULTS), ...fb.products]);
+          pool = dedupeProductsByUrl([...pool, ...fb.products]);
+          filtered = filterAndDedupeProducts(
+            rescoring,
+            input.identification || {},
+            resolved.relevanceOpts,
+          );
+          merged = filtered.products.slice(0, MAX_RESULTS);
+        }
+        console.log(
+          '[scan-identify] vri03_fallback source=%s sent=true results=%d shelf=%d durationMs=%d',
+          choice.source, fb.products.length, merged.length, Date.now() - fbStarted,
+        );
+      }
+    }
+
     const topScore = filtered.stats.agreementScores?.[0];
     qualityTune = {
-      fallbackUsed: false,
+      fallbackUsed: vri03FallbackUsed,
       productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
       productsAfterDedupe: filtered.stats.productsAfterDedupe,
       categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,

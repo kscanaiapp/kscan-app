@@ -1,3 +1,4 @@
+import { vri03SynonymSubtypeKeys } from '../scan-identify/vri03ScanImprovements.ts';
 import { isNonPublicHost } from '../_shared/net/publicHost.ts';
 import { normalizeCategory } from '../scan-identify/qualityTuneNormalize.ts';
 import type { DiscoveryInput, FashionAttributes } from './contracts.ts';
@@ -86,4 +87,13 @@ export function parseDiscoveryInput(value: unknown): DiscoveryInput {
     if (!id || (p.productUrl !== undefined && (typeof p.productUrl !== 'string' || p.productUrl.length > 2048))) throw new Error('invalid_primary_product');
     return { id, ...(p.productUrl ? { productUrl: p.productUrl } : {}) };
   }) };
+}
+/**
+ * VRI-03 H4b (default OFF): the same head-noun match keys plus bounded synonym
+ * variants ("moto jacket" ↔ "biker jacket", "trainer" ↔ "sneaker"). A different
+ * head noun still never matches, and every eligibility rule still applies.
+ */
+export function discoverySubtypeKeys(value: unknown, synonyms: boolean | undefined): string[] {
+  const base = subtypeMatchKeys(value);
+  return synonyms ? vri03SynonymSubtypeKeys(base) : base;
 }

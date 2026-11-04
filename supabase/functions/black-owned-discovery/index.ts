@@ -3,7 +3,8 @@ import { createDiscoveryAuthenticator } from './accountAuthorization.ts';
 import { discoveryFlags, type CatalogRow, type OwnershipIdentity } from './contracts.ts';
 import { createDiscoveryService } from './engine.ts';
 import { createDiscoveryHandler } from './handler.ts';
-import { subtypeMatchKeys } from './validation.ts';
+import { discoverySubtypeKeys } from './validation.ts';
+import { resolveVri03Flags } from '../_shared/vri03/scanImprovementsFlag.ts';
 import { sponsorshipSnapshot } from './sponsorshipStore.ts';
 import { createShadowEvaluator, shadowScheduler } from './sponsorshipShadow.ts';
 
@@ -18,10 +19,10 @@ const discover = createDiscoveryService({
     if (!Number.isSafeInteger(rows?.[0]?.revision)) throw new Error('invalid_revision');
     return rows[0].revision;
   },
-  candidates: async (input, signal) => {
+  candidates: async (input, signal, flags) => {
     // One indexed lookup per canonical subtype key (at most four); the engine
     // re-applies the same rule, so a row can never match on SQL alone.
-    const snapshots = await Promise.all(subtypeMatchKeys(input.garment.subtype).map((key) =>
+    const snapshots = await Promise.all(discoverySubtypeKeys(input.garment.subtype, flags?.vri03SubtypeSynonyms).map((key) =>
       query('rpc/discovery_candidates', { p_category: input.garment.item_type, p_subtype: key, p_market: input.market }, signal)));
     const rows = new Map<string, CatalogRow>();
     let revision: number | undefined;
@@ -40,6 +41,11 @@ const scheduleShadow = shadowScheduler(Deno.env.get('SPONSORSHIP_SHADOW_MODE') =
   createShadowEvaluator({snapshot:sponsorshipSnapshot,emit:(event)=>console.info(JSON.stringify(event))}));
 Deno.serve(createDiscoveryHandler({
   flags: () => discoveryFlags((key) => Deno.env.get(key)),
+  // VRI-03 H4b: per-request, cohorted on the authenticated actor. Default OFF.
+  resolveRequestFlags: (flags, actorId) => ({
+    ...flags,
+    vri03SubtypeSynonyms: resolveVri03Flags({ cohortKey: actorId }).subFlags.h4b_black_owned_match,
+  }),
   authenticate: createDiscoveryAuthenticator(requireUser, assertAccountActive),
   claim: async (id, signal) => (await query('rpc/discovery_claim_request', { p_actor: id }, signal)) === true,
   discover,

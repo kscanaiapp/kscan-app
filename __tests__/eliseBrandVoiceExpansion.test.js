@@ -72,8 +72,12 @@ test('conversational Gemini primary and retry paths receive the same prompt', ()
   assert.match(handlerSource, /const baseSystemPrompt = appendEliseBrandVoice\(/);
   assert.match(handlerSource, /config\.flags\.brandVoiceV1/);
   assert.match(handlerSource, /buildStylistPersonaBlock\(stylistDisplayName\)/);
-  assert.match(handlerSource, /buildGeminiBody\(systemTextWithAttachments, turns\)/);
-  assert.match(handlerSource, /buildGeminiBody\(systemTextWithAttachments, buildRetryTurns\(turns\)\)/);
+  // CI-04 (docs/build36/corporate-intelligence-v2/CI-V2-CI04-STYLECHAT-INTEGRATION.md): both bodies share ONE system
+  // text and ONE turn list, which are exactly the legacy values unless Corporate Intelligence v2 prepared a task.
+  assert.match(handlerSource, /const geminiSystemText = ciV2Prepared\?\.ok \? ciV2Prepared\.systemText : systemTextWithAttachments;/);
+  assert.match(handlerSource, /const geminiTurns = ciV2Prepared\?\.ok \? withUntrustedSections\(turns, ciV2Prepared\.untrustedUserSections\) : turns;/);
+  assert.match(handlerSource, /buildGeminiBody\(geminiSystemText, geminiTurns\)/);
+  assert.match(handlerSource, /buildGeminiBody\(geminiSystemText, buildRetryTurns\(geminiTurns\)\)/);
   assert.match(handlerSource, /system_instruction: \{ parts: \[\{ text: systemText \}\] \}/);
 });
 

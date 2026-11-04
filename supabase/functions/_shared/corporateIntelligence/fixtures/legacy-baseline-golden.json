@@ -1,0 +1,11 @@
+{
+  "baselineSha": "9047ce434e16a7b52f1f45edaeebafc2f1800757",
+  "note": "SHA-256 of CRLF-normalized legacy StyleChat prompt constituents at the pinned Build 35 baseline (SYSTEM_PROMPT, EXPLANATION_INSTRUCTIONS and ATTACHMENT_INSTRUCTIONS independently re-hashed from the git blob). CI-04 must extract the system-text assembly into a pure function and prove flag-OFF equality against a golden captured from this baseline. A legitimate Build 35 prompt change on this branch must update this file in a reviewed diff.",
+  "sha256": {
+    "SYSTEM_PROMPT": "ed62e705b0c34ce9dd647d203fa10dcf48d1936709f36082903e190b12f9c8c0",
+    "EXPLANATION_INSTRUCTIONS": "b6d1a87edc9c1ac4837c22b25f5ef0e108b9907e75314adaeb2fb691223cd54c",
+    "ATTACHMENT_INSTRUCTIONS": "3a8f043561ce8573107fe83a29d58604b3fd92dd07002721b256966ba09034d7",
+    "ELISE_BRAND_VOICE_SYSTEM_BLOCK": "89aeda82bf0a2a6aa0cfaaa8df99f4bb9ebcbbf90483f57223a3502daea1663f",
+    "STYLIST_PERSONA_BLOCK_ELISE": "2006360ec62bd50c892f550d7130aa1f62c2c6f8a60651e14ea565d1713ce696"
+  }
+}

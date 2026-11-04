@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-03T16:13:57.007Z",
-    "generatedFromGitSha": "2846fd147fc36b72404372919ee8d1e88421da75"
+    "generatedAtUtc": "2026-11-04T11:56:43.353Z",
+    "generatedFromGitSha": "4db2d44aee93e21d73121f730696e945f94e75e1"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -48,10 +48,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 16,
-        "treeFileCount": 16,
-        "bundleHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
-        "treeHash": "59d6aefb223cabcd326d7c35c5fafbacf8b75dac06f50f196dd012c6e53829ed",
+        "bundleFileCount": 17,
+        "treeFileCount": 17,
+        "bundleHash": "4b349248faa2cd2247f1297e91ce98947a966cc858421cad39e2424c3261ed08",
+        "treeHash": "4b349248faa2cd2247f1297e91ce98947a966cc858421cad39e2424c3261ed08",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -100,7 +100,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/contracts.ts",
-            "sha256": "ef6f344c5f8bd862d6d7a689f20b17e6a6feb9113f15e7dde451f7c00c96ead4",
+            "sha256": "fe22c7053c9fe8837d411ae09e7801687d923b5b8fb34ebb91697e9742383022",
             "bundle": true
           },
           {
@@ -110,7 +110,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/validation.ts",
-            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
+            "sha256": "eed59e4f31c9f520d733db0bbb3dc6f49ffc41e4667ef6d8f8ec6185bac57bc9",
             "bundle": true
           },
           {
@@ -132,6 +132,11 @@
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
             "sha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/vri03ScanImprovements.ts",
+            "sha256": "ee5c93ee9558d6180c47e118a904e8ce2a51e4d4beedffce09ec6d8bfc50035e",
+            "bundle": true
           }
         ]
       },
@@ -141,10 +146,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 29,
-        "treeFileCount": 43,
-        "bundleHash": "7b478c3253d21866a6c8ddbb143c9d44df9b4c945878b0ec7ad3e6eb55516b13",
-        "treeHash": "b2df962cf5144d5c3fc39cb67a0dc9f32423636450417582903de1e22b91ee53",
+        "bundleFileCount": 31,
+        "treeFileCount": 46,
+        "bundleHash": "0d1817cfbe7a5ccbbcbb4ccbc4266645797e6bfbd3bc05ad349add0427ec3bc6",
+        "treeHash": "b8b38f8d9b6827b045564ff6cf2a50776654be8178885614cb508b7a0b227855",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -159,6 +164,11 @@
           {
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/vri03/scanImprovementsFlag.ts",
+            "sha256": "24cd3e9f2b89f26bb77ef0ee7a7e7d493b976143f1c1ef273f714b76dc06acac",
             "bundle": true
           },
           {
@@ -203,7 +213,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/contracts.ts",
-            "sha256": "ef6f344c5f8bd862d6d7a689f20b17e6a6feb9113f15e7dde451f7c00c96ead4",
+            "sha256": "fe22c7053c9fe8837d411ae09e7801687d923b5b8fb34ebb91697e9742383022",
             "bundle": true
           },
           {
@@ -213,7 +223,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/engine.ts",
-            "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
+            "sha256": "c2a7157ce32ff55275743303b38cc8e7f6cd9545895082cbfded48c33d3c5d76",
             "bundle": true
           },
           {
@@ -228,12 +238,12 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/handler.ts",
-            "sha256": "69da5d93a7b640a7667a55a56e54b70002d7f15b844c1f1c9ca47c8fe1fcd2c9",
+            "sha256": "fe96fcb4c5c3ba00c294ac0c6093771086e8d7f7be473995514ef15e0e3616a0",
             "bundle": true
           },
           {
             "path": "supabase/functions/black-owned-discovery/index.ts",
-            "sha256": "553b74f829c16a30abb81f5e8170eb7c03593593d0782c424159b7f8380494ea",
+            "sha256": "11baef2712519f5793ca545c4fc705a8efe452576b669abf4fa865faab6cf8ac",
             "bundle": true
           },
           {
@@ -273,8 +283,13 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/validation.ts",
-            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
+            "sha256": "eed59e4f31c9f520d733db0bbb3dc6f49ffc41e4667ef6d8f8ec6185bac57bc9",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/black-owned-discovery/vri03Relevance.test.ts",
+            "sha256": "bf343f0db48ddeb9bd1e987d404856452a06c3e1b9f6d022bfc758d3c57bd6e8",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/brandEvidence.ts",
@@ -353,12 +368,17 @@
           },
           {
             "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
-            "sha256": "6e29c43615e5d70f2fca7dcca969bef052869635560f1d647f5b98c247b61300",
+            "sha256": "df12749cd97205d781e860f6f5f06725856282e2f1208c232f249c467dc263a5",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
             "sha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/vri03ScanImprovements.ts",
+            "sha256": "ee5c93ee9558d6180c47e118a904e8ce2a51e4d4beedffce09ec6d8bfc50035e",
             "bundle": true
           }
         ]
@@ -369,10 +389,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 28,
-        "treeFileCount": 28,
-        "bundleHash": "090db53069f80df4b3ed42dd8ab088100ba0b5b6597295033bf45105b8828565",
-        "treeHash": "090db53069f80df4b3ed42dd8ab088100ba0b5b6597295033bf45105b8828565",
+        "bundleFileCount": 29,
+        "treeFileCount": 29,
+        "bundleHash": "93c0be85ef35891a01e1ee6c14e269153622b883ad42d6d4bef0e8b0954e5529",
+        "treeHash": "93c0be85ef35891a01e1ee6c14e269153622b883ad42d6d4bef0e8b0954e5529",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -391,17 +411,17 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/contracts.ts",
-            "sha256": "ef6f344c5f8bd862d6d7a689f20b17e6a6feb9113f15e7dde451f7c00c96ead4",
+            "sha256": "fe22c7053c9fe8837d411ae09e7801687d923b5b8fb34ebb91697e9742383022",
             "bundle": true
           },
           {
             "path": "supabase/functions/black-owned-discovery/engine.ts",
-            "sha256": "e0eee87685ed996934da00a02404b5fd54434e38e1c5a1e58b1c5f01b53bef76",
+            "sha256": "c2a7157ce32ff55275743303b38cc8e7f6cd9545895082cbfded48c33d3c5d76",
             "bundle": true
           },
           {
             "path": "supabase/functions/black-owned-discovery/handler.ts",
-            "sha256": "69da5d93a7b640a7667a55a56e54b70002d7f15b844c1f1c9ca47c8fe1fcd2c9",
+            "sha256": "fe96fcb4c5c3ba00c294ac0c6093771086e8d7f7be473995514ef15e0e3616a0",
             "bundle": true
           },
           {
@@ -421,7 +441,7 @@
           },
           {
             "path": "supabase/functions/black-owned-discovery/validation.ts",
-            "sha256": "4441f282f2aad595487d0b80b029598174c28f146e2f29d8d443dbd003a8aeab",
+            "sha256": "eed59e4f31c9f520d733db0bbb3dc6f49ffc41e4667ef6d8f8ec6185bac57bc9",
             "bundle": true
           },
           {
@@ -501,12 +521,17 @@
           },
           {
             "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
-            "sha256": "6e29c43615e5d70f2fca7dcca969bef052869635560f1d647f5b98c247b61300",
+            "sha256": "df12749cd97205d781e860f6f5f06725856282e2f1208c232f249c467dc263a5",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
             "sha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/vri03ScanImprovements.ts",
+            "sha256": "ee5c93ee9558d6180c47e118a904e8ce2a51e4d4beedffce09ec6d8bfc50035e",
             "bundle": true
           },
           {
@@ -522,10 +547,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 48,
-        "treeFileCount": 85,
-        "bundleHash": "a9ae20ff3c5152c8266e445314aa4e74438d51c271207667fa7fc88bd3ad4eec",
-        "treeHash": "b874a3824c514f1eca1ccb806a861c9339f771c2ab467a46a761642d80d917c2",
+        "bundleFileCount": 50,
+        "treeFileCount": 88,
+        "bundleHash": "5259f9873535685c0fa2337e4d94b8c155f18585a7d0de4b93b75f8634ba9b48",
+        "treeHash": "68e151f0e6fae874870f14ffca3703cc63a4f336dbd7770242057ae77b1dfd78",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -565,6 +590,11 @@
           {
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/vri03/scanImprovementsFlag.ts",
+            "sha256": "24cd3e9f2b89f26bb77ef0ee7a7e7d493b976143f1c1ef273f714b76dc06acac",
             "bundle": true
           },
           {
@@ -734,7 +764,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "27352dee0b94c3f959781c8aca618b1da8adec379fe3b8a1f4d4a210e388e440",
+            "sha256": "055ff53842f3ba5896b286e030cd484bbc5de8b3ba26baece2855c4a2abd2fe4",
             "bundle": true
           },
           {
@@ -829,7 +859,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "717bec5a58bd3e8d4d283da38c23cd0977933789da65cfe78a5042d87e70eb4f",
+            "sha256": "0b287974764feb154d5aff2e17e470d1d788c22bd021afdad6e7d1b3fdcb0273",
             "bundle": true
           },
           {
@@ -879,7 +909,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
-            "sha256": "6e29c43615e5d70f2fca7dcca969bef052869635560f1d647f5b98c247b61300",
+            "sha256": "df12749cd97205d781e860f6f5f06725856282e2f1208c232f249c467dc263a5",
             "bundle": true
           },
           {
@@ -935,6 +965,16 @@
           {
             "path": "supabase/functions/scan-identify/v2Activation.ts",
             "sha256": "07007a4ea29da14df21da73fa83350e1c150595e2af09b24cc665d7936c835ea",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/vri03ScanImprovements.test.ts",
+            "sha256": "818e55cffa72128da0e1c150b9762ef5e85ba0e321621bfa6fb1a1f77873cd0c",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/vri03ScanImprovements.ts",
+            "sha256": "ee5c93ee9558d6180c47e118a904e8ce2a51e4d4beedffce09ec6d8bfc50035e",
             "bundle": true
           },
           {
@@ -1089,11 +1129,71 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 54,
-        "treeFileCount": 80,
-        "bundleHash": "39e7e392b24a73e5f0ab2f52f78a1276bb871462e91744fb2a840f5a6aa8b0e6",
-        "treeHash": "549208ea04e26e979bc53d35a9fda4b23a310d1feaa718bb3cec601cead280e5",
+        "bundleFileCount": 67,
+        "treeFileCount": 95,
+        "bundleHash": "76e087fa9d51a738a084f8a6439dcb7300cca9edb7c2aa53b1f9ae41774f73c6",
+        "treeHash": "282f27cf16a74d5ff5c8ac02fa71c50a393ce790f36bfbe014de1c8c26d17729",
         "files": [
+          {
+            "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
+            "sha256": "fd248250a86721525e09090430d8bd2c0538174e21ba1515bad1d7492b69d994",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/inputLimits.ts",
+            "sha256": "fa69955f9cdea9bd7c75578ebd010a7ceb1b0bf54ea5ea8ccc1a20acf14d0263",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/outputValidation.ts",
+            "sha256": "edfdbb5b83d37ab13441b0fe1629a366dd6b62187bbbb71a4f66ab7a50731150",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/promptEnvelope.ts",
+            "sha256": "50aece85b364eca0d143c347692e0e78682e1908d88597ea9e66da7667bcf97d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/styleChatPromptAssembly.ts",
+            "sha256": "dfad98828908a677e01b0f983e30dd475b8c460d77e631b2ce226b8d197942e6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/trustTypes.ts",
+            "sha256": "b95fcd6f0919c6882ad0bdee2884816f73cb7b092b77aa2d4a73da87c7f9f201",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/contextAssembler.ts",
+            "sha256": "09420e71741ec78ebef32474a79dd02fb5b95b8c507d2d6c5f462f35f48d654a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/contracts.ts",
+            "sha256": "affa5a1d7a61e95dec39f27bbd9b631068d08efc5c0f6e1272b7dbdfab6acc65",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/frozenCopy.ts",
+            "sha256": "fd64e91a7102cf2de22e8bd792741f829f6ecf35947fb1b0a75a4ec8c3b9168c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/modeSelector.ts",
+            "sha256": "ec211d0c33778d02b733592ff0433827035a6ec18eae89c61f0b4fe494aae19c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/outputValidation.ts",
+            "sha256": "0412e235d15daa4e731b280b9352eb6e8fae2cbc04fd81ccfc69c0ccda35a91a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/corporateIntelligence/responseFinalizer.ts",
+            "sha256": "b1f189018e20e0872407a8956d3ea753a958ee9fb80c14c87faf2c12205b1d65",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
@@ -1157,6 +1257,21 @@
           {
             "path": "supabase/functions/stylechat-generate/contextMessages.ts",
             "sha256": "d3aea3a3280b6dbf6254c984ba8d765af9f367e96bb3285e5dbfc8c1e111018f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.handler.test.ts",
+            "sha256": "a195a10ecdc2b035d4f5648e6ef4d27b5ce717d9e7c1ea99777b5dababe05835",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.test.ts",
+            "sha256": "534b27c5992df249f28bbe618161674d20c6222bc40668a4ccb30f28978e2747",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.ts",
+            "sha256": "9f7a3f31be0f44cea77ea45a1444cdbc31c331281aff50ba3d9bf413ab3e76b5",
             "bundle": true
           },
           {
@@ -1371,7 +1486,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "da0ef8a3597f18e98701be672154b167bc0f4e2052b1f97bf230d51cd2f70231",
+            "sha256": "535d1f3453606e0c1f53f7cca308aeff799312ffc68ea5ca138197447dc51c98",
             "bundle": true
           },
           {
