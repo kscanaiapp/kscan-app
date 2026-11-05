@@ -1122,9 +1122,18 @@ test('no hard-coded price, currency, trial length or store product id in the com
   }
 });
 
-test('no logging and no persistence of provider data in the commerce code', () => {
+// The ONE sanctioned log statement (Build 35 v41 P1 diagnostics): the privacy-safe K+ commerce
+// diagnostic sink. It only ever receives the sanitized KPlusCommerceDiagnostic (enum tokens + a
+// RevenueCat numeric code -- see __tests__/kplusCommerceDiagnostics.test.js). It is allowlisted by
+// EXACT text, so any other console call, or a second copy of this one, still fails.
+const SANCTIONED_DIAGNOSTIC_SINK = "console.warn(`[kplus_commerce_diag] ${JSON.stringify(diagnostic)}`);";
+const countOf = (src, needle) => src.split(needle).length - 1;
+
+test('no logging and no persistence of provider data in the commerce code (one sanctioned diagnostic sink)', () => {
   for (const file of COMMERCE_FILES) {
-    assert.equal(findLoggingOrPersistence(read(file)), false, `${path.basename(file)} must not log or persist`);
+    const without = read(file).split(SANCTIONED_DIAGNOSTIC_SINK).join('');
+    assert.equal(findLoggingOrPersistence(without), false, `${path.basename(file)} must not log or persist`);
+    assert.equal(countOf(read(file), SANCTIONED_DIAGNOSTIC_SINK), file === SERVICE ? 1 : 0, `${path.basename(file)}: sanctioned sink count`);
   }
 });
 
