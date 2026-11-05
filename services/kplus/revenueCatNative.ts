@@ -52,6 +52,29 @@ function errorCodeOf(error: unknown): string {
   return typeof code === 'string' || typeof code === 'number' ? String(code) : 'UNKNOWN';
 }
 
+/** RevenueCat's own enum name for a numeric code (e.g. "23" -> CONFIGURATION_ERROR), or null. */
+function errorNameOf(code: string): string | null {
+  const entry = Object.entries(PURCHASES_ERROR_CODE as unknown as Record<string, unknown>).find(([, value]) => String(value) === code);
+  return entry ? entry[0] : null;
+}
+
+/**
+ * Reduces an SDK failure to its RevenueCat error code + enum name and nothing else.
+ * The raw message (which can carry request or account detail) is dropped here, so it
+ * can never be logged downstream. The service reads these two fields for its
+ * privacy-safe diagnostic.
+ */
+function reduceSdkError(error: unknown): Error {
+  const reduced = new Error('KPLUS_SDK_CALL_FAILED') as Error & { kplusSdkCode?: string; kplusSdkName?: string };
+  const code = errorCodeOf(error);
+  if (code !== 'UNKNOWN') {
+    reduced.kplusSdkCode = code;
+    const name = errorNameOf(code);
+    if (name) reduced.kplusSdkName = name;
+  }
+  return reduced;
+}
+
 function isCancelled(error: unknown): boolean {
   const e = error as { code?: unknown; userCancelled?: unknown } | null;
   return errorCodeOf(error) === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR || e?.userCancelled === true;
@@ -93,7 +116,11 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
   async logIn(appUserId) {
     identityEpoch += 1;
     nativePackages.clear();
-    await Purchases.logIn(appUserId);
+    try {
+      await Purchases.logIn(appUserId);
+    } catch (error) {
+      throw reduceSdkError(error);
+    }
   },
 
   async logOut() {
@@ -113,7 +140,12 @@ export const revenueCatNativePort: KPlusNativeCommercePort = {
 
   async getOfferings(): Promise<RawOfferings> {
     const epoch = identityEpoch;
-    const offerings = await Purchases.getOfferings();
+    let offerings: Awaited<ReturnType<typeof Purchases.getOfferings>>;
+    try {
+      offerings = await Purchases.getOfferings();
+    } catch (error) {
+      throw reduceSdkError(error);
+    }
     if (epoch !== identityEpoch) throw new Error('STALE_COMMERCE_IDENTITY');
     const next = new Map<string, NativePackage>();
     for (const pkg of offerings.current?.availablePackages ?? []) next.set(pkg.identifier, pkg);

@@ -57,6 +57,63 @@ export const KPLUS_UNAVAILABLE_REASONS = [
 ] as const;
 export type KPlusUnavailableReason = (typeof KPLUS_UNAVAILABLE_REASONS)[number];
 
+// ── Failure diagnostics (privacy-safe) ───────────────────────────────────────
+//
+// The consumer screen deliberately says one thing ("Membership options couldn't
+// load") for several different failures. This is the SEPARATE, bounded record that
+// tells an operator which one it was, via logcat. Every field is an enum-like token
+// or a RevenueCat numeric error code -- never a message, id, email, receipt,
+// purchase token or raw provider object, and nothing here reaches the UI.
+
+export const KPLUS_DIAGNOSTIC_STAGES = ['RUNTIME', 'CONFIG', 'IDENTITY', 'OFFERINGS', 'CATALOG'] as const;
+export type KPlusDiagnosticStage = (typeof KPLUS_DIAGNOSTIC_STAGES)[number];
+
+export interface KPlusCommerceDiagnostic {
+  stage: KPlusDiagnosticStage;
+  /** The service's own unavailable reason, or CATALOG_EMPTY when offerings loaded but neither plan is offerable. */
+  reason: KPlusUnavailableReason | 'CATALOG_EMPTY';
+  /** RevenueCat PURCHASES_ERROR_CODE as digits (e.g. "23"), or null. */
+  sdkCode: string | null;
+  /** RevenueCat PURCHASES_ERROR_CODE name (e.g. CONFIGURATION_ERROR), or null. */
+  sdkName: string | null;
+  /** A bounded UPPER_SNAKE token (e.g. MONTHLY_MISSING_FROM_OFFERING), or null. Never free text. */
+  detail: string | null;
+}
+
+const DIAGNOSTIC_TOKEN = /^[A-Z][A-Z0-9_]{0,47}$/;
+const DIAGNOSTIC_CODE = /^[0-9]{1,4}$/;
+
+function boundedToken(value: unknown): string | null {
+  return typeof value === 'string' && DIAGNOSTIC_TOKEN.test(value) ? value : null;
+}
+
+function boundedCode(value: unknown): string | null {
+  const text = typeof value === 'number' && Number.isInteger(value) ? String(value) : value;
+  return typeof text === 'string' && DIAGNOSTIC_CODE.test(text) ? text : null;
+}
+
+/** Reads ONLY the numeric code / enum name from an SDK error. Never its message. */
+export function kplusSdkErrorFields(error: unknown): { sdkCode: string | null; sdkName: string | null } {
+  const e = (error ?? null) as { kplusSdkCode?: unknown; kplusSdkName?: unknown; code?: unknown } | null;
+  if (!e || typeof e !== 'object') return { sdkCode: null, sdkName: null };
+  return { sdkCode: boundedCode(e.kplusSdkCode ?? e.code), sdkName: boundedToken(e.kplusSdkName) };
+}
+
+/** Returns a copy holding only allowlisted, bounded fields, or null when the stage/reason is not known. */
+export function sanitizeKPlusDiagnostic(input: unknown): KPlusCommerceDiagnostic | null {
+  const d = (input ?? null) as Partial<Record<keyof KPlusCommerceDiagnostic, unknown>> | null;
+  if (!d || typeof d !== 'object') return null;
+  if (!(KPLUS_DIAGNOSTIC_STAGES as readonly string[]).includes(d.stage as string)) return null;
+  if (d.reason !== 'CATALOG_EMPTY' && !(KPLUS_UNAVAILABLE_REASONS as readonly string[]).includes(d.reason as string)) return null;
+  return {
+    stage: d.stage as KPlusDiagnosticStage,
+    reason: d.reason as KPlusCommerceDiagnostic['reason'],
+    sdkCode: boundedCode(d.sdkCode),
+    sdkName: boundedToken(d.sdkName),
+    detail: boundedToken(d.detail),
+  };
+}
+
 export type KPlusProductKind = 'MONTHLY' | 'ANNUAL' | 'LIFETIME';
 
 // ── Normalized store product ─────────────────────────────────────────────────
