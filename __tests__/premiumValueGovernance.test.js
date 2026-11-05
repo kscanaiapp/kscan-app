@@ -60,7 +60,10 @@ test('C010 and C011 preserve all unrelated holds while binding the adapter to ca
   const prior = JSON.parse(execFileSync('git', ['show', 'd342087cef908e806c891d5f19264d4eeeb8d665:config/build35-premium-value-baseline.json'], { cwd: root, encoding: 'utf8' }));
   const approved = execFileSync('git', ['show', canonical + ':' + file], { cwd: root, encoding: 'utf8' }).replace(/\r\n/g, '\n');
   const digest = crypto.createHash('sha256').update(approved).digest('hex');
-  assert.deepEqual(baseline.protectedSourceDigests, { ...prior.protectedSourceDigests, [file]: digest });
+  // Later promotions advance exactly their own file; everything else stays frozen.
+  const later = [baseline.b41KPlusCommerceRecoveryPromotion?.file].filter(Boolean);
+  const strip = (map) => Object.fromEntries(Object.entries(map).filter(([k]) => !later.includes(k)));
+  assert.deepEqual(strip(baseline.protectedSourceDigests), strip({ ...prior.protectedSourceDigests, [file]: digest }));
   assert.deepEqual(baseline.todayByProfile, prior.todayByProfile);
   assert.deepEqual(baseline.c010SourcePromotion, prior.c010SourcePromotion);
   assert.equal(baseline.c011SourcePromotion.sha, canonical);
@@ -68,6 +71,22 @@ test('C010 and C011 preserve all unrelated holds while binding the adapter to ca
   assert.equal(baseline.c011SourcePromotion.priorDigest, prior.protectedSourceDigests[file]);
   assert.equal(readProtected(file).replace(/\r\n/g, '\n'), approved);
   assert.throws(() => assertProtected(target => readProtected(target) + (target === file ? '\n// unreviewed mutation\n' : '')), assert.AssertionError);
+});
+
+test('B41: the K+ commerce recovery promotion advances only the commerce service digest, bound to exact reviewed bytes', () => {
+  const { execFileSync } = require('node:child_process');
+  const record = baseline.b41KPlusCommerceRecoveryPromotion;
+  assert.ok(record, 'promotion record required');
+  assert.equal(record.file, 'services/kplus/kplusCommerceService.ts');
+  const approved = execFileSync('git', ['show', record.sha + ':' + record.file], { cwd: root, encoding: 'utf8' }).replace(/\r\n/g, '\n');
+  assert.equal(baseline.protectedSourceDigests[record.file], crypto.createHash('sha256').update(approved).digest('hex'));
+  assert.equal(readProtected(record.file).replace(/\r\n/g, '\n'), approved);
+  const prior = JSON.parse(execFileSync('git', ['show', 'a042bcb4f876fc791f841442b1e6fee1542eba43:config/build35-premium-value-baseline.json'], { cwd: root, encoding: 'utf8' }));
+  assert.equal(record.priorDigest, prior.protectedSourceDigests[record.file]);
+  const { [record.file]: _a, ...rest } = baseline.protectedSourceDigests;
+  const { [record.file]: _b, ...priorRest } = prior.protectedSourceDigests;
+  assert.deepEqual(rest, priorRest, 'no other protected digest may move with this promotion');
+  assert.throws(() => assertProtected(target => readProtected(target) + (target === record.file ? '\n// unreviewed mutation\n' : '')), assert.AssertionError);
 });
 
 test('NC-PV-10: changing RevenueCat or the legacy acquisition implementation fails the release guard', () => {
