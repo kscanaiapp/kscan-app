@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';
 import { mapAuthError } from '../../services/authValidation';
@@ -147,6 +148,11 @@ const styles = StyleSheet.create({
   screenTitle: { ...TYPOGRAPHY.caption, marginTop: SPACING.xs, color: COLORS.accent },
   body: { flex: 1, padding: LAYOUT.screenPadding, justifyContent: 'center' },
   card: {
+    // Readable form column: inert on phones, centered and capped on iPad so
+    // the field and button never stretch across a 1024-1366pt window.
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,

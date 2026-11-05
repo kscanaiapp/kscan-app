@@ -41,6 +41,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { InlineNotice, PrimaryButton, SecondaryButton } from '../luxury';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { hasUsablePhotoLibraryAccess } from '../../services/photoLibraryAccess';
 import { useMirrorExtraction } from '../../hooks/useMirrorExtraction';
 import type {
@@ -446,6 +447,10 @@ export function MirrorSelfieExtractionModal({
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
+    // Inert on phones; centered and capped on regular-width iPad windows.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     backgroundColor: LUXURY.colors.ivory,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

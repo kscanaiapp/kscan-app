@@ -1,4 +1,5 @@
 export type WidthClass = 'compact' | 'regular';
+export type HeightClass = 'compact' | 'regular';
 
 export interface GridColumnsOptions {
   compactColumns?: number;
@@ -24,8 +25,15 @@ export const FORM_MAX_WIDTH: number;
 export const CONVERSATION_MAX_WIDTH: number;
 export const MODAL_MAX_WIDTH: number;
 export const MEDIA_MAX_WIDTH: number;
+export const RESULTS_WORKSPACE_MAX_WIDTH: number;
+export const RESULTS_WORKSPACE_MEDIA_WIDTH: number;
+export const RESULTS_WORKSPACE_MIN_WINDOW_WIDTH: number;
+export const COMPACT_HEIGHT_BREAKPOINT: number;
 
 export function getWidthClass(windowWidth: number): WidthClass;
+export function getHeightClass(windowHeight: number): HeightClass;
+export function usesResultsWorkspace(windowWidth: number): boolean;
+export function getCenteredHorizontalInset(windowWidth: number, maxWidth?: number, minInset?: number): number;
 export function getGridColumns(windowWidth: number, options?: GridColumnsOptions): number;
 export function getContentWidth(windowWidth: number, maxWidth?: number): number;
 export function computeGridCellWidth(containerWidth: number, options?: GridCellWidthOptions): number;

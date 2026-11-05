@@ -7,6 +7,8 @@ import {
   Animated,
   TouchableOpacity,
   useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { StatusPill } from '../luxury/StatusPill';
@@ -18,6 +20,14 @@ interface ScanResultHeroProps {
   category?: string;
   confidence?: number;
   onImageError?: () => void;
+  /**
+   * Upper bound for the hero width. Defaults to the certified 420pt phone
+   * cap. The iPad results workspace passes a smaller pane width so the
+   * garment sits beside the analysis instead of above it.
+   */
+  maxWidth?: number;
+  /** Container style override (e.g. top-aligning the hero inside a row). */
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -32,6 +42,8 @@ export function ScanResultHero({
   category,
   confidence,
   onImageError,
+  maxWidth = 420,
+  style,
 }: ScanResultHeroProps) {
   const { width: screenWidth } = useWindowDimensions();
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -55,7 +67,7 @@ export function ScanResultHero({
     onImageError?.();
   };
 
-  const heroWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
+  const heroWidth = Math.min(screenWidth - SPACING.xl * 2, maxWidth);
   const heroHeight = heroWidth * 1.25; // 4:5 aspect ratio
 
   if (!hasImage && !category) {
@@ -73,7 +85,7 @@ export function ScanResultHero({
 
   return (
     <View
-      style={[styles.container, { width: heroWidth, height: heroHeight }]}
+      style={[styles.container, { width: heroWidth, height: heroHeight }, style]}
       testID="scan-result-hero"
     >
       <View style={[styles.imageWrap, { width: heroWidth, height: heroHeight }]}>

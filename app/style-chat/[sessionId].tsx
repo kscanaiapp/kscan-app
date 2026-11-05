@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
-  useWindowDimensions,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { CONVERSATION_MAX_WIDTH } from '../../services/responsiveLayout';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
 import { ELISE_IDENTITY, STYLE_MEMORY_COPY } from '../../constants/elise';
 import {
@@ -300,8 +300,10 @@ export default function StyleChatSessionScreen() {
   const [signatureStyleRefreshTick, setSignatureStyleRefreshTick] = useState(0);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
+  // Vertical compaction is for genuinely short windows (phone landscape) only.
+  // An iPad in landscape is wider than tall but keeps 744-1024pt of height, so
+  // keying this on width > height squeezed the conversation for no reason.
+  const { isCompactHeight: isLandscape } = useResponsiveLayout();
   const horizontalSafePadding = {
     paddingLeft: Math.max(SPACING.xl, insets.left),
     paddingRight: Math.max(SPACING.xl, insets.right),
@@ -678,54 +680,60 @@ export default function StyleChatSessionScreen() {
           }
         }}
       />
-      {weather.enabled && !weather.promptVisible ? (
-        weather.chipState === 'active' ? (
-          <StyleChatWeatherChip label={WEATHER_COPY.active} />
-        ) : weather.chipState === 'denied' ? (
-          <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
-        ) : null
-      ) : null}
-      {StyleMeForThisChip}
-      <EliseVisualContextBar
-        entries={visualContextEntries}
-        focusedEntryId={collection?.focusedEntryId ?? null}
-        hasBlockedEntry={hasBlockedEntry}
-        onRemove={removeVisualContextEntry}
-        onRetry={retryVisualContextEntry}
-        onFocus={setFocusedEntry}
-        onClear={clearVisualContext}
-        uploadUnavailableReason={uploadUnavailableReason}
-      />
-      {ErrorBanner}
-      {attachmentsEnabled ? (
-        <StyleChatAttachmentBar
-          attachments={chatAttachments.attachments}
-          stylistDisplayName={stylistDisplayName}
-          focusedDraftId={chatAttachments.focusedDraftId}
-          onAddOwnedItem={(item, scan) => chatAttachments.addOwnedItem(item, scan)}
-          onAddLook={(look) => chatAttachments.addLook(look)}
-          onDirectImage={(uri, source) => chatAttachments.addDirectImage(uri, source)}
-          onAddDressingRoomItem={(input) => chatAttachments.addDressingRoomItem(input)}
-          onAddSharedItem={(input) => chatAttachments.addSharedItem(input)}
-          onUploadPhoto={legacyPhotoIntakeEnabled ? () => setPhotoIntakeVisible(true) : undefined}
-          onRemove={chatAttachments.removeAttachment}
-          onRetry={(draftId, items, localScans) =>
-            chatAttachments.retryAttachment(draftId, items, localScans)
-          }
-          onSaveToCloset={(draftId) => {
-            void chatAttachments.saveDirectImageToCloset(draftId).then((result) => {
-              if (!result.ok) Alert.alert('Closet', result.message);
-            });
-          }}
-          onFocus={chatAttachments.setFocusedAttachment}
-          atAttachmentLimit={chatAttachments.atAttachmentLimit}
-          atDirectImageLimit={chatAttachments.atDirectImageLimit}
-          showAttachButton={!visualAttachmentsEnabled}
-          menuOpen={visualAttachmentsEnabled ? attachMenuOpen : undefined}
-          onMenuOpenChange={visualAttachmentsEnabled ? setAttachMenuOpen : undefined}
-          disabled={isSending}
+      {/* Context, attachment and notice bars share the readable conversation
+          column with the messages and composer, so on iPad they stay attached
+          to the conversation instead of spanning the full window. Inert on
+          phones (the column cap exceeds every phone width). */}
+      <View style={styles.conversationColumn}>
+        {weather.enabled && !weather.promptVisible ? (
+          weather.chipState === 'active' ? (
+            <StyleChatWeatherChip label={WEATHER_COPY.active} />
+          ) : weather.chipState === 'denied' ? (
+            <Text style={styles.weatherDenied}>{WEATHER_COPY.denied}</Text>
+          ) : null
+        ) : null}
+        {StyleMeForThisChip}
+        <EliseVisualContextBar
+          entries={visualContextEntries}
+          focusedEntryId={collection?.focusedEntryId ?? null}
+          hasBlockedEntry={hasBlockedEntry}
+          onRemove={removeVisualContextEntry}
+          onRetry={retryVisualContextEntry}
+          onFocus={setFocusedEntry}
+          onClear={clearVisualContext}
+          uploadUnavailableReason={uploadUnavailableReason}
         />
-      ) : null}
+        {ErrorBanner}
+        {attachmentsEnabled ? (
+          <StyleChatAttachmentBar
+            attachments={chatAttachments.attachments}
+            stylistDisplayName={stylistDisplayName}
+            focusedDraftId={chatAttachments.focusedDraftId}
+            onAddOwnedItem={(item, scan) => chatAttachments.addOwnedItem(item, scan)}
+            onAddLook={(look) => chatAttachments.addLook(look)}
+            onDirectImage={(uri, source) => chatAttachments.addDirectImage(uri, source)}
+            onAddDressingRoomItem={(input) => chatAttachments.addDressingRoomItem(input)}
+            onAddSharedItem={(input) => chatAttachments.addSharedItem(input)}
+            onUploadPhoto={legacyPhotoIntakeEnabled ? () => setPhotoIntakeVisible(true) : undefined}
+            onRemove={chatAttachments.removeAttachment}
+            onRetry={(draftId, items, localScans) =>
+              chatAttachments.retryAttachment(draftId, items, localScans)
+            }
+            onSaveToCloset={(draftId) => {
+              void chatAttachments.saveDirectImageToCloset(draftId).then((result) => {
+                if (!result.ok) Alert.alert('Closet', result.message);
+              });
+            }}
+            onFocus={chatAttachments.setFocusedAttachment}
+            atAttachmentLimit={chatAttachments.atAttachmentLimit}
+            atDirectImageLimit={chatAttachments.atDirectImageLimit}
+            showAttachButton={!visualAttachmentsEnabled}
+            menuOpen={visualAttachmentsEnabled ? attachMenuOpen : undefined}
+            onMenuOpenChange={visualAttachmentsEnabled ? setAttachMenuOpen : undefined}
+            disabled={isSending}
+          />
+        ) : null}
+      </View>
       <View style={[styles.composerWrap, styles.conversationColumn]}>
         <StyleChatInput
           stylistDisplayName={stylistDisplayName}

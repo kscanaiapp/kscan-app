@@ -46,6 +46,7 @@ import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { useHomeEliseWelcome } from '../../hooks/useHomeEliseWelcome';
 import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 
 
 interface FeatureChipProps {
@@ -145,6 +146,10 @@ export default function HomeLuxuryTechV1() {
   });
 
   const preferredName = resolvePreferredName(user);
+  // iPad (regular width): the hero earns a larger editorial image and
+  // headline inside LuxuryScreen's centered column instead of a phone-sized
+  // card. Compact widths render the certified iPhone hero unchanged.
+  const { isRegular } = useResponsiveLayout();
 
   const hasStylePicks = picks.length > 0;
   // Nothing to show: not loading, no error, and no real picks. Render the
@@ -284,11 +289,14 @@ export default function HomeLuxuryTechV1() {
       {/* Hero Section */}
       <View style={styles.heroCard}>
         <View style={styles.heroText}>
-          <Text style={styles.heroHeadline} accessibilityRole="header">
+          <Text
+            style={[styles.heroHeadline, isRegular && styles.heroHeadlineRegular]}
+            accessibilityRole="header"
+          >
             See it.{ '\n'}Scan it.{' '}
             <Text style={styles.heroHeadlineGold}>Style it.</Text>
           </Text>
-          <Text style={styles.heroBody}>
+          <Text style={[styles.heroBody, isRegular && styles.heroBodyRegular]}>
             Instantly discover style inspiration and shop what you love.
           </Text>
           <PrimaryButton
@@ -309,7 +317,7 @@ export default function HomeLuxuryTechV1() {
             style={styles.heroButton}
           />
         </View>
-        <View style={styles.heroImage}>
+        <View style={[styles.heroImage, isRegular && styles.heroImageRegular]}>
           <Image
             source={require('../../assets/images/home-hero-v1.png')}
             style={styles.heroImageActual}
@@ -602,6 +610,10 @@ const styles = StyleSheet.create({
     lineHeight: 34,
     color: LUXURY.colors.ink,
   },
+  heroHeadlineRegular: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
   heroHeadlineGold: {
     color: LUXURY.colors.goldBrushed,
   },
@@ -610,6 +622,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: LUXURY.colors.graphite,
+  },
+  heroBodyRegular: {
+    fontSize: 16,
+    lineHeight: 24,
+    maxWidth: 420,
   },
   heroButton: {
     alignSelf: 'flex-start',
@@ -623,6 +640,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     borderRadius: RADIUS.lg,
+  },
+  // 2:3 source (693x1039) shown at 240x320 @2x stays under native resolution.
+  heroImageRegular: {
+    width: 240,
+    height: 320,
   },
   heroImageActual: {
     width: '100%',

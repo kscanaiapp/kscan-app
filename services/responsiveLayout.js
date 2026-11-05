@@ -32,9 +32,55 @@ const MODAL_MAX_WIDTH = 560;
 // aspect-cropped across a full iPad width.
 const MEDIA_MAX_WIDTH = 420;
 
+// Scan results workspace (regular widths only). The result sheet widens from
+// the phone-style MODAL_MAX_WIDTH column to a two-pane workspace: the scanned
+// garment on the left, fashion analysis and commerce actions on the right.
+// Compact widths keep the certified single-column sheet unchanged.
+const RESULTS_WORKSPACE_MAX_WIDTH = 820;
+// Hero media width inside the workspace's left pane (4:5 crop -> 340x425).
+const RESULTS_WORKSPACE_MEDIA_WIDTH = 340;
+// Minimum window width for the two-pane workspace. Below this (iPad mini
+// portrait at 744pt, two-thirds Split View, any compact window) both panes
+// would be squeezed under a useful size, so the single-column sheet is kept.
+// 820 admits 11-inch portrait (820/834pt) and every full-screen landscape.
+const RESULTS_WORKSPACE_MIN_WINDOW_WIDTH = 820;
+
+// Height class. Phone-landscape compaction (shorter composers, tighter list
+// padding) must key on a genuinely SHORT window, not on width > height: an
+// iPad in landscape is wider than tall yet still has 744-1024pt of height,
+// and compacting it wasted the large canvas. 500pt is above every phone in
+// landscape (max ~440pt) and below every iPad landscape height (min 744pt).
+const COMPACT_HEIGHT_BREAKPOINT = 500;
+
 function getWidthClass(windowWidth) {
   const width = Number(windowWidth) || 0;
   return width >= REGULAR_WIDTH_BREAKPOINT ? 'regular' : 'compact';
+}
+
+function getHeightClass(windowHeight) {
+  const height = Number(windowHeight) || 0;
+  return height > 0 && height < COMPACT_HEIGHT_BREAKPOINT ? 'compact' : 'regular';
+}
+
+// Whether the results workspace (two-pane) layout applies. Requires a regular
+// width AND enough room for both panes at their minimum useful size, so a
+// regular-but-narrow window still gets the single-column sheet.
+function usesResultsWorkspace(windowWidth) {
+  const width = Number(windowWidth) || 0;
+  return getWidthClass(width) === 'regular' && width >= RESULTS_WORKSPACE_MIN_WINDOW_WIDTH;
+}
+
+// Horizontal inset that centers a stretch-aligned block at maxWidth on wide
+// windows while keeping the certified minimum inset everywhere else. Used by
+// surfaces whose cards are laid out with alignSelf 'stretch' + margins (the
+// Scan Room), where a plain maxWidth would pin the card to the left edge.
+// Phones: (width - maxWidth) / 2 is negative, so minInset is returned
+// unchanged.
+function getCenteredHorizontalInset(windowWidth, maxWidth = MODAL_MAX_WIDTH, minInset = 0) {
+  const width = Number(windowWidth) || 0;
+  const cap = Number(maxWidth) || MODAL_MAX_WIDTH;
+  const floor = Number(minInset) || 0;
+  return Math.max(floor, Math.floor((width - cap) / 2));
 }
 
 // Column count for fashion-imagery grids. Compact keeps the legacy two
@@ -92,7 +138,14 @@ module.exports = {
   CONVERSATION_MAX_WIDTH,
   MODAL_MAX_WIDTH,
   MEDIA_MAX_WIDTH,
+  RESULTS_WORKSPACE_MAX_WIDTH,
+  RESULTS_WORKSPACE_MEDIA_WIDTH,
+  RESULTS_WORKSPACE_MIN_WINDOW_WIDTH,
+  COMPACT_HEIGHT_BREAKPOINT,
   getWidthClass,
+  getHeightClass,
+  usesResultsWorkspace,
+  getCenteredHorizontalInset,
   getGridColumns,
   getContentWidth,
   computeGridCellWidth,

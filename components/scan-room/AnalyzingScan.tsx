@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanRoomHeader } from './ScanRoomHeader';
+import { getCenteredHorizontalInset } from '../../services/responsiveLayout';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 
 interface AnalyzingScanProps {
@@ -53,6 +54,8 @@ export function AnalyzingScan({
 
   const imageWidth = Math.min(screenWidth - SPACING.xl * 2, 280);
   const imageHeight = imageWidth * 1.25;
+  // Phone inset unchanged; centered at the sheet column width on iPad.
+  const cardInset = getCenteredHorizontalInset(screenWidth, undefined, SPACING.xl);
 
   // Fast-forward when complete
   useEffect(() => {
@@ -134,7 +137,7 @@ export function AnalyzingScan({
       )}
 
       {/* Compact processing card */}
-      <View style={styles.processingCard}>
+      <View style={[styles.processingCard, { marginHorizontal: cardInset }]}>
         <ActivityIndicator size="small" color={LUXURY.colors.plum} />
         <Text style={styles.processingTitle}>Analyzing your look…</Text>
         <View style={styles.analyzingButton}>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, TextInput, Pressable, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
+import { View, TextInput, Pressable, Text, StyleSheet, Platform } from 'react-native';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 
 const VOICE_UI_ENABLED = false;
 const ANDROID_NAV_BAR_BOTTOM_PADDING = 56;
@@ -55,9 +56,10 @@ export function StyleChatInput({
   const [internalText, setInternalText] = useState('');
   const isControlled = typeof value === 'string';
   const text = isControlled ? value : internalText;
-  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const isLandscape = width > height;
+  // Shorter composer only on genuinely short windows (phone landscape). iPad
+  // landscape is wider than tall but has ample height for the full composer.
+  const { isCompactHeight: isLandscape } = useResponsiveLayout();
   const composerBottomPadding =
     Platform.OS === 'android'
       ? Math.max(insets.bottom + SPACING.md, ANDROID_NAV_BAR_BOTTOM_PADDING)

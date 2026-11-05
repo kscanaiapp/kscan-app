@@ -284,3 +284,103 @@ test('Closet media stays on its own root, so layout work cannot merge media life
     'the Closet store must not reach into the scan library media root',
   );
 });
+
+// ── Build 35 iPadOS optimization pass ───────────────────────────────────────
+
+test('scan results use a two-pane workspace on wide iPad windows only', () => {
+  const src = read('components/scan-results/ScanResultV2.tsx');
+  assert.match(src, /usesResultsWorkspace:\s*workspace/, 'workspace must come from the central hook');
+  assert.match(
+    src,
+    /maxWidth:\s*workspace \? resultsWorkspaceMaxWidth : modalMaxWidth/,
+    'compact/narrow windows must keep the certified modal-width sheet',
+  );
+  assert.match(src, /testID="scan-result-workspace"/);
+  assert.match(src, /maxWidth=\{resultsWorkspaceMediaWidth\}/, 'workspace hero must use the smaller pane width');
+  // One element instance per section, shared by both layouts — no duplicated
+  // candidate-selection JSX that could drift between phone and iPad.
+  const candidateTestIds = src.match(/testID="outfit-confirmation-candidates"/g) || [];
+  assert.equal(candidateTestIds.length, 1, 'detected-items section must be defined once');
+  assert.equal((src.match(/<StyleMatchPanel\b/g) || []).length, 1, 'style match must be defined once');
+  // The scroll-to target for Similar Finds must stay a direct ScrollView child
+  // (its onLayout y is measured against the scroll content).
+  const workspaceBlock = src.slice(
+    src.indexOf('testID="scan-result-workspace"'),
+    src.indexOf('{/* Build 32: one commerce card per detected item'),
+  );
+  assert.doesNotMatch(workspaceBlock, /SimilarFindsShelf|PurchaseOptionsPanel/, 'commerce stays full-width below the workspace');
+});
+
+test('the scan result hero keeps the certified 420pt phone cap by default', () => {
+  const src = read('components/scan-results/ScanResultHero.tsx');
+  assert.match(src, /maxWidth = 420/);
+  assert.match(src, /Math\.min\(screenWidth - SPACING\.xl \* 2, maxWidth\)/);
+});
+
+test('Elise compacts vertical chrome on short windows, not on every landscape window', () => {
+  for (const file of ['app/style-chat/[sessionId].tsx', 'components/style-chat/StyleChatInput.tsx']) {
+    const src = readCode(file);
+    assert.match(src, /isCompactHeight/, `${file} must key compaction on the central height class`);
+    assert.doesNotMatch(src, /width\s*>\s*height/, `${file} must not treat iPad landscape as a short window`);
+  }
+});
+
+test('Elise context, attachment and notice bars live inside the conversation column', () => {
+  const src = read('app/style-chat/[sessionId].tsx');
+  const start = src.indexOf('<View style={styles.conversationColumn}>');
+  assert.ok(start > 0, 'bars must be wrapped in the conversation column');
+  const end = src.indexOf('<View style={[styles.composerWrap, styles.conversationColumn]}>');
+  const block = src.slice(start, end);
+  for (const element of ['<EliseVisualContextBar', '<StyleChatAttachmentBar', '{ErrorBanner}', '{StyleMeForThisChip}']) {
+    assert.ok(block.includes(element), `${element} must render inside the conversation column`);
+  }
+});
+
+test('Home scales its hero on regular widths and leaves the phone hero unchanged', () => {
+  const src = read('components/home/HomeLuxuryTechV1.tsx');
+  assert.match(src, /const \{ isRegular \} = useResponsiveLayout\(\)/);
+  for (const style of ['heroHeadlineRegular', 'heroBodyRegular', 'heroImageRegular']) {
+    assert.match(src, new RegExp(`isRegular && styles\.${style}`), `${style} must apply only on regular widths`);
+  }
+  // Certified phone hero geometry is untouched.
+  assert.match(src, /heroImage: \{\s*width: 140,\s*height: 180,/);
+  assert.match(src, /fontSize: 28,\s*lineHeight: 34,/);
+});
+
+test('Scan Room review, analyzing and instruction cards center on iPad via the shared inset', () => {
+  for (const file of [
+    'components/scan-room/CaptureReview.tsx',
+    'components/scan-room/AnalyzingScan.tsx',
+    'components/scan-room/LiveScanCamera.tsx',
+  ]) {
+    const src = read(file);
+    assert.match(
+      src,
+      /getCenteredHorizontalInset\(screenWidth, undefined, SPACING\.xl\)/,
+      `${file} must keep the SPACING.xl phone inset and center at the sheet width on iPad`,
+    );
+  }
+});
+
+const FORM_CAPPED_AUTH_FILES = ['app/auth/reset.tsx', 'app/auth/update-password.tsx', 'app/auth/callback.tsx'];
+
+test('password reset, update and callback cards use the readable form column', () => {
+  for (const file of FORM_CAPPED_AUTH_FILES) {
+    const src = read(file);
+    assert.match(src, /maxWidth:\s*FORM_MAX_WIDTH/, `${file} must cap its form card`);
+    assert.match(src, /alignSelf:\s*'center'/, `${file} must center the capped card`);
+  }
+});
+
+const NEWLY_CAPPED_SHEETS = [
+  'app/stylist/dressing-room/index.tsx',
+  'components/closet/MirrorSelfieExtractionModal.tsx',
+];
+
+test('remaining full-width bottom sheets are capped by the central token', () => {
+  for (const file of NEWLY_CAPPED_SHEETS) {
+    const src = read(file);
+    assert.match(src, /maxWidth:\s*MODAL_MAX_WIDTH/, `${file} must cap with MODAL_MAX_WIDTH`);
+    assert.doesNotMatch(src, /maxWidth:\s*560\b/, `${file} must not hardcode the cap value`);
+  }
+});
