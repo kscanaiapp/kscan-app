@@ -116,13 +116,14 @@ Local commands and results (synthetic fixtures only, no live-product claims):
 | Validation | Result |
 |---|---|
 | Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,125 passed; 34 steps; 0 failed; 1 existing ignored** |
-| New expansion tests (included in full Deno total) | **19 passed** |
+| New expansion tests | **20 passed**, including actual fetch cancellation and no post-cancel fallback |
 | Canonical Git-object OFF parity (`scripts/brand-search-canonical-parity.ts`) | **16 comparisons passed**, two requests each; full results and provider invocation/cache patterns across primary/fallback/empty/unsafe/disabled, image fast/inline and TextScan parity |
 | Actual migration, source-plan and migration governance Node tests | **113 passed; 0 failed** |
 | Mobile account preference service tests | **5 passed; 0 failed** |
 | Scanner and StyleChat entrypoint type checks | Passed in governed Deno type-checking |
 | `git diff --check` | Passed |
-| Complete mobile TypeScript | Blocked locally by absent `react-native-purchases` / `react-native-purchases-ui` declarations; no new-file error observed |
+| Complete mobile TypeScript | **Passed** after installing the two already pinned RevenueCat dependencies locally; no package/lockfile change |
+| Clean-tree backend authority and source parity Node tests | **37 passed; 0 failed** |
 | TestSprite | Explicitly waived by owner; not used |
 | Staging live-path scans and Elise | **Not tested** |
 | Live recall, diversity, latency, provider charges | **Not measured** |

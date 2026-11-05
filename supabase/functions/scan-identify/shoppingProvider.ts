@@ -542,6 +542,7 @@ export async function getShoppingResults(
   const started = Date.now();
   const query = collapseSpaces(str(input.query));
   const limit = clampLimit(input.limit, DEFAULT_LIMIT);
+  if (input.expansion && input.signal?.aborted) return { products: [], provider: 'none', query, errorType: 'timeout' };
 
   // Kill switch: SHOPPING_ENABLED === "false" disables all commerce.
   if (readEnv('SHOPPING_ENABLED')?.toLowerCase() === 'false') {
@@ -568,6 +569,7 @@ export async function getShoppingResults(
 
   // 1. Serper primary.
   const serper = await callSerper(query, limit, providerTimeoutMs, input.expansion ? input.signal : undefined);
+  if (input.expansion && input.signal?.aborted) return { products: [], provider: 'none', query, errorType: 'timeout' };
   if (serper.products.length > 0) {
     const result: ShoppingResult = {
       products: serper.products.slice(0, limit),

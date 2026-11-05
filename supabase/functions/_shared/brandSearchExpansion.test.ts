@@ -150,3 +150,23 @@ Deno.test('primary failure retains Brave fallback and never looks up registry', 
     equal(result.products,[]); equal(calls.length,2); assert(calls[1].includes('brave'));
   } finally { globalThis.fetch=original; _resetShoppingCache(); for(const key of ['SHOPPING_SERPER_API_KEY','SHOPPING_BRAVE_API_KEY','SHOPPING_ENABLED']) Deno.env.delete(key); }
 });
+
+Deno.test('cancellation propagates to active fetch and cannot start Brave or source work', async () => {
+  const original=globalThis.fetch;
+  Deno.env.set('SHOPPING_SERPER_API_KEY','offline-test'); Deno.env.set('SHOPPING_BRAVE_API_KEY','offline-test'); Deno.env.set('SHOPPING_ENABLED','true');
+  const parent=new AbortController(); let calls=0; let aborted=false;
+  globalThis.fetch=async(_url,init)=>{
+    calls++;
+    return await new Promise<Response>((_resolve,reject)=>{
+      init!.signal!.addEventListener('abort',()=>{aborted=true;reject(new DOMException('cancelled','AbortError'));},{once:true});
+      parent.abort();
+    });
+  };
+  try {
+    _resetShoppingCache();
+    const lane=createBrandExpansion(actor,garment,env,async()=>{throw new Error('no registry after cancellation');})!;
+    const result=await getShoppingResults({query:'black leather moto jacket',expansion:lane,signal:parent.signal});
+    equal(result.products,[]); equal(calls,1); assert(aborted);
+    await getShoppingResults({query:'black leather moto jacket',expansion:lane,signal:parent.signal}); equal(calls,1);
+  } finally {globalThis.fetch=original;_resetShoppingCache();for(const key of ['SHOPPING_SERPER_API_KEY','SHOPPING_BRAVE_API_KEY','SHOPPING_ENABLED'])Deno.env.delete(key);}
+});
