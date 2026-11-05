@@ -212,6 +212,8 @@ function mount(o = {}) {
     purchaseKPlusMonthly: async () => { env.calls.monthly += 1; return env.purchaseImpl('MONTHLY'); },
     purchaseKPlusAnnual: async () => { env.calls.annual += 1; return env.purchaseImpl('ANNUAL'); },
     restoreKPlusPurchases: async () => { env.calls.restore += 1; return env.restoreImpl(); },
+    // Server reconciliation + canonical re-read; counted as a refresh too.
+    recheckKPlusAccess: async () => { env.calls.recheck = (env.calls.recheck ?? 0) + 1; env.calls.refresh += 1; },
   };
   const step = runModule(STEP, {
     ...renderer.runtimeModules,
@@ -412,21 +414,93 @@ test('E PRODUCTS_UNAVAILABLE: Try again and Free, no fake purchase controls', as
   assert.equal(view.freePath, 'enabled');
   assert.equal(derive({ commerce: unavailable, ui: { offeringsLoading: true } }).screen, 'LOADING_PRODUCTS', 'Try again shows progress');
 
-  const gate = deferred();
-  const ui = mount({ commerce: unavailable, loadImpl: () => gate.promise });
+  // B41 repair: a presentation the user opens gets ONE fresh read of a stale
+  // UNAVAILABLE snapshot (the sign-in prefetch or an earlier sheet may have
+  // failed while the store is now healthy) -- and never a retry loop.
+  const first = deferred();
+  const ui = mount({ commerce: unavailable, loadImpl: () => first.promise });
+  await settle();
+  ui.render();
+  assert.equal(ui.env.calls.load, 1, 'a new presentation re-reads a stale UNAVAILABLE snapshot once');
+  first.resolve();
+  await settle();
+  ui.render();
   assert.equal(screenOf(ui), 'products-unavailable');
   assert.ok(!ui.has('kplus-paywall-cta'));
   assert.ok(ui.has('kplus-paywall-free-path'));
-  assert.equal(ui.env.calls.load, 0, 'an UNAVAILABLE answer is not retried behind the user\'s back');
+  ui.render();
+  await settle();
+  assert.equal(ui.env.calls.load, 1, 'a still-failing store is not retried behind the user\'s back');
+  const gate = deferred();
+  ui.env.loadImpl = () => gate.promise;
   ui.node('kplus-products-retry').props.onPress();
   await settle();
   ui.render();
-  assert.equal(ui.env.calls.load, 1);
+  assert.equal(ui.env.calls.load, 2);
   assert.equal(screenOf(ui), 'loading-products');
   gate.resolve();
   await settle();
   ui.render();
   assert.equal(screenOf(ui), 'products-unavailable');
+});
+
+test('B41: "Retry membership options" on the unavailable screen re-reads the store', async () => {
+  const unavailable = { ...IDLE, status: 'UNAVAILABLE', unavailableReason: 'OFFERINGS_FAILED' };
+  const ui = mount({ commerce: unavailable });
+  await settle();
+  ui.render();
+  const before = ui.env.calls.load;
+  assert.equal(screenOf(ui), 'products-unavailable');
+  ui.node('kplus-hosted-retry').props.onPress();
+  await settle();
+  ui.render();
+  assert.equal(ui.env.calls.load, before + 1, 'the retry link must reach the store, not only reset the hosted attempt');
+});
+
+test('B41: Restore attempted before any catalog never shows a fake "Loading" skeleton', () => {
+  for (const status of ['STORE_ERROR', 'NOTHING_RESTORED']) {
+    const view = derive({ commerce: { ...IDLE, status, catalog: null } });
+    assert.equal(view.screen, 'PRODUCTS_UNAVAILABLE', `${status} with no catalog`);
+    assert.equal(view.freePath, 'enabled');
+  }
+  assert.equal(derive({ commerce: { ...IDLE, status: 'NOTHING_RESTORED', catalog: null }, ui: { nothingRestored: true } }).screen, 'NOTHING_TO_RESTORE');
+  assert.equal(derive({ commerce: { ...IDLE, status: 'STORE_ERROR', catalog: null }, ui: { offeringsLoading: true } }).screen, 'LOADING_PRODUCTS', 'a real reload still shows progress');
+  assert.equal(derive({ commerce: IDLE }).screen, 'LOADING_PRODUCTS', 'the initial read still shows progress');
+});
+
+test('B41: Check again asks the server to reconcile, not only a local re-read', async () => {
+  const src = stripComments(read(STEP));
+  assert.match(src, /const handleCheckAgain = useCallback\(\(\) => \{\s*dispatch\(\{ type: 'RECHECK_REQUESTED' \}\);\s*void recheckKPlusAccess\(\);/);
+  assert.match(src, /testID="kplus-hosted-check-again"[^\n]*onPress=\{\(\) => void recheckKPlusAccess\(\)\}/);
+});
+
+test('NC-B41: the stale-UNAVAILABLE re-read, the retry link and the no-catalog restore screen are protected', async () => {
+  await expectRed(async () => {
+    const ui = mount({
+      commerce: { ...IDLE, status: 'UNAVAILABLE', unavailableReason: 'OFFERINGS_FAILED' },
+      mutateStep: mutateOpt(STEP, "const staleFailure = commerce.status === 'UNAVAILABLE'", "const staleFailure = false && commerce.status === 'UNAVAILABLE'"),
+    });
+    await settle();
+    ui.render();
+    assert.equal(ui.env.calls.load, 1);
+  }, 'stale UNAVAILABLE replayed');
+  await expectRed(async () => {
+    const ui = mount({
+      commerce: { ...IDLE, status: 'UNAVAILABLE', unavailableReason: 'OFFERINGS_FAILED' },
+      mutateStep: mutateOpt(STEP, "if (loading || view.screen === 'PRODUCTS_UNAVAILABLE') void requestOfferings();", 'if (loading) void requestOfferings();'),
+    });
+    await settle();
+    ui.render();
+    const before = ui.env.calls.load;
+    ui.node('kplus-hosted-retry').props.onPress();
+    await settle();
+    assert.equal(ui.env.calls.load, before + 1);
+  }, 'dead retry link');
+  await expectRed(async () => {
+    const broken = loadModel(mutateOpt(MODEL, "if (commerce.status === 'STORE_ERROR' || commerce.status === 'NOTHING_RESTORED') {", 'if (false) {'));
+    const view = broken.deriveKPlusPaywallScreen({ entitlement: FREE, commerce: { ...IDLE, status: 'STORE_ERROR', catalog: null }, ui: model.INITIAL_KPLUS_PAYWALL_UI });
+    assert.equal(view.screen, 'PRODUCTS_UNAVAILABLE');
+  }, 'fake loading skeleton');
 });
 
 test('F PURCHASING: plans locked, one calm progress CTA, nothing navigates away', async () => {

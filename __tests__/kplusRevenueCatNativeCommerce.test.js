@@ -144,6 +144,7 @@ function rigWithMocks(o = {}) {
     isCanonicalKPlusActive: () => state.canonicalActive,
     sleep: async (ms) => { state.sleeps.push(ms); if (o.sleepGate) await o.sleepGate.promise; },
     recheckDelaysMs: o.recheckDelaysMs ?? [],
+    ...(o.reconcile ? { requestProviderReconciliation: (trigger) => o.reconcile(trigger, state) } : {}),
   });
   const contract = realm.load(CONTRACT);
   return { svc, port, state, contract, realm };
@@ -576,6 +577,90 @@ test('P: a re-check that finally sees the canonical grant confirms it', async ()
   r.state.canonicalActive = true; // the server caught up (Phase C will do this)
   await flush();
   assert.equal(r.svc.getSnapshot().status, 'ENTITLEMENT_CONFIRMED');
+});
+
+// ── B41: server pull-reconciliation recovers a late / lost webhook ───────────
+
+test('B41 RC-1: an unresolved purchase asks the server to reconcile, and only the canonical re-read confirms', async () => {
+  const triggers = [];
+  const r = rigWithMocks({
+    reconcile: async (trigger, state) => { triggers.push(trigger); state.canonicalActive = true; },
+  });
+  const out = plain(await r.svc.purchaseMonthly());
+  assert.deepEqual(triggers, ['post_purchase_unresolved']);
+  assert.deepEqual(out, { outcome: 'ENTITLEMENT_CONFIRMED' });
+  assert.equal(r.state.refreshCount, 2, 'first canonical read, then a re-read after reconciliation');
+});
+
+test('B41 RC-2: reconciliation alone never grants -- a reconcile that changes nothing stays RESOLVING', async () => {
+  const r = rigWithMocks({ reconcile: async () => {} });
+  const out = plain(await r.svc.purchaseMonthly());
+  assert.deepEqual(out, { outcome: 'ENTITLEMENT_RESOLVING' });
+  assert.equal(r.svc.getSnapshot().status, 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING');
+});
+
+test('B41 RC-3: a failing / rate-limited reconciliation is harmless and leaves RESOLVING (never free)', async () => {
+  const r = rigWithMocks({ reconcile: async () => { throw new Error('429'); } });
+  const out = plain(await r.svc.purchaseMonthly());
+  assert.deepEqual(out, { outcome: 'ENTITLEMENT_RESOLVING' });
+});
+
+test('B41 RC-4: restore with provider ownership uses restore_unresolved; nothing restored never reconciles', async () => {
+  const triggers = [];
+  const owned = rigWithMocks({ reconcile: async (t) => { triggers.push(t); } });
+  owned.port.restoreImpl = async () => ({ status: 'ok', providerOwnership: true });
+  await owned.svc.restorePurchases();
+  assert.deepEqual(triggers, ['restore_unresolved']);
+  const none = rigWithMocks({ reconcile: async (t) => { triggers.push(t); } });
+  none.port.restoreImpl = async () => ({ status: 'ok', providerOwnership: false });
+  assert.deepEqual(plain(await none.svc.restorePurchases()), { outcome: 'NOTHING_RESTORED' });
+  assert.deepEqual(triggers, ['restore_unresolved'], 'no reconciliation when the provider owns nothing');
+});
+
+test('B41 RC-5: an actor change during reconciliation discards the result for the new actor', async () => {
+  let r;
+  r = rigWithMocks({
+    reconcile: async (_t, state) => { state.canonicalActive = true; switchActor(r, ACTOR_B); },
+  });
+  const out = plain(await r.svc.purchaseMonthly());
+  assert.deepEqual(out, { outcome: 'DISCARDED_ACTOR_CHANGED' });
+  assert.notEqual(r.svc.getSnapshot().status, 'ENTITLEMENT_CONFIRMED');
+});
+
+test('B41 RC-6: Check again reconciles with check_again, then confirms only from canonical state', async () => {
+  const triggers = [];
+  // Reach RESOLVING without reconciliation confirming it.
+  const quiet = rigWithMocks({ reconcile: async (t) => { triggers.push(t); } });
+  quiet.port.restoreImpl = async () => ({ status: 'ok', providerOwnership: true });
+  await quiet.svc.restorePurchases();
+  assert.equal(quiet.svc.getSnapshot().status, 'RESTORE_COMPLETED_ENTITLEMENT_RESOLVING');
+  quiet.state.canonicalActive = true;
+  await quiet.svc.recheckAccess();
+  assert.deepEqual(triggers.slice(-1), ['check_again']);
+  assert.equal(quiet.svc.getSnapshot().status, 'ENTITLEMENT_CONFIRMED');
+  // Signed out: no reconciliation is requested at all.
+  const signedOut = rigWithMocks({ actor: null, reconcile: async (t) => { triggers.push('signed-out:' + t); } });
+  await signedOut.svc.recheckAccess();
+  assert.ok(!triggers.some((t) => t.startsWith('signed-out')));
+});
+
+test('B41 RC-7: production wiring sends only the trigger to the governed pull-reconcile function', () => {
+  const src = stripComments(read(SERVICE));
+  assert.match(src, /supabase\.functions\.invoke\('kplus-revenuecat-pull-reconcile', \{ body: \{ trigger \} \}\)/);
+  assert.match(src, /requestProviderReconciliation: requestServerProviderReconciliation/);
+  assert.doesNotMatch(src, /invoke\('kplus-revenuecat-pull-reconcile',[^)]*(userId|actorId|appUserId)/);
+});
+
+test('NC-B41: removing the reconcile step is caught', async () => {
+  const sources = mutate(SERVICE, "    if (typeof deps.requestProviderReconciliation === 'function') {\n      await reconcileThenRefresh(", "    if (false) {\n      await reconcileThenRefresh(");
+  let failure = null;
+  try {
+    const triggers = [];
+    const r = rigWithMocks({ sources, reconcile: async (t, state) => { triggers.push(t); state.canonicalActive = true; } });
+    await r.svc.purchaseMonthly();
+    assert.deepEqual(triggers, ['post_purchase_unresolved']);
+  } catch (error) { failure = error; }
+  assert.ok(failure instanceof assert.AssertionError, 'mutant not caught');
 });
 
 test('Q: a user cancellation is its own outcome, not a failure, and does not touch canonical state', async () => {

@@ -72,7 +72,18 @@ export interface KPlusCommerceDeps {
   sleep: (ms: number) => Promise<void>;
   /** Bounded delays between canonical re-checks while a purchase is resolving. */
   recheckDelaysMs: readonly number[];
+  /**
+   * Asks the SERVER to reconcile this actor's provider state into canonical
+   * authority (kplus-revenuecat-pull-reconcile; the actor comes from the JWT,
+   * never from the request). Best-effort and never an access decision: only
+   * the canonical re-read that follows can say K+. Optional -- without it a
+   * late or lost webhook is recovered only by the webhook itself.
+   */
+  requestProviderReconciliation?: (trigger: KPlusReconcileTrigger) => Promise<void>;
 }
+
+/** The server's accepted reconciliation triggers (kplus-revenuecat-pull-reconcile). */
+export type KPlusReconcileTrigger = 'post_purchase_unresolved' | 'restore_unresolved' | 'check_again';
 
 export const KPLUS_COMMERCE_RECHECK_DELAYS_MS: readonly number[] = Object.freeze([2_000, 5_000, 10_000, 20_000]);
 
@@ -93,6 +104,8 @@ export interface KPlusCommerceService {
   /** Synchronous. Called on every actor boundary (sign-out, actor change). */
   reset(): void;
   isNativeOperationInFlight(): boolean;
+  /** "Check access again": server reconciliation (best-effort), then a canonical re-read. */
+  recheckAccess(): Promise<void>;
   beginHostedPresentation(actorId: string): { isCurrent: () => boolean; reconcile: (outcome: 'purchased' | 'restored') => void; release: () => void } | null;
 }
 
@@ -350,8 +363,47 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     if (!(await isStillCurrent(gen, actorId))) return 'DISCARDED';
     if (resolvingStatus === 'NOTHING_RESTORED') return 'RESOLVING';
     if (confirmIfCanonicalActive(gen)) return 'CONFIRMED';
+    // The webhook may be late or lost. Ask the server to pull the provider
+    // state itself, then re-read canonical authority. Neither step grants here.
+    if (typeof deps.requestProviderReconciliation === 'function') {
+      await reconcileThenRefresh(
+        resolvingStatus === 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING' ? 'post_purchase_unresolved' : 'restore_unresolved',
+      );
+      if (!(await isStillCurrent(gen, actorId))) return 'DISCARDED';
+      if (confirmIfCanonicalActive(gen)) return 'CONFIRMED';
+    }
     void recheckCanonical(gen);
     return 'RESOLVING';
+  }
+
+  /** Best-effort server reconciliation followed by a canonical re-read. Never throws. */
+  async function reconcileThenRefresh(trigger: KPlusReconcileTrigger): Promise<void> {
+    if (typeof deps.requestProviderReconciliation === 'function') {
+      try {
+        await deps.requestProviderReconciliation(trigger);
+      } catch {
+        // A refused / rate-limited / failed reconciliation changes nothing.
+      }
+    }
+    try {
+      await deps.refreshEntitlement();
+    } catch {
+      // The re-read failing leaves the answer unresolved, never free.
+    }
+  }
+
+  async function recheckAccess(): Promise<void> {
+    const gen = generation;
+    let actorId: string | null;
+    try {
+      actorId = await deps.getActorId();
+    } catch {
+      actorId = null;
+    }
+    if (gen !== generation || !actorId) return;
+    await reconcileThenRefresh('check_again');
+    if (!(await isStillCurrent(gen, actorId))) return;
+    if (isResolvingStatus()) confirmIfCanonicalActive(gen);
   }
 
   async function purchase(kind: KPlusProductKind): Promise<KPlusPurchaseOutcome> {
@@ -502,6 +554,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     restorePurchases,
     reset,
     isNativeOperationInFlight: () => inFlight !== null,
+    recheckAccess,
     beginHostedPresentation(actorId) {
       if (inFlight !== null || boundActorId !== actorId || snapshot.status !== 'READY'
         || canonicalIsActive()) return null;
@@ -534,6 +587,11 @@ async function readAuthenticatedActorId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
+/** The server derives the actor from the caller's JWT; the body carries only the trigger. */
+async function requestServerProviderReconciliation(trigger: KPlusReconcileTrigger): Promise<void> {
+  await supabase.functions.invoke('kplus-revenuecat-pull-reconcile', { body: { trigger } });
+}
+
 function canonicalStoreSaysKPlus(): boolean {
   const state = getKPlusEntitlementClientState();
   return state.status === 'resolved' && state.summary.access === 'k_plus';
@@ -548,6 +606,7 @@ const kplusCommerce = createKPlusCommerceService({
   isCanonicalKPlusActive: canonicalStoreSaysKPlus,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   recheckDelaysMs: KPLUS_COMMERCE_RECHECK_DELAYS_MS,
+  requestProviderReconciliation: requestServerProviderReconciliation,
 });
 
 export const getKPlusCommerceSnapshot = kplusCommerce.getSnapshot;
@@ -561,3 +620,4 @@ export const restoreKPlusPurchases = kplusCommerce.restorePurchases;
 export const resetKPlusCommerce = kplusCommerce.reset;
 export const beginKPlusHostedPresentation = kplusCommerce.beginHostedPresentation;
 export const isKPlusNativeOperationInFlight = kplusCommerce.isNativeOperationInFlight;
+export const recheckKPlusAccess = kplusCommerce.recheckAccess;

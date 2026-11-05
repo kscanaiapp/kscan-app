@@ -645,6 +645,16 @@ export function deriveKPlusPaywallScreen(inputs: KPlusPaywallInputs): KPlusPaywa
   if (commerce.status === 'UNAVAILABLE' && !ui.offeringsLoading) {
     return screenView('PRODUCTS_UNAVAILABLE', entry, { freePath: 'enabled', announcement: C.unavailableTitle });
   }
+  // A restore attempted before any catalog was read ends with no catalog and
+  // nothing loading. That is not "loading": say what happened.
+  if (!commerce.catalog && !ui.offeringsLoading) {
+    if (ui.nothingRestored) {
+      return screenView('NOTHING_TO_RESTORE', entry, { freePath: 'enabled', announcement: C.nothingToRestoreTitle });
+    }
+    if (commerce.status === 'STORE_ERROR' || commerce.status === 'NOTHING_RESTORED') {
+      return screenView('PRODUCTS_UNAVAILABLE', entry, { freePath: 'enabled', announcement: C.unavailableTitle });
+    }
+  }
   if (!commerce.catalog || commerce.status === 'UNAVAILABLE') {
     return screenView('LOADING_PRODUCTS', entry, { freePath: 'enabled', announcement: C.loadingProducts });
   }

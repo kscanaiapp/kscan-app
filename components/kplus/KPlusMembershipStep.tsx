@@ -39,6 +39,7 @@ import {
   subscribeToKPlusCommerce,
   purchaseKPlusAnnual,
   purchaseKPlusMonthly,
+  recheckKPlusAccess,
   restoreKPlusPurchases,
 } from '../../services/kplus/kplusCommerceService';
 import {
@@ -79,6 +80,8 @@ export const KPLUS_RESOLVING_PATIENCE_MS =
   KPLUS_COMMERCE_RECHECK_DELAYS_MS.reduce((total, delay) => total + delay, 0) + 5_000;
 
 const ACQUISITION_ENTRIES = new Set(['ACQUISITION_ELIGIBLE', 'COMPLIMENTARY_EXPIRED']);
+/** Terminal store answers that leave no catalog; a new presentation re-reads once. */
+const STALE_NO_CATALOG_STATUSES = new Set(['STORE_ERROR', 'NOTHING_RESTORED', 'USER_CANCELLED']);
 
 export interface KPlusMembershipStepProps {
   /** Finish onboarding through the existing completion handoff. */
@@ -247,9 +250,17 @@ export function KPlusMembershipStep({
 
   // Store products are read only once canonical entitlement says this actor is
   // positively Free. Before that the screen never shows an acquisition offer.
+  //
+  // Each presentation the user opens gets ONE fresh read when the shared
+  // snapshot holds no usable catalog: a failure recorded earlier (the sign-in
+  // prefetch, another entry point, a previous sheet) must not be replayed as
+  // this screen's answer after the store has recovered. Once per mount, so a
+  // failing store is never retried in a loop behind the user's back.
   useEffect(() => {
     if (!isAcquisitionEntry || nothingToSell || offeringsRequestedRef.current) return;
-    if (commerce.catalog || commerce.status !== 'IDLE') return;
+    const staleFailure = commerce.status === 'UNAVAILABLE'
+      || (!commerce.catalog && STALE_NO_CATALOG_STATUSES.has(commerce.status));
+    if (!staleFailure && (commerce.catalog || commerce.status !== 'IDLE')) return;
     offeringsRequestedRef.current = true;
     void requestOfferings();
   }, [isAcquisitionEntry, nothingToSell, commerce.catalog, commerce.status, requestOfferings]);
@@ -306,10 +317,12 @@ export function KPlusMembershipStep({
     }
   }, [dispatch, view.paywall?.restoreEnabled, view.screen]);
 
+  // "Check again" asks the server to reconcile provider state (a late or lost
+  // webhook), then re-reads canonical authority. It never grants anything.
   const handleCheckAgain = useCallback(() => {
     dispatch({ type: 'RECHECK_REQUESTED' });
-    entitlement.refresh();
-  }, [dispatch, entitlement]);
+    void recheckKPlusAccess();
+  }, [dispatch]);
 
   const handleFree = useCallback(() => {
     if (operationLockRef.current) return;
@@ -380,7 +393,10 @@ export function KPlusMembershipStep({
     setHosted('idle');
     setLoadingExpired(false);
     setRetry(value => value + 1);
-    if (loading) { entitlement.refresh(); void requestOfferings(); }
+    if (loading) entitlement.refresh();
+    // On "Membership options couldn't load" this link must actually re-read the
+    // store: the hosted paywall can only open once offerings are READY.
+    if (loading || view.screen === 'PRODUCTS_UNAVAILABLE') void requestOfferings();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -475,7 +491,7 @@ export function KPlusMembershipStep({
           title="Finishing your K+ setup"
           body="Your store action was received. We’re checking your K+ access securely before unlocking premium features."
         >
-          <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={entitlement.refresh} />
+          <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={() => void recheckKPlusAccess()} />
           <KPlusTextAction testID="kplus-hosted-continue-later" label="Continue without unlocking K+" tone="graphite" onPress={onContinue} />
         </KPlusStatusPanel>
       </View>
