@@ -142,6 +142,30 @@ Deno.test('preference timeout is bounded even when store ignores cancellation', 
   assert(Date.now() - start < 1000);
 });
 
+Deno.test('cold preference response above 200ms can enable expansion within the fixed bound', async () => {
+  const start = Date.now();
+  const lane = await resolveBrandExpansion(actor, garment, undefined, env, async () => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return Response.json([{ include_black_owned_brand_search: true }]);
+  });
+  assert(lane);
+  assert(Date.now() - start < 1000);
+});
+
+Deno.test('parent cancellation interrupts preference lookup before the timeout', async () => {
+  const parent = new AbortController();
+  let propagated = false;
+  const start = Date.now();
+  const result = resolveBrandExpansion(actor, garment, parent.signal, env, async (_path, init) => {
+    init!.signal!.addEventListener('abort', () => { propagated = true; }, { once: true });
+    return await new Promise<Response>(() => {});
+  });
+  parent.abort();
+  equal(await result, undefined);
+  assert(propagated);
+  assert(Date.now() - start < 200);
+});
+
 Deno.test('primary failure retains Brave fallback and never looks up registry', async () => {
   const original = globalThis.fetch;
   Deno.env.set('SHOPPING_SERPER_API_KEY','offline-test'); Deno.env.set('SHOPPING_BRAVE_API_KEY','offline-test'); Deno.env.set('SHOPPING_ENABLED','true');

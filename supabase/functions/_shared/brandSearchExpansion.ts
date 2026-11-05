@@ -75,19 +75,35 @@ export function sourceQuery(garment: Record<string, unknown>, source: Source): s
 
 /** Resolve the account preference before any cache/provider decision. Never cache across actors. */
 export async function resolveBrandExpansion(actorId: string | null, garment: Record<string, unknown>, signal?: AbortSignal, envGet: (k: string) => string | undefined = k => Deno.env.get(k), store: Store = rest): Promise<Expansion | undefined> {
-  if (envGet(EXPANSION_FLAG) !== 'true' || !actorId || !/^[0-9a-f-]{36}$/i.test(actorId) || signal?.aborted) return undefined;
+  if (envGet(EXPANSION_FLAG) !== 'true') return undefined;
+  if (!actorId || !/^[0-9a-f-]{36}$/i.test(actorId) || signal?.aborted) {
+    console.log('[brand-search-preference]', JSON.stringify({ outcome: signal?.aborted ? 'cancelled' : 'ineligible_actor', durationMs: 0, status: null }));
+    return undefined;
+  }
+  const started = Date.now();
+  let status: number | null = null;
+  let bounded: AbortSignal | undefined;
   try {
-    const bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(200)]) : AbortSignal.timeout(200);
+    // The first authenticated gateway round trip can exceed 200ms on a cold
+    // worker. Keep a fixed sub-second bound; never spend provider capacity here.
+    bounded = signal ? AbortSignal.any([signal, AbortSignal.timeout(500)]) : AbortSignal.timeout(500);
+    const preferenceSignal = bounded;
     const enabled = await Promise.race([
       (async () => {
-        const pref = await store(`user_stylist_preferences?select=include_black_owned_brand_search&user_id=eq.${actorId}&limit=1`, { signal: bounded });
+        const pref = await store(`user_stylist_preferences?select=include_black_owned_brand_search&user_id=eq.${actorId}&limit=1`, { signal: preferenceSignal });
+        status = pref.status;
         return pref.ok && (await pref.json())?.[0]?.include_black_owned_brand_search === true;
       })(),
-      new Promise<never>((_, reject) => bounded.addEventListener('abort', () => reject(new Error('preference_timeout')), { once: true })),
+      new Promise<never>((_, reject) => preferenceSignal.addEventListener('abort', () => reject(new Error('preference_timeout')), { once: true })),
     ]);
+    console.log('[brand-search-preference]', JSON.stringify({ outcome: bounded.aborted ? 'timeout' : status !== 200 ? 'unavailable' : enabled ? 'eligible' : 'disabled', durationMs: Date.now() - started, status }));
     if (!enabled || bounded.aborted) return undefined;
     return createBrandExpansion(actorId, garment, envGet, store);
-  } catch { return undefined; }
+  } catch {
+    // No identity, account values, query, URL, credentials or raw error content.
+    console.log('[brand-search-preference]', JSON.stringify({ outcome: signal?.aborted ? 'cancelled' : bounded?.aborted ? 'timeout' : 'unavailable', durationMs: Date.now() - started, status }));
+    return undefined;
+  }
 }
 
 /** Lazy, per-request, single-use lane. OFF performs no I/O, including no preference or registry read. */
