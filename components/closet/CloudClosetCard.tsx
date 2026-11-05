@@ -6,7 +6,7 @@ import { SecondaryButton } from '../luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { CLOSET_CLOUD_SYNC_V1, CLOSET_CROSS_DEVICE_RESTORE_V1, CLOSET_LEGACY_MIGRATION_V1 } from '../../constants/featureFlags';
 import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from '../../services/actorScope';
-import { hasRuntimeCapabilityProof } from '../../services/kplus/kplusCapabilityProof';
+import { isCloudClosetOutboundAuthorized, isCloudClosetRestoreAuthorized } from '../../services/closet/cloudClosetRolloutAuthority';
 import { listClosetSyncEntries } from '../../services/closet/closetSyncStore';
 import { isClosetSyncRunning, runClosetSyncPass } from '../../services/closet/closetSyncEngine';
 import { isClosetRestoreRunning, runClosetRestorePass } from '../../services/closet/closetRestoreEngine';
@@ -20,8 +20,10 @@ export function CloudClosetCard({ items, onRefresh }: {
   onRefresh: () => unknown;
 }) {
   if (!CLOSET_CLOUD_SYNC_V1 || !CLOSET_CROSS_DEVICE_RESTORE_V1 || !CLOSET_LEGACY_MIGRATION_V1) return null;
-  // No paid claim, upgrade action or sync I/O without current runtime proof.
-  if (!hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync')) {
+  // No paid claim, upgrade action or sync I/O while the rollout is withheld.
+  // The SAME authority keeps automatic sync, migration and restore dormant, so
+  // 'unavailable' is literally true (services/closet/cloudClosetRolloutAuthority.ts).
+  if (!isCloudClosetOutboundAuthorized()) {
     return (
       <View style={styles.card} testID="cloud-closet-unavailable">
         <Text style={styles.title}>CLOUD CLOSET</Text>
@@ -68,11 +70,11 @@ function CloudClosetStatusCard({ items, onRefresh, entitlement, active, resolvin
   const current = snapshot && isActorScopeCurrent(snapshot.scope) ? snapshot : null;
   const status = projectCloudClosetStatus({ entitlement, entries: current?.entries ?? {}, items,
     readFailed: !current || current.readFailed, syncing: current?.syncing ?? false, restoring: current?.restoring ?? false,
-    outboundProven: hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync') });
+    outboundProven: isCloudClosetOutboundAuthorized() });
   const check = async () => {
     if (requested || resolving) return;
     // A retained button must not acquire or sync after its proof expires.
-    if (!hasRuntimeCapabilityProof('cloud_closet', 'closet_outbound_sync')) return;
+    if (!isCloudClosetOutboundAuthorized()) return;
     if (!active) { openUpgrade(); return; }
     const scope = captureActorScope();
     setRequested(true);
@@ -95,7 +97,7 @@ function CloudClosetStatusCard({ items, onRefresh, entitlement, active, resolvin
     <View style={styles.card} testID="cloud-closet-card">
       <Text style={styles.title}>CLOUD CLOSET · K+</Text>
       <Text style={styles.body}>Your Closet on this device stays free.</Text>
-      <Text style={styles.body}>{hasRuntimeCapabilityProof('cloud_closet', 'closet_cross_device_restore')
+      <Text style={styles.body}>{isCloudClosetRestoreAuthorized()
         ? 'Keep your Closet backed up and restore it across devices.' : 'Back up your Closet with K+.'}</Text>
       <Text style={styles.status} accessibilityLiveRegion="polite" testID="cloud-closet-status">{status}</Text>
       <SecondaryButton title={active ? 'CHECK CLOUD CLOSET' : 'EXPLORE K+'} onPress={() => { void check(); }}

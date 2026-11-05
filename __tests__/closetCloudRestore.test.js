@@ -223,6 +223,8 @@ function buildHarness(options = {}) {
   };
 
   let kPlusState = options.kPlusState ?? 'active';
+  // Rollout authority defaults to AUTHORIZED; the withheld state has its own tests.
+  let restoreAuthorized = options.restoreAuthorized !== false;
 
   const engine = loadTsModule('services/closet/closetRestoreEngine.ts', {
     '../../constants/featureFlags': { CLOSET_CROSS_DEVICE_RESTORE_V1: options.flagEnabled !== false },
@@ -235,6 +237,10 @@ function buildHarness(options = {}) {
     './closetSyncStore': syncStore,
     './closetRestoreContract': restoreContract,
     './closetRestoreMedia': media.module,
+    './cloudClosetRolloutAuthority': {
+      isCloudClosetOutboundAuthorized: () => restoreAuthorized,
+      isCloudClosetRestoreAuthorized: () => restoreAuthorized,
+    },
   }, options.mutateEngine);
 
   return {
@@ -678,4 +684,22 @@ test('NEGATIVE CONTROL: a local attach failure mid-hydration is never recorded a
   assert.equal(entry.mediaState, 'none', 'never claimed ready for a write that did not land');
   assert.equal(entry.cachedMediaUploadedAt, null, 'no cache identity recorded for a failed attach');
   assert.ok(h.telemetry.some((t) => t.event === 'closet_restore_media_missing' && t.payload.errorCode === 'local_attach_failed'));
+});
+
+// ── Build 35 shared repair: ONE rollout authority (cloudClosetRolloutAuthority.ts) ──
+
+test('ROLLOUT WITHHELD: restore never reads the cloud or writes the local Closet', async () => {
+  const h = buildHarness({ restoreAuthorized: false });
+  h.state.rows.push(remoteRow());
+  const result = await h.engine.runClosetRestorePass({ bypassCooldown: true });
+  assert.equal(result.ran, false);
+  assert.equal(result.skippedReason, 'rollout_withheld');
+  assert.equal(h.closetLib.calls.length, 0, 'zero local writes');
+  assert.equal(h.closetLib.all().length, 0);
+});
+
+test('ROLLOUT WITHHELD is checked after entitlement: free K+ still reports not_kplus', async () => {
+  const h = buildHarness({ restoreAuthorized: false, kPlusState: 'eligible' });
+  const result = await h.engine.runClosetRestorePass({ bypassCooldown: true });
+  assert.equal(result.skippedReason, 'not_kplus');
 });
