@@ -42,8 +42,11 @@ jobs:
           node scripts/check-native-config-parity.js
       - name: Validate Apple readiness and metadata
         run: |
+          # Cloud Closet is NOT a required listing term: its rollout is withheld until a current
+          # Production runtime proof exists; __tests__/storeListingCapabilityTruth.test.js forbids the
+          # claim until then (services/closet/cloudClosetRolloutAuthority.ts).
           npm run verify:apple-readiness
-          node -e "const app=require('./app.json').expo,store=require('./store.config.json').apple,meta=store.info['en-US'],eas=require('./eas.json');if(store.version!==(app.ios.version||app.version)||app.ios.bundleIdentifier!=='com.kscanai.app'||eas.build['build35-release'].distribution!=='store'||eas.build['build35-release'].environment!=='production'||!meta.description.startsWith('K Scan AI helps you')||!['Cloud Closet','Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.description.includes(v))||!['Cloud Closet','Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.releaseNotes.includes(v))||/\\bBuild\\s*35\\b/i.test(meta.releaseNotes)||store.release.automaticRelease!==false)process.exit(1)"
+          node -e "const app=require('./app.json').expo,store=require('./store.config.json').apple,meta=store.info['en-US'],eas=require('./eas.json');if(store.version!==(app.ios.version||app.version)||app.ios.bundleIdentifier!=='com.kscanai.app'||eas.build['build35-release'].distribution!=='store'||eas.build['build35-release'].environment!=='production'||!meta.description.startsWith('K Scan AI helps you')||!['Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.description.includes(v))||!['Packing Intelligence','Smart Watchlist','Voice Scan','Virtual Try-On','K+'].every(v=>meta.releaseNotes.includes(v))||/\\bBuild\\s*35\\b/i.test(meta.releaseNotes)||store.release.automaticRelease!==false)process.exit(1)"
       - name: Inspect generated Expo iOS configuration
         run: |
           node node_modules/expo/bin/cli config --type introspect --json > /tmp/kscan-ios-introspection.json
