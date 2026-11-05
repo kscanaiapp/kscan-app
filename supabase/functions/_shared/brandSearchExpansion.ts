@@ -144,7 +144,14 @@ export function createBrandExpansion(
     event: (source, count, durationMs, calls = 1, outcome = 'ok') => {
       // Aggregate counts only; no user, query, title, image or URL.
       console.log('[brand-search-expansion]', JSON.stringify({ revision: source.revision, validProducts: count, expansionMs: durationMs, providerCalls: calls, outcome, costUsd: null }));
-      const write = store('rpc/record_brand_search_coverage', { method: 'POST', signal: AbortSignal.timeout(150), body: JSON.stringify({ p_source_id: source.id, p_revision: source.revision, p_valid_count: count }) }).catch(() => undefined);
+      // This is background bookkeeping, never on the primary result's critical
+      // path. Hosted gateway round trips measured 225-246ms during activation;
+      // the former 150ms deadline could cancel every write before dispatch.
+      const write = store('rpc/record_brand_search_coverage', { method: 'POST', signal: AbortSignal.timeout(1000), body: JSON.stringify({ p_source_id: source.id, p_revision: source.revision, p_valid_count: count }) })
+        .then(response => {
+          if (!response.ok) console.log('[brand-search-coverage]', JSON.stringify({ outcome: 'unavailable', status: response.status }));
+        })
+        .catch(() => { console.log('[brand-search-coverage]', JSON.stringify({ outcome: 'unavailable', status: null })); });
       const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } }).EdgeRuntime;
       runtime?.waitUntil(write);
     },
