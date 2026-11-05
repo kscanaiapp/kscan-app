@@ -386,6 +386,20 @@
       "notes": "Build 35 RevenueCat pull-reconciliation per-actor control state. ON DELETE CASCADE to auth.users; operational state cannot outlive the actor."
     },
     {
+      "table": "kplus_sandbox_review_accounts",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "B41 restricted sandbox review authorization. ON DELETE CASCADE to auth.users."
+    },
+    {
+      "table": "kplus_sandbox_review_audit",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "B41 append-only sandbox review audit. ON DELETE CASCADE from kplus_sandbox_review_accounts, which cascades from auth.users."
+    },
+    {
       "table": "kplus_offer_redemption_attempts",
       "column": "actor_id",
       "action": "auth_delete_cascade",

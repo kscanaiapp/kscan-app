@@ -800,6 +800,15 @@
               "20261104220528"
             ],
             "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
+          },
+          {
+            "localVersion": "20261106120000",
+            "logicalName": "kplus_sandbox_review_access",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104233754"
+            ],
+            "evidence": "B41 restricted sandbox REVIEW entitlement admission. Additive: two service-role-only tables (RLS on, no policies, no client privileges; append-only audit), four service_role-only SECURITY DEFINER functions, and one extra grants revocation reason valid ONLY for sandbox store grants. Access resolver unchanged; inert until an operator authorizes an account AND the webhook switch is on. Actual-migration authorization tests: __tests__/kplusSandboxReviewSql.test.js. Pending owner review and governed Staging execution; no Production approval."
           }
         ]
       },
@@ -1632,6 +1641,15 @@
               "20261104220528"
             ],
             "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
+          },
+          {
+            "localVersion": "20261106120000",
+            "logicalName": "kplus_sandbox_review_access",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104233754"
+            ],
+            "evidence": "B41 restricted sandbox REVIEW entitlement admission. Additive: two service-role-only tables (RLS on, no policies, no client privileges; append-only audit), four service_role-only SECURITY DEFINER functions, and one extra grants revocation reason valid ONLY for sandbox store grants. Access resolver unchanged; inert until an operator authorizes an account AND the webhook switch is on. Actual-migration authorization tests: __tests__/kplusSandboxReviewSql.test.js. Pending owner review and governed Staging execution; no Production approval."
           }
         ],
         "remoteOnly": [

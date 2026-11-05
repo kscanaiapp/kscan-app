@@ -53,6 +53,15 @@ import {
 import { normalizeRevenueCatEvent, parseRevenueCatWebhook } from './revenueCatWebhookEvent.ts';
 
 export const KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS_ENV = 'KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS' as const;
+/**
+ * B41 restricted review switch. Only the exact value 'true' enables it, and it
+ * only matters where sandbox is NOT already accepted (i.e. Production). Even
+ * then, a sandbox event is applied only if the database admits this exact
+ * K Scan account (kplus_sandbox_review_admit_event); otherwise it is refused
+ * exactly as before. Default (unset/anything else): off.
+ */
+export const KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV = 'KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED' as const;
+export const KPLUS_SANDBOX_REVIEW_ADMIT_RPC = 'kplus_sandbox_review_admit_event' as const;
 export const REVENUECAT_WEBHOOK_MAX_BODY_BYTES = 256 * 1024;
 
 export interface RpcResult {
@@ -162,9 +171,12 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
   const event = parsed.event;
   const eventKey = await opaque(event.id);
 
+  const acceptedEnvironments = parseAcceptedEnvironments(deps.env(KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS_ENV));
   const normalized = await normalizeRevenueCatEvent(event, {
     classification: parseKPlusProductClassification(deps.env(KPLUS_PRODUCT_CLASSIFICATION_ENV)),
-    acceptedEnvironments: parseAcceptedEnvironments(deps.env(KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS_ENV)),
+    acceptedEnvironments,
+    sandboxReviewCandidates: !acceptedEnvironments.includes('sandbox')
+      && deps.env(KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV) === 'true',
   });
 
   const common = { event_type: event.type, store: event.store, environment: event.environment, event_key: eventKey };
@@ -189,6 +201,32 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
       // settle this event inside the retry window. Nothing was mutated.
       return respond(422, { status: 'configuration_error', reason: normalized.reason });
     }
+  }
+
+  // B41 restricted review admission: a verified SANDBOX event at a deployment
+  // that does not accept sandbox is applied only for an account the database
+  // admits right now. Refusal is the unchanged environment refusal; a database
+  // failure is a retry (fail closed, never applied).
+  if (normalized.sandboxReviewAdmission) {
+    let admission: RpcResult;
+    try {
+      admission = await deps.callRpc(KPLUS_SANDBOX_REVIEW_ADMIT_RPC, {
+        p_user_id: normalized.sandboxReviewAdmission.userId,
+        p_event_key: eventKey,
+      });
+    } catch {
+      deps.alert('kplus_rc_webhook_rpc_unreachable', { ...common, stage: 'sandbox_review_admission' });
+      return respond(503, { status: 'retry' });
+    }
+    if (!admission.ok) {
+      deps.alert('kplus_rc_webhook_rpc_failed', { ...common, stage: 'sandbox_review_admission', http_status: admission.status });
+      return respond(503, { status: 'retry' });
+    }
+    if (admission.body !== true) {
+      deps.log('kplus_rc_webhook_ignored', { ...common, category: 'environment_not_accepted', detail: 'sandbox', review: 'not_admitted' });
+      return respond(200, { status: 'ignored', category: 'environment_not_accepted' });
+    }
+    deps.log('kplus_rc_webhook_sandbox_review_admitted', { ...common });
   }
 
   const isLifetime = normalized.kind === 'lifetime';

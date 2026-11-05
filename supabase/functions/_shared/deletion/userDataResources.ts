@@ -121,6 +121,11 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // Phase E per-actor pull lease/cooldown state. Operational only and removed
   // with the Auth user; listed so deletion coverage verifies the cascade.
   { table: 'kplus_provider_reconciliation_controls', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // B41 restricted sandbox REVIEW authorization and its append-only audit. The
+  // authorization cascades from auth.users; the audit cascades from the
+  // authorization. Listed so deletion coverage verifies both cascades.
+  { table: 'kplus_sandbox_review_accounts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'kplus_sandbox_review_audit', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // RevenueCat promotional-mirror reconciliation queue
   // (REVENUECAT_REVOCATION_RETIREMENT). ON DELETE CASCADE to auth.users clears
   // any queued work for a purged account, so a retirement can never outlive the
