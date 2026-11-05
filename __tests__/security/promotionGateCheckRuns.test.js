@@ -614,3 +614,14 @@ test('a FAILED Project checks run with no regression artifact still fails closed
   assert.equal(verdict.finalVerdict, 'OPERATIONAL FAILURE');
   assert.ok(verdict.failures.includes('projectChecksCiOperationalFailure'));
 });
+
+
+test('promotion regression lookup returns one SHA-matched run without SIGPIPE under pipefail', () => {
+  const yaml = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'security-promotion-gate.yml'), 'utf8');
+  const lookup = yaml.split('\n').find(line => line.includes('RUN_ID=') && line.includes('gh run list'));
+  assert.ok(lookup, 'promotion workflow must resolve the exact-SHA Project checks run');
+  assert.match(lookup, /--workflow=security-code\.yml/);
+  assert.match(lookup, /select\(\.headSha==/);
+  assert.match(lookup, /\]\[0\] \/\/ empty/);
+  assert.doesNotMatch(lookup, /\|\s*head -1\b/, 'head -1 closes the upstream pipe and can exit 141 under pipefail');
+});

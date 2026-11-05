@@ -132,6 +132,9 @@ jobs:
       # this step never fails the job - classifyProjectCheckFailure already
       # fails closed to PROJECT_CI_OPERATIONAL_FAILURE when no report is
       # found, exactly today's classification for an unexplained failure.
+      # Avoid `gh run list | head -1` under `pipefail`: if multiple runs exist
+      # for the same SHA, `head` closes stdout early and gh can exit SIGPIPE
+      # (141) before the required-check evaluator runs. Select one id in jq.
       - name: Download Project checks regression report
         id: project_check_report
         env:
@@ -139,7 +142,7 @@ jobs:
         run: |
           set -uo pipefail
           SHA="${{ steps.sha.outputs.head_sha }}"
-          RUN_ID="$(gh run list --repo "${{ github.repository }}" --workflow=security-code.yml --json databaseId,headSha --jq ".[] | select(.headSha==\"${SHA}\") | .databaseId" | head -1)"
+          RUN_ID="$(gh run list --repo "${{ github.repository }}" --workflow=security-code.yml --json databaseId,headSha --jq "[.[] | select(.headSha==\"${SHA}\") | .databaseId][0] // empty")"
           if [ -z "$RUN_ID" ]; then
             echo "No Security - Code and Dependencies run found for ${SHA}."
             exit 0

@@ -246,7 +246,9 @@ test('workflows: no executable db push --project-ref and concurrency group prese
   assert.doesNotMatch(controlled, /supabase\s+db\s+push\s+--project-ref/);
   assert.doesNotMatch(gate, /supabase\s+db\s+push\s+--project-ref/);
   assert.match(controlled, /group:\s*kscan-staging-deployment/);
-  assert.match(gate, /group:\s*kscan-staging-deployment/);
+  // The gate's lock is conditional on deploy authority (see
+  // stagingBranchAuthority.test.js); its deploy side is still this literal group.
+  assert.match(gate, /group:[^\n]*&& 'kscan-staging-deployment' \|\|/);
   assert.match(gate, /Missing required staging variables/);
   assert.match(controlled, /Deploy one function/);
   assert.match(controlled, /rollback-on-failure:/);
