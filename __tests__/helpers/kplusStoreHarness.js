@@ -204,6 +204,8 @@ function createReader() {
     answer(...results) { queue.push(...results); },
     /** Resolves the oldest held (deferred) read. */
     release(result) { held.shift()(result); },
+    /** Resolves the held read at `index` (0 = oldest) out of order. */
+    releaseAt(index, result) { held.splice(index, 1)[0](result); },
     heldCount() { return held.length; },
   };
   return reader;
