@@ -1,10 +1,11 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {budget,withPreference,expansionEvents}=require('../security/release/run-brand-search-activation-proof');
-test('paid proof reserves before dispatch, counts earlier uncertain attempts, and refuses a third search',()=>{
+test('paid proof reserves before dispatch, counts earlier uncertain attempts, and refuses beyond the owner-approved retry',()=>{
   assert.equal(budget(0,0).reservedCalls,6);
   assert.equal(budget(6,.06).reservedCalls,6);
-  assert.throws(()=>budget(12,.12),/exhausted/);
+  assert.equal(budget(12,.12).reservedCalls,6);
+  assert.throws(()=>budget(18,.18),/exhausted/);
   assert.throws(()=>budget(0,4.7),/exhausted/);
   for(const args of [[-1,0],[0,NaN],[1.5,0]])assert.throws(()=>budget(...args));
 });

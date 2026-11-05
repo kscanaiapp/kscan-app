@@ -13,6 +13,16 @@ on:
         description: Type ONE BOUNDED BRAND SEARCH to authorize one commerce-only request
         required: true
         type: string
+      accepted_scan_bundle:
+        description: Exact Scanner bundle hash read back from the accepted controlled Staging deployment
+        required: true
+        type: string
+        default: 1f5807e1b5bbf9f100a913cd8feeb30eefa0e69fe0284c7e9157b04edd3e0de2
+      accepted_elise_bundle:
+        description: Exact Elise bundle hash read back from the accepted controlled Staging deployment
+        required: true
+        type: string
+        default: caef9e6938a7a99ad21f62c5695e8b7b82e7de2d23f7c80f365765b67766f443
 
 permissions:
   contents: read
@@ -37,6 +47,8 @@ jobs:
         env:
           PROOF_TARGET: ${{ inputs.target }}
           CONFIRM_PAID: ${{ inputs.confirm_paid }}
+          ACCEPTED_SCAN_BUNDLE: ${{ inputs.accepted_scan_bundle }}
+          ACCEPTED_ELISE_BUNDLE: ${{ inputs.accepted_elise_bundle }}
           SUPABASE_URL: ${{ inputs.target == 'production' && vars.SUPABASE_PRODUCTION_URL || vars.SUPABASE_STAGING_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ inputs.target == 'production' && secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY || secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
           REVIEW_EMAIL: ${{ inputs.target == 'production' && secrets.PRODUCTION_REVIEW_EMAIL || secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}

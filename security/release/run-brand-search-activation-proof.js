@@ -11,7 +11,8 @@ const REFS = { staging: 'yzqjvdfgefveprobvvyw', production: 'wyyuqfdxucjksghsmhr
 const HASHES = { 'scan-identify': '1f5807e1b5bbf9f100a913cd8feeb30eefa0e69fe0284c7e9157b04edd3e0de2', 'stylechat-generate': 'caef9e6938a7a99ad21f62c5695e8b7b82e7de2d23f7c80f365765b67766f443' };
 // Prior owner-authorized paid probe artifacts: 41914232506, 41917396270,
 // 41921139229, 41924395591; all telemetry ledgers reconciled before this activation.
-const PRIOR_USD = 0.2886, MAX_USD = 5, MAX_CALLS = 12;
+// Owner approved one additional bounded retry after the first Staging skip.
+const PRIOR_USD = 0.2886, MAX_USD = 5, MAX_CALLS = 18;
 // One commerce_only request: no Gemini, at most primary/fallback shopping plus
 // optional bounded H3 fallback and the existing Poshmark lane. Reserve six calls,
 // above the actual five-call upper bound, at $0.01 each (cost estimate, not billing).
@@ -68,6 +69,8 @@ async function run(env = process.env) {
     const base = `https://${ref}.supabase.co`;
     if (String(env.SUPABASE_URL).replace(/\/+$/, '') !== base) throw Error('wrong_environment');
     for (const key of ['SUPABASE_PUBLISHABLE_KEY', 'REVIEW_EMAIL', 'REVIEW_PASSWORD', 'SUPABASE_ACCESS_TOKEN']) if (!env[key]) throw Error('review_configuration_missing');
+    const acceptedHashes = { 'scan-identify': env.ACCEPTED_SCAN_BUNDLE ?? HASHES['scan-identify'], 'stylechat-generate': env.ACCEPTED_ELISE_BUNDLE ?? HASHES['stylechat-generate'] };
+    if (Object.values(acceptedHashes).some(hash => !/^[a-f0-9]{64}$/.test(hash))) throw Error('invalid_accepted_staging_bundle');
     const request = async (url, init, label) => {
       const response = await fetch(url, { ...init, signal: AbortSignal.timeout(25000) });
       if (!response.ok) throw Error(`${label}_http_${response.status}`);
@@ -77,7 +80,12 @@ async function run(env = process.env) {
     const sql = async query => await management('database/query', { query });
     const functions = await management('functions');
     report.deployed = functions.filter(f => HASHES[f.slug]).map(f => ({ slug: f.slug, version: f.version, sha256: f.ezbr_sha256, jwt: f.verify_jwt }));
-    if (report.deployed.length !== 2 || report.deployed.some(f => f.sha256 !== HASHES[f.slug] || f.jwt !== (f.slug === 'stylechat-generate'))) throw Error('unaccepted_deployed_source');
+    if (report.deployed.length !== 2 || report.deployed.some(f => f.sha256 !== acceptedHashes[f.slug] || f.jwt !== (f.slug === 'stylechat-generate'))) throw Error('unaccepted_deployed_source');
+    // Production proof cannot accept a bundle that differs from live Staging.
+    if (env.PROOF_TARGET === 'production') {
+      const stage = (await request(`https://api.supabase.com/v1/projects/${REFS.staging}/functions`, { headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}` } }, 'accepted_staging_read')).body;
+      if (Object.entries(acceptedHashes).some(([slug, hash]) => !stage.some(f => f.slug === slug && f.ezbr_sha256 === hash && f.status === 'ACTIVE'))) throw Error('production_staging_bundle_mismatch');
+    }
     const secrets = await management('secrets');
     if (!secrets.some(s => s.name === 'BLACK_OWNED_BRAND_SEARCH_EXPANSION_ENABLED' && (s.value ?? s.digest) === sha('true'))) throw Error('expansion_flag_not_on');
     // Owner explicitly authorized the bounded Staging query under the first
