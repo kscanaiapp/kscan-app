@@ -29,6 +29,7 @@ import {
   KPLUS_PRODUCT_CLASSIFICATION_ENV,
   parseKPlusProductClassification,
 } from '../_shared/revenuecat/revenueCatProductClassification.ts';
+import { parsePullReconcileRequest } from '../_shared/revenuecat/pullReconcileRequest.ts';
 
 const MAX_BODY_BYTES = 2048;
 const CLAIM_RPC = 'claim_kplus_provider_reconciliation';
@@ -36,9 +37,6 @@ const FINISH_RPC = 'finish_kplus_provider_reconciliation';
 const PRODUCT_CACHE_GET_RPC = 'get_kplus_revenuecat_product_cache';
 const PRODUCT_CACHE_PUT_RPC = 'put_kplus_revenuecat_product_cache';
 const LIST_GRANTS_RPC = 'list_kplus_provider_grants_for_reconciliation';
-
-type Trigger = 'post_purchase_unresolved' | 'restore_unresolved' | 'check_again';
-const TRIGGERS = new Set<Trigger>(['post_purchase_unresolved', 'restore_unresolved', 'check_again']);
 
 function env(name: string): string | null {
   const value = Deno.env.get(name)?.trim();
@@ -104,19 +102,11 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ status: 'malformed_request' }, 400);
   }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ status: 'malformed_request' }, 400);
-  const input = body as Record<string, unknown>;
-  if (Object.keys(input).some((key) => key !== 'trigger' && key !== 'force')) {
-    // This is the actor-injection guard: userId/actor/customer fields are not
-    // merely ignored; the request is refused.
-    return json({ status: 'malformed_request' }, 400);
-  }
-  const trigger = input.trigger === undefined ? 'check_again' : input.trigger;
-  if (typeof trigger !== 'string' || !TRIGGERS.has(trigger as Trigger) ||
-      (input.force !== undefined && typeof input.force !== 'boolean')) {
-    return json({ status: 'malformed_request' }, 400);
-  }
-  const force = input.force === true;
+  // Actor-injection guard and cooldown authority (B41 K-14): see pullReconcileRequest.ts.
+  // A member can never force past the server's cooldown.
+  const parsed = parsePullReconcileRequest(body);
+  if (!parsed.ok) return json({ status: parsed.status }, parsed.httpStatus);
+  const trigger = parsed.trigger;
 
   const secretApiKey = env(REVENUECAT_RECONCILE_SECRET_API_KEY_ENV);
   const projectId = env(REVENUECAT_PROJECT_ID_ENV);
@@ -148,7 +138,7 @@ Deno.serve(async (req: Request) => {
     p_environment: environment,
     p_cooldown_seconds: cooldownSeconds,
     p_lease_seconds: leaseSeconds,
-    p_force: force,
+    p_force: false,
   }).catch(() => null);
   const claim = claimResponse?.body as { classification?: unknown; claimToken?: unknown; retryAfterSeconds?: unknown } | null;
   if (!claimResponse?.ok || !claim || typeof claim.classification !== 'string') {
@@ -162,7 +152,7 @@ Deno.serve(async (req: Request) => {
     return json({ status: 'not_eligible', reason: claim.classification === 'rejected' ? 'account_not_active' : 'account_not_active' }, 403);
   }
 
-  const actorFields = { uid: shortUserId(user.id), trigger, force, environment };
+  const actorFields = { uid: shortUserId(user.id), trigger, environment };
   logEvent('kplus_rc_pull_requested', actorFields);
   let outcome = 'transition_failed';
   try {
