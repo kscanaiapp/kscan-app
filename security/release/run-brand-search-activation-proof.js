@@ -111,7 +111,7 @@ async function run(env = process.env) {
       const start = new Date().toISOString();
       reserveDurably({ ...report.budget, runId: env.GITHUB_RUN_ID, target: env.PROOF_TARGET, reservedAt: start });
       report.paidHttpAttempts = 1;
-      const result = await request(base + '/functions/v1/scan-identify', { method: 'POST', headers, body: JSON.stringify({ mode: 'image', requestMode: 'commerce_only', identification: { item_type: 'outerwear', subtype: 'moto jacket', primary_color: 'black', material_estimate: 'leather', confidence: 0.96 }, searchQueries: ['black leather moto jacket'], market: { country: 'US', locale: 'en-US', currency: 'USD' } }) }, 'commerce_only');
+      const result = await request(base + '/functions/v1/scan-identify', { method: 'POST', headers, body: JSON.stringify({ mode: 'image', requestMode: 'commerce_only', identification: { item_type: 'outerwear', subtype: 'moto jacket', primary_color: 'black', material_estimate: 'leather', confidence_score: 0.96 }, searchQueries: ['black leather moto jacket'], market: { country: 'US', locale: 'en-US', currency: 'USD' } }) }, 'commerce_only');
       const products = result.body?.recommendedProducts ?? result.body?.purchaseOptions ?? [];
       report.shopping = { http: result.response.status, status: result.body?.status ?? null, count: products.length, unsupportedOwnershipLabel: products.some(p => p.ownershipIdentity || p.ownershipVerificationStatus) };
       let events = [];
