@@ -40,6 +40,7 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import { BrandSearchPreference } from '../components/BrandSearchPreference';
 import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
 import { SpeechSettingsSection } from '../components/settings/SpeechSettingsSection';
 import { GeminiProcessingSettingsSection } from '../components/settings/GeminiProcessingSettingsSection';
@@ -745,6 +746,7 @@ export default function PrivacyScreen() {
             ) : null}
 
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
+            <BrandSearchPreference userId={user?.id ?? null} />
             <SpeechSettingsSection actorId={user?.id ?? null} />
             <GeminiProcessingSettingsSection actorId={user?.id ?? null} />
 
