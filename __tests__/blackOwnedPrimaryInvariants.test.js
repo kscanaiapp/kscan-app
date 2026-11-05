@@ -6,13 +6,16 @@ const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '..');
 const baseline = require('../config/black-owned-discovery-primary-baseline.json');
 const vriApproval = require('../config/vri03-primary-integrity-approval.json');
+const bobseApproval = require('../config/bobse-primary-integrity-approval.json');
 const digest = (source) => crypto.createHash('sha256').update(source).digest('hex');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
 
 /**
  * The original secondary-discovery baseline is IMMUTABLE. H1-H4b are separately
  * approved scanner improvements, so only their exact source digests may differ.
- * New edits to either source fail closed until independently reconciled.
+ * BOBSE's explicitly requested ordinary-search integration has a separate
+ * exact-digest record. Neither historical nor VRI-03 snapshots are rewritten.
+ * Any edit outside those three named files still fails against the original pin.
  */
 test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-exact and named', () => {
   const allowed = [
@@ -21,11 +24,24 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
   ];
   assert.deepEqual(Object.keys(vriApproval.approvedFiles).sort(), allowed.sort());
   assert.equal(vriApproval.baseCommit, 'dd82d40d99a885d163c859a462c7bc30f9755eaf');
+  assert.equal(bobseApproval.baseCommit, '4a832287f291086f600cf7411343ae5554cbf344');
+  assert.deepEqual(Object.keys(bobseApproval.approvedFiles).sort(), [
+    'supabase/functions/scan-identify/index.ts',
+    'supabase/functions/scan-identify/scanCommerceRouter.ts',
+    'supabase/functions/scan-identify/shoppingProvider.ts',
+  ].sort());
   for (const [file, historicalHash] of Object.entries(baseline.files)) {
     const source = read(file);
     const entry = vriApproval.approvedFiles[file];
+    const expansion = bobseApproval.approvedFiles[file];
     if (entry) {
       assert.equal(entry.historicalSha256, historicalHash, 'historical baseline must remain immutable: ' + file);
+    }
+    if (expansion) {
+      assert.equal(expansion.priorSha256, entry?.vri03Sha256 ?? historicalHash, 'prior approved primary snapshot must remain pinned: ' + file);
+      assert.equal(digest(source), expansion.bobseSha256, 'unapproved ordinary-source integration drift: ' + file);
+      assert.ok(expansion.reason.length > 40);
+    } else if (entry) {
       assert.equal(digest(source), entry.vri03Sha256, 'unapproved VRI-03 scanner source drift: ' + file);
     } else {
       assert.equal(digest(source), historicalHash, file);
@@ -55,7 +71,8 @@ test('consent promotion stays byte-pinned with explicitly approved VRI-03 additi
     baseline.consentAuthorityPromotion.priorScanEntrypointDigest,
     'historical consent snapshot must remain immutable',
   );
-  assert.equal(digest(original), vriApproval.consentPromotion.vri03ConsentStrippedSha256);
+  assert.equal(bobseApproval.consentPromotion.priorConsentStrippedSha256, vriApproval.consentPromotion.vri03ConsentStrippedSha256);
+  assert.equal(digest(original), bobseApproval.consentPromotion.bobseConsentStrippedSha256);
 
   // These controls supplement, rather than substitute for, the VRI-03 flag-OFF
   // equivalence, no-fabrication and merchant-eligibility runtime tests.

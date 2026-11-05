@@ -3836,8 +3836,11 @@ Deno.serve(async (req) => {
             : identification?.style_tags,
           text: textQuery,
         });
+        const textBrandExpansion = await resolveBrandExpansion(userId, (identification ?? {}) as Record<string, unknown>, req.signal);
         const shopping = await Promise.race([
-          getShoppingResults({ query: shoppingQuery, limit: 8, expansion: await resolveBrandExpansion(userId, (identification ?? {}) as Record<string, unknown>, req.signal), signal: req.signal }).catch((err) => {
+          (textBrandExpansion
+            ? getShoppingResults({ query: shoppingQuery, limit: 8, expansion: textBrandExpansion, signal: req.signal })
+            : getShoppingResults({ query: shoppingQuery, limit: 8 })).catch((err) => {
             console.warn('[scan-identify] text commerce provider error:', err);
             return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
               ReturnType<typeof getShoppingResults>

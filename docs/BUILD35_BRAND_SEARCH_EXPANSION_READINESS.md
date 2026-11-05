@@ -11,6 +11,8 @@ merchant relationships, product inventory, feed authorizations or verified badge
 - Backend feature branch: `feature/build35-brand-search-backend`.
 - Mobile: `integration/build35-v1-convergence@2f621e5a9da4d916de1f9fb53a9112d1381fe871`.
 - Mobile feature branch: `feature/build35-brand-search-mobile`.
+- Draft reviews: [backend #741](https://github.com/kscanaiapp/kscan-app/pull/741) and
+  [mobile #742](https://github.com/kscanaiapp/kscan-app/pull/742). Neither is merged.
 - Remote heads and open PRs were inspected before implementation. Open OC-02/03/04
   PRs #731/#732/#736 were not incorporated; their action authority stays outside this work.
 - The original `C:\Users\jsmit\KScan` directory is a bare Git repository with leftover
@@ -115,7 +117,7 @@ Local commands and results (synthetic fixtures only, no live-product claims):
 
 | Validation | Result |
 |---|---|
-| Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,125 passed; 34 steps; 0 failed; 1 existing ignored** |
+| Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,126 passed; 34 steps; 0 failed; 1 existing ignored** |
 | New expansion tests | **20 passed**, including actual fetch cancellation and no post-cancel fallback |
 | Canonical Git-object OFF parity (`scripts/brand-search-canonical-parity.ts`) | **16 comparisons passed**, two requests each; full results and provider invocation/cache patterns across primary/fallback/empty/unsafe/disabled, image fast/inline and TextScan parity |
 | Actual migration, source-plan and migration governance Node tests | **113 passed; 0 failed** |
@@ -124,6 +126,7 @@ Local commands and results (synthetic fixtures only, no live-product claims):
 | `git diff --check` | Passed |
 | Complete mobile TypeScript | **Passed** after installing the two already pinned RevenueCat dependencies locally; no package/lockfile change |
 | Clean-tree backend authority and source parity Node tests | **37 passed; 0 failed** |
+| Primary integrity, cross-path manifest and Scanner edge contract tests | **82 passed; 0 failed** after the CI-discovered reconciliation |
 | TestSprite | Explicitly waived by owner; not used |
 | Staging live-path scans and Elise | **Not tested** |
 | Live recall, diversity, latency, provider charges | **Not measured** |
@@ -159,6 +162,16 @@ provider pricing is not known to this code; `costUsd:null` is intentional. The 7
 limit and two-call ceiling are functional bounds, **not measured performance or cost
 acceptance**. Live primary/expansion latency, recall, cost and source diversity must be
 measured on Staging before increasing the query allowance or approving Production.
+
+Initial backend Project checks failed on the historical primary-source pins, cross-path
+manifest and the literal legacy TextScan call shape. The call shape is now retained on
+the explicit OFF branch. Cross-path hashes were regenerated. The immutable historical
+Black-owned and VRI-03 records were preserved; `bobse-primary-integrity-approval.json`
+records only the three authorized primary-file changes with exact prior/current digests
+and an independently pinned consent-stripped digest. Tests still reject unnamed files
+or any further source drift. This is feature source reconciliation, not platform parity
+or deployment certification. Mobile PR #742 Project checks and security promotion passed;
+backend PR checks must pass on the final repaired head before promotion.
 
 ## D. Readiness and remaining work
 
