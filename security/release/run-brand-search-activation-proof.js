@@ -80,8 +80,11 @@ async function run(env = process.env) {
     if (report.deployed.length !== 2 || report.deployed.some(f => f.sha256 !== HASHES[f.slug] || f.jwt !== (f.slug === 'stylechat-generate'))) throw Error('unaccepted_deployed_source');
     const secrets = await management('secrets');
     if (!secrets.some(s => s.name === 'BLACK_OWNED_BRAND_SEARCH_EXPANSION_ENABLED' && (s.value ?? s.digest) === sha('true'))) throw Error('expansion_flag_not_on');
-    // Unknown third-party resale pricing is not authorized by this shopping-only proof.
-    if (secrets.some(s => s.name === 'POSHMARK_ENABLED' && (s.value ?? s.digest) === sha('true'))) throw Error('unpriced_optional_provider_enabled');
+    // Owner explicitly authorized the bounded Staging query under the first
+    // 500 free Poshmark calls. Do not extend that exception to Production.
+    const poshmarkOn = secrets.some(s => s.name === 'POSHMARK_ENABLED' && (s.value ?? s.digest) === sha('true'));
+    if (poshmarkOn && env.PROOF_TARGET !== 'staging') throw Error('unpriced_optional_provider_enabled');
+    report.poshmarkAllowance = poshmarkOn ? 'owner_confirmed_first_500_free_calls' : 'disabled';
     const auth = await request(base + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: env.REVIEW_EMAIL, password: env.REVIEW_PASSWORD }) }, 'password_auth');
     token = auth.body?.access_token;
     const actor = auth.body?.user?.id;
