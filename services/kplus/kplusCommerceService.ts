@@ -43,7 +43,9 @@ import { revenueCatNativePort } from './revenueCatNative';
 import { supabase } from '../supabaseClient';
 import {
   INITIAL_KPLUS_COMMERCE_SNAPSHOT,
+  classifyKPlusReconcileResponse,
   kplusSdkErrorFields,
+  kplusUnavailableCauseFromSdkName,
   normalizeKPlusOfferings,
   resolveKPlusRevenueCatConfig,
   sanitizeKPlusDiagnostic,
@@ -55,8 +57,10 @@ import {
   type KPlusProductKind,
   type KPlusProductMappingConfig,
   type KPlusPurchaseOutcome,
+  type KPlusReconcileResult,
   type KPlusRestoreOutcome,
   type KPlusRevenueCatPublicKeys,
+  type KPlusUnavailableCause,
   type KPlusUnavailableReason,
 } from '../../types/kplusCommerceContract';
 
@@ -82,7 +86,7 @@ export interface KPlusCommerceDeps {
    * the canonical re-read that follows can say K+. Optional -- without it a
    * late or lost webhook is recovered only by the webhook itself.
    */
-  requestProviderReconciliation?: (trigger: KPlusReconcileTrigger) => Promise<void>;
+  requestProviderReconciliation?: (trigger: KPlusReconcileTrigger) => Promise<KPlusReconcileResult>;
   /**
    * Optional, privacy-safe failure sink (operator logs only; never reaches the UI and
    * never changes behaviour). Receives only allowlisted enum-like fields -- see
@@ -164,8 +168,8 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     }
   }
 
-  function setUnavailable(reason: KPlusUnavailableReason) {
-    setSnapshot({ status: 'UNAVAILABLE', unavailableReason: reason, pendingKind: null });
+  function setUnavailable(reason: KPlusUnavailableReason, cause: KPlusUnavailableCause | null = null) {
+    setSnapshot({ status: 'UNAVAILABLE', unavailableReason: reason, unavailableCause: cause, pendingKind: null });
   }
 
   function beginOperation(kind: 'purchase' | 'restore' | 'hosted') {
@@ -323,15 +327,16 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   async function fetchCatalog(prepared: { gen: number; actorId: string }): Promise<
     | { state: 'ok'; catalog: KPlusProductCatalog; eligibility: KPlusIntroEligibility; annualEligibility: KPlusIntroEligibility }
     | { state: 'discarded' }
-    | { state: 'unavailable'; reason: KPlusUnavailableReason }
+    | { state: 'unavailable'; reason: KPlusUnavailableReason; cause?: KPlusUnavailableCause | null }
   > {
     let raw;
     try {
       raw = await port.getOfferings();
     } catch (error) {
       if (prepared.gen !== generation) return { state: 'discarded' };
-      reportDiagnostic({ stage: 'OFFERINGS', reason: 'OFFERINGS_FAILED', ...kplusSdkErrorFields(error), detail: null });
-      return { state: 'unavailable', reason: 'OFFERINGS_FAILED' };
+      const sdk = kplusSdkErrorFields(error);
+      reportDiagnostic({ stage: 'OFFERINGS', reason: 'OFFERINGS_FAILED', ...sdk, detail: null });
+      return { state: 'unavailable', reason: 'OFFERINGS_FAILED', cause: kplusUnavailableCauseFromSdkName(sdk.sdkName) };
     }
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     const catalog = normalizeKPlusOfferings(raw, deps.mapping);
@@ -366,7 +371,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     const result = await fetchCatalog(prepared);
     if (result.state === 'discarded') return snapshot;
     if (result.state === 'unavailable') {
-      setUnavailable(result.reason);
+      setUnavailable(result.reason, result.cause ?? null);
       return snapshot;
     }
     // Do not clobber a purchase / restore that is mid-flight or resolving.
@@ -374,6 +379,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
       setSnapshot({
         status: 'READY',
         unavailableReason: null,
+        unavailableCause: null,
         catalog: result.catalog,
         pendingKind: null,
         annualIntroEligibility: result.annualEligibility,
@@ -408,7 +414,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   ): Promise<'DISCARDED' | 'CONFIRMED' | 'RESOLVING'> {
     // The provider said yes. That is NOT access: record "resolving", then ask
     // the canonical authority.
-    setSnapshot({ status: resolvingStatus, unavailableReason: null });
+    setSnapshot({ status: resolvingStatus, unavailableReason: null, reconciliation: null });
     try {
       await deps.refreshEntitlement();
     } catch {
@@ -421,6 +427,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     // state itself, then re-read canonical authority. Neither step grants here.
     if (typeof deps.requestProviderReconciliation === 'function') {
       await reconcileThenRefresh(
+        gen,
         resolvingStatus === 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING' ? 'post_purchase_unresolved' : 'restore_unresolved',
       );
       if (!(await isStillCurrent(gen, actorId))) return 'DISCARDED';
@@ -430,13 +437,30 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     return 'RESOLVING';
   }
 
-  /** Best-effort server reconciliation followed by a canonical re-read. Never throws. */
-  async function reconcileThenRefresh(trigger: KPlusReconcileTrigger): Promise<void> {
+  /**
+   * Server reconciliation followed by a canonical re-read. Never throws.
+   *
+   * The server's answer is CLASSIFIED and recorded (never treated as success
+   * by default): an ownership conflict, a cooldown or an unconfigured
+   * environment are each visible to the screen and to operator diagnostics.
+   * None of them is an access decision -- only the canonical re-read is.
+   */
+  async function reconcileThenRefresh(gen: number, trigger: KPlusReconcileTrigger): Promise<void> {
     if (typeof deps.requestProviderReconciliation === 'function') {
+      let result: KPlusReconcileResult;
       try {
-        await deps.requestProviderReconciliation(trigger);
+        const answer = await deps.requestProviderReconciliation(trigger);
+        result = answer && typeof answer === 'object' && typeof answer.outcome === 'string'
+          ? answer
+          : { outcome: 'UNKNOWN', retryAfterSeconds: null };
       } catch {
-        // A refused / rate-limited / failed reconciliation changes nothing.
+        result = { outcome: 'NETWORK', retryAfterSeconds: null };
+      }
+      if (gen === generation) {
+        setSnapshot({ reconciliation: result });
+        if (result.outcome !== 'RESOLVED' && result.outcome !== 'NO_CHANGE') {
+          reportDiagnostic({ stage: 'RECONCILE', reason: 'RECONCILE_FAILED', sdkCode: null, sdkName: null, detail: result.outcome });
+        }
       }
     }
     try {
@@ -455,7 +479,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
       actorId = null;
     }
     if (gen !== generation || !actorId) return;
-    await reconcileThenRefresh('check_again');
+    await reconcileThenRefresh(gen, 'check_again');
     if (!(await isStillCurrent(gen, actorId))) return;
     if (isResolvingStatus()) confirmIfCanonicalActive(gen);
   }
@@ -477,13 +501,14 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
         const fetched = await fetchCatalog(prepared);
         if (fetched.state === 'discarded') return { outcome: 'DISCARDED_ACTOR_CHANGED' };
         if (fetched.state === 'unavailable') {
-          setUnavailable(fetched.reason);
+          setUnavailable(fetched.reason, fetched.cause ?? null);
           return { outcome: 'UNAVAILABLE', reason: fetched.reason };
         }
         catalog = fetched.catalog;
         setSnapshot({
           status: 'READY',
           unavailableReason: null,
+          unavailableCause: null,
           catalog,
           pendingKind: null,
           annualIntroEligibility: fetched.annualEligibility,
@@ -642,8 +667,35 @@ async function readAuthenticatedActorId(): Promise<string | null> {
 }
 
 /** The server derives the actor from the caller's JWT; the body carries only the trigger. */
-async function requestServerProviderReconciliation(trigger: KPlusReconcileTrigger): Promise<void> {
-  await supabase.functions.invoke('kplus-revenuecat-pull-reconcile', { body: { trigger } });
+/** Exported as a test seam for the production wiring (real supabase-js client in tests). */
+export async function requestServerProviderReconciliation(trigger: KPlusReconcileTrigger): Promise<KPlusReconcileResult> {
+  // No session: send nothing (the function would only answer 401).
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (!data?.session?.access_token) return { outcome: 'UNAUTHENTICATED', retryAfterSeconds: null };
+  } catch {
+    return { outcome: 'UNAUTHENTICATED', retryAfterSeconds: null };
+  }
+  // invoke() never throws for a non-2xx answer: it returns { error } whose
+  // context is the HTTP Response. Classify every answer explicitly.
+  const { data, error, response } = await supabase.functions.invoke('kplus-revenuecat-pull-reconcile', { body: { trigger } });
+  if (!error) return classifyKPlusReconcileResponse(response?.status ?? 200, data);
+  // FunctionsHttpError / FunctionsRelayError carry the HTTP Response as `context`;
+  // FunctionsFetchError (transport) does not. Checked structurally, not with
+  // instanceof, so a polyfilled or cross-realm Response is still read.
+  const context = (error as { context?: unknown }).context as
+    | { status?: unknown; clone?: () => { json: () => Promise<unknown> } }
+    | undefined;
+  if (!context || typeof context.status !== 'number' || typeof context.clone !== 'function') {
+    return classifyKPlusReconcileResponse(null, null);
+  }
+  let body: unknown = null;
+  try {
+    body = await context.clone().json();
+  } catch {
+    body = null;
+  }
+  return classifyKPlusReconcileResponse(context.status, body);
 }
 
 function canonicalStoreSaysKPlus(): boolean {

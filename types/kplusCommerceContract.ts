@@ -65,13 +65,14 @@ export type KPlusUnavailableReason = (typeof KPLUS_UNAVAILABLE_REASONS)[number];
 // or a RevenueCat numeric error code -- never a message, id, email, receipt,
 // purchase token or raw provider object, and nothing here reaches the UI.
 
-export const KPLUS_DIAGNOSTIC_STAGES = ['RUNTIME', 'CONFIG', 'IDENTITY', 'OFFERINGS', 'CATALOG'] as const;
+export const KPLUS_DIAGNOSTIC_STAGES = ['RUNTIME', 'CONFIG', 'IDENTITY', 'OFFERINGS', 'CATALOG', 'RECONCILE'] as const;
 export type KPlusDiagnosticStage = (typeof KPLUS_DIAGNOSTIC_STAGES)[number];
 
 export interface KPlusCommerceDiagnostic {
   stage: KPlusDiagnosticStage;
-  /** The service's own unavailable reason, or CATALOG_EMPTY when offerings loaded but neither plan is offerable. */
-  reason: KPlusUnavailableReason | 'CATALOG_EMPTY';
+  /** The service's own unavailable reason, CATALOG_EMPTY when offerings loaded but neither
+   *  plan is offerable, or RECONCILE_FAILED when server reconciliation did not succeed. */
+  reason: KPlusUnavailableReason | 'CATALOG_EMPTY' | 'RECONCILE_FAILED';
   /** RevenueCat PURCHASES_ERROR_CODE as digits (e.g. "23"), or null. */
   sdkCode: string | null;
   /** RevenueCat PURCHASES_ERROR_CODE name (e.g. CONFIGURATION_ERROR), or null. */
@@ -104,7 +105,8 @@ export function sanitizeKPlusDiagnostic(input: unknown): KPlusCommerceDiagnostic
   const d = (input ?? null) as Partial<Record<keyof KPlusCommerceDiagnostic, unknown>> | null;
   if (!d || typeof d !== 'object') return null;
   if (!(KPLUS_DIAGNOSTIC_STAGES as readonly string[]).includes(d.stage as string)) return null;
-  if (d.reason !== 'CATALOG_EMPTY' && !(KPLUS_UNAVAILABLE_REASONS as readonly string[]).includes(d.reason as string)) return null;
+  if (d.reason !== 'CATALOG_EMPTY' && d.reason !== 'RECONCILE_FAILED'
+    && !(KPLUS_UNAVAILABLE_REASONS as readonly string[]).includes(d.reason as string)) return null;
   return {
     stage: d.stage as KPlusDiagnosticStage,
     reason: d.reason as KPlusCommerceDiagnostic['reason'],
@@ -112,6 +114,93 @@ export function sanitizeKPlusDiagnostic(input: unknown): KPlusCommerceDiagnostic
     sdkName: boundedToken(d.sdkName),
     detail: boundedToken(d.detail),
   };
+}
+
+// ── Store-failure cause (consumer copy only) ─────────────────────────────────
+//
+// A bounded answer to "which kind of store failure was it", derived from the
+// RevenueCat error NAME only. It changes which honest sentence the unavailable
+// screen shows; it never changes access or retry policy.
+
+export type KPlusUnavailableCause = 'STORE_ACCOUNT_UNAVAILABLE' | 'NETWORK' | 'STORE_CONFIGURATION';
+
+export function kplusUnavailableCauseFromSdkName(name: string | null | undefined): KPlusUnavailableCause | null {
+  switch (name) {
+    // Play: no signed-in account / billing unavailable (the B41 emulator); App Store: purchases disallowed.
+    case 'PURCHASE_NOT_ALLOWED_ERROR':
+      return 'STORE_ACCOUNT_UNAVAILABLE';
+    case 'NETWORK_ERROR':
+    case 'OFFLINE_CONNECTION_ERROR':
+      return 'NETWORK';
+    case 'CONFIGURATION_ERROR':
+      return 'STORE_CONFIGURATION';
+    default:
+      return null;
+  }
+}
+
+// ── Server pull-reconciliation outcome ───────────────────────────────────────
+//
+// kplus-revenuecat-pull-reconcile answers with an HTTP status and a small JSON
+// body. supabase.functions.invoke() never throws for a non-2xx answer, so every
+// caller must classify the answer explicitly -- otherwise a 503, 429, 401 or 409
+// silently reads as success. The outcome is never an access decision.
+
+export type KPlusReconcileOutcome =
+  /** The server applied at least one provider transition. */
+  | 'RESOLVED'
+  /** The server checked the provider and had nothing to apply. */
+  | 'NO_CHANGE'
+  /** Cooldown or an in-flight reconciliation: try again after retryAfterSeconds. */
+  | 'RATE_LIMITED'
+  /** The store purchase is bound to a different K Scan account. Never transferred automatically. */
+  | 'OWNERSHIP_CONFLICT'
+  /** Provider or canonical write temporarily unavailable. */
+  | 'PROVIDER_UNAVAILABLE'
+  /** The environment has no reconciliation configured. */
+  | 'NOT_CONFIGURED'
+  /** No usable session; nothing was sent. */
+  | 'UNAUTHENTICATED'
+  /** Anonymous / inactive account. */
+  | 'NOT_ELIGIBLE'
+  /** The request never reached the function. */
+  | 'NETWORK'
+  | 'UNKNOWN';
+
+export interface KPlusReconcileResult {
+  outcome: KPlusReconcileOutcome;
+  /** Bounded server hint for RATE_LIMITED, else null. */
+  retryAfterSeconds: number | null;
+}
+
+function boundedRetryAfter(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 86_400 ? value : null;
+}
+
+/** Pure classification of one pull-reconcile answer. `httpStatus` null = transport failure. */
+export function classifyKPlusReconcileResponse(httpStatus: number | null, body: unknown): KPlusReconcileResult {
+  const b = (body && typeof body === 'object' ? body : {}) as {
+    status?: unknown; retryAfterSeconds?: unknown; transitions?: { applied?: unknown } | null;
+  };
+  const status = typeof b.status === 'string' ? b.status : null;
+  const result = (outcome: KPlusReconcileOutcome, retryAfterSeconds: number | null = null): KPlusReconcileResult => ({ outcome, retryAfterSeconds });
+  if (httpStatus === null) return result('NETWORK');
+  if (httpStatus === 200) {
+    if (status !== 'reconciled') return result('UNKNOWN');
+    const applied = b.transitions && typeof b.transitions.applied === 'number' ? b.transitions.applied : 0;
+    return result(applied > 0 ? 'RESOLVED' : 'NO_CHANGE');
+  }
+  if (httpStatus === 409 || status === 'ownership_conflict') return result('OWNERSHIP_CONFLICT');
+  if (httpStatus === 429) {
+    return status === 'rate_limited'
+      ? result('RATE_LIMITED', boundedRetryAfter(b.retryAfterSeconds))
+      : result('PROVIDER_UNAVAILABLE');
+  }
+  if (httpStatus === 503 && status === 'not_configured') return result('NOT_CONFIGURED');
+  if (httpStatus === 502 || httpStatus === 503) return result('PROVIDER_UNAVAILABLE');
+  if (httpStatus === 401) return result('UNAUTHENTICATED');
+  if (httpStatus === 403) return result('NOT_ELIGIBLE');
+  return result('UNKNOWN');
 }
 
 export type KPlusProductKind = 'MONTHLY' | 'ANNUAL' | 'LIFETIME';
@@ -431,6 +520,10 @@ export interface KPlusCommerceSnapshot {
   /** Store-reported Monthly intro eligibility for the current actor's catalog. */
   monthlyIntroEligibility: KPlusIntroEligibility;
   annualIntroEligibility?: KPlusIntroEligibility;
+  /** Which kind of store failure produced UNAVAILABLE, when the SDK said so. Copy only. */
+  unavailableCause?: KPlusUnavailableCause | null;
+  /** The last server reconciliation answer for this actor, or null. Never an access decision. */
+  reconciliation?: KPlusReconcileResult | null;
 }
 
 export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.freeze({
@@ -440,6 +533,8 @@ export const INITIAL_KPLUS_COMMERCE_SNAPSHOT: KPlusCommerceSnapshot = Object.fre
   pendingKind: null,
   monthlyIntroEligibility: 'UNKNOWN' as KPlusIntroEligibility,
   annualIntroEligibility: 'UNKNOWN' as KPlusIntroEligibility,
+  unavailableCause: null,
+  reconciliation: null,
 });
 
 // ── Native commerce port ─────────────────────────────────────────────────────

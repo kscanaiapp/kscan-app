@@ -32,8 +32,10 @@ import type {
   KPlusIntroOffer,
   KPlusProductKind,
   KPlusPurchaseOutcome,
+  KPlusReconcileResult,
   KPlusRestoreOutcome,
   KPlusStoreProduct,
+  KPlusUnavailableCause,
 } from '../../types/kplusCommerceContract';
 import type { KPlusEntitlementSnapshot, KPlusResolvedState } from '../../types/entitlements';
 
@@ -88,6 +90,12 @@ export const KPLUS_PAYWALL_COPY = Object.freeze({
   unavailableTitle: 'Membership options couldn’t load',
   unavailableBody:
     'We couldn’t reach the store just now. You can try again, or continue with K Scan AI Free and join K+ anytime.',
+  unavailableStoreAccountBody:
+    'Your app store isn’t available for purchases on this device right now. Make sure you’re signed in to Google Play or the App Store, then try again — or continue with K Scan AI Free and join K+ anytime.',
+  unavailableStoreConfigBody:
+    'Membership options aren’t available from the store right now. Please try again later, or continue with K Scan AI Free and join K+ anytime.',
+  reconcileOwnershipConflictBody:
+    'This store purchase is already linked to a different K Scan AI account, so it can’t unlock K+ here. Sign in to the account that made the purchase, or contact support. We never move a membership between accounts automatically.',
   tryAgain: 'Try again',
   resolvingTitle: 'Finishing your K+ setup…',
   resolvingPurchaseBody:
@@ -127,6 +135,27 @@ export const KPLUS_PAYWALL_COPY = Object.freeze({
   checkingTitle: 'Checking your K+ access…',
   checkingBody: 'One moment while we finish setting up your account.',
 });
+
+/** The honest body for "Membership options couldn't load", by store-failure cause. */
+export function kplusUnavailableBody(cause: KPlusUnavailableCause | null | undefined): string {
+  if (cause === 'STORE_ACCOUNT_UNAVAILABLE') return KPLUS_PAYWALL_COPY.unavailableStoreAccountBody;
+  if (cause === 'STORE_CONFIGURATION') return KPLUS_PAYWALL_COPY.unavailableStoreConfigBody;
+  return KPLUS_PAYWALL_COPY.unavailableBody;
+}
+
+/**
+ * What the resolving screen must add after a server reconciliation answer, or
+ * null to keep the standard resolving copy. Never an access decision.
+ */
+export function kplusResolvingNotice(reconciliation: KPlusReconcileResult | null | undefined): string | null {
+  if (!reconciliation) return null;
+  if (reconciliation.outcome === 'OWNERSHIP_CONFLICT') return KPLUS_PAYWALL_COPY.reconcileOwnershipConflictBody;
+  if (reconciliation.outcome === 'RATE_LIMITED' && reconciliation.retryAfterSeconds !== null) {
+    const minutes = Math.max(1, Math.ceil(reconciliation.retryAfterSeconds / 60));
+    return `We’re still confirming your K+ access with the store. You can check again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+  }
+  return null;
+}
 
 /** Same destinations as the existing K+ legal surface (KPLUS_LEGAL_LINKS in
  *  components/kplus/KPlusActivationStep.tsx); a test keeps the two identical. */
