@@ -1,16 +1,16 @@
 /** Offline executable comparison with the selected canonical shopping implementation.
- * deno run --no-config --allow-run=git --allow-read --allow-env scripts/brand-search-canonical-parity.ts
+ * deno run --no-config --allow-run=git --allow-read --allow-env qa/bobse/brandSearchCanonicalParity.ts
  * Extracts the fixed Git object; never edits the checkout or accesses the network.
  */
 import assert from 'node:assert/strict';
-import { getShoppingResults, _resetShoppingCache } from '../supabase/functions/scan-identify/shoppingProvider.ts';
-import { resolveBrandExpansion } from '../supabase/functions/_shared/brandSearchExpansion.ts';
-import { getFastCommerceResults, getScanCommerceResults } from '../supabase/functions/scan-identify/scanCommerceRouter.ts';
-import { commerceCacheClear } from '../supabase/functions/scan-identify/commerceResultCache.ts';
+import { getShoppingResults, _resetShoppingCache } from '../../supabase/functions/scan-identify/shoppingProvider.ts';
+import { resolveBrandExpansion } from '../../supabase/functions/_shared/brandSearchExpansion.ts';
+import { getFastCommerceResults, getScanCommerceResults } from '../../supabase/functions/scan-identify/scanCommerceRouter.ts';
+import { commerceCacheClear } from '../../supabase/functions/scan-identify/commerceResultCache.ts';
 const canonical = '4a832287f291086f600cf7411343ae5554cbf344';
 const output = await new Deno.Command('git', { args: ['show', `${canonical}:supabase/functions/scan-identify/shoppingProvider.ts`], stdout:'piped', stderr:'piped' }).output();
 if (!output.success) throw new Error('Canonical Git source unavailable');
-const base = new URL('../supabase/functions/scan-identify/shoppingProvider.ts', import.meta.url);
+const base = new URL('../../supabase/functions/scan-identify/shoppingProvider.ts', import.meta.url);
 const code = new TextDecoder().decode(output.stdout).replace(/from (['"])(\.[^'"]+)\1/g, (_m, q, path) => `from ${q}${new URL(path,base).href}${q}`);
 const legacy = await import(`data:application/typescript,${encodeURIComponent(code)}`);
 const originalFetch = globalThis.fetch;
@@ -45,7 +45,7 @@ try {
   }
   const routerOutput=await new Deno.Command('git',{args:['show',`${canonical}:supabase/functions/scan-identify/scanCommerceRouter.ts`],stdout:'piped',stderr:'piped'}).output();
   if(!routerOutput.success)throw new Error('Canonical router unavailable');
-  const routerBase=new URL('../supabase/functions/scan-identify/scanCommerceRouter.ts',import.meta.url);
+  const routerBase=new URL('../../supabase/functions/scan-identify/scanCommerceRouter.ts',import.meta.url);
   const routerCode=new TextDecoder().decode(routerOutput.stdout).replace(/from (['"])(\.[^'"]+)\1/g,(_m,q,path)=>`from ${q}${new URL(path,routerBase).href}${q}`);
   const legacyRouter=await import(`data:application/typescript,${encodeURIComponent(routerCode)}`);
   Date.now=()=>1793793600000;

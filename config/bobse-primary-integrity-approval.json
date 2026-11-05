@@ -25,7 +25,7 @@
     "bobseConsentStrippedSha256": "b1b14d1abcf71b85d691eba67259db921e0c966f2a35d3330b8cfb0dc592c04f"
   },
   "evidence": [
-    "scripts/brand-search-canonical-parity.ts",
+    "qa/bobse/brandSearchCanonicalParity.ts",
     "supabase/functions/_shared/brandSearchExpansion.test.ts",
     "docs/BUILD35_BRAND_SEARCH_EXPANSION_READINESS.md"
   ],

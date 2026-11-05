@@ -119,7 +119,7 @@ Local commands and results (synthetic fixtures only, no live-product claims):
 |---|---|
 | Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,126 passed; 34 steps; 0 failed; 1 existing ignored** |
 | New expansion tests | **20 passed**, including actual fetch cancellation and no post-cancel fallback |
-| Canonical Git-object OFF parity (`scripts/brand-search-canonical-parity.ts`) | **16 comparisons passed**, two requests each; full results and provider invocation/cache patterns across primary/fallback/empty/unsafe/disabled, image fast/inline and TextScan parity |
+| Canonical Git-object OFF parity (`qa/bobse/brandSearchCanonicalParity.ts`) | **16 comparisons passed**, two requests each; full results and provider invocation/cache patterns across primary/fallback/empty/unsafe/disabled, image fast/inline and TextScan parity |
 | Actual migration, source-plan and migration governance Node tests | **113 passed; 0 failed** |
 | Mobile account preference service tests | **5 passed; 0 failed** |
 | Scanner and StyleChat entrypoint type checks | Passed in governed Deno type-checking |
@@ -172,6 +172,14 @@ and an independently pinned consent-stripped digest. Tests still reject unnamed 
 or any further source drift. This is feature source reconciliation, not platform parity
 or deployment certification. Mobile PR #742 Project checks and security promotion passed;
 backend PR checks must pass on the final repaired head before promotion.
+
+The later backend compiler failure was the Deno-only canonical comparison probe being
+included by the mobile compiler from `scripts/`. It now lives under the already excluded
+`qa/` tree; no compiler checks or exclusions were weakened. A local full Node run found
+two environment failures: Deno-generated duplicate Expo packages under `node_modules/.deno`
+triggered the native foreground-service census, and the sandbox denied reading a historical
+Git object in the unchanged mirror test. Those local failures are not counted as passes;
+clean Linux Project checks remain the authoritative full Node-suite evidence.
 
 ## D. Readiness and remaining work
 

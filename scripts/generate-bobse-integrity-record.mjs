@@ -19,6 +19,6 @@ fs.writeFileSync('config/bobse-primary-integrity-approval.json',JSON.stringify({
   note:'Exact feature source record only. Immutable historical Black-owned and VRI-03 snapshots are preserved. No Staging/Production deployment, activation or platform parity certification is implied.',
   approvedFiles:Object.fromEntries(Object.entries(reasons).map(([file,reason])=>[file,{priorSha256:vri.approvedFiles[file]?.vri03Sha256??baseline.files[file],bobseSha256:digest(read(file)),reason}])),
   consentPromotion:{priorConsentStrippedSha256:vri.consentPromotion.vri03ConsentStrippedSha256,bobseConsentStrippedSha256:digest(consentStripped)},
-  evidence:['scripts/brand-search-canonical-parity.ts','supabase/functions/_shared/brandSearchExpansion.test.ts','docs/BUILD35_BRAND_SEARCH_EXPANSION_READINESS.md'],
+  evidence:['qa/bobse/brandSearchCanonicalParity.ts','supabase/functions/_shared/brandSearchExpansion.test.ts','docs/BUILD35_BRAND_SEARCH_EXPANSION_READINESS.md'],
   restrictions:['Research sources not loaded or qualified','Feature remains OFF pending governed Staging and real-path acceptance','No Production activation approval','Synchronize platform/backend source lineages before release promotion'],
 },null,2)+'\n');
