@@ -1,0 +1,56 @@
+name: K Scan Brand Search Activation Proof
+
+on:
+  push:
+    branches: [ops/bobse-activation-proof-20261105]
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [staging, production]
+        required: true
+      confirm_paid:
+        description: Type ONE BOUNDED BRAND SEARCH to authorize one commerce-only request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kscan-brand-search-activation-proof
+  cancel-in-progress: false
+
+jobs:
+  proof:
+    if: github.event_name == 'workflow_dispatch'
+    environment: ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '20'
+      - name: One authenticated, budget-reserved commerce-only search
+        env:
+          PROOF_TARGET: ${{ inputs.target }}
+          CONFIRM_PAID: ${{ inputs.confirm_paid }}
+          SUPABASE_URL: ${{ inputs.target == 'production' && vars.SUPABASE_PRODUCTION_URL || vars.SUPABASE_STAGING_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ inputs.target == 'production' && secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY || secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          REVIEW_EMAIL: ${{ inputs.target == 'production' && secrets.PRODUCTION_REVIEW_EMAIL || secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          REVIEW_PASSWORD: ${{ inputs.target == 'production' && secrets.PRODUCTION_REVIEW_PASSWORD || secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: node security/release/run-brand-search-activation-proof.js
+      - name: Retain metadata-only proof and write-ahead budget reservation
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: brand-search-proof-${{ github.run_id }}
+          path: |
+            brand-search-proof-report.json
+            brand-search-proof-ledger.json
+          retention-days: 90
+          if-no-files-found: error
