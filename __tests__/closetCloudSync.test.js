@@ -334,6 +334,13 @@ function buildHarness(options = {}) {
   };
 
   let kPlusState = options.kPlusState ?? 'active';
+  // Rollout authority defaults to AUTHORIZED so the sync mechanics below stay
+  // under test; the withheld state has its own tests.
+  let outboundAuthorized = options.outboundAuthorized !== false;
+  const rollout = {
+    isCloudClosetOutboundAuthorized: () => outboundAuthorized,
+    isCloudClosetRestoreAuthorized: () => outboundAuthorized,
+  };
   const engine = loadTsModule('services/closet/closetSyncEngine.ts', {
     '../../constants/featureFlags': { CLOSET_CLOUD_SYNC_V1: options.flagEnabled !== false },
     '../actorContext': actorContext,
@@ -347,6 +354,7 @@ function buildHarness(options = {}) {
     './closetSyncStore': store,
     './closetFactsSync': factsSync,
     './closetMediaSync': mediaSync,
+    './cloudClosetRolloutAuthority': rollout,
   });
 
   const coordinator = loadTsModule('services/closet/closetSyncCoordinator.ts', {
@@ -360,6 +368,7 @@ function buildHarness(options = {}) {
     supabase, state, telemetry, cleanupLog, fsFake,
     get sanitizeCalls() { return sanitizeCalls; },
     localItems,
+    setOutboundAuthorized: (next) => { outboundAuthorized = next; },
     setKPlus: (next) => {
       kPlusState = next;
       state.kPlusActive = next === 'active';
@@ -1189,6 +1198,7 @@ test('NEGATIVE CONTROL — MEDIA CLEANUP DISCOVERABILITY: ignoring the release r
     './closetSyncStore': store,
     './closetFactsSync': factsSync,
     './closetMediaSync': mediaSync,
+    './cloudClosetRolloutAuthority': { isCloudClosetOutboundAuthorized: () => true, isCloudClosetRestoreAuthorized: () => true },
   });
 
   await mutatedEngine.runClosetSyncPass();
@@ -1664,4 +1674,121 @@ test('LOCAL FIRST: B2B declares no media dimensions of its own — they come fro
   const privacy = fs.readFileSync(path.join(ROOT, 'services', 'closetMediaPrivacy.ts'), 'utf8');
   assert.match(privacy, /CLOSET_MEDIA_PRIMARY_WIDTH = 1440/);
   assert.match(privacy, /CLOSET_MEDIA_THUMBNAIL_WIDTH = 160/);
+});
+
+// ── Build 35 shared repair: ONE rollout authority (cloudClosetRolloutAuthority.ts) ──
+// While the Cloud Closet rollout is withheld (no current runtime proof), no
+// facts upsert and no media upload may happen on ANY trigger, so the card's
+// "currently unavailable" is literally true. Deletion of an item that already
+// reached the cloud is still pushed, so withholding never strands a copy.
+
+test('ROLLOUT WITHHELD: an entitled save keeps its durable mark but uploads nothing', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item], outboundAuthorized: false });
+  await h.coordinator.noteClosetItemSaved('user-A', item.id);
+  const result = await h.engine.runClosetSyncPass({ reason: 'closet_opened' });
+
+  assert.equal(result.ran, true);
+  assert.equal(result.outboundWithheld, true);
+  assert.equal(result.processed, 0);
+  assert.equal(h.state.rows.length, 0, 'no facts upsert');
+  assert.equal(h.state.objects.size, 0, 'no media upload');
+  assert.equal(h.sanitizeCalls.length, 0, 'no pixels are even prepared for upload');
+  assert.equal((await h.store.getClosetSyncEntry('user-A', item.id)).state, 'pending', 'intent survives for a later authorized pass');
+  assert.equal(h.localItems[0].imageUri, LOCAL_IMAGE, 'local Closet untouched');
+});
+
+test('ROLLOUT WITHHELD: a delete of an already-synced item still tombstones the cloud copy', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item] });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  await h.engine.runClosetSyncPass();
+  assert.equal(h.state.rows.length, 1);
+  assert.ok(h.state.objects.size > 0);
+
+  h.setOutboundAuthorized(false);
+  await h.coordinator.beforeClosetItemDeleted('user-A', item.id);
+  h.localItems.length = 0;
+  await h.coordinator.afterClosetItemDeleted();
+
+  assert.ok(h.state.rows[0].deleted_at, 'the member deletion reaches the cloud row');
+  assert.equal(h.state.objects.size, 0, 'and its media is released');
+  assert.equal(await h.store.getClosetSyncEntry('user-A', item.id), null);
+});
+
+test('ROLLOUT WITHHELD: an edit to a synced item is not pushed', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item] });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  await h.engine.runClosetSyncPass();
+
+  h.setOutboundAuthorized(false);
+  item.title = 'Edited while withheld';
+  item.updatedAt = '2026-08-29T12:00:00.000Z';
+  await h.coordinator.noteClosetItemSaved('user-A', item.id);
+  assert.equal(h.state.rows[0].title, 'Black bomber');
+});
+
+test('ROLLOUT RESUMES: work marked while withheld uploads once authorized, with no duplicate', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item], outboundAuthorized: false });
+  await h.coordinator.noteClosetItemSaved('user-A', item.id);
+  assert.equal(h.state.rows.length, 0);
+
+  // A later process (fresh pass) after a real proof lands.
+  h.setOutboundAuthorized(true);
+  const resumed = await h.engine.runClosetSyncPass({ reason: 'closet_opened' });
+  assert.equal(resumed.synced, 1);
+  assert.equal(resumed.outboundWithheld, undefined);
+  assert.equal(h.state.rows.length, 1);
+  await h.engine.runClosetSyncPass({ reason: 'closet_opened' });
+  assert.equal(h.state.rows.length, 1, 'no duplicate row');
+});
+
+test('ROLLOUT WITHHELD never widens: free and revoked K+ still run nothing, not even deletes', async () => {
+  for (const kPlusState of ['eligible', 'expired', 'unavailable']) {
+    const item = localItem();
+    const h = buildHarness({ localItems: [item] });
+    await h.engine.markClosetItemForSync('user-A', item.id);
+    await h.engine.runClosetSyncPass();
+    h.setOutboundAuthorized(false);
+    h.setKPlus(kPlusState);
+    await h.store.markClosetItemPendingDelete('user-A', item.id);
+    h.localItems.length = 0;
+    const result = await h.engine.runClosetSyncPass();
+    assert.equal(result.skippedReason, 'not_kplus', kPlusState);
+    assert.equal(h.state.rows[0].deleted_at ?? null, null, kPlusState + ': entitlement gate unchanged');
+  }
+});
+
+test('ROLLOUT WITHHELD: proof expiring after a pass starts stops further uploads', async () => {
+  const a = localItem({ id: 'closet_a' });
+  const b = localItem({ id: 'closet_b' });
+  const h = buildHarness({ localItems: [a, b] });
+  await h.engine.markClosetItemForSync('user-A', a.id);
+  await h.engine.markClosetItemForSync('user-A', b.id);
+  const push = h.telemetry.push.bind(h.telemetry);
+  h.telemetry.push = (entry) => {
+    if (entry.event === 'closet_sync_started') h.setOutboundAuthorized(false); // expires mid-pass
+    return push(entry);
+  };
+  const result = await h.engine.runClosetSyncPass();
+  assert.equal(result.outboundWithheld, true);
+  assert.equal(result.synced, 0);
+  assert.equal(h.state.rows.length, 0);
+});
+
+test('ROLLOUT WITHHELD + ACCOUNT SWITCH: a pending delete of user A never runs as user B', async () => {
+  const item = localItem({ id: 'closet_A', ownerId: 'user-A' });
+  const h = buildHarness({ localItems: [item] });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  await h.engine.runClosetSyncPass();
+  h.setOutboundAuthorized(false);
+  await h.store.markClosetItemPendingDelete('user-A', item.id);
+
+  h.switchAccount('user-B');
+  const result = await h.engine.runClosetSyncPass();
+  assert.equal(result.processed, 0);
+  assert.equal(h.state.rows[0].deleted_at ?? null, null, 'B cannot tombstone the row of A');
+  assert.equal((await h.store.getClosetSyncEntry('user-A', item.id)).state, 'pending_delete', 'evidence of A intact');
 });

@@ -77,7 +77,7 @@ for (const platformOS of ['ios', 'android']) {
     const { CloudClosetCard } = runModule(rel, modulesFor(rel, renderer, {
       'react-native': createReactNativeStub({ platformOS }),
       '../../constants/featureFlags': { CLOSET_CLOUD_SYNC_V1: true, CLOSET_CROSS_DEVICE_RESTORE_V1: true, CLOSET_LEGACY_MIGRATION_V1: true },
-      '../../services/kplus/kplusCapabilityProof': { hasRuntimeCapabilityProof: () => false },
+      '../../services/closet/cloudClosetRolloutAuthority': { isCloudClosetOutboundAuthorized: () => false, isCloudClosetRestoreAuthorized: () => false },
       '../kplus/KPlusGate': { KPlusGate: () => { throw Error('unproven benefit cannot sell'); } },
     }));
     const tree = renderer.render(renderer.jsx(CloudClosetCard, { items: [], onRefresh() { throw Error('no sync I/O'); } }));
@@ -94,7 +94,7 @@ for (const platformOS of ['ios', 'android']) {
       'react-native': createReactNativeStub({ platformOS }),
       'expo-router': { useFocusEffect() {} },
       '../../constants/featureFlags': { CLOSET_CLOUD_SYNC_V1: true, CLOSET_CROSS_DEVICE_RESTORE_V1: true, CLOSET_LEGACY_MIGRATION_V1: true },
-      '../../services/kplus/kplusCapabilityProof': { hasRuntimeCapabilityProof: () => proven },
+      '../../services/closet/cloudClosetRolloutAuthority': { isCloudClosetOutboundAuthorized: () => proven, isCloudClosetRestoreAuthorized: () => false },
       '../../services/closet/closetCloudStatus': { projectCloudClosetStatus: () => 'not_synced' },
       '../../services/closet/closetSyncEngine': { isClosetSyncRunning: () => false, runClosetSyncPass: () => { syncCalls++; } },
       '../../services/closet/closetRestoreEngine': { isClosetRestoreRunning: () => false, runClosetRestorePass: () => { syncCalls++; } },

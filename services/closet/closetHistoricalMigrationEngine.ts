@@ -36,6 +36,7 @@ import { supabase } from '../supabaseClient';
 import { emitClosetCandidateEvent } from '../closetTelemetry';
 import { listClosetSyncEntries } from './closetSyncStore';
 import { markClosetItemForSync, runClosetSyncPass } from './closetSyncEngine';
+import { isCloudClosetOutboundAuthorized } from './cloudClosetRolloutAuthority';
 import {
   isClosetHistoricalMigrationCooldownElapsed,
   selectClosetHistoricalMigrationCandidates,
@@ -59,7 +60,7 @@ export function isClosetHistoricalMigrationEligibleNow(
 
 export interface ClosetHistoricalMigrationPassResult {
   ran: boolean;
-  skippedReason?: 'flag_disabled' | 'not_kplus' | 'signed_out' | 'already_running' | 'cooldown';
+  skippedReason?: 'flag_disabled' | 'not_kplus' | 'signed_out' | 'already_running' | 'cooldown' | 'rollout_withheld';
   eligible: number;
   marked: number;
 }
@@ -119,6 +120,9 @@ async function executeMigrationPass(options: {
   // Evaluated HERE, fresh, every attempt — the same "no special case for
   // reactivation" pattern every other Track B engine in this file uses.
   if (!isClosetHistoricalMigrationEligibleNow()) return emptyMigrationResult('not_kplus');
+  // Enrolling legacy items IS cloud backup; it shares the outbound rollout
+  // authority (cloudClosetRolloutAuthority.ts) and stays dormant while withheld.
+  if (!isCloudClosetOutboundAuthorized()) return emptyMigrationResult('rollout_withheld');
 
   const userId = await currentUserId();
   if (!userId) return emptyMigrationResult('signed_out');

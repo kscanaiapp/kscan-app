@@ -240,6 +240,12 @@ function buildHarness(options = {}) {
   };
 
   let kPlusState = options.kPlusState ?? 'active';
+  // Rollout authority defaults to AUTHORIZED; the withheld state has its own tests.
+  let outboundAuthorized = options.outboundAuthorized !== false;
+  const rollout = {
+    isCloudClosetOutboundAuthorized: () => outboundAuthorized,
+    isCloudClosetRestoreAuthorized: () => outboundAuthorized,
+  };
   const flags = {
     CLOSET_CLOUD_SYNC_V1: options.cloudSyncFlagEnabled !== false,
   };
@@ -255,6 +261,7 @@ function buildHarness(options = {}) {
     './closetSyncStore': store,
     './closetFactsSync': factsSync,
     './closetMediaSync': mediaSync,
+    './cloudClosetRolloutAuthority': rollout,
   });
 
   const migrationContract = loadTsModule('services/closet/closetHistoricalMigrationContract.ts', {});
@@ -274,6 +281,7 @@ function buildHarness(options = {}) {
     './closetSyncStore': store,
     './closetSyncEngine': syncEngine,
     './closetHistoricalMigrationContract': migrationContract,
+    './cloudClosetRolloutAuthority': rollout,
   });
 
   return {
@@ -600,4 +608,15 @@ test('PURE: cooldown resets on account change and elapses after CLOSET_HISTORICA
     true,
   );
   assert.equal(c.isClosetHistoricalMigrationCooldownElapsed(last, 'user-B', t0 + 1), true);
+});
+
+// ── Build 35 shared repair: ONE rollout authority (cloudClosetRolloutAuthority.ts) ──
+
+test('ROLLOUT WITHHELD: legacy items are not enrolled and nothing uploads', async () => {
+  const h = buildHarness({ localItems: [localItem()], outboundAuthorized: false });
+  const result = await h.migrationEngine.runClosetHistoricalMigrationPass({ bypassCooldown: true });
+  assert.equal(result.ran, false);
+  assert.equal(result.skippedReason, 'rollout_withheld');
+  assert.equal(await h.store.getClosetSyncEntry('user-A', 'closet_legacy_0001'), null, 'no enrolment mark');
+  assert.equal(h.state.rows.length, 0);
 });

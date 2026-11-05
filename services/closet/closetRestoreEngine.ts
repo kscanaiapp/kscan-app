@@ -24,6 +24,7 @@
 import { CLOSET_CROSS_DEVICE_RESTORE_V1 } from '../../constants/featureFlags';
 import { createActorRequest, isActorRequestCurrent } from '../actorContext';
 import { getKPlusEntitlementSnapshot } from '../kplus/kplusEntitlementStore';
+import { isCloudClosetRestoreAuthorized } from './cloudClosetRolloutAuthority';
 import {
   loadCloset,
   materializeRestoredClosetItem,
@@ -364,7 +365,7 @@ async function hydrateMediaCandidates(
 
 export interface ClosetRestorePassResult {
   ran: boolean;
-  skippedReason?: 'flag_disabled' | 'not_kplus' | 'signed_out' | 'already_running' | 'cooldown';
+  skippedReason?: 'flag_disabled' | 'not_kplus' | 'signed_out' | 'already_running' | 'cooldown' | 'rollout_withheld';
   pages: number;
   discovered: number;
   materialized: number;
@@ -438,6 +439,9 @@ async function executeRestorePass(options: {
   // Evaluated HERE, fresh, every attempt — the same "no special case for
   // reactivation" pattern closetSyncEngine.ts#isClosetCloudSyncEligible uses.
   if (getKPlusEntitlementSnapshot().state !== 'active') return emptyRestoreResult('not_kplus');
+  // Rollout authority (cloudClosetRolloutAuthority.ts): restore needs its own
+  // current proof on top of outbound; dormant while withheld.
+  if (!isCloudClosetRestoreAuthorized()) return emptyRestoreResult('rollout_withheld');
 
   const userId = await currentUserId();
   if (!userId) return emptyRestoreResult('signed_out');
@@ -477,6 +481,7 @@ async function executeRestorePass(options: {
     // changes mid-pass. Already-hydrated local state is never rolled back.
     if (!isActorRequestCurrent(actorRequest)) break;
     if (getKPlusEntitlementSnapshot().state !== 'active') break;
+    if (!isCloudClosetRestoreAuthorized()) break; // proof expired mid-pass
 
     const page = await fetchClosetRestorePage(cursor);
     if (!page.ok) {

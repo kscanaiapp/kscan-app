@@ -49,8 +49,16 @@ import {
   updateCloudClosetItem,
 } from './closetFactsSync';
 import { releaseClosetItemMedia, uploadClosetItemMedia } from './closetMediaSync';
+import { isCloudClosetOutboundAuthorized } from './cloudClosetRolloutAuthority';
 
-/** True only when the rollout flag is on AND K+ is actively entitled. */
+/**
+ * True only when the rollout flag is on AND K+ is actively entitled.
+ *
+ * Deliberately NOT the rollout authority: a member who is entitled must still
+ * be able to mark local intent (save → pending, delete → pending_delete) and
+ * push deletion tombstones while the cloud rollout is withheld. Whether a pass
+ * may UPLOAD is decided inside executePass by cloudClosetRolloutAuthority.ts.
+ */
 export function isClosetCloudSyncEligible(
   flagEnabled: boolean = CLOSET_CLOUD_SYNC_V1,
   kplusState: string = getKPlusEntitlementSnapshot().state,
@@ -79,6 +87,13 @@ export interface ClosetSyncPassResult {
   blocked: number;
   failed: number;
   deleted: number;
+  /** Set when the Cloud Closet rollout is withheld: only deletion work ran. */
+  outboundWithheld?: boolean;
+}
+
+/** Exactly syncOneItem's deletion branch: the only work allowed while withheld. */
+function isDeletionWork(unit: { entry: ClosetSyncEntry; item: Record<string, any> | null }): boolean {
+  return unit.entry.state === 'pending_delete' || !unit.item;
 }
 
 function emptyResult(skippedReason: ClosetSyncPassResult['skippedReason']): ClosetSyncPassResult {
@@ -208,7 +223,14 @@ async function executePass(options: { reason?: string }): Promise<ClosetSyncPass
   const actorRequest = createActorRequest();
   if (!isActorRequestCurrent(actorRequest)) return emptyResult('signed_out');
 
-  const work = await discoverPendingWork(userId);
+  // ROLLOUT AUTHORITY (cloudClosetRolloutAuthority.ts), evaluated fresh per
+  // pass like entitlement. Withheld: no facts upsert and no media upload — the
+  // pass only pushes tombstones for items the member already deleted, so a copy
+  // that reached the cloud earlier is still removed on request. Pending marks
+  // stay durable and upload once the rollout is authorized.
+  const outboundAuthorized = isCloudClosetOutboundAuthorized();
+  const discovered = await discoverPendingWork(userId);
+  const work = outboundAuthorized ? discovered : discovered.filter(isDeletionWork);
   const result: ClosetSyncPassResult = {
     ran: true,
     processed: 0,
@@ -216,6 +238,7 @@ async function executePass(options: { reason?: string }): Promise<ClosetSyncPass
     blocked: 0,
     failed: 0,
     deleted: 0,
+    ...(outboundAuthorized ? {} : { outboundWithheld: true }),
   };
   if (work.length === 0) return result;
 
@@ -228,6 +251,11 @@ async function executePass(options: { reason?: string }): Promise<ClosetSyncPass
     // Re-check between items, not just at the start: a pass over many items
     // can outlive the session that began it.
     if (!isActorRequestCurrent(actorRequest)) break;
+    // Proof can expire during a long pass; an upload never outlives it.
+    if (!isDeletionWork(unit) && !isCloudClosetOutboundAuthorized()) {
+      result.outboundWithheld = true;
+      continue;
+    }
     result.processed += 1;
     const outcome = await syncOneItem({
       userId,
