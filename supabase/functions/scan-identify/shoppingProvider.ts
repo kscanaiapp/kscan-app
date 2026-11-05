@@ -9,6 +9,7 @@
 // stable RecommendedProduct shape.
 
 import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+import type { Expansion } from '../_shared/brandSearchExpansion.ts';
 import { isNonPublicHost } from '../_shared/net/publicHost.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -324,13 +325,16 @@ function logProvider(
 
 // ── Serper (primary) ─────────────────────────────────────────────────────────
 
-async function callSerper(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
+async function callSerper(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS, signal?: AbortSignal): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
   const key = readEnv('SHOPPING_SERPER_API_KEY');
   if (!key) {
     logProvider('serper', 0, 0, 0, 'no_key');
     return { products: [], errorType: 'no_key' };
   }
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
   const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_TIMEOUT_MS));
   const started = Date.now();
   try {
@@ -360,6 +364,7 @@ async function callSerper(query: string, limit: number, timeoutMs = PROVIDER_TIM
     return { products: [], errorType };
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancel);
   }
 }
 
@@ -532,10 +537,12 @@ function mapBraveResults(results: unknown[], limit: number): RecommendedProduct[
  * Controlled by the SHOPPING_ENABLED kill switch (enabled unless "false").
  */
 export async function getShoppingResults(
-  input: { query: string; limit?: number; timeoutMs?: number },
+  input: { query: string; limit?: number; timeoutMs?: number; expansion?: Expansion; signal?: AbortSignal },
 ): Promise<ShoppingResult> {
+  const started = Date.now();
   const query = collapseSpaces(str(input.query));
   const limit = clampLimit(input.limit, DEFAULT_LIMIT);
+  if (input.expansion && input.signal?.aborted) return { products: [], provider: 'none', query, errorType: 'timeout' };
 
   // Kill switch: SHOPPING_ENABLED === "false" disables all commerce.
   if (readEnv('SHOPPING_ENABLED')?.toLowerCase() === 'false') {
@@ -555,11 +562,14 @@ export async function getShoppingResults(
   const cacheKey = query.toLowerCase();
   const cached = cacheGet(cacheKey);
   if (cached) {
-    return { ...cached, query };
+    const result = { ...cached, query };
+    return input.expansion && result.provider === 'serper'
+      ? expandShoppingResult(result, input, started, providerTimeoutMs, limit) : result;
   }
 
   // 1. Serper primary.
-  const serper = await callSerper(query, limit, providerTimeoutMs);
+  const serper = await callSerper(query, limit, providerTimeoutMs, input.expansion ? input.signal : undefined);
+  if (input.expansion && input.signal?.aborted) return { products: [], provider: 'none', query, errorType: 'timeout' };
   if (serper.products.length > 0) {
     const result: ShoppingResult = {
       products: serper.products.slice(0, limit),
@@ -567,7 +577,7 @@ export async function getShoppingResults(
       query,
     };
     cacheSet(cacheKey, result);
-    return result;
+    return input.expansion ? expandShoppingResult(result, input, started, providerTimeoutMs, limit) : result;
   }
 
   // 2. Brave fallback (Serper failed / timed out / quota / no usable results).
@@ -590,4 +600,58 @@ export async function getShoppingResults(
     query,
     errorType: serper.errorType ?? brave.errorType ?? 'no_results',
   };
+}
+
+/** Reallocate the unused Brave fallback slot, never add a third provider call.
+ * Primary errors retain legacy Brave fallback. Expansion errors always salvage primary.
+ * Expanded shelves are never stored in the ordinary provider cache.
+ */
+async function expandShoppingResult(
+  primary: ShoppingResult,
+  input: { expansion?: Expansion; signal?: AbortSignal },
+  started: number,
+  timeoutMs: number,
+  limit: number,
+): Promise<ShoppingResult> {
+  const lane = input.expansion;
+  const budget = Math.min(700, timeoutMs - (Date.now() - started) - 50);
+  if (!lane || budget < 200 || input.signal?.aborted) return primary;
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  input.signal?.addEventListener('abort', cancel, { once: true });
+  const expansionStarted = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const work = async (): Promise<ShoppingResult> => {
+    try {
+      const choice = await lane.query(controller.signal);
+      if (!choice || controller.signal.aborted || choice.query.toLowerCase() === primary.query.toLowerCase()) return primary;
+      const remaining = budget - (Date.now() - expansionStarted);
+      if (remaining < 100) return primary;
+      // Existing parser, API endpoint and credentials. No website is fetched.
+      const expansionCacheKey = `bobse:${choice.source.id}:${choice.source.revision}:${choice.query.toLowerCase()}`;
+      const cached = cacheGet(expansionCacheKey);
+      const expanded = cached ?? await callSerper(choice.query, limit, remaining, controller.signal);
+      if (!controller.signal.aborted && !expanded.errorType && !cached) {
+        cacheSet(expansionCacheKey, { products: expanded.products, provider: 'serper', query: choice.query });
+      }
+      if (controller.signal.aborted || !expanded.products.length) {
+        lane.event(choice.source, 0, Date.now() - expansionStarted, cached ? 0 : 1, controller.signal.aborted ? 'cancelled' : expanded.errorType ?? 'empty');
+        return primary;
+      }
+      const products = lane.merge(primary.products, expanded.products, limit);
+      lane.event(choice.source, products.filter(p => !primary.products.some(q => q.id === p.id)).length, Date.now() - expansionStarted, cached ? 0 : 1);
+      return { ...primary, products };
+    } catch { return primary; }
+  };
+  try {
+    return await Promise.race([
+      work(),
+      new Promise<ShoppingResult>(resolve => { timer = setTimeout(() => { controller.abort(); resolve(primary); }, budget); }),
+      new Promise<ShoppingResult>(resolve => controller.signal.addEventListener('abort', () => resolve(primary), { once: true })),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    controller.abort();
+    input.signal?.removeEventListener('abort', cancel);
+  }
 }

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "bobse-primary-integrity-approval-v1",
+  "baseCommit": "4a832287f291086f600cf7411343ae5554cbf344",
+  "authority": "Owner Build 35 BOBSE directive: ordinary search expansion integrated into Scanner and Elise; independent default-OFF flag and account preference.",
+  "note": "Exact feature source record only. Immutable historical Black-owned and VRI-03 snapshots are preserved. No Staging/Production deployment, activation or platform parity certification is implied.",
+  "approvedFiles": {
+    "supabase/functions/scan-identify/index.ts": {
+      "priorSha256": "055ff53842f3ba5896b286e030cd484bbc5de8b3ba26baece2855c4a2abd2fe4",
+      "bobseSha256": "01e7c7d934864e71787bacf27552a97b67a7d86521473cbe255044bdb7896464",
+      "reason": "Owner-directed BOBSE integration: server-resolved account preference at existing commerce entry points; identification and consent authority unchanged."
+    },
+    "supabase/functions/scan-identify/scanCommerceRouter.ts": {
+      "priorSha256": "0b287974764feb154d5aff2e17e470d1d788c22bd021afdad6e7d1b3fdcb0273",
+      "bobseSha256": "49623b0ddc7910a01b73cd3548d320efd6a34304556020c53e769d2524ac9286",
+      "reason": "Owner-directed BOBSE integration: optional server lane passed to existing shopping call, enabled-shelf cache isolation; existing ranker and provider routing retained."
+    },
+    "supabase/functions/scan-identify/shoppingProvider.ts": {
+      "priorSha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a",
+      "bobseSha256": "4ef824539ecf93dc543297d5eaf5d577ca98ad835ddfdaa74d2cacbb6ac65272",
+      "reason": "Owner-directed BOBSE integration: reuses unused second request slot after primary success, bounded cancellation, revision cache and primary-result salvage; OFF parity compared with canonical Git source."
+    }
+  },
+  "consentPromotion": {
+    "priorConsentStrippedSha256": "a68b6b3cfcf027d018d3d7fae300006872d04767e0eae9af1c684f3944f52649",
+    "bobseConsentStrippedSha256": "21083b337f3101ca6d9f8f3aa5b0ab6cc07ed9954a675d454b6782f012c4f09a"
+  },
+  "evidence": [
+    "qa/bobse/brandSearchCanonicalParity.ts",
+    "supabase/functions/_shared/brandSearchExpansion.test.ts",
+    "docs/BUILD35_BRAND_SEARCH_EXPANSION_READINESS.md"
+  ],
+  "restrictions": [
+    "Research sources not loaded or qualified",
+    "Feature remains OFF pending governed Staging and real-path acceptance",
+    "No Production activation approval",
+    "Synchronize platform/backend source lineages before release promotion"
+  ]
+}

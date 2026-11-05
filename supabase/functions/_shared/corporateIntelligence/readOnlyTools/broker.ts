@@ -105,6 +105,19 @@ export function createReadOnlyBroker(deps: Dependencies) {
       return {
         /** Server-held, validated references available to this turn (for numbering follow-ups). */
         references,
+        /** Server-only presentation order for the optional combined two-result shelf.
+         * Accepts only live refs issued by THIS broker session, never model products.
+         */
+        async rememberPresentation(refs: readonly string[]): Promise<void> {
+          if (!store || deps.enabled() !== true || request.signal.aborted || refs.length > LIMITS.candidates) throw new ToolError('foreign_or_stale_reference');
+          const selected = refs.map(ref => records.get(ref));
+          if (selected.some(p => !p || p.provenance.expiresAt <= Date.now()) || new Set(refs).size !== refs.length) throw new ToolError('foreign_or_stale_reference');
+          const signal = AbortSignal.any([request.signal, AbortSignal.timeout(200)]);
+          await Promise.race([
+            store.save(actor.id, conversationId!, selected as Product[], signal),
+            new Promise<never>((_, reject) => signal.addEventListener('abort', () => reject(new ToolError('deadline')), { once: true })),
+          ]);
+        },
         async executeTurn(inputs: readonly unknown[]): Promise<Result[]> {
           const controller = new AbortController();
           // Re-authorization (identity, account state, consent/permit) runs

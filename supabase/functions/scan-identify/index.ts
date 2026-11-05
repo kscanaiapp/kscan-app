@@ -1,4 +1,5 @@
 import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
+import { resolveBrandExpansion } from '../_shared/brandSearchExpansion.ts';
 // scan-identify — Secure server-side Gemini proxy for K Scan fashion ID.
 //
 // Architecture:
@@ -2202,6 +2203,8 @@ Deno.serve(async (req) => {
     });
 
     const fast = await getFastCommerceResults({
+      expansion: await resolveBrandExpansion(userId, gated.identification, req.signal),
+      signal: req.signal,
       mode: 'image',
       identification: gated.identification,
       attributes: gated.attributes,
@@ -3689,6 +3692,8 @@ Deno.serve(async (req) => {
         // v123: TextScan uses the same commerce router as image mode.
         const commerce = await Promise.race([
           getScanCommerceResults({
+            expansion: await resolveBrandExpansion(userId, (identification ?? {}) as Record<string, unknown>, req.signal),
+            signal: req.signal,
             mode: 'text',
             allowTextMode: true,
             identification: (identification ?? {}) as Record<string, unknown>,
@@ -3831,8 +3836,17 @@ Deno.serve(async (req) => {
             : identification?.style_tags,
           text: textQuery,
         });
+        const textBrandExpansion = await resolveBrandExpansion(userId, (identification ?? {}) as Record<string, unknown>, req.signal);
         const shopping = await Promise.race([
-          getShoppingResults({ query: shoppingQuery, limit: 8 }).catch((err) => {
+          (textBrandExpansion
+            ? getShoppingResults({ query: shoppingQuery, limit: 8, expansion: {
+              ...textBrandExpansion,
+              merge: (primary, additional, limit) => textBrandExpansion.merge(primary, additional, limit, relevanceEnabled ? {
+                enabled: true, categoryRoute: commerceCategoryRoute, qualityBand: intelligenceGate?.qualityBand ?? null,
+                ...(commerceIdentityEnabled && intelligenceGate?.commerceIdentity ? { commerceIdentity: intelligenceGate.commerceIdentity } : {}),
+              } : undefined),
+            }, signal: req.signal })
+            : getShoppingResults({ query: shoppingQuery, limit: 8 })).catch((err) => {
             console.warn('[scan-identify] text commerce provider error:', err);
             return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<
               ReturnType<typeof getShoppingResults>
@@ -4088,6 +4102,8 @@ Deno.serve(async (req) => {
       commerceStartedAt = Date.now();
       const commerce = await Promise.race([
         getScanCommerceResults({
+          expansion: await resolveBrandExpansion(userId, (completedResponseWithAttributes.identification ?? {}) as Record<string, unknown>, req.signal),
+          signal: req.signal,
           mode: 'image',
           identification: (completedResponseWithAttributes.identification as Record<string, unknown> | undefined) ||
             {},

@@ -37,6 +37,8 @@ import type { ReferenceStore, StoredReference } from '../_shared/corporateIntell
 import type { DiscoveryDependencies } from '../black-owned-discovery/engine.ts';
 import { AVAILABILITY_CLAIM, MONEY, parsePriceValue } from '../_shared/corporateIntelligence/outputValidation.ts';
 import { classifyDestination } from '../scan-identify/shoppingProvider.ts';
+import { asRecommended } from '../_shared/corporateIntelligence/readOnlyTools/products.ts';
+import { scoreProductAgreement } from '../scan-identify/commerceRelevanceAgreement.ts';
 
 export const OC01_INTEGRATION_VERSION = 'oc01-stylechat-integration-v1' as const;
 /** Additive, versioned mobile response contract (Addendum A11). */
@@ -438,6 +440,8 @@ export type Oc01TurnDeps = {
   grantTurnPermit: (actorId: string) => void;
   /** Discovery lane rollout + the existing discovery rate limit. */
   blackOwnedAllowed: () => Promise<boolean>;
+  /** Ordinary search expansion preference; independent of verified catalog eligibility. */
+  ordinaryBrandSearchAllowed?: (garment: Record<string, unknown>) => Promise<boolean>;
   ownershipLabelsAllowed: boolean;
   /** The customer's own earlier messages in this conversation (server-loaded history), oldest first. */
   recentCustomerMessages?: readonly string[];
@@ -572,7 +576,17 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
   if (plan.action === 'unsupported_action') return decline(preFilter, plan.action);
 
   const blackOwnedAllowed = plan.action === 'black_owned' ? await deps.blackOwnedAllowed().catch(() => false) : false;
-  const mapped = toToolRequests(plan, previous, blackOwnedAllowed);
+  let mapped = toToolRequests(plan, previous, blackOwnedAllowed);
+  const ordinaryExpansion = plan.action === 'black_owned' && plan.garment && deps.ordinaryBrandSearchAllowed
+    ? await deps.ordinaryBrandSearchAllowed({ ...plan.garment }).catch(() => false) : false;
+  if (ordinaryExpansion && plan.garment) {
+    const request = { version: TOOL_VERSION, capability: 'discover_products' as const, arguments: { garment: { ...plan.garment }, market: 'US' } };
+    // Retain the verified lane, when available. Reuse only the second existing
+    // broker slot; never give directory sources catalog authority or badges.
+    mapped = mapped.kind === 'not_actionable'
+      ? { kind: 'find', requests: [request], refinedAsFreshSearch: false }
+      : { ...mapped, requests: [...mapped.requests, request].slice(0, LIMITS.requestsPerTurn) };
+  }
   if (mapped.kind === 'not_actionable') {
     const kind: TurnKind = plan.action === 'compare' ? 'compare' : plan.action === 'black_owned' ? 'black_owned' : 'find';
     const status: ClientStatus = mapped.reason === 'compare_needs_results' ? 'expired' : 'unavailable';
@@ -605,7 +619,22 @@ export async function runOc01Turn(deps: Oc01TurnDeps): Promise<Oc01TurnOutcome> 
       providerCallCeiling: capability === 'discover_products' || capability === 'refine_products' ? 2 : 0,
     });
   });
-  const result = results[0] ?? { version: TOOL_VERSION, status: 'error', reason: 'provider_failure', products: [] } as Result;
+  let result = results[0] ?? { version: TOOL_VERSION, status: 'error', reason: 'provider_failure', products: [] } as Result;
+  if (ordinaryExpansion && plan.garment) {
+    const seen = new Set<string>();
+    const combined = results.flatMap(r => r.status === 'ready' ? r.products : [])
+      .filter(p => { if (seen.has(p.productUrl)) return false; seen.add(p.productUrl); return true; })
+      .sort((a, b) => scoreProductAgreement(asRecommended(b), plan.garment!).score - scoreProductAgreement(asRecommended(a), plan.garment!).score)
+      .slice(0, LIMITS.candidates);
+    if (combined.length) {
+      try {
+        await session.rememberPresentation(combined.map(p => p.ref));
+        result = { version: TOOL_VERSION, status: 'ready', reason: null, products: combined };
+      } catch {
+        result = { version: TOOL_VERSION, status: 'error', reason: 'provider_failure', products: [] };
+      }
+    }
+  }
   const { status, reasonCode } = clientStatusFor(result);
   const products = status === 'ready' ? projectProductsForClient(result.products, deps.ownershipLabelsAllowed) : [];
   const payload: ClientCommerceResults = { version: OC01_PRODUCTS_CONTRACT, kind: mapped.kind, status: products.length ? status : status === 'ready' ? 'empty' : status, reasonCode, products };
@@ -652,7 +681,7 @@ export function proseAuthorityFor(outcome: Pick<Oc01TurnOutcome, 'clientPayload'
     const parsed = x.listedPrice ? parsePriceValue(x.listedPrice, x.currency) : null;
     return parsed ? [parsed] : [];
   });
-  const ownershipLabelsShown = p.status === 'ready' && p.kind === 'black_owned' && p.products.some((x) => x.ownershipIdentity);
+  const ownershipLabelsShown = p.status === 'ready' && p.kind === 'black_owned' && p.products.length > 0 && p.products.every((x) => x.ownershipIdentity);
   return { status: p.status, prices, budgetUsd, ownershipLabelsShown };
 }
 
@@ -773,6 +802,7 @@ export type BrokerWiring = {
   consentCurrent: (actorId: string) => Promise<boolean>;
   permits: ReturnType<typeof createTurnPermits>;
   discovery: DiscoveryDependencies;
+  expansion?: Parameters<typeof createExistingAdapters>[0]['expansion'];
   store: ReferenceStore;
   emit: (m: Metadata) => void;
 };
@@ -784,7 +814,7 @@ export function createOc01Broker(w: BrokerWiring) {
     assertActive: w.assertActive,
     permitTurn: async (actorId) => w.permits.consume(actorId) && await w.consentCurrent(actorId),
     allowedMarkets: ['US'],
-    adapters: createExistingAdapters({ discovery: w.discovery }),
+    adapters: createExistingAdapters({ discovery: w.discovery, ...(w.expansion ? { expansion: w.expansion } : {}) }),
     store: w.store,
     emit: w.emit,
   });

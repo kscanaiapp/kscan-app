@@ -463,6 +463,25 @@ Deno.test('guidance never lets the model claim ownership or restate prices', () 
   assert.match(guidanceFor('ready', 'find'), /Do not state or change any price/);
 });
 
+Deno.test('ordinary brand expansion uses at most the second broker slot and preserves follow-up numbering', T, async () => {
+  const w = world();
+  try {
+    const found = await turn(w, 0, A, CONV_A, 'Find Black-owned leather bomber jacket brands', plannerReturning({ action: 'black_owned', item_type: 'outerwear', subtype: 'bomber', material: 'leather' }), { ordinaryBrandSearchAllowed: async () => true });
+    assert.equal(found.toolMetadata.length, 2);
+    assert.equal(found.toolMetadata[0].tool, 'discover_black_owned');
+    assert.equal(found.toolMetadata[1].tool, 'discover_products');
+    assert.equal(found.clientPayload?.status, 'ready', JSON.stringify(found.toolMetadata));
+    assert.ok(found.clientPayload!.products.every(p => p.source === 'shopping_provider' && !p.ownershipIdentity));
+    const compared = await turn(w, 1, A, CONV_A, 'Compare the first two', plannerReturning({ action: 'compare', result_numbers: [1, 2] }));
+    assert.equal(compared.clientPayload?.status, 'ready');
+    assert.deepEqual(compared.clientPayload?.products.map(p => p.productUrl), found.clientPayload?.products.slice(0, 2).map(p => p.productUrl));
+    const independent = await turn(w, 0, A, CONV_A2, 'Find Black-owned leather bomber jacket brands', plannerReturning({ action: 'black_owned', item_type: 'outerwear', subtype: 'bomber', material: 'leather' }), { blackOwnedAllowed: async () => false, ordinaryBrandSearchAllowed: async () => true });
+    assert.equal(independent.toolMetadata.length, 1);
+    assert.equal(independent.toolMetadata[0].tool, 'discover_products');
+    assert.equal(independent.clientPayload?.status, 'ready');
+  } finally { w.restore(); }
+});
+
 Deno.test('telemetry is metadata only', T, async () => {
   const w = world();
   try {

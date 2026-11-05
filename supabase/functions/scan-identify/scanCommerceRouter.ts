@@ -23,6 +23,7 @@ import {
   normalizeUrl as normalizeShoppingUrl,
   type RecommendedProduct,
 } from './shoppingProvider.ts';
+import type { Expansion } from '../_shared/brandSearchExpansion.ts';
 import {
   enrichFarfetchProductByUrl,
   isFarfetchProductUrl,
@@ -73,6 +74,9 @@ import {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type ScanCommerceInput = {
+  /** Server-resolved preference; never taken from request/model arguments. */
+  expansion?: Expansion;
+  signal?: AbortSignal;
   identification: Record<string, unknown>;
   attributes?: Record<string, unknown>;
   searchQueries?: string[];
@@ -1027,6 +1031,10 @@ export async function getFastCommerceResults(
 
   const resolved = resolveCommerceQueries(input);
   const query = resolved.query;
+  const expansion: Expansion | undefined = input.expansion ? {
+    ...input.expansion,
+    merge: (primary, additional, limit) => input.expansion!.merge(primary, additional, limit, resolved.relevanceOpts),
+  } : undefined;
 
   if (!query || isWeakQuery(query)) {
     return {
@@ -1059,7 +1067,7 @@ export async function getFastCommerceResults(
   // VRI-03 cohorts must never read or write a non-cohort shelf (or vice versa).
   const cacheKey = buildCommerceCacheKey(cacheKeyInput) + vri03CacheSuffix(input.vri03);
   const cacheStarted = Date.now();
-  const lookup = commerceCacheGet(cacheKey);
+  const lookup = input.expansion ? { hit: false, entry: null, ageMs: null } : commerceCacheGet(cacheKey);
   const cacheLookupMs = Date.now() - cacheStarted;
 
   if (lookup.hit && lookup.entry) {
@@ -1102,7 +1110,7 @@ export async function getFastCommerceResults(
     [
       {
         key: 'shopping',
-        promise: getShoppingResults({ query, limit, timeoutMs: perProviderMs })
+        promise: getShoppingResults({ query, limit, timeoutMs: perProviderMs, ...(expansion ? { expansion, signal: input.signal } : {}) })
           .then((value) => ({ kind: 'shopping' as const, value })),
         onTimeout: {
           kind: 'shopping',
@@ -1282,7 +1290,7 @@ export async function getFastCommerceResults(
     : 'none';
 
   if (merged.length > 0) {
-    commerceCacheSet(cacheKey, { products: merged, query, providersTried });
+    if (!input.expansion) commerceCacheSet(cacheKey, { products: merged, query, providersTried });
   }
 
   return {
@@ -1487,6 +1495,10 @@ export async function getScanCommerceResults(
   const qualityEnabled = resolved.qualityEnabled;
   const identityEnabled = resolved.identityEnabled;
   const relevanceOpts = resolved.relevanceOpts;
+  const expansion: Expansion | undefined = input.expansion ? {
+    ...input.expansion,
+    merge: (primary, additional, limit) => input.expansion!.merge(primary, additional, limit, relevanceOpts),
+  } : undefined;
   const fallbackQuery = resolved.fallbackQuery;
   let query = resolved.query;
   const queryStrategy = resolved.queryStrategy;
@@ -1521,7 +1533,7 @@ export async function getScanCommerceResults(
   const poshmarkAttempted = { tried: false };
   const [shoppingSettled, poshmarkSettled] = await Promise.all([
     withDeadline(
-      getShoppingResults({ query, limit }),
+      getShoppingResults({ query, limit, ...(expansion ? { expansion, signal: input.signal } : {}) }),
       GLOBAL_DISCOVERY_DEADLINE_MS,
       { products: [], provider: 'none' as const, query, errorType: 'timeout' },
     ),
