@@ -3839,7 +3839,13 @@ Deno.serve(async (req) => {
         const textBrandExpansion = await resolveBrandExpansion(userId, (identification ?? {}) as Record<string, unknown>, req.signal);
         const shopping = await Promise.race([
           (textBrandExpansion
-            ? getShoppingResults({ query: shoppingQuery, limit: 8, expansion: textBrandExpansion, signal: req.signal })
+            ? getShoppingResults({ query: shoppingQuery, limit: 8, expansion: {
+              ...textBrandExpansion,
+              merge: (primary, additional, limit) => textBrandExpansion.merge(primary, additional, limit, relevanceEnabled ? {
+                enabled: true, categoryRoute: commerceCategoryRoute, qualityBand: intelligenceGate?.qualityBand ?? null,
+                ...(commerceIdentityEnabled && intelligenceGate?.commerceIdentity ? { commerceIdentity: intelligenceGate.commerceIdentity } : {}),
+              } : undefined),
+            }, signal: req.signal })
             : getShoppingResults({ query: shoppingQuery, limit: 8 })).catch((err) => {
             console.warn('[scan-identify] text commerce provider error:', err);
             return { provider: 'error', products: [], query: shoppingQuery } as unknown as Awaited<

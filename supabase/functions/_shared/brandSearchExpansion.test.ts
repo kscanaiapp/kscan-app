@@ -1,5 +1,9 @@
 import { CATEGORIES, EXPANSION_FLAG, createBrandExpansion, resolveBrandExpansion, safeSourceDomain, selectSource, sourceQuery, validSource, type Source } from './brandSearchExpansion.ts';
 import { getShoppingResults, _resetShoppingCache } from '../scan-identify/shoppingProvider.ts';
+import { getFastCommerceResults, getScanCommerceResults } from '../scan-identify/scanCommerceRouter.ts';
+import { commerceCacheClear } from '../scan-identify/commerceResultCache.ts';
+import type { CommerceRelevanceOptions } from '../scan-identify/qualityTuneCommerce.ts';
+import type { CommerceIdentityEvidence } from '../scan-identify/scannerQualityGate.ts';
 
 function assert(ok: unknown, message = 'assertion failed'): asserts ok { if (!ok) throw new Error(message); }
 function equal(a: unknown, b: unknown) { assert(JSON.stringify(a) === JSON.stringify(b), `${JSON.stringify(a)} != ${JSON.stringify(b)}`); }
@@ -169,4 +173,22 @@ Deno.test('cancellation propagates to active fetch and cannot start Brave or sou
     equal(result.products,[]); equal(calls,1); assert(aborted);
     await getShoppingResults({query:'black leather moto jacket',expansion:lane,signal:parent.signal}); equal(calls,1);
   } finally {globalThis.fetch=original;_resetShoppingCache();for(const key of ['SHOPPING_SERPER_API_KEY','SHOPPING_BRAVE_API_KEY','SHOPPING_ENABLED'])Deno.env.delete(key);}
+});
+
+Deno.test('Scanner fast and inline expansion inherit the exact existing identity and quality ranking context', async () => {
+  const original=globalThis.fetch;
+  const keys=['SHOPPING_SERPER_API_KEY','SHOPPING_ENABLED','POSHMARK_ENABLED','QUALITY_TUNE_ENABLED'];
+  const previous=keys.map(k=>Deno.env.get(k));
+  Deno.env.set(keys[0],'offline-test');Deno.env.set(keys[1],'true');Deno.env.set(keys[2],'false');Deno.env.set(keys[3],'true');
+  globalThis.fetch=async()=>Response.json({shopping:[{title:'Black leather moto jacket',link:'https://retailer-fashion.com/p/moto',imageUrl:'https://retailer-fashion.com/i/moto.jpg',price:'$90'}]});
+  const identity: CommerceIdentityEvidence={brand:'Actual Scanner Brand',brandConfidence:'high',brandGrade:'verified',visibleBrandText:'Actual Scanner Brand',logoDetected:true,exactItemHypothesis:null,exactMatchConfidence:null,exactMatchGrade:'invalid',distinctiveFeatures:[]};
+  try {
+    for(const run of [getFastCommerceResults,getScanCommerceResults]){
+      _resetShoppingCache();commerceCacheClear();let captured:CommerceRelevanceOptions|undefined;
+      const identification={...garment};const before=JSON.stringify(identification);
+      await run({mode:'image',identification,relevanceEnabled:true,relevanceRoute:'apparel',qualityBand:'high',commerceIdentityEnabled:true,commerceIdentity:identity,
+        expansion:{query:async()=>({source,query:'Research Fixture black leather moto jacket'}),merge:(primary,_additional,_limit,options)=>{captured=options;return primary;},event:()=>{}}});
+      assert(captured);equal(captured.qualityBand,'high');equal(captured.commerceIdentity,identity);equal(captured.categoryRoute,'apparel');equal(JSON.stringify(identification),before);
+    }
+  } finally {globalThis.fetch=original;_resetShoppingCache();commerceCacheClear();keys.forEach((k,i)=>previous[i]===undefined?Deno.env.delete(k):Deno.env.set(k,previous[i]!));}
 });

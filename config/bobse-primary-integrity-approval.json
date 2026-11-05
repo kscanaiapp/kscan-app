@@ -6,12 +6,12 @@
   "approvedFiles": {
     "supabase/functions/scan-identify/index.ts": {
       "priorSha256": "055ff53842f3ba5896b286e030cd484bbc5de8b3ba26baece2855c4a2abd2fe4",
-      "bobseSha256": "693eefd0aed08d2b20ebe7c101d29ff94686ffac5b3845317ec0b7616d2a7d87",
+      "bobseSha256": "01e7c7d934864e71787bacf27552a97b67a7d86521473cbe255044bdb7896464",
       "reason": "Owner-directed BOBSE integration: server-resolved account preference at existing commerce entry points; identification and consent authority unchanged."
     },
     "supabase/functions/scan-identify/scanCommerceRouter.ts": {
       "priorSha256": "0b287974764feb154d5aff2e17e470d1d788c22bd021afdad6e7d1b3fdcb0273",
-      "bobseSha256": "3a61a1a96edede867c2a85490abfe817b3904a263aa299a88f419f3de5fcb42b",
+      "bobseSha256": "49623b0ddc7910a01b73cd3548d320efd6a34304556020c53e769d2524ac9286",
       "reason": "Owner-directed BOBSE integration: optional server lane passed to existing shopping call, enabled-shelf cache isolation; existing ranker and provider routing retained."
     },
     "supabase/functions/scan-identify/shoppingProvider.ts": {
@@ -22,7 +22,7 @@
   },
   "consentPromotion": {
     "priorConsentStrippedSha256": "a68b6b3cfcf027d018d3d7fae300006872d04767e0eae9af1c684f3944f52649",
-    "bobseConsentStrippedSha256": "b1b14d1abcf71b85d691eba67259db921e0c966f2a35d3330b8cfb0dc592c04f"
+    "bobseConsentStrippedSha256": "21083b337f3101ca6d9f8f3aa5b0ab6cc07ed9954a675d454b6782f012c4f09a"
   },
   "evidence": [
     "qa/bobse/brandSearchCanonicalParity.ts",

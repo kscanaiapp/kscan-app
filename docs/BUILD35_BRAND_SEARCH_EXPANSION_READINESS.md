@@ -117,8 +117,8 @@ Local commands and results (synthetic fixtures only, no live-product claims):
 
 | Validation | Result |
 |---|---|
-| Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,126 passed; 34 steps; 0 failed; 1 existing ignored** |
-| New expansion tests | **20 passed**, including actual fetch cancellation and no post-cancel fallback |
+| Full governed Deno directories, equivalent to `scripts/run-backend-tests.js` discovery | **2,127 passed; 34 steps; 0 failed; 1 existing ignored** |
+| New expansion tests | **21 passed**, including actual fetch cancellation, no post-cancel fallback, and exact Scanner identity/quality context propagation |
 | Canonical Git-object OFF parity (`qa/bobse/brandSearchCanonicalParity.ts`) | **16 comparisons passed**, two requests each; full results and provider invocation/cache patterns across primary/fallback/empty/unsafe/disabled, image fast/inline and TextScan parity |
 | Actual migration, source-plan and migration governance Node tests | **113 passed; 0 failed** |
 | Mobile account preference service tests | **5 passed; 0 failed** |
@@ -180,6 +180,12 @@ two environment failures: Deno-generated duplicate Expo packages under `node_mod
 triggered the native foreground-service census, and the sandbox denied reading a historical
 Git object in the unchanged mirror test. Those local failures are not counted as passes;
 clean Linux Project checks remain the authoritative full Node-suite evidence.
+The unchanged mirror test passed 20/20 when rerun with access to the historical Git
+object. The final Scanner merge carries the existing relevance options, quality band
+and graded identity evidence into candidate selection before truncation; a dedicated
+runtime test checks both image routes and unchanged identification. Canonical OFF
+parity remains 16/16. Backend revision `17d402ec` passed all 33 applicable CI checks
+(13 skipped); the subsequent ranking-context head requires its own final CI pass.
 
 ## D. Readiness and remaining work
 

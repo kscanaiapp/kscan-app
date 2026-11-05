@@ -1031,6 +1031,10 @@ export async function getFastCommerceResults(
 
   const resolved = resolveCommerceQueries(input);
   const query = resolved.query;
+  const expansion: Expansion | undefined = input.expansion ? {
+    ...input.expansion,
+    merge: (primary, additional, limit) => input.expansion!.merge(primary, additional, limit, resolved.relevanceOpts),
+  } : undefined;
 
   if (!query || isWeakQuery(query)) {
     return {
@@ -1106,7 +1110,7 @@ export async function getFastCommerceResults(
     [
       {
         key: 'shopping',
-        promise: getShoppingResults({ query, limit, timeoutMs: perProviderMs, ...(input.expansion ? { expansion: input.expansion, signal: input.signal } : {}) })
+        promise: getShoppingResults({ query, limit, timeoutMs: perProviderMs, ...(expansion ? { expansion, signal: input.signal } : {}) })
           .then((value) => ({ kind: 'shopping' as const, value })),
         onTimeout: {
           kind: 'shopping',
@@ -1491,6 +1495,10 @@ export async function getScanCommerceResults(
   const qualityEnabled = resolved.qualityEnabled;
   const identityEnabled = resolved.identityEnabled;
   const relevanceOpts = resolved.relevanceOpts;
+  const expansion: Expansion | undefined = input.expansion ? {
+    ...input.expansion,
+    merge: (primary, additional, limit) => input.expansion!.merge(primary, additional, limit, relevanceOpts),
+  } : undefined;
   const fallbackQuery = resolved.fallbackQuery;
   let query = resolved.query;
   const queryStrategy = resolved.queryStrategy;
@@ -1525,7 +1533,7 @@ export async function getScanCommerceResults(
   const poshmarkAttempted = { tried: false };
   const [shoppingSettled, poshmarkSettled] = await Promise.all([
     withDeadline(
-      getShoppingResults({ query, limit, ...(input.expansion ? { expansion: input.expansion, signal: input.signal } : {}) }),
+      getShoppingResults({ query, limit, ...(expansion ? { expansion, signal: input.signal } : {}) }),
       GLOBAL_DISCOVERY_DEADLINE_MS,
       { products: [], provider: 'none' as const, query, errorType: 'timeout' },
     ),

@@ -1,7 +1,7 @@
 /** Ordinary source discovery. This module never reads or writes the verified catalog. */
 import { normalizeCategory, normalizeColor, normalizeMaterial } from '../scan-identify/qualityTuneNormalize.ts';
 import { resolveScannerCategoryRoute } from '../scan-identify/scannerCategoryRoute.ts';
-import { filterAndDedupeProducts } from '../scan-identify/qualityTuneCommerce.ts';
+import { filterAndDedupeProducts, type CommerceRelevanceOptions } from '../scan-identify/qualityTuneCommerce.ts';
 import type { RecommendedProduct } from '../scan-identify/shoppingProvider.ts';
 import { rest } from './deletion/common.ts';
 
@@ -15,7 +15,7 @@ export type Source = {
 };
 export type Expansion = {
   query(signal: AbortSignal): Promise<{ query: string; source: Source } | null>;
-  merge(primary: RecommendedProduct[], additional: RecommendedProduct[], limit: number): RecommendedProduct[];
+  merge(primary: RecommendedProduct[], additional: RecommendedProduct[], limit: number, relevance?: CommerceRelevanceOptions): RecommendedProduct[];
   event(source: Source, count: number, durationMs: number, calls?: number, outcome?: string): void;
 };
 export type Store = (path: string, init?: RequestInit) => Promise<Response>;
@@ -115,10 +115,10 @@ export function createBrandExpansion(
         return source && envGet(EXPANSION_FLAG) === 'true' ? { query: sourceQuery(garment, source), source } : null;
       } catch { return null; }
     },
-    merge: (primary, additional, limit) => {
+    merge: (primary, additional, limit, relevance) => {
       if (envGet(EXPANSION_FLAG) !== 'true') return primary;
       const route = resolveScannerCategoryRoute({ requestMode: 'legacy_single_item', knownCategory: String(garment.item_type ?? ''), knownSubtype: String(garment.subtype ?? '') });
-      const options = { enabled: true as const, categoryRoute: route };
+      const options = relevance ?? { enabled: true as const, categoryRoute: route };
       const qualified = filterAndDedupeProducts(additional.filter(p => {
         try { return !!p.productUrl && new URL(p.productUrl).pathname !== '/'; } catch { return false; }
       }), garment, options).products;
