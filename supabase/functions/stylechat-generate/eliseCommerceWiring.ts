@@ -13,6 +13,7 @@ import type { DiscoveryDependencies } from '../black-owned-discovery/engine.ts';
 import { discoverySubtypeKeys } from '../black-owned-discovery/validation.ts';
 import { createSupabaseReferenceStore } from '../_shared/corporateIntelligence/readOnlyTools/sessionStore.ts';
 import { createOc01Broker, createTurnPermits } from './eliseCommerceTools.ts';
+import { EXPANSION_FLAG, resolveBrandExpansion } from '../_shared/brandSearchExpansion.ts';
 
 async function query(path: string, body: unknown | undefined, signal: AbortSignal) {
   const response = await rest(path, { method: body === undefined ? 'GET' : 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal });
@@ -54,7 +55,7 @@ const store = createSupabaseReferenceStore(rest);
  * P2-3). Accumulation stays bounded by the provider timeouts and the
  * existing per-actor burst/daily limits that gate this path.
  */
-export function getOc01Broker() {
+export function getOc01Broker(actorId?: string) {
   return createOc01Broker({
     envGet,
     authenticate: requireUser,
@@ -63,6 +64,7 @@ export function getOc01Broker() {
     permits: oc01Permits,
     discovery,
     store,
+    ...(actorId && envGet(EXPANSION_FLAG) === 'true' ? { expansion: (input: import('../_shared/corporateIntelligence/readOnlyTools/request.ts').Search, signal: AbortSignal) => resolveBrandExpansion(actorId, { ...input.garment }, signal) } : {}),
     // Broker metadata is closed codes/counts/durations only (no text, ids, titles or URLs).
     emit: (m) => console.log('[stylechat-generate] oc01_tool %s', JSON.stringify(m)),
   });

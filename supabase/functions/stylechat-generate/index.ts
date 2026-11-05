@@ -1,4 +1,5 @@
 import { requireGeminiConsent } from '../_shared/geminiConsent.ts';
+import { resolveBrandExpansion } from '../_shared/brandSearchExpansion.ts';
 // stylechat-generate — Secure server-side Gemini proxy for StyleChat v0.4
 //
 // Architecture:
@@ -2811,10 +2812,11 @@ Deno.serve(async (req) => {
       conversationId: sessionId,
       message,
       envGet: readTrimmedEnv,
-      broker: getOc01Broker(),
+      broker: getOc01Broker(userId),
       planner: geminiPlannerCall(modelName, geminiKey),
       grantTurnPermit: (actorId) => oc01Permits.grant(actorId),
       blackOwnedAllowed: () => blackOwnedLaneAllowed(userId),
+      ordinaryBrandSearchAllowed: async garment => !!await resolveBrandExpansion(userId, garment, req.signal),
       ownershipLabelsAllowed: ownershipLabelsAllowed(),
       recentCustomerMessages: (historyMessages as { sender: string; content: string }[])
         .filter((m) => m.sender === 'user' && typeof m.content === 'string')

@@ -16,6 +16,7 @@ import type {
   DiscoveryResponse,
 } from "../../../black-owned-discovery/contracts.ts";
 import { type Search, ToolError } from "./request.ts";
+import type { Expansion } from '../../brandSearchExpansion.ts';
 
 export type Provider = "serper" | "brave" | "eligible_catalog";
 /** Reserved for normalization/response after the shopping service returns. */
@@ -40,6 +41,7 @@ export function createExistingAdapters(deps: {
   discovery: DiscoveryDependencies;
   /** Injectable existing service for offline verification. Production uses getShoppingResults. */
   shopping?: typeof getShoppingResults;
+  expansion?: (input: Search, signal: AbortSignal) => Promise<Expansion | undefined>;
 }): Adapters {
   return {
     shopping: async (input, timeoutMs, signal) => {
@@ -57,6 +59,9 @@ export function createExistingAdapters(deps: {
           [input.market, input.intent, attributes].filter(Boolean).join(" "),
         ],
       });
+      const preferenceStarted = Date.now();
+      const expansion = deps.expansion ? await deps.expansion(input, signal) : undefined;
+      const preferenceMs = deps.expansion ? Date.now() - preferenceStarted : 0;
       const result: ShoppingResult =
         await (deps.shopping ?? getShoppingResults)({
           query,
@@ -66,7 +71,8 @@ export function createExistingAdapters(deps: {
           // web-search fallback's page results never survive relevance.
           // The primary now gets the remaining budget less a small margin; the
           // broker's 2,500 ms deadline still bounds the whole turn.
-          timeoutMs: Math.max(1, Math.floor(timeoutMs - PRIMARY_MARGIN_MS)),
+          timeoutMs: Math.max(1, Math.floor(timeoutMs - PRIMARY_MARGIN_MS - preferenceMs)),
+          ...(expansion ? { expansion, signal } : {}),
         });
       if (signal.aborted) throw new ToolError("deadline");
       if (!result || !Array.isArray(result.products)) {

@@ -791,6 +791,15 @@
               "20261104193023"
             ],
             "evidence": "OC-01 reference store v2 (owner decision 2026-11-04: maximum reference lifetime 2 minutes). Additive: new service-role-only table elise_commerce_session_refs_v2 with the same RLS/grant posture and the two existing RPCs re-pointed via CREATE OR REPLACE (same signatures). No DROP or destructive ALTER; the empty v1 table is left unused. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing both migrations. Requires the governed single-version migration path; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261104233754",
+            "logicalName": "black_owned_brand_search_expansion",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104220528"
+            ],
+            "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
           }
         ]
       },
@@ -1614,6 +1623,15 @@
               "20261104193023"
             ],
             "evidence": "OC-01 reference store v2 (owner decision 2026-11-04: maximum reference lifetime 2 minutes). Additive: new service-role-only table elise_commerce_session_refs_v2 with the same RLS/grant posture and the two existing RPCs re-pointed via CREATE OR REPLACE (same signatures). No DROP or destructive ALTER; the empty v1 table is left unused. Proven by __tests__/eliseCommerceSessionRefsSql.test.js executing both migrations. Requires the governed single-version migration path; this declaration is not execution approval."
+          },
+          {
+            "localVersion": "20261104233754",
+            "logicalName": "black_owned_brand_search_expansion",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": [
+              "20261104220528"
+            ],
+            "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
           }
         ],
         "remoteOnly": [
