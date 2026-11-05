@@ -51,15 +51,15 @@ function projectChecksBlock() {
 // group keeps only one PENDING run, even with cancel-in-progress: false.
 test('non-deploy source runs retain an independent Contract tests check without unlocking staging writes', () => {
   const yaml = workflow('security-staging-gate.yml').content;
-  const concurrency = slice(yaml, '\\nconcurrency:', '\\nenv:');
-  assert.match(concurrency, /github\\.event_name == 'push' && github\\.ref == 'refs\\/heads\\/staging\\/production-parity'/);
-  assert.match(concurrency, /github\\.event_name == 'workflow_dispatch'/);
-  assert.match(concurrency, /inputs\\.confirm_staging_deploy == 'DEPLOY-TO-STAGING'/);
-  assert.match(concurrency, /inputs\\.staging_project_ref == 'yzqjvdfgefveprobvvyw'/);
+  const concurrency = slice(yaml, '\nconcurrency:', '\nenv:');
+  assert.match(concurrency, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/staging\/production-parity'/);
+  assert.match(concurrency, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(concurrency, /inputs\.confirm_staging_deploy == 'DEPLOY-TO-STAGING'/);
+  assert.match(concurrency, /inputs\.staging_project_ref == 'yzqjvdfgefveprobvvyw'/);
   assert.match(concurrency, /'kscan-staging-deployment'/);
-  assert.match(concurrency, /format\\('kscan-staging-source-\\{0\\}', github\\.run_id\\)/);
+  assert.match(concurrency, /format\('kscan-staging-source-\{0\}', github\.run_id\)/);
   assert.match(concurrency, /cancel-in-progress: false/);
-  assert.match(yaml, /\\n  contract-tests:\\n    name: Contract tests/);
+  assert.match(yaml, /\n  contract-tests:\n    name: Contract tests/);
 });
 
 // --- Section 4: the base/head regression check needs a real base commit ---
