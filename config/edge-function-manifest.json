@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-05T03:02:57.327Z",
-    "generatedFromGitSha": "2ee1f0157de00bcff63871ec22bbb5d92a632326"
+    "generatedAtUtc": "2026-11-05T03:20:55.990Z",
+    "generatedFromGitSha": "fc1e1eebb871746c0be3e4f2b2c8769cff813f21"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -50,12 +50,12 @@
         ],
         "bundleFileCount": 31,
         "treeFileCount": 31,
-        "bundleHash": "3bc2e2f2c0fc89b2c7f3e1393f764863c112c817112dd1aeddeb71a104d8a883",
-        "treeHash": "3bc2e2f2c0fc89b2c7f3e1393f764863c112c817112dd1aeddeb71a104d8a883",
+        "bundleHash": "e81349719991add63a68e460bb53b3694fe57020d4acbee414c7e35195dd6b9e",
+        "treeHash": "e81349719991add63a68e460bb53b3694fe57020d4acbee414c7e35195dd6b9e",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {
@@ -218,12 +218,12 @@
         ],
         "bundleFileCount": 32,
         "treeFileCount": 47,
-        "bundleHash": "421df181e8afab93a327f224d94371c8e9dbd3f1a24d42193000b31df2f77b93",
-        "treeHash": "d059fe5c7d476c431026b74d5807aec01163c2f85cb93b37e74ce0ba8303b2ca",
+        "bundleHash": "0198fa438e98ae38f3891b6b87bf42b2f1c9b8441e1deeae45b3188cdca3b4fb",
+        "treeHash": "2644dac218bb571dfbdc17160ffecaa1e946016e65ad36f71ee5e45a4a65d43b",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {
@@ -466,12 +466,12 @@
         ],
         "bundleFileCount": 30,
         "treeFileCount": 30,
-        "bundleHash": "49a4cce3c44a989e0be5748c3e16698efca5d64803a5d036973cec0eaf77ae8e",
-        "treeHash": "49a4cce3c44a989e0be5748c3e16698efca5d64803a5d036973cec0eaf77ae8e",
+        "bundleHash": "aeab602ce9b2b470a010416ac5037e7a1a2cc74d24fb312b347aa93c3794963c",
+        "treeHash": "aeab602ce9b2b470a010416ac5037e7a1a2cc74d24fb312b347aa93c3794963c",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {
@@ -629,12 +629,12 @@
         ],
         "bundleFileCount": 51,
         "treeFileCount": 89,
-        "bundleHash": "7e5264c58e187fb9558120f3aa1031212f3945f79acfbc86dd6feaf1099d51fa",
-        "treeHash": "eacd5115cd6f1c0ff2a1f1070cf3ce74256f239734239c41c88cbab4ae69a109",
+        "bundleHash": "e1d52a26c0fa68ef0200d3e969ae861beea78d16aac9ce88ef4605636e4e1c0c",
+        "treeHash": "a17fb7ee206df964b5e44242f54af8fba97665d35b0f5132da713c0981050c19",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {
@@ -1087,12 +1087,12 @@
         ],
         "bundleFileCount": 34,
         "treeFileCount": 40,
-        "bundleHash": "52c0ad99a1d05d0363d4b303e678964c008f595765b0f28fe4e2896d93efc506",
-        "treeHash": "de6349a7854f30b6c332cb16b5399a329a3ae45cd7270e08b09d514da7def7d1",
+        "bundleHash": "f06878f773aea032be92743b65156e733978abdc9e33d3b96011817bd51d2d75",
+        "treeHash": "61ce0b9e25a7a59fef691b690d33a19cf6de9c2df22d088c89d84fb4fe1fb159",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {
@@ -1301,8 +1301,8 @@
         ],
         "bundleFileCount": 101,
         "treeFileCount": 132,
-        "bundleHash": "598705ac4d8446607fd651ab5431c048ca3ebd82b5794b70a7a667740e05fc7c",
-        "treeHash": "a54a3aff4450c2fe68f1bd7228aab2168d2e5b419abd98688d273560570efc2d",
+        "bundleHash": "3d48b6c46254c684642f0b3e54d207f62cdfb363d0da74ba67911980b5017807",
+        "treeHash": "7c7158744e80d98dc0a85c28aec85209afbf26126e07e7e612e22ff959d66c5c",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -1336,7 +1336,7 @@
           },
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
-            "sha256": "e1620c7577dbde75c5cd9e4da05a6647fabab3edd165682b62d8cbcd3f4e620f",
+            "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616",
             "bundle": true
           },
           {

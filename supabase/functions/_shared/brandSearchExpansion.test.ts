@@ -166,6 +166,29 @@ Deno.test('parent cancellation interrupts preference lookup before the timeout',
   assert(Date.now() - start < 200);
 });
 
+Deno.test('coverage survives a gateway round trip above 150ms without delaying primary results', async () => {
+  const runtime = globalThis as unknown as { EdgeRuntime?: { waitUntil(p: Promise<unknown>): void } };
+  const original = runtime.EdgeRuntime;
+  let background: Promise<unknown> | undefined;
+  let completed = false;
+  runtime.EdgeRuntime = { waitUntil: promise => { background = promise; } };
+  try {
+    const lane = createBrandExpansion(actor, garment, env, async (path, init) => {
+      equal(path, 'rpc/record_brand_search_coverage');
+      equal(JSON.parse(init!.body as string), { p_source_id: source.id, p_revision: source.revision, p_valid_count: 0 });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      assert(!init!.signal!.aborted);
+      completed = true;
+      return new Response(null, { status: 204 });
+    })!;
+    lane.event(source, 0, 648, 1, 'timeout');
+    assert(!completed, 'primary must not await bookkeeping');
+    assert(background);
+    await background;
+    assert(completed);
+  } finally { runtime.EdgeRuntime = original; }
+});
+
 Deno.test('primary failure retains Brave fallback and never looks up registry', async () => {
   const original = globalThis.fetch;
   Deno.env.set('SHOPPING_SERPER_API_KEY','offline-test'); Deno.env.set('SHOPPING_BRAVE_API_KEY','offline-test'); Deno.env.set('SHOPPING_ENABLED','true');
