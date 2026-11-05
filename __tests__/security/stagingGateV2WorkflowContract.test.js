@@ -49,10 +49,34 @@ function projectChecksBlock() {
 // CI-CONVERGENCE-002: stage writes must serialize, but non-deploying branches
 // must not cancel each other's required Contract tests. GitHub's concurrency
 // group keeps only one PENDING run, even with cancel-in-progress: false.
+// Removes whitespace and grouping so two spellings of one boolean predicate
+// compare equal; both sides use the same A || B || (C && D && E) shape.
+function normalizePredicate(text) {
+  return text.replace(/[\s()]/g, '');
+}
+
+// The ref/dispatch clause of deploy-staging's `if:` (everything after the
+// migration-validation guard), i.e. the STAGING-DEPLOY-AUTH-001 allow-list.
+function deployAuthorizationPredicate(yaml) {
+  const job = slice(yaml, '\n  deploy-staging:', '\n    environment: staging');
+  const marker = "needs.migration-validation.result == 'skipped') &&";
+  const at = job.indexOf(marker);
+  assert.notEqual(at, -1, 'deploy-staging must gate on migration-validation before its ref allow-list');
+  return job.slice(at + marker.length);
+}
+
+function concurrencyLockPredicate(yaml) {
+  const concurrency = slice(yaml, '\nconcurrency:', '\nenv:');
+  const match = concurrency.match(/group: \$\{\{([\s\S]*?)&& 'kscan-staging-deployment'/);
+  assert.ok(match, "concurrency group must resolve to 'kscan-staging-deployment' for deploy-authorized runs");
+  return match[1];
+}
+
 test('non-deploy source runs retain an independent Contract tests check without unlocking staging writes', () => {
   const yaml = workflow('security-staging-gate.yml').content;
   const concurrency = slice(yaml, '\nconcurrency:', '\nenv:');
-  assert.match(concurrency, /github\.event_name == 'push' && github\.ref == 'refs\/heads\/staging\/production-parity'/);
+  assert.match(concurrency, /github\.ref == 'refs\/heads\/staging\/production-parity'/);
+  assert.match(concurrency, /github\.base_ref == 'staging\/production-parity'/);
   assert.match(concurrency, /github\.event_name == 'workflow_dispatch'/);
   assert.match(concurrency, /inputs\.confirm_staging_deploy == 'DEPLOY-TO-STAGING'/);
   assert.match(concurrency, /inputs\.staging_project_ref == 'yzqjvdfgefveprobvvyw'/);
@@ -60,6 +84,18 @@ test('non-deploy source runs retain an independent Contract tests check without 
   assert.match(concurrency, /format\('kscan-staging-source-\{0\}', github\.run_id\)/);
   assert.match(concurrency, /cancel-in-progress: false/);
   assert.match(yaml, /\n  contract-tests:\n    name: Contract tests/);
+});
+
+// A lock narrower than the deploy allow-list lets two authorized runs (e.g. two
+// PRs into the governing branch) write Staging at the same time. The lock must
+// cover EXACTLY the contexts deploy-staging may run in - no clause dropped,
+// none narrowed (an earlier draft required event_name == 'push').
+test('the staging deployment lock predicate is identical to the deploy-staging allow-list', () => {
+  const yaml = workflow('security-staging-gate.yml').content;
+  const deploy = normalizePredicate(deployAuthorizationPredicate(yaml));
+  const lock = normalizePredicate(concurrencyLockPredicate(yaml));
+  assert.ok(deploy.includes("github.base_ref=='staging/production-parity'"), 'deploy allow-list shape changed; update this guard deliberately');
+  assert.equal(lock, deploy, 'concurrency lock predicate drifted from deploy-staging authorization');
 });
 
 // --- Section 4: the base/head regression check needs a real base commit ---

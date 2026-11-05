@@ -99,13 +99,28 @@ test('staging deployments still refuse the production project', () => {
   assert.match(gate, /PRODUCTION_REF:\s*wyyuqfdxucjksghsmhry/, 'production ref must stay declared for rejection');
 });
 
+// The workflow-level lock is conditional (CI-CONVERGENCE-002): every run that
+// COULD write Staging joins the single global `kscan-staging-deployment` group,
+// while non-deploying source runs get a per-run group so they cannot cancel each
+// other's required checks. The deploy-authorized side must name the governing
+// branch (push/dispatch on it AND PRs into it) plus the confirmed dispatch;
+// exact equivalence with deploy-staging's `if:` is asserted in
+// __tests__/security/stagingGateV2WorkflowContract.test.js.
 test('the serialized staging deployment lock is preserved', () => {
   const gate = readWorkflow('security-staging-gate.yml');
-  assert.match(
-    gate,
-    /concurrency:\s*\n\s*group:\s*kscan-staging-deployment\s*\n\s*cancel-in-progress:\s*false/,
-    'the staging deployment concurrency lock must remain serialized',
-  );
+  const match = gate.match(/\nconcurrency:\s*\n\s*group:\s*([^\n]+)\n\s*cancel-in-progress:\s*false/);
+  assert.ok(match, 'the staging deployment concurrency lock must remain serialized (cancel-in-progress: false)');
+  const group = match[1];
+  assert.match(group, /&& 'kscan-staging-deployment' \|\|/, 'deploy-authorized runs must share the kscan-staging-deployment lock');
+  for (const clause of [
+    `github.ref == 'refs/heads/${STAGING_AUTHORITY_BRANCH}'`,
+    `github.base_ref == '${STAGING_AUTHORITY_BRANCH}'`,
+    "inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING'",
+    "inputs.staging_project_ref == 'yzqjvdfgefveprobvvyw'",
+  ]) {
+    assert.ok(group.includes(clause), `staging lock must cover deploy-authorized context: ${clause}`);
+  }
+  assert.match(group, /\|\| format\('kscan-staging-source-\{0\}', github\.run_id\) \}\}$/, 'only non-deploying runs may fall back to a per-run group');
 });
 
 test('PRs into the new staging authority receive protected-branch scanning', () => {

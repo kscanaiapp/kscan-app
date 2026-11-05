@@ -40,8 +40,15 @@ permissions:
 # Non-deploying PR/push runs must keep their own run_id group so the promotion
 # gate can obtain an exact-SHA Contract tests verdict for every candidate.
 # The existing deploy-staging authorization condition is unchanged.
+#
+# STAGING-DEPLOY-AUTH-001: the predicate below MUST stay identical to the
+# branch/dispatch clause of deploy-staging's `if:` (and to
+# isStagingDeploymentAuthorized in classify-changed-surfaces.js). Every run
+# that COULD deploy - push/dispatch on the governing branch, PRs into it, or a
+# confirmed dispatch - joins the single global lock; backend_deployment_required
+# is only known at runtime, so the lock deliberately covers the superset.
 concurrency:
-  group: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/staging/production-parity') || (github.event_name == 'workflow_dispatch' && inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING' && inputs.staging_project_ref == 'yzqjvdfgefveprobvvyw')) && 'kscan-staging-deployment' || format('kscan-staging-source-{0}', github.run_id) }}
+  group: ${{ (github.ref == 'refs/heads/staging/production-parity' || github.base_ref == 'staging/production-parity' || (github.event_name == 'workflow_dispatch' && inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING' && inputs.staging_project_ref == 'yzqjvdfgefveprobvvyw')) && 'kscan-staging-deployment' || format('kscan-staging-source-{0}', github.run_id) }}
   cancel-in-progress: false
 
 env:
