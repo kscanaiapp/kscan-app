@@ -43,6 +43,7 @@ import {
   SecondaryButton,
 } from '../../../components/luxury';
 import { LUXURY, SPACING } from '../../../constants/theme';
+import { MODAL_MAX_WIDTH } from '../../../services/responsiveLayout';
 import { PRIVATE_DRESSING_ROOM_V1 } from '../../../constants/featureFlags';
 import { goBackOrHome } from '../../../services/navigationExit';
 import { usePrivateDressingRoom } from '../../../hooks/usePrivateDressingRoom';
@@ -1463,6 +1464,11 @@ const styles = StyleSheet.create({
   slotLocked: { fontSize: 12, color: LUXURY.colors.plum, marginLeft: SPACING.sm },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: {
+    // Inert on phones; on iPad the bottom sheets stay a composed, centered
+    // card instead of a 1024-1366pt-wide strip.
+    width: '100%',
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
     maxHeight: '85%',
     padding: SPACING.lg,
     borderTopLeftRadius: 20,

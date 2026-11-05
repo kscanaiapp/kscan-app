@@ -210,7 +210,13 @@ export function ScanResultV2({
   testID,
 }: ScanResultV2Props) {
   const insets = useSafeAreaInsets();
-  const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
+  const {
+    height: windowHeight,
+    modalMaxWidth,
+    usesResultsWorkspace: workspace,
+    resultsWorkspaceMaxWidth,
+    resultsWorkspaceMediaWidth,
+  } = useResponsiveLayout();
   const fromY = windowHeight * 0.36;
   const router = useRouter();
 
@@ -530,6 +536,72 @@ export function ScanResultV2({
     );
   }
 
+  // Shared between the phone sheet and the iPad results workspace so both
+  // layouts render the exact same elements (one source of truth).
+  const detectedItemsSection = confirmationCandidates.length > 0 ? (
+    <View style={styles.section} testID="outfit-confirmation-candidates">
+      <Text style={styles.candidateEyebrow}>Detected Items</Text>
+      <View style={styles.candidateList}>
+        {confirmationCandidates.map((candidate) => {
+          const selected = activeCandidateId === candidate.id;
+          return (
+            <TouchableOpacity
+              key={candidate.id}
+              testID={`outfit-candidate-${candidate.id}`}
+              style={[
+                styles.candidateButton,
+                selected ? styles.candidateButtonSelected : null,
+              ]}
+              onPress={() => onSelectCandidate?.(candidate.id)}
+              activeOpacity={0.84}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}${typeof candidate.sourceImageIndex === 'number' ? ` from image ${candidate.sourceImageIndex + 1}` : ''}`}
+            >
+              <Text
+                style={[
+                  styles.candidateLabel,
+                  selected ? styles.candidateLabelSelected : null,
+                ]}
+                numberOfLines={1}
+              >
+                {candidate.label}
+              </Text>
+              <Text
+                style={[
+                  styles.candidateMeta,
+                  selected ? styles.candidateMetaSelected : null,
+                ]}
+                numberOfLines={1}
+              >
+                {typeof candidate.sourceImageIndex === 'number'
+                  ? `Image ${candidate.sourceImageIndex + 1} · `
+                  : ''}
+                {candidate.category} - {candidate.subtype}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  ) : null;
+
+  // Style Match Summary
+  const styleMatchSection = (
+    <View style={styles.section}>
+      <StyleMatchPanel
+        title={title}
+        category={v2Data.category}
+        color={v2Data.color}
+        silhouette={v2Data.silhouette}
+        material={v2Data.material}
+        pattern={v2Data.pattern}
+        confidence={v2Data.confidence}
+        styleTags={v2Data.styleTags}
+      />
+    </View>
+  );
+
   return (
     <ResultSurfaceModal onRequestClose={runExit} overlay={overlay}>
       <View style={styles.backdrop} pointerEvents="box-none">
@@ -540,8 +612,10 @@ export function ScanResultV2({
             {
               // Inert on phones; caps and centers the sheet on regular-width
               // iPad windows so it never spans the full 1024-1366pt surface.
+              // Wide iPad windows get the two-pane results workspace instead
+              // of a phone-width column floating in empty space.
               width: '100%',
-              maxWidth: modalMaxWidth,
+              maxWidth: workspace ? resultsWorkspaceMaxWidth : modalMaxWidth,
               alignSelf: 'center',
               marginBottom: Math.max(LAYOUT.modalBottomPadding, insets.bottom + SPACING.lg),
               transform: [{ translateY }],
@@ -603,60 +677,35 @@ export function ScanResultV2({
                 <MultiItemResultNavigator mode="results" {...multiItem} />
               ) : null}
 
-              {/* Hero */}
-              <ScanResultHero
-                imageUri={scanImageUri}
-                category={v2Data.category}
-                confidence={v2Data.confidence}
-              />
-
-              {confirmationCandidates.length > 0 ? (
-                <View style={styles.section} testID="outfit-confirmation-candidates">
-                  <Text style={styles.candidateEyebrow}>Detected Items</Text>
-                  <View style={styles.candidateList}>
-                    {confirmationCandidates.map((candidate) => {
-                      const selected = activeCandidateId === candidate.id;
-                      return (
-                        <TouchableOpacity
-                          key={candidate.id}
-                          testID={`outfit-candidate-${candidate.id}`}
-                          style={[
-                            styles.candidateButton,
-                            selected ? styles.candidateButtonSelected : null,
-                          ]}
-                          onPress={() => onSelectCandidate?.(candidate.id)}
-                          activeOpacity={0.84}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected }}
-                          accessibilityLabel={`${selected ? 'Deselect' : 'Select'} ${candidate.label}${typeof candidate.sourceImageIndex === 'number' ? ` from image ${candidate.sourceImageIndex + 1}` : ''}`}
-                        >
-                          <Text
-                            style={[
-                              styles.candidateLabel,
-                              selected ? styles.candidateLabelSelected : null,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {candidate.label}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.candidateMeta,
-                              selected ? styles.candidateMetaSelected : null,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {typeof candidate.sourceImageIndex === 'number'
-                              ? `Image ${candidate.sourceImageIndex + 1} · `
-                              : ''}
-                            {candidate.category} - {candidate.subtype}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+              {workspace ? (
+                /* iPad results workspace: the scanned garment on the left, its
+                   detected items and style match on the right. These are the
+                   same elements the phone sheet renders; only the arrangement
+                   changes. */
+                <View style={styles.workspaceRow} testID="scan-result-workspace">
+                  <ScanResultHero
+                    imageUri={scanImageUri}
+                    category={v2Data.category}
+                    confidence={v2Data.confidence}
+                    maxWidth={resultsWorkspaceMediaWidth}
+                    style={styles.workspaceHero}
+                  />
+                  <View style={styles.workspaceDetail}>
+                    {detectedItemsSection}
+                    {styleMatchSection}
                   </View>
                 </View>
-              ) : null}
+              ) : (
+                <>
+                  {/* Hero */}
+                  <ScanResultHero
+                    imageUri={scanImageUri}
+                    category={v2Data.category}
+                    confidence={v2Data.confidence}
+                  />
+                  {detectedItemsSection}
+                </>
+              )}
 
               {/* Build 32: one commerce card per detected item, shown
                   simultaneously — independent of the single-selection
@@ -675,19 +724,9 @@ export function ScanResultV2({
                 />
               ) : null}
 
-              {/* Style Match Summary */}
-              <View style={styles.section}>
-                <StyleMatchPanel
-                  title={title}
-                  category={v2Data.category}
-                  color={v2Data.color}
-                  silhouette={v2Data.silhouette}
-                  material={v2Data.material}
-                  pattern={v2Data.pattern}
-                  confidence={v2Data.confidence}
-                  styleTags={v2Data.styleTags}
-                />
-              </View>
+              {/* Style Match Summary — single-column sheet only; the iPad
+                  workspace renders it in its right pane above. */}
+              {workspace ? null : styleMatchSection}
 
               {/* Add to Dressing Room — secondary action */}
               {onAddToDressingRoom ? (
@@ -885,6 +924,20 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: SPACING.lg,
+  },
+  // iPad results workspace (regular widths >= RESULTS_WORKSPACE_MIN_WINDOW_WIDTH).
+  workspaceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.xl,
+  },
+  workspaceHero: {
+    alignSelf: 'flex-start',
+    flexShrink: 0,
+  },
+  workspaceDetail: {
+    flex: 1,
+    minWidth: 0,
   },
   candidateEyebrow: {
     ...LUXURY.typography.sectionLabel,

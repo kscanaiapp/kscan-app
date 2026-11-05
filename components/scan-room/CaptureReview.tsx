@@ -13,6 +13,7 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { LuxuryButton } from '../luxury/LuxuryButton';
 import { StatusPill } from '../luxury/StatusPill';
 import { ScanRoomHeader } from './ScanRoomHeader';
+import { getCenteredHorizontalInset } from '../../services/responsiveLayout';
 
 interface CaptureReviewProps {
   imageUri: string;
@@ -57,6 +58,10 @@ export function CaptureReview({
   const { width: screenWidth } = useWindowDimensions();
   const imageWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
   const imageHeight = imageWidth * 1.25; // 4:5
+  // Review cards and pinned actions keep the phone inset (SPACING.xl) on
+  // every phone and center at the sheet column width on iPad, instead of
+  // stretching metadata cards and buttons across a 1024-1366pt window.
+  const columnInset = getCenteredHorizontalInset(screenWidth, undefined, SPACING.xl);
 
   const isUpload = source === 'upload';
   const title = isUpload ? 'Upload Review' : 'Capture Review';
@@ -78,7 +83,7 @@ export function CaptureReview({
     <View style={styles.root} testID={testID}>
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingHorizontal: columnInset }]}
       showsVerticalScrollIndicator={false}
       testID="scan-room-review-scroll"
     >
@@ -196,7 +201,10 @@ export function CaptureReview({
           viewport height and photo count; the bottom inset keeps them clear of
           the home indicator / gesture bar. */}
       <View
-        style={[styles.actionBar, { paddingBottom: Math.max(SPACING.md, insets.bottom) }]}
+        style={[
+          styles.actionBar,
+          { paddingBottom: Math.max(SPACING.md, insets.bottom), paddingHorizontal: columnInset },
+        ]}
         testID="scan-room-review-actions"
       >
         <View style={styles.buttonRow}>

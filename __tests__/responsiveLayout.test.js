@@ -233,3 +233,94 @@ test('layout math takes no domain input — data can never influence the grid', 
   });
   assert.equal(baseline, withStrayDomainState);
 });
+
+// ── Build 35 iPadOS optimization pass ───────────────────────────────────────
+
+const {
+  COMPACT_HEIGHT_BREAKPOINT,
+  RESULTS_WORKSPACE_MAX_WIDTH,
+  RESULTS_WORKSPACE_MEDIA_WIDTH,
+  RESULTS_WORKSPACE_MIN_WINDOW_WIDTH,
+  MEDIA_MAX_WIDTH,
+  getHeightClass,
+  usesResultsWorkspace,
+  getCenteredHorizontalInset,
+} = require('../services/responsiveLayout');
+
+// Window heights in points.
+const IPHONE_PORTRAIT_HEIGHTS = [568, 667, 736, 812, 844, 852, 874, 896, 926, 932, 956];
+const PHONE_LANDSCAPE_HEIGHTS = [320, 360, 375, 390, 393, 412, 414, 428, 430, 440];
+const IPAD_LANDSCAPE_HEIGHTS = [744, 768, 810, 820, 834, 1024];
+
+test('phone landscape heights are compact-height; iPhone portrait is not', () => {
+  for (const h of PHONE_LANDSCAPE_HEIGHTS) assert.equal(getHeightClass(h), 'compact', `${h}pt`);
+  for (const h of IPHONE_PORTRAIT_HEIGHTS) assert.equal(getHeightClass(h), 'regular', `${h}pt`);
+});
+
+test('iPad landscape is never treated as a short window', () => {
+  // The old width > height signal compacted Elise's composer on every iPad in
+  // landscape even though 744-1024pt of height remained.
+  for (const h of IPAD_LANDSCAPE_HEIGHTS) assert.equal(getHeightClass(h), 'regular', `${h}pt`);
+  assert.ok(COMPACT_HEIGHT_BREAKPOINT > Math.max(...PHONE_LANDSCAPE_HEIGHTS));
+  assert.ok(COMPACT_HEIGHT_BREAKPOINT < Math.min(...IPAD_LANDSCAPE_HEIGHTS));
+});
+
+test('an unmeasured (0) height falls back to the non-compact layout', () => {
+  assert.equal(getHeightClass(0), 'regular');
+  assert.equal(getHeightClass(undefined), 'regular');
+  assert.equal(getHeightClass(Number.NaN), 'regular');
+});
+
+test('the results workspace never applies on a phone or narrow iPad window', () => {
+  for (const w of [...IPHONE_WIDTHS, ...IPAD_NARROW_MULTITASKING_WIDTHS, ...IPAD_HALF_WIDTH_MULTITASKING]) {
+    assert.equal(usesResultsWorkspace(w), false, `${w}pt must keep the single-column sheet`);
+  }
+  // iPad mini portrait and two-thirds Split View stay single column.
+  assert.equal(usesResultsWorkspace(744), false);
+  assert.equal(usesResultsWorkspace(768), false);
+});
+
+test('the results workspace applies to 11-inch portrait and every iPad landscape width', () => {
+  for (const w of [820, 834, ...IPAD_LANDSCAPE_WIDTHS]) {
+    assert.equal(usesResultsWorkspace(w), true, `${w}pt`);
+  }
+  assert.equal(usesResultsWorkspace(RESULTS_WORKSPACE_MIN_WINDOW_WIDTH - 1), false);
+  assert.equal(usesResultsWorkspace(RESULTS_WORKSPACE_MIN_WINDOW_WIDTH), true);
+});
+
+test('the workspace is wider than the phone sheet and its media stays a sane size', () => {
+  assert.ok(RESULTS_WORKSPACE_MAX_WIDTH > MODAL_MAX_WIDTH);
+  assert.ok(RESULTS_WORKSPACE_MAX_WIDTH <= CONTENT_MAX_WIDTH);
+  assert.ok(RESULTS_WORKSPACE_MEDIA_WIDTH < MEDIA_MAX_WIDTH, 'garment must not be enlarged past the phone cap');
+  // Analysis pane keeps a usable width at the smallest workspace window:
+  // window - backdrop padding (24*2) - card padding (generous 24*2) - media - gap(24).
+  const narrowestSheet = Math.min(RESULTS_WORKSPACE_MAX_WIDTH, RESULTS_WORKSPACE_MIN_WINDOW_WIDTH - 48);
+  const analysisPane = narrowestSheet - 48 - RESULTS_WORKSPACE_MEDIA_WIDTH - 24;
+  assert.ok(analysisPane >= 280, `analysis pane ${analysisPane}pt is too narrow`);
+});
+
+test('centered inset reproduces the phone inset exactly on every phone width', () => {
+  // Every iPhone (max 440pt) is narrower than MODAL_MAX_WIDTH + 2 insets, so the
+  // certified SPACING.xl inset is returned unchanged.
+  for (const w of [...IPHONE_WIDTHS, 507, 512]) {
+    assert.equal(getCenteredHorizontalInset(w, MODAL_MAX_WIDTH, H_PAD), H_PAD, `${w}pt`);
+  }
+});
+
+test('centered inset caps the content column on iPad widths', () => {
+  for (const w of [639, 678, ...IPAD_PORTRAIT_WIDTHS, ...IPAD_LANDSCAPE_WIDTHS]) {
+    const inset = getCenteredHorizontalInset(w, MODAL_MAX_WIDTH, H_PAD);
+    const column = w - inset * 2;
+    assert.ok(inset >= H_PAD);
+    assert.ok(column <= MODAL_MAX_WIDTH + 1, `${w}pt -> ${column}pt column`);
+    assert.ok(column >= MODAL_MAX_WIDTH - 1 || inset === H_PAD);
+  }
+});
+
+test('new layout helpers are pure functions of the window', () => {
+  assert.equal(getHeightClass(390), getHeightClass(390));
+  assert.equal(usesResultsWorkspace(1194), usesResultsWorkspace(1194));
+  const first = getCenteredHorizontalInset(1366, MODAL_MAX_WIDTH, H_PAD);
+  getCenteredHorizontalInset(390, MODAL_MAX_WIDTH, H_PAD);
+  assert.equal(getCenteredHorizontalInset(1366, MODAL_MAX_WIDTH, H_PAD), first);
+});

@@ -25,6 +25,7 @@ import {
   PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
 } from '../../services/privacyImageUpload';
 import { computeScanRoomViewfinderSize } from '../../services/scanRoomViewfinderLayout';
+import { getCenteredHorizontalInset } from '../../services/responsiveLayout';
 
 interface LiveScanCameraProps {
   cameraRef: React.RefObject<any>;
@@ -86,6 +87,11 @@ export function LiveScanCamera({
     insetTop: insets.top,
     insetBottom: insets.bottom,
   });
+
+  // Instruction card keeps the phone inset; on iPad it centers at the sheet
+  // column width (where its copy wraps as the viewfinder budget assumes)
+  // instead of stretching under a 420pt viewfinder.
+  const instructionInset = getCenteredHorizontalInset(screenWidth, undefined, SPACING.xl);
 
   const homeButton = onHome ? (
     <Pressable
@@ -167,7 +173,10 @@ export function LiveScanCamera({
           capture button below stays reachable; see
           services/scanRoomViewfinderLayout.js. */}
       {showInstructions ? (
-        <View style={styles.instructionCard} testID="scan-room-instruction-card">
+        <View
+          style={[styles.instructionCard, { marginHorizontal: instructionInset }]}
+          testID="scan-room-instruction-card"
+        >
           <Text style={styles.instructionTitle}>Frame the item</Text>
           <Text style={styles.instructionBody}>
             Center the full piece for best results. Avoid faces and keep the item well-lit.

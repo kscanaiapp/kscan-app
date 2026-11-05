@@ -12,6 +12,7 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { supabase } from '../../services/supabaseClient';
 import {
   buildAuthCallbackUrlFromParams,
@@ -241,6 +242,11 @@ const styles = StyleSheet.create({
     padding: LAYOUT.screenPadding,
   },
   card: {
+    // Readable form column: inert on phones, centered and capped on iPad so
+    // the field and button never stretch across a 1024-1366pt window.
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,

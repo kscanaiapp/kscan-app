@@ -47,6 +47,8 @@ function renderReview(props, { viewport = { width: 390, height: 844 }, bottomIns
     '../luxury/LuxuryButton': { LuxuryButton: 'LuxuryButton' },
     '../luxury/StatusPill': { StatusPill: 'StatusPill' },
     './ScanRoomHeader': { ScanRoomHeader: 'ScanRoomHeader' },
+    // Real pure layout math (no device or domain state): the review column inset.
+    '../../services/responsiveLayout': require('../services/responsiveLayout'),
   }, mutate ? { mutate } : {});
   return renderer.render(renderer.jsx(CaptureReview, props));
 }

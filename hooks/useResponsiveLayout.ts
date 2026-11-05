@@ -5,10 +5,15 @@ import {
   CONVERSATION_MAX_WIDTH,
   FORM_MAX_WIDTH,
   MODAL_MAX_WIDTH,
+  RESULTS_WORKSPACE_MAX_WIDTH,
+  RESULTS_WORKSPACE_MEDIA_WIDTH,
   getContentWidth,
   getGridColumns,
+  getHeightClass,
   getResponsiveGridCellWidth,
   getWidthClass,
+  usesResultsWorkspace,
+  type HeightClass,
   type ResponsiveGridCellWidthOptions,
   type WidthClass,
 } from '../services/responsiveLayout';
@@ -21,6 +26,18 @@ export interface ResponsiveLayout {
   /** True at regular width (iPad-class windows); compact preserves iPhone layouts. */
   isRegular: boolean;
   isLandscape: boolean;
+  heightClass: HeightClass;
+  /**
+   * True only for genuinely short windows (phone landscape). Use this, not
+   * isLandscape, to decide whether to compact vertical chrome: an iPad in
+   * landscape is wider than tall but has ample height.
+   */
+  isCompactHeight: boolean;
+  /** Two-pane scan results workspace (image left, analysis right). */
+  usesResultsWorkspace: boolean;
+  resultsWorkspaceMaxWidth: number;
+  /** Hero width inside the workspace's left pane. */
+  resultsWorkspaceMediaWidth: number;
   /** Effective centered-column width grids must size against (never wider than contentMaxWidth). */
   contentWidth: number;
   contentMaxWidth: number;
@@ -49,12 +66,18 @@ export function useResponsiveLayout(): ResponsiveLayout {
     const widthClass = getWidthClass(width);
     const contentWidth = getContentWidth(width);
     const gridColumns = getGridColumns(width);
+    const heightClass = getHeightClass(height);
     return {
       width,
       height,
       widthClass,
       isRegular: widthClass === 'regular',
       isLandscape: width > height,
+      heightClass,
+      isCompactHeight: heightClass === 'compact',
+      usesResultsWorkspace: usesResultsWorkspace(width),
+      resultsWorkspaceMaxWidth: RESULTS_WORKSPACE_MAX_WIDTH,
+      resultsWorkspaceMediaWidth: RESULTS_WORKSPACE_MEDIA_WIDTH,
       contentWidth,
       contentMaxWidth: CONTENT_MAX_WIDTH,
       formMaxWidth: FORM_MAX_WIDTH,
