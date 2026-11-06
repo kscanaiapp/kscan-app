@@ -1059,6 +1059,15 @@
             ],
             "classification": "EXACT_VERSION_APPLIED",
             "evidence": "Build 35 production-readiness ledger snapshot records this exact version/name as applied before PR #505; this entry reconciles source inventory to the captured ledger and authorizes no execution."
+          },
+          {
+            "localVersion": "20261106120000",
+            "logicalName": "kplus_sandbox_review_access",
+            "remoteVersions": [
+              "20261106171646"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Build 35 owner-authorized inert Production deployment on 2026-11-06: Supabase management API assigned 20261106171646 for kplus_sandbox_review_access. The stored supabase_migrations.schema_migrations.statements[1] matches governed 20261106120000_kplus_sandbox_review_access.sql at backend merge d7909e736b024ed6ab20042f0eb1faeff0c742c9 byte-for-byte (25,295 characters). Post-apply verification: authorization/review tables, resolver and reconciliation RPC present; anon/authenticated EXECUTE denied, service_role allowed; 0 authorized review accounts, 0 sandbox grants. No SQL replay or migration history modification. RevenueCat routing is separately controlled."
           }
         ],
         "knownPending": [
@@ -1641,15 +1650,6 @@
               "20261104220528"
             ],
             "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
-          },
-          {
-            "localVersion": "20261106120000",
-            "logicalName": "kplus_sandbox_review_access",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261104233754"
-            ],
-            "evidence": "B41 restricted sandbox REVIEW entitlement access. Additive: two service-role-only tables (RLS on, no policies, no client privileges; append-only audit), six service_role-only SECURITY DEFINER functions (authorize, admit_event, revoke, sweep, permits, claim_kplus_sandbox_review_reconciliation), one extra grants revocation reason valid ONLY for sandbox store grants, and ONE added conjunct in kplus_entitlement_facts so an expired/revoked review authorization denies sandbox-grant access at the canonical resolver (no-op for users without an authorization row; body otherwise verbatim, pinned by test). Inert until an operator authorizes an account AND the review switch is on. Actual-migration tests incl. expiry/revocation/overlap/race interleavings and the reconcile claim: __tests__/kplusSandboxReviewSql.test.js. Pending owner review and governed Staging execution; no Production approval."
           }
         ],
         "remoteOnly": [

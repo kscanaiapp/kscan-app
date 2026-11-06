@@ -1,6 +1,6 @@
-// Regression guard for the owner-authorized Nov 6, 2026 Staging application.
-// The SQL was applied once, under the timestamp allocated by the deployment API;
-// no migration history or SQL was rewritten. Production remains unapplied.
+// Regression guard for owner-authorized Nov 6, 2026 Staging and Production applications.
+// The exact SQL was applied once per environment under versions assigned by the
+// Supabase deployment API. No migration history or SQL was rewritten.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,7 +11,7 @@ const manifest = require(path.join(root, 'config/migration-authority-manifest.js
 const remote = '20261106164732';
 const local = '20261106120000';
 
- test('B41 Staging exact-content alias does not authorize replay or Production application', () => {
+test('B41 Staging and Production exact-content aliases prevent replay', () => {
   const environments = manifest.ledgerReconciliation.environments;
   const stage = environments.yzqjvdfgefveprobvvyw;
   const production = environments.wyyuqfdxucjksghsmhry;
@@ -22,7 +22,11 @@ const local = '20261106120000';
   assert.deepEqual(matches[0].remoteVersions, [remote]);
   assert.equal(stage.knownPending.some(e => e.localVersion === local), false);
   assert.equal(stage.remoteOnly.some(e => e.remoteVersion === remote), false);
-  assert.equal(production.reconciled.some(e => e.localVersion === local), false);
-  assert.equal(production.knownPending.some(e => e.localVersion === local && e.disposition === 'KNOWN_FUTURE_UNAPPLIED'), true);
+  assert.equal(production.knownPending.some(e => e.localVersion === local), false);
+  const prod = production.reconciled.filter(e => e.localVersion === local);
+  assert.equal(prod.length, 1);
+  assert.equal(prod[0].classification, 'EXACT_CONTENT_RENUMBER');
+  assert.deepEqual(prod[0].remoteVersions, ['20261106171646']);
+  assert.equal(production.remoteOnly.some(e => e.remoteVersion === '20261106171646'), false);
   assert.ok(fs.existsSync(path.join(root, 'supabase/migrations', local + '_kplus_sandbox_review_access.sql')));
 });
