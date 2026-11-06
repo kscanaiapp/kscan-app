@@ -43,8 +43,13 @@ import { revenueCatNativePort } from './revenueCatNative';
 import { supabase } from '../supabaseClient';
 import {
   INITIAL_KPLUS_COMMERCE_SNAPSHOT,
+  classifyKPlusReconcileResponse,
+  kplusSdkErrorFields,
+  kplusUnavailableCauseFromSdkName,
   normalizeKPlusOfferings,
   resolveKPlusRevenueCatConfig,
+  sanitizeKPlusDiagnostic,
+  type KPlusCommerceDiagnostic,
   type KPlusCommerceSnapshot,
   type KPlusIntroEligibility,
   type KPlusNativeCommercePort,
@@ -52,8 +57,10 @@ import {
   type KPlusProductKind,
   type KPlusProductMappingConfig,
   type KPlusPurchaseOutcome,
+  type KPlusReconcileResult,
   type KPlusRestoreOutcome,
   type KPlusRevenueCatPublicKeys,
+  type KPlusUnavailableCause,
   type KPlusUnavailableReason,
 } from '../../types/kplusCommerceContract';
 
@@ -72,12 +79,32 @@ export interface KPlusCommerceDeps {
   sleep: (ms: number) => Promise<void>;
   /** Bounded delays between canonical re-checks while a purchase is resolving. */
   recheckDelaysMs: readonly number[];
+  /**
+   * Asks the SERVER to reconcile this actor's provider state into canonical
+   * authority (kplus-revenuecat-pull-reconcile; the actor comes from the JWT,
+   * never from the request). Best-effort and never an access decision: only
+   * the canonical re-read that follows can say K+. Optional -- without it a
+   * late or lost webhook is recovered only by the webhook itself.
+   */
+  requestProviderReconciliation?: (trigger: KPlusReconcileTrigger) => Promise<KPlusReconcileResult>;
+  /**
+   * Optional, privacy-safe failure sink (operator logs only; never reaches the UI and
+   * never changes behaviour). Receives only allowlisted enum-like fields -- see
+   * KPlusCommerceDiagnostic. A throwing sink is swallowed.
+   */
+  onDiagnostic?: (diagnostic: KPlusCommerceDiagnostic) => void;
 }
+
+/** The server's accepted reconciliation triggers (kplus-revenuecat-pull-reconcile). */
+export type KPlusReconcileTrigger = 'post_purchase_unresolved' | 'restore_unresolved' | 'check_again';
 
 export const KPLUS_COMMERCE_RECHECK_DELAYS_MS: readonly number[] = Object.freeze([2_000, 5_000, 10_000, 20_000]);
 
 type Listener = () => void;
-type IdentityResult = { state: 'ok' } | { state: 'actor_changed' } | { state: 'failed'; reason: KPlusUnavailableReason };
+type IdentityResult =
+  | { state: 'ok' }
+  | { state: 'actor_changed' }
+  | { state: 'failed'; reason: KPlusUnavailableReason; sdkCode: string | null; sdkName: string | null; detail: string | null };
 
 export interface KPlusCommerceService {
   getSnapshot(): KPlusCommerceSnapshot;
@@ -93,6 +120,8 @@ export interface KPlusCommerceService {
   /** Synchronous. Called on every actor boundary (sign-out, actor change). */
   reset(): void;
   isNativeOperationInFlight(): boolean;
+  /** "Check access again": server reconciliation (best-effort), then a canonical re-read. */
+  recheckAccess(): Promise<void>;
   beginHostedPresentation(actorId: string): { isCurrent: () => boolean; reconcile: (outcome: 'purchased' | 'restored') => void; release: () => void } | null;
 }
 
@@ -129,8 +158,18 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     emit();
   }
 
-  function setUnavailable(reason: KPlusUnavailableReason) {
-    setSnapshot({ status: 'UNAVAILABLE', unavailableReason: reason, pendingKind: null });
+  /** Operator-only record of WHY a gate failed. Sanitized to bounded fields; can never throw or alter flow. */
+  function reportDiagnostic(diagnostic: KPlusCommerceDiagnostic) {
+    try {
+      const safe = sanitizeKPlusDiagnostic(diagnostic);
+      if (safe) deps.onDiagnostic?.(safe);
+    } catch {
+      // Diagnostics are best-effort and never affect commerce.
+    }
+  }
+
+  function setUnavailable(reason: KPlusUnavailableReason, cause: KPlusUnavailableCause | null = null) {
+    setSnapshot({ status: 'UNAVAILABLE', unavailableReason: reason, unavailableCause: cause, pendingKind: null });
   }
 
   function beginOperation(kind: 'purchase' | 'restore' | 'hosted') {
@@ -213,12 +252,21 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
         if (gen !== generation) return { state: 'actor_changed' };
         // The SDK must be acting as exactly this actor. Anything else -- an
         // anonymous id included -- is not a customer this app may sell to.
-        if (sdkActor !== actorId) return { state: 'failed', reason: 'IDENTITY_FAILED' };
+        if (sdkActor !== actorId) {
+          // Never log either id: only that they differed (and whether the SDK was anonymous).
+          const anonymous = typeof sdkActor === 'string' && sdkActor.startsWith('$RCAnonymousID:');
+          return {
+            state: 'failed', reason: 'IDENTITY_FAILED', sdkCode: null, sdkName: null,
+            detail: sdkActor === null ? 'APP_USER_ID_UNAVAILABLE' : anonymous ? 'SDK_ANONYMOUS' : 'APP_USER_ID_MISMATCH',
+          };
+        }
         boundActorId = actorId;
         ensureProviderListener(gen);
         return { state: 'ok' };
-      } catch {
-        return gen !== generation ? { state: 'actor_changed' } : { state: 'failed', reason: 'IDENTITY_FAILED' };
+      } catch (error) {
+        return gen !== generation
+          ? { state: 'actor_changed' }
+          : { state: 'failed', reason: 'IDENTITY_FAILED', ...kplusSdkErrorFields(error), detail: 'SDK_CONFIGURE_OR_LOGIN_THREW' };
       }
     });
   }
@@ -239,16 +287,26 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     if (gen !== generation) return { state: 'discarded' };
     if (!actorId) return { state: 'unavailable', reason: 'NOT_AUTHENTICATED' };
 
-    if (!port.runtimeStatus().supported) return { state: 'unavailable', reason: 'UNSUPPORTED_RUNTIME' };
+    const runtime = port.runtimeStatus();
+    if (!runtime.supported) {
+      reportDiagnostic({ stage: 'RUNTIME', reason: 'UNSUPPORTED_RUNTIME', sdkCode: null, sdkName: null, detail: 'reason' in runtime ? runtime.reason : null });
+      return { state: 'unavailable', reason: 'UNSUPPORTED_RUNTIME' };
+    }
     const config = resolveKPlusRevenueCatConfig(port.platform(), deps.publicKeys(), {
       allowTestStoreKey: deps.allowTestStoreKey,
     });
-    if (config.status !== 'configured') return { state: 'unavailable', reason: 'NOT_CONFIGURED' };
+    if (config.status !== 'configured') {
+      reportDiagnostic({ stage: 'CONFIG', reason: 'NOT_CONFIGURED', sdkCode: null, sdkName: null, detail: config.reason });
+      return { state: 'unavailable', reason: 'NOT_CONFIGURED' };
+    }
 
     if (boundActorId !== actorId) setSnapshot({ status: 'CONFIGURING', unavailableReason: null });
     const identity = await ensureIdentity(actorId, config.apiKey, gen);
     if (identity.state === 'actor_changed') return { state: 'discarded' };
-    if (identity.state === 'failed') return { state: 'unavailable', reason: identity.reason };
+    if (identity.state === 'failed') {
+      reportDiagnostic({ stage: 'IDENTITY', reason: identity.reason, sdkCode: identity.sdkCode, sdkName: identity.sdkName, detail: identity.detail });
+      return { state: 'unavailable', reason: identity.reason };
+    }
     return { state: 'ok', gen, actorId };
   }
 
@@ -269,18 +327,32 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   async function fetchCatalog(prepared: { gen: number; actorId: string }): Promise<
     | { state: 'ok'; catalog: KPlusProductCatalog; eligibility: KPlusIntroEligibility; annualEligibility: KPlusIntroEligibility }
     | { state: 'discarded' }
-    | { state: 'unavailable'; reason: KPlusUnavailableReason }
+    | { state: 'unavailable'; reason: KPlusUnavailableReason; cause?: KPlusUnavailableCause | null }
   > {
     let raw;
     try {
       raw = await port.getOfferings();
-    } catch {
-      return prepared.gen !== generation
-        ? { state: 'discarded' }
-        : { state: 'unavailable', reason: 'OFFERINGS_FAILED' };
+    } catch (error) {
+      if (prepared.gen !== generation) return { state: 'discarded' };
+      const sdk = kplusSdkErrorFields(error);
+      reportDiagnostic({ stage: 'OFFERINGS', reason: 'OFFERINGS_FAILED', ...sdk, detail: null });
+      return { state: 'unavailable', reason: 'OFFERINGS_FAILED', cause: kplusUnavailableCauseFromSdkName(sdk.sdkName) };
     }
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     const catalog = normalizeKPlusOfferings(raw, deps.mapping);
+    if (catalog.monthly.status !== 'available' && catalog.annual.status !== 'available') {
+      // Offerings loaded but NEITHER plan is offerable: the consumer screen is the same
+      // "couldn't load", so say which shape the provider returned (no ids, no prices).
+      const kindToken = (name: string, entry: KPlusProductCatalog['monthly']) =>
+        `${name}_${entry.status === 'available' ? 'OK' : /MISSING/.test(entry.reason) ? 'MISSING' : /AMBIGUOUS/.test(entry.reason) ? 'AMBIGUOUS' : 'INVALID'}`;
+      reportDiagnostic({
+        stage: 'CATALOG',
+        reason: 'CATALOG_EMPTY',
+        sdkCode: null,
+        sdkName: null,
+        detail: `${catalog.offeringIdentifier === null ? 'NO_OFFERING' : 'OFFERING'}_${kindToken('M', catalog.monthly)}_${kindToken('A', catalog.annual)}`,
+      });
+    }
     const eligibility = await readIntroEligibility(catalog, 'monthly');
     if (!(await isStillCurrent(prepared.gen, prepared.actorId))) return { state: 'discarded' };
     const annualEligibility = await readIntroEligibility(catalog, 'annual');
@@ -299,7 +371,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     const result = await fetchCatalog(prepared);
     if (result.state === 'discarded') return snapshot;
     if (result.state === 'unavailable') {
-      setUnavailable(result.reason);
+      setUnavailable(result.reason, result.cause ?? null);
       return snapshot;
     }
     // Do not clobber a purchase / restore that is mid-flight or resolving.
@@ -307,6 +379,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
       setSnapshot({
         status: 'READY',
         unavailableReason: null,
+        unavailableCause: null,
         catalog: result.catalog,
         pendingKind: null,
         annualIntroEligibility: result.annualEligibility,
@@ -341,7 +414,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
   ): Promise<'DISCARDED' | 'CONFIRMED' | 'RESOLVING'> {
     // The provider said yes. That is NOT access: record "resolving", then ask
     // the canonical authority.
-    setSnapshot({ status: resolvingStatus, unavailableReason: null });
+    setSnapshot({ status: resolvingStatus, unavailableReason: null, reconciliation: null });
     try {
       await deps.refreshEntitlement();
     } catch {
@@ -350,8 +423,65 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     if (!(await isStillCurrent(gen, actorId))) return 'DISCARDED';
     if (resolvingStatus === 'NOTHING_RESTORED') return 'RESOLVING';
     if (confirmIfCanonicalActive(gen)) return 'CONFIRMED';
+    // The webhook may be late or lost. Ask the server to pull the provider
+    // state itself, then re-read canonical authority. Neither step grants here.
+    if (typeof deps.requestProviderReconciliation === 'function') {
+      await reconcileThenRefresh(
+        gen,
+        resolvingStatus === 'PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING' ? 'post_purchase_unresolved' : 'restore_unresolved',
+      );
+      if (!(await isStillCurrent(gen, actorId))) return 'DISCARDED';
+      if (confirmIfCanonicalActive(gen)) return 'CONFIRMED';
+    }
     void recheckCanonical(gen);
     return 'RESOLVING';
+  }
+
+  /**
+   * Server reconciliation followed by a canonical re-read. Never throws.
+   *
+   * The server's answer is CLASSIFIED and recorded (never treated as success
+   * by default): an ownership conflict, a cooldown or an unconfigured
+   * environment are each visible to the screen and to operator diagnostics.
+   * None of them is an access decision -- only the canonical re-read is.
+   */
+  async function reconcileThenRefresh(gen: number, trigger: KPlusReconcileTrigger): Promise<void> {
+    if (typeof deps.requestProviderReconciliation === 'function') {
+      let result: KPlusReconcileResult;
+      try {
+        const answer = await deps.requestProviderReconciliation(trigger);
+        result = answer && typeof answer === 'object' && typeof answer.outcome === 'string'
+          ? answer
+          : { outcome: 'UNKNOWN', retryAfterSeconds: null };
+      } catch {
+        result = { outcome: 'NETWORK', retryAfterSeconds: null };
+      }
+      if (gen === generation) {
+        setSnapshot({ reconciliation: result });
+        if (result.outcome !== 'RESOLVED' && result.outcome !== 'NO_CHANGE') {
+          reportDiagnostic({ stage: 'RECONCILE', reason: 'RECONCILE_FAILED', sdkCode: null, sdkName: null, detail: result.outcome });
+        }
+      }
+    }
+    try {
+      await deps.refreshEntitlement();
+    } catch {
+      // The re-read failing leaves the answer unresolved, never free.
+    }
+  }
+
+  async function recheckAccess(): Promise<void> {
+    const gen = generation;
+    let actorId: string | null;
+    try {
+      actorId = await deps.getActorId();
+    } catch {
+      actorId = null;
+    }
+    if (gen !== generation || !actorId) return;
+    await reconcileThenRefresh(gen, 'check_again');
+    if (!(await isStillCurrent(gen, actorId))) return;
+    if (isResolvingStatus()) confirmIfCanonicalActive(gen);
   }
 
   async function purchase(kind: KPlusProductKind): Promise<KPlusPurchaseOutcome> {
@@ -371,13 +501,14 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
         const fetched = await fetchCatalog(prepared);
         if (fetched.state === 'discarded') return { outcome: 'DISCARDED_ACTOR_CHANGED' };
         if (fetched.state === 'unavailable') {
-          setUnavailable(fetched.reason);
+          setUnavailable(fetched.reason, fetched.cause ?? null);
           return { outcome: 'UNAVAILABLE', reason: fetched.reason };
         }
         catalog = fetched.catalog;
         setSnapshot({
           status: 'READY',
           unavailableReason: null,
+          unavailableCause: null,
           catalog,
           pendingKind: null,
           annualIntroEligibility: fetched.annualEligibility,
@@ -502,6 +633,7 @@ export function createKPlusCommerceService(deps: KPlusCommerceDeps): KPlusCommer
     restorePurchases,
     reset,
     isNativeOperationInFlight: () => inFlight !== null,
+    recheckAccess,
     beginHostedPresentation(actorId) {
       if (inFlight !== null || boundActorId !== actorId || snapshot.status !== 'READY'
         || canonicalIsActive()) return null;
@@ -534,12 +666,56 @@ async function readAuthenticatedActorId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
+/** The server derives the actor from the caller's JWT; the body carries only the trigger. */
+/** Exported as a test seam for the production wiring (real supabase-js client in tests). */
+export async function requestServerProviderReconciliation(trigger: KPlusReconcileTrigger): Promise<KPlusReconcileResult> {
+  // No session: send nothing (the function would only answer 401).
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (!data?.session?.access_token) return { outcome: 'UNAUTHENTICATED', retryAfterSeconds: null };
+  } catch {
+    return { outcome: 'UNAUTHENTICATED', retryAfterSeconds: null };
+  }
+  // invoke() never throws for a non-2xx answer: it returns { error } whose
+  // context is the HTTP Response. Classify every answer explicitly.
+  const { data, error, response } = await supabase.functions.invoke('kplus-revenuecat-pull-reconcile', { body: { trigger } });
+  if (!error) return classifyKPlusReconcileResponse(response?.status ?? 200, data);
+  // FunctionsHttpError / FunctionsRelayError carry the HTTP Response as `context`;
+  // FunctionsFetchError (transport) does not. Checked structurally, not with
+  // instanceof, so a polyfilled or cross-realm Response is still read.
+  const context = (error as { context?: unknown }).context as
+    | { status?: unknown; clone?: () => { json: () => Promise<unknown> } }
+    | undefined;
+  if (!context || typeof context.status !== 'number' || typeof context.clone !== 'function') {
+    return classifyKPlusReconcileResponse(null, null);
+  }
+  let body: unknown = null;
+  try {
+    body = await context.clone().json();
+  } catch {
+    body = null;
+  }
+  return classifyKPlusReconcileResponse(context.status, body);
+}
+
 function canonicalStoreSaysKPlus(): boolean {
   const state = getKPlusEntitlementClientState();
   return state.status === 'resolved' && state.summary.access === 'k_plus';
 }
 
+/**
+ * Production diagnostic sink: ONE bounded JSON line in the device log (logcat tag
+ * ReactNativeJS), so an operator can tell WHICH gate failed behind the single
+ * consumer message. Already sanitized by the service (enum tokens and a RevenueCat
+ * numeric code only -- no ids, emails, receipts, tokens or provider objects).
+ */
+function logKPlusCommerceDiagnostic(diagnostic: KPlusCommerceDiagnostic): void {
+  // eslint-disable-next-line no-console
+  console.warn(`[kplus_commerce_diag] ${JSON.stringify(diagnostic)}`);
+}
+
 const kplusCommerce = createKPlusCommerceService({
+  onDiagnostic: logKPlusCommerceDiagnostic,
   port: revenueCatNativePort,
   getActorId: readAuthenticatedActorId,
   publicKeys: readRevenueCatPublicKeysFromEnv,
@@ -548,6 +724,7 @@ const kplusCommerce = createKPlusCommerceService({
   isCanonicalKPlusActive: canonicalStoreSaysKPlus,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   recheckDelaysMs: KPLUS_COMMERCE_RECHECK_DELAYS_MS,
+  requestProviderReconciliation: requestServerProviderReconciliation,
 });
 
 export const getKPlusCommerceSnapshot = kplusCommerce.getSnapshot;
@@ -561,3 +738,4 @@ export const restoreKPlusPurchases = kplusCommerce.restorePurchases;
 export const resetKPlusCommerce = kplusCommerce.reset;
 export const beginKPlusHostedPresentation = kplusCommerce.beginHostedPresentation;
 export const isKPlusNativeOperationInFlight = kplusCommerce.isNativeOperationInFlight;
+export const recheckKPlusAccess = kplusCommerce.recheckAccess;

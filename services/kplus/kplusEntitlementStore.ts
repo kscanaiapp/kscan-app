@@ -59,6 +59,8 @@ let clientState: KPlusEntitlementClientState = RESOLVING;
 /** The last answer the SERVER gave this actor. Only ever used as a bounded
  *  presentation snapshot while the server is unreachable. */
 let lastServerSummary: KPlusEntitlementSummary | null = null;
+/** Which refresh produced lastServerSummary, so an older answer never replaces a newer one. */
+let lastServerSummaryRequestId = 0;
 let inFlightRequestId = 0;
 let pendingRefreshId: number | null = null;
 /** Bumped only by an actor reset. A flow that awaits across more than one
@@ -275,18 +277,21 @@ export function resetKPlusEntitlementCache(): void {
   actorGeneration += 1;
   pendingRefreshId = null;
   lastServerSummary = null;
+  lastServerSummaryRequestId = 0;
   clearBoundaryTimer();
   setClientState(RESOLVING);
 }
 
-function applyReadResult(result: KPlusSummaryReadResult) {
+function applyReadResult(result: KPlusSummaryReadResult, requestId: number) {
   if (result.status === 'resolved') {
     lastServerSummary = result.summary;
+    lastServerSummaryRequestId = requestId;
     setClientState({ status: 'resolved', summary: result.summary, origin: 'server' });
     return;
   }
   if (result.status === 'signed_out') {
     lastServerSummary = null;
+    lastServerSummaryRequestId = requestId;
     setClientState({ status: 'signed_out' });
     return;
   }
@@ -311,6 +316,7 @@ function applyReadResult(result: KPlusSummaryReadResult) {
 
 export async function refreshKPlusEntitlement(): Promise<void> {
   const requestId = ++inFlightRequestId;
+  const generation = actorGeneration;
   const now = Date.now();
   const keyBefore = projectionKey(effectiveClientState(now), pendingRefreshId !== null);
   pendingRefreshId = requestId;
@@ -333,8 +339,28 @@ export async function refreshKPlusEntitlement(): Promise<void> {
     projectionCache = null;
     if (requestId !== inFlightRequestId) emit();
   }
-  if (requestId !== inFlightRequestId) return; // stale response from a prior actor
-  applyReadResult(result);
+  if (requestId !== inFlightRequestId) {
+    // Superseded by a newer request. A real server answer for the SAME actor is
+    // still the best evidence we hold, so it becomes the last-known summary when
+    // it is newer than the one held -- it is never displayed directly. If the
+    // newer request has ALREADY failed (network / server error), re-evaluate
+    // the same bounded K+ stand-in rule applyReadResult uses. A Free answer can
+    // never stand in for an unreadable one, and a prior actor's answer is dropped.
+    if (generation !== actorGeneration || result.status !== 'resolved' || requestId <= lastServerSummaryRequestId) return;
+    lastServerSummary = result.summary;
+    lastServerSummaryRequestId = requestId;
+    const current = clientState;
+    if (
+      pendingRefreshId === null
+      && current.status === 'unavailable'
+      && (current.reason === 'network' || current.reason === 'server_error')
+      && result.summary.access === 'k_plus'
+    ) {
+      setClientState(evaluateKPlusPresentationSnapshot(result.summary, Date.now()));
+    }
+    return;
+  }
+  applyReadResult(result, requestId);
 }
 
 export type ActivateOutcome = 'granted' | 'already_active' | 'campaign_consumed' | 'failed';

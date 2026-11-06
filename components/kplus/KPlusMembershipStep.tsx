@@ -39,6 +39,7 @@ import {
   subscribeToKPlusCommerce,
   purchaseKPlusAnnual,
   purchaseKPlusMonthly,
+  recheckKPlusAccess,
   restoreKPlusPurchases,
 } from '../../services/kplus/kplusCommerceService';
 import {
@@ -46,6 +47,8 @@ import {
   INITIAL_KPLUS_PAYWALL_UI,
   KPLUS_PAYWALL_COPY as COPY,
   KPLUS_PAYWALL_PRESENTATION,
+  kplusResolvingNotice,
+  kplusUnavailableBody,
   reduceKPlusPaywallUi,
   type KPlusPaywallUiAction,
   type KPlusPaywallUiState,
@@ -79,6 +82,8 @@ export const KPLUS_RESOLVING_PATIENCE_MS =
   KPLUS_COMMERCE_RECHECK_DELAYS_MS.reduce((total, delay) => total + delay, 0) + 5_000;
 
 const ACQUISITION_ENTRIES = new Set(['ACQUISITION_ELIGIBLE', 'COMPLIMENTARY_EXPIRED']);
+/** Terminal store answers that leave no catalog; a new presentation re-reads once. */
+const STALE_NO_CATALOG_STATUSES = new Set(['STORE_ERROR', 'NOTHING_RESTORED', 'USER_CANCELLED']);
 
 export interface KPlusMembershipStepProps {
   /** Finish onboarding through the existing completion handoff. */
@@ -247,9 +252,17 @@ export function KPlusMembershipStep({
 
   // Store products are read only once canonical entitlement says this actor is
   // positively Free. Before that the screen never shows an acquisition offer.
+  //
+  // Each presentation the user opens gets ONE fresh read when the shared
+  // snapshot holds no usable catalog: a failure recorded earlier (the sign-in
+  // prefetch, another entry point, a previous sheet) must not be replayed as
+  // this screen's answer after the store has recovered. Once per mount, so a
+  // failing store is never retried in a loop behind the user's back.
   useEffect(() => {
     if (!isAcquisitionEntry || nothingToSell || offeringsRequestedRef.current) return;
-    if (commerce.catalog || commerce.status !== 'IDLE') return;
+    const staleFailure = commerce.status === 'UNAVAILABLE'
+      || (!commerce.catalog && STALE_NO_CATALOG_STATUSES.has(commerce.status));
+    if (!staleFailure && (commerce.catalog || commerce.status !== 'IDLE')) return;
     offeringsRequestedRef.current = true;
     void requestOfferings();
   }, [isAcquisitionEntry, nothingToSell, commerce.catalog, commerce.status, requestOfferings]);
@@ -306,10 +319,12 @@ export function KPlusMembershipStep({
     }
   }, [dispatch, view.paywall?.restoreEnabled, view.screen]);
 
+  // "Check again" asks the server to reconcile provider state (a late or lost
+  // webhook), then re-reads canonical authority. It never grants anything.
   const handleCheckAgain = useCallback(() => {
     dispatch({ type: 'RECHECK_REQUESTED' });
-    entitlement.refresh();
-  }, [dispatch, entitlement]);
+    void recheckKPlusAccess();
+  }, [dispatch]);
 
   const handleFree = useCallback(() => {
     if (operationLockRef.current) return;
@@ -380,7 +395,10 @@ export function KPlusMembershipStep({
     setHosted('idle');
     setLoadingExpired(false);
     setRetry(value => value + 1);
-    if (loading) { entitlement.refresh(); void requestOfferings(); }
+    if (loading) entitlement.refresh();
+    // On "Membership options couldn't load" this link must actually re-read the
+    // store: the hosted paywall can only open once offerings are READY.
+    if (loading || view.screen === 'PRODUCTS_UNAVAILABLE') void requestOfferings();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -473,9 +491,9 @@ export function KPlusMembershipStep({
           testID="kplus-hosted-purchase-pending"
           icon={<ActivityIndicator color={P.brushedGold} />}
           title="Finishing your K+ setup"
-          body="Your store action was received. We’re checking your K+ access securely before unlocking premium features."
+          body={kplusResolvingNotice(commerce.reconciliation) ?? "Your store action was received. We’re checking your K+ access securely before unlocking premium features."}
         >
-          <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={entitlement.refresh} />
+          <KPlusPrimaryCta testID="kplus-hosted-check-again" label="Check access again" enabled onPress={() => void recheckKPlusAccess()} />
           <KPlusTextAction testID="kplus-hosted-continue-later" label="Continue without unlocking K+" tone="graphite" onPress={onContinue} />
         </KPlusStatusPanel>
       </View>
@@ -527,9 +545,11 @@ export function KPlusMembershipStep({
   if (resolving) {
     const restore = view.screen === 'RESTORE_COMPLETED_ENTITLEMENT_RESOLVING';
     const slow = view.resolvingBoundExceeded;
-    const body = slow
+    // A classified server answer (ownership conflict, cooldown) is said plainly.
+    const notice = kplusResolvingNotice(commerce.reconciliation);
+    const body = notice ?? (slow
       ? (restore ? COPY.resolvingSlowRestoreBody : COPY.resolvingSlowPurchaseBody)
-      : (restore ? COPY.resolvingRestoreBody : COPY.resolvingPurchaseBody);
+      : (restore ? COPY.resolvingRestoreBody : COPY.resolvingPurchaseBody));
     return (
       <View style={styles.root} testID={restore ? 'kplus-membership-restore-resolving' : 'kplus-membership-purchase-resolving'}>
         <KPlusPaywallHeader compact />
@@ -539,7 +559,7 @@ export function KPlusMembershipStep({
           title={COPY.resolvingTitle}
           body={body}
         >
-          {slow ? (
+          {slow || notice ? (
             <>
               <KPlusPrimaryCta testID="kplus-resolving-check-again" label={COPY.checkAgain} enabled onPress={handleCheckAgain} />
               <KPlusTextAction testID="kplus-resolving-continue" label={COPY.continue} tone="graphite" onPress={onContinue} />
@@ -584,7 +604,7 @@ export function KPlusMembershipStep({
           testID="kplus-panel-products-unavailable"
           icon={<Text style={styles.panelGlyph}>◇</Text>}
           title={COPY.unavailableTitle}
-          body={COPY.unavailableBody}
+          body={kplusUnavailableBody(commerce.unavailableCause)}
         >
           <KPlusTextAction testID="kplus-hosted-retry" label="Retry membership options" onPress={retryHosted} />
           <KPlusTextAction testID="kplus-products-restore" label={COPY.restore} disabled={nativeBusy} onPress={() => void handleRestore()} />

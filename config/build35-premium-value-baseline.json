@@ -54,11 +54,11 @@
     "components/kplus/KPlusEarlyAccessSheet.tsx": "b1abbdf25bf76ff8e363bb49fb493267eda816bdd177e30eed6d591a575aaa8f",
     "hooks/useTodayWithElise.ts": "65d6846a35e9080097d944921e7058b00cbb743477d83a1cc9e45077f60f8600",
     "services/kplus/kplusClient.ts": "1e64d38a84baf65698c1521c814057ea05a4b7574681817f6b702c47f57cfb3d",
-    "services/kplus/kplusCommerceService.ts": "693a1cf42a0e98d427829c9075bc56b89f5be02bf8cdf75b7b8a2553f3453b52",
+    "services/kplus/kplusCommerceService.ts": "d8e26d7dcf8d77610e76d07641151ba5bf9ec0f4ec5c0dec20f5fb700e1f5992",
     "services/kplus/kplusEntitlementReader.ts": "3af5f75b0ed4d1e420939169362b751fdc3df43a2b209fbcb15f07486dc83ff2",
-    "services/kplus/kplusEntitlementStore.ts": "607d6f15285e4d4eda56ab0c9967bcc94b0f23bd8bf87ae68cd34b4ee5b7ae71",
+    "services/kplus/kplusEntitlementStore.ts": "984e7856bbf95517cb69768c72d496d25e81a46fc442efe4e166b09487dd0445",
     "services/kplus/revenueCatConfig.ts": "d066df0a9e2755382be70e611778b33a079191bcd79cf18620e1623c745ef465",
-    "services/kplus/revenueCatNative.ts": "f079b19d30715150063f4ba9450e64db84c8b22495d2d37f36d955f3d9bf61bb",
+    "services/kplus/revenueCatNative.ts": "5803336dbec908bc1cc8cdadfe088beb2209b7059066111dc469b98ed7d56661",
     "services/todayWithElise/actionRouting.ts": "ba142cfbae7f3eb8e7f43330bdcccb56bc5623f42f0ea72cb55ea05dd46a8337",
     "services/todayWithElise/actorInvalidation.ts": "868e71622dfbab3599ec4841b850add0ecb3621b9b66d618169d74d47992ff12",
     "services/todayWithElise/analytics.ts": "44a3f2bab0885f5b5db2c77e38454372f213f93def631bb90557bb91a70f7efb",
@@ -98,7 +98,7 @@
     "supabase/functions/vto-generate/vtoReservation.ts": "aa2e36024d410310a008c758f03aa1ae8c1101b47923afcf6968ce6f0a9102ce",
     "supabase/functions/vto-generate/vtoResultValidation.ts": "81895acbbe484a1ce2c7365901aba9f854bf8548d410c528d2f20de8c1c84c64",
     "supabase/functions/vto-generate/vtoTelemetry.ts": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
-    "types/kplusCommerceContract.ts": "537b5975ed6885db45b4db556e97dd78a8128e36bfeb4546f4f569cc851f5f62",
+    "types/kplusCommerceContract.ts": "07b92a7697186e349397feb5846a9db6e904197190e8aa4891fb9aa42feba3c9",
     "types/kplusEntitlementContract.ts": "d07871fd28dd4310774597bb163d6894ffa994fe993a5184933e9a2832ae1bfc",
     "types/todayWithElise.ts": "553ae08753519d4a54b6080a493bebe7a4cfe51d5320f2c9e2c2fb9bdbc5ec2a"
   },
@@ -130,5 +130,21 @@
     "file": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
     "priorDigest": "8b386b4d300bdad062de6683abe505883784dc5309743ca2f172778fdc8ffc39",
     "reason": "Exact reviewed C011/P3 socket-DNS transport source. Only the adapter digest advances; C010 metadata and every unrelated hold/digest stay unchanged. No runtime activation."
+  },
+  "b41KPlusCommerceRecoveryPromotion": {
+    "sha": "efa827b1234149ae6ee5338bbfcc694445745a2e",
+    "files": [
+      "services/kplus/kplusCommerceService.ts",
+      "services/kplus/kplusEntitlementStore.ts",
+      "services/kplus/revenueCatNative.ts",
+      "types/kplusCommerceContract.ts"
+    ],
+    "priorDigests": {
+      "services/kplus/kplusCommerceService.ts": "693a1cf42a0e98d427829c9075bc56b89f5be02bf8cdf75b7b8a2553f3453b52",
+      "services/kplus/kplusEntitlementStore.ts": "607d6f15285e4d4eda56ab0c9967bcc94b0f23bd8bf87ae68cd34b4ee5b7ae71",
+      "services/kplus/revenueCatNative.ts": "f079b19d30715150063f4ba9450e64db84c8b22495d2d37f36d955f3d9bf61bb",
+      "types/kplusCommerceContract.ts": "537b5975ed6885db45b4db556e97dd78a8128e36bfeb4546f4f569cc851f5f62"
+    },
+    "reason": "B41 consolidated K+ repair: stale UNAVAILABLE re-read per presentation, server pull-reconcile with classified outcomes, privacy-safe commerce diagnostics (#749), superseded-read entitlement fallback. Only these four protected digests advance; every other hold is unchanged. Requires owner review; merge with a merge commit."
   }
 }

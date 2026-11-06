@@ -257,7 +257,7 @@ const ALLOWED_SPARKLE_BUTTONS = new Map([
   ],
   [
     path.join('components', 'account-home', 'PermissionsStepV1.tsx'),
-    'CONTINUE TO HOME / SAVING — onboarding CTA, no approved product icon',
+    'CONTINUE / SAVING — onboarding CTA, no approved product icon',
   ],
 ]);
 

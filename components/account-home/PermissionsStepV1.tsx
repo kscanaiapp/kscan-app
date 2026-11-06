@@ -121,7 +121,7 @@ export function PermissionsStepV1({
           ? 'Unavailable right now — tap to retry.'
           : notificationsStatus === 'disable_failed'
             ? 'Could not turn K Scan AI notifications off just now — tap to try again.'
-            : 'Get notified when a watched item hits your target price.';
+            : 'Optional. You can change this anytime in Settings.';
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -262,7 +262,7 @@ export function PermissionsStepV1({
       <View style={styles.actions}>
         <PrimaryButton
           testID="onboarding-permissions-continue-button-v1"
-          title="✧ CONTINUE TO HOME"
+          title="✧ CONTINUE"
           onPress={onContinueToHome}
           style={styles.wideButton}
         />
