@@ -388,7 +388,7 @@
     "environments": {
       "yzqjvdfgefveprobvvyw": {
         "label": "K Scan AI Staging",
-        "confirmedOn": "2026-09-03",
+        "confirmedOn": "2026-11-06",
         "method": "Local migration inventory diffed against supabase_migrations.schema_migrations, then every table, column, function and policy declared by each local-only file was probed directly on staging (to_regclass / pg_proc / information_schema.columns / pg_policies / pg_get_constraintdef). Exactly two declared objects were absent: public.release_vto_generation (recorded below as genuinelyUnapplied) and public.can_contribute_to_dressing_room (recorded above as superseded, dependency deferred).",
         "reconciled": [
           {
@@ -681,6 +681,15 @@
             ],
             "classification": "EQUIVALENT_RENUMBER",
             "evidence": "B34-SEC-001, PR #431 (draft; base release/kscan-pre-freeze-v1; head claude/relaxed-noether-zqp4rl @ ccb1dd0f), authored in commit 96d1c3a1 as supabase/migrations/20260916203000_reaction_counts_require_live_room_access.sql. Staging recorded it under ledger version 20260916204355 (2026-09-16T20:43:55Z), about three and a half minutes before that commit (20:47:28Z), and it lives in NO merged branch -- so the governed deploy preflight correctly reported it as undeclared remote-only drift and refused staging-controlled-deploy run 35154244943 for PR #432. EQUIVALENT rather than EXACT: staging's recorded statement is the source file's executable body without its comment text (2988 chars against a 7317-byte source file). With SQL line comments stripped and whitespace normalized, the source file and supabase_migrations.schema_migrations.statements are identical, both hashing to b630bcd353b9120f379b19aa83a9bce5 (2391 chars, 1 statement) -- the same normalization that reproduces the 23a939056a54927124b2eb3eaf42f01b proof recorded for 20260914120000. Behaviour re-read live on staging 2026-09-16: public.get_item_reaction_counts(uuid[]) is SECURITY DEFINER, owner postgres, search_path pg_catalog, public, returns TABLE(item_id uuid, reaction_type text, count integer), carries both the anonymous active-share branch and the shared_room_memberships gate for authenticated callers, and anon/authenticated retain EXECUTE. Production (wyyuqfdxucjksghsmhry) carries this migration under no version or name and still runs the B33-SEC-001 body, so the two environments now differ on this function. This entry records only that staging applied this content under 20260916204355; it does not review or approve PR #431, and the file is carried at its original authored version so the renumber stays provable. Nothing else from that branch is ported."
+          },
+          {
+            "localVersion": "20261106120000",
+            "logicalName": "kplus_sandbox_review_access",
+            "remoteVersions": [
+              "20261106164732"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Build 35 owner-authorized Staging deployment 2026-11-06: Supabase apply_migration recorded kplus_sandbox_review_access as remote version 20261106164732. Compared supabase_migrations.schema_migrations.statements[1] with governed supabase/migrations/20261106120000_kplus_sandbox_review_access.sql at backend merge 336b9004: exact byte-for-byte equality, 25,295 characters. Verified both review tables, 6 role-restricted functions, reviewer-account count 0, plus client EXECUTE denial. No historical ledger edits or SQL replay; Production 20261106120000 remains KNOWN_FUTURE_UNAPPLIED."
           }
         ],
         "genuinelyUnapplied": [],
@@ -800,15 +809,6 @@
               "20261104220528"
             ],
             "evidence": "Independent ordinary source registry, append-only audit, aggregate coverage and default-OFF account preference. No discovery catalog changes or seed data. Actual-migration authorization tests: __tests__/brandSearchExpansionSql.test.js. Pending governed Staging execution; no Production activation approval."
-          },
-          {
-            "localVersion": "20261106120000",
-            "logicalName": "kplus_sandbox_review_access",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "applyAfter": [
-              "20261104233754"
-            ],
-            "evidence": "B41 restricted sandbox REVIEW entitlement access. Additive: two service-role-only tables (RLS on, no policies, no client privileges; append-only audit), six service_role-only SECURITY DEFINER functions (authorize, admit_event, revoke, sweep, permits, claim_kplus_sandbox_review_reconciliation), one extra grants revocation reason valid ONLY for sandbox store grants, and ONE added conjunct in kplus_entitlement_facts so an expired/revoked review authorization denies sandbox-grant access at the canonical resolver (no-op for users without an authorization row; body otherwise verbatim, pinned by test). Inert until an operator authorizes an account AND the review switch is on. Actual-migration tests incl. expiry/revocation/overlap/race interleavings and the reconcile claim: __tests__/kplusSandboxReviewSql.test.js. Pending owner review and governed Staging execution; no Production approval."
           }
         ]
       },
