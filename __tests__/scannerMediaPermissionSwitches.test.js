@@ -101,6 +101,12 @@ test('Android foreground refresh observes BOTH camera permission grants and revo
   assert.doesNotMatch(app, /nextState !== 'active' \|\| permission\?\.granted/);
 });
 
+test('onboarding does not navigate away during an in-flight preference save', () => {
+  const ui = read('components/account-home/PermissionsStepV1.tsx');
+  assert.match(ui, /title="✧ CONTINUE"\s+onPress=\{onContinueToHome\}\s+disabled=\{mediaBusy\}/);
+  assert.match(ui, /title="Not now"\s+onPress=\{onNotNow\}\s+disabled=\{mediaBusy\}/);
+});
+
 test('Scanner media OFF prevents CameraView mounting and photo picker callbacks', () => {
   const app = read('app.js');
   const cameraGate = app.indexOf('if (cameraRequired && (!scannerMedia.ready || !scannerMedia.preferences.camera))');
