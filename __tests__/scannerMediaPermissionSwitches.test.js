@@ -16,7 +16,7 @@ function loadService(storage) {
   vm.runInNewContext(code, {
     module, exports: module.exports,
     require: (specifier) => {
-      if (specifier === '@react-native-async-storage/async-storage') return { default: storage };
+      if (specifier === '@react-native-async-storage/async-storage') return storage;
       throw new Error('Unexpected import: ' + specifier);
     },
   });
