@@ -132,11 +132,13 @@ test('the gates are evaluated after the state they depend on is declared', () =>
   }
 });
 
-test('each denied screen under the V2 UI offers Back to the landing', () => {
+test('all three denied Scanner camera screens allow Back to the landing', () => {
   const backs = APP_SOURCE.match(
     /\{SCAN_ROOM_V2_UI_ENABLED \? \(\s*<ActionButton label="Back" onPress=\{\(\) => setV2CameraVisible\(false\)\} variant="tertiary" \/>\s*\) : null\}/g,
   );
-  assert.equal(backs?.length, 2, 'the not-asked-yet and the denied screens both carry Back');
+  assert.equal(backs?.length, 3, 'stored Camera OFF, not-asked-yet, and OS-denied each offer Back');
+  assert.match(APP_SOURCE, /if \(cameraRequired && !scannerMediaChoices\.camera\) \{/);
+  assert.match(APP_SOURCE, /readScannerMediaChoices\(\)/);
 });
 
 test('NEGATIVE CONTROL: the pre-repair gate shape is reported by the same assertions', () => {

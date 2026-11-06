@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   disableDeviceNotifications,
   enableDeviceNotifications,
@@ -9,11 +9,18 @@ import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 import { VOICESCAN_ENABLED } from '../constants/featureFlags';
+import {
+  readScannerMediaChoices,
+  saveScannerMediaChoice,
+  type ScannerMediaChoice,
+} from '../services/scannerMediaChoices';
 
-/** Only Notifications reflects a real device registration outcome here. */
+/** Only Notifications reflects an OS/device registration outcome here. Scanner choices are app-local. */
 export type PermissionKey = 'notifications';
 
 export interface PermissionPreferences {
+  camera: boolean;
+  photos: boolean;
   notifications: boolean;
 }
 
@@ -26,6 +33,11 @@ export interface MicrophonePermissionResult {
 export interface UsePermissionPreferencesReturn {
   preferences: PermissionPreferences;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  mediaReady: boolean;
+  mediaBusy: boolean;
+  mediaError: string | null;
+  setScannerMediaChoice: (key: ScannerMediaChoice, value: boolean) => Promise<void>;
+  retryScannerMediaChoices: () => Promise<void>;
   requestMicrophonePermission: () => Promise<MicrophonePermissionResult>;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
   /**
@@ -36,18 +48,58 @@ export interface UsePermissionPreferencesReturn {
 }
 
 const DEFAULT_PREFERENCES: PermissionPreferences = {
+  camera: true,
+  photos: true,
   notifications: false,
 };
 
 /**
  * Reflects the real outcome of the notification registration flow.
  *
- * Camera, Photos, and Microphone are point-of-use capabilities, not saved
- * onboarding preferences. This hook deliberately owns no fake persistence for
- * those education cards.
+ * Microphone remains a point-of-use OS permission. Camera and Photos are
+ * real, device-local Scanner usage choices; the OS grant is still point-of-use.
+ * A stored OFF must never be interpreted as an OS permission change.
  */
 export function usePermissionPreferences(): UsePermissionPreferencesReturn {
   const [preferences, setPreferences] = useState<PermissionPreferences>({ ...DEFAULT_PREFERENCES });
+  const [mediaReady, setMediaReady] = useState(false);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const mediaMutationInFlight = useRef(false);
+
+  const retryScannerMediaChoices = useCallback(async () => {
+    setMediaReady(false);
+    setMediaError(null);
+    try {
+      const stored = await readScannerMediaChoices();
+      setPreferences((prev) => ({ ...prev, camera: stored.camera, photos: stored.photos }));
+      setMediaReady(true);
+    } catch {
+      // Fail closed: never display ON as a verified choice when storage cannot
+      // be read. The Scanner independently refuses unverified media access.
+      setMediaError('Could not load your Scanner choices. Retry to continue.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void retryScannerMediaChoices();
+  }, [retryScannerMediaChoices]);
+
+  const setScannerMediaChoice = useCallback(async (key: ScannerMediaChoice, value: boolean) => {
+    if (!mediaReady || mediaMutationInFlight.current) return;
+    mediaMutationInFlight.current = true;
+    setMediaBusy(true);
+    setMediaError(null);
+    try {
+      const saved = await saveScannerMediaChoice(key, value);
+      setPreferences((prev) => ({ ...prev, camera: saved.camera, photos: saved.photos }));
+    } catch {
+      setMediaError('Could not save your Scanner choice. Please try again.');
+    } finally {
+      mediaMutationInFlight.current = false;
+      setMediaBusy(false);
+    }
+  }, [mediaReady]);
 
   const setPreference = useCallback((key: PermissionKey, value: boolean) => {
     setPreferences((prev) => ({ ...prev, [key]: value }));
@@ -138,6 +190,11 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
   return {
     preferences,
     setPreference,
+    mediaReady,
+    mediaBusy,
+    mediaError,
+    setScannerMediaChoice,
+    retryScannerMediaChoices,
     requestMicrophonePermission,
     requestNotificationPermission,
     disableNotificationDelivery,

@@ -301,20 +301,24 @@ test('recorded coherence decision: card visibility does not key off VOICESCAN_EN
 
 // ─── §12: other permission surfaces untouched ────────────────────────────────
 
-test('Camera card is a truthful point-of-use status', () => {
+test('Camera card has a persisted Scanner toggle, not a fake OS permission grant', () => {
   const card = stepSource.slice(stepSource.indexOf('title="Camera"'), stepSource.indexOf('title="Photos"'));
-  assert.match(card, /badge="ESSENTIAL"/);
-  assert.match(card, /actionType="status"/);
-  assert.match(card, /statusLabel="ON USE"/);
-  assert.doesNotMatch(card, /ALLOW/);
+  assert.match(card, /badge="OPTIONAL"/);
+  assert.match(card, /actionType="toggle"/);
+  assert.match(card, /actionValue=\{camera\}/);
+  assert.match(card, /setScannerMediaChoice\('camera', value\)/);
+  assert.match(card, /not operating system permission/);
+  assert.doesNotMatch(card, /statusLabel="ON USE"|>\s*ALLOW\s*</);
 });
 
-test('Photos card is a truthful point-of-use status', () => {
+test('Photos card has a persisted Scanner toggle, not a fake OS permission grant', () => {
   const card = stepSource.slice(stepSource.indexOf('title="Photos"'), stepSource.indexOf('title="Microphone"'));
-  assert.match(card, /badge="ESSENTIAL"/);
-  assert.match(card, /actionType="status"/);
-  assert.match(card, /statusLabel="ON USE"/);
-  assert.doesNotMatch(card, /ALLOW/);
+  assert.match(card, /badge="OPTIONAL"/);
+  assert.match(card, /actionType="toggle"/);
+  assert.match(card, /actionValue=\{photos\}/);
+  assert.match(card, /setScannerMediaChoice\('photos', value\)/);
+  assert.match(card, /not operating system permission/);
+  assert.doesNotMatch(card, /statusLabel="ON USE"|>\s*ALLOW\s*</);
 });
 
 test('Notifications card and its live wiring are unchanged', () => {

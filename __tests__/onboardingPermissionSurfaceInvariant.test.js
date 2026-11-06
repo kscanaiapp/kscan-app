@@ -38,16 +38,20 @@ test('PERM-REG-001: the shipping screen has exactly the permanent four-card orde
   }
 });
 
-test('RP-105: Camera and Photos are truthful point-of-use education, never fake ALLOW controls', () => {
+test('PERM-REG-002: Camera and Photos offer real Scanner-local ON/OFF switches, never fake OS ALLOW', () => {
   const camera = cardBlock('Camera', 'Photos');
   const photos = cardBlock('Photos', 'Microphone');
-  for (const [name, card] of [['Camera', camera], ['Photos', photos]]) {
-    assert.match(card, /badge="ESSENTIAL"/);
-    assert.match(card, /actionType="status"/);
-    assert.match(card, /statusLabel="ON USE"/);
-    assert.doesNotMatch(card, /ALLOW|onActionChange|actionValue/);
-    assert.match(card, /requested only when|system picker/i, `${name} must describe its real point-of-use flow`);
+  for (const [key, card] of [['camera', camera], ['photos', photos]]) {
+    assert.match(card, /badge="OPTIONAL"/);
+    assert.match(card, /actionType="toggle"/);
+    assert.match(card, new RegExp(`actionValue=\\{${key}\\}`));
+    assert.match(card, new RegExp(`setScannerMediaChoice\\('${key}', value\\)`));
+    assert.match(card, /disabled=\{!mediaReady \|\| mediaBusy\}/);
+    assert.match(card, /operating system permission|device Photos access/i,
+      'a Scanner choice must not claim to grant/revoke an OS permission');
+    assert.doesNotMatch(card, /actionType="status"|statusLabel="ON USE"/);
   }
+  assert.match(permissionsStep, /retryScannerMediaChoices/);
   assert.doesNotMatch(permissionsStep, /actionType: 'allow'/);
   assert.doesNotMatch(permissionsStep, />\s*ALLOW\s*</);
 });
