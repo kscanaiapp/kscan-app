@@ -51,6 +51,7 @@ import {
   type KPlusProviderEnvironment,
   type KPlusProviderEventType,
   type KPlusProviderTransitionInput,
+  type KPlusStore,
 } from '../kplus/kplusEntitlementContract.ts';
 import {
   classifyKPlusProduct,
@@ -204,13 +205,22 @@ export type RevenueCatNormalization =
   | { kind: 'ignored'; category: RevenueCatIgnoreCategory; detail?: string }
   | { kind: 'malformed'; reason: string }
   | { kind: 'configuration_error'; reason: RevenueCatConfigurationErrorReason }
-  | { kind: 'subscription'; input: KPlusProviderTransitionInput }
-  | { kind: 'lifetime'; input: KPlusLifetimeTransitionInput };
+  | { kind: 'subscription'; input: KPlusProviderTransitionInput; sandboxReviewAdmission?: { userId: string } }
+  | { kind: 'lifetime'; input: KPlusLifetimeTransitionInput; sandboxReviewAdmission?: { userId: string } };
 
 export interface RevenueCatNormalizationContext {
   classification: KPlusProductClassificationConfig;
   /** Environments this deployment will mutate entitlement state from. */
   acceptedEnvironments: readonly KPlusProviderEnvironment[];
+  /**
+   * B41 restricted review path. When true and a SANDBOX event arrives at a
+   * deployment that does not accept sandbox, the event is normalized fully and
+   * returned with `sandboxReviewAdmission` so the handler can ask the database
+   * whether this exact K Scan account holds an active review authorization.
+   * Every other outcome for such an event stays exactly what it was before:
+   * ignored / environment_not_accepted. Default false.
+   */
+  sandboxReviewCandidates?: boolean;
 }
 
 const NON_LIFECYCLE_TYPES = new Set([
@@ -271,9 +281,26 @@ export async function normalizeRevenueCatEvent(
   const environment = event.environment ? REVENUECAT_ENVIRONMENT_TO_KPLUS[event.environment] : undefined;
   if (!environment) return { kind: 'malformed', reason: 'environment' };
   if (!context.acceptedEnvironments.includes(environment)) {
-    return { kind: 'ignored', category: 'environment_not_accepted', detail: environment };
+    if (!(environment === 'sandbox' && context.sandboxReviewCandidates === true)) {
+      return { kind: 'ignored', category: 'environment_not_accepted', detail: environment };
+    }
+    // Restricted review candidate: anything short of a fully valid transition is
+    // the unchanged environment refusal (no new alerts, no new retries).
+    const candidate = await normalizeAcceptedEnvironment(event, store, environment, context);
+    if (candidate.kind !== 'subscription' && candidate.kind !== 'lifetime') {
+      return { kind: 'ignored', category: 'environment_not_accepted', detail: environment };
+    }
+    return { ...candidate, sandboxReviewAdmission: { userId: candidate.input.userId } };
   }
+  return normalizeAcceptedEnvironment(event, store, environment, context);
+}
 
+async function normalizeAcceptedEnvironment(
+  event: RevenueCatWebhookEvent,
+  store: KPlusStore,
+  environment: KPlusProviderEnvironment,
+  context: RevenueCatNormalizationContext,
+): Promise<RevenueCatNormalization> {
   const actor = resolveKScanActor(event);
   if (!actor.ok) return { kind: 'ignored', category: 'unmappable_actor', detail: actor.reason };
 
