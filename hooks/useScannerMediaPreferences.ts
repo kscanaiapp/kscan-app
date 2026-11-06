@@ -20,6 +20,7 @@ export function useScannerMediaPreferences() {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
   const busyRef = useRef(false);
+  const revisionRef = useRef(0); // A stale read can never overwrite an explicit switch write.
 
   useEffect(() => {
     mounted.current = true;
@@ -27,17 +28,18 @@ export function useScannerMediaPreferences() {
   }, []);
 
   const refresh = useCallback(async () => {
+    const observedRevision = revisionRef.current;
     try {
       const [camera, photos] = await Promise.all([
         readScannerMediaPreference('camera'),
         readScannerMediaPreference('photos'),
       ]);
-      if (!mounted.current) return;
+      if (!mounted.current || observedRevision !== revisionRef.current) return;
       setPreferences({ camera, photos });
       setReady(true);
       setError(null);
     } catch {
-      if (!mounted.current) return;
+      if (!mounted.current || observedRevision !== revisionRef.current) return;
       // Storage cannot be trusted: keep camera and photo picker gated off.
       setReady(false);
       setError('Could not load your Scanner choices. Retry before using camera or photos.');
@@ -49,6 +51,7 @@ export function useScannerMediaPreferences() {
   const setPreference = useCallback(async (key: ScannerMediaPreference, value: boolean) => {
     if (!ready || busyRef.current) return false;
     busyRef.current = true;
+    revisionRef.current += 1;
     if (mounted.current) {
       setBusy(true);
       setError(null);
