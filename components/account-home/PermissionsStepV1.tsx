@@ -278,6 +278,7 @@ export function PermissionsStepV1({
           testID="onboarding-permissions-continue-button-v1"
           title="✧ CONTINUE"
           onPress={onContinueToHome}
+          disabled={mediaBusy}
           style={styles.wideButton}
         />
 
@@ -285,6 +286,7 @@ export function PermissionsStepV1({
           testID="onboarding-permissions-not-now-button-v1"
           title="Not now"
           onPress={onNotNow}
+          disabled={mediaBusy}
           style={styles.wideButton}
         />
       </View>
