@@ -814,7 +814,7 @@
       },
       "wyyuqfdxucjksghsmhry": {
         "label": "K Scan AI Production",
-        "confirmedOn": "2026-11-06",
+        "confirmedOn": "2026-09-19",
         "method": "Local migration inventory (172 files) diffed against production supabase_migrations.schema_migrations (95 rows) read-only via the Supabase Management API, giving 72 common / 100 local-only / 23 production-only. Every local-only version was then classified by PHYSICAL EFFECT, not by filename or timestamp: the full production object inventory (pg_class tables and indexes, pg_proc functions with pg_get_function_identity_arguments, information_schema.columns, storage.buckets, has_function_privilege/aclexplode grants) was read and each migration's declared objects were checked against it. Renumber claims are additionally corroborated by the production ledger row's own logical name and statement length, by the migration files' in-repo provenance headers, and in one case (20260723050000) by an exact normalised md5 match against the production ledger statements. Nothing was applied, recorded or changed: PRODUCTION_MUTATED=NO.",
         "reconciled": [
           {
