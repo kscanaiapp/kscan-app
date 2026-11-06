@@ -94,6 +94,13 @@ test('onboarding and Privacy both expose persisted ON/OFF switches', () => {
   assert.doesNotMatch(screen, /PermissionsAndroid|requestCameraPermissionsAsync|requestMediaLibraryPermissionsAsync/);
 });
 
+test('Android foreground refresh observes BOTH camera permission grants and revocations', () => {
+  const app = read('app.js');
+  assert.match(app, /if \(nextState !== 'active'\) return;/);
+  assert.match(app, /getPermission\(\)\.catch\(\(\) => \{/);
+  assert.doesNotMatch(app, /nextState !== 'active' \|\| permission\?\.granted/);
+});
+
 test('Scanner media OFF prevents CameraView mounting and photo picker callbacks', () => {
   const app = read('app.js');
   const cameraGate = app.indexOf('if (cameraRequired && (!scannerMedia.ready || !scannerMedia.preferences.camera))');
