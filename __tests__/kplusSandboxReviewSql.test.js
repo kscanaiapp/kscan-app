@@ -134,7 +134,9 @@ test('sandbox review SQL: no client privileges; service_role reads and executes 
     const v = async (sql) => (await db.query(sql)).rows[0].v === true;
     const tables = ['public.kplus_sandbox_review_accounts', 'public.kplus_sandbox_review_audit'];
     const fns = ['public.kplus_sandbox_review_authorize(uuid,text,timestamptz,text)', 'public.kplus_sandbox_review_admit_event(uuid,text)',
-      'public.kplus_sandbox_review_revoke(uuid,text)', 'public.kplus_sandbox_review_sweep()'];
+      'public.kplus_sandbox_review_revoke(uuid,text)', 'public.kplus_sandbox_review_sweep()',
+      'public.kplus_sandbox_review_permits(uuid,timestamptz)',
+      'public.claim_kplus_sandbox_review_reconciliation(uuid,integer,integer)'];
     for (const role of ['anon', 'authenticated']) {
       for (const t of tables) for (const p of ['select', 'insert', 'update', 'delete']) {
         assert.equal(await v(`select has_table_privilege('${role}', '${t}', '${p}') v`), false, `${role} ${p} ${t}`);
@@ -172,5 +174,265 @@ test('sandbox review SQL: the audit trail is append-only', async () => {
     await authorize(db, B, 'internal_tester', 1, 'T-AUDIT');
     assert.ok(Number((await one(db, 'select count(*) n from public.kplus_sandbox_review_audit')).n) > 0);
     await assert.rejects(db.exec(`update public.kplus_sandbox_review_audit set detail = 'tampered'`), /append-only/);
+  } finally { await db.close(); }
+});
+
+// ── Repair B: expiry and revocation at the CANONICAL ACCESS BOUNDARY ─────────
+// These prove access is denied by kplus_entitlement_facts itself, the instant
+// an authorization stops being active -- with the sweep never run and with the
+// grant row still (or again) unrevoked.
+
+const expireAuthorization = (db, user) => db.exec(`update public.kplus_sandbox_review_accounts
+  set starts_at = now() - interval '10 days', expires_at = now() - interval '1 second' where user_id = '${user}'`);
+const newerTransition = (db, user, id, digestChar) => db.exec(`select public.reconcile_kplus_provider_transition(
+  p_user_id => '${user}', p_provider => 'revenuecat', p_cause => 'provider_event',
+  p_external_event_id => '${id}', p_provider_event_type => 'renewal',
+  p_provider_occurred_at => now() - interval '5 seconds', p_environment => 'sandbox', p_store => 'apple',
+  p_product_id => 'kscan.kplus.monthly', p_subscription_ref_digest => '${digestChar.repeat(64)}',
+  p_lifecycle_state => 'active', p_period_type => 'paid', p_period_starts_at => now() - interval '5 seconds',
+  p_expires_at => now() + interval '7 days', p_will_renew => true)`);
+const lifetime = (db, user, env, id, digestChar) => db.exec(`select public.reconcile_kplus_provider_lifetime_transition(
+  p_user_id => '${user}', p_provider => 'revenuecat', p_cause => 'provider_event',
+  p_external_event_id => '${id}', p_provider_event_type => 'lifetime_purchase',
+  p_provider_occurred_at => now() - interval '1 minute', p_environment => '${env}', p_store => 'apple',
+  p_product_id => 'kscan.kplus.lifetime', p_purchase_ref_digest => '${digestChar.repeat(64)}',
+  p_lifecycle_state => 'active', p_purchased_at => now() - interval '1 minute')`);
+const canonical = async (db, user) => (await one(db, `select public.kplus_has_active_entitlement('${user}') v`)).v === true;
+const unrevokedSandbox = async (db, user) => Number((await one(db, `select count(*) n from public.kplus_entitlement_grants
+  where user_id = '${user}' and provider_environment = 'sandbox' and revoked_at is null`)).n);
+const claimReview = (db, user, cooldown = 300) =>
+  one(db, `select public.claim_kplus_sandbox_review_reconciliation('${user}', ${cooldown}, 30) r`).then((x) => x.r);
+const auditCount = async (db, user, action) => Number((await one(db, `select count(*) n from public.kplus_sandbox_review_audit
+  where user_id = '${user}' and action = '${action}'`)).n);
+
+test('sandbox review SQL: kplus_entitlement_facts is the prior body plus exactly ONE conjunct (narrowest change)', () => {
+  const extract = (sql) => {
+    const start = sql.indexOf('create or replace function public.kplus_entitlement_facts(');
+    assert.ok(start >= 0);
+    return sql.slice(start, sql.indexOf('$$;', start) + 3);
+  };
+  const before = extract(read('20261002010000_kplus_paid_lifetime_entitlement_foundation.sql'));
+  const after = extract(read(TARGET));
+  const conjunct = "      and (g.provider_environment is distinct from 'sandbox'\n"
+    + '        or public.kplus_sandbox_review_permits(g.user_id, p_at))\n';
+  assert.equal(after.split(conjunct).length, 2, 'the conjunct appears exactly once');
+  assert.equal(after.replace(conjunct, ''), before, 'nothing else in the canonical fact source changed');
+  // Mutation control: the comparison above is sensitive to a one-token drift.
+  assert.notEqual(after.replace(conjunct, '').replace("when 'normal' then", "when 'normal'  then"), before);
+});
+
+test('sandbox review SQL (B): expiry denies access immediately -- no sweep, grant row still unrevoked', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    await transition(db, A, 'sandbox', 'evt_exp_1', 'a');
+    assert.equal(await access(db, A), true);
+    assert.equal(await canonical(db, A), true);
+
+    await expireAuthorization(db, A);
+    assert.equal(await unrevokedSandbox(db, A), 1, 'the sweep has NOT run: the grant row is still unrevoked');
+    assert.equal(await access(db, A), false, 'expired authorization -> no access at the resolver');
+    assert.equal(await canonical(db, A), false, 'the canonical server predicate (every premium gate) agrees');
+
+    // Time precision: asked about an instant inside BOTH the grant's period and the
+    // old authorization window (grant started ~1 min ago; window ended 1 s ago), access was real.
+    assert.equal((await one(db, `select s.has_access v from public.kplus_effective_access_state('${A}','k_plus', now() - interval '20 seconds') s`)).v, true);
+    // A not-yet-started authorization is not active either.
+    await db.exec(`update public.kplus_sandbox_review_accounts set starts_at = now() + interval '1 hour', expires_at = now() + interval '2 days' where user_id = '${A}'`);
+    assert.equal(await access(db, A), false);
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (B): ordinary sandbox semantics without an authorization row are unchanged (Staging testers)', async () => {
+  const db = await database();
+  try {
+    await transition(db, B, 'sandbox', 'evt_stg_1', 'b');
+    await lifetime(db, C, 'sandbox', 'evt_stg_lt', 'c');
+    assert.equal(await access(db, B), true, 'sandbox subscription, no review row -> access as before');
+    assert.equal(await access(db, C), true, 'sandbox lifetime, no review row -> access as before');
+    assert.equal((await one(db, `select public.kplus_sandbox_review_permits('${B}', now()) v`)).v, true);
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (B): overlapping grants -- only the sandbox grant loses access; production, complimentary and lifetime keep it', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A, 'internal_tester', 3, 'T-OVERLAP');
+    await transition(db, A, 'sandbox', 'evt_ov_s', 'a');
+    await lifetime(db, A, 'sandbox', 'evt_ov_lt', 'b');
+    await expireAuthorization(db, A);
+    assert.equal(await access(db, A), false, 'expired review gates the sandbox subscription AND the sandbox lifetime');
+
+    // Production subscription for the same user keeps access, and its expiry is the effective one.
+    await transition(db, A, 'production', 'evt_ov_p', 'c');
+    const s = await one(db, `select s.has_access, s.effective_expires_at, (select expires_at from public.kplus_entitlement_grants
+      where user_id='${A}' and provider_environment='production') p from public.kplus_effective_access_state('${A}','k_plus', now()) s`);
+    assert.equal(s.has_access, true);
+    assert.equal(new Date(s.effective_expires_at).getTime(), new Date(s.p).getTime(), 'effective expiry comes from the production grant only');
+
+    // Complimentary access for a review account is untouched.
+    await authorize(db, C, 'internal_tester', 3, 'T-COMP');
+    await transition(db, C, 'sandbox', 'evt_ov_cs', 'd');
+    // Minimal profiles shim (grant_kplus_complimentary requires an active profile).
+    await db.exec(`create table if not exists public.profiles (id uuid primary key, account_status text, account_locked_at timestamptz);
+      insert into public.profiles (id, account_status) values ('${C}', 'active')`);
+    const comp = (await one(db, `select public.grant_kplus_complimentary('${C}', 'complimentary', 'comp-c-1', null, now() - interval '1 minute', now() + interval '30 days') r`)).r;
+    assert.equal(Number((await one(db, `select count(*) n from public.kplus_entitlement_grants where user_id='${C}' and source='complimentary' and revoked_at is null`)).n), 1,
+      `complimentary grant created (${JSON.stringify(comp)})`);
+    await db.exec(`select public.kplus_sandbox_review_revoke('${C}', 'review_complete')`);
+    assert.equal(await unrevokedSandbox(db, C), 0, 'the sandbox grant itself was revoked');
+    assert.equal(await access(db, C), true, 'complimentary grant survives revocation of review access');
+
+    // Production lifetime for a review account is untouched.
+    await authorize(db, B, 'internal_tester', 3, 'T-LT');
+    await lifetime(db, B, 'production', 'evt_ov_plt', 'e');
+    await expireAuthorization(db, B);
+    await db.exec('select public.kplus_sandbox_review_sweep()');
+    assert.equal(await access(db, B), true, 'a production lifetime grant is never gated or revoked');
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (B): revocation records truthful before/after access in the canonical ledger', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    await transition(db, A, 'sandbox', 'evt_led_1', 'a');
+    await db.exec(`select public.kplus_sandbox_review_revoke('${A}', 'review_complete')`);
+    const t = await one(db, `select access_before, access_after from public.kplus_entitlement_transitions
+      where user_id='${A}' and cause='grant_revocation'`);
+    assert.deepEqual([t.access_before, t.access_after], [true, false]);
+  } finally { await db.close(); }
+});
+
+// ── Race interleavings ───────────────────────────────────────────────────────
+// PGlite is a single connection, so true parallel transactions cannot run here.
+// Each test below replays one adverse INTERLEAVING of separately committed
+// transactions -- exactly the orderings the webhook (admission, then apply) and
+// the reconciler (claim, then transitions) can produce against a revocation.
+
+test('sandbox review SQL (race): admission -> revoke -> late apply re-activates the ROW but never ACCESS; sweep cleans up', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    await transition(db, A, 'sandbox', 'evt_race_1', 'a');
+    assert.equal(await admit(db, A, 'abc201'), true, 'webhook admission committed while the review was active');
+    await db.exec(`select public.kplus_sandbox_review_revoke('${A}', 'review_complete')`);
+    assert.equal(await unrevokedSandbox(db, A), 0);
+
+    await newerTransition(db, A, 'evt_race_2', 'a');
+    assert.equal(await unrevokedSandbox(db, A), 1, 'hazard reproduced: a newer provider event cleared revoked_at on the row');
+    assert.equal(await access(db, A), false, 'the resolver still denies access');
+    assert.equal(await canonical(db, A), false);
+
+    const swept = (await one(db, 'select public.kplus_sandbox_review_sweep() r')).r;
+    assert.equal(swept.accounts, 1, 'a revoked-but-unexpired account with a re-activated grant is swept');
+    assert.equal(await unrevokedSandbox(db, A), 0);
+    assert.equal((await one(db, `select detail from public.kplus_sandbox_review_audit where user_id='${A}' order by id desc limit 1`)).detail, 'revoked_cleanup');
+    assert.equal((await one(db, `select revoked_reason r from public.kplus_sandbox_review_accounts where user_id='${A}'`)).r, 'review_complete',
+      'the first revocation keeps its reason');
+    assert.equal((await one(db, 'select public.kplus_sandbox_review_sweep() r')).r.accounts, 0, 'sweep is idempotent');
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (race): expiry between admission and apply -> a NEW grant is created but grants no access', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    assert.equal(await admit(db, A, 'abc301'), true);
+    await expireAuthorization(db, A);
+    await transition(db, A, 'sandbox', 'evt_race_new', 'f');
+    assert.equal(await unrevokedSandbox(db, A), 1);
+    assert.equal(await access(db, A), false);
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (race): reconcile claim -> revoke -> late transition never restores access', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    assert.equal((await claimReview(db, A)).classification, 'claimed');
+    await db.exec(`select public.kplus_sandbox_review_revoke('${A}', 'review_complete')`);
+    await transition(db, A, 'sandbox', 'evt_race_rc', 'a');
+    assert.equal(await access(db, A), false);
+  } finally { await db.close(); }
+});
+
+// ── Repair C: missed-webhook recovery claim ──────────────────────────────────
+
+test('sandbox review SQL (C): only an ACTIVE authorization opens a sandbox claim; cooldown cannot be bypassed', async () => {
+  const db = await database();
+  try {
+    const controls = async (user) => Number((await one(db, `select count(*) n from public.kplus_provider_reconciliation_controls
+      where user_id='${user}' and provider_environment='sandbox'`)).n);
+
+    // No authorization row: refused, and nothing is written anywhere.
+    assert.equal((await claimReview(db, B)).classification, 'not_authorized');
+    assert.equal(await controls(B), 0);
+    assert.equal(Number((await one(db, `select count(*) n from public.kplus_sandbox_review_audit where user_id='${B}'`)).n), 0);
+
+    // Active: claimed through the existing claim; audited.
+    await authorize(db, A);
+    const first = await claimReview(db, A);
+    assert.equal(first.classification, 'claimed');
+    assert.match(first.claimToken, /^[0-9a-f-]{36}$/);
+    assert.equal(await controls(A), 1);
+    assert.equal(await auditCount(db, A, 'reconcile_admitted'), 1);
+
+    // A second call inside the lease / cooldown is rate limited (no force path exists).
+    const second = await claimReview(db, A);
+    assert.ok(['in_flight', 'cooldown'].includes(second.classification), second.classification);
+    assert.ok(second.retryAfterSeconds >= 1);
+    await db.exec(`select public.finish_kplus_provider_reconciliation('${A}', 'sandbox', '${first.claimToken}', 'no_drift')`);
+    assert.equal((await claimReview(db, A)).classification, 'cooldown', 'finishing the lease does not lift the cooldown');
+    assert.equal(await auditCount(db, A, 'reconcile_admitted'), 1, 'rate-limited calls are not audited as admitted');
+
+    // Revoked and expired: refused and audited, no new claim.
+    await db.exec(`update public.kplus_provider_reconciliation_controls set cooldown_until = null where user_id='${A}'`);
+    await db.exec(`select public.kplus_sandbox_review_revoke('${A}', 'review_complete')`);
+    assert.equal((await claimReview(db, A)).classification, 'not_authorized');
+    await authorize(db, C, 'internal_tester', 2, 'T-CLAIM');
+    await expireAuthorization(db, C);
+    assert.equal((await claimReview(db, C)).classification, 'not_authorized');
+    assert.equal(await controls(C), 0);
+    assert.deepEqual(
+      (await db.query(`select user_id::text u, detail from public.kplus_sandbox_review_audit where action='reconcile_refused' order by id`)).rows
+        .map((r) => [r.u, r.detail]),
+      [[A, 'revoked'], [C, 'outside_window']],
+    );
+
+    // The production claim for the same user is a separate lease/cooldown and is never opened here.
+    assert.equal(Number((await one(db, `select count(*) n from public.kplus_provider_reconciliation_controls where provider_environment='production'`)).n), 0);
+  } finally { await db.close(); }
+});
+
+test('sandbox review SQL (C): client roles cannot reach the claim or the permit helper', async () => {
+  {
+    for (const role of ['anon', 'authenticated']) {
+      const probe = await database();
+      try {
+        await probe.exec(`set role ${role}`);
+        await assert.rejects(probe.query(`select public.claim_kplus_sandbox_review_reconciliation('${A}', 300, 30)`), /permission denied/);
+      } finally { await probe.close(); }
+    }
+  }
+});
+
+test('sandbox review SQL (B): the app-facing summary, called AS authenticated, reflects expiry with no privilege error', async () => {
+  const db = await database();
+  try {
+    await authorize(db, A);
+    await transition(db, A, 'sandbox', 'evt_jwt_1', 'a');
+    const asMember = async () => {
+      await db.exec(`select set_config('request.jwt.claim.sub', '${A}', false); set role authenticated`);
+      try {
+        return (await one(db, 'select public.get_my_kplus_entitlement_summary() s')).s;
+      } finally {
+        await db.exec('reset role');
+      }
+    };
+    assert.equal((await asMember()).access, 'k_plus', 'active review authorization: the member reads K+');
+    await expireAuthorization(db, A);
+    assert.equal((await asMember()).access, 'free', 'expired review authorization: the member reads free, sweep never run');
+    assert.equal(await unrevokedSandbox(db, A), 1);
   } finally { await db.close(); }
 });

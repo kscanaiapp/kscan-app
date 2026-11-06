@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-05T23:39:52.762Z",
-    "generatedFromGitSha": "34b492ddf1bf781f65e788eeada6f399d4670477"
+    "generatedAtUtc": "2026-11-06T14:07:31.902Z",
+    "generatedFromGitSha": "30679dabdf1fa9e4479368b5e9625c001be106b3"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -2551,10 +2551,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 7,
-        "treeFileCount": 7,
-        "bundleHash": "1f51a08d23d1ac5d4eb5e45948e734484d65197f14567e9cbb7c4e12c2fd4813",
-        "treeHash": "1f51a08d23d1ac5d4eb5e45948e734484d65197f14567e9cbb7c4e12c2fd4813",
+        "bundleFileCount": 9,
+        "treeFileCount": 9,
+        "bundleHash": "490993a506bcb6b44c8d09eb3cce360eef2477c7cd2041b8739acee6a8b79ae1",
+        "treeHash": "490993a506bcb6b44c8d09eb3cce360eef2477c7cd2041b8739acee6a8b79ae1",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -2569,6 +2569,11 @@
           {
             "path": "supabase/functions/_shared/revenuecat/pullReconcileRequest.ts",
             "sha256": "064393c456264e3ed04ef04205e83c0fce329b37d7afcd2b67135249da0c2e1e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/pullReconcileSandboxReview.ts",
+            "sha256": "aac085f094c63eb456a89d9e60cf56f4ccbf4ff9a45c4cc348baeb4e76bb40be",
             "bundle": true
           },
           {
@@ -2587,8 +2592,13 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatSandboxReview.ts",
+            "sha256": "7eb4e288f9cd155d8a94a9d6cac9b66a977d5a68da27642c794513754fabfffc",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/kplus-revenuecat-pull-reconcile/index.ts",
-            "sha256": "75e9254c99dc209307519f7304fa75d6beb2b5020b33dc2d9b83129d49a8f966",
+            "sha256": "93b5e0b31d964c2b44b515a866a07ce5beb3bc72094f536834ae3dd623421d98",
             "bundle": true
           }
         ]
@@ -2597,10 +2607,10 @@
         "name": "kplus-revenuecat-webhook",
         "entry": "supabase/functions/kplus-revenuecat-webhook/index.ts",
         "remoteSpecifiers": [],
-        "bundleFileCount": 6,
-        "treeFileCount": 6,
-        "bundleHash": "ae1f815efd4e6d5add208420398f068b2de01534411638e610e4e60c0832db48",
-        "treeHash": "ae1f815efd4e6d5add208420398f068b2de01534411638e610e4e60c0832db48",
+        "bundleFileCount": 7,
+        "treeFileCount": 7,
+        "bundleHash": "55c2d17a9e2224e3e9f74101dd88ab6d05d1f170b6343b4f1505f675cb9c6b8f",
+        "treeHash": "55c2d17a9e2224e3e9f74101dd88ab6d05d1f170b6343b4f1505f675cb9c6b8f",
         "files": [
           {
             "path": "supabase/functions/_shared/kplus/kplusEntitlementContract.ts",
@@ -2610,6 +2620,11 @@
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatProductClassification.ts",
             "sha256": "ebe9c90bff46de504c66d7ef0dbefe989331d91e2a95c5943b7bb98a1842670d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatSandboxReview.ts",
+            "sha256": "7eb4e288f9cd155d8a94a9d6cac9b66a977d5a68da27642c794513754fabfffc",
             "bundle": true
           },
           {
@@ -2624,7 +2639,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatWebhookHandler.ts",
-            "sha256": "e6a30048afdeba74aa8ea80438808b3ba8c35b8048afff6daf4358c750524410",
+            "sha256": "1ecc36d5b2563f0be0b0defff08e907e45b2f48ea13f69714d252b84123c370a",
             "bundle": true
           },
           {

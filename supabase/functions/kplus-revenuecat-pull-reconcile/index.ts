@@ -15,6 +15,7 @@ import {
 import {
   reconcileRevenueCatProviderState,
   type LocalProviderGrant,
+  type ReconciliationOutcome,
 } from '../_shared/revenuecat/revenueCatProviderReconciliation.ts';
 import {
   KPLUS_REVENUECAT_RECONCILE_ENVIRONMENT_ENV,
@@ -30,6 +31,17 @@ import {
   parseKPlusProductClassification,
 } from '../_shared/revenuecat/revenueCatProductClassification.ts';
 import { parsePullReconcileRequest } from '../_shared/revenuecat/pullReconcileRequest.ts';
+import {
+  KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV,
+  KPLUS_SANDBOX_REVIEW_RECONCILE_CLAIM_RPC,
+} from '../_shared/revenuecat/revenueCatSandboxReview.ts';
+import {
+  finalizeWithSandboxReviewPass,
+  finishOutcomeFor,
+  reconciliationHttpResponse,
+  runSandboxReviewReconcilePass,
+  sandboxReviewReconcileApplies,
+} from '../_shared/revenuecat/pullReconcileSandboxReview.ts';
 
 const MAX_BODY_BYTES = 2048;
 const CLAIM_RPC = 'claim_kplus_provider_reconciliation';
@@ -58,15 +70,6 @@ async function responseBody(response: Response): Promise<unknown> {
 async function callRpc(fn: string, args: Record<string, unknown>) {
   const response = await rpc(fn, args);
   return { ok: response.ok, status: response.status, body: await responseBody(response) };
-}
-
-function finishOutcome(status: string, unresolvedDrift = 0, applied = 0): string {
-  if (status === 'provider_unavailable' || status === 'provider_malformed') return 'provider_unavailable';
-  if (status === 'provider_throttled') return 'provider_throttled';
-  if (status === 'canonical_transition_failed') return 'transition_failed';
-  if (status === 'ownership_conflict') return 'rejected';
-  if (unresolvedDrift > 0) return 'unresolved_drift';
-  return applied > 0 ? 'resolved' : 'no_drift';
 }
 
 Deno.serve(async (req: Request) => {
@@ -154,10 +157,10 @@ Deno.serve(async (req: Request) => {
 
   const actorFields = { uid: shortUserId(user.id), trigger, environment };
   logEvent('kplus_rc_pull_requested', actorFields);
-  let outcome = 'transition_failed';
-  try {
-    const providerEnvironment = environment as RevenueCatEnvironment;
-    const result = await reconcileRevenueCatProviderState(user.id, {
+  // The existing canonical reconciliation for the JWT subject, pinned to a
+  // SERVER-chosen provider environment (never client input).
+  const reconcileIn = (providerEnvironment: RevenueCatEnvironment): Promise<ReconciliationOutcome> =>
+    reconcileRevenueCatProviderState(user.id, {
       provider: { secretApiKey, projectId, environment: providerEnvironment, timeoutMs, maxPages },
       classification,
     }, {
@@ -192,21 +195,18 @@ Deno.serve(async (req: Request) => {
         if (!response.ok) throw new Error('product cache unavailable');
       },
     });
-    outcome = finishOutcome(
-      result.status,
-      result.status === 'reconciled' ? result.unresolvedDrift : 0,
-      result.status === 'reconciled' ? result.transitions.applied : 0,
-    );
+
+  // 1. The deployment's own environment: unchanged behavior.
+  let outcome = 'transition_failed';
+  let result: ReconciliationOutcome;
+  try {
+    result = await reconcileIn(environment as RevenueCatEnvironment);
+    outcome = finishOutcomeFor(result);
     logEvent('kplus_rc_pull_result', {
       ...actorFields,
       status: result.status,
       unresolved_drift: result.status === 'reconciled' ? result.unresolvedDrift : 0,
     });
-    if (result.status === 'provider_throttled') return json(result, 429);
-    if (result.status === 'provider_unavailable' || result.status === 'canonical_transition_failed') return json(result, 503);
-    if (result.status === 'provider_malformed') return json(result, 502);
-    if (result.status === 'ownership_conflict') return json(result, 409);
-    return json(result, 200);
   } finally {
     await callRpc(FINISH_RPC, {
       p_user_id: user.id,
@@ -215,4 +215,39 @@ Deno.serve(async (req: Request) => {
       p_outcome: outcome,
     }).catch(() => null);
   }
+
+  // 2. B41 sandbox REVIEW recovery (missed webhook). Only after a successful
+  //    normal pass, only on a production-configured deployment with the review
+  //    switch on, and only if the database holds an ACTIVE authorization for
+  //    this JWT subject -- decided and claimed in one database transaction.
+  if (result.status !== 'reconciled' ||
+      !sandboxReviewReconcileApplies(environment, env(KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV))) {
+    const response = reconciliationHttpResponse(result);
+    return json(response.body, response.httpStatus);
+  }
+  const reviewFields = { uid: shortUserId(user.id), trigger, environment: 'sandbox', review: true };
+  const pass = await runSandboxReviewReconcilePass({
+    claim: () => callRpc(KPLUS_SANDBOX_REVIEW_RECONCILE_CLAIM_RPC, {
+      p_user_id: user.id,
+      p_cooldown_seconds: cooldownSeconds,
+      p_lease_seconds: leaseSeconds,
+    }),
+    reconcile: () => reconcileIn('sandbox'),
+    finish: (claimToken, finish) => callRpc(FINISH_RPC, {
+      p_user_id: user.id,
+      p_environment: 'sandbox',
+      p_claim_token: claimToken,
+      p_outcome: finish,
+    }),
+  });
+  if (pass.kind !== 'not_authorized') {
+    logEvent('kplus_rc_pull_sandbox_review_result', {
+      ...reviewFields,
+      pass: pass.kind,
+      status: pass.kind === 'reconciled' ? pass.outcome.status : null,
+      unresolved_drift: pass.kind === 'reconciled' && pass.outcome.status === 'reconciled' ? pass.outcome.unresolvedDrift : 0,
+    });
+  }
+  const response = finalizeWithSandboxReviewPass(result, pass);
+  return json(response.body, response.httpStatus);
 });

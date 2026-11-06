@@ -51,17 +51,22 @@ import {
   verifyRevenueCatWebhook,
 } from './revenueCatWebhookAuth.ts';
 import { normalizeRevenueCatEvent, parseRevenueCatWebhook } from './revenueCatWebhookEvent.ts';
+import {
+  KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV,
+  KPLUS_SANDBOX_REVIEW_ADMIT_RPC,
+  sandboxReviewApplies,
+} from './revenueCatSandboxReview.ts';
 
 export const KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS_ENV = 'KPLUS_REVENUECAT_ACCEPTED_ENVIRONMENTS' as const;
 /**
- * B41 restricted review switch. Only the exact value 'true' enables it, and it
+ * B41 restricted review switch (shared with the pull reconciler; see
+ * revenueCatSandboxReview.ts). Only the exact value 'true' enables it, and it
  * only matters where sandbox is NOT already accepted (i.e. Production). Even
  * then, a sandbox event is applied only if the database admits this exact
  * K Scan account (kplus_sandbox_review_admit_event); otherwise it is refused
  * exactly as before. Default (unset/anything else): off.
  */
-export const KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV = 'KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED' as const;
-export const KPLUS_SANDBOX_REVIEW_ADMIT_RPC = 'kplus_sandbox_review_admit_event' as const;
+export { KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV, KPLUS_SANDBOX_REVIEW_ADMIT_RPC };
 export const REVENUECAT_WEBHOOK_MAX_BODY_BYTES = 256 * 1024;
 
 export interface RpcResult {
@@ -175,8 +180,10 @@ export async function handleRevenueCatWebhook(req: Request, deps: RevenueCatWebh
   const normalized = await normalizeRevenueCatEvent(event, {
     classification: parseKPlusProductClassification(deps.env(KPLUS_PRODUCT_CLASSIFICATION_ENV)),
     acceptedEnvironments,
-    sandboxReviewCandidates: !acceptedEnvironments.includes('sandbox')
-      && deps.env(KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV) === 'true',
+    sandboxReviewCandidates: sandboxReviewApplies(
+      acceptedEnvironments.includes('sandbox'),
+      deps.env(KPLUS_REVENUECAT_SANDBOX_REVIEW_ENABLED_ENV),
+    ),
   });
 
   const common = { event_type: event.type, store: event.store, environment: event.environment, event_key: eventKey };

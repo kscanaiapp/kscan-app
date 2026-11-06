@@ -47,6 +47,7 @@ async function run(opts: {
   env?: Record<string, string | null>;
   body?: string;
   admit?: (args: Record<string, unknown>) => Promise<RpcResult>;
+  apply?: (args: Record<string, unknown>) => Promise<RpcResult>;
   headers?: Record<string, string>;
 }): Promise<Rig> {
   const env: Record<string, string | null> = {
@@ -73,7 +74,7 @@ async function run(opts: {
       if (fn === 'kplus_sandbox_review_admit_event') {
         return opts.admit ? opts.admit(args) : { ok: true, status: 200, body: false };
       }
-      return { ok: true, status: 200, body: { classification: 'applied' } };
+      return opts.apply ? opts.apply(args) : { ok: true, status: 200, body: { classification: 'applied' } };
     },
     log: () => {},
     alert: (e) => { alerts.push(e); },
@@ -173,4 +174,63 @@ Deno.test('review: a forged webhook is 401 before any admission or transition', 
   const unsigned = await run({ headers: { authorization: AUTH }, admit: admitted });
   assertEquals(unsigned.status, 401);
   assertEquals(unsigned.calls.length, 0);
+});
+
+// ── Repair A: routing invariants once the Production webhook receives BOTH
+//    environments. Admission is re-checked on every delivery (retries and
+//    replays included); everything after admission is the unchanged canonical
+//    path, so idempotency, ownership and failure semantics are preserved.
+
+Deno.test('review: a replayed admitted event is re-admitted and lands as an idempotent duplicate (no second grant)', async () => {
+  const r = await run({
+    admit: admitted,
+    apply: async () => ({ ok: true, status: 200, body: { classification: 'duplicate' } }),
+  });
+  assertEquals([r.status, r.json], [200, { status: 'duplicate' }]);
+  assertEquals(r.calls.map((c) => c.fn), ['kplus_sandbox_review_admit_event', 'reconcile_kplus_provider_transition']);
+});
+
+Deno.test('review: a replay AFTER the authorization ended is refused without touching the ledger', async () => {
+  let active = true;
+  const admit = async (): Promise<RpcResult> => ({ ok: true, status: 200, body: active });
+  const first = await run({ admit });
+  assertEquals(first.json, { status: 'applied' });
+  active = false;
+  const replay = await run({ admit });
+  assertEquals([replay.status, replay.json], [200, REFUSED]);
+  assertEquals(replay.calls.map((c) => c.fn), ['kplus_sandbox_review_admit_event']);
+});
+
+Deno.test('review: an admitted event for a transaction owned by ANOTHER account is rejected and alerted (no identity substitution)', async () => {
+  const r = await run({
+    admit: admitted,
+    apply: async () => ({ ok: true, status: 200, body: { classification: 'rejected', reason: 'subscription_owned_by_other_user' } }),
+  });
+  assertEquals([r.status, r.json], [200, { status: 'rejected', reason: 'subscription_owned_by_other_user' }]);
+  assert(r.alerts.includes('kplus_rc_webhook_security_rejection'));
+});
+
+Deno.test('review: an admitted sandbox event can never collide into a PRODUCTION grant (environment mismatch is a refusal)', async () => {
+  const r = await run({
+    admit: admitted,
+    apply: async () => ({ ok: true, status: 200, body: { classification: 'rejected', reason: 'environment_mismatch' } }),
+  });
+  assertEquals([r.status, r.json], [200, { status: 'rejected', reason: 'environment_mismatch' }]);
+});
+
+Deno.test('review: a failed canonical write after admission is a retry, never a misleading success', async () => {
+  for (const apply of [
+    async (): Promise<RpcResult> => ({ ok: false, status: 500, body: { code: 'P0001' } }),
+    async (): Promise<RpcResult> => { throw new Error('db down'); },
+    async (): Promise<RpcResult> => ({ ok: true, status: 200, body: { classification: 'something_new' } }),
+  ]) {
+    const r = await run({ admit: admitted, apply });
+    assertEquals([r.status, r.json], [503, { status: 'retry' }]);
+  }
+});
+
+Deno.test('review: admission receives only the server-derived account and an opaque event key', async () => {
+  const r = await run({ admit: admitted });
+  assertEquals(Object.keys(r.calls[0].args).sort(), ['p_event_key', 'p_user_id']);
+  assert(!JSON.stringify(r.calls[0].args).includes('evt_review_1'), 'the raw provider event id never reaches the audit');
 });
