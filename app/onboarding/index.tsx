@@ -99,11 +99,15 @@ export default function OnboardingScreen() {
   const legalEpochRef = useRef(0);
   const legalBusyRef = useRef(false);
 
-  // Step 5: only the real Notifications registration outcome is reflected
-  // here. Camera, Photos, and Microphone are requested just in time.
+  // Step 5: Scanner Camera/Photos are real, persisted on-device choices.
+  // Their switches do not request OS permissions. Camera and VoiceScan still
+  // request device access only at the feature's point of use.
   const {
     preferences: permissionPrefs,
     setPreference: setPermissionPreference,
+    mediaReady,
+    mediaBusy,
+    mediaError,
     requestNotificationPermission,
     disableNotificationDelivery,
   } = usePermissionPreferences();
@@ -759,6 +763,9 @@ export default function OnboardingScreen() {
       <PermissionsStepV1
         preferences={permissionPrefs}
         setPreference={setPermissionPreference}
+        mediaReady={mediaReady}
+        mediaBusy={mediaBusy}
+        mediaError={mediaError}
         requestNotificationPermission={requestNotificationPermission}
         disableNotificationDelivery={disableNotificationDelivery}
         onContinueToHome={goToKPlusActivation}
