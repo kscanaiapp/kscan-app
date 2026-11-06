@@ -1,0 +1,53 @@
+{
+  "register": "https://github.com/kscanaiapp/kscan-app/pull/646#issuecomment-6612758143",
+  "sourceEquivalence": [
+    "a2-current-source-equivalence.json:45/45 hashes match current authorities",
+    "a4-original-hash-validation.json:17/17 original artifact hashes",
+    "a4-post-path-equivalence.json:canonical webhook OPTIONS-only delta leaves tested POST bytes unchanged"
+  ],
+  "qualifications": [
+    "A2 actual-handler auth/RPC/provider mocks establish source controls,not live signed-JWT/SQL authority",
+    "A4 five real PostgreSQL interleavings supplemental;no automatic webhook replay or IDOR credit",
+    "Kplus producer/reader/store/native/service/hook source unchanged2c2->8c except generated availability identity;old composed tests inject availability,not real store or paywall availability",
+    "N/A maintained inside legacy NOT TESTED schema and separately counted;never PASS",
+    "Original B35-MAND-0141 failure untouched;all old negative evidence retained"
+  ],
+  "sourceCitations": [
+    {
+      "file": "app/scan/index.tsx",
+      "line": 1,
+      "argument": "Imports root app.js ScanScreen;actual customer route."
+    },
+    {
+      "file": "app.js",
+      "line": 1726,
+      "argument": "Renders ScanResultV2."
+    },
+    {
+      "file": "components/scan-results/ScanResultV2.tsx",
+      "line": 383,
+      "argument": "Invokes discovery hook;primary panels at737/744 outside optional shelf at756."
+    },
+    {
+      "file": "hooks/useBlackOwnedDiscovery.ts",
+      "line": 31,
+      "argument": "Void asynchronous effect only after primary settled;does not block primary."
+    },
+    {
+      "file": "services/kplus/kplusActivationCatalog.ts",
+      "line": 1,
+      "argument": "Explicit product authority keeps core Scanner/Shopping/localCloset/Elise/DressingRooms Free."
+    },
+    {
+      "file": "services/purchaseImport/purchaseImportContract.ts",
+      "line": 30,
+      "argument": "Receipt tier means document quality,not subscription."
+    }
+  ],
+  "deploymentEvidence": "completed-workflow-readback.json:8SUCCESS controlled historical runs/1FAIL RevenueCat recovery;not a new current function inventory.",
+  "separateOwners": {
+    "privacy": "#703 residual image/privacy;not duplicated",
+    "source": "#711 Packing and #691 Watchlist W2 integration pending",
+    "operational": "#706 RevenueCat Production recovery failed and compatibility/activation gates;not an audit rerun"
+  }
+}

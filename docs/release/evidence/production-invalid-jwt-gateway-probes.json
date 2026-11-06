@@ -1,0 +1,362 @@
+﻿[
+    {
+        "endpoint":  "function:kickscrew-sneaker-description",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 99 digest f1519b65b74e59c03ac341902eb4cf47991235bbe431177bba13c21e81ad081d",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kickscrew-sneaker-description",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 99 digest f1519b65b74e59c03ac341902eb4cf47991235bbe431177bba13c21e81ad081d",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:product-search-deals",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 99 digest f2d3c33d52c7f9b8f9eff99f7107bcacdbd90183a15bf7f2af9c64af51a73aea",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:product-search-deals",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 99 digest f2d3c33d52c7f9b8f9eff99f7107bcacdbd90183a15bf7f2af9c64af51a73aea",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:nike-shoe-details",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 96 digest b2667aaeac2264330a8d523ceb40b07c5243a5c9a80797c7dd2d3f83366d591e",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:nike-shoe-details",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 96 digest b2667aaeac2264330a8d523ceb40b07c5243a5c9a80797c7dd2d3f83366d591e",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:handle-user-deletion",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 98 digest 93f79042688edff771e1e75ca1a2502405e9237ac3031147ece86fad51016230",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:handle-user-deletion",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 98 digest 93f79042688edff771e1e75ca1a2502405e9237ac3031147ece86fad51016230",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:stylechat-generate",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 117 digest 6083767889222f32f650b4b16220b7693f3388c3202ce562e2575a59ea347b37",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:stylechat-generate",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 117 digest 6083767889222f32f650b4b16220b7693f3388c3202ce562e2575a59ea347b37",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:privacy-data-export",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 53 digest 57dbb2c3017a4f41ed26e57228dff3abf120a62fa9a0d012b9c5944c062b9b24",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:privacy-data-export",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 53 digest 57dbb2c3017a4f41ed26e57228dff3abf120a62fa9a0d012b9c5944c062b9b24",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:privacy-correction-request",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 53 digest 9a82d30c2659865bf5516e0f470fc3756c47540e86f4a877d122b6532a4a8c96",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:privacy-correction-request",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 53 digest 9a82d30c2659865bf5516e0f470fc3756c47540e86f4a877d122b6532a4a8c96",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:stylist-speech",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 57 digest dff65819380be1c83790959926bea7eefab14ce02d27e29fba37fff235c7330c",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:stylist-speech",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 57 digest dff65819380be1c83790959926bea7eefab14ce02d27e29fba37fff235c7330c",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:shared-room-image-url",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 43 digest 16ead4e2a741815f25b03a7f833c24030bd108614c7efa9b9bdcd2e60582af8e",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:shared-room-image-url",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 43 digest 16ead4e2a741815f25b03a7f833c24030bd108614c7efa9b9bdcd2e60582af8e",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:tryon-clothes-pro",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 36 digest dcf89f79057350a2d6f387b022751946a0bc6e17c877ce99c1f15c7c84a4e859",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:tryon-clothes-pro",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 36 digest dcf89f79057350a2d6f387b022751946a0bc6e17c877ce99c1f15c7c84a4e859",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:search-vinted-secondhand",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 35 digest ea3ded21ae63b9e3851eba9ffbc2d207710037777ff45c08576a7b72d52015a5",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:search-vinted-secondhand",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 35 digest ea3ded21ae63b9e3851eba9ffbc2d207710037777ff45c08576a7b72d52015a5",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:style-outfit-generate",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 32 digest c8cc7b51748f9cf3efc11666bf3e319ac121fda30c03abf332972faa31822368",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:style-outfit-generate",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 32 digest c8cc7b51748f9cf3efc11666bf3e319ac121fda30c03abf332972faa31822368",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:apple-credential-link",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 23 digest cd4ea90eb5a8381aa676d11be530baac69f533343b1ec9a01c28c4e49611989a",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:apple-credential-link",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 23 digest cd4ea90eb5a8381aa676d11be530baac69f533343b1ec9a01c28c4e49611989a",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-activate",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 16 digest cbf2616ba0f1f7c1ca603eed924bd0d37be7cc59a887f6e0d8ae5fa57b891dc6",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-activate",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 16 digest cbf2616ba0f1f7c1ca603eed924bd0d37be7cc59a887f6e0d8ae5fa57b891dc6",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:vto-generate",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 18 digest d0143c119bcdbc9eedebae31b0a95d1ecfe057bae9e1ecef3915ea6f2b031b17",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:vto-generate",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 18 digest d0143c119bcdbc9eedebae31b0a95d1ecfe057bae9e1ecef3915ea6f2b031b17",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:purchase-import-extract",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 819d61694b59951b274862319774e863e0ca5ed7db6b737779e5ca7c29085dd3",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:purchase-import-extract",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 819d61694b59951b274862319774e863e0ca5ed7db6b737779e5ca7c29085dd3",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-offer-redeem",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 001635bd5abe20d050ed68ffeef89a8cdf79f98b451fe067d3c7b0be719e3a0c",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-offer-redeem",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 001635bd5abe20d050ed68ffeef89a8cdf79f98b451fe067d3c7b0be719e3a0c",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-revenuecat-pull-reconcile",
+        "probe":  "malformed JWT",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 8ea68da0b2032d4142162cc71f9067e654a02d3ae5fd25631282c9d4ee6643ee",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    },
+    {
+        "endpoint":  "function:kplus-revenuecat-pull-reconcile",
+        "probe":  "tampered JWT claims",
+        "environment":  "Production gateway only; JWT-verified function, public apikey and synthetic invalid bearer; no valid actor",
+        "sourceSha":  "deployed version 10 digest 8ea68da0b2032d4142162cc71f9067e654a02d3ae5fd25631282c9d4ee6643ee",
+        "expected":  "HTTP401 gateway rejection before handler",
+        "actual":  401,
+        "verdict":  "PASS",
+        "limitation":  "Does not prove authenticated IDOR, handler authority, or expired correctly-signed JWT behavior"
+    }
+]

@@ -1,0 +1,190 @@
+{
+  "summary": {
+    "cases": 10,
+    "PASS": 8,
+    "FAIL": 2,
+    "SKIP": 0,
+    "source": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "scope": "New real local PostgreSQL boundary only;no repeated handlers/RevenueCat/Gemini/Receipt tests. Auth.uid fixtures;not signed JWT or deployed grant proof.",
+    "newOriginalCandidates": [
+      "B35-MAND-1142",
+      "B35-MAND-1185",
+      "B35-MAND-1180"
+    ],
+    "partialOriginalRemainsNT": [
+      "B35-MAND-1141",
+      "B35-MAND-1184"
+    ]
+  },
+  "records": [
+    {
+      "probeId": "B35-QUOTA-SQL-01",
+      "originalIds": [
+        "B35-MAND-1185"
+      ],
+      "description": "StyleChat ten same-window real SQL retries",
+      "verdict": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nnull !== 10\n\n    at C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:44:689\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:35:105)\n    at async main (C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:44:3)",
+      "elapsedMs": 211
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-02",
+      "originalIds": [
+        "B35-MAND-1142"
+      ],
+      "description": "Outfit ten same-window real SQL retries",
+      "verdict": "FAIL",
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nnull !== 3\n\n    at C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:45:686\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async run (C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:35:105)\n    at async main (C:\\b35readback1030\\noretest-1103\\quota-boundary-batch.cjs:45:3)",
+      "elapsedMs": 281
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-03",
+      "originalIds": [],
+      "description": "StyleChat actor budgets remain separate",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": true,
+        "remaining": 0,
+        "reset_at": "2026-11-03T19:56:00+00:00",
+        "retry_after_seconds": 51
+      },
+      "elapsedMs": 714
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-04",
+      "originalIds": [],
+      "description": "Outfit actor budgets remain separate",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": true,
+        "retry_after_seconds": 0,
+        "reset_at": "2026-11-03T19:56:00+00:00"
+      },
+      "elapsedMs": 746
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-05",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat simultaneous last daily slot",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "messages_used": 25,
+            "messages_limit": 25,
+            "limit_reached": true
+          },
+          {
+            "messages_used": 25,
+            "messages_limit": 25,
+            "limit_reached": false
+          }
+        ],
+        "scope": "Quota atomicity only;provider dispatch idempotency remains unproven"
+      },
+      "elapsedMs": 1527
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-06",
+      "originalIds": [
+        "B35-MAND-1141"
+      ],
+      "description": "Outfit simultaneous last daily slot",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "generations_used": 10,
+            "generations_limit": 10,
+            "limit_reached": false
+          },
+          {
+            "generations_used": 10,
+            "generations_limit": 10,
+            "limit_reached": true
+          }
+        ],
+        "scope": "Quota atomicity only;not full duplicate logical generation"
+      },
+      "elapsedMs": 1782
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-07",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat same-key concurrent quota charge once",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "messages_used": 1,
+            "messages_limit": 25,
+            "limit_reached": false,
+            "duplicate_request": false
+          },
+          {
+            "messages_used": 1,
+            "messages_limit": 25,
+            "limit_reached": false,
+            "duplicate_request": true
+          }
+        ],
+        "flag": "ELISE_QUOTA_IDEMPOTENCY_V1_ENABLED defaults false;not runtime feature activation proof"
+      },
+      "elapsedMs": 1421
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-08",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat distinct keys compete for one remaining slot",
+      "verdict": "PASS",
+      "actual": [
+        {
+          "messages_used": 25,
+          "messages_limit": 25,
+          "limit_reached": false,
+          "duplicate_request": false
+        },
+        {
+          "messages_used": 25,
+          "messages_limit": 25,
+          "limit_reached": true,
+          "duplicate_request": false
+        }
+      ],
+      "elapsedMs": 1643
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-09",
+      "originalIds": [
+        "B35-MAND-1180"
+      ],
+      "description": "StyleChat RPC SQL payload stays data",
+      "verdict": "PASS",
+      "actual": {
+        "keyStoredExactly": true,
+        "profiles": 2,
+        "integerPayloadRejected": true,
+        "scope": "Actual integer/text RPC types and static SQL;HTTP named-argument selection source-reviewed separately"
+      },
+      "elapsedMs": 1316
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-10",
+      "originalIds": [],
+      "description": "Direct counter writes denied even with elevated table grants",
+      "verdict": "PASS",
+      "actual": {
+        "bothDirectWritesDenied": true,
+        "scope": "Real RLS with stronger fixture grants;not full deployed privilege audit"
+      },
+      "elapsedMs": 920
+    }
+  ]
+}

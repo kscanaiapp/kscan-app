@@ -1,0 +1,343 @@
+{
+  "capturedAt": "2026-10-31T14:57:37.413Z",
+  "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+  "base": "rebuild/backend-authority-v2",
+  "localAndRemoteTree": "71cb227032f64453756f448dc1356d650927f1d3",
+  "counts": {
+    "success": 32,
+    "skipped": 14
+  },
+  "allGreen": true,
+  "checks": [
+    {
+      "name": "Security summary",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124568700458,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124568700458"
+    },
+    {
+      "name": "Staging security gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567938266,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567938266"
+    },
+    {
+      "name": "Synthetic auth tests",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567752424,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567752424"
+    },
+    {
+      "name": "Migration validation",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567752037,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567752037"
+    },
+    {
+      "name": "Deploy staging candidate",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567751822,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567751822"
+    },
+    {
+      "name": "Staging health checks",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567751795,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567751795"
+    },
+    {
+      "name": "Contract tests",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567750650,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567750650"
+    },
+    {
+      "name": "VTO E2E — staging dry run",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567650094,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624334/job/124567650094"
+    },
+    {
+      "name": "VTO E2E — cleanup",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567650008,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624334/job/124567650008"
+    },
+    {
+      "name": "VTO E2E — staging full certification (paid)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124567649877,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624334/job/124567649877"
+    },
+    {
+      "name": "Semgrep Community Edition",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649128,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649128"
+    },
+    {
+      "name": "Project checks",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649113,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649113"
+    },
+    {
+      "name": "VTO scope guard (enforced)",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649105,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624334/job/124567649105"
+    },
+    {
+      "name": "Trivy filesystem",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649075,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649075"
+    },
+    {
+      "name": "OSV-Scanner",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649072,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649072"
+    },
+    {
+      "name": "Gitleaks",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649055,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649055"
+    },
+    {
+      "name": "npm audit",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567649049,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624380/job/124567649049"
+    },
+    {
+      "name": "ZAP API staging",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648876,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624306/job/124567648876"
+    },
+    {
+      "name": "Classify changed surfaces",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648831,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624336/job/124567648831"
+    },
+    {
+      "name": "VTO E2E — contract",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648806,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624334/job/124567648806"
+    },
+    {
+      "name": "ZAP Baseline (staging)",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648797,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624347/job/124567648797"
+    },
+    {
+      "name": "Security promotion gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648780,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624376/job/124567648780"
+    },
+    {
+      "name": "Dependency reachability gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124567648673,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41211624324/job/124567648673"
+    },
+    {
+      "name": "Security summary",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124566770490,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124566770490"
+    },
+    {
+      "name": "Staging security gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565996185,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565996185"
+    },
+    {
+      "name": "Synthetic auth tests",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565867219,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565867219"
+    },
+    {
+      "name": "Deploy staging candidate",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565866223,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565866223"
+    },
+    {
+      "name": "Staging health checks",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565866162,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565866162"
+    },
+    {
+      "name": "Migration validation",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565797650,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565797650"
+    },
+    {
+      "name": "Contract tests",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565797618,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565797618"
+    },
+    {
+      "name": "VTO E2E — cleanup",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565734494,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988302/job/124565734494"
+    },
+    {
+      "name": "VTO scope guard (enforced)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565734280,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988302/job/124565734280"
+    },
+    {
+      "name": "VTO E2E — staging full certification (paid)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565734144,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988302/job/124565734144"
+    },
+    {
+      "name": "VTO E2E — staging dry run",
+      "status": "completed",
+      "conclusion": "skipped",
+      "id": 124565734111,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988302/job/124565734111"
+    },
+    {
+      "name": "OSV-Scanner",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733664,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733664"
+    },
+    {
+      "name": "Gitleaks",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733567,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733567"
+    },
+    {
+      "name": "npm audit",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733505,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733505"
+    },
+    {
+      "name": "Trivy filesystem",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733504,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733504"
+    },
+    {
+      "name": "Project checks",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733494,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733494"
+    },
+    {
+      "name": "ZAP API staging",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733404,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988254/job/124565733404"
+    },
+    {
+      "name": "Semgrep Community Edition",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733372,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988257/job/124565733372"
+    },
+    {
+      "name": "Dependency reachability gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733348,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988248/job/124565733348"
+    },
+    {
+      "name": "VTO E2E — contract",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733248,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988302/job/124565733248"
+    },
+    {
+      "name": "Security promotion gate",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733238,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988283/job/124565733238"
+    },
+    {
+      "name": "Classify changed surfaces",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733221,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988282/job/124565733221"
+    },
+    {
+      "name": "ZAP Baseline (staging)",
+      "status": "completed",
+      "conclusion": "success",
+      "id": 124565733168,
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41210988256/job/124565733168"
+    }
+  ],
+  "backend": {
+    "pass": 1574,
+    "fail": 0,
+    "evidenceJob": 124567649113,
+    "scope": "Full governed Deno backend suite in CI, not the smaller Contract tests job",
+    "localRun": "INCOMPLETE; no passing count inferred"
+  },
+  "localDependency": "AUDIT_UNAVAILABLE after timeout; CI npm audit and reachability passed independently"
+}

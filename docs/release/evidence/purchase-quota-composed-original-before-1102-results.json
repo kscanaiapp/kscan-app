@@ -1,0 +1,33 @@
+{
+  "source": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "environment": "Local actual SQL/handler/default quota adapter; synthetic verified identity/consent/SDK bridge/provider; zero network",
+  "results": [
+    {
+      "probe": "client-session-id",
+      "idShape": "actual private newSessionId function",
+      "status": 503,
+      "ok": false,
+      "providerCalls": 0,
+      "rpc": [
+        "reserve_provider_request"
+      ]
+    },
+    {
+      "probe": "valid-uuid-control",
+      "status": 200,
+      "providerCalls": 1,
+      "completed": 1
+    },
+    {
+      "probe": "duplicate-inflight",
+      "providerCalls": 2,
+      "reservations": 1
+    },
+    {
+      "probe": "client-settlement-authority",
+      "release": true,
+      "providerCalls": 2,
+      "limit": 1
+    }
+  ]
+}

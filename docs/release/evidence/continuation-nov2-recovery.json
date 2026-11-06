@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-11-02T12:39:00.560Z",
+  "mobile": "113a1895aac8af974b1aca18724f5286e9967237",
+  "canonical": "14746f6516399dafbe27ade713f392ba0fff7725",
+  "evidenceRemote": "259ed64054d780b9bedac28868bba108b66f21ee",
+  "preservedLocal": "28f4b626c08c9444ea915cfee23efe50be477cc9",
+  "preservedArchives": 274,
+  "matrix": {
+    "total": 3096,
+    "PASS": 120,
+    "FAIL": 2,
+    "NOT_TESTED": 2974,
+    "nonApplicable": 307,
+    "scopeExcludedDevice": 4,
+    "inScopeApplicablePending": 2663
+  },
+  "corrections": [
+    "Published matrix103/2/2991 predates retained local speech/weather evidence120/2/2974; no records discarded or added as independent populations.",
+    "H014 closed NOT A DEFECT under explicit owner contract keep public links until revoked or purged; real Staging purge evidence retained.",
+    "F017 source merged669 after original1702 head; ledger corrected by manager. No migration deployment inferred.",
+    "C015 source merged670; exact merged-source Deno handler test rerun November2:1PASS with9body controls; mobile/live-runtime still pending."
+  ],
+  "newProductDefectsThisResume": 0,
+  "outstandingHypothesis": {
+    "id": "H015",
+    "status": "UNCONFIRMED",
+    "question": "Saved-scan re-save/soft-delete may report success for zero-row RLS updates, and tombstone re-save may be denied by existing policy.",
+    "source": "services/savedScansCloud.ts:333-341 and softDeleteCloudSavedScan update; existing savedScansCloud.test.js has mocked undelete success.",
+    "attempted": "Actual saved-scans SQL history in F017 fixture confirms tombstone update is filtered; no exact client-to-PostgREST re-save reproduction yet.",
+    "next": "Execute real client service against a controlled SQL/PostgREST fixture; classify only demonstrated behavior."
+  }
+}

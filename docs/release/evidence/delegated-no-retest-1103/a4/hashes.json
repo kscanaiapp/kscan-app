@@ -1,0 +1,19 @@
+{
+  ".gitattributes": "730a35ae3d558080083c3103d9ac8100c3f6561678092abe341701dfa331eb1d",
+  "bootstrap.cjs": "6dde469267b235ad9897f13e573440d28c7e919afb1f8d055c2ec388eb763909",
+  "build-ledger.cjs": "1e4ba974a3c4b01a1c679904ae5a532ca18a2e8225ae62780749d6cd02c6edb6",
+  "docker-isolation.txt": "4e246f8ed8a6f1d405a3a482c8b39b383a6be11d5d644837b746a60d625cad28",
+  "initial-incomplete-auth-fixture.tap.gz": "98961f82a99dd6505aade1d5a62e82510553a742cfe826aba11faf0df2928603",
+  "initial-invalid-expectation.jsonl": "676bceb122fb3389cbdeab313feebf5e871cc87b1dd48421c88607d761ee4334",
+  "ledger.json": "905f7e99f4f74c3e1a34f7df0da3a9ed31c8a1e21f0bd8f3fd67d2ee7ca202c4",
+  "prior-inventory.json": "b3443cc4f98e25be82f63db3180cf79b2789acb36e963c1510f5f5c9279d8208",
+  "raw.jsonl": "c93ac439a4bc2f813deafe30363398ef5e6e9c8e8f9b316aa48ca7e3263081e4",
+  "README.md": "9847668378ca643614f79e4058c58f5d08baa906f10643164ec2f0af4cd3a7b0",
+  "revenuecat-config.json": "cb2e29458c755667cd964522179a4f5dce265e64c879ab71081b9dd6d49a400c",
+  "run.ts": "f9e732b5f2a5d1fd94955834d68c75c8947bd986ae90ba73f575e2305d7fc0ed",
+  "source-equivalence.json": "576aac4aec37ded3866c7075fd287102c1412f17b08c1f067800c507f480cf39",
+  "sql-bootstrap.log": "f2cd5bb58e9e5e65eece56356c3d1dee09b692e7d9d6d85487f10530563e577b",
+  "sql-cleanup-and-identities.json": "48beda11c1512bf420563234e04de84de5250d13e600984eb0fac8993835191c",
+  "sql-concurrency.tap": "3eccb6190f48e19b3c54b70c7f23c105d007f24cee3d3fa5914cb86bfdb9d19d",
+  "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

@@ -1,0 +1,16 @@
+{
+  "failedHead": "1476fe0178fba06fa606e599eed25c348ffbbf67",
+  "failedRun": 41003468904,
+  "failedJob": 123892950859,
+  "cause": "Deno-only audit fixture under docs entered mobile TypeScript include scope",
+  "repair": "Unchanged fixture moved to existing excluded qa/security tree; no compiler/gate/assertion suppression",
+  "deno": {
+    "pass": 1,
+    "fail": 0
+  },
+  "typescript": {
+    "exitCode": 0
+  },
+  "ciReverification": "PENDING new-head push",
+  "sourceAuthority": "unchanged"
+}

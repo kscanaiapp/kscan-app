@@ -1,0 +1,1939 @@
+{
+  "capturedAt": "2026-10-31T13:41:46.932Z",
+  "operation": "read-only metadata; no function invocation, deployments or migration changes",
+  "projects": [
+    {
+      "environment": "Production",
+      "projectRef": "wyyuqfdxucjksghsmhry",
+      "functions": [
+        {
+          "id": "739d277e-873a-4c88-b96f-9340857812e8",
+          "slug": "kickscrew-sneaker-description",
+          "name": "kickscrew-sneaker-description",
+          "status": "ACTIVE",
+          "version": 99,
+          "created_at": 1779564921433,
+          "updated_at": 1790188099224,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kickscrew-sneaker-description/index.ts",
+          "ezbr_sha256": "f1519b65b74e59c03ac341902eb4cf47991235bbe431177bba13c21e81ad081d"
+        },
+        {
+          "id": "576b397f-878a-4fbc-bf88-1e554ecf9647",
+          "slug": "product-search-deals",
+          "name": "product-search-deals",
+          "status": "ACTIVE",
+          "version": 99,
+          "created_at": 1779567077668,
+          "updated_at": 1784813833727,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_576b397f-878a-4fbc-bf88-1e554ecf9647_69/source/supabase/functions/product-search-deals/index.ts",
+          "ezbr_sha256": "f2d3c33d52c7f9b8f9eff99f7107bcacdbd90183a15bf7f2af9c64af51a73aea"
+        },
+        {
+          "id": "bd5ea1ba-3254-40d8-bcd2-a75fad66981a",
+          "slug": "nike-shoe-details",
+          "name": "nike-shoe-details",
+          "status": "ACTIVE",
+          "version": 96,
+          "created_at": 1779567594161,
+          "updated_at": 1779567922592,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_bd5ea1ba-3254-40d8-bcd2-a75fad66981a_2/source/supabase/functions/nike-shoe-details/index.ts",
+          "ezbr_sha256": "b2667aaeac2264330a8d523ceb40b07c5243a5c9a80797c7dd2d3f83366d591e"
+        },
+        {
+          "id": "90373b68-99db-44f3-a063-171f8827a548",
+          "slug": "scan-identify",
+          "name": "scan-identify",
+          "status": "ACTIVE",
+          "version": 179,
+          "created_at": 1781924311214,
+          "updated_at": 1793280201255,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/scan-identify/index.ts",
+          "ezbr_sha256": "1fc5a8b2648cdfecdb767d8ad4dd852d3b9a6c7e21be5371e5dcd385974f617c"
+        },
+        {
+          "id": "63019d0e-c7f4-450b-bc4c-178869a180a2",
+          "slug": "handle-user-deletion",
+          "name": "handle-user-deletion",
+          "status": "ACTIVE",
+          "version": 98,
+          "created_at": 1781978583717,
+          "updated_at": 1790083122569,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/handle-user-deletion/index.ts",
+          "ezbr_sha256": "93f79042688edff771e1e75ca1a2502405e9237ac3031147ece86fad51016230"
+        },
+        {
+          "id": "e8461816-9d68-4373-a14f-9bda983a5891",
+          "slug": "stylechat-generate",
+          "name": "stylechat-generate",
+          "status": "ACTIVE",
+          "version": 117,
+          "created_at": 1782001078061,
+          "updated_at": 1793278613381,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/stylechat-generate/index.ts",
+          "ezbr_sha256": "6083767889222f32f650b4b16220b7693f3388c3202ce562e2575a59ea347b37"
+        },
+        {
+          "id": "b11d4d92-ec60-4285-b332-256c525761d6",
+          "slug": "privacy-data-export",
+          "name": "privacy-data-export",
+          "status": "ACTIVE",
+          "version": 53,
+          "created_at": 1783404424888,
+          "updated_at": 1790202602486,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/privacy-data-export/index.ts",
+          "ezbr_sha256": "57dbb2c3017a4f41ed26e57228dff3abf120a62fa9a0d012b9c5944c062b9b24"
+        },
+        {
+          "id": "3b7e36ee-eeda-4238-8450-8af7cb608239",
+          "slug": "privacy-correction-request",
+          "name": "privacy-correction-request",
+          "status": "ACTIVE",
+          "version": 53,
+          "created_at": 1783404426676,
+          "updated_at": 1790202043733,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/privacy-correction-request/index.ts",
+          "ezbr_sha256": "9a82d30c2659865bf5516e0f470fc3756c47540e86f4a877d122b6532a4a8c96"
+        },
+        {
+          "id": "237773a1-8e5f-45de-aa04-da3256bfa1e4",
+          "slug": "stylist-speech",
+          "name": "stylist-speech",
+          "status": "ACTIVE",
+          "version": 57,
+          "created_at": 1784043570383,
+          "updated_at": 1792035009571,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/stylist-speech/index.ts",
+          "ezbr_sha256": "dff65819380be1c83790959926bea7eefab14ce02d27e29fba37fff235c7330c"
+        },
+        {
+          "id": "2b5b8b19-ed69-4419-8188-32021630be3a",
+          "slug": "shared-room-image-url",
+          "name": "shared-room-image-url",
+          "status": "ACTIVE",
+          "version": 43,
+          "created_at": 1784173752553,
+          "updated_at": 1784388603553,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_2b5b8b19-ed69-4419-8188-32021630be3a_6/source/shared-room-image-url/index.ts",
+          "ezbr_sha256": "16ead4e2a741815f25b03a7f833c24030bd108614c7efa9b9bdcd2e60582af8e"
+        },
+        {
+          "id": "30ef5a84-05c9-4e51-8697-d0d0492d867c",
+          "slug": "restore-account",
+          "name": "restore-account",
+          "status": "ACTIVE",
+          "version": 36,
+          "created_at": 1784749037025,
+          "updated_at": 1784813944641,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_30ef5a84-05c9-4e51-8697-d0d0492d867c_6/source/supabase/functions/restore-account/index.ts",
+          "ezbr_sha256": "f2a979d54a5dae24af9c019d8194ecbf7ea00aa6b4112805d1a74c02db82b977"
+        },
+        {
+          "id": "a66def17-9e04-4b50-8354-c3a2815f5a7e",
+          "slug": "resend-restoration-email",
+          "name": "resend-restoration-email",
+          "status": "ACTIVE",
+          "version": 36,
+          "created_at": 1784749041064,
+          "updated_at": 1784813948093,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_a66def17-9e04-4b50-8354-c3a2815f5a7e_6/source/supabase/functions/resend-restoration-email/index.ts",
+          "ezbr_sha256": "cac923274466395a3d45f4b6db181fe6cb65829d47139fa4e4decbeb30388744"
+        },
+        {
+          "id": "cd8e9ddf-fe1d-4eaf-a42a-eeb62da938fd",
+          "slug": "process-account-deletions",
+          "name": "process-account-deletions",
+          "status": "ACTIVE",
+          "version": 41,
+          "created_at": 1784749043975,
+          "updated_at": 1791166387603,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_cd8e9ddf-fe1d-4eaf-a42a-eeb62da938fd_32/source/functions/process-account-deletions/index.ts",
+          "ezbr_sha256": "508a6a0961a7c802bcd47147f72434e9e2a60189ead85277ee549dfade00e6ee"
+        },
+        {
+          "id": "6a49ff18-ef26-48ff-b7e5-8ce723d2edca",
+          "slug": "tryon-clothes-pro",
+          "name": "tryon-clothes-pro",
+          "status": "ACTIVE",
+          "version": 36,
+          "created_at": 1784749069132,
+          "updated_at": 1790262383432,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_6a49ff18-ef26-48ff-b7e5-8ce723d2edca_23/source/index.ts",
+          "ezbr_sha256": "dcf89f79057350a2d6f387b022751946a0bc6e17c877ce99c1f15c7c84a4e859"
+        },
+        {
+          "id": "9dfd815c-48af-462d-ab36-8bc0ae4b1f96",
+          "slug": "search-vinted-secondhand",
+          "name": "search-vinted-secondhand",
+          "status": "ACTIVE",
+          "version": 35,
+          "created_at": 1784749074364,
+          "updated_at": 1784813830252,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_9dfd815c-48af-462d-ab36-8bc0ae4b1f96_5/source/supabase/functions/search-vinted-secondhand/index.ts",
+          "ezbr_sha256": "ea3ded21ae63b9e3851eba9ffbc2d207710037777ff45c08576a7b72d52015a5"
+        },
+        {
+          "id": "c4076ce2-fb5a-4e23-bbc9-3f8179d75d07",
+          "slug": "style-outfit-generate",
+          "name": "style-outfit-generate",
+          "status": "ACTIVE",
+          "version": 32,
+          "created_at": 1784932401283,
+          "updated_at": 1790892231158,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_c4076ce2-fb5a-4e23-bbc9-3f8179d75d07_23/source/supabase/functions/style-outfit-generate/index.ts",
+          "ezbr_sha256": "c8cc7b51748f9cf3efc11666bf3e319ac121fda30c03abf332972faa31822368"
+        },
+        {
+          "id": "bb8122b6-f11d-4c15-be8d-028d3749c89c",
+          "slug": "apple-credential-link",
+          "name": "apple-credential-link",
+          "status": "ACTIVE",
+          "version": 23,
+          "created_at": 1786846040853,
+          "updated_at": 1790186827625,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/apple-credential-link/index.ts",
+          "ezbr_sha256": "cd4ea90eb5a8381aa676d11be530baac69f533343b1ec9a01c28c4e49611989a"
+        },
+        {
+          "id": "fc838ba1-8e0e-478f-8fe4-0a7b3437a405",
+          "slug": "apple-revoke-credential",
+          "name": "apple-revoke-credential",
+          "status": "ACTIVE",
+          "version": 22,
+          "created_at": 1786846070379,
+          "updated_at": 1786846070379,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_fc838ba1-8e0e-478f-8fe4-0a7b3437a405_1/source/apple-revoke-credential/index.ts",
+          "ezbr_sha256": "1f384f5e88871b7176ade1795053cf370ce2f0f63bcd399dc6a6b4dfd33c1997"
+        },
+        {
+          "id": "0e773d53-7c12-4d83-9c5e-ff099d65a74c",
+          "slug": "deletion-status",
+          "name": "deletion-status",
+          "status": "ACTIVE",
+          "version": 14,
+          "created_at": 1790040744396,
+          "updated_at": 1790040744396,
+          "verify_jwt": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/deletion-status/index.ts",
+          "ezbr_sha256": "c702e57fa4e1338022940111bf4a7e105abce52ac57d16ab7751c1a00fbd17b7"
+        },
+        {
+          "id": "85b54082-ee8f-4e5c-b79f-0afce10597de",
+          "slug": "reconcile-orphan-media",
+          "name": "reconcile-orphan-media",
+          "status": "ACTIVE",
+          "version": 14,
+          "created_at": 1790041611823,
+          "updated_at": 1790041611823,
+          "verify_jwt": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/reconcile-orphan-media/index.ts",
+          "ezbr_sha256": "914067359b6a73c7cc851f6345ab7115033fb519eb53e65df595bc48ba48b0a7"
+        },
+        {
+          "id": "d48bd291-743e-4e43-a2c6-50797f4f7a06",
+          "slug": "kplus-activate",
+          "name": "kplus-activate",
+          "status": "ACTIVE",
+          "version": 16,
+          "created_at": 1790128786623,
+          "updated_at": 1791922159789,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kplus-activate/index.ts",
+          "ezbr_sha256": "cbf2616ba0f1f7c1ca603eed924bd0d37be7cc59a887f6e0d8ae5fa57b891dc6"
+        },
+        {
+          "id": "1a9794df-46d0-4a52-8a01-c573c09b0b90",
+          "slug": "kplus-reconcile-revenuecat",
+          "name": "kplus-reconcile-revenuecat",
+          "status": "ACTIVE",
+          "version": 15,
+          "created_at": 1790132298823,
+          "updated_at": 1791166563121,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_1a9794df-46d0-4a52-8a01-c573c09b0b90_6/source/functions/kplus-reconcile-revenuecat/index.ts",
+          "ezbr_sha256": "0d66f2e8699c9021b586ae2c5ca9d4b47de98a0df4e18ec11cdf658018d48325"
+        },
+        {
+          "id": "80f24f6b-3235-4c9c-a9dc-ee720dae521b",
+          "slug": "commerce-watch-refresh",
+          "name": "commerce-watch-refresh",
+          "status": "ACTIVE",
+          "version": 15,
+          "created_at": 1790150547027,
+          "updated_at": 1791834655450,
+          "verify_jwt": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/commerce-watch-refresh/index.ts",
+          "ezbr_sha256": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a"
+        },
+        {
+          "id": "7d69f848-c669-4e83-8e6a-affba96b71bd",
+          "slug": "vto-generate",
+          "name": "vto-generate",
+          "status": "ACTIVE",
+          "version": 18,
+          "created_at": 1790155266253,
+          "updated_at": 1792130418141,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/vto-generate/index.ts",
+          "ezbr_sha256": "d0143c119bcdbc9eedebae31b0a95d1ecfe057bae9e1ecef3915ea6f2b031b17"
+        },
+        {
+          "id": "8b6949ab-4fcc-4626-aefe-b6e266303ccc",
+          "slug": "purchase-import-extract",
+          "name": "purchase-import-extract",
+          "status": "ACTIVE",
+          "version": 10,
+          "created_at": 1791166340750,
+          "updated_at": 1791166340750,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_8b6949ab-4fcc-4626-aefe-b6e266303ccc_1/source/functions/purchase-import-extract/index.ts",
+          "ezbr_sha256": "819d61694b59951b274862319774e863e0ca5ed7db6b737779e5ca7c29085dd3"
+        },
+        {
+          "id": "26cdea31-e3be-4479-b5b1-e118dca2e38c",
+          "slug": "kplus-offer-redeem",
+          "name": "kplus-offer-redeem",
+          "status": "ACTIVE",
+          "version": 10,
+          "created_at": 1791166584541,
+          "updated_at": 1791166584541,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_26cdea31-e3be-4479-b5b1-e118dca2e38c_1/source/functions/kplus-offer-redeem/index.ts",
+          "ezbr_sha256": "001635bd5abe20d050ed68ffeef89a8cdf79f98b451fe067d3c7b0be719e3a0c"
+        },
+        {
+          "id": "b8fe35ba-cdf7-41af-b6c6-9ff7445a7574",
+          "slug": "kplus-revenuecat-pull-reconcile",
+          "name": "kplus-revenuecat-pull-reconcile",
+          "status": "ACTIVE",
+          "version": 10,
+          "created_at": 1791166602483,
+          "updated_at": 1791166602483,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_b8fe35ba-cdf7-41af-b6c6-9ff7445a7574_1/source/functions/kplus-revenuecat-pull-reconcile/index.ts",
+          "ezbr_sha256": "8ea68da0b2032d4142162cc71f9067e654a02d3ae5fd25631282c9d4ee6643ee"
+        },
+        {
+          "id": "f7ba571a-b818-430b-96ac-6adfc4a8fe90",
+          "slug": "kplus-revenuecat-webhook",
+          "name": "kplus-revenuecat-webhook",
+          "status": "ACTIVE",
+          "version": 10,
+          "created_at": 1791166617515,
+          "updated_at": 1791166617515,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_wyyuqfdxucjksghsmhry_f7ba571a-b818-430b-96ac-6adfc4a8fe90_1/source/functions/kplus-revenuecat-webhook/index.ts",
+          "ezbr_sha256": "ba7453467d55b8008e7629031d0653ac17ae2433543be2082611a7e147319482"
+        }
+      ],
+      "migrations": [
+        {
+          "version": "202605122359"
+        },
+        {
+          "version": "202605130000"
+        },
+        {
+          "version": "202605130001"
+        },
+        {
+          "version": "202605130002"
+        },
+        {
+          "version": "202605130003"
+        },
+        {
+          "version": "202605130004"
+        },
+        {
+          "version": "202605160001"
+        },
+        {
+          "version": "202605200001"
+        },
+        {
+          "version": "202605200002"
+        },
+        {
+          "version": "202605230001"
+        },
+        {
+          "version": "202605240001"
+        },
+        {
+          "version": "202605240002"
+        },
+        {
+          "version": "202605240003"
+        },
+        {
+          "version": "202605240004"
+        },
+        {
+          "version": "202606030001"
+        },
+        {
+          "version": "202606050001"
+        },
+        {
+          "version": "202606050002"
+        },
+        {
+          "version": "202606060001"
+        },
+        {
+          "version": "202606070001"
+        },
+        {
+          "version": "202606070002"
+        },
+        {
+          "version": "202606070003"
+        },
+        {
+          "version": "202606070004"
+        },
+        {
+          "version": "202606070005"
+        },
+        {
+          "version": "202606070006"
+        },
+        {
+          "version": "202606070007"
+        },
+        {
+          "version": "20260607222310"
+        },
+        {
+          "version": "202606090001"
+        },
+        {
+          "version": "202606110001"
+        },
+        {
+          "version": "20260611223807"
+        },
+        {
+          "version": "20260617000001"
+        },
+        {
+          "version": "20260617215307"
+        },
+        {
+          "version": "202606180001"
+        },
+        {
+          "version": "202606180002"
+        },
+        {
+          "version": "202606180003"
+        },
+        {
+          "version": "202606240001"
+        },
+        {
+          "version": "202606240002"
+        },
+        {
+          "version": "202606290001"
+        },
+        {
+          "version": "20260704175544"
+        },
+        {
+          "version": "20260705000001"
+        },
+        {
+          "version": "20260707000001"
+        },
+        {
+          "version": "20260708090847"
+        },
+        {
+          "version": "20260708140542"
+        },
+        {
+          "version": "20260709130346"
+        },
+        {
+          "version": "20260710000001"
+        },
+        {
+          "version": "20260711000001"
+        },
+        {
+          "version": "20260711000002"
+        },
+        {
+          "version": "20260711000003"
+        },
+        {
+          "version": "20260711195508"
+        },
+        {
+          "version": "20260712000001"
+        },
+        {
+          "version": "20260712010000"
+        },
+        {
+          "version": "20260712020000"
+        },
+        {
+          "version": "20260713000001"
+        },
+        {
+          "version": "20260714000001"
+        },
+        {
+          "version": "20260714000002"
+        },
+        {
+          "version": "20260714000003"
+        },
+        {
+          "version": "20260715000001"
+        },
+        {
+          "version": "20260716000001"
+        },
+        {
+          "version": "20260717201524"
+        },
+        {
+          "version": "20260718151651"
+        },
+        {
+          "version": "20260720115423"
+        },
+        {
+          "version": "20260721201218"
+        },
+        {
+          "version": "20260721201347"
+        },
+        {
+          "version": "20260722004639"
+        },
+        {
+          "version": "20260722022830"
+        },
+        {
+          "version": "20260722024920"
+        },
+        {
+          "version": "20260722030304"
+        },
+        {
+          "version": "20260722031812"
+        },
+        {
+          "version": "20260722191013"
+        },
+        {
+          "version": "20260723021514"
+        },
+        {
+          "version": "20260723021635"
+        },
+        {
+          "version": "20260723021735"
+        },
+        {
+          "version": "20260723083904"
+        },
+        {
+          "version": "20260723131202"
+        },
+        {
+          "version": "20260723131221"
+        },
+        {
+          "version": "20260723131423"
+        },
+        {
+          "version": "20260723132813"
+        },
+        {
+          "version": "20260724205334"
+        },
+        {
+          "version": "20260724205508"
+        },
+        {
+          "version": "20260724205606"
+        },
+        {
+          "version": "20260724221229"
+        },
+        {
+          "version": "20260724221634"
+        },
+        {
+          "version": "20260803020000"
+        },
+        {
+          "version": "20260803020100"
+        },
+        {
+          "version": "20260803020200"
+        },
+        {
+          "version": "20260803160206"
+        },
+        {
+          "version": "20260803220000"
+        },
+        {
+          "version": "20260803220100"
+        },
+        {
+          "version": "20260803220200"
+        },
+        {
+          "version": "20260804090000"
+        },
+        {
+          "version": "20260805170417"
+        },
+        {
+          "version": "20260808201806"
+        },
+        {
+          "version": "20260808202108"
+        },
+        {
+          "version": "20260808202222"
+        },
+        {
+          "version": "20260809102805"
+        },
+        {
+          "version": "20260809152053"
+        },
+        {
+          "version": "20260814120000"
+        },
+        {
+          "version": "20260814230933"
+        },
+        {
+          "version": "20260815233431"
+        },
+        {
+          "version": "20260816020518"
+        },
+        {
+          "version": "20260816020548"
+        },
+        {
+          "version": "20260816120000"
+        },
+        {
+          "version": "20260818141056"
+        },
+        {
+          "version": "20260829120000"
+        },
+        {
+          "version": "20260829203657"
+        },
+        {
+          "version": "20260829204635"
+        },
+        {
+          "version": "20260829220316"
+        },
+        {
+          "version": "20260830060000"
+        },
+        {
+          "version": "20260830070000"
+        },
+        {
+          "version": "20260830131956"
+        },
+        {
+          "version": "20260830140000"
+        },
+        {
+          "version": "20260830150000"
+        },
+        {
+          "version": "20260830151500"
+        },
+        {
+          "version": "20260830161500"
+        },
+        {
+          "version": "20260830162500"
+        },
+        {
+          "version": "20260830174616"
+        },
+        {
+          "version": "20260830190000"
+        },
+        {
+          "version": "20260830190500"
+        },
+        {
+          "version": "20260830212508"
+        },
+        {
+          "version": "20260831000100"
+        },
+        {
+          "version": "20260831120000"
+        },
+        {
+          "version": "20260831120500"
+        },
+        {
+          "version": "20260831130000"
+        },
+        {
+          "version": "20260831140000"
+        },
+        {
+          "version": "20260831160000"
+        },
+        {
+          "version": "20260902120000"
+        },
+        {
+          "version": "20260902150000"
+        },
+        {
+          "version": "20260905171030"
+        },
+        {
+          "version": "20260908230000"
+        },
+        {
+          "version": "20260909115726"
+        },
+        {
+          "version": "20260909170000"
+        },
+        {
+          "version": "20260915030553"
+        },
+        {
+          "version": "20260915124849"
+        },
+        {
+          "version": "20260915181554"
+        },
+        {
+          "version": "20260915181910"
+        },
+        {
+          "version": "20260915214857"
+        },
+        {
+          "version": "20260916031250"
+        },
+        {
+          "version": "20260916125554"
+        },
+        {
+          "version": "20260916130553"
+        },
+        {
+          "version": "20260916141413"
+        },
+        {
+          "version": "20260916160903"
+        },
+        {
+          "version": "20260916235651"
+        },
+        {
+          "version": "20260917163000"
+        },
+        {
+          "version": "20261001204903"
+        },
+        {
+          "version": "20261002010000"
+        },
+        {
+          "version": "20261003195716"
+        },
+        {
+          "version": "20261004184118"
+        },
+        {
+          "version": "20261004221500"
+        },
+        {
+          "version": "20261004231628"
+        },
+        {
+          "version": "20261011222213"
+        },
+        {
+          "version": "20261012203811"
+        },
+        {
+          "version": "20261012203929"
+        },
+        {
+          "version": "20261012204354"
+        },
+        {
+          "version": "20261014210000"
+        },
+        {
+          "version": "20261015214749"
+        },
+        {
+          "version": "20261016001500"
+        },
+        {
+          "version": "20261029125521"
+        }
+      ],
+      "summary": {
+        "functionCount": 28,
+        "migrationCount": 156,
+        "discovery": null,
+        "permissionMigrationApplied": false,
+        "discoveryMigrationApplied": true
+      },
+      "migrationProjection": "Compact version-only current ledger projection; full named metadata retained losslessly in the referenced raw archive."
+    },
+    {
+      "environment": "Staging",
+      "projectRef": "yzqjvdfgefveprobvvyw",
+      "functions": [
+        {
+          "id": "5d192798-ac6b-43ed-b2d7-da21b8ba390f",
+          "slug": "privacy-controls",
+          "name": "privacy-controls",
+          "status": "ACTIVE",
+          "version": 13,
+          "created_at": 1778724835340,
+          "updated_at": 1778724835340,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_5d192798-ac6b-43ed-b2d7-da21b8ba390f_1/source/supabase/functions/privacy-controls/index.ts",
+          "ezbr_sha256": "eb8f9b07166a0c8b6a480b75d2e2ca66a67ffa512dc6c6238f0ded5409c39436"
+        },
+        {
+          "id": "754fb6c2-2819-49ec-901f-af36c02c3b08",
+          "slug": "public-sale-share-opt-out",
+          "name": "public-sale-share-opt-out",
+          "status": "ACTIVE",
+          "version": 13,
+          "created_at": 1778847762395,
+          "updated_at": 1778847762395,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_754fb6c2-2819-49ec-901f-af36c02c3b08_1/source/supabase/functions/public-sale-share-opt-out/index.ts",
+          "ezbr_sha256": "c17dd4cb2cc5b1af23fa36b33dedf073c78b74df986dfab478d4b35c6ea0484c"
+        },
+        {
+          "id": "e953e116-9192-400e-abd6-bc43dd25503a",
+          "slug": "kickscrew-sneaker-description",
+          "name": "kickscrew-sneaker-description",
+          "status": "ACTIVE",
+          "version": 85,
+          "created_at": 1779564312510,
+          "updated_at": 1785945316925,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///src/KScan-staging-v2-backend/supabase/functions/kickscrew-sneaker-description/index.ts",
+          "ezbr_sha256": "f1519b65b74e59c03ac341902eb4cf47991235bbe431177bba13c21e81ad081d"
+        },
+        {
+          "id": "8324e1fe-d2a9-4caf-acc6-e5461866be90",
+          "slug": "stylechat-generate",
+          "name": "stylechat-generate",
+          "status": "ACTIVE",
+          "version": 139,
+          "created_at": 1780844067242,
+          "updated_at": 1793278487082,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/stylechat-generate/index.ts",
+          "ezbr_sha256": "6083767889222f32f650b4b16220b7693f3388c3202ce562e2575a59ea347b37"
+        },
+        {
+          "id": "581bd281-c578-43b3-bf22-b3d1d922bcc4",
+          "slug": "handle-user-deletion",
+          "name": "handle-user-deletion",
+          "status": "ACTIVE",
+          "version": 90,
+          "created_at": 1781056966903,
+          "updated_at": 1788916982125,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/handle-user-deletion/index.ts",
+          "ezbr_sha256": "eee28bd8507a91202912e782afac506164e02fdd5ced1b6ec1631e1ed1d68bed"
+        },
+        {
+          "id": "57f4f3dd-e3d0-4842-9cbe-c9195f6f9869",
+          "slug": "product-search-deals",
+          "name": "product-search-deals",
+          "status": "ACTIVE",
+          "version": 76,
+          "created_at": 1781571652966,
+          "updated_at": 1788916046232,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/product-search-deals/index.ts",
+          "ezbr_sha256": "b386880768918137b1f7f670ede07af0129bd4d6792a77df7459c8e185d9d5c3"
+        },
+        {
+          "id": "b07a5ad9-bc7c-4935-8810-bab34d31f825",
+          "slug": "privacy-correction-request",
+          "name": "privacy-correction-request",
+          "status": "ACTIVE",
+          "version": 74,
+          "created_at": 1785732767321,
+          "updated_at": 1788915509580,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/privacy-correction-request/index.ts",
+          "ezbr_sha256": "919ffdd4b7a962d8c4a837deb2498a87a0a334838c8e6c154f82cd01a1af7296"
+        },
+        {
+          "id": "48436091-e2d4-49fe-9fca-ec06bf01b723",
+          "slug": "privacy-data-export",
+          "name": "privacy-data-export",
+          "status": "ACTIVE",
+          "version": 73,
+          "created_at": 1785732769387,
+          "updated_at": 1788915823520,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/privacy-data-export/index.ts",
+          "ezbr_sha256": "428a66a3f4ac2905c09306229faa11e9bb423a54152a094117715195f9c84f23"
+        },
+        {
+          "id": "65908fa2-11f1-4ef8-bed4-f7a200bbf0af",
+          "slug": "staging-health",
+          "name": "staging-health",
+          "status": "ACTIVE",
+          "version": 71,
+          "created_at": 1785806151495,
+          "updated_at": 1789664610402,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/staging-health/index.ts",
+          "ezbr_sha256": "29a8813fff9e916deb7a9a2fdea012594c0fa8962a48536e732032b9e246b94b"
+        },
+        {
+          "id": "7451b38a-3a66-49c7-b78c-e221b8fa19d0",
+          "slug": "product-match",
+          "name": "product-match",
+          "status": "ACTIVE",
+          "version": 68,
+          "created_at": 1785808369953,
+          "updated_at": 1785808369953,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_7451b38a-3a66-49c7-b78c-e221b8fa19d0_1/source/supabase/functions/product-match/index.ts",
+          "ezbr_sha256": "cc6c4fead119d89b9b804b01e9f083ebeecef79031af7dcbd8eaa949f3d4e8f5"
+        },
+        {
+          "id": "92db361c-d305-4a18-8659-a387b11d84a7",
+          "slug": "scan-identify",
+          "name": "scan-identify",
+          "status": "ACTIVE",
+          "version": 88,
+          "created_at": 1785808385455,
+          "updated_at": 1793278681656,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/scan-identify/index.ts",
+          "ezbr_sha256": "1fc5a8b2648cdfecdb767d8ad4dd852d3b9a6c7e21be5371e5dcd385974f617c"
+        },
+        {
+          "id": "c3dc78fd-b6eb-411f-8af5-97902c675f19",
+          "slug": "restore-account",
+          "name": "restore-account",
+          "status": "ACTIVE",
+          "version": 69,
+          "created_at": 1785864078181,
+          "updated_at": 1788186238576,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_c3dc78fd-b6eb-411f-8af5-97902c675f19_51/source/functions/restore-account/index.ts",
+          "ezbr_sha256": "f10ade57d690cc06e1f8a453b327861a72be54b81795014d6440feea7e7b01c4"
+        },
+        {
+          "id": "dd13fb68-8b47-4899-b011-3687401059d0",
+          "slug": "resend-restoration-email",
+          "name": "resend-restoration-email",
+          "status": "ACTIVE",
+          "version": 69,
+          "created_at": 1785864141225,
+          "updated_at": 1788186312394,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_dd13fb68-8b47-4899-b011-3687401059d0_51/source/functions/resend-restoration-email/index.ts",
+          "ezbr_sha256": "94c7f5d27aad2e7bad5d0eba1cfc3676bfe7a35ecfb82550d3ad827f68b4d7e9"
+        },
+        {
+          "id": "0f2efb71-4738-487e-ba0e-2998944358ff",
+          "slug": "process-account-deletions",
+          "name": "process-account-deletions",
+          "status": "ACTIVE",
+          "version": 77,
+          "created_at": 1785864330851,
+          "updated_at": 1789645495280,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_0f2efb71-4738-487e-ba0e-2998944358ff_68/source/supabase/functions/process-account-deletions/index.ts",
+          "ezbr_sha256": "06007e3e7fe76e4fa4d73fad53f13d6b5c251308246e10230af2a4ed64aaf14b"
+        },
+        {
+          "id": "60eb55e3-caba-4412-bf56-c0ad348b371e",
+          "slug": "nike-shoe-details",
+          "name": "nike-shoe-details",
+          "status": "ACTIVE",
+          "version": 66,
+          "created_at": 1785942513284,
+          "updated_at": 1785942513284,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///src/KScan-staging-v2-backend/supabase/functions/nike-shoe-details/index.ts",
+          "ezbr_sha256": "c919e05da570b08b596ae8c8f532c96fec4f4f6a1bd35671bf595788449e6fff"
+        },
+        {
+          "id": "5a3fb453-773f-4485-8dca-650ed8a4aaba",
+          "slug": "search-vinted-secondhand",
+          "name": "search-vinted-secondhand",
+          "status": "ACTIVE",
+          "version": 68,
+          "created_at": 1785942519705,
+          "updated_at": 1789664425840,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/search-vinted-secondhand/index.ts",
+          "ezbr_sha256": "ff60ddff735a0540f175e28ce6fe4a019115c2a61f5bdd51accc4baf2574393a"
+        },
+        {
+          "id": "41a11fcd-7fa7-4a20-a7bf-b93b748d5969",
+          "slug": "shared-room-image-url",
+          "name": "shared-room-image-url",
+          "status": "ACTIVE",
+          "version": 66,
+          "created_at": 1785942532131,
+          "updated_at": 1785942532131,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///src/KScan-staging-v2-backend/supabase/functions/shared-room-image-url/index.ts",
+          "ezbr_sha256": "80c44081f8e60043868e9857530e32fb049646401b74dbf6e324df0f07ddab2e"
+        },
+        {
+          "id": "145d453d-f41e-4cc5-b50f-5657d2fa0c41",
+          "slug": "style-outfit-generate",
+          "name": "style-outfit-generate",
+          "status": "ACTIVE",
+          "version": 70,
+          "created_at": 1785942541020,
+          "updated_at": 1790891509607,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_145d453d-f41e-4cc5-b50f-5657d2fa0c41_65/source/supabase/functions/style-outfit-generate/index.ts",
+          "ezbr_sha256": "c8cc7b51748f9cf3efc11666bf3e319ac121fda30c03abf332972faa31822368"
+        },
+        {
+          "id": "c7c6a1a5-29dd-400f-83e9-16f97b65f562",
+          "slug": "stylist-speech",
+          "name": "stylist-speech",
+          "status": "ACTIVE",
+          "version": 83,
+          "created_at": 1785942545500,
+          "updated_at": 1792034650021,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/stylist-speech/index.ts",
+          "ezbr_sha256": "dff65819380be1c83790959926bea7eefab14ce02d27e29fba37fff235c7330c"
+        },
+        {
+          "id": "400434bf-e124-4b96-8dfd-d0ff04b347ab",
+          "slug": "apple-credential-link",
+          "name": "apple-credential-link",
+          "status": "ACTIVE",
+          "version": 68,
+          "created_at": 1786557211187,
+          "updated_at": 1786558731731,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/apple-credential-link/index.ts",
+          "ezbr_sha256": "79d99a32d1333e296bd277c6f22f779862a252f494da8b6d9f24845b23098467"
+        },
+        {
+          "id": "a8923594-f015-487a-b2c5-249da6d2f308",
+          "slug": "apple-revoke-credential",
+          "name": "apple-revoke-credential",
+          "status": "ACTIVE",
+          "version": 66,
+          "created_at": 1786559295044,
+          "updated_at": 1786559295044,
+          "verify_jwt": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/apple-revoke-credential/index.ts",
+          "ezbr_sha256": "17055ef47e42d1490809f95487e02e39b466da627d1f6d0f3515bc277544ecc7"
+        },
+        {
+          "id": "b6b09030-cc06-4fc9-9984-c545a60ba134",
+          "slug": "wearable-bridge",
+          "name": "wearable-bridge",
+          "status": "ACTIVE",
+          "version": 36,
+          "created_at": 1787144410867,
+          "updated_at": 1787504699911,
+          "verify_jwt": false,
+          "import_map": true,
+          "entrypoint_path": "file:///Users/jsmit/kscan-glasses-webapp/supabase/functions/wearable-bridge/index.ts",
+          "import_map_path": "file:///Users/jsmit/kscan-glasses-webapp/supabase/functions/wearable-bridge/deno.json",
+          "ezbr_sha256": "2894d42044289235d04681bc0dfcae27f3340134cd33a0b46dc275b71e2a71bc"
+        },
+        {
+          "id": "eccf16af-738f-4e83-b71a-5cab03fd8783",
+          "slug": "wearable-save",
+          "name": "wearable-save",
+          "status": "ACTIVE",
+          "version": 34,
+          "created_at": 1787151891347,
+          "updated_at": 1787152837413,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_eccf16af-738f-4e83-b71a-5cab03fd8783_2/source/index.ts",
+          "ezbr_sha256": "7ca98cc5b40aa33f6d04b117939e3dfc1bc8807a1e58a642e891f407134454d1"
+        },
+        {
+          "id": "f0fb18c5-9651-4384-8e3c-b31cd48c82a7",
+          "slug": "wearable-open-on-phone",
+          "name": "wearable-open-on-phone",
+          "status": "ACTIVE",
+          "version": 33,
+          "created_at": 1787151967292,
+          "updated_at": 1787151967292,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_f0fb18c5-9651-4384-8e3c-b31cd48c82a7_1/source/index.ts",
+          "ezbr_sha256": "eb9ce0ce6c2e7970cb349512387ee0d34a8bb71a1900f036e4ffca73e7844d91"
+        },
+        {
+          "id": "7413af42-7994-46cb-bdf0-f4ce1de941b7",
+          "slug": "wearable-scan",
+          "name": "wearable-scan",
+          "status": "ACTIVE",
+          "version": 37,
+          "created_at": 1787152071356,
+          "updated_at": 1787496554338,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///Users/jsmit/kscan-glasses-webapp/supabase/functions/wearable-scan/index.ts",
+          "ezbr_sha256": "e6f3f85c0d65c3624d224d88fac1d3e6e4b6a5cf1e6692ba4c8ee5d284c7a434"
+        },
+        {
+          "id": "50cb1d7b-4a32-4971-a6c4-6674d07e02cd",
+          "slug": "kplus-activate",
+          "name": "kplus-activate",
+          "status": "ACTIVE",
+          "version": 31,
+          "created_at": 1788025514871,
+          "updated_at": 1791497035998,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kplus-activate/index.ts",
+          "ezbr_sha256": "cbf2616ba0f1f7c1ca603eed924bd0d37be7cc59a887f6e0d8ae5fa57b891dc6"
+        },
+        {
+          "id": "f885f8dd-dbd6-4b6f-83c3-5347cddc0ba6",
+          "slug": "kplus-reconcile-revenuecat",
+          "name": "kplus-reconcile-revenuecat",
+          "status": "ACTIVE",
+          "version": 30,
+          "created_at": 1788025527297,
+          "updated_at": 1789662339655,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kplus-reconcile-revenuecat/index.ts",
+          "ezbr_sha256": "e63c4653ace6286d0ba39e8e9222d1c489bd4d9940a27ad3a6106e40c609b589"
+        },
+        {
+          "id": "a86108e0-2ca8-4a8e-8688-32408cbd983d",
+          "slug": "vto-provider-diag",
+          "name": "vto-provider-diag",
+          "status": "ACTIVE",
+          "version": 26,
+          "created_at": 1788104877079,
+          "updated_at": 1788109689654,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_a86108e0-2ca8-4a8e-8688-32408cbd983d_8/source/index.ts",
+          "ezbr_sha256": "38b5504cf87be7bee00b8a3ee41878c6d48d4a25b0ae7fdcd69e2b9ceddd8f84"
+        },
+        {
+          "id": "e67c0e2e-fe4d-41e1-90a5-1342404a8b74",
+          "slug": "rapidapi-key-diag",
+          "name": "rapidapi-key-diag",
+          "status": "ACTIVE",
+          "version": 21,
+          "created_at": 1788107334529,
+          "updated_at": 1788107408193,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_e67c0e2e-fe4d-41e1-90a5-1342404a8b74_3/source/index.ts",
+          "ezbr_sha256": "722b88df415e913b1fdf3f850f0d990718188321fe1b03d7f289190e4258ac46"
+        },
+        {
+          "id": "5ee4adce-484a-4f44-9d01-0305c1fdf12a",
+          "slug": "rapidapi-current-audit",
+          "name": "rapidapi-current-audit",
+          "status": "ACTIVE",
+          "version": 23,
+          "created_at": 1788107648895,
+          "updated_at": 1788107813029,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_5ee4adce-484a-4f44-9d01-0305c1fdf12a_5/source/index.ts",
+          "ezbr_sha256": "f0025ba36c43d54f535ef71c26c1362ed43c082e07ef5620d69d76b338ae2133"
+        },
+        {
+          "id": "94df38db-2d21-4824-9b21-d678b7c698c8",
+          "slug": "vto-generate",
+          "name": "vto-generate",
+          "status": "ACTIVE",
+          "version": 25,
+          "created_at": 1788112852326,
+          "updated_at": 1792126838675,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/vto-generate/index.ts",
+          "ezbr_sha256": "d0143c119bcdbc9eedebae31b0a95d1ecfe057bae9e1ecef3915ea6f2b031b17"
+        },
+        {
+          "id": "8f4a7278-876c-4768-9159-688305630b4b",
+          "slug": "commerce-watch-refresh",
+          "name": "commerce-watch-refresh",
+          "status": "ACTIVE",
+          "version": 23,
+          "created_at": 1788185178150,
+          "updated_at": 1791833254138,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/commerce-watch-refresh/index.ts",
+          "ezbr_sha256": "2937f0806c12e49f3cff4b8d215042be9f1a3dd6d873955b0222aff3ab52662a"
+        },
+        {
+          "id": "1f7a2dff-e403-41d3-af76-b272e72e06d5",
+          "slug": "tryon-clothes-pro",
+          "name": "tryon-clothes-pro",
+          "status": "ACTIVE",
+          "version": 20,
+          "created_at": 1788185232907,
+          "updated_at": 1789664845714,
+          "verify_jwt": true,
+          "import_map": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/tryon-clothes-pro/index.ts",
+          "ezbr_sha256": "73b16314c7c0fed51727547409979efce6276770f902b6cc2906e3c0a68a9c40"
+        },
+        {
+          "id": "b5ab7b2d-cb1f-4ea5-8799-b47187f23cf8",
+          "slug": "deletion-status",
+          "name": "deletion-status",
+          "status": "ACTIVE",
+          "version": 15,
+          "created_at": 1788916321330,
+          "updated_at": 1788916321330,
+          "verify_jwt": false,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/deletion-status/index.ts",
+          "ezbr_sha256": "c702e57fa4e1338022940111bf4a7e105abce52ac57d16ab7751c1a00fbd17b7"
+        },
+        {
+          "id": "741efe64-0b39-45cc-8c42-d82d7997cad3",
+          "slug": "reconcile-orphan-media",
+          "name": "reconcile-orphan-media",
+          "status": "ACTIVE",
+          "version": 10,
+          "created_at": 1789657665272,
+          "updated_at": 1789657665272,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_741efe64-0b39-45cc-8c42-d82d7997cad3_1/source/supabase/functions/reconcile-orphan-media/index.ts",
+          "ezbr_sha256": "7fe119fdf52116402f6c967707c0303bfc258e5d5e41effad83c678a887bf4de"
+        },
+        {
+          "id": "05e439cb-01e3-451a-91ed-ccaff42c1a03",
+          "slug": "kplus-revenuecat-webhook",
+          "name": "kplus-revenuecat-webhook",
+          "status": "ACTIVE",
+          "version": 7,
+          "created_at": 1791500714802,
+          "updated_at": 1792031264803,
+          "verify_jwt": false,
+          "import_map": false,
+          "entrypoint_path": "file:///tmp/user_fn_yzqjvdfgefveprobvvyw_05e439cb-01e3-451a-91ed-ccaff42c1a03_2/source/functions/kplus-revenuecat-webhook/index.ts",
+          "ezbr_sha256": "ea2b699a8235000f72a041f707792ff260e884607179ce581a5aae818766fc48"
+        },
+        {
+          "id": "edfd2b94-e582-405d-973f-0bddd20751a1",
+          "slug": "kplus-offer-redeem",
+          "name": "kplus-offer-redeem",
+          "status": "ACTIVE",
+          "version": 6,
+          "created_at": 1791500905765,
+          "updated_at": 1791500905765,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kplus-offer-redeem/index.ts",
+          "ezbr_sha256": "0394405729e8d125f6a233ea188b9b2cf8e06463e7f61221a3f8bc88865acfd9"
+        },
+        {
+          "id": "b94f13c6-a7b5-4ade-880a-1cdf8189d3ed",
+          "slug": "kplus-revenuecat-pull-reconcile",
+          "name": "kplus-revenuecat-pull-reconcile",
+          "status": "ACTIVE",
+          "version": 6,
+          "created_at": 1791501115641,
+          "updated_at": 1791501115641,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/kplus-revenuecat-pull-reconcile/index.ts",
+          "ezbr_sha256": "ea8fc2a12e694bd45a921588b1beb49d18ef665c96ff4ab08e04db11fb4635de"
+        },
+        {
+          "id": "5756bbfa-810e-4c11-9f3f-54ee73243e08",
+          "slug": "purchase-import-extract",
+          "name": "purchase-import-extract",
+          "status": "ACTIVE",
+          "version": 6,
+          "created_at": 1791501259358,
+          "updated_at": 1791501259358,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/purchase-import-extract/index.ts",
+          "ezbr_sha256": "696e319e19f1ef4209448c666a2622cecf1d888db2ba9344f231892019f2f59f"
+        },
+        {
+          "id": "a6654bb4-6f99-4de9-8ef1-2cc8c223bee3",
+          "slug": "black-owned-discovery",
+          "name": "black-owned-discovery",
+          "status": "ACTIVE",
+          "version": 5,
+          "created_at": 1793284266629,
+          "updated_at": 1793284266629,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/black-owned-discovery/index.ts",
+          "ezbr_sha256": "0aa15215b90f44d0bf507be7bf51229eec683118c3f6fb04c02ea1166f51fc09"
+        }
+      ],
+      "migrations": [
+        {
+          "version": "202605122359"
+        },
+        {
+          "version": "202605130000"
+        },
+        {
+          "version": "202605130001"
+        },
+        {
+          "version": "202605130002"
+        },
+        {
+          "version": "202605130003"
+        },
+        {
+          "version": "202605130004"
+        },
+        {
+          "version": "202605160001"
+        },
+        {
+          "version": "202605200001"
+        },
+        {
+          "version": "202605200002"
+        },
+        {
+          "version": "202605230001"
+        },
+        {
+          "version": "202605240001"
+        },
+        {
+          "version": "202605240002"
+        },
+        {
+          "version": "202605240003"
+        },
+        {
+          "version": "202605240004"
+        },
+        {
+          "version": "202606030001"
+        },
+        {
+          "version": "202606050001"
+        },
+        {
+          "version": "202606050002"
+        },
+        {
+          "version": "202606060001"
+        },
+        {
+          "version": "202606070001"
+        },
+        {
+          "version": "202606070002"
+        },
+        {
+          "version": "202606070003"
+        },
+        {
+          "version": "202606070004"
+        },
+        {
+          "version": "202606070005"
+        },
+        {
+          "version": "202606070006"
+        },
+        {
+          "version": "202606070007"
+        },
+        {
+          "version": "20260607222310"
+        },
+        {
+          "version": "202606090001"
+        },
+        {
+          "version": "202606110001"
+        },
+        {
+          "version": "20260611223807"
+        },
+        {
+          "version": "20260617000001"
+        },
+        {
+          "version": "20260617215307"
+        },
+        {
+          "version": "202606180001"
+        },
+        {
+          "version": "202606180002"
+        },
+        {
+          "version": "202606180003"
+        },
+        {
+          "version": "20260618132214"
+        },
+        {
+          "version": "202606240001"
+        },
+        {
+          "version": "202606240002"
+        },
+        {
+          "version": "202606290001"
+        },
+        {
+          "version": "20260704175544"
+        },
+        {
+          "version": "20260705000001"
+        },
+        {
+          "version": "20260707000001"
+        },
+        {
+          "version": "20260708090847"
+        },
+        {
+          "version": "20260708140542"
+        },
+        {
+          "version": "20260709130346"
+        },
+        {
+          "version": "20260710000001"
+        },
+        {
+          "version": "20260711000001"
+        },
+        {
+          "version": "20260711000002"
+        },
+        {
+          "version": "20260711000003"
+        },
+        {
+          "version": "20260711195508"
+        },
+        {
+          "version": "20260712000001"
+        },
+        {
+          "version": "20260712010000"
+        },
+        {
+          "version": "20260712020000"
+        },
+        {
+          "version": "20260713000001"
+        },
+        {
+          "version": "20260714000001"
+        },
+        {
+          "version": "20260714000002"
+        },
+        {
+          "version": "20260714000003"
+        },
+        {
+          "version": "20260715000001"
+        },
+        {
+          "version": "20260716000001"
+        },
+        {
+          "version": "20260717201524"
+        },
+        {
+          "version": "20260718151651"
+        },
+        {
+          "version": "202607200001"
+        },
+        {
+          "version": "20260720115423"
+        },
+        {
+          "version": "202607210001"
+        },
+        {
+          "version": "20260721090920"
+        },
+        {
+          "version": "20260721201218"
+        },
+        {
+          "version": "20260721201347"
+        },
+        {
+          "version": "20260722004639"
+        },
+        {
+          "version": "20260722022830"
+        },
+        {
+          "version": "20260722024920"
+        },
+        {
+          "version": "20260722030304"
+        },
+        {
+          "version": "20260722031812"
+        },
+        {
+          "version": "20260722191013"
+        },
+        {
+          "version": "20260722201910"
+        },
+        {
+          "version": "20260723021145"
+        },
+        {
+          "version": "20260723021515"
+        },
+        {
+          "version": "20260723021635"
+        },
+        {
+          "version": "20260723021735"
+        },
+        {
+          "version": "20260723040000"
+        },
+        {
+          "version": "20260723050000"
+        },
+        {
+          "version": "20260723060000"
+        },
+        {
+          "version": "20260723070000"
+        },
+        {
+          "version": "20260723132813"
+        },
+        {
+          "version": "20260724220000"
+        },
+        {
+          "version": "20260724221500"
+        },
+        {
+          "version": "20260803020000"
+        },
+        {
+          "version": "20260803020100"
+        },
+        {
+          "version": "20260803020200"
+        },
+        {
+          "version": "20260803160206"
+        },
+        {
+          "version": "20260803214145"
+        },
+        {
+          "version": "20260803214253"
+        },
+        {
+          "version": "20260803220000"
+        },
+        {
+          "version": "20260803220100"
+        },
+        {
+          "version": "20260803220200"
+        },
+        {
+          "version": "20260804090000"
+        },
+        {
+          "version": "20260804101903"
+        },
+        {
+          "version": "20260805120000"
+        },
+        {
+          "version": "20260805121000"
+        },
+        {
+          "version": "20260805130000"
+        },
+        {
+          "version": "20260806153233"
+        },
+        {
+          "version": "20260808115552"
+        },
+        {
+          "version": "20260808115735"
+        },
+        {
+          "version": "20260808120214"
+        },
+        {
+          "version": "20260808121216"
+        },
+        {
+          "version": "20260810120000"
+        },
+        {
+          "version": "20260812031312"
+        },
+        {
+          "version": "20260813224918"
+        },
+        {
+          "version": "20260814120000"
+        },
+        {
+          "version": "20260814140000"
+        },
+        {
+          "version": "20260814230933"
+        },
+        {
+          "version": "20260815233353"
+        },
+        {
+          "version": "20260815233457"
+        },
+        {
+          "version": "20260816120000"
+        },
+        {
+          "version": "20260818141056"
+        },
+        {
+          "version": "20260819125404"
+        },
+        {
+          "version": "20260819125700"
+        },
+        {
+          "version": "20260819144630"
+        },
+        {
+          "version": "20260819151224"
+        },
+        {
+          "version": "20260823170850"
+        },
+        {
+          "version": "20260823175314"
+        },
+        {
+          "version": "20260824175813"
+        },
+        {
+          "version": "20260829120000"
+        },
+        {
+          "version": "20260829180000"
+        },
+        {
+          "version": "20260829203657"
+        },
+        {
+          "version": "20260829204635"
+        },
+        {
+          "version": "20260829220316"
+        },
+        {
+          "version": "20260830053104"
+        },
+        {
+          "version": "20260830113230"
+        },
+        {
+          "version": "20260830113421"
+        },
+        {
+          "version": "20260830145412"
+        },
+        {
+          "version": "20260830150440"
+        },
+        {
+          "version": "20260830174616"
+        },
+        {
+          "version": "20260830211956"
+        },
+        {
+          "version": "20260830212244"
+        },
+        {
+          "version": "20260830212316"
+        },
+        {
+          "version": "20260830212326"
+        },
+        {
+          "version": "20260830212412"
+        },
+        {
+          "version": "20260830212444"
+        },
+        {
+          "version": "20260830212508"
+        },
+        {
+          "version": "20260830212518"
+        },
+        {
+          "version": "20260830212527"
+        },
+        {
+          "version": "20260830212537"
+        },
+        {
+          "version": "20260830214752"
+        },
+        {
+          "version": "20260830214806"
+        },
+        {
+          "version": "20260831135127"
+        },
+        {
+          "version": "20260831135148"
+        },
+        {
+          "version": "20260831135158"
+        },
+        {
+          "version": "20260831135218"
+        },
+        {
+          "version": "20260831135239"
+        },
+        {
+          "version": "20260831135251"
+        },
+        {
+          "version": "20260831185314"
+        },
+        {
+          "version": "20260902144906"
+        },
+        {
+          "version": "20260902150000"
+        },
+        {
+          "version": "20260902154435"
+        },
+        {
+          "version": "20260905170749"
+        },
+        {
+          "version": "20260908230000"
+        },
+        {
+          "version": "20260909171001"
+        },
+        {
+          "version": "20260909171017"
+        },
+        {
+          "version": "20260914201155"
+        },
+        {
+          "version": "20260915030553"
+        },
+        {
+          "version": "20260915124849"
+        },
+        {
+          "version": "20260915133739"
+        },
+        {
+          "version": "20260915181554"
+        },
+        {
+          "version": "20260915181910"
+        },
+        {
+          "version": "20260915214857"
+        },
+        {
+          "version": "20260915232402"
+        },
+        {
+          "version": "20260916125206"
+        },
+        {
+          "version": "20260916130553"
+        },
+        {
+          "version": "20260916204355"
+        },
+        {
+          "version": "20260916233708"
+        },
+        {
+          "version": "20260916234025"
+        },
+        {
+          "version": "20260916235651"
+        },
+        {
+          "version": "20260917163000"
+        },
+        {
+          "version": "20261001204903"
+        },
+        {
+          "version": "20261002010000"
+        },
+        {
+          "version": "20261003195716"
+        },
+        {
+          "version": "20261004184118"
+        },
+        {
+          "version": "20261004221500"
+        },
+        {
+          "version": "20261004231628"
+        },
+        {
+          "version": "20261011222213"
+        },
+        {
+          "version": "20261014210000"
+        },
+        {
+          "version": "20261015214749"
+        },
+        {
+          "version": "20261016001500"
+        },
+        {
+          "version": "20261029125521"
+        }
+      ],
+      "summary": {
+        "functionCount": 40,
+        "migrationCount": 183,
+        "discovery": {
+          "id": "a6654bb4-6f99-4de9-8ef1-2cc8c223bee3",
+          "slug": "black-owned-discovery",
+          "name": "black-owned-discovery",
+          "status": "ACTIVE",
+          "version": 5,
+          "created_at": 1793284266629,
+          "updated_at": 1793284266629,
+          "verify_jwt": true,
+          "entrypoint_path": "file:///home/runner/work/kscan-app/kscan-app/supabase/functions/black-owned-discovery/index.ts",
+          "ezbr_sha256": "0aa15215b90f44d0bf507be7bf51229eec683118c3f6fb04c02ea1166f51fc09"
+        },
+        "permissionMigrationApplied": false,
+        "discoveryMigrationApplied": true
+      },
+      "migrationProjection": "Compact version-only current ledger projection; full named metadata retained losslessly in the referenced raw archive."
+    }
+  ],
+  "rawEvidenceArchive": "runtime-readback-1031-raw.json.gz"
+}

@@ -1,0 +1,9 @@
+{
+  "recordedAt": "2026-10-30T20:25:32.559Z",
+  "finding": "B35-F-012/P4",
+  "ownerAnswers": [
+    "Authorize this bounded source repair",
+    "you may make the p4 repair"
+  ],
+  "scope": "Runtime string/path guard and malformed-response regressions through canonical and mobile PRs; ordinary fully-green merges approved separately in existing campaign; no Production operation"
+}

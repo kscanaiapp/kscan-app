@@ -1,0 +1,34 @@
+{
+  "mobile": "a9503e135162824ed8127f6a3066fac1deab3e67",
+  "reviewed": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+  "canonicalBackend": "3bab42e47817da8a4941efc4a509afee73879015",
+  "mergedTree": "09850c7592a5ce47fe7ba2e80cfffd0811cf7a51",
+  "testedTree": "09850c7592a5ce47fe7ba2e80cfffd0811cf7a51",
+  "exactTreeMatch": true,
+  "premergeChecks": {
+    "pass": 34,
+    "skipping": 20
+  },
+  "merge": "PR663 squash after separate green/CLEAN/head read; no override",
+  "node": {
+    "sourceSha": "a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37",
+    "inventoryFiles": 643,
+    "concurrency": 2,
+    "exitCode": 0,
+    "signal": null,
+    "complete": true,
+    "counts": {
+      "tests": 11451,
+      "suites": 2,
+      "pass": 11353,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 98,
+      "todo": 0
+    },
+    "verdict": "PASS"
+  },
+  "backend": "Unchanged runtime and backend manifest from mobile2d/06e; retained1569PASS, no new backend run claimed",
+  "postmergeBranchCi": "Pending current readback, not certified by PR checks",
+  "limits": "Source only; current binary/provider ingestion/device not certified"
+}

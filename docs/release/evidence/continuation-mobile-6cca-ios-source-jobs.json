@@ -1,0 +1,103 @@
+{
+  "jobs": [
+    {
+      "completedAt": "2026-11-03T02:13:24Z",
+      "conclusion": "success",
+      "databaseId": 125682966665,
+      "name": "Apple source and native-contract checks",
+      "startedAt": "2026-11-03T02:11:59Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T02:12:01Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T02:12:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-11-03T02:12:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:12Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-11-03T02:12:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:26Z",
+          "conclusion": "success",
+          "name": "Install frozen dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T02:12:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:26Z",
+          "conclusion": "success",
+          "name": "Validate release profile and native parity",
+          "number": 5,
+          "startedAt": "2026-11-03T02:12:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:26Z",
+          "conclusion": "success",
+          "name": "Validate Apple readiness and metadata",
+          "number": 6,
+          "startedAt": "2026-11-03T02:12:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:12:27Z",
+          "conclusion": "success",
+          "name": "Inspect generated Expo iOS configuration",
+          "number": 7,
+          "startedAt": "2026-11-03T02:12:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:21Z",
+          "conclusion": "success",
+          "name": "iOS native bridge, privacy, authentication, paywall and review regression",
+          "number": 8,
+          "startedAt": "2026-11-03T02:12:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:22Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 15,
+          "startedAt": "2026-11-03T02:13:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:22Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 16,
+          "startedAt": "2026-11-03T02:13:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T02:13:22Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-03T02:13:22Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41564602320/job/125682966665"
+    }
+  ]
+}

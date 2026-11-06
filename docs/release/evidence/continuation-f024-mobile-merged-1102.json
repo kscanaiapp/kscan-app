@@ -1,0 +1,13 @@
+{
+  "capturedAt": "2026-11-03T00:48:04.736Z",
+  "mobile": "09f0abad1a443c2601aaddc9c26e85b636c216c4",
+  "backend": "31be5f99341b606a070bbbe0b3062588f320f089",
+  "pr": 683,
+  "reviewed": "f97fdbe0a9b809907ab06aa6908161758111223f",
+  "testedMerge": "089838ee66ebb3867887ea1cd6298a5f1a0da02f",
+  "tree": "4dda7416425a64387f9c2b97cf86e7c9a283d447",
+  "reviewedCI": "34success/20conditionalSKIP;11456NodePASS/0FAIL/96SKIP;1591backendPASS/0FAIL;CLEANready/reviewsandthreadsempty",
+  "status": "F024CANONICALANDMOBILEMERGED / MOBILEPOSTCI PENDING",
+  "canonicalCI": "7/7SUCCESS;8564NodePASS/0FAIL/65SKIP;1575backendPASS/0FAIL",
+  "next": "Finish9independent09f0pushworkflows andactualProjectlog;closesourceF024(22of23),thencreateisolatedF025canonicalbranchfrom31be. B004afterF025;682held;W1W2unconfirmed. No finalrelease/platformverification."
+}

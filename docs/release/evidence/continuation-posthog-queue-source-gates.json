@@ -1,0 +1,35 @@
+{
+  "sourceSha": "6da9f866f05c7d4888f724b4985f6c44b7728c47",
+  "results": [
+    {
+      "name": "check-edge-function-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "verify-backend-authority.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-native-config-parity.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-migration-provenance.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-dependency-reachability.js",
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "check-build35-release-profile.js",
+      "exitCode": 0,
+      "error": null
+    }
+  ]
+}

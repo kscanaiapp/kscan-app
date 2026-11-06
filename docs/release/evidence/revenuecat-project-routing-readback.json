@@ -1,0 +1,49 @@
+{
+  "project": "proj46588afb",
+  "apps": [
+    {
+      "platform": "iOS",
+      "bundleId": "com.kscanai.app",
+      "id": "appd42ef6f8f0",
+      "storeCredentialsConfigured": true
+    },
+    {
+      "platform": "Android",
+      "package": "com.kscanai.app",
+      "id": "appb329bd3c4e",
+      "storeCredentialsConfigured": true
+    },
+    {
+      "platform": "test_store",
+      "id": "app023ebdb3db"
+    }
+  ],
+  "offering": {
+    "identifier": "default",
+    "id": "ofrng222f4dae36",
+    "current": true,
+    "packages": [
+      "$rc_monthly",
+      "$rc_annual"
+    ],
+    "paywallId": "pw33de2ef97ecc44de"
+  },
+  "entitlement": {
+    "identifier": "k_plus",
+    "id": "entld9b580e4e5",
+    "active": true,
+    "products": [
+      "prod20dbedb923",
+      "prod211cb2cda6",
+      "prod6fa234d5c6",
+      "prodf735b4c3d4"
+    ]
+  },
+  "webhook": {
+    "name": "K Scan AI Production",
+    "environment": "production",
+    "url": "https://wyyuqfdxucjksghsmhry.supabase.co/functions/v1/kplus-revenuecat-webhook",
+    "filters": null
+  },
+  "limitations": "Configuration readback only: delivery health, signatures in live invocations, consumer purchase/restore and published binary containment not verified. No writes, real purchases, refunds or price changes."
+}

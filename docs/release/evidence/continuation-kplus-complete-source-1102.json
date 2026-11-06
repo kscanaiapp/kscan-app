@@ -1,0 +1,1009 @@
+{
+  "capturedAt": "2026-11-02T16:18:04.535Z",
+  "records": [
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-stale-provider",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "stale-provider",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "stale-provider",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success with stale/active provider facts and canonical free must remain ENTITLEMENT_RESOLVING, never active.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-confirmed-purchase",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "confirmed-purchase",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "confirmed-purchase",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Only canonical active after successful SDK purchase may produce ENTITLEMENT_CONFIRMED/active UI.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-purchase-restore-concurrency",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "purchase-restore-concurrency",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchase-restore-concurrency",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "One pending native purchase; concurrent purchase/restore BUSY, no duplicate SDK call; canonical success confirms.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-actor-switch",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "actor-switch",
+      "actual": {
+        "outcome": "DISCARDED_ACTOR_CHANGED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "actor-switch",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Departed actor completion discarded; next actor gets fresh eligible UI, no previous success or sheet closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-restore-owned",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-owned",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore-owned",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider-owned restore plus canonical active confirms; provider ownership alone cannot grant access.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-restore-empty",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-empty",
+      "actual": {
+        "outcome": "NOTHING_RESTORED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore-empty",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Empty provider restoration returns NOTHING_RESTORED and keeps canonical free.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-cancel",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "cancel",
+      "actual": {
+        "outcome": "USER_CANCELLED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancel",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Actual SDK cancellation remains USER_CANCELLED, clears operation lock, does not grant/close as successful membership.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-server401",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "server401",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "error",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "server401",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Canonical401 cannot confirm or cache new active access.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-stale-provider",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "stale-provider",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "stale-provider",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success with stale/active provider facts and canonical free must remain ENTITLEMENT_RESOLVING, never active.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-confirmed-purchase",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "confirmed-purchase",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "confirmed-purchase",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Only canonical active after successful SDK purchase may produce ENTITLEMENT_CONFIRMED/active UI.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-purchase-restore-concurrency",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "purchase-restore-concurrency",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchase-restore-concurrency",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "One pending native purchase; concurrent purchase/restore BUSY, no duplicate SDK call; canonical success confirms.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-actor-switch",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "actor-switch",
+      "actual": {
+        "outcome": "DISCARDED_ACTOR_CHANGED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "actor-switch",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Departed actor completion discarded; next actor gets fresh eligible UI, no previous success or sheet closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-restore-owned",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-owned",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore-owned",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider-owned restore plus canonical active confirms; provider ownership alone cannot grant access.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-restore-empty",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-empty",
+      "actual": {
+        "outcome": "NOTHING_RESTORED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore-empty",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Empty provider restoration returns NOTHING_RESTORED and keeps canonical free.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-cancel",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "cancel",
+      "actual": {
+        "outcome": "USER_CANCELLED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancel",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Actual SDK cancellation remains USER_CANCELLED, clears operation lock, does not grant/close as successful membership.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-server401",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "server401",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "error",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS",
+      "feature": "K+ purchase/restore",
+      "boundary": "Production exported service/native adapter/canonicalRPCreader/store/paywallmodel",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "server401",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Canonical401 cannot confirm or cache new active access.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-purchase",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchase",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Same-frame repeated purchase/restore taps coalesce to one SDK call; active UI/continue only after canonical active.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-restore",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Visible Restore reaches the actual shared SDK/canonical chain and shows active only on canonical confirmation.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-provider-only",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "provider-only",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success alone cannot show active; hosted/fallback remains pending without success closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-cancel",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "USER_CANCELLED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancel",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Actual SDK cancellation remains USER_CANCELLED, clears operation lock, does not grant/close as successful membership.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-purchase",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchase",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Same-frame repeated purchase/restore taps coalesce to one SDK call; active UI/continue only after canonical active.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-restore",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "active",
+        "commerceState": "ENTITLEMENT_CONFIRMED",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restore",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Visible Restore reaches the actual shared SDK/canonical chain and shows active only on canonical confirmation.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-provider-only",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "provider-only",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success alone cannot show active; hosted/fallback remains pending without success closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-cancel",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual mounted existing-user sheet/step/parts/hooks, production shared commerce/native adapter and canonical reader/store/model; controlled SDK/RPC/native host; synthetic available-capability fixture, hosted-paywall unavailable fallback",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "commerceState": "USER_CANCELLED",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancel",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Actual SDK cancellation remains USER_CANCELLED, clears operation lock, does not grant/close as successful membership.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-ios-actor-switch",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual account-keyed membership sheet, shared service/native adapter/reader/store/model with controlled boundary fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "actor-switch",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Departed actor completion discarded; next actor gets fresh eligible UI, no previous success or sheet closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-MOUNTED-android-actor-switch",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual account-keyed membership sheet, shared service/native adapter/reader/store/model with controlled boundary fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted existing-user sheet/step/parts/hooks -> native SDK adapter/shared service -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "actor-switch",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Departed actor completion discarded; next actor gets fresh eligible UI, no previous success or sheet closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-ios-purchased",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "active",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchased",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted purchase confirms only through canonical active and closes only after explicit Continue.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-ios-restored",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "active",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restored",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted restore confirms only through canonical active and explicit Continue.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-ios-provider-only",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "provider-only",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success alone cannot show active; hosted/fallback remains pending without success closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-ios-cancelled",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancelled",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted cancellation maps to dismissal/close without activating canonical entitlement.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-ios-unavailable",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "unavailable",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted SDK failure releases shared lease and exposes working fallback store controls without a false grant.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-android-purchased",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "active",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "purchased",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted purchase confirms only through canonical active and closes only after explicit Continue.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-android-restored",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "active",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "restored",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted restore confirms only through canonical active and explicit Continue.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-android-provider-only",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "provider-only",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Provider success alone cannot show active; hosted/fallback remains pending without success closure.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-android-cancelled",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 1
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "cancelled",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted cancellation maps to dismissal/close without activating canonical entitlement.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    },
+    {
+      "probeId": "B35-KPLUS-HOSTED-android-unavailable",
+      "sourceSha": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+      "environment": "Actual sheet/step/hooks/hosted bridge/dynamic imports/shared lease/native adapter/canonical reader/store/model; controlled SDKUI+SKU/available-capability/session/RPC/native host fixtures",
+      "verdict": "PASS",
+      "actual": {
+        "hostedWindows": 1,
+        "nativePurchaseCalls": 0,
+        "nativeRestoreCalls": 0,
+        "canonicalState": "eligible",
+        "closed": 0
+      },
+      "feature": "K+ purchase/restore",
+      "boundary": "Mounted membership sheet/step -> actual hosted bridge/dynamic SDK imports/shared lease -> canonicalRPCreader/store/model",
+      "sourceLocation": "components/kplus/KPlusMembershipSheet.tsx; KPlusMembershipStep.tsx; services/kplus/kplusHostedPaywall.ts; kplusCommerceService.ts; revenueCatNative.ts; kplusEntitlementReader.ts; kplusEntitlementStore.ts",
+      "input": {
+        "scenario": "unavailable",
+        "fixture": "Synthetic native/store/RPC/session responses; available-capability fixture only; no real provider data"
+      },
+      "expected": "Hosted SDK failure releases shared lease and exposes working fallback store controls without a false grant.",
+      "executionMethod": "B35_AUDIT_SOURCE_ROOT checkout +node --test retained composed source harnesses",
+      "evidence": "resume1102-kplus-complete-source-1102.log.gz",
+      "linkedDefectId": null,
+      "repairReference": null,
+      "reverificationStatus": "SOURCE PASS; reviewedb462/tested2b7a/final6183identicaltreef11fab67",
+      "candidateSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519"
+    }
+  ],
+  "counts": {
+    "shared": 16,
+    "mountedFallback": 10,
+    "mountedHosted": 10,
+    "pass": 36,
+    "fail": 0,
+    "skip": 0
+  },
+  "sourceEquivalence": {
+    "reviewed": "b4622c85a6aef842b68af9ffbc5296fe7d97eed4",
+    "testedMerge": "2b7a24a161962979f0ed781a5adbb7bf3b5e3237",
+    "candidate": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+    "identicalGitTree": "f11fab67be95aa74cfab79bb4df5eeef1557c0bd"
+  },
+  "limitations": [
+    "Native host, SDK/UI, session, RPC and available-capability state are boundary fixtures; no current store/binary/provider activation claim.",
+    "Synthetic price labels test provider-field rendering, not current prices.",
+    "Actual source callback/lease identity and canonical authority execute; native store sandbox remains laterQA outside this audit.",
+    "36sourcecases and46datedStagingrecords are different populations, never added as82mandatoryPASS."
+  ]
+}

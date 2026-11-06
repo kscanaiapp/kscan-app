@@ -1,0 +1,383 @@
+﻿[
+    {
+        "probeId":  "B35-KPLUS-STAGING-001",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "concurrent duplicate",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "FAIL",
+        "expected":  "One grant, 1 transition rows, expected provider chronology expiry, no revoke; baseline empty",
+        "actual":  {
+                       "dispatch":  {
+                                        "classifications":  [
+                                                                "applied",
+                                                                "duplicate"
+                                                            ],
+                                        "overlappingClientTasks":  true,
+                                        "httpStatuses":  [
+                                                             200,
+                                                             200
+                                                         ]
+                                    },
+                       "expectedExpiry":  "2026-10-31T04:35:34.0914739Z",
+                       "final":  {
+                                     "revoked":  0,
+                                     "transitions":  1,
+                                     "grants":  1,
+                                     "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                 },
+                       "baseline":  {
+                                        "revoked":  0,
+                                        "transitions":  0,
+                                        "grants":  0,
+                                        "expires":  null
+                                    }
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-002",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "concurrent distinct-reference",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "FAIL",
+        "expected":  "One grant, 2 transition rows, expected provider chronology expiry, no revoke; baseline empty",
+        "actual":  {
+                       "dispatch":  {
+                                        "classifications":  [
+                                                                "applied",
+                                                                "applied"
+                                                            ],
+                                        "overlappingClientTasks":  true,
+                                        "httpStatuses":  [
+                                                             200,
+                                                             200
+                                                         ]
+                                    },
+                       "expectedExpiry":  "2026-10-31T04:35:34.0914739Z",
+                       "final":  {
+                                     "revoked":  0,
+                                     "transitions":  2,
+                                     "grants":  1,
+                                     "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                 },
+                       "baseline":  {
+                                        "revoked":  0,
+                                        "transitions":  0,
+                                        "grants":  0,
+                                        "expires":  null
+                                    }
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-003",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "concurrent newer-expiration",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "FAIL",
+        "expected":  "One grant, 2 transition rows, expected provider chronology expiry, no revoke; baseline empty",
+        "actual":  {
+                       "dispatch":  {
+                                        "classifications":  [
+                                                                null,
+                                                                "applied"
+                                                            ],
+                                        "overlappingClientTasks":  true,
+                                        "httpStatuses":  [
+                                                             400,
+                                                             200
+                                                         ]
+                                    },
+                       "expectedExpiry":  "2026-10-29T04:35:34.0914739Z",
+                       "final":  {
+                                     "revoked":  0,
+                                     "transitions":  1,
+                                     "grants":  1,
+                                     "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                 },
+                       "baseline":  {
+                                        "revoked":  0,
+                                        "transitions":  0,
+                                        "grants":  0,
+                                        "expires":  null
+                                    }
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-004",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "concurrent newer-renewal",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "FAIL",
+        "expected":  "One grant, 2 transition rows, expected provider chronology expiry, no revoke; baseline empty",
+        "actual":  {
+                       "dispatch":  {
+                                        "classifications":  [
+                                                                "applied",
+                                                                null
+                                                            ],
+                                        "overlappingClientTasks":  true,
+                                        "httpStatuses":  [
+                                                             200,
+                                                             400
+                                                         ]
+                                    },
+                       "expectedExpiry":  "2026-10-31T04:35:34.0914739Z",
+                       "final":  {
+                                     "revoked":  0,
+                                     "transitions":  1,
+                                     "grants":  1,
+                                     "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                 },
+                       "baseline":  {
+                                        "revoked":  0,
+                                        "transitions":  0,
+                                        "grants":  0,
+                                        "expires":  null
+                                    }
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-005",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "two synthetic actors concurrent independent transitions",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "One grant/transition for each actor; no merged actor state",
+        "actual":  {
+                       "dispatch":  {
+                                        "classifications":  [
+                                                                "applied",
+                                                                "applied"
+                                                            ],
+                                        "overlappingClientTasks":  true,
+                                        "httpStatuses":  [
+                                                             200,
+                                                             200
+                                                         ]
+                                    },
+                       "actorA":  {
+                                      "revoked":  0,
+                                      "transitions":  1,
+                                      "grants":  1,
+                                      "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                  },
+                       "actorB":  {
+                                      "revoked":  0,
+                                      "transitions":  1,
+                                      "grants":  1,
+                                      "expires":  "2026-10-31T04:35:34.091474+00:00"
+                                  }
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-006",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup duplicate",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-007",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup distinct-reference",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-008",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup newer-expiration",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-009",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup newer-renewal",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-010",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup isolated-A",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    },
+    {
+        "probeId":  "B35-KPLUS-STAGING-011",
+        "runId":  "bf1c3d34b755411c99be59104bf450ff",
+        "linkedDefectId":  null,
+        "boundary":  "service-only reconcile_kplus_provider_transition RPC",
+        "environment":  "Synthetic tagged Staging accounts only",
+        "reverificationStatus":  "Actual database RPC result; no store/webhook/provider claim",
+        "probe":  "tag-verified cleanup isolated-B",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; live Staging migration versions separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-concurrency-staging.json",
+        "feature":  "K+ provider transition authority",
+        "executionMethod":  "kplus-concurrency-staging.ps1 concurrent HttpClient RPC requests",
+        "limitation":  "Admin-simulated normalized provider facts. No store transaction, RevenueCat HTTP call or signed-webhook handler executed.",
+        "verdict":  "PASS",
+        "expected":  "Acknowledged synthetic Auth deletion, zero grant/transition rows after cascade",
+        "actual":  {
+                       "remaining":  {
+                                         "revoked":  0,
+                                         "transitions":  0,
+                                         "grants":  0,
+                                         "expires":  null
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql; existing transition authority"
+    }
+]

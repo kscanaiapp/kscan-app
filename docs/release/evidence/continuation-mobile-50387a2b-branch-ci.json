@@ -1,0 +1,70 @@
+{
+  "capturedAt": "2026-10-31T13:43:42.169Z",
+  "sourceSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "allSuccess": true,
+  "rows": [
+    {
+      "conclusion": "success",
+      "databaseId": 41205798942,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Build 35 Release Profile Guard"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798918,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Dependency Reachability Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798931,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798910,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "K Scan Staging Security Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798906,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Security - ZAP Baseline Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798927,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Build 35 iOS source certification"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798985,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Security - ZAP API Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798909,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Security - Promotion Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41205798993,
+      "headSha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "status": "completed",
+      "workflowName": "Security - Code and Dependencies"
+    }
+  ]
+}

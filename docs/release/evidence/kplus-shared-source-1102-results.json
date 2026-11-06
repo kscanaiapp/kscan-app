@@ -1,0 +1,229 @@
+{
+  "records": [
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-stale-provider",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "stale-provider",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-confirmed-purchase",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "confirmed-purchase",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-purchase-restore-concurrency",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "purchase-restore-concurrency",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-actor-switch",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "actor-switch",
+      "actual": {
+        "outcome": "DISCARDED_ACTOR_CHANGED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-restore-owned",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-owned",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-restore-empty",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-empty",
+      "actual": {
+        "outcome": "NOTHING_RESTORED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-cancel",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "cancel",
+      "actual": {
+        "outcome": "USER_CANCELLED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-ios-server401",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "server401",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "error",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-stale-provider",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "stale-provider",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-confirmed-purchase",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "confirmed-purchase",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-purchase-restore-concurrency",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "purchase-restore-concurrency",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-actor-switch",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "actor-switch",
+      "actual": {
+        "outcome": "DISCARDED_ACTOR_CHANGED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-restore-owned",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-owned",
+      "actual": {
+        "outcome": "ENTITLEMENT_CONFIRMED",
+        "canonicalState": "active",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "ACTIVE_KPLUS"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-restore-empty",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "restore-empty",
+      "actual": {
+        "outcome": "NOTHING_RESTORED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 0,
+        "restoreCalls": 1,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-cancel",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "cancel",
+      "actual": {
+        "outcome": "USER_CANCELLED",
+        "canonicalState": "eligible",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "MONTHLY_SELECTED_NO_TRIAL"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-KPLUS-SHARED-android-server401",
+      "sourceSha": "0e622005fb15ca1ea236e67cc6bd66549bbc325e",
+      "environment": "Offline production source wiring, actual native adapter/reader/store/service/model; SDK/native/session/RPC boundaries controlled",
+      "scenario": "server401",
+      "actual": {
+        "outcome": "ENTITLEMENT_RESOLVING",
+        "canonicalState": "error",
+        "purchaseCalls": 1,
+        "restoreCalls": 0,
+        "visibleModel": "PURCHASE_SUCCEEDED_ENTITLEMENT_RESOLVING"
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "limits": "No real SDK/store purchase, RevenueCat network, remote Supabase mutation or native-device/binary certification; production exported service wiring executes over controlled boundary adapters."
+}

@@ -1,0 +1,6 @@
+# Immutable delegated evidence: preserve original Git blob bytes, including
+# historical raw-log whitespace. Product source and audit conclusions are not
+# covered by these attributes; original source permalinks remain in provenance.
+a2/** -text -diff
+a4/** -text -diff
+a7/** -text -diff

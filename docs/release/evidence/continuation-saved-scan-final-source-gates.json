@@ -1,0 +1,30 @@
+[
+  {
+    "command": "check-edge-function-parity.js",
+    "exitCode": 0
+  },
+  {
+    "command": "verify-backend-authority.js",
+    "exitCode": 0
+  },
+  {
+    "command": "check-native-config-parity.js",
+    "exitCode": 0
+  },
+  {
+    "command": "check-migration-provenance.js",
+    "exitCode": 0
+  },
+  {
+    "command": "verify-migration-authority.js",
+    "exitCode": 0
+  },
+  {
+    "command": "check-build35-release-profile.js",
+    "exitCode": 0
+  },
+  {
+    "command": "enforced actual diff",
+    "exitCode": 0
+  }
+]

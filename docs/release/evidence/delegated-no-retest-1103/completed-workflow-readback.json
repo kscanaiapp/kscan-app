@@ -1,0 +1,83 @@
+[
+  {
+    "id": 41646886149,
+    "name": "K Scan Staging Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41646886149"
+  },
+  {
+    "id": 41648252306,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "6d96156745160d93596dd792769df6aed164e6fe",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41648252306"
+  },
+  {
+    "id": 41653711774,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "2846fd147fc36b72404372919ee8d1e88421da75",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41653711774"
+  },
+  {
+    "id": 41657421889,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "2846fd147fc36b72404372919ee8d1e88421da75",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41657421889"
+  },
+  {
+    "id": 41657836174,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "2846fd147fc36b72404372919ee8d1e88421da75",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41657836174"
+  },
+  {
+    "id": 41667133409,
+    "name": "K Scan Staging Gemini Consent Activation Canary",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "588b3e42ef4bbfa6c32eb84e5610a8768992aefb",
+    "branch": "test/gemini-consent-activation-canary-v1",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41667133409"
+  },
+  {
+    "id": 41673515951,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "2846fd147fc36b72404372919ee8d1e88421da75",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41673515951"
+  },
+  {
+    "id": 41674858655,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "success",
+    "sha": "2846fd147fc36b72404372919ee8d1e88421da75",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41674858655"
+  },
+  {
+    "id": 41678583997,
+    "name": "K Scan Production Controlled Deploy",
+    "status": "completed",
+    "conclusion": "failure",
+    "sha": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "branch": "rebuild/backend-authority-v2",
+    "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41678583997"
+  }
+]

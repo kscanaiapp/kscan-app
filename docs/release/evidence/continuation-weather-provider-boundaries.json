@@ -1,0 +1,399 @@
+{
+  "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+  "canonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+  "records": [
+    {
+      "probe": "geocode provider 500",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-001",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "geocode provider 429",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-002",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "geocode provider timeout",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-003",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "geocode provider malformed",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-004",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "geocode provider empty",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-005",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "geocode provider wrong-schema",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 1,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-006",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider 500",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-007",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider 429",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-008",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider timeout",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-009",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider malformed",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-010",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider empty",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-011",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "forecast provider wrong-schema",
+      "expected": "Failure yields no fabricated forecast; request does not retry provider; cached miss avoids amplification",
+      "actual": {
+        "result": null,
+        "calls": 2,
+        "replay": null
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-012",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "untrusted destination text http://169.254.169.254/latest/meta-data",
+      "expected": "Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called",
+      "actual": {
+        "requestedOrigins": [
+          "https://geocoding-api.open-meteo.com"
+        ],
+        "calls": 1
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-013",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "untrusted destination text http://localhost/admin",
+      "expected": "Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called",
+      "actual": {
+        "requestedOrigins": [
+          "https://geocoding-api.open-meteo.com"
+        ],
+        "calls": 1
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-014",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "untrusted destination text file:///private/fixture",
+      "expected": "Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called",
+      "actual": {
+        "requestedOrigins": [
+          "https://geocoding-api.open-meteo.com"
+        ],
+        "calls": 1
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-015",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "untrusted destination text gopher://127.0.0.1/",
+      "expected": "Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called",
+      "actual": {
+        "requestedOrigins": [
+          "https://geocoding-api.open-meteo.com"
+        ],
+        "calls": 1
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-016",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "untrusted destination text https://controlled-rebinding.invalid/",
+      "expected": "Destination text cannot become a server-side fetch URL; only the fixed geocoder origin is called",
+      "actual": {
+        "requestedOrigins": [
+          "https://geocoding-api.open-meteo.com"
+        ],
+        "calls": 1
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-017",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "mixed-script cache identity",
+      "expected": "Distinct Unicode input is not silently assigned a cached Latin-city forecast",
+      "actual": {
+        "first": "Paris",
+        "second": null,
+        "calls": 3
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-018",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    },
+    {
+      "probe": "private property exclusion",
+      "expected": "Only approved destination/date/rounded-coordinate provider parameters leave the adapter",
+      "actual": {
+        "calls": 2,
+        "containsPrivateValue": false
+      },
+      "verdict": "PASS",
+      "probeId": "B35-WEATHER-BOUNDARY-019",
+      "feature": "Packing weather",
+      "boundary": "Actual Open-Meteo adapter/resolver/cache; synthetic HTTP responses",
+      "sourceSha": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+      "equivalentCanonical": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+      "sourceLocation": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --no-config --node-modules-dir=manual --no-check --allow-read weather-provider-boundaries.test.ts",
+      "evidence": "weather-provider-boundaries-final.log.gz",
+      "limitations": "No live provider connectivity/forecast accuracy claim. Timeout is an injected AbortError. Harness transpile-only; canonical source already type-checked in the full CI backend suite."
+    }
+  ],
+  "counts": {
+    "PASS": 19
+  },
+  "suite": {
+    "pass": 20,
+    "fail": 0,
+    "extraOracleNegativeControls": 1
+  },
+  "initialAttempt": "Initial URL oracle placed assertions in a mock that the resolver could catch. Actual traces were correct, but that weaker attempt is excluded as a security proof; final oracle checks captured requests outside the adapter and rejects four unsafe synthetic origins."
+}

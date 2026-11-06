@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-31T15:49:39.972Z",
+  "source": "Owner response in this campaign",
+  "decision": "Keep public links active until revoked or the account is purged",
+  "interpretation": "Existing public preview capability remains available for pending_deletion/locked owners. Private collaboration remains separately restricted. Explicit link revocation or actual owner purge removes public preview authority. This is factual behavior/authorization metadata, not a rewrite of binding legal copy.",
+  "implementationChangesRequired": false,
+  "verification": "share-purge-staging-results.json: ten real Staging records pass; actual Auth hard-delete/cascade and public preview denial after purge, not full delayed purge-worker/provider certification."
+}

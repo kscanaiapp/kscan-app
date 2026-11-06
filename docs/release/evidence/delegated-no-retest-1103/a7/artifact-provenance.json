@@ -1,0 +1,16 @@
+[
+  {
+    "storedPath": "a7/packingFailureRecovery.test.js.txt",
+    "sha256": "b156090616e62915b46e910202f617fde18036f9f3f910b4c6881c99373b25ad",
+    "bytes": 7911,
+    "source": "Retained exact source artifact recovered from corresponding #711/#712 change;see original #705 ledger for tested and repaired head distinctions.",
+    "notExecutedByManager": true
+  },
+  {
+    "storedPath": "a7/scanCommerceJourneyRecovery.test.js.txt",
+    "sha256": "d18afa60c68d0a6389858d0591d4a7e91e5480b2e8cc3027a9b72254f7b61e51",
+    "bytes": 10546,
+    "source": "Retained exact source artifact recovered from corresponding #711/#712 change;see original #705 ledger for tested and repaired head distinctions.",
+    "notExecutedByManager": true
+  }
+]

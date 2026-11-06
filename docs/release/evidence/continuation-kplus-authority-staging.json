@@ -1,0 +1,897 @@
+﻿[
+    {
+        "probeId":  "B35-KPLUS-AUTH-001",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "signed actor A baseline",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Auth validates the actual actor",
+        "actual":  {
+                       "actorMatches":  true,
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-002",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "signed actor B baseline",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Auth validates the actual actor",
+        "actual":  {
+                       "actorMatches":  true,
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-003",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "anonymous",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  401,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-004",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "valid A own actor",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  403,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-005",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "valid A targeting B",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  403,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-006",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "caller-controlled role headers",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  403,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-007",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "malformed JWT",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  401,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-008",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "tampered unsigned service claims",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "401/403 before any grant or transition; valid JWTs do not gain service authority",
+        "actual":  {
+                       "actorB":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  },
+                       "httpStatus":  401,
+                       "actorA":  {
+                                      "transitions":  0,
+                                      "grants":  0
+                                  }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-009",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "invalid RPC JSON empty",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Controlled4xx, no synthetic mutation",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  404
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-010",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "invalid RPC JSON null",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Controlled4xx, no synthetic mutation",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  404
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-011",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "invalid RPC JSON {",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Controlled4xx, no synthetic mutation",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-012",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "invalid RPC JSON []",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Controlled4xx, no synthetic mutation",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  404
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-013",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_cause",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-014",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_entitlement_key",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-015",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_environment",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-016",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_expires_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-017",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_external_event_id",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-018",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_grace_period_expires_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-019",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_lifecycle_state",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-020",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_pause_resumes_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-021",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_period_starts_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-022",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_period_type",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-023",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_product_id",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-024",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_provider",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-025",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_provider_event_type",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-026",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_provider_occurred_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-027",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_store",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-028",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_subscription_ref_digest",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-029",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_trial_ends_at",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-030",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_user_id",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-031",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "SQL injection parameter p_will_renew",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Typed/enum/identifier validation rejects4xx; no synthetic state change",
+        "actual":  {
+                       "state":  {
+                                     "transitions":  0,
+                                     "grants":  0
+                                 },
+                       "httpStatus":  400
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-032",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "authorized service baseline",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Valid normalized synthetic facts yield one grant and transition",
+        "actual":  {
+                       "classification":  "applied",
+                       "httpStatus":  200,
+                       "state":  {
+                                     "transitions":  1,
+                                     "grants":  1
+                                 }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-033",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "service replay same event",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Duplicate classification and exactly one grant/transition",
+        "actual":  {
+                       "classification":  "duplicate",
+                       "httpStatus":  200,
+                       "state":  {
+                                     "transitions":  1,
+                                     "grants":  1
+                                 }
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-034",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "tag-verified cleanup A",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Auth deletion acknowledged; cascade leaves zero grant/transition rows",
+        "actual":  {
+                       "remaining":  {
+                                         "transitions":  0,
+                                         "grants":  0
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    },
+    {
+        "probeId":  "B35-KPLUS-AUTH-035",
+        "runId":  "5658c048f31342dd96833ca8bdee22ac",
+        "linkedDefectId":  null,
+        "boundary":  "reconcile_kplus_provider_transition RPC",
+        "environment":  "Tagged synthetic Staging only",
+        "reverificationStatus":  "Executed scoped assertion",
+        "probe":  "tag-verified cleanup B",
+        "sourceSha":  "c86bf3d052806c6105ce7830a03ac2b1501d34a1 / f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af; deployed Staging migration inventory separately recorded",
+        "repairReference":  null,
+        "evidence":  "continuation-kplus-authority-staging.json",
+        "feature":  "K+ trusted provider transition authority",
+        "executionMethod":  "kplus-authority-staging.ps1; actual Auth/PostgREST/RPC/database",
+        "limitation":  "No store/RevenueCat/signed-webhook/native purchase or other RPC claim",
+        "verdict":  "PASS",
+        "expected":  "Auth deletion acknowledged; cascade leaves zero grant/transition rows",
+        "actual":  {
+                       "remaining":  {
+                                         "transitions":  0,
+                                         "grants":  0
+                                     },
+                       "httpStatus":  200
+                   },
+        "sourceLocation":  "20260915030553_kplus_entitlement_authority.sql typed validation and grants; 20261004231628 reconciliation wrapper"
+    }
+]

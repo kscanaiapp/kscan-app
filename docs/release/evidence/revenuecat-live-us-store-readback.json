@@ -1,0 +1,199 @@
+{
+  "method": "Connected RevenueCat get_product_store_state(refresh=true), live US store read, no writes or purchases",
+  "project": "proj46588afb",
+  "products": [
+    {
+      "product_id": "prod211cb2cda6",
+      "store": "play_store",
+      "status": {
+        "status": "ok",
+        "raw_store_status": null,
+        "read_error_reason": null
+      },
+      "store_fetched_at": "2026-10-29T18:03:41Z",
+      "warnings": [
+        "Apple subscriptions often require pricing metadata for all 175 territories. Only 1 territories were provided in `common.pricing.territory_prices`. Call `/v2/projects/proj46588afb/products/prod211cb2cda6/store_state/actions/equalize_subscription_prices` to fill missing territories using Apple price equalizations."
+      ],
+      "USprice": {
+        "amount_micros": 990000,
+        "currency": "USD"
+      },
+      "USavailable": true,
+      "plans": {
+        "monthly": {
+          "state": "ACTIVE",
+          "regional_configs": {
+            "US": {
+              "new_subscriber_availability": true,
+              "price": {
+                "amount_micros": 990000,
+                "currency": "USD"
+              }
+            }
+          },
+          "auto_renewing_base_plan_type": {
+            "billing_period_duration": "P1M",
+            "grace_period_duration": "P7D",
+            "resubscribe_state": "RESUBSCRIBE_STATE_ACTIVE",
+            "proration_mode": "SUBSCRIPTION_PRORATION_MODE_CHARGE_ON_NEXT_BILLING_DATE",
+            "legacy_compatible": true,
+            "legacy_compatible_subscription_offer_id": ""
+          },
+          "offer_tags": [],
+          "offers": {
+            "kplus-launch-intro": {
+              "state": "ACTIVE",
+              "phases": [
+                {
+                  "recurrence_count": 1,
+                  "duration": "P1M",
+                  "regional_configs": {
+                    "US": {
+                      "free": true
+                    }
+                  }
+                }
+              ],
+              "regional_configs": {
+                "US": {
+                  "new_subscriber_availability": true
+                }
+              },
+              "other_regions_config": {
+                "other_regions_new_subscriber_availability": false
+              },
+              "targeting": {
+                "acquisition_rule": {
+                  "scope": {
+                    "anySubscriptionInApp": {}
+                  }
+                }
+              },
+              "offer_tags": [
+                "kplus-intro"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "product_id": "prod20dbedb923",
+      "store": "play_store",
+      "status": {
+        "status": "ok",
+        "raw_store_status": null,
+        "read_error_reason": null
+      },
+      "store_fetched_at": "2026-10-29T18:03:41Z",
+      "warnings": [
+        "Apple subscriptions often require pricing metadata for all 175 territories. Only 1 territories were provided in `common.pricing.territory_prices`. Call `/v2/projects/proj46588afb/products/prod20dbedb923/store_state/actions/equalize_subscription_prices` to fill missing territories using Apple price equalizations."
+      ],
+      "USprice": {
+        "amount_micros": 9990000,
+        "currency": "USD"
+      },
+      "USavailable": true,
+      "plans": {
+        "annual": {
+          "state": "ACTIVE",
+          "regional_configs": {
+            "US": {
+              "new_subscriber_availability": true,
+              "price": {
+                "amount_micros": 9990000,
+                "currency": "USD"
+              }
+            }
+          },
+          "auto_renewing_base_plan_type": {
+            "billing_period_duration": "P1Y",
+            "grace_period_duration": "P14D",
+            "resubscribe_state": "RESUBSCRIBE_STATE_ACTIVE",
+            "proration_mode": "SUBSCRIPTION_PRORATION_MODE_CHARGE_ON_NEXT_BILLING_DATE",
+            "legacy_compatible_subscription_offer_id": ""
+          },
+          "offer_tags": [],
+          "offers": {
+            "kplus-launch-intro": {
+              "state": "ACTIVE",
+              "phases": [
+                {
+                  "recurrence_count": 1,
+                  "duration": "P1M",
+                  "regional_configs": {
+                    "US": {
+                      "free": true
+                    }
+                  }
+                }
+              ],
+              "regional_configs": {
+                "US": {
+                  "new_subscriber_availability": true
+                }
+              },
+              "other_regions_config": {
+                "other_regions_new_subscriber_availability": false
+              },
+              "targeting": {
+                "acquisition_rule": {
+                  "scope": {
+                    "anySubscriptionInApp": {}
+                  }
+                }
+              },
+              "offer_tags": [
+                "kplus-intro"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "product_id": "prod6fa234d5c6",
+      "store": "app_store",
+      "status": {
+        "status": "needs_action",
+        "raw_store_status": "READY_TO_SUBMIT",
+        "read_error_reason": null
+      },
+      "store_fetched_at": "2026-10-29T18:03:41Z",
+      "USprice": {
+        "amount_micros": 990000,
+        "currency": "USD"
+      },
+      "USavailable": true,
+      "trial": {
+        "duration": "ONE_MONTH",
+        "start_date": "2026-10-05",
+        "territories": {
+          "US": true
+        }
+      }
+    },
+    {
+      "product_id": "prodf735b4c3d4",
+      "store": "app_store",
+      "status": {
+        "status": "needs_action",
+        "raw_store_status": "READY_TO_SUBMIT",
+        "read_error_reason": null
+      },
+      "store_fetched_at": "2026-10-29T18:03:41Z",
+      "USprice": {
+        "amount_micros": 9990000,
+        "currency": "USD"
+      },
+      "USavailable": true,
+      "trial": {
+        "duration": "ONE_MONTH",
+        "start_date": "2026-10-05",
+        "territories": {
+          "US": true
+        }
+      }
+    }
+  ]
+}

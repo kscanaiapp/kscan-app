@@ -1,0 +1,50 @@
+{
+  "summary": {
+    "cases": 2,
+    "PASS": 2,
+    "FAIL": 0,
+    "SKIP": 0,
+    "source": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "scope": "New real local PostgreSQL boundary only;no repeated handlers/RevenueCat/Gemini/Receipt tests. Auth.uid fixtures;not signed JWT or deployed grant proof.",
+    "newOriginalCandidates": [
+      "B35-MAND-1142",
+      "B35-MAND-1185",
+      "B35-MAND-1180"
+    ],
+    "partialOriginalRemainsNT": [
+      "B35-MAND-1141",
+      "B35-MAND-1184"
+    ]
+  },
+  "records": [
+    {
+      "probeId": "B35-QUOTA-SQL-01",
+      "originalIds": [
+        "B35-MAND-1185"
+      ],
+      "description": "StyleChat ten same-window real SQL retries",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": 4,
+        "seconds": 0.003188,
+        "count": 10
+      },
+      "elapsedMs": 509
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-02",
+      "originalIds": [
+        "B35-MAND-1142"
+      ],
+      "description": "Outfit ten same-window real SQL retries",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": 3,
+        "seconds": 0.005242,
+        "count": 3
+      },
+      "elapsedMs": 564
+    }
+  ]
+}

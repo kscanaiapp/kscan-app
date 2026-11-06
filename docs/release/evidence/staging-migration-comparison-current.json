@@ -1,0 +1,369 @@
+{
+  "localCount": 183,
+  "remoteCount": 183,
+  "commonCount": 153,
+  "remoteOnly": [],
+  "localOnly": [],
+  "reconciledLocal": [
+    {
+      "version": "20260720120000",
+      "name": "scan_commerce_events",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260720115423"
+      ]
+    },
+    {
+      "version": "20260721170559",
+      "name": "dr3_collaborative_interactions",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260721201218"
+      ]
+    },
+    {
+      "version": "20260721183308",
+      "name": "dr4_collab_idempotency_room_scope",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260721201347"
+      ]
+    },
+    {
+      "version": "20260805170417",
+      "name": "legal_acceptances_add_ai_processing",
+      "classification": "SUPERSEDED_BY_LATER_MIGRATION",
+      "remoteVersions": [
+        "20260812031312"
+      ]
+    },
+    {
+      "version": "20260808103028",
+      "name": "privacy_request_rate_limits",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260808121216"
+      ]
+    },
+    {
+      "version": "20260809120000",
+      "name": "contribution_block_enforcement",
+      "classification": "SUPERSEDED_BY_LATER_MIGRATION",
+      "remoteVersions": []
+    },
+    {
+      "version": "20260818000001",
+      "name": "add_user_stylist_preferences_display_name_customized",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260818141056"
+      ]
+    },
+    {
+      "version": "20260823120000",
+      "name": "scan_commerce_events_accuracy_telemetry",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260823175314"
+      ]
+    },
+    {
+      "version": "20260830060000",
+      "name": "user_style_profiles",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830053104"
+      ]
+    },
+    {
+      "version": "20260830070000",
+      "name": "upsert_style_dna_profile_rpc",
+      "classification": "CONSOLIDATED_IN_REMOTE",
+      "remoteVersions": [
+        "20260830113230",
+        "20260830113421"
+      ]
+    },
+    {
+      "version": "20260830131956",
+      "name": "signature_style_server_authority",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260830145412"
+      ]
+    },
+    {
+      "version": "20260830140000",
+      "name": "fix_recompute_signature_style_column_ambiguity",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830150440"
+      ]
+    },
+    {
+      "version": "20260830150000",
+      "name": "user_commerce_watches",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830211956"
+      ]
+    },
+    {
+      "version": "20260830151500",
+      "name": "user_commerce_watch_events_and_rpcs",
+      "classification": "CONSOLIDATED_IN_REMOTE",
+      "remoteVersions": [
+        "20260830212244",
+        "20260830212316",
+        "20260830212326",
+        "20260830212412",
+        "20260830212444"
+      ]
+    },
+    {
+      "version": "20260830161500",
+      "name": "watch_push_enabled",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830212527"
+      ]
+    },
+    {
+      "version": "20260830162500",
+      "name": "claim_watchable_commerce_watches",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830212537"
+      ]
+    },
+    {
+      "version": "20260830190000",
+      "name": "watchlist_push_token_actor_isolation",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830214752"
+      ]
+    },
+    {
+      "version": "20260830190500",
+      "name": "watchlist_create_honours_changed_intent",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260830214806"
+      ]
+    },
+    {
+      "version": "20260831000100",
+      "name": "watchlist_worker_enablement",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831135148"
+      ]
+    },
+    {
+      "version": "20260831120000",
+      "name": "watchlist_device_ownership_claim",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831135158"
+      ]
+    },
+    {
+      "version": "20260831120500",
+      "name": "claim_user_commerce_watches_for_refresh",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831135218"
+      ]
+    },
+    {
+      "version": "20260831130000",
+      "name": "vto_generation_reservations",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831135239"
+      ]
+    },
+    {
+      "version": "20260831140000",
+      "name": "deleted_owner_retained_media",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831135251"
+      ]
+    },
+    {
+      "version": "20260831160000",
+      "name": "vto_paid_quota_attempt_counting",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260831185314"
+      ]
+    },
+    {
+      "version": "20260902120000",
+      "name": "watchlist_device_route_and_account_state",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260902144906"
+      ]
+    },
+    {
+      "version": "20260902130000",
+      "name": "reaction_counts_honour_dressing_room_block",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260902154435"
+      ]
+    },
+    {
+      "version": "20260909115726",
+      "name": "watchlist_push_receipts",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260909171001"
+      ]
+    },
+    {
+      "version": "20260909170000",
+      "name": "watchlist_f03_push_token_actor_isolation_reconciliation",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260909171017"
+      ]
+    },
+    {
+      "version": "20260914120000",
+      "name": "close_authenticated_cross_actor_owned_item_snapshot",
+      "classification": "EXACT_CONTENT_RENUMBER",
+      "remoteVersions": [
+        "20260914201155"
+      ]
+    },
+    {
+      "version": "20260916203000",
+      "name": "reaction_counts_require_live_room_access",
+      "classification": "EQUIVALENT_RENUMBER",
+      "remoteVersions": [
+        "20260916204355"
+      ]
+    }
+  ],
+  "reconciledRemote": [
+    "20260830053104",
+    "20260830113230",
+    "20260830113421",
+    "20260830145412",
+    "20260830150440",
+    "20260830211956",
+    "20260830212244",
+    "20260830212316",
+    "20260830212326",
+    "20260830212412",
+    "20260830212444",
+    "20260830212518",
+    "20260830212527",
+    "20260830212537",
+    "20260830214752",
+    "20260830214806",
+    "20260831135127",
+    "20260831135148",
+    "20260831135158",
+    "20260831135218",
+    "20260831135239",
+    "20260831135251",
+    "20260831185314",
+    "20260902144906",
+    "20260902154435",
+    "20260909171001",
+    "20260909171017",
+    "20260914201155",
+    "20260916204355"
+  ],
+  "excludedRemoteOnly": [
+    "20260916234025"
+  ],
+  "reconciliationProblems": [],
+  "duplicates": [],
+  "ok": true,
+  "blockers": [],
+  "knownPending": [],
+  "approvableKnownPending": [],
+  "hold": [],
+  "exclude": [],
+  "fulfilled": [
+    {
+      "version": "20261002010000",
+      "logicalName": "kplus_paid_lifetime_entitlement_foundation",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261003195716",
+      "logicalName": "kplus_provider_pull_reconciliation",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261004184118",
+      "logicalName": "kplus_offer_code_redemption_authority",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261004221500",
+      "logicalName": "closet_purchase_import_origin",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261004231628",
+      "logicalName": "fix_kplus_reconciliation_uuid_selection",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261011222213",
+      "logicalName": "build35_speech_operational_cost_controls",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261014210000",
+      "logicalName": "stylist_speech_kplus_reservation_guard",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261015214749",
+      "logicalName": "style_chat_greeting_actor_session_unique",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261016001500",
+      "logicalName": "vto_attempt_scoped_settlement",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    },
+    {
+      "version": "20261029125521",
+      "logicalName": "black_owned_discovery_v1",
+      "disposition": "KNOWN_FUTURE_UNAPPLIED",
+      "state": "FULFILLED"
+    }
+  ],
+  "unexplainedRemote": [],
+  "unexplainedLocal": [],
+  "remoteOnlyAllowed": [
+    {
+      "version": "20260916234025",
+      "classification": "OBSOLETE_REMOTE_ONLY",
+      "logicalName": "dressing_room_items_source_idempotency"
+    }
+  ],
+  "approvedSelectedForExecution": 0,
+  "otherKnownPendingCount": 0,
+  "selectedMigration": "NONE",
+  "knownPendingCount": 0
+}

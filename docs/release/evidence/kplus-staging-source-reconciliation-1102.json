@@ -1,0 +1,71 @@
+{
+  "capturedAt": "2026-11-02T16:08:10.411Z",
+  "oldBackend": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af",
+  "currentBackend": "19bcc5d699f878561aaef1f9bc914c998e2a0de7",
+  "currentMobile": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+  "exactSqlBlobs": [
+    {
+      "path": "supabase/migrations/20260915030553_kplus_entitlement_authority.sql",
+      "oldBlob": "d553fbe559b5cd9f238a9d66e62c02e079c2539d",
+      "currentBlob": "d553fbe559b5cd9f238a9d66e62c02e079c2539d",
+      "equivalent": true
+    },
+    {
+      "path": "supabase/migrations/20260915181554_kplus_revenuecat_mirror_retirement.sql",
+      "oldBlob": "abc308eed9822d8b17c2c2cbfd42590066016fa9",
+      "currentBlob": "abc308eed9822d8b17c2c2cbfd42590066016fa9",
+      "equivalent": true
+    },
+    {
+      "path": "supabase/migrations/20261002010000_kplus_paid_lifetime_entitlement_foundation.sql",
+      "oldBlob": "13737eeb1b4cf8c7da04e17c36f106a048c79b35",
+      "currentBlob": "13737eeb1b4cf8c7da04e17c36f106a048c79b35",
+      "equivalent": true
+    },
+    {
+      "path": "supabase/migrations/20261003195716_kplus_provider_pull_reconciliation.sql",
+      "oldBlob": "f6cccbe578abc955d91639d92825140c9160e495",
+      "currentBlob": "f6cccbe578abc955d91639d92825140c9160e495",
+      "equivalent": true
+    },
+    {
+      "path": "supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql",
+      "oldBlob": "7895f9378239a58e9f6b9f99b43955a16996b7d3",
+      "currentBlob": "7895f9378239a58e9f6b9f99b43955a16996b7d3",
+      "equivalent": true
+    },
+    {
+      "path": "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql",
+      "oldBlob": "24eabca84d369433480b952a49263849bbe2d5b5",
+      "currentBlob": "24eabca84d369433480b952a49263849bbe2d5b5",
+      "equivalent": true
+    }
+  ],
+  "newMigrationSymbolReview": [
+    {
+      "path": "supabase/migrations/20261031162813_saved_scans_active_account_guard.sql",
+      "kplusSymbolsPresent": false
+    },
+    {
+      "path": "supabase/migrations/20261102125053_saved_scan_explicit_restore.sql",
+      "kplusSymbolsPresent": false
+    }
+  ],
+  "retainedRecords": {
+    "total": 46,
+    "concurrency": 11,
+    "authority": 35,
+    "verdict": "PASS at recorded dated Staging execution; no new remote execution"
+  },
+  "scope": "Reuses only actual normalized provider transition/authority RPC evidence where exact SQL identity is established. Does not turn it into native purchases, RevenueCat HTTP or actual signed-webhook evidence. Current DB effective settings may differ; deployment/runtime state remains dated and independently qualified.",
+  "freshSourceComposition": {
+    "shared": 16,
+    "mounted": 10,
+    "allPass": true,
+    "evidence": [
+      "kplus-shared-source-1102-results.json",
+      "kplus-mounted-source-1102-results.json"
+    ]
+  },
+  "noRemoteMutation": true
+}

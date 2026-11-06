@@ -1,0 +1,52 @@
+✔ identity is optional, verified, permissioned and unexpired (1.0913ms)
+✔ client defaults OFF and cannot start secondary work until primary settles (1.2242ms)
+✔ client sends only garment attributes, no raw image or primary response mutation (1.5973ms)
+✔ client failure and cancellation leave secondary absent (0.6983ms)
+✔ telemetry allowlists events, removes arbitrary properties, never equates click with purchase (15.7449ms)
+✔ shelf defaults off, hides zero results, keeps card actions, and is never mounted directly by an app route (3.8849ms)
+✖ malformed secondary product display fields fail closed before reaching primary host (2.2568ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 548.4752
+
+✖ failing tests:
+
+test at __tests__\blackOwnedDiscoveryClient.test.js:47:1
+✖ malformed secondary product display fields fail closed before reaching primary host (2.2568ms)
+  AssertionError [ERR_ASSERTION]: {"productUrl":42}
+  + actual - expected
+  
+  + {
+  +   generatedAt: '2026-10-29T15:27:22.741Z',
+  +   primaryOwnership: {},
+  +   products: [
+  +     {
+  +       brandName: 'Synthetic Brand',
+  +       id: 'synthetic',
+  +       matchType: 'similar',
+  +       placementType: 'organic',
+  +       productUrl: 42,
+  +       title: 'Synthetic jacket',
+  +       type: 'similar'
+  +     }
+  +   ],
+  +   status: 'ready',
+  +   version: 'black-owned-discovery-v1'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (C:\b35full1029\__tests__\blackOwnedDiscoveryClient.test.js:51:12)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { version: 'black-owned-discovery-v1', status: 'ready', products: [ [Object] ], primaryOwnership: {}, generatedAt: '2026-10-29T15:27:22.741Z' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

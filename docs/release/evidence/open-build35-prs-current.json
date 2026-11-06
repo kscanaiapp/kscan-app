@@ -1,0 +1,262 @@
+{
+  "capturedAt": "2026-10-29T19:37:20.496Z",
+  "ownerStop": true,
+  "rows": [
+    {
+      "pr": 644,
+      "sha": "bd2827e7bb524cf149ac01ae5443f2901bbb29f6",
+      "branch": "audit/build35-full-hostile-20261029",
+      "base": "release/kscan-pre-freeze-v1",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "SUCCESS": 28,
+        "SKIPPED": 11
+      },
+      "failed": []
+    },
+    {
+      "pr": 645,
+      "sha": "fb08e845a4d251a7979c6a15460096504816efcc",
+      "branch": "audit/build35-integration-hostile-20261029",
+      "base": "integration/build35-v1-convergence",
+      "state": "OPEN",
+      "draft": false,
+      "counts": {
+        "QUEUED": 3,
+        "IN_PROGRESS": 2,
+        "SUCCESS": 21,
+        "SKIPPED": 13
+      },
+      "failed": []
+    },
+    {
+      "pr": 646,
+      "sha": "a8bd82a80f633e54bad1c47c917e79f4b2b8ce73",
+      "branch": "docs/build35-campaign-checkpoint-20261029",
+      "base": "integration/build35-v1-convergence",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "FAILURE": 2,
+        "SUCCESS": 32,
+        "SKIPPED": 20
+      },
+      "failed": [
+        {
+          "name": "Dependency reachability gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40934210937/job/123660325895",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Dependency reachability gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40934197893/job/123660282214",
+          "conclusion": "FAILURE"
+        }
+      ]
+    },
+    {
+      "pr": 647,
+      "sha": "9ab4a2da3eefd94fb366a4ff7721ea7999c2f54f",
+      "branch": "repair/build35-outfit-account-gate-20261029",
+      "base": "rebuild/backend-authority-v2",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "QUEUED": 11,
+        "IN_PROGRESS": 1,
+        "SUCCESS": 12,
+        "SKIPPED": 7
+      },
+      "failed": []
+    },
+    {
+      "pr": 648,
+      "sha": "751e381565a70f34fdf14edee43fffab232b8030",
+      "branch": "integration/build35-hostile-convergence-20261029",
+      "base": "integration/build35-v1-convergence",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "QUEUED": 24,
+        "IN_PROGRESS": 2,
+        "SUCCESS": 1,
+        "SKIPPED": 14
+      },
+      "failed": []
+    },
+    {
+      "pr": 649,
+      "sha": "6f768494dea55d000e5d9460a7bd83f20422ffd4",
+      "branch": "repair/build35-gemini-transfer-consent-20261029",
+      "base": "rebuild/backend-authority-v2",
+      "state": "OPEN",
+      "draft": false,
+      "counts": {
+        "QUEUED": 4,
+        "IN_PROGRESS": 1,
+        "SUCCESS": 19,
+        "SKIPPED": 7
+      },
+      "failed": []
+    },
+    {
+      "pr": 650,
+      "sha": "dae4ff0776354a09a37103ce2e7936dc27ffeb16",
+      "branch": "repair/build35-vto-dispatch-accounting-20261029",
+      "base": "integration/build35-hostile-convergence-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "FAILURE": 6,
+        "SUCCESS": 24,
+        "SKIPPED": 17
+      },
+      "failed": [
+        {
+          "name": "Project checks",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920336336/job/123611517911",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Project checks",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920325542/job/123611482592",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security promotion gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920336353/job/123611516865",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security promotion gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920325159/job/123611479511",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security summary",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920336336/job/123614871900",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security summary",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40920325542/job/123613850401",
+          "conclusion": "FAILURE"
+        }
+      ]
+    },
+    {
+      "pr": 651,
+      "sha": "31d2f53c5d029a68ec5dd791da59129c581f2f46",
+      "branch": "repair/build35-ownership-badge-expiry-20261029",
+      "base": "integration/build35-hostile-convergence-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "FAILURE": 8,
+        "SUCCESS": 26,
+        "SKIPPED": 20
+      },
+      "failed": [
+        {
+          "name": "Project checks",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924096979/job/123624875235",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Project checks",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924087591/job/123624838240",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security promotion gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924096303/job/123624870089",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security promotion gate",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924087690/job/123624837473",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "VTO E2E — contract",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924096563/job/123624871818",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "VTO E2E — contract",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924087635/job/123624840301",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security summary",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924096979/job/123628078571",
+          "conclusion": "FAILURE"
+        },
+        {
+          "name": "Security summary",
+          "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/40924087591/job/123627060660",
+          "conclusion": "FAILURE"
+        }
+      ]
+    },
+    {
+      "pr": 652,
+      "sha": "1c3433e2ea001d08db2b66777c0c746097dedb82",
+      "branch": "repair/build35-speech-empty-timing-20261029",
+      "base": "integration/build35-hostile-convergence-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "QUEUED": 15,
+        "IN_PROGRESS": 5,
+        "SUCCESS": 5,
+        "SKIPPED": 13
+      },
+      "failed": []
+    },
+    {
+      "pr": 653,
+      "sha": "394645c254717a4fb634744d3ef0678b2dd36a65",
+      "branch": "repair/build35-gemini-withdrawal-20261029",
+      "base": "repair/build35-gemini-transfer-consent-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "QUEUED": 8,
+        "IN_PROGRESS": 2,
+        "SUCCESS": 13,
+        "SKIPPED": 7
+      },
+      "failed": []
+    },
+    {
+      "pr": 654,
+      "sha": "36020928107df821411c300a2047424210ab95b5",
+      "branch": "repair/build35-gemini-privacy-control-20261029",
+      "base": "integration/build35-hostile-convergence-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "QUEUED": 6,
+        "SKIPPED": 7
+      },
+      "failed": []
+    },
+    {
+      "pr": 655,
+      "sha": "b4ba29c8d986594a1c6e02633b8c955067398ef8",
+      "branch": "repair/build35-uri-decoder-dos-20261029",
+      "base": "integration/build35-hostile-convergence-20261029",
+      "state": "OPEN",
+      "draft": true,
+      "counts": {
+        "IN_PROGRESS": 2,
+        "SUCCESS": 23,
+        "SKIPPED": 13,
+        "QUEUED": 2
+      },
+      "failed": []
+    }
+  ]
+}

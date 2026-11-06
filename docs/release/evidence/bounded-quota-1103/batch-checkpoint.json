@@ -1,0 +1,257 @@
+{
+  "at": "2026-11-03T19:58:06.544Z",
+  "phase": "BOUNDED BATCH COMPLETE / STOP AT EVIDENCE CHECKPOINT / AUDIT IN PROGRESS",
+  "authority": {
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "evidenceReconciliationCommit": "f728c4bfc2acd2b22593ce5455483fc2a1c07452"
+  },
+  "dedup": "Original1180/1185/1142 retained NT by primary reconciliation because A2 substituted SQL. A4 was RevenueCat/K+ SQL and is not rerun. No image/privacy703 case touched;no Gemini/Receipt/Scanner/Packing/discovery/provider suite rerun.",
+  "command": "node C:/b35readback1030/noretest-1103/quota-boundary-batch.cjs",
+  "cases": 10,
+  "finalPASS": 10,
+  "finalFAIL": 0,
+  "SKIP": 0,
+  "attempts": {
+    "first": {
+      "PASS": 8,
+      "FAIL": 2
+    },
+    "specificRetry": {
+      "PASS": 2,
+      "FAIL": 0,
+      "cases": [
+        "B35-QUOTA-SQL-01",
+        "B35-QUOTA-SQL-02"
+      ]
+    },
+    "observerCorrection": "The authenticated caller cannot read burst rows due to RLS;initial test incorrectly asserted their count through that caller. Corrected only the test observer to a local postgres connection after commit. No quota SQL/RLS/product mutation. Failed originals preserved."
+  },
+  "records": [
+    {
+      "probeId": "B35-QUOTA-SQL-01",
+      "originalIds": [
+        "B35-MAND-1185"
+      ],
+      "description": "StyleChat ten same-window real SQL retries",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": 4,
+        "seconds": 0.003188,
+        "count": 10
+      },
+      "elapsedMs": 509
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-02",
+      "originalIds": [
+        "B35-MAND-1142"
+      ],
+      "description": "Outfit ten same-window real SQL retries",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": 3,
+        "seconds": 0.005242,
+        "count": 3
+      },
+      "elapsedMs": 564
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-03",
+      "originalIds": [],
+      "description": "StyleChat actor budgets remain separate",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": true,
+        "remaining": 0,
+        "reset_at": "2026-11-03T19:56:00+00:00",
+        "retry_after_seconds": 51
+      },
+      "elapsedMs": 714
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-04",
+      "originalIds": [],
+      "description": "Outfit actor budgets remain separate",
+      "verdict": "PASS",
+      "actual": {
+        "allowed": true,
+        "retry_after_seconds": 0,
+        "reset_at": "2026-11-03T19:56:00+00:00"
+      },
+      "elapsedMs": 746
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-05",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat simultaneous last daily slot",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "messages_used": 25,
+            "messages_limit": 25,
+            "limit_reached": true
+          },
+          {
+            "messages_used": 25,
+            "messages_limit": 25,
+            "limit_reached": false
+          }
+        ],
+        "scope": "Quota atomicity only;provider dispatch idempotency remains unproven"
+      },
+      "elapsedMs": 1527
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-06",
+      "originalIds": [
+        "B35-MAND-1141"
+      ],
+      "description": "Outfit simultaneous last daily slot",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "generations_used": 10,
+            "generations_limit": 10,
+            "limit_reached": false
+          },
+          {
+            "generations_used": 10,
+            "generations_limit": 10,
+            "limit_reached": true
+          }
+        ],
+        "scope": "Quota atomicity only;not full duplicate logical generation"
+      },
+      "elapsedMs": 1782
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-07",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat same-key concurrent quota charge once",
+      "verdict": "PASS",
+      "actual": {
+        "rows": [
+          {
+            "messages_used": 1,
+            "messages_limit": 25,
+            "limit_reached": false,
+            "duplicate_request": false
+          },
+          {
+            "messages_used": 1,
+            "messages_limit": 25,
+            "limit_reached": false,
+            "duplicate_request": true
+          }
+        ],
+        "flag": "ELISE_QUOTA_IDEMPOTENCY_V1_ENABLED defaults false;not runtime feature activation proof"
+      },
+      "elapsedMs": 1421
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-08",
+      "originalIds": [
+        "B35-MAND-1184"
+      ],
+      "description": "StyleChat distinct keys compete for one remaining slot",
+      "verdict": "PASS",
+      "actual": [
+        {
+          "messages_used": 25,
+          "messages_limit": 25,
+          "limit_reached": false,
+          "duplicate_request": false
+        },
+        {
+          "messages_used": 25,
+          "messages_limit": 25,
+          "limit_reached": true,
+          "duplicate_request": false
+        }
+      ],
+      "elapsedMs": 1643
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-09",
+      "originalIds": [
+        "B35-MAND-1180"
+      ],
+      "description": "StyleChat RPC SQL payload stays data",
+      "verdict": "PASS",
+      "actual": {
+        "keyStoredExactly": true,
+        "profiles": 2,
+        "integerPayloadRejected": true,
+        "scope": "Actual integer/text RPC types and static SQL;HTTP named-argument selection source-reviewed separately"
+      },
+      "elapsedMs": 1316
+    },
+    {
+      "probeId": "B35-QUOTA-SQL-10",
+      "originalIds": [],
+      "description": "Direct counter writes denied even with elevated table grants",
+      "verdict": "PASS",
+      "actual": {
+        "bothDirectWritesDenied": true,
+        "scope": "Real RLS with stronger fixture grants;not full deployed privilege audit"
+      },
+      "elapsedMs": 920
+    }
+  ],
+  "originalMatrix": {
+    "total": 3096,
+    "PASS": 220,
+    "NOT TESTED": 2875,
+    "FAIL": 1,
+    "NAIncludedInNT": 354,
+    "newPASS": [
+      "B35-MAND-1185",
+      "B35-MAND-1142",
+      "B35-MAND-1180"
+    ],
+    "partialStillNT": [
+      "B35-MAND-1141",
+      "B35-MAND-1184"
+    ],
+    "failureUnchanged": "B35-MAND-0141/#691"
+  },
+  "governanceChange": {
+    "file": "__tests__/signatureStyleTerminologyGuard.test.js",
+    "purpose": "Classify two exact immutable quoted wire-key records;negative controls reject other files/new product text.",
+    "focusedResult": "9PASS/0FAIL/0SKIP;no broad suite run"
+  },
+  "archives": {
+    "retainedBefore": 491,
+    "new": 3,
+    "total": 494,
+    "scope": "Only three new logs compressed/decompressed/hash-checked now;prior491 verification reused."
+  },
+  "sourceRepairsPerformed": 0,
+  "confirmedNewProductDefects": 0,
+  "separatePending": {
+    "source": [
+      "#711 Packing current source integration/security check artifact",
+      "#691 Watchlist W2 mobile merge;original0141stillFAIL"
+    ],
+    "privacy": "#703 residual image/privacy original cells",
+    "operational": "#706 Production RevenueCat recovery failure/sandbox/activation",
+    "#688": "owner-supplied Watchlist automation environment/secret",
+    "#694": "catalog scheduler merchant-feed/secret/manual sync gates"
+  },
+  "externalActions": {
+    "remoteSQL": 0,
+    "deployments": 0,
+    "migrations": 0,
+    "paidProviderCalls": 0,
+    "builds": 0,
+    "customerWrites": 0
+  },
+  "next": "Review current #691/#711 source integration and exact-head security gate/Contract artifact failure separately;do not rerun completed suites. Await #703 evidence and #706 recovery. No next hostile test batch started by this checkpoint."
+}

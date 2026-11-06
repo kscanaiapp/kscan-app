@@ -1,0 +1,65 @@
+{
+  "queryScope": "Four public RPC body hashes and anon/authenticated EXECUTE only; no customer records or mutation",
+  "remote": {
+    "staging": [
+      {
+        "proname": "complete_provider_request",
+        "signature": "complete_provider_request(uuid)",
+        "body_md5": "b946c78da7c0f883f59053d2cff753af",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "evaluate_provider_abuse_state",
+        "signature": "evaluate_provider_abuse_state(uuid,text)",
+        "body_md5": "a21d66413f2828eb8d5526275d1817a2",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "release_provider_request",
+        "signature": "release_provider_request(uuid,text)",
+        "body_md5": "9c26d272a77f9d2bebd984f503e8a4aa",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "reserve_provider_request",
+        "signature": "reserve_provider_request(text,text,uuid,text,numeric)",
+        "body_md5": "9cbd2fd650a3017e0fa9e6b52461ea63",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      }
+    ],
+    "production": [
+      {
+        "proname": "complete_provider_request",
+        "signature": "complete_provider_request(uuid)",
+        "body_md5": "b946c78da7c0f883f59053d2cff753af",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "evaluate_provider_abuse_state",
+        "signature": "evaluate_provider_abuse_state(uuid,text)",
+        "body_md5": "a21d66413f2828eb8d5526275d1817a2",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "release_provider_request",
+        "signature": "release_provider_request(uuid,text)",
+        "body_md5": "9c26d272a77f9d2bebd984f503e8a4aa",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      },
+      {
+        "proname": "reserve_provider_request",
+        "signature": "reserve_provider_request(text,text,uuid,text,numeric)",
+        "body_md5": "9cbd2fd650a3017e0fa9e6b52461ea63",
+        "authenticated_execute": true,
+        "anonymous_execute": false
+      }
+    ]
+  }
+}

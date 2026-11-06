@@ -1,0 +1,56 @@
+{
+  "capturedAt": "2026-10-30T21:48:40.002Z",
+  "sourceSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+  "rows": [
+    {
+      "conclusion": "success",
+      "databaseId": 41125992024,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991782,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "Dependency Reachability Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991858,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "K Scan Staging Security Gate"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991556,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "Security - ZAP API Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991731,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "Security - ZAP Baseline Staging"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991685,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 41125991538,
+      "headSha": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+      "status": "completed",
+      "workflowName": "Security - Promotion Gate"
+    }
+  ],
+  "allSuccess": true
+}

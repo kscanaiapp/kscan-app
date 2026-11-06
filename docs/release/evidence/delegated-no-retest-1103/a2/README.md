@@ -1,0 +1,127 @@
+# Build 35 hostile audit — lane A2, batch 1 (issue #702)
+
+Source tested: mobile `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27` (== `origin/integration/build35-v1-convergence` at test time).
+Scope: `purchase-import-extract` only. No production, shared handler, matrix, migration or manifest file was edited.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+deno test --allow-read --allow-env --allow-write=audit/a2/out audit/a2/receipt-batch1.test.ts
+node audit/a2/build-ledger.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+Baseline (existing suite, unmodified): `deno test --allow-read --allow-env --allow-run=deno supabase/functions/purchase-import-extract` → 16 passed / 0 failed.
+
+## Files
+
+- `receipt-batch1.test.ts` — 19 Deno tests against the actual `handler.ts`. Auth, quota and provider are injected, except probes 0737/0740/0767/0750, which run the real `requireUser` / real default `reserve` adapter over a stubbed `fetch`. Zero network.
+- `out/receipt-batch1-results.json` — per-probe input / expected / actual / side effects / limits.
+- `out/a2-batch1-ledger.json` — 28-cell mapping proposal and exact count reconciliation.
+- `out/run1-initial-test-defect.txt` — first run: 18 pass / 1 fail. The failure was a false positive in my own static-scan regex (`member` matched "loyalty member numbers" in the sanitizer prompt text); fixed in the test, not a product defect.
+- `out/run2-after-regex-fix.txt`, `out/run3-final-clean.txt` — 19 passed / 0 failed.
+
+## Mutation controls (one guard at a time, handler restored afterwards, blob verified)
+
+| Mutation | Tests that failed |
+| --- | --- |
+| M1 remove body-size guard | 0745 |
+| M2 drop JPEG magic check | 0751, 0753 |
+| M3 settle always billable | 0761, 0762, 0763 |
+| M4 widen requestId allowlist | 0746, 0747, 0750 |
+| M5 reserve failure fails open | 0767 |
+| M6 actor read from `x-user-id` header | 0740 |
+
+Not mutation-checked: 0737 (expired JWT), 0764–0766 (envelope/schema), and the static N/A scans.
+
+## Limits
+
+A mock is not a live provider; the Auth server is a stub. Nothing here validates a signed live JWT, a deployed function, or real provider behaviour.
+
+---
+
+# Batch 2: Live Camera VTO (43 cells)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+B35_AUDIT_SOURCE_ROOT=$PWD node --test --test-reporter=spec audit/a2/live-batch2.test.cjs               # 9 pass
+B35_AUDIT_SOURCE_ROOT=$PWD node --test --test-reporter=spec audit/a2/live-remote-source-1102.test.cjs    # 10 pass (retained PR #646 evidence, verbatim)
+node audit/a2/build-ledger-batch2.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+## Files
+
+- `live-batch2.test.cjs`: 9 `node:test` blocks. Real `useVtoLiveSession` with injected native/permission/sanitizer fakes (2775, 2776, 2791), real governed registry and resolver (2767-2769), real entitlement mapping and Studio gate (2791 composition), static scan of the Live source graph.
+- `live-remote-source-1102.test.cjs`: verbatim copy of the retained PR #646 remote-config test (maps to 2782-2788).
+- `out/live-batch2-results.json`: per-probe input / expected / actual / side effects / limits.
+- `out/a2-batch2-ledger.json`: 43-cell mapping proposal and count reconciliation (alone and cumulative with batch 1).
+- `out/live-batch2-mutations.md`: mutation controls, including two equivalent survivors.
+- `out/live-run1-mounted-concurrency-remote.txt`: retained suites re-run at this head, 56/56. `out/live-run2-batch2-final.txt`: 9/9.
+
+## Limits
+
+Live is an on-device camera with no provider and no endpoint. Cells phrased as endpoint/provider probes are either N/A by construction (proposed) or mapped to the only remote dependency, the `app_config` availability read (2782-2788, flagged for a ruling). Nothing here is a device run; cells 2777-2780 stay device-excluded.
+
+---
+
+# Batch 3: StyleChat (`stylechat-generate`, 37 pending rows)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited. `style-outfit-generate` (a separate function with its own 43 matrix rows) and Packing (served by the same `index.ts` under `schemaVersion`) were not touched.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+deno test --no-check --allow-read --allow-env --allow-write=audit/a2/out audit/a2/stylechat-batch3.test.ts   # 24 pass (23 probe blocks + results writer)
+node audit/a2/mutate-stylechat.cjs        # one-guard-at-a-time mutation controls; restores with git checkout
+node audit/a2/build-ledger-batch3.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+`--no-check` is required: the handler tree has 12 pre-existing TS2339/TS2322 diagnostics under the default config (unrelated to behaviour, untouched).
+`mutate-stylechat.cjs` re-runs the suite, which overwrites `out/stylechat-batch3-results.json` with the last mutated run. Re-run the suite clean afterwards (the committed results file is from a clean run).
+
+## Files
+
+- `stylechat-world.ts`: synthetic world. Captures `Deno.serve` so the REAL `index.ts` runs unmodified; `fetch` is fully stubbed (Supabase Auth, PostgREST tables, RPCs, Gemini, Open-Meteo). Table stubs apply only the filters the handler puts in the query and do NOT emulate RLS, so a removed handler-side ownership filter is observable.
+- `stylechat-batch3.test.ts`: the probes.
+- `mutate-stylechat.cjs`, `out/stylechat-batch3-mutations.json`: 11 mutations; 10 detected, 1 equivalent survivor (S11: bearer-prefix check removed; Auth `getUser` still rejects).
+- `out/stylechat-batch3-results.json`, `out/a2-batch3-ledger.json`, `out/stylechat-run-final-clean.txt`.
+
+## Limits
+
+Mock provider and mock PostgREST; default flag state (generation safety, quota idempotency, retry, normalization, Concierge and attachment flags all off). Production flag state is not asserted. Server-side storage downloads for owned attachments, the SQL RPCs themselves, and Packing are not exercised.
+
+---
+
+# Batch 4: style-outfit-generate (34 pending rows)
+
+Same source `2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27`. No production, shared handler, matrix, migration or manifest file edited. Packing, the server-side attachment/storage path and the SQL bodies of the two quota RPCs were not touched.
+
+## Reproduce
+
+```bash
+git checkout 2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27 && git checkout <this branch> -- audit/a2
+npm ci --ignore-scripts
+deno test --no-check --allow-read --allow-env --allow-write=audit/a2/out audit/a2/outfit-batch4.test.ts   # 26 pass
+node audit/a2/mutate-outfit.cjs           # one-guard-at-a-time mutation controls; restores with git checkout
+deno test ... audit/a2/outfit-batch4.test.ts                                                               # re-run clean: the mutation run overwrites out/outfit-batch4-results.json
+node audit/a2/build-ledger-batch4.cjs <mandatory-hostile-probes.json from PR #646 head 49ab7fad>
+```
+
+## Files
+
+- `outfit-world.ts`: synthetic world. Captures `Deno.serve` so the REAL `style-outfit-generate/index.ts` runs unmodified; `fetch` is fully stubbed (Auth, closet/saved_scans/inspiration tables, lifecycle, consent, the two quota RPCs, Gemini). Table stubs apply only the filters the handler puts in the query and do NOT emulate RLS. Reuses constants from `stylechat-world.ts`.
+- `outfit-batch4.test.ts`: the probes (unversioned and versioned `private-dressing-room-elise-v1` branches).
+- `mutate-outfit.cjs`, `out/outfit-batch4-mutations.json`: 24 mutations; 22 detected, 2 equivalent survivors (O23 bearer regex bypass: Auth `getUser` still rejects; O24 private early-return parse guard: the handler re-parses and returns 400 before quota or provider). Two first-run survivors (O10, O11) were weak fixtures, not product behaviour; the outfits are now structurally complete so only the guard under test can reject them.
+- `out/outfit-batch4-results.json`, `out/a2-batch4-ledger.json`, `out/outfit-run-final-clean.txt`.
+
+## Limits
+
+Mock provider and mock PostgREST; default flag state. The 15 s provider timeout is scaled to 25 ms for the timeout cell (the timeout constant is therefore not mutation-checked). The function has no persistence, entitlement lookup, Storage call or shared-room read (static scan), which is the basis for the two proposed N/A cells (1157, 1159).

@@ -1,0 +1,45 @@
+{
+  "capturedAt": "2026-11-02T20:49:05.652Z",
+  "finding": "B35-C-023",
+  "status": "SOURCE CLOSED / CANONICAL AND MOBILE MERGED / INDEPENDENT POSTMERGE CI VERIFIED",
+  "canonical": {
+    "pr": 679,
+    "source": "214cf19efffce9b4f410b58075d4fc3c36c58bf1",
+    "reviewed": "a1cf4b1535f92097189d51fb4573627eb943a8d7",
+    "tree": "eede8c68273e7b6c6b7bd44dbdfd9c7f96026d68",
+    "workflows": "7/7SUCCESS",
+    "node": {
+      "pass": 8557,
+      "fail": 0,
+      "skip": 65
+    },
+    "backend": {
+      "pass": 1575,
+      "fail": 0
+    }
+  },
+  "mobile": {
+    "pr": 680,
+    "source": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+    "reviewed": "6c30bb3416bf0fcb383c5b2896dd239ecc1f90a9",
+    "testedMerge": "3ba139baa23eb849cddab0efb1cc6a437719eb48",
+    "tree": "97fa919e6176c8bdfdc3c2a9e7ec88e490a2a36f",
+    "workflows": "9/9SUCCESS",
+    "checks": {
+      "pass": 34,
+      "skipping": 20
+    },
+    "reviewedNode": {
+      "pass": 11447,
+      "fail": 0,
+      "skip": 96
+    },
+    "reviewedBackend": {
+      "pass": 1591,
+      "fail": 0
+    }
+  },
+  "regression": "Original actual clientID generator/defaultadapter/actual migration SQL now200/oktrue/oneproviderdispatch/onecompletedreservation.4canonical regressions and negativeSQLcontrol;17focusedpromotion;57scopecontrolsPASS/2explicitlive-diffNAskips.",
+  "ciCorrection": "Initial11445PASS/2FAIL/96SKIP historicalgrant refusal. Only exact reviewedreceiptgrant exception updated; no assertion or gate removed. Oldraw retained.",
+  "limits": "ControlledSDK/verifiedidentity/consent/providerfixtures and local PostgreSQL engine. No actual JWT, paidprovider, deployment, migration application, flag, currentbinary or customerlive verification."
+}

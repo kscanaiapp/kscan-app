@@ -1,0 +1,62 @@
+[
+  {
+    "file": "first-run-results.json",
+    "bytes": 5901,
+    "sha256": "0984efb8d04afede76f83f296f7b928ce585c9d3079e66239b36fee0ba1f12fb",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/results.json"
+  },
+  {
+    "file": "corrected-observer-results.json",
+    "bytes": 1212,
+    "sha256": "8ecde6c437e1a2fdf65a8e8e057586959147ef4f24400d9341986bc23f349c14",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch-retry/results.json"
+  },
+  {
+    "file": "first-run-harness.cjs.txt",
+    "bytes": 13678,
+    "sha256": "e7c829ddec76a20445fc4c2231cade399956f27007b339168dc7a3d5f394be74",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/first-run-harness.cjs.txt"
+  },
+  {
+    "file": "corrected-two-case-harness.cjs.txt",
+    "bytes": 13903,
+    "sha256": "94021870dee168f1db6ae0557d1c87dd0d99fa5a62fa9462558bf96ae11871a9",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-boundary-batch.cjs"
+  },
+  {
+    "file": "bootstrap.sql.txt",
+    "bytes": 13193,
+    "sha256": "cf50ffb07c93c8e7b1f3cc7ff89d812ad8bb4dc7a54542a97b4de9fcf2fe9a34",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/bootstrap.sql"
+  },
+  {
+    "file": "source-fingerprints.json",
+    "bytes": 1847,
+    "sha256": "62ee0647e4154591ba82f3fb28d321737b45a2475a597ef565784a0b29fd10be",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/source-fingerprints.json"
+  },
+  {
+    "file": "first-container-isolation.txt",
+    "bytes": 464,
+    "sha256": "5808bf12371aaf2a73f1c915e32ed3d6ee22932eb4a62095dfaf7ba5b59f2dd6",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/container-isolation.txt"
+  },
+  {
+    "file": "first-cleanup.json",
+    "bytes": 113,
+    "sha256": "4ed39af02a1fbee73f63ee6cb4f9131c255bc2c24f30ef5b6b7b35826c05ed29",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch/cleanup.json"
+  },
+  {
+    "file": "second-container-isolation.txt",
+    "bytes": 464,
+    "sha256": "1933af82cc08abae4495b4e2acfdf5ec29ccf77e3719a7c4390c41dc72c9e24c",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch-retry/container-isolation.txt"
+  },
+  {
+    "file": "second-cleanup.json",
+    "bytes": 113,
+    "sha256": "4ed39af02a1fbee73f63ee6cb4f9131c255bc2c24f30ef5b6b7b35826c05ed29",
+    "originalLocation": "C:/b35readback1030/noretest-1103/quota-batch-retry/cleanup.json"
+  }
+]

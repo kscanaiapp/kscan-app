@@ -1,0 +1,44 @@
+[
+  {
+    "id": "edge-parity",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/check-edge-function-parity.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "backend-authority",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/verify-backend-authority.js --json",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "native-config",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/check-native-config-parity.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "migration-provenance",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/check-migration-provenance.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "dependency-reachability",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/check-dependency-reachability.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "release-profile",
+    "source": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "command": "node scripts/check-build35-release-profile.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  }
+]

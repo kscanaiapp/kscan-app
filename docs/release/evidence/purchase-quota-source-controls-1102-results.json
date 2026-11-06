@@ -1,0 +1,40 @@
+{
+  "source": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "environment": "Local actual SQL/handler/default quota adapter; synthetic verified identity/consent/SDK bridge/provider; zero network",
+  "results": [
+    {
+      "probe": "rpc-source-equivalence",
+      "rows": [
+        {
+          "proname": "complete_provider_request",
+          "body_md5": "b946c78da7c0f883f59053d2cff753af",
+          "authenticated_execute": true,
+          "anonymous_execute": false
+        },
+        {
+          "proname": "evaluate_provider_abuse_state",
+          "body_md5": "a21d66413f2828eb8d5526275d1817a2",
+          "authenticated_execute": true,
+          "anonymous_execute": false
+        },
+        {
+          "proname": "release_provider_request",
+          "body_md5": "9c26d272a77f9d2bebd984f503e8a4aa",
+          "authenticated_execute": true,
+          "anonymous_execute": false
+        },
+        {
+          "proname": "reserve_provider_request",
+          "body_md5": "9cbd2fd650a3017e0fa9e6b52461ea63",
+          "authenticated_execute": true,
+          "anonymous_execute": false
+        }
+      ]
+    },
+    {
+      "probe": "foreign-actor-control",
+      "foreignRelease": false,
+      "ownRelease": true
+    }
+  ]
+}

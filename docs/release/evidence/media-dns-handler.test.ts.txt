@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
+const root = Deno.args[0];
+if (!['C:/b35vtomedia1030', 'C:/b35dns1030'].includes(root)) throw new Error('Explicit retained audit source root required');
+const { handleVtoRequest } = await import(pathToFileURL(`${root}/supabase/functions/vto-generate/vtoHandler.ts`).href);
+const { createAiLabToolsProvider } = await import(pathToFileURL(`${root}/supabase/functions/vto-generate/providers/aiLabToolsProvider.ts`).href);
+const { MOCK_VTO_RESULT_BASE64 } = await import(pathToFileURL(`${root}/supabase/functions/vto-generate/providers/mockResultAsset.ts`).href);
+
+Deno.test('C011 actual authenticated handler must reject DNS loopback before socket contact', async () => {
+  const listener = Deno.listen({ hostname: '127.0.0.1', port: 443 });
+  let connections=0, tlsBytes=0, submits=0, reserves=0, releases=0;
+  const accepting=(async()=>{try{const conn=await listener.accept();connections++;try{tlsBytes=(await conn.read(new Uint8Array(64)))??0;}finally{conn.close();}}catch(e){if(!(e instanceof Deno.errors.BadResource)&&!(e instanceof Deno.errors.Interrupted))throw e;}})();
+  const prior=globalThis.fetch;
+  globalThis.fetch=((input:RequestInfo|URL,init?:RequestInit)=>{const url=input instanceof Request?input.url:String(input);if(url.includes('rapidapi.com')){submits++;throw Error('Paid path prohibited by fixture');}return prior(input,init);}) as typeof fetch;
+  let status,body;
+  try {
+    const provider=createAiLabToolsProvider({apiKey:'OFFLINE-NONSECRET'});
+    const response=await handleVtoRequest(new Request('https://edge.local/vto-generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({requestId:'audit_dns_handler_1',origin:'commerce_product',person:{dataUri:`data:image/png;base64,${MOCK_VTO_RESULT_BASE64}`},garment:{productRef:'synthetic:garment',imageUrl:'https://127.0.0.1.nip.io/synthetic.png',category:'outerwear'}})}),{
+      requireUser:async()=>({id:'11111111-2222-4333-8444-555555555555',accessToken:'OFFLINE',isAnonymous:false}),
+      assertAccountActive:async()=>{},readVtoFeatureConfig:async()=>({enabled:true,provider:'ailabtools_tryon_clothes_pro',supportedCategories:['outerwear'],mockLatencyMs:0,mockScenario:'success'}),
+      resolveVtoEntitlement:async()=>({state:'active'}),resolveVtoProvider:()=>({ok:true,provider}),
+      reserveVtoGeneration:async()=>{reserves++;return{outcome:'reserved',used:1,dailyLimit:10,attemptId:'33333333-4444-4555-8666-777777777777'};},
+      completeVtoGeneration:async()=>true,releaseVtoGeneration:async()=>{releases++;return true;},generationTimeoutMs:1000,devScenariosAllowed:()=>false,
+    });status=response.status;body=await response.json();
+  }finally{globalThis.fetch=prior;listener.close();await accepting;}
+  console.log(JSON.stringify({sourceRoot:root,status,body,connections,tlsBytes,submits,reserves,releases,limitation:'Actual handler/default adapter and real controlled socket; injected actor/entitlement/DB authority, no live JWT/store/provider or Production claims'}));
+  assert.equal(submits,0);assert.equal(reserves,1);assert.equal(releases,1);assert.equal(body.error.code,'invalid_garment_input');
+  assert.equal(connections,0,'Authorized API path must not contact a private DNS target');
+});

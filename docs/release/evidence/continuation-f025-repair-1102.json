@@ -1,0 +1,95 @@
+{
+  "capturedAt": "2026-11-03T01:25:55.485Z",
+  "finding": "B35-F-025",
+  "priority": "P2",
+  "pr": 685,
+  "head": "c524bcbdde072eaf0f416238f1bb3645b669eac1",
+  "tree": "102f117a04c6ee41f1ee42d2dec88f294f6515e0",
+  "baseCanonical": "31be5f99341b606a070bbbe0b3062588f320f089",
+  "mobile": "09f0abad1a443c2601aaddc9c26e85b636c216c4",
+  "status": "SOURCE CLOSED / CANONICAL685 + MOBILE686 MERGED / 7+9 INDEPENDENT WORKFLOWS SUCCESS / RUNTIME NOT VERIFIED",
+  "before": "3authorityFAIL,actualSQL/inflightdefaultadapter2dispatchesunderlimit1;oldclientcomplete/releasecallssucceeded",
+  "repair": "Service-role-only actor/function/reservation-scoped atomicsettlement; revokelegacyPUBLIC/anon/authenticatedEXECUTE. DefaultSDKsettlementusesverifieduseridandserverkey,no callerJWT/fallback. Failedsettlementholdsconservativeaccounting.",
+  "migration": "20261103011431_provider_settlement_server_authority.sql",
+  "migrationStatus": "CLI GENERATED / BOTH ENVIRONMENTS KNOWN_FUTURE_UNAPPLIED / NOT APPLIED",
+  "validation": {
+    "firstAfter": "14PASS/0FAIL",
+    "initialExpanded": "17PASS/1fixtureinspectionFAIL:servicefixturelacksdirecttableSELECT;correctinspectionasowner,nograntsweakened",
+    "correctedExpanded": "115PASS/0FAIL/0SKIP:18SQL/handler+97migrationreconciliation",
+    "finalForeignActor": "7authorityPASS/0FAIL/0SKIPafterexplicitBactorcontrol",
+    "backend": "84PASS/0FAIL",
+    "typescript": "exit0/session47573/emptylognotatestcount",
+    "sourceGates": "5exit0 fromcleanc524tree",
+    "edgeManifest": "current",
+    "crossPath": "20current",
+    "fullBackend": "1576PASS/0FAIL afterinventorycorrection",
+    "relatedNode": "142PASS/0FAIL/0SKIP"
+  },
+  "readOnlyRuntime": "Stage/Production service_rolebypassrlstrue,authenticated_memberfalse,anonymous_memberfalse;metadataonly,nocustomerrows,nomutation",
+  "limits": "ControlledAuth/SDK/provider +actualPGliteSQLroles;singleconnectionqueuedrequestsnotlivemulticonnection/JWT/provider/devicecertification",
+  "next": "Owner-authorized B004/P4 Scanner null-body repair, then underlying hostile-source audit. Migration application and deployment remain separately governed.",
+  "updatedAt": "2026-11-03T02:20:38.798Z",
+  "initialCI": "8571NodePASS/0FAIL/65SKIP;1574backendPASS/1serviceRoleInventoryFAIL:undocumented receipt handler",
+  "inventoryCorrection": "Add only exact receipt handler rationale;newprivilegedscopeguardassertsonlysettlementRPC/verifiedactorandrejectsdirecttable/bodyactor/unreviewedRPCmutations. Exhaustiveunknown-holderrefusalpreserved.",
+  "mobilePreparation": {
+    "worktree": "C:/b35settlementmobile1102",
+    "branch": "promotion/build35-trusted-settlement-1102",
+    "head": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+    "state": "PR686 READY / CI PENDING AFTER EXACT MOBILE CAMPAIGN FIXTURE CORRECTION",
+    "requiredNotes": [
+      "Copyexactcanonicalhandler/newmigration/privilegedinventorytest/SQLfixturesandtests;regenmobilemanifest,preserveownership",
+      "57existingpromotiongrants:advanceonlyreceipthandlerandadd2explicitcanonicalrows(newmigration+phase2b4CrossPath.test.ts),total59",
+      "PreserveC023andF024historicalmetadata;addseparateF025metadataandnegativecontrols",
+      "Priorpromotiontestscurrentauthorityadvances;historical51/53/56/57rowcomparisonsmustretainallrowsplus2explicitnewgrants",
+      "Scanfunctionmanifestmaychangeonlytestfilehash/treeHash;bundlehash/runtimefilesunchanged. DeriveexpectedtreewithaggregateHash andcanonicalguardfilehash,preserveallunrelatedfunctions",
+      "No mobilecopybeforecanonicalgreenmerge;noProduction/migrationapplication",
+      "Base preflight: receipt handler/helper/replay/privilegeinventory/docs matchcanonical31be. Mobile migration-authority manifest and staging test differ; production reconciliation test is absent. DO NOT copy backend deploy governance wholesale. Append only exact canonical F025pending rows to mobile registry, surgically add migration pair in existing mobile staging test; leave absent production test absent."
+    ],
+    "pr": 686,
+    "tree": "b64be0e6c2b8dca8d4bc443ff05b0a190d387365",
+    "validation": {
+      "initialPromotion": "66PASS/6historical-count-ledgerFAIL/2explicitNAskips;negative evidence retained",
+      "correctedPromotion": "72PASS/0FAIL/2explicitNAskips;only exact F025 additions admitted",
+      "sqlReplayGovernance": "65PASS/0FAIL/0SKIP",
+      "backend": "1592PASS/0FAIL",
+      "typescript": "exit0/session80101;emptylog not test-count evidence",
+      "sourceGates": "6exit0 on clean1710 tree",
+      "manifests": "Edge and crosspath20current"
+    },
+    "initialFullCI": "11462NodePASS/3migrationCampaignFAIL/96SKIP;missing exact new version in mobile-only test;backend skipped by fail-fast",
+    "campaignCorrection": "Only append20261103011431 to existing explicit list; all unknown/order/selection assertions retained; exactdiff control added",
+    "campaignValidation": "36focusedPASS/0FAIL;209allStagingPASS/0FAIL/58declaredSKIP;6cleanf1930sourcegatesexit0;runtime/SQL/manifestsunchanged"
+  },
+  "canonicalMerge": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+  "testedMerge": "eb688afc9916fda0cdac262a258a9e1428bc373b",
+  "reviewedChecks": "33success/13conditionalSKIP;reviewsandthreadsempty;CLEANready;normalprotectedmerge",
+  "reviewedFullSuite": "8571NodePASS/0FAIL/65SKIP;1576backendPASS/0FAIL",
+  "canonicalPostmerge": {
+    "sha": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+    "workflows": 7,
+    "conclusion": "SUCCESS",
+    "evidence": "continuation-backend-9512-postmerge-runs.json"
+  },
+  "coverageReconciliation": {
+    "evidence": "continuation-f025-boundary-reconciliation-1102.json",
+    "mapped": [
+      "B35-MAND-0754"
+    ],
+    "counts": {
+      "PASS": 137,
+      "FAIL": 1,
+      "NOT TESTED": 2958,
+      "total": 3096
+    }
+  },
+  "mobileMerge": {
+    "pr": 686,
+    "sha": "6ccac16c1d9aad3be9cb8a2d6437f449e5639954",
+    "reviewed": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+    "testedMerge": "08247d8353864c34898a4391aaf1b2c1d6009c3f",
+    "tree": "b64be0e6c2b8dca8d4bc443ff05b0a190d387365",
+    "reviewedChecks": "35SUCCESS/19conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmergewithstandingownerapproval",
+    "reviewedFullSuite": "11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL",
+    "postmerge": "9of9independentpushworkflowsSUCCESS;actual11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL"
+  }
+}

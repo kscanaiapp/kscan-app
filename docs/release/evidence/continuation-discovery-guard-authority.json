@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "findings": [],
+  "info": {
+    "role": "backend-deployment-authority",
+    "canonicalBranch": "rebuild/backend-authority-v2",
+    "approvedProjectRef": "yzqjvdfgefveprobvvyw",
+    "canonicalBranchRemoteSha": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af",
+    "canonicalBranchLocalSha": null,
+    "headSha": "ffd3f40d48b1e45c08b976cd623c41dbaab6e3da",
+    "headBranch": "repair/build35-discovery-active-account-20261029",
+    "workingTreeClean": true,
+    "declaresDeploymentAuthority": true,
+    "headDescendsFromCanonical": true,
+    "governedCount": 31,
+    "sourceCount": 31,
+    "missingFromSource": [],
+    "ungovernedSourceDirs": [],
+    "manifestDigest": "0d6b1ff19434cc5b7a3a97427cb8328b7ff3f911d6b82578a8c4d79ed8e8a8e7",
+    "manifestProvenance": {
+      "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
+      "generatedAtUtc": "2026-10-29T23:32:17.034Z",
+      "generatedFromGitSha": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af"
+    }
+  }
+}

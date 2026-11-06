@@ -1,0 +1,129 @@
+{
+  "capturedAt": "2026-10-31T15:44:00.2373153Z",
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "ownerContract": "Keep public links active until revoked or the account is purged",
+  "providerCalls": 0,
+  "productionChanges": false,
+  "errors": [],
+  "records": [
+    {
+      "probe": "active owner public link",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-001",
+      "expected": "Owner-confirmed contract: active public links remain viewable until revoked or owner purge",
+      "actual": {
+        "previewStatus": "available",
+        "http": 200
+      }
+    },
+    {
+      "probe": "pending_deletion owner public link",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-002",
+      "expected": "Owner-confirmed contract: active public links remain viewable until revoked or owner purge",
+      "actual": {
+        "previewStatus": "available",
+        "http": 200
+      }
+    },
+    {
+      "probe": "pending_deletion private room access",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-003",
+      "expected": "Retained JWT does not return private room rows",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "locked owner public link",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-004",
+      "expected": "Owner-confirmed contract: active public links remain viewable until revoked or owner purge",
+      "actual": {
+        "previewStatus": "available",
+        "http": 200
+      }
+    },
+    {
+      "probe": "locked private room access",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-005",
+      "expected": "Retained JWT does not return private room rows",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "tag-verified synthetic Auth purge",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-006",
+      "expected": "Hard-delete only the exact run-tagged synthetic identity; no account-deletion worker/provider action",
+      "actual": {
+        "http": 200
+      }
+    },
+    {
+      "probe": "unrevoked public link replay after purge",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-007",
+      "expected": "Previously active capability becomes unavailable after owner hard deletion/cascade",
+      "actual": {
+        "previewStatus": "unavailable",
+        "http": 200
+      }
+    },
+    {
+      "probe": "share authority after purge",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-008",
+      "expected": "No remaining public share authority row",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "synthetic room after purge",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-009",
+      "expected": "No remaining synthetic room after cascade",
+      "actual": {
+        "http": 200,
+        "rows": 0
+      }
+    },
+    {
+      "probe": "synthetic identity absence",
+      "verdict": "PASS",
+      "runId": "495b353cdfcd46deb88de7241b2149da",
+      "environment": "Actual Staging Auth deletion and public-preview RPC; run-tagged synthetic identity only",
+      "probeId": "B35-SHARE-PURGE-010",
+      "expected": "Auth admin lookup explicitly denies deleted identity",
+      "actual": {
+        "http": 404
+      }
+    }
+  ],
+  "limitations": "Exercises actual Auth hard-delete/cascades for an empty synthetic room, not the full delayed deletion worker, storage media purge or third-party deletion propagation."
+}

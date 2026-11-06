@@ -1,0 +1,52 @@
+﻿[
+    {
+        "id":  "image-ingestion-clean",
+        "public":  false,
+        "file_size_limit":  10485760,
+        "allowed_mime_types":  [
+                                   "image/jpeg",
+                                   "image/png",
+                                   "image/webp"
+                               ]
+    },
+    {
+        "id":  "image-ingestion-quarantine",
+        "public":  false,
+        "file_size_limit":  10485760,
+        "allowed_mime_types":  [
+                                   "image/jpeg",
+                                   "image/png",
+                                   "image/webp"
+                               ]
+    },
+    {
+        "id":  "legal-documents",
+        "public":  true,
+        "file_size_limit":  null,
+        "allowed_mime_types":  null
+    },
+    {
+        "id":  "production-function-recovery",
+        "public":  false,
+        "file_size_limit":  20971520,
+        "allowed_mime_types":  [
+                                   "application/json"
+                               ]
+    },
+    {
+        "id":  "public-assets",
+        "public":  true,
+        "file_size_limit":  null,
+        "allowed_mime_types":  null
+    },
+    {
+        "id":  "style-library-images",
+        "public":  false,
+        "file_size_limit":  5242880,
+        "allowed_mime_types":  [
+                                   "image/jpeg",
+                                   "image/png",
+                                   "image/webp"
+                               ]
+    }
+]

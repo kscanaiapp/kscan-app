@@ -1,0 +1,121 @@
+[
+  {
+    "probe": "verified actor with active profile",
+    "resourceRows": 1,
+    "authStatus": 200,
+    "environment": "Staging synthetic tagged actor",
+    "runId": "0c237ba956b14cd685a0e53984018683",
+    "expected": "Active actor reads exactly its seeded private room",
+    "status": 200,
+    "probeId": "B35-ROOM-LIFECYCLE-001",
+    "feature": "Private Dressing Room / account restriction",
+    "boundary": "PostgREST dressing_rooms own-row RLS",
+    "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1; deployed migration inventory recorded separately, no exact live RLS digest attestation",
+    "sourceLocation": "public.dressing_rooms RLS; profiles account_status/account_locked_at",
+    "verdict": "PASS",
+    "actual": {
+      "httpStatus": 200,
+      "resourceRows": 1,
+      "authStatus": 200
+    },
+    "evidence": "continuation-room-lifecycle-staging.json",
+    "executionMethod": "room-lifecycle-staging.ps1; guarded synthetic Staging only",
+    "linkedDefectId": null,
+    "repairReference": null,
+    "reverificationStatus": "Executed live synthetic baseline/restriction/cleanup; not unrelated resource certification"
+  },
+  {
+    "probe": "verified actor with pending_deletion profile",
+    "resourceRows": 0,
+    "authStatus": 200,
+    "environment": "Staging synthetic tagged actor",
+    "runId": "0c237ba956b14cd685a0e53984018683",
+    "expected": "Same valid token cannot read its private room after authoritative restriction",
+    "status": 200,
+    "probeId": "B35-ROOM-LIFECYCLE-002",
+    "feature": "Private Dressing Room / account restriction",
+    "boundary": "PostgREST dressing_rooms own-row RLS",
+    "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1; deployed migration inventory recorded separately, no exact live RLS digest attestation",
+    "sourceLocation": "public.dressing_rooms RLS; profiles account_status/account_locked_at",
+    "verdict": "PASS",
+    "actual": {
+      "httpStatus": 200,
+      "resourceRows": 0,
+      "authStatus": 200
+    },
+    "evidence": "continuation-room-lifecycle-staging.json",
+    "executionMethod": "room-lifecycle-staging.ps1; guarded synthetic Staging only",
+    "linkedDefectId": null,
+    "repairReference": null,
+    "reverificationStatus": "Executed live synthetic baseline/restriction/cleanup; not unrelated resource certification"
+  },
+  {
+    "probe": "verified actor with locked profile",
+    "resourceRows": 0,
+    "authStatus": 200,
+    "environment": "Staging synthetic tagged actor",
+    "runId": "0c237ba956b14cd685a0e53984018683",
+    "expected": "Same valid token cannot read its private room after authoritative restriction",
+    "status": 200,
+    "probeId": "B35-ROOM-LIFECYCLE-003",
+    "feature": "Private Dressing Room / account restriction",
+    "boundary": "PostgREST dressing_rooms own-row RLS",
+    "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1; deployed migration inventory recorded separately, no exact live RLS digest attestation",
+    "sourceLocation": "public.dressing_rooms RLS; profiles account_status/account_locked_at",
+    "verdict": "PASS",
+    "actual": {
+      "httpStatus": 200,
+      "resourceRows": 0,
+      "authStatus": 200
+    },
+    "evidence": "continuation-room-lifecycle-staging.json",
+    "executionMethod": "room-lifecycle-staging.ps1; guarded synthetic Staging only",
+    "linkedDefectId": null,
+    "repairReference": null,
+    "reverificationStatus": "Executed live synthetic baseline/restriction/cleanup; not unrelated resource certification"
+  },
+  {
+    "status": 200,
+    "probe": "verified synthetic room cleanup",
+    "runId": "0c237ba956b14cd685a0e53984018683",
+    "probeId": "B35-ROOM-LIFECYCLE-004",
+    "feature": "Private Dressing Room / account restriction",
+    "boundary": "Tagged synthetic fixture cleanup",
+    "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1; deployed migration inventory recorded separately, no exact live RLS digest attestation",
+    "sourceLocation": "public.dressing_rooms RLS; profiles account_status/account_locked_at",
+    "verdict": "PASS",
+    "actual": {
+      "httpStatus": 200,
+      "resourceRows": null,
+      "authStatus": null
+    },
+    "expected": "Only verified synthetic resources removed with acknowledged response",
+    "evidence": "continuation-room-lifecycle-staging.json",
+    "executionMethod": "room-lifecycle-staging.ps1; guarded synthetic Staging only",
+    "linkedDefectId": null,
+    "repairReference": null,
+    "reverificationStatus": "Executed live synthetic baseline/restriction/cleanup; not unrelated resource certification"
+  },
+  {
+    "status": 200,
+    "probe": "tag-verified synthetic cleanup",
+    "runId": "0c237ba956b14cd685a0e53984018683",
+    "probeId": "B35-ROOM-LIFECYCLE-005",
+    "feature": "Private Dressing Room / account restriction",
+    "boundary": "Tagged synthetic fixture cleanup",
+    "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1; deployed migration inventory recorded separately, no exact live RLS digest attestation",
+    "sourceLocation": "public.dressing_rooms RLS; profiles account_status/account_locked_at",
+    "verdict": "PASS",
+    "actual": {
+      "httpStatus": 200,
+      "resourceRows": null,
+      "authStatus": null
+    },
+    "expected": "Only verified synthetic resources removed with acknowledged response",
+    "evidence": "continuation-room-lifecycle-staging.json",
+    "executionMethod": "room-lifecycle-staging.ps1; guarded synthetic Staging only",
+    "linkedDefectId": null,
+    "repairReference": null,
+    "reverificationStatus": "Executed live synthetic baseline/restriction/cleanup; not unrelated resource certification"
+  }
+]

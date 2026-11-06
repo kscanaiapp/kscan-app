@@ -1,0 +1,366 @@
+{
+  "project_id": "proj46588afb",
+  "project_name": "K Scan AI",
+  "environment": "RevenueCat and live App Store Connect/Google Play read-only; no customer records",
+  "apps": {
+    "next_page": null,
+    "items": [
+      {
+        "id": "app023ebdb3db",
+        "name": "Test Store",
+        "type": "test_store"
+      },
+      {
+        "id": "appb329bd3c4e",
+        "name": "K Scan AI (Play Store)",
+        "type": "play_store",
+        "packageName": "com.kscanai.app"
+      },
+      {
+        "id": "appd42ef6f8f0",
+        "name": "K Scan AI (App Store)",
+        "type": "app_store",
+        "bundleId": "com.kscanai.app",
+        "appStoreConnectConfigured": true
+      }
+    ]
+  },
+  "products": [
+    {
+      "id": "prod20dbedb923",
+      "app_id": "appb329bd3c4e",
+      "store_identifier": "kscan.kplus.annual:annual",
+      "state": "active",
+      "type": "subscription"
+    },
+    {
+      "id": "prod211cb2cda6",
+      "app_id": "appb329bd3c4e",
+      "store_identifier": "kscan.kplus.monthly:monthly",
+      "state": "active",
+      "type": "subscription"
+    },
+    {
+      "id": "prod3252fad358",
+      "app_id": "app023ebdb3db",
+      "store_identifier": "lifetime",
+      "state": "active",
+      "type": "non_consumable"
+    },
+    {
+      "id": "prod68acc2f47c",
+      "app_id": "app023ebdb3db",
+      "store_identifier": "yearly",
+      "state": "active",
+      "type": "subscription"
+    },
+    {
+      "id": "prod6fa234d5c6",
+      "app_id": "appd42ef6f8f0",
+      "store_identifier": "kscan.kplus.monthly",
+      "state": "active",
+      "type": "subscription"
+    },
+    {
+      "id": "prodd7b2d9e1d5",
+      "app_id": "app023ebdb3db",
+      "store_identifier": "monthly",
+      "state": "active",
+      "type": "subscription"
+    },
+    {
+      "id": "prodf735b4c3d4",
+      "app_id": "appd42ef6f8f0",
+      "store_identifier": "kscan.kplus.annual",
+      "state": "active",
+      "type": "subscription"
+    }
+  ],
+  "entitlements": [
+    {
+      "id": "entld9b580e4e5",
+      "identifier": "k_plus",
+      "state": "active",
+      "productIds": [
+        "prod20dbedb923",
+        "prod211cb2cda6",
+        "prod6fa234d5c6",
+        "prodf735b4c3d4"
+      ]
+    }
+  ],
+  "offerings": [
+    {
+      "id": "ofrng222f4dae36",
+      "identifier": "default",
+      "is_current": true,
+      "paywall_id": "pw33de2ef97ecc44de",
+      "packages": [
+        {
+          "id": "pkgecf644d84a8",
+          "identifier": "$rc_monthly",
+          "products": [
+            {
+              "id": "prod211cb2cda6",
+              "app_id": "appb329bd3c4e",
+              "store_identifier": "kscan.kplus.monthly:monthly",
+              "eligibility_criteria": "google_sdk_ge_6"
+            },
+            {
+              "id": "prod6fa234d5c6",
+              "app_id": "appd42ef6f8f0",
+              "store_identifier": "kscan.kplus.monthly",
+              "eligibility_criteria": "all"
+            },
+            {
+              "id": "prodd7b2d9e1d5",
+              "app_id": "app023ebdb3db",
+              "store_identifier": "monthly",
+              "eligibility_criteria": "all"
+            }
+          ]
+        },
+        {
+          "id": "pkgebd693bda06",
+          "identifier": "$rc_annual",
+          "products": [
+            {
+              "id": "prod20dbedb923",
+              "app_id": "appb329bd3c4e",
+              "store_identifier": "kscan.kplus.annual:annual",
+              "eligibility_criteria": "google_sdk_ge_6"
+            },
+            {
+              "id": "prod68acc2f47c",
+              "app_id": "app023ebdb3db",
+              "store_identifier": "yearly",
+              "eligibility_criteria": "all"
+            },
+            {
+              "id": "prodf735b4c3d4",
+              "app_id": "appd42ef6f8f0",
+              "store_identifier": "kscan.kplus.annual",
+              "eligibility_criteria": "all"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "webhooks": {
+    "items": [
+      {
+        "id": "whintgr048cedb053",
+        "name": "K Scan AI Production",
+        "host": "wyyuqfdxucjksghsmhry.supabase.co",
+        "path": "/functions/v1/kplus-revenuecat-webhook",
+        "environment": "production",
+        "event_types": null,
+        "authorizationState": "NOT_EXPOSED_BY_READ_API; no absence inferred"
+      }
+    ],
+    "next_page": null
+  },
+  "storeReadbacks": [
+    {
+      "product_id": "prod20dbedb923",
+      "store_identifier": "kscan.kplus.annual:annual",
+      "store": "play_store",
+      "store_fetched_at": "2026-10-30T05:10:16Z",
+      "store_status": {
+        "status": "ok",
+        "raw_store_status": null,
+        "read_error_reason": null
+      },
+      "usPrice": {
+        "amount_micros": 9990000,
+        "currency": "USD"
+      },
+      "usAvailable": true,
+      "googleBasePlans": [
+        {
+          "id": "annual",
+          "state": "ACTIVE",
+          "billingPeriod": "P1Y",
+          "gracePeriod": "P14D",
+          "usAvailability": true,
+          "usPrice": {
+            "amount_micros": 9990000,
+            "currency": "USD"
+          },
+          "offers": {
+            "kplus-launch-intro": {
+              "state": "ACTIVE",
+              "phases": [
+                {
+                  "recurrence_count": 1,
+                  "duration": "P1M",
+                  "regional_configs": {
+                    "US": {
+                      "free": true
+                    }
+                  }
+                }
+              ],
+              "regional_configs": {
+                "US": {
+                  "new_subscriber_availability": true
+                }
+              },
+              "other_regions_config": {
+                "other_regions_new_subscriber_availability": false
+              },
+              "targeting": {
+                "acquisition_rule": {
+                  "scope": {
+                    "anySubscriptionInApp": {}
+                  }
+                }
+              },
+              "offer_tags": [
+                "kplus-intro"
+              ]
+            }
+          }
+        }
+      ],
+      "warnings": [
+        "Apple subscriptions often require pricing metadata for all 175 territories. Only 1 territories were provided in `common.pricing.territory_prices`. Call `/v2/projects/proj46588afb/products/prod20dbedb923/store_state/actions/equalize_subscription_prices` to fill missing territories using Apple price equalizations."
+      ]
+    },
+    {
+      "product_id": "prod211cb2cda6",
+      "store_identifier": "kscan.kplus.monthly:monthly",
+      "store": "play_store",
+      "store_fetched_at": "2026-10-30T05:10:15Z",
+      "store_status": {
+        "status": "ok",
+        "raw_store_status": null,
+        "read_error_reason": null
+      },
+      "usPrice": {
+        "amount_micros": 990000,
+        "currency": "USD"
+      },
+      "usAvailable": true,
+      "googleBasePlans": [
+        {
+          "id": "monthly",
+          "state": "ACTIVE",
+          "billingPeriod": "P1M",
+          "gracePeriod": "P7D",
+          "usAvailability": true,
+          "usPrice": {
+            "amount_micros": 990000,
+            "currency": "USD"
+          },
+          "offers": {
+            "kplus-launch-intro": {
+              "state": "ACTIVE",
+              "phases": [
+                {
+                  "recurrence_count": 1,
+                  "duration": "P1M",
+                  "regional_configs": {
+                    "US": {
+                      "free": true
+                    }
+                  }
+                }
+              ],
+              "regional_configs": {
+                "US": {
+                  "new_subscriber_availability": true
+                }
+              },
+              "other_regions_config": {
+                "other_regions_new_subscriber_availability": false
+              },
+              "targeting": {
+                "acquisition_rule": {
+                  "scope": {
+                    "anySubscriptionInApp": {}
+                  }
+                }
+              },
+              "offer_tags": [
+                "kplus-intro"
+              ]
+            }
+          }
+        }
+      ],
+      "warnings": [
+        "Apple subscriptions often require pricing metadata for all 175 territories. Only 1 territories were provided in `common.pricing.territory_prices`. Call `/v2/projects/proj46588afb/products/prod211cb2cda6/store_state/actions/equalize_subscription_prices` to fill missing territories using Apple price equalizations."
+      ]
+    },
+    {
+      "product_id": "prod6fa234d5c6",
+      "store_identifier": "kscan.kplus.monthly",
+      "store": "app_store",
+      "store_fetched_at": "2026-10-30T05:10:16Z",
+      "store_status": {
+        "status": "needs_action",
+        "raw_store_status": "READY_TO_SUBMIT",
+        "read_error_reason": null
+      },
+      "usPrice": {
+        "amount_micros": 990000,
+        "currency": "USD"
+      },
+      "usAvailable": true,
+      "appleTrial": {
+        "duration": "ONE_MONTH",
+        "usTerritory": true,
+        "offers": [
+          {
+            "offer_mode": "FREE_TRIAL",
+            "duration": "P1M",
+            "number_of_periods": 1,
+            "start_date": "2026-10-05",
+            "end_date": null
+          }
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "product_id": "prodf735b4c3d4",
+      "store_identifier": "kscan.kplus.annual",
+      "store": "app_store",
+      "store_fetched_at": "2026-10-30T05:10:16Z",
+      "store_status": {
+        "status": "needs_action",
+        "raw_store_status": "READY_TO_SUBMIT",
+        "read_error_reason": null
+      },
+      "usPrice": {
+        "amount_micros": 9990000,
+        "currency": "USD"
+      },
+      "usAvailable": true,
+      "appleTrial": {
+        "duration": "ONE_MONTH",
+        "usTerritory": true,
+        "offers": [
+          {
+            "offer_mode": "FREE_TRIAL",
+            "duration": "P1M",
+            "number_of_periods": 1,
+            "start_date": "2026-10-05",
+            "end_date": null
+          }
+        ]
+      },
+      "warnings": []
+    }
+  ],
+  "limitations": [
+    "Store configuration is not purchase/restore or existing subscriber cohort certification",
+    "Apple READY_TO_SUBMIT is not store approval/customer-live",
+    "Catalog trial_duration null was not used to infer absence of a store trial",
+    "Google responses include an Apple-specific territory-equalization warning; preserved without applying it or changing pricing",
+    "Webhook auth state is not exposed in list readback; configured destination is not delivery proof"
+  ],
+  "writes": "NONE"
+}
