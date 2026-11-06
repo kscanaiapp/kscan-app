@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScannerCameraLease } from './components/scan-room/ScannerCameraLease';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import {
@@ -44,6 +44,7 @@ import {
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { isScannerCameraRequired } from './services/scannerCameraRequirement';
+import { readScannerMediaChoices } from './services/scannerMediaChoices';
 import { resolveSavedScanDestination } from './services/savedScanDestination';
 import { hasUsableAnalyzedItem } from './services/failedScanActions';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
@@ -294,6 +295,25 @@ function QAPanel({ status, onSelectFixture }) {
 export default function App() {
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
+  // Scanner-local opt-outs must settle BEFORE any CameraView or photo action is
+  // exposed. Re-read on navigation focus so Privacy settings apply immediately.
+  // Storage failure is fail-closed rather than silently overriding a saved OFF.
+  const [scannerMediaChoices, setScannerMediaChoices] = useState(null);
+  const [scannerMediaError, setScannerMediaError] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    let current = true;
+    setScannerMediaChoices(null);
+    setScannerMediaError(false);
+    readScannerMediaChoices()
+      .then((choices) => {
+        if (current) setScannerMediaChoices(choices);
+      })
+      .catch(() => {
+        if (current) setScannerMediaError(true);
+      });
+    return () => { current = false; };
+  }, []));
 
   // Android does not relaunch the app after a user grants camera access in
   // Settings. Re-read the permission whenever the app returns to the foreground
@@ -1171,6 +1191,45 @@ export default function App() {
     v2CameraVisible,
     hasPhoto: Boolean(photo?.uri),
   });
+
+  if (!scannerMediaChoices) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.centerContent}>
+          {renderBrandTitle()}
+          <Text style={styles.infoText}>
+            {scannerMediaError
+              ? 'We could not read your Scanner camera and photo choices. Review them in Privacy settings.'
+              : 'Loading your Scanner media choices…'}
+          </Text>
+          {scannerMediaError ? (
+            <ActionButton label="Privacy Settings" onPress={() => router.push('/privacy')} />
+          ) : <ActivityIndicator color={COLORS.scanCyan} />}
+          <ActionButton label="Back to Home" onPress={handleHome} variant="tertiary" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (cameraRequired && !scannerMediaChoices.camera) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.centerContent}>
+          {renderBrandTitle()}
+          <Text style={styles.infoText}>
+            Scanner Camera is OFF in your K Scan choices. Turn it ON in Privacy settings
+            before opening the camera. This does not change device permission.
+          </Text>
+          <ActionButton label="Scanner Settings" onPress={() => router.push('/privacy')} />
+          {SCAN_ROOM_V2_UI_ENABLED ? (
+            <ActionButton label="Back" onPress={() => setV2CameraVisible(false)} variant="tertiary" />
+          ) : null}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (cameraRequired && !permission) {
     return (
