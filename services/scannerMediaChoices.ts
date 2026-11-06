@@ -26,7 +26,7 @@ export const DEFAULT_SCANNER_MEDIA_CHOICES: Readonly<ScannerMediaChoices> = Obje
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
-export async function readScannerMediaChoices(): Promise<ScannerMediaChoices> {
+async function readStoredScannerMediaChoices(): Promise<ScannerMediaChoices> {
   const saved = await AsyncStorage.getItem(SCANNER_MEDIA_CHOICES_KEY);
   if (saved === null) return { ...DEFAULT_SCANNER_MEDIA_CHOICES };
   const parsed: unknown = JSON.parse(saved);
@@ -40,6 +40,12 @@ export async function readScannerMediaChoices(): Promise<ScannerMediaChoices> {
   return { camera: record.camera, photos: record.photos };
 }
 
+/** Reads wait for any in-progress write; a fast navigation cannot observe stale ON. */
+export async function readScannerMediaChoices(): Promise<ScannerMediaChoices> {
+  await writeQueue;
+  return readStoredScannerMediaChoices();
+}
+
 /** Serialize changes so two fast switches cannot overwrite one another. */
 export function saveScannerMediaChoice(
   key: ScannerMediaChoice,
@@ -49,7 +55,7 @@ export function saveScannerMediaChoice(
     return Promise.reject(new Error('Invalid Scanner media choice'));
   }
   const task = writeQueue.then(async () => {
-    const before = await readScannerMediaChoices();
+    const before = await readStoredScannerMediaChoices();
     const next = { ...before, [key]: enabled };
     await AsyncStorage.setItem(SCANNER_MEDIA_CHOICES_KEY, JSON.stringify(next));
     return next;
