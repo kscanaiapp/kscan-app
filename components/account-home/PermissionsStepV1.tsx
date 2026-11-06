@@ -142,7 +142,7 @@ export function PermissionsStepV1({
           <Text style={styles.headlineGold}>style tools</Text>
         </Text>
         <Text style={styles.body}>
-          Allow a few permissions to unlock the full K Scan AI experience.
+          Choose which Scanner tools you want available. Your device asks for access only when you use them.
         </Text>
       </View>
 
