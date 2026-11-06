@@ -304,7 +304,7 @@ export default function App() {
   }, [scannerMedia.refresh]));
 
   // Android may grant OR revoke camera access in device Settings without
-  // relaunching K Scan. Re-read on every foreground return so cached grants
+  // relaunching K Scan AI. Re-read on every foreground return so cached grants
   // never survive external revocation, and newly granted access is recognized.
   useEffect(() => {
     if (Platform.OS !== 'android') return undefined;
