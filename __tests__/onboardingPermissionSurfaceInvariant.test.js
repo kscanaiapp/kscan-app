@@ -38,16 +38,23 @@ test('PERM-REG-001: the shipping screen has exactly the permanent four-card orde
   }
 });
 
-test('RP-105: Camera and Photos are truthful point-of-use education, never fake ALLOW controls', () => {
+test('PERM-REG-002: Scanner Camera and Photos are real persisted optional toggles, not fake OS grants', () => {
   const camera = cardBlock('Camera', 'Photos');
   const photos = cardBlock('Photos', 'Microphone');
-  for (const [name, card] of [['Camera', camera], ['Photos', photos]]) {
-    assert.match(card, /badge="ESSENTIAL"/);
-    assert.match(card, /actionType="status"/);
-    assert.match(card, /statusLabel="ON USE"/);
-    assert.doesNotMatch(card, /ALLOW|onActionChange|actionValue/);
-    assert.match(card, /requested only when|system picker/i, `${name} must describe its real point-of-use flow`);
+  for (const [name, card, key] of [
+    ['Camera', camera, 'camera'],
+    ['Photos', photos, 'photos'],
+  ]) {
+    assert.match(card, /badge="OPTIONAL"/, `${name} cannot be mislabeled ESSENTIAL`);
+    assert.match(card, /actionType="toggle"/);
+    assert.match(card, new RegExp(`actionValue=\\{preferences\\.${key}\\}`));
+    assert.match(card, new RegExp(`onActionChange=\\{\\(enabled\\) => setPreference\\('${key}', enabled\\)\\}`));
+    assert.match(card, /disabled=\{!mediaReady \|\| mediaBusy\}/);
+    assert.doesNotMatch(card, /statusLabel="ON USE"|actionType="status"/);
   }
+  assert.match(permissionsStep, /actionValue \? 'ON' : 'OFF'/);
+  assert.match(permissionsStep, /\{mediaError \? \(/);
+  assert.doesNotMatch(permissionsStep, /requestCameraPermissionsAsync|requestMediaLibraryPermissionsAsync/);
   assert.doesNotMatch(permissionsStep, /actionType: 'allow'/);
   assert.doesNotMatch(permissionsStep, />\s*ALLOW\s*</);
 });

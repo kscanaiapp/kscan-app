@@ -16,6 +16,9 @@ import type {
 interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  mediaReady: boolean;
+  mediaBusy: boolean;
+  mediaError: string | null;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
   /**
    * RP-104. Revokes THIS device's backend push-delivery route. The switch may
@@ -31,8 +34,8 @@ interface PermissionsStepV1Props {
  *
  * Matches the permissions-v1 mockup visually:
  * - Card-based permission rows with icons
- * - Essential vs Optional labels
- * - Truthful point-of-use status for Camera/Photos
+ * - User-controlled Scanner Camera / Photos ON/OFF switches, persisted on device
+ * - Truthful separation from OS point-of-use permission grants
  * - Continue to Home CTA and Not now link
  *
  * Build 33 removed the Microphone and Notifications "Coming Soon" cards
@@ -52,6 +55,9 @@ interface PermissionsStepV1Props {
 export function PermissionsStepV1({
   preferences,
   setPreference,
+  mediaReady,
+  mediaBusy,
+  mediaError,
   requestNotificationPermission,
   disableNotificationDelivery,
   onContinueToHome,
@@ -136,27 +142,35 @@ export function PermissionsStepV1({
       </View>
 
       <View style={styles.cards}>
-        {/* Camera */}
+        {/* These switches control K Scan Scanner use, NOT Android/iOS grants.
+            OS Camera permission is still requested when the Scanner opens.
+            Photos uses the system picker, not blanket photo-library access. */}
         <PermissionCard
           icon="◉"
           title="Camera"
-          badge="ESSENTIAL"
-          description="Use the Scanner to capture a look when you are ready. Camera access is requested only when you start that flow."
-          actionType="status"
-          statusLabel="ON USE"
-          accessibilityLabel="Camera is requested only when you use the Scanner"
+          badge="OPTIONAL"
+          description="Allow the Scanner camera in K Scan AI. Turning this off stops Scanner camera use; device permission is managed separately in Settings."
+          actionType="toggle"
+          actionValue={preferences.camera}
+          onActionChange={(enabled) => setPreference('camera', enabled)}
+          disabled={!mediaReady || mediaBusy}
+          accessibilityLabel="Scanner camera switch"
         />
 
-        {/* Photos */}
         <PermissionCard
           icon="◈"
           title="Photos"
-          badge="ESSENTIAL"
-          description="Choose a look from the system picker when you are ready to search with a photo."
-          actionType="status"
-          statusLabel="ON USE"
-          accessibilityLabel="Photos are selected only when you use the system picker"
+          badge="OPTIONAL"
+          description="Allow choosing photos for Scanner searches. Each photo is selected in the system picker; turning this off prevents opening that picker from Scanner."
+          actionType="toggle"
+          actionValue={preferences.photos}
+          onActionChange={(enabled) => setPreference('photos', enabled)}
+          disabled={!mediaReady || mediaBusy}
+          accessibilityLabel="Scanner photo selection switch"
         />
+        {mediaError ? (
+          <Text style={styles.permissionError} accessibilityRole="alert">{mediaError}</Text>
+        ) : null}
 
         {/* This gate only controls the K+ acquisition action. The Microphone
             card itself is rendered for every state, including unavailable
@@ -264,6 +278,7 @@ export function PermissionsStepV1({
           testID="onboarding-permissions-continue-button-v1"
           title="✧ CONTINUE"
           onPress={onContinueToHome}
+          disabled={mediaBusy}
           style={styles.wideButton}
         />
 
@@ -271,6 +286,7 @@ export function PermissionsStepV1({
           testID="onboarding-permissions-not-now-button-v1"
           title="Not now"
           onPress={onNotNow}
+          disabled={mediaBusy}
           style={styles.wideButton}
         />
       </View>
@@ -367,15 +383,19 @@ function PermissionCard({
               </Text>
             </Pressable>
           ) : (
-            <Switch
-              value={actionValue}
+            <View style={styles.toggleColumn}>
+              <Text style={styles.toggleValue} accessibilityElementsHidden>{actionValue ? 'ON' : 'OFF'}</Text>
+              <Switch
+                value={actionValue}
               onValueChange={disabled ? undefined : onActionChange}
               disabled={disabled}
               trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
               thumbColor={actionValue ? LUXURY.colors.plum : '#f4f3f4'}
               accessibilityLabel={`Toggle ${title}`}
               accessibilityState={{ disabled, checked: actionValue }}
-            />
+                testID={`onboarding-${title.toLowerCase()}-switch-v1`}
+              />
+            </View>
           )}
         </View>
       </View>
@@ -510,6 +530,21 @@ const styles = StyleSheet.create({
   },
   actionButtonTextDisabled: {
     color: LUXURY.colors.stone,
+  },
+  toggleColumn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  toggleValue: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    fontSize: 10,
+  },
+  permissionError: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    textTransform: 'none',
   },
   statusPill: {
     borderRadius: RADIUS.pill,
