@@ -384,15 +384,15 @@ function PermissionCard({
             <View style={styles.toggleColumn}>
               <Text style={styles.toggleValue} accessibilityElementsHidden>{actionValue ? 'ON' : 'OFF'}</Text>
               <Switch
-              value={actionValue}
+                value={actionValue}
               onValueChange={disabled ? undefined : onActionChange}
               disabled={disabled}
               trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
               thumbColor={actionValue ? LUXURY.colors.plum : '#f4f3f4'}
               accessibilityLabel={`Toggle ${title}`}
               accessibilityState={{ disabled, checked: actionValue }}
-              testID={`onboarding-${title.toLowerCase()}-switch-v1`}
-            />
+                testID={`onboarding-${title.toLowerCase()}-switch-v1`}
+              />
             </View>
           )}
         </View>
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   permissionError: {
     ...LUXURY.typography.caption,
-    color: LUXURY.colors.error ?? LUXURY.colors.plum,
+    color: LUXURY.colors.plum,
     textTransform: 'none',
   },
   statusPill: {
