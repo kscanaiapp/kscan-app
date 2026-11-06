@@ -9,12 +9,15 @@ import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 import { VOICESCAN_ENABLED } from '../constants/featureFlags';
+import { useScannerMediaPreferences } from './useScannerMediaPreferences';
 
-/** Only Notifications reflects a real device registration outcome here. */
-export type PermissionKey = 'notifications';
+/** Camera/Photos are opt-in Scanner choices, not false OS-grant indicators. */
+export type PermissionKey = 'notifications' | 'camera' | 'photos';
 
 export interface PermissionPreferences {
   notifications: boolean;
+  camera: boolean;
+  photos: boolean;
 }
 
 export interface MicrophonePermissionResult {
@@ -26,6 +29,9 @@ export interface MicrophonePermissionResult {
 export interface UsePermissionPreferencesReturn {
   preferences: PermissionPreferences;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  mediaReady: boolean;
+  mediaBusy: boolean;
+  mediaError: string | null;
   requestMicrophonePermission: () => Promise<MicrophonePermissionResult>;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
   /**
@@ -35,23 +41,29 @@ export interface UsePermissionPreferencesReturn {
   disableNotificationDelivery: () => Promise<DisableDeviceNotificationsResult>;
 }
 
-const DEFAULT_PREFERENCES: PermissionPreferences = {
-  notifications: false,
-};
+const DEFAULT_NOTIFICATION_PREFERENCE = false;
 
 /**
  * Reflects the real outcome of the notification registration flow.
  *
- * Camera, Photos, and Microphone are point-of-use capabilities, not saved
- * onboarding preferences. This hook deliberately owns no fake persistence for
- * those education cards.
+ * Camera and Photos now persist real app-level Scanner preferences; OFF is
+ * enforced before any Scanner camera preview/capture or photo-picker launch.
+ * These switches do NOT change OS permission state, which stays point-of-use.
+ * Microphone remains owned by Voice Scan, not this screen.
  */
 export function usePermissionPreferences(): UsePermissionPreferencesReturn {
-  const [preferences, setPreferences] = useState<PermissionPreferences>({ ...DEFAULT_PREFERENCES });
+  const media = useScannerMediaPreferences();
+  const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATION_PREFERENCE);
+  const preferences: PermissionPreferences = { notifications, ...media.preferences };
 
   const setPreference = useCallback((key: PermissionKey, value: boolean) => {
-    setPreferences((prev) => ({ ...prev, [key]: value }));
-  }, []);
+    if (key === 'notifications') {
+      setNotifications(value);
+      return;
+    }
+    // The saved state updates only once the storage write actually succeeds.
+    void media.setPreference(key, value);
+  }, [media.setPreference]);
 
   const requestMicrophonePermission = useCallback(async (): Promise<MicrophonePermissionResult> => {
     if (Platform.OS !== 'android' || !VOICESCAN_ENABLED) {
@@ -138,6 +150,9 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
   return {
     preferences,
     setPreference,
+    mediaReady: media.ready,
+    mediaBusy: media.busy,
+    mediaError: media.error,
     requestMicrophonePermission,
     requestNotificationPermission,
     disableNotificationDelivery,
