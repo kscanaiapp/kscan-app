@@ -1244,7 +1244,7 @@ export default function App() {
         <View style={styles.centerContent}>
           {renderBrandTitle()}
           <Text style={styles.infoText}>
-            Scanner Camera is OFF in your K Scan choices. Turn it ON in Privacy settings
+            Scanner Camera is OFF in your K Scan AI choices. Turn it ON in Privacy settings
             before opening the camera. This does not change device permission.
           </Text>
           <ActionButton label="Scanner Settings" onPress={() => router.push('/privacy')} />
