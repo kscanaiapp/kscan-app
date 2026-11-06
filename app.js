@@ -303,21 +303,21 @@ export default function App() {
     void scannerMedia.refresh();
   }, [scannerMedia.refresh]));
 
-  // Android does not relaunch the app after a user grants camera access in
-  // Settings. Re-read the permission whenever the app returns to the foreground
-  // so the scanner gate clears immediately instead of requiring a process restart.
+  // Android may grant OR revoke camera access in device Settings without
+  // relaunching K Scan. Re-read on every foreground return so cached grants
+  // never survive external revocation, and newly granted access is recognized.
   useEffect(() => {
     if (Platform.OS !== 'android') return undefined;
 
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active' || permission?.granted) return;
+      if (nextState !== 'active') return;
       getPermission().catch(() => {
-        // Keep the existing denied gate if the OS permission read fails.
+        // Do not request OS permission or optimistically change a cached grant.
       });
     });
 
     return () => subscription.remove();
-  }, [getPermission, permission?.granted]);
+  }, [getPermission]);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
