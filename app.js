@@ -1217,7 +1217,7 @@ export default function App() {
           <Text style={styles.infoText}>
             {scannerMedia.ready
               ? 'Scanner Camera is OFF for this device. You can turn it on in Privacy settings.'
-              : 'Could not load your Scanner camera preference. Please check Privacy settings.'}
+              : (scannerMedia.error || 'Loading your Scanner access choices…')}
           </Text>
           <ActionButton label="Privacy Settings" onPress={() => router.push('/privacy')} />
           {SCAN_ROOM_V2_UI_ENABLED ? (
