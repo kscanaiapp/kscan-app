@@ -1,4 +1,4 @@
-// Regression guard for the owner-authorized Nov 6, 2026 Staging application.
+// Regression guard for owner-authorized Nov 6, 2026 Staging and Production applications.
 // The exact SQL was applied once per environment under versions assigned by the
 // Supabase deployment API. No migration history or SQL was rewritten.
 const test = require('node:test');
@@ -11,7 +11,7 @@ const manifest = require(path.join(root, 'config/migration-authority-manifest.js
 const remote = '20261106164732';
 const local = '20261106120000';
 
- test('B41 Staging and Production exact-content aliases prevent replay', () => {
+test('B41 Staging and Production exact-content aliases prevent replay', () => {
   const environments = manifest.ledgerReconciliation.environments;
   const stage = environments.yzqjvdfgefveprobvvyw;
   const production = environments.wyyuqfdxucjksghsmhry;
@@ -22,7 +22,6 @@ const local = '20261106120000';
   assert.deepEqual(matches[0].remoteVersions, [remote]);
   assert.equal(stage.knownPending.some(e => e.localVersion === local), false);
   assert.equal(stage.remoteOnly.some(e => e.remoteVersion === remote), false);
-  assert.equal(production.reconciled.some(e => e.localVersion === local), false);
   assert.equal(production.knownPending.some(e => e.localVersion === local), false);
   const prod = production.reconciled.filter(e => e.localVersion === local);
   assert.equal(prod.length, 1);
