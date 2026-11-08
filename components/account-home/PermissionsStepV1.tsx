@@ -8,6 +8,7 @@ import { KPlusGate } from '../kplus/KPlusGate';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
+import type { ScannerMediaChoice } from '../../services/scannerMediaChoices';
 import type {
   DisableDeviceNotificationsResult,
   EnableDeviceNotificationsResult,
@@ -16,6 +17,11 @@ import type {
 interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  setScannerMediaChoice: (key: ScannerMediaChoice, value: boolean) => Promise<void>;
+  retryScannerMediaChoices: () => Promise<void>;
+  mediaReady: boolean;
+  mediaBusy: boolean;
+  mediaError: string | null;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
   /**
    * RP-104. Revokes THIS device's backend push-delivery route. The switch may
@@ -31,8 +37,8 @@ interface PermissionsStepV1Props {
  *
  * Matches the permissions-v1 mockup visually:
  * - Card-based permission rows with icons
- * - Essential vs Optional labels
- * - Truthful point-of-use status for Camera/Photos
+ * - Optional Scanner Camera/Photos ON/OFF choices, persisted and enforced
+ * - Truthful point-of-use OS permissions, never a fake OS ALLOW toggle
  * - Continue to Home CTA and Not now link
  *
  * Build 33 removed the Microphone and Notifications "Coming Soon" cards
@@ -52,12 +58,17 @@ interface PermissionsStepV1Props {
 export function PermissionsStepV1({
   preferences,
   setPreference,
+  setScannerMediaChoice,
+  retryScannerMediaChoices,
+  mediaReady,
+  mediaBusy,
+  mediaError,
   requestNotificationPermission,
   disableNotificationDelivery,
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
-  const { notifications } = preferences;
+  const { camera, photos, notifications } = preferences;
   // Android Repair 05. THE canonical decision, read once per render from the
   // one authority (services/notifications/remotePushCapability.ts) rather than
   // recomposed here from a flag and a platform test. When it is false this
@@ -131,7 +142,7 @@ export function PermissionsStepV1({
           <Text style={styles.headlineGold}>style tools</Text>
         </Text>
         <Text style={styles.body}>
-          Allow a few permissions to unlock the full K Scan AI experience.
+          Choose which Scanner tools you want available. Your device asks for access only when you use them.
         </Text>
       </View>
 
@@ -140,23 +151,38 @@ export function PermissionsStepV1({
         <PermissionCard
           icon="◉"
           title="Camera"
-          badge="ESSENTIAL"
-          description="Use the Scanner to capture a look when you are ready. Camera access is requested only when you start that flow."
-          actionType="status"
-          statusLabel="ON USE"
-          accessibilityLabel="Camera is requested only when you use the Scanner"
+          badge="OPTIONAL"
+          description="Allow camera capture in Scanner. OFF blocks Scanner camera use; ON permits the OS to ask only when you open it. Device permission is managed in Settings."
+          actionType="toggle"
+          actionValue={camera}
+          onActionChange={(value) => void setScannerMediaChoice('camera', value)}
+          disabled={!mediaReady || mediaBusy}
+          accessibilityLabel="Scanner Camera choice, not operating system permission"
         />
 
         {/* Photos */}
         <PermissionCard
           icon="◈"
           title="Photos"
-          badge="ESSENTIAL"
-          description="Choose a look from the system picker when you are ready to search with a photo."
-          actionType="status"
-          statusLabel="ON USE"
-          accessibilityLabel="Photos are selected only when you use the system picker"
+          badge="OPTIONAL"
+          description="Allow the Scanner photo picker. OFF blocks opening it; ON lets you choose individual photos when needed. This does not change device Photos access."
+          actionType="toggle"
+          actionValue={photos}
+          onActionChange={(value) => void setScannerMediaChoice('photos', value)}
+          disabled={!mediaReady || mediaBusy}
+          accessibilityLabel="Scanner Photos choice, not operating system permission"
         />
+
+        {mediaError ? (
+          <Pressable
+            accessibilityRole="button"
+            testID="onboarding-scanner-media-retry"
+            onPress={() => void retryScannerMediaChoices()}
+            disabled={mediaBusy}
+          >
+            <Text style={styles.settingsLink}>{mediaError} Tap to retry.</Text>
+          </Pressable>
+        ) : null}
 
         {/* This gate only controls the K+ acquisition action. The Microphone
             card itself is rendered for every state, including unavailable

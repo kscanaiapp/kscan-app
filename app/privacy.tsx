@@ -42,6 +42,7 @@ import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
 import { BrandSearchPreference } from '../components/BrandSearchPreference';
 import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
+import { ScannerMediaChoicesSection } from '../components/settings/ScannerMediaChoicesSection';
 import { SpeechSettingsSection } from '../components/settings/SpeechSettingsSection';
 import { GeminiProcessingSettingsSection } from '../components/settings/GeminiProcessingSettingsSection';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
@@ -745,6 +746,7 @@ export default function PrivacyScreen() {
               <DeviceNotificationSettingsSection actorKey={`user:${user.id}`} />
             ) : null}
 
+            <ScannerMediaChoicesSection />
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
             <BrandSearchPreference userId={user?.id ?? null} />
             <SpeechSettingsSection actorId={user?.id ?? null} />

@@ -580,6 +580,16 @@ function loadPermissionHook({ enable, disable }) {
       disableDeviceNotifications: disable,
     },
     '../services/actorScope': actorScope,
+    // Device-local Scanner choices are unrelated to the backend push route.
+    // Keep the real notification hook under test while stubbing only this
+    // independent persistence boundary.
+    '../services/scannerMediaChoices': {
+      readScannerMediaChoices: async () => ({ camera: true, photos: true }),
+      saveScannerMediaChoice: async (key, enabled) => ({
+        camera: key === 'camera' ? enabled : true,
+        photos: key === 'photos' ? enabled : true,
+      }),
+    },
     'react-native': { Platform: { OS: 'ios' }, PermissionsAndroid: { PERMISSIONS: {}, RESULTS: {} } },
     '../constants/featureFlags': { VOICESCAN_ENABLED: true },
   });

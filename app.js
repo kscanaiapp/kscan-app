@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScannerCameraLease } from './components/scan-room/ScannerCameraLease';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import {
@@ -44,6 +44,7 @@ import {
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { isScannerCameraRequired } from './services/scannerCameraRequirement';
+import { readScannerMediaChoices } from './services/scannerMediaChoices';
 import { resolveSavedScanDestination } from './services/savedScanDestination';
 import { hasUsableAnalyzedItem } from './services/failedScanActions';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
@@ -294,6 +295,25 @@ function QAPanel({ status, onSelectFixture }) {
 export default function App() {
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
+  // Scanner-local opt-outs must settle BEFORE any CameraView or photo action is
+  // exposed. Re-read on navigation focus so Privacy settings apply immediately.
+  // Storage failure is fail-closed rather than silently overriding a saved OFF.
+  const [scannerMediaChoices, setScannerMediaChoices] = useState(null);
+  const [scannerMediaError, setScannerMediaError] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    let current = true;
+    setScannerMediaChoices(null);
+    setScannerMediaError(false);
+    readScannerMediaChoices()
+      .then((choices) => {
+        if (current) setScannerMediaChoices(choices);
+      })
+      .catch(() => {
+        if (current) setScannerMediaError(true);
+      });
+    return () => { current = false; };
+  }, []));
 
   // Android does not relaunch the app after a user grants camera access in
   // Settings. Re-read the permission whenever the app returns to the foreground
@@ -344,6 +364,31 @@ export default function App() {
     addGalleryPhotos,
     removeSelectedImage,
   } = useKScan();
+
+  // Every reachable Scanner camera/gallery action goes through the device-local
+  // choice gate. ON is not an OS grant; CameraView is separately OS-gated.
+  const showScannerChoiceBlocked = (kind) => {
+    Alert.alert(
+      `Scanner ${kind} is turned off`,
+      'You can change this Scanner choice in Privacy settings. Android/iOS permissions are managed separately.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Privacy Settings', onPress: () => router.push('/privacy') },
+      ],
+    );
+  };
+  const capturePhotoIfEnabled = () => {
+    if (scannerMediaChoices?.camera) return capturePhoto(cameraRef);
+    showScannerChoiceBlocked('Camera');
+  };
+  const selectGalleryIfEnabled = () => {
+    if (scannerMediaChoices?.photos) return selectGalleryPhoto();
+    showScannerChoiceBlocked('Photos');
+  };
+  const addGalleryIfEnabled = () => {
+    if (scannerMediaChoices?.photos) return addGalleryPhotos();
+    showScannerChoiceBlocked('Photos');
+  };
 
   // Restored multi-photo result orchestration lives at the screen layer so the
   // governed ten-slot useKScan hook contract remains unchanged.
@@ -1172,6 +1217,45 @@ export default function App() {
     hasPhoto: Boolean(photo?.uri),
   });
 
+  if (!scannerMediaChoices) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.centerContent}>
+          {renderBrandTitle()}
+          <Text style={styles.infoText}>
+            {scannerMediaError
+              ? 'We could not read your Scanner camera and photo choices. Review them in Privacy settings.'
+              : 'Loading your Scanner media choices…'}
+          </Text>
+          {scannerMediaError ? (
+            <ActionButton label="Privacy Settings" onPress={() => router.push('/privacy')} />
+          ) : <ActivityIndicator color={COLORS.scanCyan} />}
+          <ActionButton label="Back to Home" onPress={handleHome} variant="tertiary" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (cameraRequired && !scannerMediaChoices.camera) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.centerContent}>
+          {renderBrandTitle()}
+          <Text style={styles.infoText}>
+            Scanner Camera is OFF in your K Scan AI choices. Turn it ON in Privacy settings
+            before opening the camera. This does not change device permission.
+          </Text>
+          <ActionButton label="Scanner Settings" onPress={() => router.push('/privacy')} />
+          {SCAN_ROOM_V2_UI_ENABLED ? (
+            <ActionButton label="Back" onPress={() => setV2CameraVisible(false)} variant="tertiary" />
+          ) : null}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (cameraRequired && !permission) {
     return (
       <SafeAreaView style={styles.container}>
@@ -1331,7 +1415,7 @@ export default function App() {
             ) : (
               <ScanButton
                 testID="scan-button"
-                onPress={() => capturePhoto(cameraRef)}
+                onPress={capturePhotoIfEnabled}
                 disabled={status !== 'idle' || !isCameraReady || isAnalyzing}
                 pulse={status === 'idle'}
               />
@@ -1484,7 +1568,7 @@ export default function App() {
             return (
               <ScanLanding
                 onOpenCamera={() => setV2CameraVisible(true)}
-                onUploadImage={selectGalleryPhoto}
+                onUploadImage={selectGalleryIfEnabled}
                 onTextScan={() => router.push('/text-scan')}
                 onHome={handleHome}
                 disabled={isAnalyzing}
@@ -1496,9 +1580,9 @@ export default function App() {
             <LiveScanCamera
               cameraRef={cameraRef}
               isCameraReady={isCameraReady}
-              onCapture={() => capturePhoto(cameraRef)}
+              onCapture={capturePhotoIfEnabled}
               onCameraReady={() => setIsCameraReady(true)}
-              onUpload={selectGalleryPhoto}
+              onUpload={selectGalleryIfEnabled}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
               onHome={handleHome}
@@ -1513,9 +1597,9 @@ export default function App() {
               cameraRef={cameraRef}
               isCameraReady={isCameraReady}
               isCapturing
-              onCapture={() => capturePhoto(cameraRef)}
+              onCapture={capturePhotoIfEnabled}
               onCameraReady={() => setIsCameraReady(true)}
-              onUpload={selectGalleryPhoto}
+              onUpload={selectGalleryIfEnabled}
               onTextScan={() => router.push('/text-scan')}
               onBack={() => setV2CameraVisible(false)}
               onHome={handleHome}
@@ -1531,9 +1615,9 @@ export default function App() {
               <LiveScanCamera
                 cameraRef={cameraRef}
                 isCameraReady={isCameraReady}
-                onCapture={() => capturePhoto(cameraRef)}
+                onCapture={capturePhotoIfEnabled}
                 onCameraReady={() => setIsCameraReady(true)}
-                onUpload={selectGalleryPhoto}
+                onUpload={selectGalleryIfEnabled}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}
                 onHome={handleHome}
@@ -1543,7 +1627,7 @@ export default function App() {
             ) : (
               <ScanLanding
                 onOpenCamera={() => setV2CameraVisible(true)}
-                onUploadImage={selectGalleryPhoto}
+                onUploadImage={selectGalleryIfEnabled}
                 onTextScan={() => router.push('/text-scan')}
                 onHome={handleHome}
                 disabled={isAnalyzing}
@@ -1556,8 +1640,8 @@ export default function App() {
               imageUri={photo.uri}
               images={selectedImages}
               source={photo.source || 'camera'}
-              onRetake={photo.source === 'upload' ? selectGalleryPhoto : retake}
-              onAddImage={MULTI_IMAGE_SCANNER_ENABLED ? addGalleryPhotos : undefined}
+              onRetake={photo.source === 'upload' ? selectGalleryIfEnabled : retake}
+              onAddImage={MULTI_IMAGE_SCANNER_ENABLED ? addGalleryIfEnabled : undefined}
               onRemoveImage={MULTI_IMAGE_SCANNER_ENABLED ? removeSelectedImage : undefined}
               onAnalyze={runAnalysis}
               onHome={handleHome}
@@ -1599,9 +1683,9 @@ export default function App() {
               <LiveScanCamera
                 cameraRef={cameraRef}
                 isCameraReady={isCameraReady}
-                onCapture={() => capturePhoto(cameraRef)}
+                onCapture={capturePhotoIfEnabled}
                 onCameraReady={() => setIsCameraReady(true)}
-                onUpload={selectGalleryPhoto}
+                onUpload={selectGalleryIfEnabled}
                 onTextScan={() => router.push('/text-scan')}
                 onBack={() => setV2CameraVisible(false)}
                 onHome={handleHome}
@@ -1611,7 +1695,7 @@ export default function App() {
             ) : (
               <ScanLanding
                 onOpenCamera={() => setV2CameraVisible(true)}
-                onUploadImage={selectGalleryPhoto}
+                onUploadImage={selectGalleryIfEnabled}
                 onTextScan={() => router.push('/text-scan')}
                 onHome={handleHome}
                 disabled={isAnalyzing}
