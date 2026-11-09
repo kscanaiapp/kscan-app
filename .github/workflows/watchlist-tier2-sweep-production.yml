@@ -1,9 +1,20 @@
-# K+ Smart Watchlist — Tier 2 refresh sweep (PRODUCTION, protected).
+# K+ Smart Watchlist — Tier 2 refresh sweep (PRODUCTION).
 #
-# The actual sweep remains solely inside `commerce-watch-refresh`. This workflow
-# provides the governed invocation path: a protected Environment, a fail-closed
-# preflight, an exact production-origin assertion, and the same six-hour cadence
-# as staging. It intentionally carries no product, customer, or provider logic.
+# The sweep runs only through commerce-watch-refresh's bounded worker-secret
+# path. A scheduled job needs a dedicated unattended environment; using the
+# human-reviewed production DEPLOYMENT environment left every scheduled run
+# pending and then cancelled by the next invocation (no worker job started).
+#
+# Schedule: 'watchlist-production-automation' Environment, WITHOUT required
+# reviewers, provisioned only with WATCHLIST_WORKER_SECRET and the exact
+# SUPABASE_PRODUCTION_FUNCTIONS_URL variable. Do not copy deployment, database,
+# service-role or broad project credentials into this environment. Missing
+# credentials fail CLOSED in preflight, before any request.
+#
+# Manual dispatch: the existing reviewer-protected 'production' Environment,
+# and the RUN-SWEEP confirmation remain mandatory. Deployment and migration
+# workflows remain unchanged and protected. Neither path can bypass the server's
+# app_config.watchlist_worker_enabled kill switch or the worker-secret guard.
 
 name: Watchlist Tier 2 Sweep (production)
 
@@ -29,7 +40,10 @@ jobs:
   sweep:
     name: Watchlist Tier 2 sweep
     runs-on: ubuntu-latest
-    environment: production
+    # Human approval is mandatory for manual dispatch, not for the six-hour
+    # scheduled narrow worker operation. Credentials are environment-scoped.
+    environment:
+      name: ${{ github.event_name == 'schedule' && 'watchlist-production-automation' || 'production' }}
     timeout-minutes: 10
     if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-SWEEP'
     steps:
