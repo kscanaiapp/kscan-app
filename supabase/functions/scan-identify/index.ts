@@ -46,7 +46,7 @@ import {
   type NormalizedIdentification,
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
-import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence } from './brandEvidence.ts';
+import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence, withScannerMultiItemBrandPrompt, withScannerMultiItemBrandSchema } from './brandEvidence.ts';
 import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
 import { classifyCommerceMatch } from './matchTier.ts';
 import { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';
@@ -2880,7 +2880,10 @@ Deno.serve(async (req) => {
   const vri03H1 = mode === 'image' && vri03.subFlags.h1_instruction;
   const vri03H2 = mode === 'image' && vri03.subFlags.h2_schema_parser;
   const identifyPrompt = withVri03Instruction(withQualityAndRoute(IDENTIFY_PROMPT), 'legacy_single_item', vri03H1);
-  const multiItemPrompt = withVri03Instruction(withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT), 'multi_item_detection', vri03H1);
+  const multiItemPrompt = withVri03Instruction(
+    withScannerMultiItemBrandPrompt(withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT), scannerBrandEvidenceEnabled),
+    'multi_item_detection', vri03H1,
+  );
   const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
   const selectedItemPrompt = selectedCandidate
     ? withVri03Instruction(
@@ -2941,7 +2944,7 @@ Deno.serve(async (req) => {
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
           ...(useMultiItemDetectionProvider
-            ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
+            ? { responseSchema: withScannerMultiItemBrandSchema(MULTI_ITEM_RESPONSE_SCHEMA, scannerBrandEvidenceEnabled) }
             : useSelectedItemProvider
             ? {
               // VRI-03 H2 extends the schema before brand scoping (it adds no
