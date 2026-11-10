@@ -849,6 +849,18 @@ test('ADD-06: the Home card routes into the Scanner, never into an empty try-on'
   assert.equal(textContent(hidden.tree), '');
 });
 
+test('Home card: the header tells screen readers K+ is needed only when Free (marker is hidden from them)', () => {
+  const headerOf = (kplus) => findAll(renderHomeCard({ kplus }).tree,
+    (node) => typeof node.type === 'string' && node.props?.accessibilityRole === 'header')[0];
+  assert.equal(headerOf('free').props.accessibilityLabel, 'Try it on with AI. Available with K+.');
+  assert.equal(headerOf('complimentary').props.accessibilityLabel, undefined, 'members hear the plain title');
+  assert.equal(headerOf('active').props.accessibilityLabel, undefined);
+  assert.equal(headerOf('resolving').props.accessibilityLabel, undefined, 'RESOLVING != FREE');
+  // The free Scanner button never carries K+ wording.
+  const scan = renderHomeCard({ kplus: 'free' }).host('home-vto-discovery-scan')[0];
+  assert.doesNotMatch(`${scan.props.accessibilityLabel} ${scan.props.accessibilityHint}`, /K\+/);
+});
+
 test('Home card: accessible name, hint, 44pt targets, and no K+ marker while K+ resolves', () => {
   const ui = renderHomeCard({ kplus: 'free' });
   const scan = ui.host('home-vto-discovery-scan')[0];
