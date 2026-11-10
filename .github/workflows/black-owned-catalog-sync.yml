@@ -55,7 +55,11 @@ jobs:
         # A dispatch runs only the requested environment, so it never waits on
         # (or skips inside) the other environment's protection rules.
         target: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.target) || '["staging","production"]') }}
-    environment: ${{ matrix.target }}
+    # Unattended Production uses a narrowly scoped automation Environment,
+    # never the reviewer-protected manual Production Environment.
+    # Provision catalog-production-automation with the worker-only secret and
+    # exact Production Functions origin before merging this scheduler.
+    environment: ${{ github.event_name == 'schedule' && matrix.target == 'production' && 'catalog-production-automation' || matrix.target }}
     if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-CATALOG-SYNC'
     steps:
       - name: Preflight — refuse to run unconfigured
