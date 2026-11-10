@@ -156,6 +156,26 @@ test('behavioral: resolvePurchaseShelfMode governs the live surface exactly as t
   );
 });
 
+test('#612: a deferred search that has not run never mounts "No shopping options found."', () => {
+  const isDeferredSearchNotStarted = loadPureFunction(V2_FILE, 'isDeferredSearchNotStarted');
+  // Deferred, nothing dispatched yet (idle / no status): not an empty result.
+  assert.equal(isDeferredSearchNotStarted(true, 0, 'idle'), true);
+  assert.equal(isDeferredSearchNotStarted(true, 0, undefined), true);
+  // Deferred and actually searched: pending, error and completed-empty keep their panels.
+  assert.equal(isDeferredSearchNotStarted(true, 0, 'pending'), false);
+  assert.equal(isDeferredSearchNotStarted(true, 0, 'error'), false);
+  assert.equal(isDeferredSearchNotStarted(true, 0, 'empty'), false, 'completed empty still states the no-match');
+  // Options in hand, or a non-deferred inline search, are never suppressed.
+  assert.equal(isDeferredSearchNotStarted(true, 2, 'idle'), false);
+  assert.equal(isDeferredSearchNotStarted(false, 0, 'idle'), false, 'inline (non-deferred) empty result unchanged');
+
+  const source = read(V2_FILE).replace(/\s+/g, ' ');
+  assert.match(source, /isDeferredSearchNotStarted\( Boolean\(analysis\?\.commerceDeferred\), commerceOptionsCount, commerceStatus, \)/);
+  assert.match(source, /\(purchaseShelfMode === 'empty' && !deferredSearchNotStarted\)/,
+    'the empty panel must be gated on a search having run');
+  assert.doesNotMatch(source, /\|\| purchaseShelfMode === 'empty' \?/, 'pre-repair shape: idle deferred shelf claimed a no-match');
+});
+
 test('behavioral: the panel itself resolves pending/error/empty/data correctly', () => {
   const resolvePurchaseOptionsPanelMode = loadPureFunction(
     'components/scan-results/PurchaseOptionsPanel.tsx',
