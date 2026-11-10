@@ -133,3 +133,6 @@ jobs:
           npm run test:auth-privacy
           npm run test:verify-supabase
           npm run test:analyze-contract
+      # Default-branch Watchlist sweep workflows run Production automation on a
+      # schedule; their contract must execute on every master change.
+      - run: node --test __tests__/watchlistProductionSchedulerActivation.test.js __tests__/watchlistTier2WorkflowContract.test.js
