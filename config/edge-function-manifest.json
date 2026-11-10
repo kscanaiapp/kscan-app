@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-06T14:07:31.902Z",
-    "generatedFromGitSha": "30679dabdf1fa9e4479368b5e9625c001be106b3"
+    "generatedAtUtc": "2026-11-10T21:25:52.362Z",
+    "generatedFromGitSha": "3deebd858911f5b5abcf154dfa86046aa4a44387"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -627,10 +627,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 51,
-        "treeFileCount": 89,
-        "bundleHash": "e1d52a26c0fa68ef0200d3e969ae861beea78d16aac9ce88ef4605636e4e1c0c",
-        "treeHash": "a17fb7ee206df964b5e44242f54af8fba97665d35b0f5132da713c0981050c19",
+        "bundleFileCount": 52,
+        "treeFileCount": 91,
+        "bundleHash": "c7464cbbad542526d236ff89e7afb717ac7f1c3c76e456e1fa9bd00543e3d2e8",
+        "treeHash": "34fc069edde1ca399e496410557efe2a4b9f96623cdacecc846cc49e980ba89a",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -849,7 +849,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "01e7c7d934864e71787bacf27552a97b67a7d86521473cbe255044bdb7896464",
+            "sha256": "8632efddaa477d8d0536db0124b5ab31172d8f8712d75f8edb89a34a9f07ceb9",
             "bundle": true
           },
           {
@@ -875,6 +875,16 @@
           {
             "path": "supabase/functions/scan-identify/matchTier.ts",
             "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemBrandEvidence.test.ts",
+            "sha256": "b9918a95f0016967375d34ac5e8a77b7f1bad8f8bc0a75d8bb3686b772e687bc",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemBrandEvidence.ts",
+            "sha256": "e9d543cb0cf178b274f39926cc32a2dc4837936258644b5edb30dfcd31da7be2",
             "bundle": true
           },
           {

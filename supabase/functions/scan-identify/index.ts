@@ -46,7 +46,8 @@ import {
   type NormalizedIdentification,
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
-import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence, withScannerMultiItemBrandPrompt, withScannerMultiItemBrandSchema } from './brandEvidence.ts';
+import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND_PROMPT, scopeScannerBrandSchema, shouldUseScannerBrandEvidence, summarizeScannerBrandEvidence } from './brandEvidence.ts';
+import { withScannerMultiItemBrandPrompt, withScannerMultiItemBrandSchema } from './multiItemBrandEvidence.ts';
 import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
 import { classifyCommerceMatch } from './matchTier.ts';
 import { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';
