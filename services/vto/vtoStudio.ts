@@ -139,6 +139,8 @@ export const VTO_STUDIO_COPY = Object.freeze({
   entrySubtitleUnavailable: 'Not available right now.',
   entrySubtitleResolving: 'Checking availability.',
   entryA11yHint: 'Opens the Try-On Studio',
+  // The K+ marker is hidden from screen readers; a locked entry says so itself.
+  entryA11yHintLocked: 'Available with K+. Opens the Try-On Studio.',
   screenTitle: 'Try-On Studio',
   screenSubtitle: 'VIRTUAL TRY-ON',
   photoTitle: 'AI Photo',

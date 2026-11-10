@@ -203,6 +203,20 @@ test('Home entry: present in every visible state, with state-true copy and the K
   assert.equal(findAll(active.render(), (n) => n.type === 'KPlusMarkerBadge')[0].props.state, 'included');
 });
 
+test('Home entry: screen readers hear the K+ state the hidden marker shows, and never "Free" while resolving', async () => {
+  // KPlusMarkerBadge is hidden from VoiceOver/TalkBack, so the row's own hint carries it.
+  const hintFor = async (decision) => {
+    const h = entryHarness(decision);
+    const tree = h.render(); await settle(2);
+    const [row] = findAll(tree, (n) => n.props?.testID === 'home-try-on-studio-entry');
+    return row.props.accessibilityHint;
+  };
+  assert.equal(await hintFor(decide({ kplus: 'free' })), 'Available with K+. Opens the Try-On Studio.');
+  assert.equal(await hintFor(decide({ kplus: 'active' })), 'Opens the Try-On Studio');
+  assert.equal(await hintFor(decide({ remote: null })), 'Opens the Try-On Studio', 'resolving is not announced as K+-locked');
+  assert.equal(await hintFor(decide({ remote: { enabled: false, liveEnabled: false } })), 'Opens the Try-On Studio');
+});
+
 test('Home entry: tapping opens ONLY the Studio screen and reports a home awareness tap', async () => {
   const h = entryHarness(decide({ kplus: 'free' }), 'free');
   const tree = h.render(); await settle(2);
