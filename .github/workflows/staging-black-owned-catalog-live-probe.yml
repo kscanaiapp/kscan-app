@@ -1,0 +1,115 @@
+# Temporary bounded acceptance of PR #694's exact worker invocation steps.
+# No deploy, merchant creation, Production targeting or provider test fixtures.
+name: K Scan Staging Black-Owned Catalog Live Probe
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [staging]
+        required: true
+        default: staging
+      confirm:
+        type: string
+        required: true
+        default: RUN-CATALOG-SYNC
+  push:
+    branches: [test/b35-catalog-staging-acceptance-1110]
+    paths: [.github/workflows/staging-black-owned-catalog-live-probe.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: black-owned-catalog-sync-${{ github.event_name == 'workflow_dispatch' && inputs.target || 'scheduled' }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Catalog sync (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # A dispatch runs only the requested environment, so it never waits on
+        # (or skips inside) the other environment's protection rules.
+        target: [staging]
+    # Unattended Production uses a narrowly scoped automation Environment,
+    # never the reviewer-protected manual Production Environment.
+    # Provision catalog-production-automation with the worker-only secret and
+    # exact Production Functions origin before merging this scheduler.
+    environment: ${{ github.event_name == 'schedule' && matrix.target == 'production' && 'catalog-production-automation' || matrix.target }}
+    if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-CATALOG-SYNC'
+    steps:
+      - name: Preflight — refuse to run unconfigured
+        id: preflight
+        env:
+          TARGET: ${{ matrix.target }}
+          WORKER_SECRET: ${{ secrets.DISCOVERY_CATALOG_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ matrix.target == 'production' && vars.SUPABASE_PRODUCTION_FUNCTIONS_URL || vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -n "${WORKER_SECRET:-}" ] || MISSING="${MISSING} DISCOVERY_CATALOG_WORKER_SECRET(secret)"
+          [ -n "${FUNCTIONS_URL:-}" ] || MISSING="${MISSING} functions-origin(variable)"
+          if [ -n "${MISSING}" ]; then
+            echo "Black-owned catalog sync (${TARGET}) is NOT provisioned. Missing:${MISSING}"
+            exit 1
+          fi
+          case "${TARGET}:${FUNCTIONS_URL%/}" in
+            staging:https://yzqjvdfgefveprobvvyw.functions.supabase.co) ;;
+            production:https://wyyuqfdxucjksghsmhry.functions.supabase.co) ;;
+            *) echo "Functions origin does not match the ${TARGET} project"; exit 1 ;;
+          esac
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Invoke the governed worker
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          WORKER_SECRET: ${{ secrets.DISCOVERY_CATALOG_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ matrix.target == 'production' && vars.SUPABASE_PRODUCTION_FUNCTIONS_URL || vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          STATUS="$(curl --silent --show-error --fail-with-body \
+            --max-time 150 \
+            --request POST \
+            --header "content-type: application/json" \
+            --header "x-discovery-worker-secret: ${WORKER_SECRET}" \
+            --data '{}' \
+            --output "${BODY_FILE}" \
+            --write-out '%{http_code}' \
+            "${FUNCTIONS_URL%/}/black-owned-catalog-sync")" || CURL_FAILED=1
+
+          echo "HTTP ${STATUS}"
+          if [ "${CURL_FAILED:-0}" = "1" ] || [ "${STATUS}" != "200" ]; then
+            echo "Catalog sync request did not succeed."
+            exit 1
+          fi
+          # HTTP success alone is insufficient: an error object, malformed JSON
+          # or missing counts must never masquerade as an empty successful sync.
+          python3 - "${BODY_FILE}" <<'PY'
+          import json, sys
+          def reject(message):
+              print(message, file=sys.stderr)
+              sys.exit(1)
+          try:
+              with open(sys.argv[1], encoding='utf-8') as body:
+                  report = json.load(body)
+          except (OSError, ValueError):
+              reject('Invalid catalog response; body withheld.')
+          counts = ('merchants', 'succeeded', 'failed', 'skipped', 'products')
+          if (not isinstance(report, dict) or report.get('mode') != 'catalog_sync'
+                  or type(report.get('enabled')) is not bool
+                  or any(type(report.get(key)) is not int or report[key] < 0 for key in counts)
+                  or report['merchants'] > 25
+                  or report['succeeded'] + report['failed'] + report['skipped'] != report['merchants']
+                  or (not report['enabled'] and any(report[key] != 0 for key in counts))):
+              reject('Invalid catalog response schema; body withheld.')
+          print(json.dumps({key: report[key] for key in ('mode', 'enabled', *counts)}))
+          if not report['enabled']:
+              print('Catalog synchronization is disabled; no inventory was refreshed.')
+          if report['merchants'] > 0 and report['succeeded'] == 0 and report['failed'] > 0:
+              reject('Every configured merchant failed to sync.')
+          PY
