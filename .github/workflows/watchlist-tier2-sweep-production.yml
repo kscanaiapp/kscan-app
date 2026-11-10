@@ -32,8 +32,18 @@ on:
 permissions:
   contents: read
 
+# Separate concurrency groups per trigger path. A run waiting on the reviewer-
+# protected 'production' Environment keeps its concurrency group occupied for
+# up to 30 days; while the scheduled and manual paths shared one group, a single
+# unapproved run (38269743575, queued 2026-10-12 before the automation split)
+# held it, and every later scheduled run sat "pending" with zero jobs until the
+# next schedule tick cancelled it. Scheduled runs can never wait for approval
+# (the automation Environment has no reviewers), so the schedule group is only
+# held by a live job bounded by timeout-minutes. Overlap between a manual and a
+# scheduled sweep is safe: claim_watchable_commerce_watches stamps
+# last_checked_at under FOR UPDATE SKIP LOCKED, so a Watch is claimed once.
 concurrency:
-  group: watchlist-tier2-sweep-production
+  group: watchlist-tier2-sweep-production-${{ github.event_name == 'schedule' && 'schedule' || 'manual' }}
   cancel-in-progress: false
 
 jobs:
