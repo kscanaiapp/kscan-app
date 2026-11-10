@@ -11,11 +11,11 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function assertFailClosedSweep(source, environment, variable, origin) {
+function assertFailClosedSweep(source, environmentBinding, variable, origin) {
   assert.match(source, /workflow_dispatch:/, 'manual dispatch must remain available');
   assert.match(source, /confirm:\n\s+description: Must be RUN-SWEEP/, 'manual dispatch must require confirmation');
   assert.match(source, /schedule:\n\s+- cron: '17 \*\/6 \* \* \*'/, 'cadence must remain six-hourly');
-  assert.match(source, new RegExp(`environment: ${environment}`), 'workflow must bind its intended Environment');
+  assert.ok(source.includes(environmentBinding), 'workflow must bind its intended Environment');
   assert.ok(
     source.includes('FUNCTIONS_URL: ${{ vars.' + variable + ' }}'),
     'workflow must use its scoped Functions URL',
@@ -28,12 +28,19 @@ function assertFailClosedSweep(source, environment, variable, origin) {
 
 test('staging Tier 2 sweep stays fail-closed and cannot target production', () => {
   const source = workflow('watchlist-tier2-sweep.yml');
-  assertFailClosedSweep(source, 'staging', 'SUPABASE_STAGING_FUNCTIONS_URL', 'yzqjvdfgefveprobvvyw.functions.supabase.co');
+  assertFailClosedSweep(source, 'environment: staging', 'SUPABASE_STAGING_FUNCTIONS_URL', 'yzqjvdfgefveprobvvyw.functions.supabase.co');
   assert.doesNotMatch(source, /wyyuqfdxucjksghsmhry/, 'staging workflow must not target production');
 });
 
 test('production Tier 2 sweep is protected and cannot target staging', () => {
   const source = workflow('watchlist-tier2-sweep-production.yml');
-  assertFailClosedSweep(source, 'production', 'SUPABASE_PRODUCTION_FUNCTIONS_URL', 'wyyuqfdxucjksghsmhry.functions.supabase.co');
+  // PR #688: scheduled runs use the reviewer-free narrow automation Environment;
+  // manual dispatch keeps the reviewer-protected 'production' Environment.
+  assertFailClosedSweep(
+    source,
+    "name: ${{ github.event_name == 'schedule' && 'watchlist-production-automation' || 'production' }}",
+    'SUPABASE_PRODUCTION_FUNCTIONS_URL',
+    'wyyuqfdxucjksghsmhry.functions.supabase.co',
+  );
   assert.doesNotMatch(source, /yzqjvdfgefveprobvvyw/, 'production workflow must not target staging');
 });
