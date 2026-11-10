@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { supabase } from './supabaseClient';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -109,13 +110,18 @@ export async function recordLegalAcceptances(
 
   const user: User = sessionData.session.user;
 
+  // Which client surface recorded the acceptance. A browser session of this app
+  // was previously labelled 'mobile'; native iOS and Android remain 'mobile'.
+  // The table's source check already allows 'web'.
+  const source = Platform.OS === 'web' ? 'web' : 'mobile';
+
   // ── Build rows ───────────────────────────────────────────────────────────
   const rows = [
     {
       user_id: user.id,
       acceptance_type: 'terms',
       policy_version: termsVersion.trim(),
-      source: 'mobile',
+      source,
       app_version: appVersion ?? null,
       metadata: {},
     },
@@ -123,7 +129,7 @@ export async function recordLegalAcceptances(
       user_id: user.id,
       acceptance_type: 'privacy',
       policy_version: privacyVersion.trim(),
-      source: 'mobile',
+      source,
       app_version: appVersion ?? null,
       metadata: {},
     },
@@ -131,7 +137,7 @@ export async function recordLegalAcceptances(
       user_id: user.id,
       acceptance_type: 'minimum_age',
       policy_version: minimumAgeVersion.trim(),
-      source: 'mobile',
+      source,
       app_version: appVersion ?? null,
       metadata: {},
     },
@@ -139,7 +145,7 @@ export async function recordLegalAcceptances(
       user_id: user.id,
       acceptance_type: 'ai_processing',
       policy_version: aiProcessingVersion.trim(),
-      source: 'mobile',
+      source,
       app_version: appVersion ?? null,
       metadata: {},
     },

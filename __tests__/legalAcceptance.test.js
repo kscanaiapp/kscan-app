@@ -53,8 +53,9 @@ function createMockClient({ session = null, upsertError = null } = {}) {
   };
 }
 
-function loadService(mockClient) {
+function loadService(mockClient, platformOS = 'ios') {
   return loadTsModule('services/legalAcceptance.ts', {
+    'react-native': { Platform: { OS: platformOS } },
     './supabaseClient': { supabase: mockClient },
     '../constants/legal': {
       TERMS_VERSION: '1.0',
@@ -253,6 +254,23 @@ test('uses source: mobile', async () => {
   assert.equal(rows[0].source, 'mobile');
   assert.equal(rows[1].source, 'mobile');
   assert.equal(rows[2].source, 'mobile');
+});
+
+test('native Android is attributed to mobile and a browser session to web (all four rows)', async () => {
+  for (const [os, expected] of [['android', 'mobile'], ['ios', 'mobile'], ['web', 'web']]) {
+    const client = createMockClient({ session: { user: { id: 'user-1' } } });
+    const { recordLegalAcceptances } = loadService(client, os);
+    const result = await recordLegalAcceptances({
+      termsVersion: '1.0', privacyVersion: '2.0', minimumAgeVersion: '3.0', aiProcessingVersion: '4.0',
+    }, client);
+    // The service runs in a vm realm, so compare primitives, not cross-realm objects.
+    assert.equal(result.ok, true);
+    const rows = client._upsertCalls[0].rows;
+    assert.equal(rows.length, 4);
+    assert.equal(rows.map((row) => row.source).join(','), [expected, expected, expected, expected].join(','), os);
+    // The table's source check admits exactly these labels.
+    for (const row of rows) assert.ok(['mobile', 'web', 'admin', 'system'].includes(row.source));
+  }
 });
 
 test('uses app_version null when unavailable', async () => {
