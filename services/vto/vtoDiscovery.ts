@@ -435,6 +435,8 @@ export function vtoCueDecisionRecordsPresentation(decision: VtoCueDecision): boo
  */
 export const VTO_DISCOVERY_COPY = Object.freeze({
   title: 'Try it on with AI',
+  // The K+ marker is hidden from screen readers; a Free header says so itself.
+  titleA11yLocked: 'Try it on with AI. Available with K+.',
   benefitBody: 'See how an eligible look might work on you before you buy.',
   homeBody: 'Scan or open an eligible look to see it on you.',
   homePrimary: 'SCAN A LOOK',

@@ -52,6 +52,7 @@ function harness(platform, options = {}) {
     },
   };
   const legal = runModule('services/legalAcceptance.ts', {
+    'react-native': { Platform: { OS: 'ios' } },
     './supabaseClient': { supabase: client }, '../constants/legal': versions,
     '../src/utils/errorLogger': { logError() {} },
   });

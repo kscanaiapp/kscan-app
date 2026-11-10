@@ -179,6 +179,24 @@ interface ScanResultV2Props {
 }
 
 /**
+ * #612: on a deferred scan, "No shopping options found." may only follow a
+ * search the backend completed empty ('empty'). Before that search is
+ * dispatched nothing has run, so there is no empty result to report; the
+ * multi-item section carries the deferred state and its Find Matches action.
+ * Same NOT_STARTED rule as resolveShelfCommerceState (services/commerceShelfState.ts).
+ * Non-deferred scans reach this surface as 'idle' after their inline search,
+ * so their empty treatment is unchanged.
+ */
+export function isDeferredSearchNotStarted(
+  commerceDeferred: boolean,
+  optionsCount: number,
+  commerceStatus: string | undefined,
+): boolean {
+  return commerceDeferred && optionsCount === 0
+    && commerceStatus !== 'pending' && commerceStatus !== 'error' && commerceStatus !== 'empty';
+}
+
+/**
  * Scan Results V2 — premium scan-to-commerce result page.
  *
  * - Wraps legacy analysis data into the V2 shape for forward-compat rendering.
@@ -326,6 +344,11 @@ export function ScanResultV2({
   const purchaseShelfMode = resolvePurchaseShelfMode(
     commerceOptionsCount,
     priceDiscoveryEnabled,
+    commerceStatus,
+  );
+  const deferredSearchNotStarted = isDeferredSearchNotStarted(
+    Boolean(analysis?.commerceDeferred),
+    commerceOptionsCount,
     commerceStatus,
   );
 
@@ -778,7 +801,8 @@ export function ScanResultV2({
                     ownershipById={ownershipById}
                   />
                 </View>
-              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error'
+                || (purchaseShelfMode === 'empty' && !deferredSearchNotStarted) ? (
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={[]}

@@ -54,7 +54,11 @@ export function HomeVtoDiscoveryCard({ style }: HomeVtoDiscoveryCardProps) {
         </View>
         <View style={styles.copy}>
           <View style={styles.titleRow}>
-            <Text style={styles.title} accessibilityRole="header">
+            <Text
+              style={styles.title}
+              accessibilityRole="header"
+              accessibilityLabel={kplus === 'free' ? COPY.titleA11yLocked : undefined}
+            >
               {COPY.title}
             </Text>
             {/* RESOLVING != FREE: no marker until the K+ answer is known. */}
