@@ -56,6 +56,30 @@ test('Packing active state visibly identifies Included', () => {
   assert.match(homeCode, /packingKPlusActive \? 'included' : 'locked'/);
 });
 
+// ── Screen-reader parity (P9) ───────────────────────────────────────────────
+// KPlusMarkerBadge is hidden from VoiceOver/TalkBack, so each host control must
+// convey the K+ state in its own accessible text.
+
+test('the K+ marker stays decorative; host controls carry the K+ state', () => {
+  assert.match(badge, /accessible=\{false\}/);
+  assert.match(badge, /importantForAccessibility="no"/);
+  assert.match(watchlistBlock, /'Available with K\+\. Opens K\+ membership options\.'/);
+});
+
+test('Packing chip tells screen-reader users when the plan needs K+, never while resolving', () => {
+  const chipBlock = sliceFn(homeCode, 'title="PACK FOR A TRIP"', 'FeatureChip>');
+  const hint = chipBlock.match(/accessibilityHint=\{([\s\S]*?)\}\s*>/);
+  assert.ok(hint, 'Packing hint must be computed from the resolved entitlement');
+  const expr = hint[1];
+  // Evaluate the exact shipped expression for each entitlement shape.
+  const evaluate = (packingKPlusResolving, packingKPlusActive) =>
+    new Function('packingKPlusResolving', 'packingKPlusActive', `return (${expr});`)(packingKPlusResolving, packingKPlusActive);
+  assert.equal(evaluate(false, false), 'Available with K+. Opens trip setup.', 'Free: K+ is announced');
+  assert.equal(evaluate(false, true), 'Build a packing plan from the clothes in your Closet', 'K+ active: no upsell wording');
+  assert.equal(evaluate(true, false), 'Build a packing plan from the clothes in your Closet', 'resolving is never announced as Free');
+  assert.doesNotMatch(chipBlock, /accessibilityHint="Build a packing plan/, 'a fixed hint cannot convey K+ state');
+});
+
 // ── Resolving truth ─────────────────────────────────────────────────────────
 
 test('resolving renders no marker on either entry (never false free, never false Included)', () => {

@@ -464,7 +464,12 @@ export default function HomeLuxuryTechV1() {
             onPress={() => router.push('/packing')}
             testID="home-luxury-feature-packing"
             accessibilityLabel="Pack for a trip"
-            accessibilityHint="Build a packing plan from the clothes in your Closet"
+            // The K+ marker below is hidden from screen readers, so the chip
+            // itself must say when the plan needs K+ (same rule as Watchlist).
+            // Resolving is never announced as Free.
+            accessibilityHint={packingKPlusResolving || packingKPlusActive
+              ? 'Build a packing plan from the clothes in your Closet'
+              : 'Available with K+. Opens trip setup.'}
           >
             {!packingKPlusResolving && (
               <KPlusMarkerBadge

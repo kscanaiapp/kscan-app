@@ -54,7 +54,7 @@ export function TryOnStudioEntry({ style }: TryOnStudioEntryProps) {
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed, style]}
       accessibilityRole="button"
       accessibilityLabel={`${COPY.entryTitle}. ${subtitle}`}
-      accessibilityHint={COPY.entryA11yHint}
+      accessibilityHint={studio.kplusMarker === 'locked' ? COPY.entryA11yHintLocked : COPY.entryA11yHint}
       testID="home-try-on-studio-entry"
     >
       <View style={styles.iconTile} accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
