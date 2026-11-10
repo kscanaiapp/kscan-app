@@ -37,7 +37,7 @@ const APP_JSON_PATH = path.join(REPO_ROOT, 'app.json');
 const MIC_KEY = 'NSMicrophoneUsageDescription';
 const SPEECH_KEY = 'NSSpeechRecognitionUsageDescription';
 
-function introspectInfoPlist() {
+function introspectInfoPlist(projectRoot = REPO_ROOT) {
   // Invoke the local Expo CLI through node rather than `npx`: on Windows
   // spawnSync cannot execute npx.cmd without a shell, and resolving the bin
   // directly also pins the test to this repo's Expo version.
@@ -45,7 +45,14 @@ function introspectInfoPlist() {
   const raw = execFileSync(
     process.execPath,
     [cli, 'config', '--type', 'introspect', '--json'],
-    { cwd: REPO_ROOT, stdio: 'pipe', encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    {
+      cwd: projectRoot,
+      // No detached telemetry child holding the fixture directory open (Windows EPERM on cleanup).
+      env: { ...process.env, EXPO_NO_TELEMETRY: '1' },
+      stdio: 'pipe',
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    },
   );
   // The CLI may print a banner before the JSON document.
   const start = raw.indexOf('{');
@@ -53,15 +60,27 @@ function introspectInfoPlist() {
   return JSON.parse(raw.slice(start)).ios.infoPlist;
 }
 
+/**
+ * Never rewrite the shared app.json. node --test runs files in parallel, and
+ * rewriting it here (even with a finally-restore) made any test reading app.json
+ * at that moment see this mutated, re-formatted copy: in the Build 35 full suite
+ * trustedSettlementSourcePromotion.test.js failed that way while passing alone.
+ * The fixture lives under node_modules/.cache so Expo and its config plugins
+ * still resolve from this repo's node_modules; it is ignored by git and by every
+ * source scanner.
+ */
 function withMutatedAppJson(mutate, run) {
-  const original = fs.readFileSync(APP_JSON_PATH, 'utf8');
+  const cacheDir = path.join(REPO_ROOT, 'node_modules', '.cache');
+  fs.mkdirSync(cacheDir, { recursive: true });
+  const fixtureRoot = fs.mkdtempSync(path.join(cacheDir, 'voice-mic-fixture-'));
   try {
-    const config = JSON.parse(original);
+    const config = JSON.parse(fs.readFileSync(APP_JSON_PATH, 'utf8'));
     mutate(config);
-    fs.writeFileSync(APP_JSON_PATH, JSON.stringify(config, null, 2));
-    return run();
+    fs.writeFileSync(path.join(fixtureRoot, 'app.json'), JSON.stringify(config, null, 2));
+    fs.copyFileSync(path.join(REPO_ROOT, 'package.json'), path.join(fixtureRoot, 'package.json'));
+    return run(fixtureRoot);
   } finally {
-    fs.writeFileSync(APP_JSON_PATH, original);
+    fs.rmSync(fixtureRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 }
 
@@ -123,7 +142,7 @@ test('NEGATIVE CONTROL: restoring microphonePermission:false removes the key aga
         pluginOptions(config, name).microphonePermission = false;
       }
     },
-    () => introspectInfoPlist()[MIC_KEY],
+    (fixtureRoot) => introspectInfoPlist(fixtureRoot)[MIC_KEY],
   );
   assert.equal(
     missing,
@@ -133,4 +152,11 @@ test('NEGATIVE CONTROL: restoring microphonePermission:false removes the key aga
 
   // And the repaired config still produces it.
   assert.ok(typeof introspectInfoPlist()[MIC_KEY] === 'string');
+});
+
+test('isolation: the negative control never touches the shared app.json', () => {
+  const source = fs.readFileSync(__filename, 'utf8');
+  const helper = source.slice(source.indexOf('function withMutatedAppJson'), source.indexOf('function pluginOptions'));
+  assert.doesNotMatch(helper, /writeFileSync\(APP_JSON_PATH/, 'the shared app.json must never be rewritten');
+  assert.match(helper, /writeFileSync\(path\.join\(fixtureRoot, 'app\.json'\)/);
 });
