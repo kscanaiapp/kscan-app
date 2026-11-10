@@ -4,8 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
+const { spawnSync } = require('node:child_process');
 
-const yaml = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/black-owned-catalog-sync.yml'), 'utf8');
+const yaml = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/black-owned-catalog-sync.yml'), 'utf8').replace(/\r\n/g, '\n');
 
 test('scheduled Production uses a separate automation Environment', () => {
   assert.match(yaml, /schedule:\s*\n\s*- cron: '41 \*\/6 \* \* \*'/);
@@ -42,4 +44,56 @@ test('manual approval cannot starve scheduled work via shared concurrency', () =
 test('scheduler does not deploy, rotate secrets or change Production schema', () => {
   assert.doesNotMatch(yaml, /supabase functions deploy|supabase db push|supabase secrets set|gh secret set/);
   assert.match(yaml, /\/black-owned-catalog-sync/);
+});
+
+// Execute the exact Python validator shipped in the workflow. No HTTP/provider
+// calls and no substitute implementation: this catches false-green responses.
+function validateResponse(value, raw = false) {
+  const block = yaml.match(/python3 - "\$\{BODY_FILE\}" <<'PY'\r?\n([\s\S]*?)^          PY\s*$/m);
+  assert.ok(block, 'workflow response validator is present');
+  const script = block[1].replace(/^          /gm, '');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'catalog-response-'));
+  try {
+    const file = path.join(dir, 'body.json');
+    fs.writeFileSync(file, raw ? value : JSON.stringify(value));
+    const result = spawnSync(process.platform === 'win32' ? 'python' : 'python3', ['-', file], {
+      input: script, encoding: 'utf8', shell: false,
+    });
+    assert.ifError(result.error);
+    return result;
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const emptyReport = { mode: 'catalog_sync', enabled: true, merchants: 0, succeeded: 0, failed: 0, skipped: 0, products: 0 };
+
+test('actual scheduler validator accepts enabled-empty and kill-switch responses distinctly', () => {
+  const enabled = validateResponse(emptyReport);
+  assert.equal(enabled.status, 0, enabled.stderr);
+  assert.doesNotMatch(enabled.stdout, /disabled/);
+  const disabled = validateResponse({ ...emptyReport, enabled: false });
+  assert.equal(disabled.status, 0, disabled.stderr);
+  assert.match(disabled.stdout, /disabled; no inventory was refreshed/);
+});
+
+test('actual scheduler validator rejects malformed or missing-schema HTTP 200 bodies', () => {
+  for (const value of [{ error: 'upstream_failure' }, {}, null, [], { ...emptyReport, mode: 'other' },
+    { ...emptyReport, enabled: 'true' }, { ...emptyReport, merchants: true },
+    { ...emptyReport, products: -1 }, { ...emptyReport, products: 0.5 },
+    { ...emptyReport, succeeded: undefined }, { ...emptyReport, merchants: 26, skipped: 26 },
+    { ...emptyReport, merchants: 1 }, { ...emptyReport, enabled: false, products: 1 }]) {
+    assert.equal(validateResponse(value).status, 1, JSON.stringify(value));
+  }
+  const malformed = validateResponse('private-response-not-json', true);
+  assert.equal(malformed.status, 1);
+  assert.doesNotMatch(malformed.stdout + malformed.stderr, /private-response-not-json/);
+});
+
+test('actual scheduler validator rejects total failure and emits aggregate counts only', () => {
+  assert.equal(validateResponse({ ...emptyReport, merchants: 1, failed: 1 }).status, 1);
+  const partial = validateResponse({ ...emptyReport, merchants: 3, succeeded: 1, skipped: 1, failed: 1, products: 2,
+    privateMerchantData: 'must-not-be-logged' });
+  assert.equal(partial.status, 0, partial.stderr);
+  assert.doesNotMatch(partial.stdout + partial.stderr, /must-not-be-logged|privateMerchantData/);
 });

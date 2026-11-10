@@ -103,16 +103,33 @@ jobs:
             "${FUNCTIONS_URL%/}/black-owned-catalog-sync")" || CURL_FAILED=1
 
           echo "HTTP ${STATUS}"
-          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k: d.get(k) for k in ('mode','enabled','merchants','succeeded','failed','skipped','products')}))" "${BODY_FILE}" \
-            || echo "(unparseable response body withheld)"
-
           if [ "${CURL_FAILED:-0}" = "1" ] || [ "${STATUS}" != "200" ]; then
             echo "Catalog sync request did not succeed."
             exit 1
           fi
-          if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('enabled') is False else 1)" "${BODY_FILE}"; then
-            echo "DISCOVERY_CATALOG_SYNC_ENABLED is not true — nothing was synced. This is the shipped default."
-          fi
-          # A run where every merchant failed is a failure, not a quiet success.
-          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(1 if d.get('merchants',0)>0 and d.get('succeeded',0)==0 and d.get('failed',0)>0 else 0)" "${BODY_FILE}" \
-            || { echo "Every configured merchant failed to sync."; exit 1; }
+          # HTTP success alone is insufficient: an error object, malformed JSON
+          # or missing counts must never masquerade as an empty successful sync.
+          python3 - "${BODY_FILE}" <<'PY'
+          import json, sys
+          def reject(message):
+              print(message, file=sys.stderr)
+              sys.exit(1)
+          try:
+              with open(sys.argv[1], encoding='utf-8') as body:
+                  report = json.load(body)
+          except (OSError, ValueError):
+              reject('Invalid catalog response; body withheld.')
+          counts = ('merchants', 'succeeded', 'failed', 'skipped', 'products')
+          if (not isinstance(report, dict) or report.get('mode') != 'catalog_sync'
+                  or type(report.get('enabled')) is not bool
+                  or any(type(report.get(key)) is not int or report[key] < 0 for key in counts)
+                  or report['merchants'] > 25
+                  or report['succeeded'] + report['failed'] + report['skipped'] != report['merchants']
+                  or (not report['enabled'] and any(report[key] != 0 for key in counts))):
+              reject('Invalid catalog response schema; body withheld.')
+          print(json.dumps({key: report[key] for key in ('mode', 'enabled', *counts)}))
+          if not report['enabled']:
+              print('Catalog synchronization is disabled; no inventory was refreshed.')
+          if report['merchants'] > 0 and report['succeeded'] == 0 and report['failed'] > 0:
+              reject('Every configured merchant failed to sync.')
+          PY
