@@ -19,6 +19,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -1248,41 +1249,50 @@ export default function PrivateDressingRoomScreen() {
         animationType="fade"
         onRequestClose={dismissOccasionSheet}
       >
-        <View style={styles.sheetBackdrop}>
-          <View style={sheetStyle} testID="elise-occasion-sheet">
-            <SectionHeader title={PRIVATE_ELISE_COPY.occasionSheetTitle} />
-            <TextInput
-              style={styles.eliseInput}
-              value={occasionDraft}
-              onChangeText={setOccasionDraft}
-              placeholder={PRIVATE_ELISE_COPY.occasionSheetPlaceholder}
-              placeholderTextColor={LUXURY.colors.plum}
-              maxLength={PRIVATE_ELISE_INPUT_MAX_LENGTH}
-              editable={!eliseBusy}
-              multiline={false}
-              returnKeyType="done"
-              onSubmitEditing={submitOccasionDescription}
-              accessibilityLabel={PRIVATE_ELISE_COPY.occasionSheetTitle}
-              testID="elise-occasion-input"
-            />
-            <PrimaryButton
-              title={PRIVATE_ELISE_COPY.occasionSubmit}
-              onPress={submitOccasionDescription}
-              // Disabled while a request runs so a second cannot be queued.
-              disabled={busy || eliseBusy || !occasionDraftValue}
-              style={styles.confirmAction}
-              accessibilityLabel="Ask Elise to interpret this occasion"
-              testID="elise-occasion-submit"
-            />
-            <SecondaryButton
-              title={PRIVATE_ELISE_COPY.cancel}
-              onPress={dismissOccasionSheet}
-              style={styles.confirmAction}
-              accessibilityLabel="Cancel and keep the current occasion"
-              testID="elise-occasion-cancel"
-            />
+        {/* iOS: this Modal is its own window, so nothing resizes it for the
+            keyboard, and the sheet is shorter than the keyboard -- the field
+            being typed into, Ask Elise and Cancel all sat behind it.
+            B35-IOS-KB-01. Android keeps its existing behaviour (inert). */}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoider}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.sheetBackdrop}>
+            <View style={sheetStyle} testID="elise-occasion-sheet">
+              <SectionHeader title={PRIVATE_ELISE_COPY.occasionSheetTitle} />
+              <TextInput
+                style={styles.eliseInput}
+                value={occasionDraft}
+                onChangeText={setOccasionDraft}
+                placeholder={PRIVATE_ELISE_COPY.occasionSheetPlaceholder}
+                placeholderTextColor={LUXURY.colors.plum}
+                maxLength={PRIVATE_ELISE_INPUT_MAX_LENGTH}
+                editable={!eliseBusy}
+                multiline={false}
+                returnKeyType="done"
+                onSubmitEditing={submitOccasionDescription}
+                accessibilityLabel={PRIVATE_ELISE_COPY.occasionSheetTitle}
+                testID="elise-occasion-input"
+              />
+              <PrimaryButton
+                title={PRIVATE_ELISE_COPY.occasionSubmit}
+                onPress={submitOccasionDescription}
+                // Disabled while a request runs so a second cannot be queued.
+                disabled={busy || eliseBusy || !occasionDraftValue}
+                style={styles.confirmAction}
+                accessibilityLabel="Ask Elise to interpret this occasion"
+                testID="elise-occasion-submit"
+              />
+              <SecondaryButton
+                title={PRIVATE_ELISE_COPY.cancel}
+                onPress={dismissOccasionSheet}
+                style={styles.confirmAction}
+                accessibilityLabel="Cancel and keep the current occasion"
+                testID="elise-occasion-cancel"
+              />
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </LuxuryScreen>
   );
@@ -1462,6 +1472,7 @@ const styles = StyleSheet.create({
   },
   slotActionText: { fontSize: 13, color: LUXURY.colors.plum },
   slotLocked: { fontSize: 12, color: LUXURY.colors.plum, marginLeft: SPACING.sm },
+  keyboardAvoider: { flex: 1 },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: {
     // Inert on phones; on iPad the bottom sheets stay a composed, centered
