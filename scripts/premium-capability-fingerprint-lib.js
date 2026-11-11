@@ -149,25 +149,125 @@ function edgeClosure(entry, reader) {
   return [...seen].filter((rel) => !isTestFile(rel));
 }
 
-function governedFiles(domainName, reader) {
+/**
+ * DEPLOYED EDGE IDENTITY. Production does not run this repository's
+ * `supabase/functions` copy: every function is deployed from the backend
+ * authority, and two functions that bundle the same file can run DIFFERENT
+ * versions of it (stylechat-generate and commerce-watch-refresh both bundle
+ * scan-identify/shoppingProvider.ts, at different authority commits). One
+ * working-tree copy therefore cannot describe both, and hashing it would bind a
+ * Production proof to code Production does not run.
+ *
+ * So when EDGE_BASIS_RELATIVE_PATH exists, an Edge entry's identity is the
+ * recorded per-file hashes of the bundle actually deployed to Production
+ * (captured by `scripts/capture-premium-edge-basis.js`, which refuses unless
+ * every deployed file equals the named backend commit). Client and database
+ * files still hash from this tree. The basis file itself is a governed input:
+ * editing it changes the identity and withdraws every proof bound to the old
+ * one. A revision WITHOUT the file (every historical proof commit) keeps the
+ * original working-copy method, so recorded identities stay reproducible.
+ */
+const EDGE_BASIS_RELATIVE_PATH = 'config/premium-capability-edge-basis.json';
+const EDGE_BASIS_VERSION = 'kscan-premium-edge-basis-v1';
+const PRODUCTION_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
+const HEX64 = /^[0-9a-f]{64}$/;
+const HEX40 = /^[0-9a-f]{40}$/;
+
+function validateEdgeBasisEntry(entry, basis) {
+  const fail = (why) => { throw new Error(`Edge basis for ${entry} is invalid: ${why}`); };
+  if (!/^supabase\/functions\/[a-z0-9-]+\/index\.ts$/.test(entry)) fail('the key must be a function entrypoint');
+  if (!basis || typeof basis !== 'object') fail('missing record');
+  if (basis.function !== entry.split('/')[2]) fail('function does not match the entrypoint');
+  if (basis.environment !== 'production' || basis.projectRef !== PRODUCTION_PROJECT_REF) fail('must describe the Production deployment');
+  if (!HEX40.test(basis.basisCommit ?? '')) fail('basisCommit must be a full backend commit SHA');
+  if (!HEX64.test(basis.ezbrSha256 ?? '')) fail('ezbrSha256 must be the deployed bundle hash');
+  if (!Number.isSafeInteger(basis.deployedVersion) || basis.deployedVersion <= 0) fail('deployedVersion must be a positive integer');
+  if (!Number.isFinite(Date.parse(basis.capturedAt ?? ''))) fail('capturedAt must be a timestamp');
+  if (!Array.isArray(basis.files) || basis.files.length === 0) fail('files must list the deployed bundle');
+  const seen = new Set();
+  for (const file of basis.files) {
+    const rel = file && file.path;
+    if (typeof rel !== 'string' || !rel.startsWith('supabase/functions/') || rel.split('/').includes('..') || isTestFile(rel)) fail(`invalid file path ${rel}`);
+    if (!HEX64.test(file.sha256 ?? '')) fail(`invalid hash for ${rel}`);
+    if (seen.has(rel)) fail(`duplicate file ${rel}`);
+    seen.add(rel);
+  }
+  if (!seen.has(entry)) fail('the deployed files must include the entrypoint');
+}
+
+/** The parsed basis, or null on a revision that predates it. Malformed fails closed. */
+function loadEdgeBasis(reader) {
+  const raw = reader.read(EDGE_BASIS_RELATIVE_PATH);
+  if (raw === null) return null;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { throw new Error(`${EDGE_BASIS_RELATIVE_PATH} is not valid JSON`); }
+  if (!parsed || parsed.version !== EDGE_BASIS_VERSION || !parsed.entries || typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)) {
+    throw new Error(`${EDGE_BASIS_RELATIVE_PATH} must be ${EDGE_BASIS_VERSION} with an entries object`);
+  }
+  for (const [entry, basis] of Object.entries(parsed.entries)) validateEdgeBasisEntry(entry, basis);
+  return parsed;
+}
+
+function domainFor(domainName) {
   const domain = DOMAINS[domainName];
   if (!domain) throw new Error(`No fingerprint domain for proof type: ${domainName}`);
+  return domain;
+}
+
+function clientFiles(domain, reader) {
   const files = new Set(domain.files);
   for (const dir of domain.dirs) {
     const listed = reader.list(dir).filter((rel) => /\.(?:ts|tsx)$/.test(rel) && !isTestFile(rel));
     if (listed.length === 0) throw new Error(`Governed directory is empty or missing: ${dir}`);
     listed.forEach((rel) => files.add(rel));
   }
-  for (const entry of domain.edgeEntries) edgeClosure(entry, reader).forEach((rel) => files.add(rel));
+  return files;
+}
+
+function recordedEdgeBasis(entry, basisDoc) {
+  const basis = basisDoc.entries[entry];
+  if (!basis) throw new Error(`No deployed Edge basis is recorded for ${entry} in ${EDGE_BASIS_RELATIVE_PATH}`);
+  return basis;
+}
+
+/** Edge files that define a domain: the recorded deployed bundle, or (legacy) the working-copy closure. */
+function edgeFiles(domainName, reader) {
+  const domain = domainFor(domainName);
+  const basisDoc = loadEdgeBasis(reader);
+  const files = new Set();
+  for (const entry of domain.edgeEntries) {
+    if (basisDoc) recordedEdgeBasis(entry, basisDoc).files.forEach((file) => files.add(file.path));
+    else edgeClosure(entry, reader).forEach((rel) => files.add(rel));
+  }
+  return [...files].sort();
+}
+
+/** Files whose CONTENT this tree must supply: client sources, plus the basis file or the legacy closure. */
+function governedFiles(domainName, reader) {
+  const domain = domainFor(domainName);
+  const files = clientFiles(domain, reader);
+  if (domain.edgeEntries.length > 0) {
+    if (loadEdgeBasis(reader)) files.add(EDGE_BASIS_RELATIVE_PATH);
+    else edgeFiles(domainName, reader).forEach((rel) => files.add(rel));
+  }
   return [...files].sort();
 }
 
 function computeFingerprint(domainName, reader = fsReader()) {
-  const lines = governedFiles(domainName, reader).map((rel) => {
+  const domain = domainFor(domainName);
+  const basisDoc = loadEdgeBasis(reader);
+  const hashes = new Map();
+  const readHash = (rel) => {
     const source = reader.read(rel);
     if (source === null) throw new Error(`Governed source is missing: ${rel}`);
-    return { path: rel, sha256: sha256(normalise(source)) };
-  });
+    return sha256(normalise(source));
+  };
+  for (const rel of clientFiles(domain, reader)) hashes.set(rel, readHash(rel));
+  for (const entry of domain.edgeEntries) {
+    if (basisDoc) for (const file of recordedEdgeBasis(entry, basisDoc).files) hashes.set(file.path, file.sha256);
+    else for (const rel of edgeClosure(entry, reader)) hashes.set(rel, readHash(rel));
+  }
+  const lines = [...hashes.keys()].sort().map((rel) => ({ path: rel, sha256: hashes.get(rel) }));
   const body = `${FINGERPRINT_VERSION}\n${domainName}\n${lines.map((l) => `${l.path}\t${l.sha256}\n`).join('')}`;
   return { fingerprint: sha256(body), files: lines };
 }
@@ -195,7 +295,7 @@ function renderGeneratedModule(fingerprints) {
 }
 
 module.exports = {
-  DOMAINS, FINGERPRINT_VERSION, GENERATED_RELATIVE_PATH, REPO_ROOT,
-  computeAllFingerprints, computeFingerprint, edgeClosure, fsReader, gitReader,
-  governedFiles, localImports, memoryReader, normalise, renderGeneratedModule,
+  DOMAINS, EDGE_BASIS_RELATIVE_PATH, EDGE_BASIS_VERSION, FINGERPRINT_VERSION, GENERATED_RELATIVE_PATH, REPO_ROOT,
+  computeAllFingerprints, computeFingerprint, edgeClosure, edgeFiles, fsReader, gitReader, loadEdgeBasis,
+  governedFiles, localImports, memoryReader, normalise, renderGeneratedModule, validateEdgeBasisEntry,
 };
