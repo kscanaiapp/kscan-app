@@ -308,12 +308,17 @@ test('iOS ItemTile without onPress (no Pressable wrapper) is left alone', () => 
   for (const label of REACTION_LABELS) assert.ok(labels.includes(label));
 });
 
-// ── Android is byte-for-byte the tree it was ────────────────────────────────
+// ── Android keeps its one-Pressable tree (A11Y-AND-SOC-004 adds role + state only)
 
-test('Android ItemTile is unchanged: one Pressable around the whole card', () => {
+test('Android ItemTile keeps one Pressable around the whole card', () => {
   const { tile } = renderTile('android');
   assert.equal(tile.type, 'Pressable');
-  assert.deepEqual(Object.keys(tile.props).sort(), ['children', 'onPress']);
+  // A11Y-AND-SOC-004: role and selected state are the ONLY additions. No label
+  // (TalkBack keeps reading the card's own text) and no custom actions (TalkBack
+  // reaches the nested buttons directly, so the iOS action model is not needed).
+  assert.deepEqual(Object.keys(tile.props).sort(), ['accessibilityRole', 'accessibilityState', 'children', 'onPress']);
+  assert.equal(tile.props.accessibilityRole, 'button');
+  assert.deepEqual(tile.props.accessibilityState, { selected: true });
   assert.equal(tile.props.children.length, 1, 'the card is the Pressable\'s only child');
   const [card] = tile.props.children;
   assert.equal(card.type, 'View');

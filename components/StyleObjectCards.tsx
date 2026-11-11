@@ -334,6 +334,24 @@ function ItemTileBase({
   );
 
   if (!onPress) return content;
+  if (Platform.OS === 'android') {
+    // A11Y-AND-SOC-004 (Build 35 Android pre-EAS audit). The selectable tile
+    // carried no role and no state, so TalkBack read the card's text with no
+    // "button" and no "selected" -- selection was conveyed only by the visual
+    // SELECTED badge. The tree is otherwise the one it always was: no
+    // accessibilityLabel (TalkBack keeps announcing the card's own text) and
+    // the reaction row, View Detail and Remove stay inside the card, where
+    // TalkBack reaches nested clickable views directly. Android only.
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: Boolean(selected) }}
+      >
+        {content}
+      </Pressable>
+    );
+  }
   if (Platform.OS !== 'ios') return <Pressable onPress={onPress}>{content}</Pressable>;
 
   // iOS: an accessible Pressable is a single VoiceOver element and hides every

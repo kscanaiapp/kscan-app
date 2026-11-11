@@ -136,6 +136,8 @@ function loadStack({ platformOS = 'ios', mutateContext, mutateService } = {}) {
       './AuthSessionContext': { useAuthSession: () => ({}) },
       '../constants/theme': theme(),
       '../services/responsiveLayout': responsiveLayout,
+      // The sheet reads the bottom safe-area inset (Android navigation-bar clearance).
+      'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }) },
     },
     { mutate: mutateContext },
   );

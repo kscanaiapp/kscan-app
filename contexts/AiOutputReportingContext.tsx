@@ -20,6 +20,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AI_OUTPUT_REPORT_REASONS,
   bindAiOutputReportRequest,
@@ -64,6 +65,13 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
   // makes an A -> B -> A cycle observable too.
   useAuthSession();
   const actorScopeKey = currentActorScopeKey();
+  // A11Y-AND-RPT-001 (Build 35 Android pre-EAS audit). React Native 0.81 draws
+  // every Modal edge-to-edge on Android once edgeToEdgeEnabled=true, and this
+  // sheet is anchored to the bottom with a static 12dp backdrop padding, so on a
+  // 3-button navigation bar (48dp) the bottom of its last control (Cancel /
+  // Done) sat under the bar, where taps go to the system. Android adds the
+  // bottom safe-area inset; iOS is unchanged.
+  const insets = useSafeAreaInsets();
 
   const clearReport = useCallback(() => {
     setRequest(null);
@@ -155,7 +163,10 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
         statusBarTranslucent
       >
         <KeyboardAvoidingView
-          style={styles.backdrop}
+          style={[
+            styles.backdrop,
+            Platform.OS === 'android' && { paddingBottom: SPACING.md + insets.bottom },
+          ]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View

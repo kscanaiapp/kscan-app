@@ -184,11 +184,14 @@ test('iOS ItemTile: the tile names the item, reports selection, and offers View 
   assert.deepEqual(calls, ['remove', 'detail', 'select']);
 });
 
-test('Android ItemTile is unchanged', () => {
+test('Android ItemTile keeps its one-Pressable tree (role + selected state only)', () => {
   const { ItemTile } = load(TILE, 'android', TILE_MODULES);
   const tile = ItemTile({ item: ITEM, onPress: () => {}, onViewDetail: () => {}, onRemove: () => {} });
   assert.equal(tile.type, 'Pressable');
-  assert.deepEqual(Object.keys(tile.props).sort(), ['children', 'onPress']);
+  // A11Y-AND-SOC-004: no label and no custom actions -- TalkBack reaches the
+  // nested View Detail / Remove buttons directly.
+  assert.deepEqual(Object.keys(tile.props).sort(), ['accessibilityRole', 'accessibilityState', 'children', 'onPress']);
+  assert.deepEqual(tile.props.accessibilityState, { selected: false });
 });
 
 // ── RoomItemDetailModal backdrop ────────────────────────────────────────────
