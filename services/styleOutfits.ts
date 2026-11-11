@@ -15,6 +15,12 @@
 
 import { supabase } from './supabaseClient';
 import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
+import {
+  GEMINI_CONSENT_REQUIRED_MESSAGE,
+  GEMINI_CONSENT_UNAVAILABLE_MESSAGE,
+  isGeminiConsentDenial,
+  isGeminiConsentUnavailable,
+} from './geminiConsentDenial';
 import { captureActorScope, currentActorScopeKey, isActorScopeCurrent } from './actorScope';
 import {
   AI_STYLIST_BACKEND_ENABLED,
@@ -260,10 +266,17 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
     if (error) {
       const context = (error as { context?: Response }).context;
       const httpStatus = context?.status;
-      if (httpStatus === 403) {
+      if (httpStatus === 403 || httpStatus === 503) {
         try {
           const payload = await context.json();
           if (!isActorScopeCurrent(scope)) return { status: 'session_expired', message: AI_SESSION_EXPIRED_MESSAGE };
+          if (isGeminiConsentDenial(httpStatus, payload)) {
+            return { status: 'error', message: GEMINI_CONSENT_REQUIRED_MESSAGE };
+          }
+          if (isGeminiConsentUnavailable(httpStatus, payload)) {
+            markUnavailable();
+            return { status: 'unavailable', message: GEMINI_CONSENT_UNAVAILABLE_MESSAGE };
+          }
           if (payload?.error === 'Anchor item is not available for styling') {
             return { status: 'error', message: 'Unable to style this selection. Check your items and try again.' };
           }

@@ -52,6 +52,82 @@ const invoking = (error) => ({
 
 const consent = loadTsModule('services/geminiConsentDenial.ts');
 
+function loadOutfits(reply) {
+  let calls = 0;
+  const mod = loadTsModule('services/styleOutfits.ts', {
+    './supabaseClient': { supabase: { functions: { invoke: async () => { calls++; return reply; } } } },
+    './authenticatedFunctionSession': { resolveAuthenticatedFunctionSession: async () => ({ ok: true, accessToken: 'test' }) },
+    './actorScope': { currentActorScopeKey: () => 'actor', captureActorScope: () => ({}), isActorScopeCurrent: () => true },
+    '../constants/featureFlags': { AI_STYLIST_BACKEND_ENABLED: true, AI_STYLIST_UI_ENABLED: true },
+    '../types/fashionReasoning': loadTsModule('types/fashionReasoning.ts'),
+    '../types/ownedClosetItem': { isOwnedItemSourceType: (value) => value === 'saved_scan' },
+  });
+  return { run: () => mod.generateOutfits({ mode: 'style_event' }), calls: () => calls };
+}
+
+function loadPrivateElise(reply) {
+  let calls = 0;
+  const mod = loadTsModule('services/privateDressingRoomEliseClient.ts', {
+    '../types/privateDressingRoomElise': loadTsModule('types/privateDressingRoomElise.ts'),
+  });
+  return {
+    run: () => mod.sendEliseRequest({
+      plan: { requestId: '11111111-0000-4000-8000-00000000000a', body: {}, aliases: new Map() },
+      intent: 'interpret_occasion', resolveSession: async () => ({ ok: true }),
+      invoke: async () => { calls++; return reply; },
+    }),
+    calls: () => calls,
+  };
+}
+
+for (const reason of ['absent', 'withdrawn']) {
+  test(`Outfits: ${reason} Gemini permission uses Privacy recovery without retry`, async () => {
+    const client = loadOutfits({ data: null, error: httpError(403, DENIAL) });
+    const result = await client.run();
+    assert.equal(result.status, 'error');
+    assert.equal(result.message, consent.GEMINI_CONSENT_REQUIRED_MESSAGE);
+    assert.equal(client.calls(), 1);
+  });
+  test(`Private Elise: ${reason} Gemini permission is a distinct terminal consent state`, async () => {
+    const client = loadPrivateElise({ data: null, error: httpError(403, DENIAL) });
+    assert.equal((await client.run()).kind, 'consent_required');
+    assert.equal(client.calls(), 1);
+  });
+}
+
+for (const [name, load, field] of [['Outfits', loadOutfits, 'status'], ['Private Elise', loadPrivateElise, 'kind']]) {
+  test(`${name}: genuine HTTP 401 remains session expired`, async () => {
+    const client = load({ data: null, error: httpError(401, { message: 'Invalid JWT' }) });
+    assert.equal((await client.run())[field], 'session_expired');
+    assert.equal(client.calls(), 1);
+  });
+  test(`${name}: consent authority outage is not permission withdrawal`, async () => {
+    const client = load({ data: null, error: httpError(503, { errorCode: 'AI_PROCESSING_CONSENT_UNAVAILABLE' }) });
+    const result = await client.run();
+    assert.equal(result[field], name === 'Outfits' ? 'unavailable' : 'consent_unavailable');
+    if (name === 'Outfits') assert.equal(result.message, consent.GEMINI_CONSENT_UNAVAILABLE_MESSAGE);
+    assert.equal(client.calls(), 1);
+  });
+  test(`${name}: unrelated 403 does not invent a consent denial`, async () => {
+    const client = load({ data: null, error: httpError(403, { errorCode: 'ACCOUNT_PENDING_DELETION' }) });
+    assert.equal((await client.run())[field], name === 'Outfits' ? 'session_expired' : 'failed');
+  });
+  test(`${name}: malformed denial cannot authorize a provider retry`, async () => {
+    const client = load({ data: null, error: { context: new Response('invalid JSON', { status: 403 }) } });
+    assert.notEqual((await client.run())[field], 'consent_required');
+    assert.equal(client.calls(), 1);
+  });
+}
+
+test('Outfits: authorized success still validates and returns the outfit', async () => {
+  const client = loadOutfits({ error: null, data: { status: 'success', requestId: 'request', outfits: [{
+    suggestionId: 'one', variation: 'reliable', reason: 'Coordinated outfit', confidence: 'high',
+    itemRefs: ['top', 'bottom', 'shoes'].map((role, position) => ({ sourceType: 'saved_scan', sourceId: role, role, position })),
+  }] } });
+  assert.equal((await client.run()).status, 'success');
+  assert.equal(client.calls(), 1);
+});
+
 test('the client code is the one the backend consent gate emits with HTTP 403', () => {
   const gate = fs.readFileSync(path.join(ROOT, 'supabase/functions/_shared/geminiConsent.ts'), 'utf8');
   assert.match(gate, new RegExp(`errorCode: '${consent.GEMINI_CONSENT_REQUIRED_CODE}' \\}, 403\\)`));

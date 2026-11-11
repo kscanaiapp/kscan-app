@@ -54,6 +54,7 @@ const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
 
 function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
   return loadTsModule('services/styleOutfits.ts', {
+    './geminiConsentDenial': loadTsModule('services/geminiConsentDenial.ts'),
     './actorScope': {
       currentActorScopeKey: () => 'fixture#1',
       captureActorScope: () => ({ actorId: 'fixture', epoch: 1 }),

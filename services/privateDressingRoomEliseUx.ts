@@ -12,6 +12,7 @@
  */
 
 import { isOnCasualnessLadder } from './privateDressingRoomCasualness';
+import { GEMINI_CONSENT_REQUIRED_MESSAGE, GEMINI_CONSENT_UNAVAILABLE_MESSAGE } from './geminiConsentDenial';
 import type { EliseStatus } from './privateDressingRoomEliseOrchestration';
 
 export const PRIVATE_ELISE_COPY = Object.freeze({
@@ -77,6 +78,10 @@ export function eliseStatusCopy(status: EliseStatus | null | undefined): string 
       return PRIVATE_ELISE_COPY.capabilityUnavailable;
     case 'session_expired':
       return PRIVATE_ELISE_COPY.sessionExpired;
+    case 'consent_required':
+      return GEMINI_CONSENT_REQUIRED_MESSAGE;
+    case 'consent_unavailable':
+      return GEMINI_CONSENT_UNAVAILABLE_MESSAGE;
     case 'failed':
       return PRIVATE_ELISE_COPY.safeFailure;
     default:

@@ -64,6 +64,8 @@ export type EliseStatusKind =
   | 'already_casual'
   | 'capability_unavailable'
   | 'session_expired'
+  | 'consent_required'
+  | 'consent_unavailable'
   | 'failed';
 
 export type EliseOperation = 'interpret_occasion' | 'build_around_item' | 'make_more_casual';
@@ -199,6 +201,9 @@ export async function interpretOccasion(
   if (outcome.kind === 'failed') {
     return published(deps.publish, { kind: 'failed', operation: 'interpret_occasion' });
   }
+  if (outcome.kind === 'consent_required' || outcome.kind === 'consent_unavailable') {
+    return published(deps.publish, { kind: outcome.kind, operation: 'interpret_occasion' });
+  }
 
   const acceptance = deps.coordinator.accept({
     generation: started.generation,
@@ -294,6 +299,9 @@ export async function buildAroundItem(
   }
   if (outcome.kind === 'failed') {
     return published(deps.publish, { kind: 'failed', operation: 'build_around_item' });
+  }
+  if (outcome.kind === 'consent_required' || outcome.kind === 'consent_unavailable') {
+    return published(deps.publish, { kind: outcome.kind, operation: 'build_around_item' });
   }
 
   const acceptance = deps.coordinator.accept({

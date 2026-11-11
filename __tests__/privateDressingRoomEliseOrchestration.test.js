@@ -159,6 +159,33 @@ const occasionSuccess = replyWith((body) => ({
   occasionGroup: 'evening',
 }));
 
+for (const [status, errorCode, expectedKind, expectedCopy] of [
+  [403, 'AI_PROCESSING_CONSENT_REQUIRED', 'consent_required', 'Google Gemini processing is turned off for this account. Turn it on in Privacy settings to continue.'],
+  [503, 'AI_PROCESSING_CONSENT_UNAVAILABLE', 'consent_unavailable', 'Unable to verify Google Gemini processing permission right now. Try again later.'],
+]) {
+  for (const operation of ['interpretOccasion', 'buildAroundItem']) {
+    test(`${operation}: ${errorCode} reaches visible and accessible copy without mutation or retry`, async () => {
+      let calls = 0;
+      const { deps, applied, statuses } = harness({ invoke: async () => {
+        calls++;
+        return { data: null, error: { context: new Response(JSON.stringify({ errorCode }), { status }) } };
+      } });
+      const result = await orchestration[operation](deps, {
+        instruction: 'dinner with clients', currentOccasion: 'Work',
+        anchorClosetItemId: 'anchor-1', closetItems: CLOSET,
+      });
+      assert.equal(result.applied, false);
+      assert.equal(result.status.kind, expectedKind);
+      assert.equal(statuses.at(-1).kind, expectedKind);
+      assert.equal(ux.eliseStatusCopy(result.status), expectedCopy);
+      assert.equal(ux.eliseAnnouncement(result.status).message, expectedCopy);
+      assert.equal(ux.isEliseBusy(result.status), false);
+      assert.equal(applied.length, 0);
+      assert.equal(calls, 1);
+    });
+  }
+}
+
 // ── Feature flag ──────────────────────────────────────────────────────────────
 
 test('with Phase 4 OFF no request is made and no status is published', async () => {
