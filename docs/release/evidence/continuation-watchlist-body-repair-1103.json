@@ -1,0 +1,457 @@
+{
+  "capturedAt": "2026-11-03T14:26:41.115Z",
+  "finding": "B35-E-027",
+  "priority": "P4",
+  "ownerApproval": "Authorize this bounded source repair",
+  "baselineCanonical": "6d96156745160d93596dd792769df6aed164e6fe",
+  "baselineMobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "reviewed": "e15f2cca99315530205a01ca1c714ee61f4e59f3",
+  "tree": "9b8e47f47276c929319958e64768b9eb7dc4a68e",
+  "status": "CANONICAL700 MERGED / MOBILE691 PREPARED,NOTPUSHED / NO DEPLOYMENT",
+  "source": "supabase/functions/commerce-watch-refresh/index.ts:938",
+  "rootCause": "TypeScript annotation did not validate req.json runtime value; null reaches body.action outside parsecatch",
+  "repair": "Existing400invalid_body for all non-object JSON;auth and worker routing stay beforebody;allnormalobject/action/account/Kpluscontracts unchanged",
+  "files": 4,
+  "before": {
+    "parentFail": 1,
+    "failedSteps": 7,
+    "passedSteps": 10,
+    "null": {
+      "body": "null",
+      "authenticated": true,
+      "forgedWorker": false,
+      "actual": {
+        "status": "TypeError",
+        "result": {},
+        "authReads": 1,
+        "actorReads": 0,
+        "entitlementReads": 0,
+        "writes": 0,
+        "providerCalls": 0
+      }
+    }
+  },
+  "after": {
+    "parentPass": 1,
+    "passedSteps": 17,
+    "failed": 0,
+    "null": {
+      "body": "null",
+      "authenticated": true,
+      "forgedWorker": false,
+      "actual": {
+        "status": 400,
+        "result": {
+          "error": "invalid_body",
+          "code": "invalid_body"
+        },
+        "authReads": 1,
+        "actorReads": 0,
+        "entitlementReads": 0,
+        "writes": 0,
+        "providerCalls": 0
+      }
+    }
+  },
+  "NodeFocused": {
+    "pass": 34,
+    "fail": 0,
+    "scope": "10bodyfragment regressions with corrected lexicaljsonbinding +24W1adapter/actualSQLDDLcontrols"
+  },
+  "sourceGates": 5,
+  "fullValidation": {
+    "Node": {
+      "pass": 8613,
+      "fail": 0,
+      "skip": 67,
+      "total": 8680
+    },
+    "backend": {
+      "pass": 1589,
+      "handlerSteps": 34,
+      "fail": 0
+    },
+    "TypeScript": 0,
+    "sourceGates": {
+      "passed": 5,
+      "failed": 0
+    },
+    "GitHub": "current-headCIpending,no merge permitted yet"
+  },
+  "fixtureCorrection": "First expanded positive control wrongly expected invalid_watch_id;actual handleRefresh first requires canonical Kplus entitlement. Retained failing fixture log;corrected explicit false-entitlement stub confirms403kplus_required;not an app defect or weakened customer assertion.",
+  "scope": "Actual Deno.serve handler with synthetic verified-identity/readonly eligibility/entitlement transports;no actual JWTsignature,liveDBRLS,provider/device/deployment evidence",
+  "provenance": "Same final full-handler fixture bytes executed before and after;historical initial10case fixture/log retained.",
+  "evidence": "resume1103-watchlist-body-expanded-corrected-before-1103.log.gz",
+  "next": "Collect mobilefullNode,normalfastforwardpushexistingintegration/build35-watchlist-invalid-body-1103(PR691),readyreview,allcurrentheadCIandreview/testedmergetree;waitcanonical7postworkflows;normalgreenmobilemerge/post9;reconcilematchingmatrix0141withfailurehistory. Do not run prepared script again.",
+  "canonicalPR": 700,
+  "mobilePR": 691,
+  "mobilePreparation": {
+    "worktree": "C:/b35watchbodymobile1103",
+    "branch": "promotion/build35-watchlist-body-continuation-1103",
+    "HEAD": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+    "MERGE_HEAD": "16e1532cd9ca925e4b1103044b3d615b64067639",
+    "status": "PREPARED AND COMMITTED / NOT PUSHED",
+    "script": "C:/b35readback1030/prepare-watchlist-body-mobile-1103.cjs",
+    "scriptState": "EXECUTED with canonical2846fd14;NON-IDEMPOTENT,DO NOT RERUN",
+    "dependencies": "junction to C:/b35sharepromote1030/node_modules with committed lockfile semantic identity verified",
+    "reviewed": "90f07f5e9007592b51f666f3130be17393232bea",
+    "tree": "23871e9032f1ee678a7f79bc25b61a8b00688321",
+    "canonicalByteCopies": [
+      "supabase/functions/commerce-watch-refresh/index.ts",
+      "supabase/functions/commerce-watch-refresh/invalidBodyHostile.test.ts",
+      "__tests__/watchlistInvalidBodyGuard.test.js"
+    ],
+    "sourcePromotionRows": 69,
+    "priorRowsPreserved": 67,
+    "focused": {
+      "pass": 92,
+      "fail": 0,
+      "skip": 2
+    },
+    "initialFocused": {
+      "pass": 91,
+      "fail": 1,
+      "skip": 2,
+      "reason": "HistoricalW1unchangedindexassertionstillpinnedtoW1beforebodyguard;updatedtosameassertionagainstexactseparatelyapprovedE027canonicalhandlerbytes. No assertion removed;otherfilesremainW1baseline;negativeguardcasesretained."
+    },
+    "backend": {
+      "pass": 1605,
+      "handlerSteps": 34,
+      "fail": 0
+    },
+    "TypeScript": 0,
+    "sourceGates": 6,
+    "fullNode": "RUNNING,session32278,logwatchlist-body-mobile-full-node-1103.log"
+  },
+  "canonicalMerged": "2846fd147fc36b72404372919ee8d1e88421da75",
+  "canonicalTestedMerge": "5d50159aef624a318052ee75176fb2d69511688b",
+  "canonicalMergeCI": {
+    "capturedAt": "2026-11-03T14:20:41.043Z",
+    "counts": {
+      "pass": 32,
+      "skipping": 14
+    },
+    "rows": [
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125974030769",
+        "name": "Security summary",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125972895938",
+        "name": "Security summary",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125972169208",
+        "name": "Staging security gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971636232",
+        "name": "Contract tests",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971643847",
+        "name": "Synthetic auth tests",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971638734",
+        "name": "Migration validation",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971642289",
+        "name": "Staging health checks",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971640463",
+        "name": "Deploy staging candidate",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595582/job/125971430109",
+        "name": "Classify changed surfaces",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125971381695",
+        "name": "Staging security gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595591/job/125970896913",
+        "name": "ZAP API staging",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595933/job/125970897004",
+        "name": "ZAP Baseline (staging)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125971102383",
+        "name": "Staging health checks",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125971102368",
+        "name": "Synthetic auth tests",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125971101043",
+        "name": "Deploy staging candidate",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595581/job/125970893860",
+        "name": "Security promotion gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595631/job/125970896888",
+        "name": "Dependency reachability gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125970854713",
+        "name": "Migration validation",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970893158",
+        "name": "Semgrep Community Edition",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595467/job/125970893435",
+        "name": "VTO scope guard (enforced)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970892738",
+        "name": "Gitleaks",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970893550",
+        "name": "npm audit",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970893303",
+        "name": "Project checks",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970893387",
+        "name": "Trivy filesystem",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595467/job/125970893908",
+        "name": "VTO E2E — contract",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595382/job/125970893736",
+        "name": "OSV-Scanner",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595467/job/125970895876",
+        "name": "VTO E2E — staging dry run",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595467/job/125970895829",
+        "name": "VTO E2E — staging full certification (paid)",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651595467/job/125970895715",
+        "name": "VTO E2E — cleanup",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125970854850",
+        "name": "Contract tests",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651536179/job/125970773232",
+        "name": "VTO E2E — cleanup",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651536179/job/125970733819",
+        "name": "VTO E2E — staging dry run",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970679748",
+        "name": "Trivy filesystem",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970679714",
+        "name": "npm audit",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970679502",
+        "name": "OSV-Scanner",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535927/job/125970678643",
+        "name": "Classify changed surfaces",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535484/job/125970679699",
+        "name": "Security promotion gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651536179/job/125970679599",
+        "name": "VTO E2E — contract",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970680537",
+        "name": "Semgrep Community Edition",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970680210",
+        "name": "Project checks",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535841/job/125970679525",
+        "name": "Gitleaks",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535844/job/125970678441",
+        "name": "ZAP API staging",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535440/job/125970677568",
+        "name": "ZAP Baseline (staging)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651535975/job/125970679555",
+        "name": "Dependency reachability gate",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651536179/job/125970682195",
+        "name": "VTO scope guard (enforced)",
+        "state": "SKIPPED"
+      },
+      {
+        "bucket": "skipping",
+        "link": "https://github.com/kscanaiapp/kscan-app/actions/runs/41651536179/job/125970682184",
+        "name": "VTO E2E — staging full certification (paid)",
+        "state": "SKIPPED"
+      }
+    ]
+  },
+  "canonicalPostMerge": [
+    {
+      "name": "Security - Promotion Gate",
+      "id": 41652825447,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "name": "Security - Code and Dependencies",
+      "id": 41652825879,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "name": "Dependency Reachability Gate",
+      "id": 41652825433,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Security - ZAP API Staging",
+      "id": 41652825459,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "Security - ZAP Baseline Staging",
+      "id": 41652825436,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "VTO Backend E2E",
+      "id": 41652825613,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "K Scan Staging Security Gate",
+      "id": 41652825388,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

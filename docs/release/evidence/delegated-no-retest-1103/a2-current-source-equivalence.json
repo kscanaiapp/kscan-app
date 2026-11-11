@@ -1,0 +1,407 @@
+[
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/handler.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "23bba52e7b67aa4ce68ecd8c63d622efc609cd46",
+    "actual": "23bba52e7b67aa4ce68ecd8c63d622efc609cd46",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/handler.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "23bba52e7b67aa4ce68ecd8c63d622efc609cd46",
+    "actual": "23bba52e7b67aa4ce68ecd8c63d622efc609cd46",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/extraction.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "2e94697463cca6d807e5578609a0d6bc161d4855",
+    "actual": "2e94697463cca6d807e5578609a0d6bc161d4855",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/extraction.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "2e94697463cca6d807e5578609a0d6bc161d4855",
+    "actual": "2e94697463cca6d807e5578609a0d6bc161d4855",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/sensitive.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "2e50519c6ccbafaf816309e64a2d17bed74812c5",
+    "actual": "2e50519c6ccbafaf816309e64a2d17bed74812c5",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/sensitive.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "2e50519c6ccbafaf816309e64a2d17bed74812c5",
+    "actual": "2e50519c6ccbafaf816309e64a2d17bed74812c5",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/index.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "47fcd33ceda99ee50bd871b4b9c166d347bd63a4",
+    "actual": "47fcd33ceda99ee50bd871b4b9c166d347bd63a4",
+    "equal": true
+  },
+  {
+    "batch": 1,
+    "file": "supabase/functions/purchase-import-extract/index.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "47fcd33ceda99ee50bd871b4b9c166d347bd63a4",
+    "actual": "47fcd33ceda99ee50bd871b4b9c166d347bd63a4",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "services/vto/vtoFeatureControl.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "ad7daced6b9bff88bf822d1f9f260653548de020",
+    "actual": "ad7daced6b9bff88bf822d1f9f260653548de020",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "services/vto/vtoLiveGarmentRegistry.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "b0b5ec5efa589a88c379ead9d0e1ef0843f626e8",
+    "actual": "b0b5ec5efa589a88c379ead9d0e1ef0843f626e8",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "services/vto/vtoLiveGarment.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "5fe4f4187310941910b6aeb7a48252dfad1c2182",
+    "actual": "5fe4f4187310941910b6aeb7a48252dfad1c2182",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "services/vto/vtoStudio.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "5201340e85b5844ca12001a1bf3954f3b52334b8",
+    "actual": "5201340e85b5844ca12001a1bf3954f3b52334b8",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "services/vto/vtoDiscovery.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "37eb333312d023e18b38d74a90f5bf6f6f125eec",
+    "actual": "37eb333312d023e18b38d74a90f5bf6f6f125eec",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "hooks/useVtoLiveSession.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "47ff980acc9a01211701041a654c02dec8efc40b",
+    "actual": "47ff980acc9a01211701041a654c02dec8efc40b",
+    "equal": true
+  },
+  {
+    "batch": 2,
+    "file": "hooks/useVtoAvailability.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "f901afb62dcac440675e7179c481a79cc384e59c",
+    "actual": "f901afb62dcac440675e7179c481a79cc384e59c",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/index.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "29e39f3e61dd020c1813cbfc4a93fc74a497eb67",
+    "actual": "29e39f3e61dd020c1813cbfc4a93fc74a497eb67",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/index.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "29e39f3e61dd020c1813cbfc4a93fc74a497eb67",
+    "actual": "29e39f3e61dd020c1813cbfc4a93fc74a497eb67",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/activeContext.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "b901b938433b67130d991f89e63a2d2e01242122",
+    "actual": "b901b938433b67130d991f89e63a2d2e01242122",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/activeContext.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "b901b938433b67130d991f89e63a2d2e01242122",
+    "actual": "b901b938433b67130d991f89e63a2d2e01242122",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/promptHardening.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "728c250eee3897e6f9302b87a4f7a88589e1f859",
+    "actual": "728c250eee3897e6f9302b87a4f7a88589e1f859",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/promptHardening.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "728c250eee3897e6f9302b87a4f7a88589e1f859",
+    "actual": "728c250eee3897e6f9302b87a4f7a88589e1f859",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/eliseConfig.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "b8aa49419176055668d0a60a30fbee2f88b09aa1",
+    "actual": "b8aa49419176055668d0a60a30fbee2f88b09aa1",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/stylechat-generate/eliseConfig.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "b8aa49419176055668d0a60a30fbee2f88b09aa1",
+    "actual": "b8aa49419176055668d0a60a30fbee2f88b09aa1",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/_shared/geminiConsent.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "actual": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/_shared/geminiConsent.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "actual": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/_shared/deletion/common.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "194f43281d3aea58da4e30e5284932836db06099",
+    "actual": "194f43281d3aea58da4e30e5284932836db06099",
+    "equal": true
+  },
+  {
+    "batch": 3,
+    "file": "supabase/functions/_shared/deletion/common.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "194f43281d3aea58da4e30e5284932836db06099",
+    "actual": "194f43281d3aea58da4e30e5284932836db06099",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/index.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "e9062ce8e0e1b8e8642debc7612ac561d3e02814",
+    "actual": "e9062ce8e0e1b8e8642debc7612ac561d3e02814",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/index.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "e9062ce8e0e1b8e8642debc7612ac561d3e02814",
+    "actual": "e9062ce8e0e1b8e8642debc7612ac561d3e02814",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/validation.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "007bd979e71af3b23ba3d645a08b2cae43c4ed2b",
+    "actual": "007bd979e71af3b23ba3d645a08b2cae43c4ed2b",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/validation.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "007bd979e71af3b23ba3d645a08b2cae43c4ed2b",
+    "actual": "007bd979e71af3b23ba3d645a08b2cae43c4ed2b",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/accountActiveGate.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "ffc7506274cb2a6376ffb11be3da64fb69f82214",
+    "actual": "ffc7506274cb2a6376ffb11be3da64fb69f82214",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/accountActiveGate.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "ffc7506274cb2a6376ffb11be3da64fb69f82214",
+    "actual": "ffc7506274cb2a6376ffb11be3da64fb69f82214",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/modelRouting.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "547ae8383c0aa24c190d8c574b959554927fac4a",
+    "actual": "547ae8383c0aa24c190d8c574b959554927fac4a",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/modelRouting.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "547ae8383c0aa24c190d8c574b959554927fac4a",
+    "actual": "547ae8383c0aa24c190d8c574b959554927fac4a",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/reasoningContract.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "e1efb9c23367f208fae52e5614420e3de8cf5c9a",
+    "actual": "e1efb9c23367f208fae52e5614420e3de8cf5c9a",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/reasoningContract.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "e1efb9c23367f208fae52e5614420e3de8cf5c9a",
+    "actual": "e1efb9c23367f208fae52e5614420e3de8cf5c9a",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "ddaa3d8fb0c3863d509fcd5cf92505fb9032c902",
+    "actual": "ddaa3d8fb0c3863d509fcd5cf92505fb9032c902",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "ddaa3d8fb0c3863d509fcd5cf92505fb9032c902",
+    "actual": "ddaa3d8fb0c3863d509fcd5cf92505fb9032c902",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "c44e55c2f7043b23af5f105cd3adeb56930c3120",
+    "actual": "c44e55c2f7043b23af5f105cd3adeb56930c3120",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "c44e55c2f7043b23af5f105cd3adeb56930c3120",
+    "actual": "c44e55c2f7043b23af5f105cd3adeb56930c3120",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/_shared/geminiConsent.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "actual": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/_shared/geminiConsent.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "actual": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/_shared/deletion/common.ts",
+    "kind": "mobile",
+    "ref": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "expected": "194f43281d3aea58da4e30e5284932836db06099",
+    "actual": "194f43281d3aea58da4e30e5284932836db06099",
+    "equal": true
+  },
+  {
+    "batch": 4,
+    "file": "supabase/functions/_shared/deletion/common.ts",
+    "kind": "backend",
+    "ref": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "expected": "194f43281d3aea58da4e30e5284932836db06099",
+    "actual": "194f43281d3aea58da4e30e5284932836db06099",
+    "equal": true
+  }
+]

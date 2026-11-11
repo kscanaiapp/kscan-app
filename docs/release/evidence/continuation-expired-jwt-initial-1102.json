@@ -1,0 +1,44 @@
+{
+  "cleanupConfirmed": true,
+  "records": [
+    {
+      "expected": "401 for naturally expired signed user token",
+      "probe": "naturally expired, previously valid synthetic JWT",
+      "actual": {
+        "explicitExpiry": true,
+        "http": 403
+      },
+      "probeId": "B35-EXPIRED-JWT-001",
+      "runId": "0d008232cb0c474ba3ec0dc7b20d398c",
+      "boundary": "Supabase Auth /auth/v1/user",
+      "verdict": "FAIL",
+      "environment": "Real Staging HTTPS"
+    },
+    {
+      "expected": "Admin delete succeeds; exact fixture absent afterward",
+      "probe": "naturally expired, previously valid synthetic JWT",
+      "actual": {
+        "deleteHttp": 200,
+        "afterHttp": 404
+      },
+      "probeId": "B35-EXPIRED-JWT-002",
+      "runId": "0d008232cb0c474ba3ec0dc7b20d398c",
+      "boundary": "tag-verified synthetic identity cleanup",
+      "verdict": "PASS",
+      "environment": "Real Staging HTTPS"
+    }
+  ],
+  "capturedAt": "2026-11-02T12:35:38.5387963Z",
+  "providerCalls": "No authenticated provider operation requested; gateway denial evidence only",
+  "errors": [
+    {
+      "message": "Expired-token Auth control did not reject; no further requests",
+      "disposition": "HARNESS/NETWORK ERROR"
+    }
+  ],
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "functionInventory": "November2 read-only deployed inventory; does not attest application source digest",
+  "expiryAtUtc": "2026-10-31T17:01:41.0000000Z",
+  "baseline": "Auth200 and subject verified on October31 before natural expiry; retained fixture metadata",
+  "productionChanges": false
+}

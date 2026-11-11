@@ -1,0 +1,13 @@
+{
+  "capturedAt": "2026-10-29T23:15:54.164Z",
+  "build35": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "backend": "f4df2a5a525fb7ee1b22f16c9a4bc55c1c8831af",
+  "evidenceStartingHead": "5801a5739655eaf1b8ed007ffc1a6f233ac85703",
+  "preFreeze": "840ba88ee41e97de8d9d63ad5f3d3dd03fd457a2",
+  "treeEquivalentTo751e3815": true,
+  "archivesVerified": 110,
+  "newSourceProbes": {
+    "PostHog": 70
+  },
+  "newDefects": 0
+}

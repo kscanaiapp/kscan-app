@@ -1,0 +1,27 @@
+const test=require('node:test'),assert=require('node:assert/strict'),{createRequire}=require('node:module');
+const root=process.env.KSCAN_AUDIT_ROOT||'C:/b35launchprivacy1030';
+const req=createRequire(root+'/package.json'),sdkReq=createRequire(root+'/node_modules/posthog-react-native/dist/posthog-rn.js');
+const {runModule}=req('./__tests__/helpers/componentRenderer'),coreSdk=sdkReq('@posthog/core');
+const prototype=coreSdk.PostHogCore.prototype;
+const actor='11111111-1111-4111-8111-111111111111';
+test('actual SDK batch transport must exclude raw URL from a restored legacy queue',async()=>{
+ const names=['EXPO_PUBLIC_POSTHOG_API_KEY','EXPO_PUBLIC_POSTHOG_HOST'],old=names.map(x=>process.env[x]);
+ process.env[names[0]]='synthetic-key';process.env[names[1]]='https://analytics-fixture.invalid';
+ let sdk,transportBody,hookCalls=0;
+ class SDK{constructor(_key,options){this.options=options;this.actor='restored';this.storage=new Map();sdk=this;}ready(){return Promise.resolve();}reset(){this.actor='anonymous';}identify(id){this.actor=id;}getDistinctId(){return this.actor;}getPersistedProperty(key){return this.storage.get(key);}setPersistedProperty(key,value){this.storage.set(key,value);}capture(){} }
+ try{
+  const modules={'posthog-react-native':{__esModule:true,default:SDK,PostHogProvider(){}},'./posthogIdentitySync':runModule('services/analytics/posthogIdentitySync.ts',{}, {jsx:false})};
+  for(const[file,setter]of [['../closetTelemetry','setClosetTelemetrySink'],['../kplus/kplusTelemetry','setKPlusAnalyticsSink'],['../todayWithElise/analytics','setTodayWithEliseAnalyticsSink'],['../voice/voiceTelemetry','setVoiceAnalyticsSink'],['../vto/vtoTelemetry','setVtoAnalyticsSink'],['../purchaseImport/purchaseImportTelemetry','setPurchaseImportTelemetrySink'],['../blackOwnedDiscoveryTelemetry','setBlackOwnedDiscoveryAnalyticsSink']])modules[file]={[setter]:()=>{}};
+  const app=runModule('services/analytics/posthogClient.core.ts',modules,{jsx:false});app.syncPostHogIdentity(actor);for(let n=0;n<10;n++)await Promise.resolve();
+  const rawURL='kscan://auth/callback#access_token=SYNTHETIC_LEGACY_TOKEN';
+  assert.equal(app.posthog.options.before_send({event:'Application Opened',properties:{distinct_id:actor,url:rawURL}}).properties.url,undefined,'New capture is already sanitized by663');
+  for(const name of ['normalizeMessage','normalizeTimestamp','normalizeTimestampForWire','persistedQueueKeyForRoute','getActiveQueueRoutes','getBatchEndpointPath','sendBatch'])if(typeof prototype[name]==='function')sdk[name]=prototype[name];
+  const route=sdk.getActiveQueueRoutes()[0],key=sdk.persistedQueueKeyForRoute(route);
+  sdk.storage.set(key,[{message:{type:'capture',event:'Application Opened',uuid:'22222222-2222-4222-8222-222222222222',timestamp:'2026-10-29T12:00:00Z',properties:{distinct_id:actor,url:rawURL}}}]);
+  Object.assign(sdk,{apiKey:'synthetic-key',host:'https://analytics-fixture.invalid',disableCompression:true,maxBatchSize:100,_dequeuedMessagesCount:0,_events:{emit(){}},_logger:{warn(){}},flushStorage:async()=>{},getCustomHeaders:()=>({}),fetchWithRetry:async(url,options)=>{assert.equal(new URL(url).origin,'https://analytics-fixture.invalid');transportBody=JSON.parse(options.body);},_beforeSend:event=>{hookCalls++;return sdk.options.before_send(event);}});
+  await prototype._flushRoute.call(sdk,route,[]);
+  assert.ok(transportBody,'Exercise real SDK serialization and sendBatch, not a copied filter');
+  console.log('PERSISTED_URL_OBSERVATION '+JSON.stringify({sourceSha:'a5b55fc56ec7289d8a182aef9d2d6b1882cf6b37; exact merged a950 tree',currentNewEventsSanitized:true,beforeSendCallsDuringFlush:hookCalls,actual:transportBody,externalNetworkCalls:0,limitation:'Seeded faithful SDK persisted queue in memory; actual SDK flush/serialization methods; no real user queue or provider ingestion read'}));
+  assert.equal(JSON.stringify(transportBody).includes('SYNTHETIC_LEGACY_TOKEN'),false,'Restored legacy URL bypassed the new before_send filter');
+ }finally{names.forEach((x,i)=>old[i]===undefined?delete process.env[x]:process.env[x]=old[i]);}
+});

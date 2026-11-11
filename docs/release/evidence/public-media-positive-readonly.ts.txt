@@ -1,0 +1,18 @@
+import { publicMediaFetch } from '../b35dns1030/supabase/functions/_shared/net/publicMediaFetch.ts';
+const controller = new AbortController();
+const timer = setTimeout(() => controller.abort(), 8000);
+try {
+  let url = 'https://www.w3.org/Icons/w3c_home.png';
+  let response = await publicMediaFetch(url, { redirect: 'manual', signal: controller.signal });
+  const hops = [{ status: response.status, url }];
+  for (let i = 0; i < 2 && response.status >= 300 && response.status < 400; i++) {
+    const target = new URL(response.headers.get('location') ?? '', url);
+    if (target.protocol !== 'https:' || target.hostname !== 'www.w3.org') throw new Error('Unapproved public-fixture redirect');
+    url = target.href;
+    response = await publicMediaFetch(url, { redirect: 'manual', signal: controller.signal });
+    hops.push({ status: response.status, url });
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log(JSON.stringify({ host: 'www.w3.org', hops, status: response.status, mediaType: response.headers.get('content-type'), bytes: bytes.length, sha256, limitation: 'Public static nonpersonal W3C asset plus bounded same-host redirects; default TLS verification, no provider call or Supabase runtime claim' }));
+} finally { clearTimeout(timer); }

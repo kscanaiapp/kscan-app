@@ -1,0 +1,44 @@
+[
+  {
+    "path": "supabase/migrations/202606070005_stylechat_daily_usage.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "116f02ebdf8d82e560cb7d08372ae891f6bc9b2b3b8c55d39a74a40fe75d5517"
+  },
+  {
+    "path": "supabase/migrations/202606090001_style_chat_burst_usage.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "44a5f139eb0380674ccf9f2820f17bba459d5adadd7475ea6c8d717d9e17f721"
+  },
+  {
+    "path": "supabase/migrations/20260711000003_style_outfit_usage.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "0afe9c0e1a70b9ae85f5dd43fc6e6adc6f620d6c50961252680cbb22fb507750"
+  },
+  {
+    "path": "supabase/migrations/20260712020000_harden_app_role_privileges.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "8e88f809194a50a3b2b64a69b4609df7e7d98f2a5d6c651a4f49149f0a2f8f3a"
+  },
+  {
+    "path": "supabase/migrations/202607200001_elise_generation_quota_idempotency.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "7406d4f28c137c78f930f6968efff11f3e5153357da3bcdc0d7c426ad3b9ba0d"
+  },
+  {
+    "path": "supabase/migrations/20260721090920_fix_elise_quota_after_generation_reservation.sql",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "equal": true,
+    "sha256": "aa960594c73da705bf8b9842ee971722c82886fbb7890e30bfacc8f3eaf6b0c2"
+  }
+]

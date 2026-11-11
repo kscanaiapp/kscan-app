@@ -1,0 +1,60 @@
+{
+  "id": "B35-C-022",
+  "priority": "P3",
+  "status": "CLOSED IN SOURCE / MERGED678 / independent9of9branchCI",
+  "sourceSha": "6183eab0958dd17e99efa659a6f4e3c0dbfef519",
+  "sourceLocation": "hooks/useVtoLiveSession.ts:134-207 enterLive permission continuation and exitLive; 117-132 cleanup covers unmount only; no AppState listener",
+  "contract": "Live camera lifecycle must stop when its application is backgrounded; late permission/capture completions must not start or hand off an inactive session. Original campaign sections 14/28 and source lifecycle/privacy contract.",
+  "reproduction": "node --test C:/b35readback1030/live-mounted-source-1102.test.cjs",
+  "evidence": "live-background-before-1102.log; actual Studio/hook/entry/launch host/sheet/panel/native adapter/controller and camera lease; native methods and AppState emitter controlled, not physical camera",
+  "before": {
+    "pass": 24,
+    "fail": 2,
+    "skip": 0
+  },
+  "observed": [
+    "Background during pending permission, then grant: native start called once, expected zero.",
+    "Background during active Live/person capture: currentCameraOwner remains live_vto, expected null; listener remains installed."
+  ],
+  "rootCause": "Surface visibility/unmount teardown exists, but mounted Live does not subscribe to application background transitions.",
+  "repairPlan": "Subscribe to React Native AppState background; reuse existing epoch-fenced exitLive teardown, disallow background start and post-permission dispatch; preserve transient inactive permission dialog and require explicit restart after foreground return.",
+  "riskLimits": "No actual background camera bytes, OS privacy violation, provider dispatch, payment effect or cross-account disclosure established. Moderate source lifecycle/reliability defect, not P0.",
+  "mergeOrder": "After #677 fully source/CI closed. Lead-only edit of shared Live hook; bounded separate PR.",
+  "pr": 678,
+  "repairHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "after": {
+    "mountedPass": 28,
+    "fail": 0,
+    "skip": 0,
+    "relatedPass": 918,
+    "relatedSkip": 4,
+    "relatedFail": 0,
+    "correctedHookPass": 46
+  },
+  "typecheck": "Corrected exact source exit0; full current-head and independent postmerge ProjectChecksSUCCESS",
+  "reviewedHead": "d64ec0628dadfc7cd2defb0908e82fc5b719602a",
+  "testedMerge": "68f596eb84be583bcc380e504e7f1ce4c21eab3f",
+  "merge": "560028ef3f5327989077b19ee6ccbba34f344927",
+  "identicalGitTree": "593ad0f3089a320942a1c780332b4c08deb043b4",
+  "premerge": {
+    "successful": 34,
+    "conditionalSkips": 20,
+    "failures": 0,
+    "pending": 0,
+    "reviews": 0,
+    "inlineThreads": 0,
+    "mergeable": "CLEAN / ready"
+  },
+  "fullNode": {
+    "pass": 11441,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "postmergeCi": "continuation-mobile-5600-branch-ci.json",
+  "additionalSourceVerification": "2actualHome/anonymous +10actualconfig/eligibility/boundary cases PASS; no new defect. Source workflow cases total40; related/hook/full suites overlap, never added together.",
+  "initialCi": "053c code workflow cancelled on correction push; old promotion correctly refused with ciOperationalFailureCancelled/Project checks cancelled, exit3. Preserved raw; not a product vulnerability and no security gate suppressed."
+}

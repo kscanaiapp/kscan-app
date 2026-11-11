@@ -1,0 +1,92 @@
+[
+  {
+    "location": "__tests__\\build35ProductionReadiness.test.js:7:1",
+    "name": "✖ Build 35 production ledger snapshot has no unexplained migration drift (74.0382ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: [\"local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: 20261014210000, 20261015214749, 20261016001500, 20261029125521\"]"
+  },
+  {
+    "location": "__tests__\\edgeFunctionSourceParity.test.js:114:1",
+    "name": "✖ committed manifest governs every governed function and the approved project (8.0991ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+  },
+  {
+    "location": "__tests__\\orphanedOwnerMediaSweep.test.js:217:1",
+    "name": "✖ no new Edge Function is introduced (the governed set is unchanged) (4.3976ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: no unexplained Edge Function has appeared"
+  },
+  {
+    "location": "__tests__\\premiumValueGovernance.test.js:55:1",
+    "name": "✖ Today, Speech, VTO lifecycle, RevenueCat and K+ entitlement semantics preserve integration authority (27.3124ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: supabase/functions/stylist-speech/handler.ts"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:62:1",
+    "name": "✖ tiers render as headings in Exact, Same Brand, Similar order regardless of input order (73.6919ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:68:1",
+    "name": "✖ a heading is shown once per tier and only for tiers that have rows (41.7779ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:73:1",
+    "name": "✖ without a verified exact row the shelf says so without claiming a no-match (30.2946ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:83:1",
+    "name": "✖ a search handoff never reads as Exact or Same Brand (44.3682ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:89:1",
+    "name": "✖ every row keeps its own garment identity after re-sorting (VTO launch is bound to the row) (36.0595ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:101:1",
+    "name": "✖ honest empty, pending and error states are unchanged by the tiers (33.6433ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\purchaseOptionsPanelTiers.test.js:111:1",
+    "name": "✖ orderByMatchTier is stable inside a tier (39.9916ms)",
+    "assertion": "  Error: Unexpected require in components/scan-results/PurchaseOptionsPanel.tsx: ../../services/blackOwnedDiscovery"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:67:1",
+    "name": "✖ A+K: deploy-only with six declared pending sources selects NO migration (37.3563ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: 20261014210000, 20261015214749, 20261016001500, 20261029125521"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:92:1",
+    "name": "✖ B: an additional undeclared pending migration fails, even with an approved known one (6.3621ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:106:1",
+    "name": "✖ C: approving one pending source selects exactly that version and leaves the others untouched (6.7244ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: 20261014210000, 20261015214749, 20261016001500, 20261029125521"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:160:1",
+    "name": "✖ order: the campaign runs one version per step, in order, and ends fully aligned (7.1105ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: 20261002010000: local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: 20261014210000, 20261015214749, 20261016001500, 20261029125521"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:186:1",
+    "name": "✖ Speech controls require their own exact approval and fail if their declaration disappears (5.144ms)",
+    "assertion": "  TypeError: Cannot read properties of null (reading 'version')"
+  },
+  {
+    "location": "__tests__\\staging\\stagingMultiPendingCampaign.test.js:268:1",
+    "name": "✖ I: an already-applied version refuses replay (3.2263ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: 20261014210000, 20261015214749, 20261016001500, 20261029125521"
+  },
+  {
+    "location": "__tests__\\vtoE2eUserGarmentProbe.test.js:598:1",
+    "name": "✖ the not-dispatched codes are exactly those the handler and the adapter can only produce before a submit (1.9767ms)",
+    "assertion": "  AssertionError [ERR_ASSERTION]: the handler must not produce authorization_failed once generation has begun"
+  }
+]

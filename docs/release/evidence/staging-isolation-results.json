@@ -1,0 +1,154 @@
+﻿[
+    {
+        "probe":  "profile A -\u003e A",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Exactly own synthetic row",
+        "actual":  "HTTP 200 rows=1",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "profile B -\u003e B",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Exactly own synthetic row",
+        "actual":  "HTTP 200 rows=1",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "profile A -\u003e B",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "No foreign rows",
+        "actual":  "HTTP 200 rows=0",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "profile B -\u003e A",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "No foreign rows",
+        "actual":  "HTTP 200 rows=0",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User A cannot update User B profile",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "No changed foreign row",
+        "actual":  "HTTP 200 rows=0",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User A own room baseline",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "One owned synthetic room",
+        "actual":  "HTTP 200 rows=1",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User B guessed room ID without membership",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "No room rows",
+        "actual":  "HTTP 200 rows=0",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User B guessed room RPC without membership",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Authoritative access decision denies",
+        "actual":  "HTTP 200 ok=False",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User B active membership RPC baseline",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Actual share join authorizes collaboration",
+        "actual":  "HTTP 200 ok=True",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "Active member reads synthetic message via real RPC",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "One synthetic message",
+        "actual":  "HTTP 200 count=1",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "Removed member reuses valid JWT against collaboration RPC",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Authoritative decision denies after real membership removal",
+        "actual":  "HTTP 200 ok=False",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "Removed member cannot read messages via real RPC",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Access denied without message content",
+        "actual":  "HTTP 403 ok=",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User A synthetic private upload baseline",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Owned fixture upload succeeds",
+        "actual":  "HTTP 200",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User B cannot read User A storage path",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Explicit denial or hidden object",
+        "actual":  "HTTP 400",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User B cannot sign User A storage path",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Explicit denial",
+        "actual":  "HTTP 400",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "Expired signed URL replay",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Initially readable, then explicit denial after expiry",
+        "actual":  "before=200 after=400",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "User A cannot upload into User B storage prefix",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Explicit denial",
+        "actual":  "HTTP 400",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "cleanup synthetic actor A",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Only campaign-tagged actor deleted",
+        "actual":  "HTTP 200",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    },
+    {
+        "probe":  "cleanup synthetic actor B",
+        "environment":  "Staging, tagged ephemeral synthetic actors only",
+        "expected":  "Only campaign-tagged actor deleted",
+        "actual":  "HTTP 200",
+        "verdict":  "PASS",
+        "runId":  "c36d9ff89c9e4825bb42bfa754b2afcc"
+    }
+]

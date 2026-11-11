@@ -1,0 +1,575 @@
+{
+ "lane": "A2 batch 2 (issue #702) - Live Camera VTO",
+ "mobileSourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+ "matrixSnapshot": "PR #646 head 49ab7fada3639587911849080ff33c6ad17fd9df docs/release/evidence/mandatory-hostile-probes.json",
+ "fingerprintKind": "git blob ids at the tested commit",
+ "sourceFingerprints": {
+  "services/vto/vtoFeatureControl.ts": "ad7daced6b9bff88bf822d1f9f260653548de020",
+  "services/vto/vtoLiveGarmentRegistry.ts": "b0b5ec5efa589a88c379ead9d0e1ef0843f626e8",
+  "services/vto/vtoLiveGarment.ts": "5fe4f4187310941910b6aeb7a48252dfad1c2182",
+  "services/vto/vtoStudio.ts": "5201340e85b5844ca12001a1bf3954f3b52334b8",
+  "services/vto/vtoDiscovery.ts": "37eb333312d023e18b38d74a90f5bf6f6f125eec",
+  "hooks/useVtoLiveSession.ts": "47ff980acc9a01211701041a654c02dec8efc40b",
+  "hooks/useVtoAvailability.ts": "f901afb62dcac440675e7179c481a79cc384e59c"
+ },
+ "cellsEvaluated": 43,
+ "proposedBreakdown": {
+  "PASS (source harness, proposed)": 6,
+  "PASS (source harness, analog - needs Codex ruling)": 7,
+  "N/A (proposed, needs Codex ruling)": 20,
+  "NOT TESTED (kept)": 6,
+  "NOT TESTED (kept, device-excluded cat 6 - untouched)": 4
+ },
+ "countsBefore": {
+  "PASS": 138,
+  "FAIL": 1,
+  "NOT_TESTED": 2957,
+  "total": 3096,
+  "naCategory2": 318,
+  "deviceCategory6": 4,
+  "applicablePending": 2639,
+  "inScopeApplicablePending": 2635
+ },
+ "countsBatch2Alone": {
+  "allProposalsAccepted": {
+   "PASS": 151,
+   "FAIL": 1,
+   "NOT_TESTED": 2944,
+   "total": 3096,
+   "naCategory2": 338,
+   "deviceCategory6": 4,
+   "applicablePending": 2606,
+   "inScopeApplicablePending": 2602
+  },
+  "analogPassRejected_stays_NT": {
+   "PASS": 144,
+   "FAIL": 1,
+   "NOT_TESTED": 2951,
+   "total": 3096,
+   "naCategory2": 338,
+   "deviceCategory6": 4,
+   "applicablePending": 2613,
+   "inScopeApplicablePending": 2609
+  },
+  "onlyFirmPass_noNA": {
+   "PASS": 144,
+   "FAIL": 1,
+   "NOT_TESTED": 2951,
+   "total": 3096,
+   "naCategory2": 318,
+   "deviceCategory6": 4,
+   "applicablePending": 2633,
+   "inScopeApplicablePending": 2629
+  }
+ },
+ "countsCumulativeWithBatch1AllAccepted": {
+  "PASS": 166,
+  "FAIL": 1,
+  "NOT_TESTED": 2929,
+  "total": 3096,
+  "naCategory2": 346,
+  "deviceCategory6": 4,
+  "applicablePending": 2583,
+  "inScopeApplicablePending": 2579
+ },
+ "cells": [
+  {
+   "probeId": "B35-MAND-2775",
+   "probe": "simultaneous duplicate operation",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten concurrent enterLive() during one permission dialog: one prompt, one controller, one native start; ten concurrent photoreal requests: one capture and one adoption; all controllers disposed.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2775",
+   "overlapRefs": [
+    "Retained HA-002/HA-003 cover 2-3 taps; this extends to 10"
+   ],
+   "remainingGap": "Real hook with injected native/permission/sanitizer fakes; not a device."
+  },
+  {
+   "probeId": "B35-MAND-2776",
+   "probe": "10 retries in 1 second",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten rapid sequential taps, ten after a denial, ten enter/exit cycles within one second: one controller, none after denial, <=1 live controller across cycles, all disposed.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2776",
+   "overlapRefs": [],
+   "remainingGap": "Rate-limit semantics do not exist for an on-device camera; proves no resource amplification only. Ask-once-after-denial of the real permission module is faked."
+  },
+  {
+   "probeId": "B35-MAND-2791",
+   "probe": "RevenueCat stale entitlement",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Every stale/expired/unknown entitlement state through the real mapping and the real Studio gate: Live is offered only for member; stale never grants. Mutations L6/L7 detected.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2791 + audit/a2/out/live-batch2-results.json#B35-MAND-2791-COMPOSITION",
+   "overlapRefs": [],
+   "remainingGap": "Derivation stale->expired lives in useKPlusEntitlement (K+ lane) and is stubbed; no RevenueCat or network."
+  },
+  {
+   "probeId": "B35-MAND-2767",
+   "probe": "Unicode homoglyph identifier",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Cyrillic/fullwidth/zero-width/combining homoglyph garment identifiers and URLs never resolve ELIGIBLE; the exact pilot URLs still do (control). Mutation L5 detected.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2767",
+   "overlapRefs": [],
+   "remainingGap": "Governed pilot registry only; Photo/commerce identifier handling belongs to other lanes."
+  },
+  {
+   "probeId": "B35-MAND-2768",
+   "probe": "URL path traversal",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Path-traversal, encoded traversal and query/fragment tricks against the governed asset URL are refused.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2768",
+   "overlapRefs": [],
+   "remainingGap": "Resolver only; post-resolution product-URL opening (openPersistedCommerceUrl) is a Commerce-lane boundary, not exercised."
+  },
+  {
+   "probeId": "B35-MAND-2769",
+   "probe": "SSRF metadata/local/file/gopher/DNS rebind",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Metadata (169.254.169.254), localhost, file:, gopher:, userinfo and DNS-rebind-shaped hosts are refused by the asset-selection boundary; the Live source graph issues no outbound request.",
+   "evidence": "audit/a2/out/live-batch2-results.json#B35-MAND-2769 + audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Does not cover native image decode or remote fetch inside the native module."
+  },
+  {
+   "probeId": "B35-MAND-2782",
+   "probe": "provider 500",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (500); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-033 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-033); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-033 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider 500\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2783",
+   "probe": "provider 429",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (429); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-034 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-034); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-034 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider 429\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2784",
+   "probe": "provider timeout",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (timeout); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-039 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-039); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-039 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider timeout\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2785",
+   "probe": "provider malformed JSON",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (malformed JSON); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-037 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-037); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-037 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider malformed JSON\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2786",
+   "probe": "provider empty body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (empty body); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-036 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-036); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-036 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider empty body\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2787",
+   "probe": "provider wrong schema",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (wrong schema); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-038 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-038); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-038 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider wrong schema\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2788",
+   "probe": "Supabase 401 mid-request",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "Real getVtoRemoteConfig/availability/resolver over a faulted app_config read (Supabase 401); Live is never offered and native is never dispatched. Retained B35-LIVE-SRC-035 re-run at the current head (56/56) and mutation-checked here.",
+   "evidence": "audit/a2/live-remote-source-1102.test.cjs (B35-LIVE-SRC-035); audit/a2/out/live-batch2-mutations.md",
+   "overlapRefs": [
+    "B35-LIVE-SRC-035 in live-source-executed-probes-1102.json is the retained PR #646 record of the same test; same source family, not additive"
+   ],
+   "remainingGap": "Live has no provider or endpoint (on-device camera). The only remote dependency is the app_config availability read, so this is the closest honest analog of \"provider Supabase 401\". Ruling needed: PASS-scoped vs N/A. Mock config reader, not a live Supabase."
+  },
+  {
+   "probeId": "B35-MAND-2753",
+   "probe": "anonymous caller",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live exposes no endpoint, so there is no anonymous-caller request to make; the Studio gate hides Live from anonymous actors (retained B35-LIVE-SRC-029/030). Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2754",
+   "probe": "User A own resource",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No user-owned resource: Live persists nothing and addresses no resource id. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2755",
+   "probe": "User A User B resource IDOR",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No resource id parameter exists to substitute (IDOR requires an addressable resource). Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2756",
+   "probe": "User A User B storage path",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No storage path input or storage client in the Live graph. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2757",
+   "probe": "removed shared-room member",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No shared-room or room-member concept in the Live graph (grep for room/storage/persistence terms: no hits). Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2758",
+   "probe": "expired JWT",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No JWT is parsed or sent by Live code; the only authenticated call is the shared app_config read (Supabase client). Production-gateway JWT PASSes already exist as B35-MAND-0738/0739. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Caveat: shared Supabase client auth is another lane."
+  },
+  {
+   "probeId": "B35-MAND-2759",
+   "probe": "malformed JWT",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "As 2758. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Caveat as 2758."
+  },
+  {
+   "probeId": "B35-MAND-2760",
+   "probe": "tampered JWT claims",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "As 2758. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Caveat as 2758."
+  },
+  {
+   "probeId": "B35-MAND-2761",
+   "probe": "in-function auth with caller-controlled headers",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "No in-function auth exists; Live runs on-device and reads no caller-controlled header. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2763",
+   "probe": "empty body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no request body to send empty. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2764",
+   "probe": "null body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no request body to send null. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2765",
+   "probe": "malformed JSON",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no JSON request body. (Malformed JSON in the app_config RESPONSE is covered by 2785.) Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2766",
+   "probe": "10x declared body limit",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no request body to oversize. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2770",
+   "probe": "prompt injection per model field",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no model, prompt or model-field input; garment data is a closed governed registry. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2771",
+   "probe": "SQL injection per RPC parameter",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live issues no RPC; there are no RPC parameters to inject into. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2790",
+   "probe": "speech empty timestamps",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no speech or voice surface (grep for speech/voice/elevenlabs over the Live JS/TS graph: no hits). Frame timestamps in native code are pose-frame times, not speech. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Speech belongs to Elise/StyleChat."
+  },
+  {
+   "probeId": "B35-MAND-2792",
+   "probe": "purchase webhook replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live has no purchase, entitlement-grant or webhook handler; it only consumes the canonical entitlement state (2791). Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed. Webhook replay belongs to the K+ lane."
+  },
+  {
+   "probeId": "B35-MAND-2793",
+   "probe": "save replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live saves nothing (no persistence terms in the Live graph), so there is no save to replay. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2794",
+   "probe": "deletion replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live stores no record, so there is no deletion to replay. Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2795",
+   "probe": "expired signed URL replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "Live issues and accepts no signed URLs (static scan: no storage client / createSignedUrl). Static scan of the 17 Live-named JS/TS source files (STATIC-LIVE-SURFACE) finds no fetch/XHR/WebSocket/functions.invoke/rpc/supabase/storage/axios; the only outbound-capable call is user-initiated Linking in the pilot product card.",
+   "evidence": "audit/a2/out/live-batch2-results.json#STATIC-LIVE-SURFACE",
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed (N/A by construction). Caveat: the shared availability read and K+ entitlement are other lanes' surfaces."
+  },
+  {
+   "probeId": "B35-MAND-2762",
+   "probe": "client service-role reachability",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Feature-independent control (client bundle must not contain the service-role key); not attributable to Live.",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs one cross-feature client-bundle scan owner (same as 0741)."
+  },
+  {
+   "probeId": "B35-MAND-2772",
+   "probe": "MIME magic-byte mismatch",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Live neither accepts nor validates image bytes; the captured frame is handed to the Photo sanitizer (other lane). Live-side refusal is exercised only with an injected sanitizer fake (B35-LIVE-SRC-011/023).",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Belongs to the Photo/sanitizer lane."
+  },
+  {
+   "probeId": "B35-MAND-2773",
+   "probe": "zero-byte truncated corrupted image",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "As 2772.",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Belongs to the Photo/sanitizer lane."
+  },
+  {
+   "probeId": "B35-MAND-2774",
+   "probe": "lying Content-Type",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "As 2772; Live sends no Content-Type.",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Belongs to the Photo/sanitizer lane; could be N/A for Live alone - ruling item."
+  },
+  {
+   "probeId": "B35-MAND-2781",
+   "probe": "cross-user shared cache poisoning",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Live files hold no cache. The shared config memo in vtoFeatureControl is process-global app_config (not actor-scoped); actor scoping of the entitlement read is in the K+ lane. Not tested here.",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Needs the K+ entitlement cache cell owner."
+  },
+  {
+   "probeId": "B35-MAND-2789",
+   "probe": "secondary discovery hangs",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "No test hangs the secondary discovery read (resolveVtoActorKPlusState). The config-read timeout (2784) is a different read.",
+   "evidence": null,
+   "overlapRefs": [],
+   "remainingGap": "Could be added: hang the discovery read and assert Studio shows no Live."
+  },
+  {
+   "probeId": "B35-MAND-2777",
+   "probe": "cancel then reissue",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 6,
+   "proposedDisposition": "NOT TESTED (kept, device-excluded cat 6 - untouched)",
+   "rationale": "Device cell (category 6). Source-level fences exist (retained B35-LIVE-SRC-007/012/019/024 for late-start and late-capture discards) but there is no physical/signed-app run, so no credit is proposed.",
+   "evidence": null,
+   "overlapRefs": [
+    "B35-LIVE-SRC-007/012/019/024 are source fences, not the device cell"
+   ],
+   "remainingGap": "Needs a signed test app and device."
+  },
+  {
+   "probeId": "B35-MAND-2778",
+   "probe": "navigate away then return",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 6,
+   "proposedDisposition": "NOT TESTED (kept, device-excluded cat 6 - untouched)",
+   "rationale": "Device cell (category 6). Source-level fences exist (retained B35-LIVE-SRC-007/012/019/024 for late-start and late-capture discards) but there is no physical/signed-app run, so no credit is proposed.",
+   "evidence": null,
+   "overlapRefs": [
+    "B35-LIVE-SRC-007/012/019/024 are source fences, not the device cell"
+   ],
+   "remainingGap": "Needs a signed test app and device."
+  },
+  {
+   "probeId": "B35-MAND-2779",
+   "probe": "switch account in flight",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 6,
+   "proposedDisposition": "NOT TESTED (kept, device-excluded cat 6 - untouched)",
+   "rationale": "Device cell (category 6). Source-level fences exist (retained B35-LIVE-SRC-007/012/019/024 for late-start and late-capture discards) but there is no physical/signed-app run, so no credit is proposed.",
+   "evidence": null,
+   "overlapRefs": [
+    "B35-LIVE-SRC-007/012/019/024 are source fences, not the device cell"
+   ],
+   "remainingGap": "Needs a signed test app and device."
+  },
+  {
+   "probeId": "B35-MAND-2780",
+   "probe": "A then B delayed A supersession",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 6,
+   "proposedDisposition": "NOT TESTED (kept, device-excluded cat 6 - untouched)",
+   "rationale": "Device cell (category 6). Source-level fences exist (retained B35-LIVE-SRC-007/012/019/024 for late-start and late-capture discards) but there is no physical/signed-app run, so no credit is proposed.",
+   "evidence": null,
+   "overlapRefs": [
+    "B35-LIVE-SRC-007/012/019/024 are source fences, not the device cell"
+   ],
+   "remainingGap": "Needs a signed test app and device."
+  }
+ ],
+ "dedupe": "Not additive with the 886 executed records, 47 shared-handler or 46 K+ Staging records, nor with the 40 retained B35-LIVE-SRC records (same source family). 9 node:test blocks here plus the 10 retained remote tests evaluate 43 cells; only cells marked PASS change a verdict."
+}

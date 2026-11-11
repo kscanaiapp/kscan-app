@@ -1,0 +1,47 @@
+✔ Gemini disclosure explicitly covers provider, image and Elise text transfer (1.1565ms)
+✔ existing image-only v1 acceptance cannot bypass the expanded Gemini disclosure (42.9359ms)
+✔ recognizes an existing account only when all current legal versions are present (68.5951ms)
+✔ does not skip onboarding for a new or partially accepted OAuth identity (15.1011ms)
+✔ rejects empty termsVersion (12.8331ms)
+✔ rejects empty privacyVersion (8.6131ms)
+✔ rejects empty minimumAgeVersion (8.9758ms)
+✔ rejects missing authenticated user (6.8255ms)
+✔ builds exactly four legal acceptance rows (6.7668ms)
+✔ uses acceptance_type values: terms, privacy, minimum_age, ai_processing (6.8991ms)
+✔ records AI image-processing consent as its own versioned row (8.4109ms)
+✔ rejects empty aiProcessingVersion (6.2427ms)
+✔ does not restore onboarding when only the pre-AI-consent versions are present (6.1136ms)
+✔ uses source: mobile (6.0671ms)
+✔ uses app_version null when unavailable (8.1867ms)
+✔ uses app_version when provided (5.4997ms)
+✔ uses upsert on user_id,acceptance_type,policy_version (5.2787ms)
+✔ uses ignoreDuplicates: true (4.1501ms)
+✔ maps Supabase error to safe app-level error (4.3526ms)
+✔ derives user_id from session user, not from caller (5.1835ms)
+✔ trims policy versions before persisting (4.7951ms)
+✔ returns ok: true on success (4.4819ms)
+✔ terms step block is present (0.7457ms)
+✔ AI statement uses the exact approved copy (0.971ms)
+✔ AI statement sits below the privacy paragraph and above the legal links (0.1722ms)
+✔ AI statement matches the privacy paragraph typography and is outside the white card (0.2595ms)
+✔ AI consent checkbox uses the exact approved label (0.1498ms)
+✔ checkbox order is terms, privacy, AI consent, age (0.7353ms)
+✔ AI consent checkbox reuses the shared checkbox styling, at full label size (0.2512ms)
+✔ AI consent is application state only and requests no OS permission (0.1646ms)
+✔ Accept & Continue stays disabled until all four boxes are checked (0.1542ms)
+✔ accepting persists the AI consent version alongside the other acceptances (0.1948ms)
+✔ existing terms, privacy and age copy is unchanged (0.1376ms)
+✔ AI consent label fits on one line at supported iPhone widths (0.1924ms)
+✔ AI consent label is no wider than an existing single-line label (0.0786ms)
+✔ current version-bound onboarding completion remains the fast path without a remote read (63.4069ms)
+✔ legacy boolean completion cannot bypass the current AI-processing acceptance (10.3492ms)
+✔ remote legal evidence restores the local completion flag after app data is cleared (7.5696ms)
+✔ a new OAuth identity without remote legal evidence stays incomplete (8.2482ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 562.5183

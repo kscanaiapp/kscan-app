@@ -1,0 +1,53 @@
+{
+  "capturedAt": "2026-11-02T23:45:01.841Z",
+  "sourceHeads": {
+    "mobile": "892f9ef08b29bbce68edffb96298b0a8bf65814a",
+    "backend": "26d5fae291ffcdbb1a56e312524013c6939ab152",
+    "evidence": "ae2035b6ddd27e699890c3f12c6ff8edf8d6782a"
+  },
+  "active": {
+    "finding": "B35-F-024",
+    "mobilePr": 683,
+    "head": "d0328ac1535e0b08e84ee6905bf584810555df20",
+    "tree": "c8913cd71efcda2874ef2adc6b45626af5577e3b",
+    "status": "SOURCE PREPARED / LOCAL CHECKS PASS / EXACTHEAD CI PENDING",
+    "canonicalPr": 681,
+    "canonicalStatus": "MERGED /7of7independentworkflowsSUCCESS"
+  },
+  "localTests": {
+    "focused": {
+      "pass": 79,
+      "fail": 0,
+      "skip": 2,
+      "scope": "ActualSQL/defaultadapter/replay/requestID plus historicalpromotion/negativecontrols;twoexplicitlive-diffNAskips"
+    },
+    "backend": {
+      "pass": 84,
+      "fail": 0
+    },
+    "typescript": 0,
+    "sourceGates": "6exit0;cleancommittedtree",
+    "crossPath": "20filescurrent"
+  },
+  "sourceTransfer": "Exact canonical handler and replay test copied;onlyexistingreceiptrow advances in57grants; originalC023provenancefrozen;allothermanifestfunctions/grantsunchanged",
+  "supplement": {
+    "pr": 682,
+    "head": "99dbd1b6285ea57d4ede33f72f8cdc778ad06780",
+    "status": "OPEN/DRAFT/HOLD/DO NOT MERGE ahead of F024",
+    "scope": "8actualpushadaptertests;no runtimerepair",
+    "candidates": [
+      {
+        "id": "W1",
+        "status": "UNCONFIRMED",
+        "surface": "MalformedExpo200ticket mayreportok withoutvalidid; executeactualmodulebeforeconfirming"
+      },
+      {
+        "id": "W2",
+        "status": "UNCONFIRMED",
+        "surface": "WatchlistJSONnull maythrow; actualauthenticatedhandlerprobe stillrequired"
+      }
+    ]
+  },
+  "managerEvidence": "Baseline,Watchlist,runtime,archive comments preserved separately; structuralarchiveexistence/sizecheck is not independently decompressedcontentproof",
+  "next": "Finish683exactheadCI/reviews/normalgreenmerge/9postmergeworkflows; onlythenF025,thenB004. Underlyingauditinprogress;nofinalverification/platformcampaign."
+}

@@ -1,0 +1,272 @@
+[
+  {
+    "bucket": "pass",
+    "name": "Staging security gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Contract tests",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Migration validation",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Staging health checks",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Synthetic auth tests",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Deploy staging candidate",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "pass",
+    "name": "Security promotion gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "ZAP API staging",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Classify changed surfaces",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Security summary",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Security summary",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Staging security gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Staging health checks",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Synthetic auth tests",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "Deploy staging candidate",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "pass",
+    "name": "Contract tests",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Trivy filesystem",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "npm audit",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Gitleaks",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Migration validation",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Project checks",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "OSV-Scanner",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — staging full certification (paid)",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment log audit",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — staging full certification (paid)",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "pass",
+    "name": "VTO scope guard (enforced)",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Semgrep Community Edition",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "ZAP Baseline (staging)",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "VTO E2E — contract",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Dependency reachability gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Build 35 release holds and identity",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment log audit",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment dry run",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — staging dry run",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — cleanup",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "pass",
+    "name": "ZAP Baseline (staging)",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Security promotion gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Build 35 release holds and identity",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Gitleaks",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "npm audit",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "OSV-Scanner",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Semgrep Community Edition",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Dependency reachability gate",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Classify changed surfaces",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Trivy filesystem",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "Project checks",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "VTO E2E — contract",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "pass",
+    "name": "ZAP API staging",
+    "state": "SUCCESS"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO scope guard (enforced)",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — cleanup",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — user-supplied garment dry run",
+    "state": "SKIPPED"
+  },
+  {
+    "bucket": "skipping",
+    "name": "VTO E2E — staging dry run",
+    "state": "SKIPPED"
+  }
+]

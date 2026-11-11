@@ -1,0 +1,333 @@
+{
+  "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+  "records": [
+    {
+      "probe": "500",
+      "actual": {
+        "http": 502,
+        "code": "PROVIDER_UNAVAILABLE",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-001",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "429",
+      "actual": {
+        "http": 429,
+        "code": "PROVIDER_QUOTA_EXCEEDED",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-002",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "timeout",
+      "actual": {
+        "http": 504,
+        "code": "PROVIDER_TIMEOUT",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-003",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "malformed",
+      "actual": {
+        "http": 502,
+        "code": "PROVIDER_RESPONSE_INVALID",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-004",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "empty",
+      "actual": {
+        "http": 502,
+        "code": "PROVIDER_RESPONSE_INVALID",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-005",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "wrong-schema",
+      "actual": {
+        "http": 502,
+        "code": "PROVIDER_RESPONSE_INVALID",
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          false
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Controlled failure, no fabricated audio, exactly one paid dispatch attempt and one failed finalization, no provider detail leak",
+      "probeId": "B35-SPEECH-CHAIN-006",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "empty-timestamps",
+      "actual": {
+        "http": 200,
+        "code": null,
+        "alignment": null,
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          true
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Audio remains available but no fabricated timing; finalize success once",
+      "probeId": "B35-SPEECH-CHAIN-007",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "anonymous",
+      "actual": {
+        "http": 401,
+        "code": "NOT_AUTHENTICATED",
+        "providerCalls": 0,
+        "reservations": 0,
+        "finalizations": []
+      },
+      "verdict": "PASS",
+      "expected": "Reject before reservation/provider; actor and owned session/message authority are independently enforced",
+      "probeId": "B35-SPEECH-CHAIN-008",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "inactive",
+      "actual": {
+        "http": 403,
+        "code": "ACCOUNT_UNAVAILABLE",
+        "providerCalls": 0,
+        "reservations": 0,
+        "finalizations": []
+      },
+      "verdict": "PASS",
+      "expected": "Reject before reservation/provider; actor and owned session/message authority are independently enforced",
+      "probeId": "B35-SPEECH-CHAIN-009",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "free",
+      "actual": {
+        "http": 403,
+        "code": "KPLUS_REQUIRED",
+        "providerCalls": 0,
+        "reservations": 0,
+        "finalizations": []
+      },
+      "verdict": "PASS",
+      "expected": "Reject before reservation/provider; actor and owned session/message authority are independently enforced",
+      "probeId": "B35-SPEECH-CHAIN-010",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "foreign-session",
+      "actual": {
+        "http": 404,
+        "code": "SESSION_NOT_FOUND",
+        "providerCalls": 0,
+        "reservations": 0,
+        "finalizations": []
+      },
+      "verdict": "PASS",
+      "expected": "Reject before reservation/provider; actor and owned session/message authority are independently enforced",
+      "probeId": "B35-SPEECH-CHAIN-011",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "foreign-message",
+      "actual": {
+        "http": 404,
+        "code": "MESSAGE_NOT_FOUND",
+        "providerCalls": 0,
+        "reservations": 0,
+        "finalizations": []
+      },
+      "verdict": "PASS",
+      "expected": "Reject before reservation/provider; actor and owned session/message authority are independently enforced",
+      "probeId": "B35-SPEECH-CHAIN-012",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    },
+    {
+      "probe": "simultaneous duplicate and ten rapid retries",
+      "actual": {
+        "firstStatus": 200,
+        "retryStatuses": [
+          409,
+          409,
+          409,
+          409,
+          409,
+          409,
+          409,
+          409,
+          409,
+          409
+        ],
+        "providerCalls": 1,
+        "reservations": 1,
+        "finalizations": [
+          true
+        ]
+      },
+      "verdict": "PASS",
+      "expected": "Only one reservation/provider call; duplicate requests fail409 and initial operation finalizes once",
+      "probeId": "B35-SPEECH-CHAIN-013",
+      "feature": "Elise speech",
+      "boundary": "Actual speech handler plus actual ElevenLabs HTTP adapter; synthetic data authority and HTTP responses",
+      "sourceSha": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+      "equivalentMobile": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "sourceLocation": "supabase/functions/stylist-speech/handler.ts; elevenLabsClient.ts",
+      "environment": "Offline Deno; no network permission",
+      "executionMethod": "deno test --allow-read speech-provider-chain.test.ts",
+      "evidence": "speech-provider-chain.log.gz",
+      "limitations": "No real JWT signature, live RLS, real vendor, playable native audio or physical avatar certification; failed reservation finalization acknowledgement is injected."
+    }
+  ],
+  "counts": {
+    "PASS": 13
+  },
+  "suite": {
+    "pass": 13,
+    "fail": 0
+  },
+  "scope": "Software provider/handler composition; no physical certification"
+}

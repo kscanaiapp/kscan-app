@@ -1,0 +1,797 @@
+{
+ "lane": "A2 batch 4 (issue #702) - style-outfit-generate",
+ "mobileSourceSha": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+ "matrixSnapshot": "PR #646 head 49ab7fada3639587911849080ff33c6ad17fd9df docs/release/evidence/mandatory-hostile-probes.json",
+ "fingerprintKind": "git blob ids at the tested commit",
+ "sourceFingerprints": {
+  "supabase/functions/style-outfit-generate/index.ts": "e9062ce8e0e1b8e8642debc7612ac561d3e02814",
+  "supabase/functions/style-outfit-generate/validation.ts": "007bd979e71af3b23ba3d645a08b2cae43c4ed2b",
+  "supabase/functions/style-outfit-generate/accountActiveGate.ts": "ffc7506274cb2a6376ffb11be3da64fb69f82214",
+  "supabase/functions/style-outfit-generate/modelRouting.ts": "547ae8383c0aa24c190d8c574b959554927fac4a",
+  "supabase/functions/style-outfit-generate/reasoningContract.ts": "e1efb9c23367f208fae52e5614420e3de8cf5c9a",
+  "supabase/functions/style-outfit-generate/privateDressingRoomEliseContract.ts": "ddaa3d8fb0c3863d509fcd5cf92505fb9032c902",
+  "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts": "c44e55c2f7043b23af5f105cd3adeb56930c3120",
+  "supabase/functions/_shared/geminiConsent.ts": "eb1a771388ae8819e2a941c0bb556fca1690b994",
+  "supabase/functions/_shared/deletion/common.ts": "194f43281d3aea58da4e30e5284932836db06099"
+ },
+ "rowsInScope": 43,
+ "alreadyPass": [
+  "B35-MAND-1119",
+  "B35-MAND-1125",
+  "B35-MAND-1126",
+  "B35-MAND-1129",
+  "B35-MAND-1130",
+  "B35-MAND-1131"
+ ],
+ "alreadyNA_cat2_not_reproposed": [
+  "B35-MAND-1155",
+  "B35-MAND-1156",
+  "B35-MAND-1158"
+ ],
+ "cellsEvaluated": 34,
+ "proposedBreakdown": {
+  "PASS (source harness, proposed)": 21,
+  "PASS (source harness, analog - needs Codex ruling)": 2,
+  "N/A (proposed, needs Codex ruling)": 2,
+  "NOT TESTED (kept)": 9
+ },
+ "mutationControls": [
+  {
+   "name": "O1 spoofable actor (x-user-id wins)",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling"
+   ]
+  },
+  {
+   "name": "O2 closet ownership filter removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "control: valid own-closet request succeeds; secrets never leak; actor-scoped reads",
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling",
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1145/1146 account switch and delayed-A supersession",
+    "B35-MAND-1147 cross-user shared cache poisoning",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O3 foreign-anchor rejection removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling",
+    "B35-MAND-1134 URL path traversal",
+    "B35-MAND-1145/1146 account switch and delayed-A supersession"
+   ]
+  },
+  {
+   "name": "O4 lifecycle gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request",
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O5 lifecycle lookup failure fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request",
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O6 burst denial ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1142 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "O7 burst RPC error fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O8 daily limit ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1142 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "O9 provider failure disguised as no-result",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1148 provider 500",
+    "B35-MAND-1149 provider 429",
+    "B35-MAND-1150 provider timeout",
+    "B35-MAND-1151 provider malformed JSON",
+    "B35-MAND-1152 provider empty body",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O10 invented ids accepted into outfits",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O11 anchor presence not enforced",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O12 note length cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O13 UUID allow-list removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1133 Unicode homoglyph identifier",
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O14 unknown-schema rejection removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling"
+   ]
+  },
+  {
+   "name": "O15 private strict field allow-list removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit",
+    "B35-MAND-1138/1139 caller image bytes are not an input"
+   ]
+  },
+  {
+   "name": "O16 outfit structure check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O17 excludeItems cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O18 keepItems cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O19 consent gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request"
+   ]
+  },
+  {
+   "name": "O20 maximumOutfits clamp removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O21 inspiration owner-prefix check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O22 inspiration bucket check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O23 bearer regex check bypassed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  },
+  {
+   "name": "O24 private early-return parse guard removed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  }
+ ],
+ "countsBefore": {
+  "PASS": 138,
+  "FAIL": 1,
+  "NOT_TESTED": 2957,
+  "total": 3096,
+  "naCategory2": 318,
+  "deviceCategory6": 4,
+  "applicablePending": 2639,
+  "inScopeApplicablePending": 2635
+ },
+ "countsBatch4Alone": {
+  "allProposalsAccepted": {
+   "PASS": 161,
+   "FAIL": 1,
+   "NOT_TESTED": 2934,
+   "total": 3096,
+   "naCategory2": 320,
+   "deviceCategory6": 4,
+   "applicablePending": 2614,
+   "inScopeApplicablePending": 2610
+  },
+  "analogPassAndNaRejected_stay_NT": {
+   "PASS": 159,
+   "FAIL": 1,
+   "NOT_TESTED": 2936,
+   "total": 3096,
+   "naCategory2": 318,
+   "deviceCategory6": 4,
+   "applicablePending": 2618,
+   "inScopeApplicablePending": 2614
+  }
+ },
+ "countsCumulativeAllBatchesAccepted": {
+  "PASS": 211,
+  "FAIL": 1,
+  "NOT_TESTED": 2884,
+  "total": 3096,
+  "naCategory2": 348,
+  "deviceCategory6": 4,
+  "applicablePending": 2536,
+  "inScopeApplicablePending": 2532
+ },
+ "cells": [
+  {
+   "probeId": "B35-MAND-1124",
+   "probe": "expired JWT",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Expired/empty/non-bearer/missing credentials, on both the unversioned and versioned bodies => 401 with only the Auth check executed; valid control still served.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1124",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [],
+   "overlapRefs": [
+    "B35-MAND-1125/1126 are Production-gateway PASSes for malformed/tampered JWT; expired JWT had no record"
+   ],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. No live signed-JWT validation. Mutation O23 (bearer regex bypass) survives as an equivalent mutant: the Auth getUser call still rejects a non-JWT."
+  },
+  {
+   "probeId": "B35-MAND-1127",
+   "probe": "in-function auth with caller-controlled headers",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Seven identity headers and userId/user_id/actorId/ownerId body fields naming actor B presented with actor A token: a B-owned anchor is refused 403 with zero quota and zero provider, an A-owned anchor is served as A, no downstream call carries the B actor id. Unknown/null/empty schemaVersion => 400 UNSUPPORTED_SCHEMA_VERSION before any read; a nested lookalike does not switch dispatch.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1127",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O1",
+    "O2",
+    "O3",
+    "O14"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Stub does not emulate RLS, so the handler-side ownership filter is what is observed."
+  },
+  {
+   "probeId": "B35-MAND-1132",
+   "probe": "10x declared body limit",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Bounds observed in the model-bound prompt: note 280, keepItems 6, excludeItems 12, maximumOutfits 3, private instruction 200, private requestId 64; structural violations on the versioned branch (21 candidates, unknown field incl. 2 MB, wrong type) => 400 before quota/provider.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1132",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O12",
+    "O15",
+    "O17",
+    "O18",
+    "O20"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATION: no raw byte cap in the handler; over-long text fields are TRUNCATED, not rejected, so an oversize text request is still served and spends quota. The request-size bound is the platform gateway."
+  },
+  {
+   "probeId": "B35-MAND-1133",
+   "probe": "Unicode homoglyph identifier",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Seven homoglyph/fullwidth/zero-width/hyphen-look-alike/combining-mark variants of a valid anchor UUID => 400 with zero closet reads, quota or provider; homoglyph mode and contractVersion refused; homoglyph ids returned by the provider never enter an outfit; real id with case/whitespace variation canonicalises to the same owned item.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1133",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O13"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1134",
+   "probe": "URL path traversal",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Six traversal/query-injection shaped anchor ids => 400 before any closet query; no traversal sequence reaches a downstream URL; of eight inspiration rows only the exact own-prefix .jpg under the style-library bucket is a pool member, and no Storage request is ever made.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1134",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O3",
+    "O13",
+    "O21",
+    "O22"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. The handler reads storage_path only as an eligibility predicate and never downloads it, so the server download guard is not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1135",
+   "probe": "SSRF metadata/local/file/gopher/DNS rebind",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Six SSRF-shaped URLs injected into event fields, anchor id, unknown URL fields, private instruction/context/candidate fields and a hostile model env value: outbound hosts limited to the Supabase fixture and Gemini; the model path stays on the allowlist.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1135",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. No server-side URL or image download exists in this function, so DNS-rebind against a fetched caller URL has no surface. Not mutation-checked (no single guard to break)."
+  },
+  {
+   "probeId": "B35-MAND-1136",
+   "probe": "prompt injection per model field",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Prompt structure and output containment: no field changes the system prompt (byte-identical to control); closed-enum fields drop injected text; free text stays in the user turn; a model that obeys a forged ANCHOR line, an invented id and a role spoof still cannot surface any out-of-pool or role-spoofed outfit; the private response is limited to contract fields and an out-of-vocabulary occasion fails closed.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1136",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O2",
+    "O10",
+    "O16"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATIONS (owner to rule): (1) event.note and user-authored closet/scan metadata are NOT delimiter-escaped, unlike stylechat-generate, so a newline can forge ANCHOR/closet lines in the user turn; containment is the output validator. (2) A provider-authored \"reason\" is capped at 240 chars but otherwise unfiltered, so a hostile or injected model could surface a URL or markup. Whether a real model obeys needs a paid provider (excluded), as with 0749."
+  },
+  {
+   "probeId": "B35-MAND-1137",
+   "probe": "SQL injection per RPC parameter",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Every caller field carries a SQL metacharacter + DROP TABLE payload on both branches: the two RPC bodies are exactly {p_limit: <server env limit>}, no caller string appears in any RPC, URL or PostgREST filter, table query shapes are identical to the control, and caller p_limit/dailyLimit/burstLimit overrides are ignored.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1137",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. SQL bodies of check_and_increment_style_outfit_burst / increment_style_outfit_daily_usage not exercised (needs real Postgres)."
+  },
+  {
+   "probeId": "B35-MAND-1140",
+   "probe": "lying Content-Type",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Same body under Content-Type image/png, multipart, text/plain, octet-stream and empty gives the identical outcome as the honest request; a non-JSON body is a controlled 400.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1140",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1142",
+   "probe": "10 retries in 1 second",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten rapid requests: first 3 served, 7 denied 429 burst_limit; denied attempts reach neither the provider nor the daily quota; malformed or errored limiter fails closed (500); daily exhaustion => 429 quota_exceeded with no provider; the versioned branch returns BURST_LIMIT / QUOTA_EXCEEDED the same way.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1142",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O6",
+    "O8"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. The limiters themselves are SQL and not exercised. The 429 carries retryAfterSeconds in the body but no Retry-After header."
+  },
+  {
+   "probeId": "B35-MAND-1145",
+   "probe": "switch account in flight",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Actor B token naming actor A closet item => 403, zero quota, zero provider; concurrent A/B requests never cross text, items or closet queries.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1145",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O2",
+    "O3"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Client account-switch UX is a device/client concern."
+  },
+  {
+   "probeId": "B35-MAND-1146",
+   "probe": "A then B delayed A supersession",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Slow A provider reply released after B completes: each reply returned only to its own request; no cross-actor text or item in either provider request.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1146",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O2",
+    "O3"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Client-side supersession (UI discarding a late reply) not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1147",
+   "probe": "cross-user shared cache poisoning",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "No module-level mutable store in the handler tree (static scan); interleaved A/B/A requests: no actor data in another actor request or response.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1147",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O2"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. The function has no cache of its own; platform caching not exercised."
+  },
+  {
+   "probeId": "B35-MAND-1148",
+   "probe": "provider 500",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 500 => HTTP 503 provider_unavailable with fixed copy, no provider detail, 1 attempt, no write; versioned branch => 200 safe_failure with contract fields only. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1148",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O9"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1149",
+   "probe": "provider 429",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider 429 (hostile Retry-After 9999) => same controlled 503, 1 attempt, no write; versioned safe_failure. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1149",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O9"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1150",
+   "probe": "provider timeout",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Provider that never answers is aborted by the attempt timeout (15 s scaled to 25 ms in the harness) => same controlled 503, no hang; versioned safe_failure. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1150",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O9"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. Real 15 s not waited; the timeout constant is not mutation-checked because the harness keys off its literal value."
+  },
+  {
+   "probeId": "B35-MAND-1151",
+   "probe": "provider malformed JSON",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "HTTP 200 non-JSON body => exactly one retry then 503 provider_unavailable; no raw text echoed; versioned safe_failure. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1151",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O9"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1152",
+   "probe": "provider empty body",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Empty HTTP body, candidates with no parts and blank text part => exactly one retry then 503; versioned safe_failure. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1152",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O9"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1153",
+   "probe": "provider wrong schema",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Eleven wrong-shape / out-of-pool provider outputs (envelope, JSON null, wrong shape, junk array, invented, other-actor, duplicate, missing anchor, no shoes, 7 items, retailer source type) never surface an outfit (200 no_result or 503); five wrong-shape versioned outputs fail closed to safe_failure. OBSERVATION: the daily quota unit is reserved before the provider call and there is no refund RPC, so a failed generation still spends one of the 10 daily generations.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1153",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O2",
+    "O9",
+    "O10",
+    "O11",
+    "O16"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function."
+  },
+  {
+   "probeId": "B35-MAND-1154",
+   "probe": "Supabase 401 mid-request",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Auth ok then 401 on closet read, saved_scans read, burst RPC, daily RPC (both branches) => 500 and zero provider; consent read 401 => 503; lifecycle profile read 401 => 403.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1154",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O4",
+    "O5",
+    "O19"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. OBSERVATIONS: a transient lifecycle-read failure is reported as 403 ACCOUNT_PENDING_DELETION (non-retryable \"scheduled for deletion\"); an inspiration_items read failure is intentionally ignored (documented graceful degradation)."
+  },
+  {
+   "probeId": "B35-MAND-1160",
+   "probe": "deletion replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, proposed)",
+   "rationale": "Ten alternating unversioned/versioned replays from a pending_deletion account and a locked account => 403 ACCOUNT_PENDING_DELETION before consent, closet, quota or provider; RPC lifecycle guard also yields 403 on both branches.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1160",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O4",
+    "O5",
+    "O7"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Stubbed Auth/PostgREST/Gemini; handler default flags; not a deployed function. SQL deletion state machine is another lane."
+  },
+  {
+   "probeId": "B35-MAND-1138",
+   "probe": "MIME magic-byte mismatch",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "The unversioned request has no byte-upload field (image fields are ignored; client candidate arrays are never read) and the versioned strict allow-list rejects every image/storage field with 400 before quota. No provider request ever carries a binary part.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1138",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O15"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Ruling needed: PASS-scoped vs N/A-by-construction. The endpoint has no byte path (text-only prompt; inspiration storage_path is an eligibility predicate and is never downloaded)."
+  },
+  {
+   "probeId": "B35-MAND-1139",
+   "probe": "zero-byte truncated corrupted image",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "PASS (source harness, analog - needs Codex ruling)",
+   "rationale": "As 1138 for zero-byte/truncated payloads.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1139",
+   "harnessVerdict": "PASS",
+   "mutationsDetecting": [
+    "O15"
+   ],
+   "overlapRefs": [],
+   "remainingGap": "Same ruling and same no-byte-path gap as 1138."
+  },
+  {
+   "probeId": "B35-MAND-1157",
+   "probe": "RevenueCat stale entitlement",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "The function never consults an entitlement: no K+/RevenueCat/subscription reference exists in the handler tree (comment-stripped static scan) and the daily limit is one flat env value for every caller, so a stale entitlement cannot change any decision here.",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#SURFACE-SCAN",
+   "harnessVerdict": "OBSERVATION",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs Codex N/A ruling. Stale-entitlement behaviour is owned by the entitlement-consuming endpoints."
+  },
+  {
+   "probeId": "B35-MAND-1159",
+   "probe": "save replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "N/A (proposed, needs Codex ruling)",
+   "rationale": "The function performs no persistence: zero .insert/.upsert/.update/.delete on any table and zero Storage calls in the handler tree (static scan), and zero non-RPC writes in every probe of this batch, so there is no save to replay. Replays only spend quota (see 1141).",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#SURFACE-SCAN",
+   "harnessVerdict": "OBSERVATION",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs Codex N/A ruling. The Look save belongs to the client service and its own endpoint."
+  },
+  {
+   "probeId": "B35-MAND-1120",
+   "probe": "User A own resource",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4 (Staging fixture). Own-closet success is shown by the harness control, but no signed live actor JWT exists. Supplementary only, no credit.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs Staging synthetic actor via a Codex-queued workflow."
+  },
+  {
+   "probeId": "B35-MAND-1121",
+   "probe": "User A User B resource IDOR",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. Handler-level refusal of a foreign anchor is shown (1127, 1145), but the cell requires a real two-actor Staging fixture with RLS. Supplementary only, no credit.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs two Staging actors."
+  },
+  {
+   "probeId": "B35-MAND-1122",
+   "probe": "User A User B storage path",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. The handler never downloads a storage path; the eligibility predicate rejects foreign and traversal paths (1134), which is supplementary only.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs Staging objects and the server download path (not present in this function)."
+  },
+  {
+   "probeId": "B35-MAND-1123",
+   "probe": "removed shared-room member",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. This function has no shared-room membership read at all (static scan), so removed-member behaviour belongs to the endpoints that resolve membership. Candidate for a Codex N/A ruling; not proposed here to stay consistent with batch 3 1166.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Codex to rule N/A vs Staging fixture."
+  },
+  {
+   "probeId": "B35-MAND-1128",
+   "probe": "client service-role reachability",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Feature-independent client-bundle control; only the response-side control was observed (no service-role or provider key in response/headers).",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1128",
+   "harnessVerdict": "OBSERVATION",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs one cross-feature client-bundle scan owner (same as 0741/2762/1171)."
+  },
+  {
+   "probeId": "B35-MAND-1141",
+   "probe": "simultaneous duplicate operation",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "OBSERVATION only. With default flags ten concurrent identical requests spend ten quota units and ten provider calls; the handler has no idempotency key (response requestId is server-generated).",
+   "evidence": "audit/a2/out/outfit-batch4-results.json#B35-MAND-1141",
+   "harnessVerdict": "OBSERVATION",
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs a real concurrent SQL run of the limiters."
+  },
+  {
+   "probeId": "B35-MAND-1143",
+   "probe": "cancel then reissue",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cancel-then-reissue is client behaviour; the server cannot observe a client cancel.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Client lane or device."
+  },
+  {
+   "probeId": "B35-MAND-1144",
+   "probe": "navigate away then return",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 3,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Navigate-away-and-return is client navigation behaviour.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Client lane or device."
+  },
+  {
+   "probeId": "B35-MAND-1161",
+   "probe": "expired signed URL replay",
+   "currentVerdict": "NOT TESTED",
+   "currentCategory": 4,
+   "proposedDisposition": "NOT TESTED (kept)",
+   "rationale": "Cat 4. The function issues no signed URLs and downloads nothing; expired-signed-URL replay belongs to the endpoints that mint or accept them.",
+   "evidence": null,
+   "harnessVerdict": null,
+   "mutationsDetecting": [],
+   "overlapRefs": [],
+   "remainingGap": "Needs Staging with the owning endpoint."
+  }
+ ],
+ "notCovered": "Packing (served by stylechat-generate under schemaVersion; Agent 7), the server-side attachment/storage download path, and the SQL bodies of the two quota RPCs were not exercised.",
+ "dedupe": "Not additive with the 886 executed records (style-outfit-generate holds auth and body-shape records only; none overlap these cells), the 47 shared-handler or 46 K+ Staging records. Only cells marked PASS change a verdict."
+}

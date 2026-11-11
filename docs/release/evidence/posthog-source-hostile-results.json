@@ -1,0 +1,2144 @@
+{
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+  "limitation": "Representative payload rejection is not proof that every possible value/call site is safe. Source enum inventory is not provider ingestion.",
+  "taxonomy": [
+    {
+      "file": "services/closetTelemetry.ts",
+      "events": [
+        "cloud_closet_card_rendered",
+        "cloud_closet_sync_requested",
+        "cloud_closet_sync_completed",
+        "closet_candidate_created",
+        "closet_candidate_media_prepared",
+        "closet_candidate_duplicate_detected",
+        "closet_candidate_classification_started",
+        "closet_candidate_classified",
+        "closet_candidate_manual_classification_required",
+        "closet_candidate_waiting_for_network",
+        "closet_candidate_classification_failed",
+        "closet_candidate_retry_started",
+        "closet_candidate_request_aborted",
+        "closet_candidate_expired",
+        "closet_candidate_cleanup_completed",
+        "closet_candidate_cleanup_failed",
+        "mirror_selfie_crops_staged",
+        "mirror_selfie_source_selected",
+        "mirror_selfie_validation_completed",
+        "mirror_selfie_extraction_completed",
+        "mirror_selfie_extraction_cancelled",
+        "mirror_selfie_crop_review_completed",
+        "mirror_candidate_staging_started",
+        "mirror_candidate_staging_completed",
+        "mirror_candidate_staging_partial",
+        "mirror_candidate_staging_cancelled",
+        "closet_sync_started",
+        "closet_facts_synced",
+        "closet_media_synced",
+        "closet_media_blocked",
+        "closet_sync_retry",
+        "closet_sync_failed",
+        "closet_sync_conflict",
+        "closet_sync_tombstoned",
+        "closet_restore_started",
+        "closet_restore_page",
+        "closet_restore_completed",
+        "closet_restore_conflict",
+        "closet_restore_media_missing",
+        "closet_restore_failed",
+        "closet_migration_started",
+        "closet_migration_batch_marked",
+        "closet_migration_completed"
+      ],
+      "properties": [
+        "sourceType",
+        "status",
+        "previousStatus",
+        "errorCode",
+        "algorithmVersion",
+        "outcome",
+        "scope",
+        "resultStatus",
+        "resolutionLevel",
+        "entryPath",
+        "platform",
+        "requestMode",
+        "attemptBucket",
+        "countBucket",
+        "latencyBucket",
+        "candidateCountBucket",
+        "hasThumbnail",
+        "freeSpaceKnown",
+        "automatic",
+        "mediaFailed",
+        "aborted",
+        "cropCountBucket",
+        "createdCount",
+        "duplicateCount",
+        "rejectedCount",
+        "batchLimitReached",
+        "personCountBucket",
+        "sourceCountBucket",
+        "selectedCountBucket",
+        "reviewCountBucket",
+        "durationBucket",
+        "extractionSupported",
+        "personSelectionRequired",
+        "groupCountBucket",
+        "successCountBucket",
+        "failureCountBucket"
+      ],
+      "eventCount": 43,
+      "propertyCount": 36
+    },
+    {
+      "file": "services/kplus/kplusTelemetry.ts",
+      "events": [
+        "kplus_feature_exposed",
+        "kplus_feature_gate_opened",
+        "kplus_early_access_viewed",
+        "kplus_activation_started",
+        "kplus_activation_completed",
+        "kplus_activation_failed",
+        "kplus_feature_started",
+        "kplus_feature_completed"
+      ],
+      "properties": [
+        "source",
+        "feature",
+        "entitlement_state",
+        "activation_outcome"
+      ],
+      "eventCount": 8,
+      "propertyCount": 4
+    },
+    {
+      "file": "services/todayWithElise/analytics.ts",
+      "events": [
+        "today_with_elise_eligible",
+        "today_with_elise_impression",
+        "today_with_elise_primary_action",
+        "today_with_elise_secondary_action",
+        "today_with_elise_dismissed",
+        "today_with_elise_fallback_rendered",
+        "today_with_elise_dressing_room_opened",
+        "today_with_elise_look_modified",
+        "today_with_elise_look_saved",
+        "today_with_elise_partial_look_shown"
+      ],
+      "properties": [
+        "stateId",
+        "priority",
+        "action",
+        "completeness",
+        "source",
+        "analyticsClass",
+        "weatherUsed",
+        "platform",
+        "daypart",
+        "deduped"
+      ],
+      "eventCount": 10,
+      "propertyCount": 10
+    },
+    {
+      "file": "services/voice/voiceTelemetry.ts",
+      "events": [
+        "voice_permission_granted",
+        "voice_permission_denied",
+        "voice_on_device_available",
+        "voice_on_device_unavailable",
+        "voice_session_cancelled",
+        "voice_transcription_success",
+        "voice_transcription_failure",
+        "voice_submit"
+      ],
+      "properties": [
+        "source",
+        "platform",
+        "outcome",
+        "surface",
+        "destination"
+      ],
+      "eventCount": 8,
+      "propertyCount": 5
+    },
+    {
+      "file": "services/vto/vtoTelemetry.ts",
+      "events": [
+        "vto_entry_impression",
+        "vto_entry_tap",
+        "vto_awareness_impression",
+        "vto_awareness_tap",
+        "vto_awareness_dismissed",
+        "vto_person_selected",
+        "vto_request_start",
+        "vto_request_success",
+        "vto_request_failure",
+        "vto_request_cancelled",
+        "vto_request_superseded",
+        "vto_retry",
+        "vto_result_compare_toggle",
+        "vto_minimized",
+        "vto_restored",
+        "vto_result_save_opened",
+        "vto_result_viewed",
+        "vto_result_shop",
+        "vto_result_watch",
+        "vto_result_try_another",
+        "vto_result_saved",
+        "vto_exited",
+        "vto_mode_selected",
+        "elise_vto_offer_rendered",
+        "elise_vto_offer_tapped",
+        "elise_vto_offer_unavailable",
+        "elise_vto_offer_kplus_gate",
+        "elise_vto_offer_launched"
+      ],
+      "properties": [
+        "origin",
+        "surface",
+        "actor_kplus_state",
+        "provider",
+        "slot",
+        "category",
+        "failureCode",
+        "retryCount",
+        "latencyMs",
+        "inputBucket",
+        "outputBucket",
+        "eligibility",
+        "mode",
+        "reasonCode",
+        "entry_point"
+      ],
+      "eventCount": 28,
+      "propertyCount": 15
+    },
+    {
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "events": [
+        "purchase_import_started",
+        "purchase_import_extraction_completed",
+        "purchase_import_reviewed",
+        "purchase_import_confirmed",
+        "purchase_import_failed"
+      ],
+      "properties": [
+        "inputTier",
+        "candidateCountBucket",
+        "confirmedCountBucket",
+        "rejectedCountBucket",
+        "excludedCountBucket",
+        "documentConfidenceBucket",
+        "failureClass",
+        "correctionCountBucket",
+        "correctionsNaming",
+        "correctionsMaker",
+        "correctionsClassification",
+        "correctionsAppearance",
+        "correctionsFit",
+        "correctionsMoney",
+        "photoCountBucket",
+        "completionState"
+      ],
+      "eventCount": 5,
+      "propertyCount": 16
+    },
+    {
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "events": [
+        "black_owned_shelf_displayed",
+        "black_owned_product_impression",
+        "black_owned_product_selected",
+        "black_owned_save",
+        "black_owned_shop",
+        "black_owned_checkout_handoff"
+      ],
+      "properties": [
+        "count",
+        "position"
+      ],
+      "eventCount": 6,
+      "propertyCount": 2
+    }
+  ],
+  "results": [
+    {
+      "probeId": "B35-PH-0001",
+      "file": "services/closetTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0002",
+      "file": "services/closetTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0003",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0004",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0005",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0006",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0007",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0008",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0009",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0010",
+      "file": "services/closetTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/closetTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0011",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0012",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0013",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0014",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0015",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0016",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0017",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0018",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0019",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0020",
+      "file": "services/kplus/kplusTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/kplus/kplusTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0021",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0022",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0023",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0024",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0025",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0026",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0027",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0028",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0029",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0030",
+      "file": "services/todayWithElise/analytics.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/todayWithElise/analytics.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0031",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0032",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0033",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0034",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0035",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0036",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0037",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0038",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0039",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0040",
+      "file": "services/voice/voiceTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/voice/voiceTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0041",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0042",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0043",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0044",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0045",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0046",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0047",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0048",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0049",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0050",
+      "file": "services/vto/vtoTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/vto/vtoTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0051",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0052",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0053",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0054",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0055",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0056",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0057",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0058",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0059",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0060",
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0061",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "every declared event has a working bounded sink",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector every declared event has a working bounded sink",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0062",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "unknown event rejected",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector unknown event rejected",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0063",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive photo rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive photo rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0064",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive chat rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive chat rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0065",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive email rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive email rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0066",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive jwt rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive jwt rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0067",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive location rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive location rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0068",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive nested rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive nested rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0069",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive recording rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive recording rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    },
+    {
+      "probeId": "B35-PH-0070",
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "probe": "sensitive URL rejected in arbitrary and all declared properties",
+      "expected": "Actual source emitter satisfies named assertion",
+      "actual": "Assertions passed",
+      "verdict": "PASS",
+      "feature": "PostHog analytics",
+      "boundary": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "environment": "Actual TypeScript source via existing transpile harness; sink capture only, no vendor SDK/provider/network",
+      "inputReference": "posthog-source-hostile.cjs named probe/vector sensitive URL rejected in arbitrary and all declared properties",
+      "evidence": "posthog-source-hostile-results.json",
+      "defect": null,
+      "repair": null,
+      "reverification": "Executed in actual source harness; no live provider/device claim"
+    }
+  ],
+  "counts": {
+    "PASS": 70
+  },
+  "callSites": [
+    {
+      "file": "app/privacy.tsx",
+      "line": 305,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "app/privacy.tsx",
+      "line": 670,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "app/text-scan/index.tsx",
+      "line": 168,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 164,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 179,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 189,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 173,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 210,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 253,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 264,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 278,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 299,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 329,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 352,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 454,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 484,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 489,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 512,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 222,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 267,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 311,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 317,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 395,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 452,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 468,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 482,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 205,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 220,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 295,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 405,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 410,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 415,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 430,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 449,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 454,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 242,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 292,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 694,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 762,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 806,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 818,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 822,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 828,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1615,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1624,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1627,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1634,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1768,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetMirrorStaging.ts",
+      "line": 176,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetRecovery.js",
+      "line": 494,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/closetRecovery.js",
+      "line": 500,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 385,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 396,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 581,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 80,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 90,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 106,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 122,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 133,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "services/todayWithElise/analytics.ts",
+      "line": 146,
+      "emitter": "emitTodayWithEliseEvent"
+    },
+    {
+      "file": "services/todayWithElise/analytics.ts",
+      "line": 153,
+      "emitter": "emitTodayWithEliseEvent"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 201,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 208,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 215,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 195,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 212,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 235,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 343,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 360,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 451,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 475,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 479,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 495,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 61,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 79,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 85,
+      "emitter": "emitClosetCandidateEvent"
+    },
+    {
+      "file": "components/home/HomeLuxuryTechV1.tsx",
+      "line": 131,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 129,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 139,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 151,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 165,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 175,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 74,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 89,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 94,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 113,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 122,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusGate.tsx",
+      "line": 59,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/kplus/KPlusGate.tsx",
+      "line": 64,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/ProductShelf.tsx",
+      "line": 963,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/ProductShelf.tsx",
+      "line": 982,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 19,
+      "emitter": "trackBlackOwnedDiscovery"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 20,
+      "emitter": "trackBlackOwnedDiscovery"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 34,
+      "emitter": "trackBlackOwnedDiscovery"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 37,
+      "emitter": "trackBlackOwnedDiscovery"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 40,
+      "emitter": "trackBlackOwnedDiscovery"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 128,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 132,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 146,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 166,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 198,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 271,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 387,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 435,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 448,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 468,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 485,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 507,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 514,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 527,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 566,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 908,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 923,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VtoLaunchHost.tsx",
+      "line": 97,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VtoSaveToDressingRoom.tsx",
+      "line": 102,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "components/vto/VtoSaveToDressingRoom.tsx",
+      "line": 114,
+      "emitter": "emitVtoEvent"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 144,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 171,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 176,
+      "emitter": "emitKPlusEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 161,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 194,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 247,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 340,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 373,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 377,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 458,
+      "emitter": "emitPurchaseImportEvent"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 272,
+      "emitter": "emitTodayWithEliseEvent"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 606,
+      "emitter": "emitTodayWithEliseEvent"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 628,
+      "emitter": "emitTodayWithEliseEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 103,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 108,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 170,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 175,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 180,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 185,
+      "emitter": "emitVoiceEvent"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 233,
+      "emitter": "emitVoiceEvent"
+    }
+  ],
+  "callSiteMethod": "AST direct named emitter calls; import aliases/dynamic invocation require separate review, not assumed absent"
+}

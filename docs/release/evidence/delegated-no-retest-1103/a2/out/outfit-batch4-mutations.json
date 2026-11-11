@@ -1,0 +1,210 @@
+{
+ "muts": [
+  {
+   "name": "O1 spoofable actor (x-user-id wins)",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling"
+   ]
+  },
+  {
+   "name": "O2 closet ownership filter removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "control: valid own-closet request succeeds; secrets never leak; actor-scoped reads",
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling",
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1145/1146 account switch and delayed-A supersession",
+    "B35-MAND-1147 cross-user shared cache poisoning",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O3 foreign-anchor rejection removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling",
+    "B35-MAND-1134 URL path traversal",
+    "B35-MAND-1145/1146 account switch and delayed-A supersession"
+   ]
+  },
+  {
+   "name": "O4 lifecycle gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request",
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O5 lifecycle lookup failure fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request",
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O6 burst denial ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1142 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "O7 burst RPC error fails open",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1160 deletion replay"
+   ]
+  },
+  {
+   "name": "O8 daily limit ignored",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1142 10 retries in 1 second"
+   ]
+  },
+  {
+   "name": "O9 provider failure disguised as no-result",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1148 provider 500",
+    "B35-MAND-1149 provider 429",
+    "B35-MAND-1150 provider timeout",
+    "B35-MAND-1151 provider malformed JSON",
+    "B35-MAND-1152 provider empty body",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O10 invented ids accepted into outfits",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O11 anchor presence not enforced",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O12 note length cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O13 UUID allow-list removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1133 Unicode homoglyph identifier",
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O14 unknown-schema rejection removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1127 caller-controlled headers, body identity and schema smuggling"
+   ]
+  },
+  {
+   "name": "O15 private strict field allow-list removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit",
+    "B35-MAND-1138/1139 caller image bytes are not an input"
+   ]
+  },
+  {
+   "name": "O16 outfit structure check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1136 prompt injection per model-bound field",
+    "B35-MAND-1153 provider wrong schema"
+   ]
+  },
+  {
+   "name": "O17 excludeItems cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O18 keepItems cap removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O19 consent gate removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1154 Supabase 401 mid-request"
+   ]
+  },
+  {
+   "name": "O20 maximumOutfits clamp removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1132 10x declared body limit"
+   ]
+  },
+  {
+   "name": "O21 inspiration owner-prefix check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O22 inspiration bucket check removed",
+   "applied": true,
+   "detected": true,
+   "failing": [
+    "B35-MAND-1134 URL path traversal"
+   ]
+  },
+  {
+   "name": "O23 bearer regex check bypassed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  },
+  {
+   "name": "O24 private early-return parse guard removed",
+   "applied": true,
+   "detected": false,
+   "failing": []
+  }
+ ]
+}

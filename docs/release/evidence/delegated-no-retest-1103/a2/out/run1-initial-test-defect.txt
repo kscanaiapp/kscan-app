@@ -1,0 +1,156 @@
+Check audit/a2/receipt-batch1.test.ts
+running 19 tests from ./audit/a2/receipt-batch1.test.ts
+B35-MAND-0745 10x declared body limit ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.701Z","stage":"body_size","errorClass":"file_too_large"}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:56.712Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0745 10x declared body limit ... ok (74ms)
+B35-MAND-0746 Unicode homoglyph identifier ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.736Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.736Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.737Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.737Z","uid":"11111111...","stage":"contract_version","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.737Z","uid":"11111111...","stage":"input_tier","errorClass":"invalid_file"}
+----- output end -----
+B35-MAND-0746 Unicode homoglyph identifier ... ok (3ms)
+B35-MAND-0747 URL path traversal ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.738Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.738Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.738Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.738Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.738Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:56.739Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0747 URL path traversal ... ok (1ms)
+B35-MAND-0748 SSRF metadata/local/file/gopher/DNS rebind ...
+------- output -------
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:56.739Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0748 SSRF metadata/local/file/gopher/DNS rebind ... ok (1ms)
+B35-MAND-0750 SQL injection per RPC parameter (real default reserve adapter) ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.741Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.741Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.741Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.741Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:56.741Z","uid":"11111111...","stage":"request_id","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.100Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0750 SQL injection per RPC parameter (real default reserve adapter) ... ok (1s)
+B35-MAND-0751 MIME magic-byte mismatch ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.102Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.102Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.102Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.103Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.103Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.103Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+----- output end -----
+B35-MAND-0751 MIME magic-byte mismatch ... ok (1ms)
+B35-MAND-0752 zero-byte / truncated / corrupted image ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.103Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.104Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.104Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.104Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.104Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.104Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"unreadable_document"}
+----- output end -----
+B35-MAND-0752 zero-byte / truncated / corrupted image ... ok (1ms)
+B35-MAND-0753 lying Content-Type ...
+------- output -------
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.105Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.106Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.106Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.107Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.107Z","uid":"11111111...","stage":"image_shape","errorClass":"invalid_file"}
+----- output end -----
+B35-MAND-0753 lying Content-Type ... ok (2ms)
+B35-MAND-0761 provider 500 ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.109Z","uid":"11111111...","stage":"provider","attempts":2,"kind":"http_5xx_transient","errorClass":"provider_unavailable"}
+----- output end -----
+B35-MAND-0761 provider 500 ... ok (1ms)
+B35-MAND-0762 provider 429 ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.110Z","uid":"11111111...","stage":"provider","attempts":1,"kind":"http_429_quota","errorClass":"provider_unavailable"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.110Z","uid":"11111111...","stage":"provider","attempts":1,"kind":"http_429_quota","errorClass":"provider_unavailable"}
+----- output end -----
+B35-MAND-0762 provider 429 ... ok (0ms)
+B35-MAND-0763 provider timeout ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.179Z","uid":"11111111...","stage":"provider","attempts":2,"kind":"timeout","errorClass":"provider_unavailable"}
+----- output end -----
+B35-MAND-0763 provider timeout ... ok (69ms)
+B35-MAND-0764/0765 provider malformed JSON and empty body ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.181Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.181Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.182Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.182Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.182Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.182Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.183Z","uid":"11111111...","stage":"parse","attempts":1,"errorClass":"schema_validation_failed"}
+----- output end -----
+B35-MAND-0764/0765 provider malformed JSON and empty body ... ok (3ms)
+B35-MAND-0766 provider wrong schema ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.183Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.184Z","uid":"11111111...","stage":"sanitize","attempts":1,"errorClass":"schema_validation_failed"}
+----- output end -----
+B35-MAND-0766 provider wrong schema ... ok (1ms)
+B35-MAND-0737 expired / bad JWT through the real requireUser ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.187Z","stage":"authenticate","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.188Z","stage":"authenticate","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.189Z","stage":"authenticate","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.189Z","stage":"authenticate","errorClass":"unauthorized"}
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.190Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0737 expired / bad JWT through the real requireUser ... ok (5ms)
+B35-MAND-0740 in-function auth with caller-controlled headers ...
+------- output -------
+{"event":"purchase_import_extract_completed","ts":"2026-11-03T14:53:58.192Z","uid":"11111111...","attempts":1,"inputTier":"order_confirmation","itemCount":1}
+----- output end -----
+B35-MAND-0740 in-function auth with caller-controlled headers ... ok (2ms)
+B35-MAND-0767 Supabase 401 mid-request via real default reserve ...
+------- output -------
+{"event":"purchase_import_extract_failed","ts":"2026-11-03T14:53:58.194Z","uid":"11111111...","stage":"reserve_unavailable","errorClass":"provider_unavailable"}
+----- output end -----
+B35-MAND-0767 Supabase 401 mid-request via real default reserve ... ok (1ms)
+B35-MAND-0734/0735/0736/0770/0772/0773/0774 structural no-surface proofs ... FAILED (8ms)
+B35-MAND-0749 prompt injection per model field (containment only) ... ok (49ms)
+write results ... ok (2ms)
+
+ ERRORS 
+
+B35-MAND-0734/0735/0736/0770/0772/0773/0774 structural no-surface proofs => ./audit/a2/receipt-batch1.test.ts:573:6
+error: AssertionError: Values are not equal.
+
+
+    [Diff] Actual / Expected
+
+
+-   true
++   false
+
+  throw new AssertionError(message);
+        ^
+    at assertEquals (https://deno.land/std@0.224.0/assert/assert_equals.ts:52:9)
+    at file:///C:/a2w/audit/a2/receipt-batch1.test.ts:592:3
+
+ FAILURES 
+
+B35-MAND-0734/0735/0736/0770/0772/0773/0774 structural no-surface proofs => ./audit/a2/receipt-batch1.test.ts:573:6
+
+FAILED | 18 passed | 1 failed (1s)
+
+error: Test failed

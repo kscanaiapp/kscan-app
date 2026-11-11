@@ -1,0 +1,7 @@
+{
+  "command": "adb devices -l; serials suppressed in recorded result",
+  "authorizedTargets": 0,
+  "verdict": "NOT TESTED",
+  "reason": "No connected adb device/emulator; no binary built or installed",
+  "source": "Prepared source campaign; no installed artifact identity available"
+}

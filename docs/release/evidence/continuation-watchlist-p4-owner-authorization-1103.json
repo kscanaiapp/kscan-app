@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-11-03T13:17:38.556Z",
+  "finding": "B35-E-027",
+  "alias": "W2",
+  "priority": "P4",
+  "answer": "Authorize this bounded source repair",
+  "scope": "Existing691P4guard;canonical/mobilegreenclosure+actualhandlerregression;no deployment",
+  "merge": "Standing normal fully-green PR approval;protectedchecksretained",
+  "sequence": "AfterW1,E026"
+}

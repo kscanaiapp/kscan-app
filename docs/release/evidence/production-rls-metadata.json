@@ -1,0 +1,938 @@
+﻿[
+    {
+        "schema_name":  "public",
+        "table_name":  "app_config",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "apple_auth_credentials",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "content_reports",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "deleted_owner_retained_media",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "deletion_requests",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "deletion_state_transitions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_audit",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_brands",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_campaigns",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_catalog_revision",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_evidence",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_merchants",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_partnerships",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_products",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_prospects",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_request_limits",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_reviewers",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_runtime_guard",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "discovery_sync_runs",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_collab_idempotency",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_inspiration_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_item_reactions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_messages",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_participants",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_room_user_blocks",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "dressing_rooms",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "elise_generation_operations",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "image_scan_verdicts",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "inspiration_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_activation_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_entitlement_activations",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_entitlement_grants",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_entitlement_transitions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_offer_codes",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_offer_definitions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_offer_redemption_attempts",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_offer_redemptions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_provider_reconciliation_controls",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_revenuecat_mirror_queue",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "kplus_revenuecat_product_cache",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "legal_acceptances",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "llm_routing_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "look_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "looks",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "outfit_decision_groups",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "outfit_decision_option_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "outfit_decision_options",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "outfit_decision_votes",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "privacy_correction_requests",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "privacy_export_requests",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "privacy_request_rate_limits",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "privacy_settings",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "product_catalog",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "profiles",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "provider_request_limits",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "provider_request_reservations",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "provider_security_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "room_shares",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "saved_scans",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "scan_commerce_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "scan_identify_usage_daily",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "scan_intelligence_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "shared_room_memberships",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "speech_daily_cost",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "speech_provider_control",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "speech_request_reservations",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_chat_burst_usage",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_chat_daily_usage",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_chat_messages",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_chat_sessions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_chat_usage",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_memory_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_outfit_burst_usage",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "style_outfit_daily_usage",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "stylechat_quota_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_closet_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_commerce_watch_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_commerce_watches",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_device_push_tokens",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_device_sessions",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_entitlements",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_style_profiles",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "user_stylist_preferences",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "vto_generation_requests",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_activity_log",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_brand_sizing_notes",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_care_notes",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_collection_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_collections",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_outfit_feedback",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_utility_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_wear_event_items",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_wear_events",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "wardrobe_wishlist_intents",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "public",
+        "table_name":  "watchlist_push_receipts",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "buckets",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  true,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "buckets_analytics",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  true,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "buckets_vectors",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "migrations",
+        "rls_enabled":  true,
+        "anon_select":  false,
+        "authenticated_select":  false,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "objects",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  true,
+        "authenticated_update":  true
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "s3_multipart_uploads",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "s3_multipart_uploads_parts",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    },
+    {
+        "schema_name":  "storage",
+        "table_name":  "vector_indexes",
+        "rls_enabled":  true,
+        "anon_select":  true,
+        "authenticated_select":  true,
+        "anon_insert":  false,
+        "authenticated_update":  false
+    }
+]

@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-11-03T02:20:38.798Z",
+  "finding": "B35-F-025",
+  "priority": "P2",
+  "status": "SOURCE CLOSED / CANONICAL685 + MOBILE686 MERGED / 7+9 INDEPENDENT WORKFLOWS SUCCESS / RUNTIME NOT VERIFIED",
+  "canonical": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+  "canonicalPostmerge": {
+    "sha": "9512a1814f92796cd77baa6557a8a78a4fd016c5",
+    "workflows": 7,
+    "conclusion": "SUCCESS",
+    "evidence": "continuation-backend-9512-postmerge-runs.json"
+  },
+  "mobile": {
+    "pr": 686,
+    "sha": "6ccac16c1d9aad3be9cb8a2d6437f449e5639954",
+    "reviewed": "f1930fa91425fff8a15bd083c0c33249e9e92d43",
+    "testedMerge": "08247d8353864c34898a4391aaf1b2c1d6009c3f",
+    "tree": "b64be0e6c2b8dca8d4bc443ff05b0a190d387365",
+    "reviewedChecks": "35SUCCESS/19conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmergewithstandingownerapproval",
+    "reviewedFullSuite": "11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL",
+    "postmerge": "9of9independentpushworkflowsSUCCESS;actual11465NodePASS/0FAIL/96SKIP;1592backendPASS/0FAIL"
+  },
+  "localValidation": {
+    "initialPromotion": "66PASS/6historical-count-ledgerFAIL/2explicitNAskips;negative evidence retained",
+    "correctedPromotion": "72PASS/0FAIL/2explicitNAskips;only exact F025 additions admitted",
+    "sqlReplayGovernance": "65PASS/0FAIL/0SKIP",
+    "backend": "1592PASS/0FAIL",
+    "typescript": "exit0/session80101;emptylog not test-count evidence",
+    "sourceGates": "6exit0 on clean1710 tree",
+    "manifests": "Edge and crosspath20current"
+  },
+  "campaignCorrection": "36focusedPASS/0FAIL;209allStagingPASS/0FAIL/58declaredSKIP;6cleanf1930sourcegatesexit0;runtime/SQL/manifestsunchanged",
+  "migration": "20261103011431_provider_settlement_server_authority.sql",
+  "migrationStatus": "CLI GENERATED / BOTH ENVIRONMENTS KNOWN_FUTURE_UNAPPLIED / NOT APPLIED",
+  "limits": "ControlledAuth/SDK/provider +actualPGliteSQLroles;singleconnectionqueuedrequestsnotlivemulticonnection/JWT/provider/devicecertification",
+  "next": "Owner-authorized B004/P4 Scanner null-body repair, then underlying hostile-source audit. Migration application and deployment remain separately governed."
+}

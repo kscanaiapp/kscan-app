@@ -1,0 +1,25 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),Module=require('node:module');
+const root=process.env.B35_AUDIT_SOURCE_ROOT||'C:/b35live1102';
+// Reuse the mounted fixture but replace its availability/config doubles with
+// the real production modules. Only the Supabase SDK response is injected.
+let source=fs.readFileSync(path.join(root,'__tests__/vtoLiveMountedSource.test.js'),'utf8').split("for(const platform of ['ios','android'])test")[0];
+source=source.replace("const ROOT = path.resolve(__dirname, '..');",`const ROOT = ${JSON.stringify(root)};`);
+const needle='  function resolve(from,s)';assert.ok(source.includes(needle));
+source=source.replace(needle,`
+  byPath.delete('hooks/useVtoAvailability.ts');byPath.delete('services/vto/vtoFeatureControl.ts');
+  core.add('hooks/useVtoAvailability.ts');core.add('services/vto/vtoFeatureControl.ts');core.add('types/entitlements.ts');
+  byPath.get('constants/featureFlags.ts').VTO_CONFIG_KEY='vto_generation';
+  stub('hooks/useKPlusEntitlement.ts',{useKPlusEntitlement:()=>({isActive:['active','complimentary'].includes(env.kplus),state:['active','complimentary'].includes(env.kplus)?'active':env.kplus==='free'?'eligible':env.kplus})});
+  stub('services/supabaseClient.ts',{supabase:{from:table=>{assert.equal(table,'app_config');return {select:()=>({eq:()=>({maybeSingle:()=>{calls.push(['config-read']);if(env.configTimeout)return new Promise(()=>{});if(env.configMalformed)return Promise.reject(new SyntaxError('synthetic malformed SDK JSON'));return Promise.resolve(env.configReply);}})})};}}});
+  function resolve(from,s)`);
+source+='\nmodule.exports={world};\n';const mod=new Module(__filename,module);mod.filename=__filename;mod.paths=module.paths;mod._compile(source,__filename);const {world}=mod.exports;
+const valid={data:{value:{schemaVersion:1,enabled:true,supportedCategories:['top'],live:{enabled:true,supportedCategories:['top']}}},error:null};
+for(const kplus of ['active','complimentary'])test(`remote: canonical ${kplus} -> actual config/availability -> actual mounted Live`,async()=>{
+ const w=world('ios',{kplus,configReply:valid});try{await w.start();assert.equal(w.calls.filter(x=>x[0]==='start').length,1);assert.equal(w.calls.filter(x=>x[0]==='config-read').length,1,'one shared in-flight/config memo');}finally{w.cleanup();}
+});
+for(const [name,opts]of [['500',{configReply:{data:null,error:{status:500}}}],['429',{configReply:{data:null,error:{status:429}}}],['401',{configReply:{data:null,error:{status:401}}}],['empty',{configReply:undefined}],['malformedJSON',{configMalformed:true}],['wrongSchema',{configReply:{data:{value:{...valid.data.value,schemaVersion:99}},error:null}}],['timeout',{configTimeout:true}]])test(`remote: ${name} fails closed before customer Live/native dispatch`,async()=>{
+ const w=world('android',opts);try{await w.refresh();if(name==='timeout'){await new Promise(r=>setTimeout(r,2600));await w.refresh();}assert.ok(w.host('try-on-studio-unavailable'));assert.equal(w.host('vto-live-pilot-try-on'),undefined);assert.equal(w.calls.filter(x=>x[0]==='start'||x[0]==='permission').length,0);}finally{w.cleanup();}
+});
+test('remote: Live-only disabled retains the existing Photo explanation/actions',async()=>{
+ const w=world('android',{configReply:{data:{value:{...valid.data.value,live:{enabled:false}}},error:null}});try{await w.refresh();assert.ok(w.host('try-on-studio-content'));assert.ok(w.host('try-on-studio-action-scan'));assert.equal(w.host('vto-live-pilot-try-on'),undefined);}finally{w.cleanup();}
+});

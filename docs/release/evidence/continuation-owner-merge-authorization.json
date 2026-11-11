@@ -1,0 +1,39 @@
+{
+  "authorization": "if the PRs are fully green, you have merge approval",
+  "scope": "Source PR merges subject to applicable checks and repository rules; no Production rollout/migration/mobile build authorization",
+  "legalMetadataAuthorization": "I will update the legal docs and language, but you may update any required legal metadata. I will also update the website to match the current version of the app",
+  "priorApprovalQuestions": "Superseded by owner's conditional approval; do not ask again for the same source merges",
+  "preMergeChecks": {
+    "656": {
+      "head": "ffd3f40d48b1e45c08b976cd623c41dbaab6e3da",
+      "success": 37,
+      "conditionalSkips": 18,
+      "failed": 0,
+      "pending": 0
+    },
+    "657": {
+      "head": "37330f804fbb5cca38cf706a84041fcbdeb2c687",
+      "success": 39,
+      "conditionalSkips": 24,
+      "failed": 0,
+      "pending": 0
+    }
+  },
+  "branchRules": {
+    "backend": {
+      "branchProtectionRule": null,
+      "activeRules": []
+    },
+    "mobile": {
+      "branchProtectionRule": null,
+      "activeRules": []
+    }
+  },
+  "merge656": {
+    "method": "squash",
+    "sha": "98c88ff1240b6596649d7967e9a180d43d7fa83e",
+    "merged": true,
+    "normalMergePathFailure": "HTTP500, repository advertises all merge methods allowed; no protection override used"
+  },
+  "productionChanges": "NONE"
+}

@@ -1,0 +1,38 @@
+{
+  "capturedAt": "2026-10-29T19:39:33.761Z",
+  "candidate": {
+    "branch": "integration/build35-hostile-convergence-20261029",
+    "sha": "751e381565a70f34fdf14edee43fffab232b8030",
+    "status": "",
+    "node": {
+      "passed": 11336,
+      "failed": 0,
+      "skipped": 98,
+      "total": 11434
+    },
+    "typeScriptExit": 0,
+    "sourceGates": "candidate-source-gates-decoder.json",
+    "backendSourceUnchangedFrom": "53b93724c9f4801785a288258db30913047bfb50",
+    "backend": {
+      "passed": 1531,
+      "failed": 0
+    },
+    "lastCompleteNodeSha": "751e381565a70f34fdf14edee43fffab232b8030",
+    "latestNodeRerun": {
+      "status": "COMPLETED",
+      "exit": 0,
+      "log": "candidate-node-permission-matrix-final.log",
+      "sourceSha": "751e381565a70f34fdf14edee43fffab232b8030"
+    },
+    "lastChange": "Tests only:12 additional permission boundary failures; focused29/29",
+    "typeScriptSourceSha": "a376f2f7fc6694b30e5623998a56522eccf20280",
+    "latestChange": "12 tests only, no runtime/backend source changes"
+  },
+  "authoritative": {
+    "branch": "integration/build35-v1-convergence",
+    "sha": "65a1e7cd6c2bea790e87c009a41de999d6cf2fa8"
+  },
+  "mergedRepairs": 0,
+  "ownerStop": true,
+  "copyReview": "Exact654 wording owner-approved; merge/deployment pending"
+}

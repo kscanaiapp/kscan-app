@@ -1,0 +1,28 @@
+import https from 'node:https';
+import assert from 'node:assert/strict';
+Deno.test('Local Deno Node-HTTPS compatibility: custom lookup actually pins the connection', async () => {
+  const priorProxyFlag = Deno.env.get('NODE_USE_ENV_PROXY');
+  Deno.env.set('NODE_USE_ENV_PROXY', '0');
+  const listener = Deno.listen({ hostname: '127.0.0.1', port: 443 });
+  let connections = 0, lookupCalls = 0;
+  const accepting = (async () => { try { const conn = await listener.accept(); connections++; try { await conn.read(new Uint8Array(64)); } finally { conn.close(); } } catch (e) { if (!(e instanceof Deno.errors.BadResource) && !(e instanceof Deno.errors.Interrupted)) throw e; } })();
+  let errorCode: string | null = null;
+  try {
+    await new Promise<void>(resolve => {
+      const request = https.request('https://pinning-audit.invalid/synthetic.png', {
+        lookup: (_host, options, callback) => {
+          lookupCalls++;
+          // Node may request all addresses for auto-family selection.
+          if (typeof options === 'object' && options.all) callback(null, [{ address: '127.0.0.1', family: 4 }] as unknown as string, 4);
+          else callback(null, '127.0.0.1', 4);
+        },
+      });
+      request.on('error', error => { errorCode = (error as NodeJS.ErrnoException).code ?? error.name; resolve(); });
+      request.setTimeout(1500, () => { request.destroy(new Error('Controlled test timeout')); });
+      request.end();
+    });
+  } finally { listener.close(); await accepting; if (priorProxyFlag === undefined) Deno.env.delete('NODE_USE_ENV_PROXY'); else Deno.env.set('NODE_USE_ENV_PROXY', priorProxyFlag); }
+  console.log(JSON.stringify({ lookupCalls, connections, errorCode, limitation: 'Controlled raw loopback only; not successful TLS, Supabase Edge compatibility, private data or Production evidence' }));
+  assert.equal(lookupCalls, 1);
+  assert.equal(connections, 1);
+});

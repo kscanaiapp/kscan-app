@@ -1,0 +1,25 @@
+{
+  "command": "node:test run() with recursive same governed .test.js inventory; structured per-test attribution",
+  "sourceSha": "72eee2fbdd09d604039aa6cfdbbd942bc629bcea",
+  "fileCount": 638,
+  "summary": {
+    "success": true,
+    "counts": {
+      "tests": 11387,
+      "failed": 0,
+      "passed": 11289,
+      "cancelled": 0,
+      "skipped": 98,
+      "todo": 0,
+      "topLevel": 11364,
+      "suites": 2
+    },
+    "duration_ms": 682454.5524
+  },
+  "counts": {
+    "PASS": 11291,
+    "FAIL": 0,
+    "NOT_TESTED": 98
+  },
+  "note": "counts.PASS includes two suite container events; authoritative individual test counts are summary.counts.passed=11289, skipped98, failed0. Do not add container events to test totals."
+}

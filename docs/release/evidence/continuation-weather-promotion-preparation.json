@@ -1,0 +1,113 @@
+{
+  "capturedAt": "2026-10-31T15:18:38.433Z",
+  "canonicalMerge": "5df63c052ad0e9e757016d8f2100f9a7fdbab836",
+  "canonicalTree": "71cb227032f64453756f448dc1356d650927f1d3",
+  "reviewedCanonical": "2878686719b8bff0a20fb523a6d4fc9cca42ff52",
+  "canonicalBackendTests": {
+    "pass": 1574,
+    "fail": 0
+  },
+  "canonicalPostMerge": "7/7 successful push workflows",
+  "mobileBase": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "mobileReviewCommit": "986206134f6cf04dc222636346e9e1c396c0dfd6",
+  "mobileTree": "5ce97589736e3d1b548bd89aacebbb49a3aebbfa",
+  "mobilePR": 668,
+  "canonicalBlobs": [
+    {
+      "path": "supabase/functions/stylechat-generate/packingWeather.test.ts",
+      "sha": "8d69c9ccea695c18599411141cbd3465697fae9f"
+    },
+    {
+      "path": "supabase/functions/stylechat-generate/packingWeather.ts",
+      "sha": "4425bf2a9af72a4b1dd2f1e8967f45021259e1f3"
+    }
+  ],
+  "comparison": {
+    "repository_full_name": "kscanaiapp/kscan-app",
+    "base": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+    "head": "986206134f6cf04dc222636346e9e1c396c0dfd6",
+    "status": "ahead",
+    "ahead_by": 1,
+    "behind_by": 0,
+    "total_commits": 1,
+    "too_large": null,
+    "base_commit": {
+      "sha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "url": "https://api.github.com/repos/kscanaiapp/kscan-app/commits/50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "html_url": "https://github.com/kscanaiapp/kscan-app/commit/50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "merge_base_commit": {
+      "sha": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "url": "https://api.github.com/repos/kscanaiapp/kscan-app/commits/50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+      "html_url": "https://github.com/kscanaiapp/kscan-app/commit/50387a2be4e3406b9ce43b4b0ffb56c4b82262c6"
+    },
+    "files": [
+      {
+        "filename": "__tests__/packingWeatherSourcePromotion.test.js",
+        "status": "added",
+        "additions": 48,
+        "deletions": 0,
+        "changes": 48,
+        "previous_filename": null
+      },
+      {
+        "filename": "__tests__/sharedSigningSourcePromotion.test.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 3,
+        "changes": 7,
+        "previous_filename": null
+      },
+      {
+        "filename": "__tests__/vtoLiveIntegrationScope.test.js",
+        "status": "modified",
+        "additions": 11,
+        "deletions": 13,
+        "changes": 24,
+        "previous_filename": null
+      },
+      {
+        "filename": "config/backend-authority.json",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "changes": 4,
+        "previous_filename": null
+      },
+      {
+        "filename": "config/build35-hostile-source-promotion.json",
+        "status": "modified",
+        "additions": 19,
+        "deletions": 1,
+        "changes": 20,
+        "previous_filename": null
+      },
+      {
+        "filename": "config/edge-function-manifest.json",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 6,
+        "changes": 12,
+        "previous_filename": null
+      },
+      {
+        "filename": "supabase/functions/stylechat-generate/packingWeather.test.ts",
+        "status": "modified",
+        "additions": 50,
+        "deletions": 0,
+        "changes": 50,
+        "previous_filename": null
+      },
+      {
+        "filename": "supabase/functions/stylechat-generate/packingWeather.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 2,
+        "changes": 5,
+        "previous_filename": null
+      }
+    ]
+  },
+  "transfer": "GitHub Git API; isolated promotion branch. Local Git fetch/worktree synchronization remains pending; no protected target was directly changed.",
+  "mobileValidation": "Pending current-head CI; no source-level or device PASS inferred from syntax parsing/canonical tests."
+}

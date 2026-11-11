@@ -1,0 +1,202 @@
+{
+  "records": [
+    {
+      "probeId": "B35-PACKING-COMPOSED-golden",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Validated owned plan renders",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "success",
+        "visibleStatus": "ready",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-provider500",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-provider429",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-timeout",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-empty",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-malformed",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-wrongSchema",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "no_result",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-envelopeWrongSchema",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-invalidModelJson",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-quotaUnavailable",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 500,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 0,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-entitlementDenied",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 403,
+        "backendStatus": "not_entitled",
+        "visibleStatus": "failed",
+        "reservations": 0,
+        "providers": 0,
+        "closetReads": 0,
+        "entitlementReads": 1
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-weatherUnavailable",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual UI, client, handler, provider HTTP adapter and validation; HTTP fetch fixture only; injected entitlement/Closet reads",
+      "expected": "Validated owned plan renders",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "success",
+        "visibleStatus": "ready",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "limits": "Actual provider HTTP adapter executes against deterministic fetch responses; no live external HTTP/JWT/database/provider, store or native device certification. Short1ms provider deadline is used for bounded failure injection; deployed default is asserted20seconds.",
+  "sourceEquivalence": {
+    "reviewed": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+    "final": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+    "identicalGitTree": "47eac07753fc0f751736aca681619718482f3dca"
+  }
+}

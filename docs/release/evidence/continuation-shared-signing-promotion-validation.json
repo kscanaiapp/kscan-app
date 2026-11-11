@@ -1,0 +1,34 @@
+{
+  "candidate": "f8cd400b8901495ca04ea925ad2aecce98fbf8ad",
+  "baseMobile": "35bd7f42839d3711b29328dc8b0ac2db6b591960",
+  "canonical": "f64d8b7f3ce175f8fd3b2ff3a9b57cafbcfb5fee",
+  "worktree": "C:/b35sharepromote1030",
+  "branch": "promotion/build35-shared-image-signing-20261030",
+  "status": "Local committed/rebased candidate, not pushed; no PR",
+  "exactCanonicalFiles": 4,
+  "mobileRunner": "Exactly two-line registration patch; all existing targets including purchase-import-extract preserved; independent git-byte/mutation proof",
+  "promotionRows": 51,
+  "role": "integration-convergence-non-authoritative",
+  "focused": {
+    "pass": 94,
+    "fail": 0
+  },
+  "typescript": {
+    "exitCode": 0
+  },
+  "sourceGates": {
+    "pass": 6
+  },
+  "backend": {
+    "pass": 1587,
+    "fail": 0
+  },
+  "node": {
+    "status": "RUNNING",
+    "session": 10757,
+    "prefix": "C:/b35readback1030/shared-signing-promotion-node-final",
+    "files": 645,
+    "workers": 2
+  },
+  "scope": "Includes merged G013queue fix; premium baseline/source holds unchanged; no migration, policy, deployment or binary"
+}

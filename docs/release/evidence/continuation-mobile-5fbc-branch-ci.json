@@ -1,0 +1,79 @@
+{
+  "capturedAt": "2026-11-02T13:08:00Z",
+  "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206",
+  "result": "9/9 postmerge push workflows SUCCESS",
+  "runs": [
+    {
+      "id": 41449532881,
+      "name": "Build 35 iOS source certification",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532881",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532895,
+      "name": "Security - ZAP Baseline Staging",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532895",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532890,
+      "name": "K Scan Staging Security Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532890",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532888,
+      "name": "Dependency Reachability Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532888",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532829,
+      "name": "Build 35 Release Profile Guard",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532829",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532903,
+      "name": "VTO Backend E2E",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532903",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532924,
+      "name": "Security - ZAP API Staging",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532924",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532837,
+      "name": "Security - Code and Dependencies",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532837",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    },
+    {
+      "id": 41449532917,
+      "name": "Security - Promotion Gate",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/kscanaiapp/kscan-app/actions/runs/41449532917",
+      "sourceSha": "5fbccd1dbcd727827890777b9fa2d2d98c462206"
+    }
+  ]
+}

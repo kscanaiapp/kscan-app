@@ -1,0 +1,2375 @@
+{
+  "capturedAt": "2026-10-31T13:40:26.660Z",
+  "testedSource": "2b04f5d5f53be7e72b652b8892269923ed43da78",
+  "authoritySource": "50387a2be4e3406b9ce43b4b0ffb56c4b82262c6",
+  "treeEquivalent": true,
+  "sourceFilesScanned": 763,
+  "clientServiceRole": {
+    "verdict": "PASS — inspected tracked client-source surface",
+    "credentialReferences": [],
+    "literalServiceKeys": [],
+    "limitation": "AST/static source scan, not an inspected distributable bundle. Runtime/build secret injection and actual binary remain outside this evidence."
+  },
+  "vendorSdkImports": [
+    {
+      "file": "services/analytics/posthogClient.core.ts",
+      "line": 47,
+      "from": "posthog-react-native"
+    }
+  ],
+  "analyticsCallSites": [
+    {
+      "file": "app/privacy.tsx",
+      "line": 305,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_exposed"
+    },
+    {
+      "file": "app/privacy.tsx",
+      "line": 670,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_gate_opened"
+    },
+    {
+      "file": "app/text-scan/index.tsx",
+      "line": 168,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../../services/voice/voiceTelemetry",
+      "event": "voice_submit"
+    },
+    {
+      "file": "components/ProductShelf.tsx",
+      "line": 963,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_started"
+    },
+    {
+      "file": "components/ProductShelf.tsx",
+      "line": 982,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_completed"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 61,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../../services/closetTelemetry",
+      "event": "cloud_closet_card_rendered"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 79,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../../services/closetTelemetry",
+      "event": "cloud_closet_sync_requested"
+    },
+    {
+      "file": "components/closet/CloudClosetCard.tsx",
+      "line": 85,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../../services/closetTelemetry",
+      "event": "cloud_closet_sync_completed"
+    },
+    {
+      "file": "components/home/HomeLuxuryTechV1.tsx",
+      "line": 131,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_exposed"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 129,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_early_access_viewed"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 139,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_started"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 151,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_failed"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 165,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_failed"
+    },
+    {
+      "file": "components/kplus/KPlusActivationStep.tsx",
+      "line": 175,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_completed"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 74,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_early_access_viewed"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 89,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_started"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 94,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_failed"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 113,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_failed"
+    },
+    {
+      "file": "components/kplus/KPlusEarlyAccessSheet.tsx",
+      "line": 122,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_activation_completed"
+    },
+    {
+      "file": "components/kplus/KPlusGate.tsx",
+      "line": 59,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_exposed"
+    },
+    {
+      "file": "components/kplus/KPlusGate.tsx",
+      "line": 64,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_gate_opened"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 19,
+      "emitter": "trackBlackOwnedDiscovery",
+      "importSource": "../../services/blackOwnedDiscoveryTelemetry",
+      "event": "black_owned_shelf_displayed"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 20,
+      "emitter": "trackBlackOwnedDiscovery",
+      "importSource": "../../services/blackOwnedDiscoveryTelemetry",
+      "event": "black_owned_product_impression"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 34,
+      "emitter": "trackBlackOwnedDiscovery",
+      "importSource": "../../services/blackOwnedDiscoveryTelemetry",
+      "event": "black_owned_product_selected"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 37,
+      "emitter": "trackBlackOwnedDiscovery",
+      "importSource": "../../services/blackOwnedDiscoveryTelemetry",
+      "event": "black_owned_shop"
+    },
+    {
+      "file": "components/scan-results/BlackOwnedDiscoveryShelf.tsx",
+      "line": 40,
+      "emitter": "trackBlackOwnedDiscovery",
+      "importSource": "../../services/blackOwnedDiscoveryTelemetry",
+      "event": "black_owned_save"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 128,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "elise_vto_offer_rendered"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 132,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "elise_vto_offer_unavailable"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 146,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "elise_vto_offer_tapped"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 166,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "elise_vto_offer_launched"
+    },
+    {
+      "file": "components/style-chat/EliseVtoOffer.tsx",
+      "line": 198,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "elise_vto_offer_kplus_gate"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 271,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_mode_selected"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 387,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_entry_impression"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 435,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_started"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 448,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_completed"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 468,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_viewed"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 485,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_entry_tap"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 507,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_exited"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 514,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_try_another"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 527,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_minimized"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 566,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_compare_toggle"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 908,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_shop"
+    },
+    {
+      "file": "components/vto/VirtualTryOnSheet.tsx",
+      "line": 923,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_watch"
+    },
+    {
+      "file": "components/vto/VtoLaunchHost.tsx",
+      "line": 97,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_restored"
+    },
+    {
+      "file": "components/vto/VtoSaveToDressingRoom.tsx",
+      "line": 102,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_save_opened"
+    },
+    {
+      "file": "components/vto/VtoSaveToDressingRoom.tsx",
+      "line": 114,
+      "emitter": "emitVtoEvent",
+      "importSource": "../../services/vto/vtoTelemetry",
+      "event": "vto_result_saved"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 144,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_started"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 171,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_completed"
+    },
+    {
+      "file": "hooks/usePackingPlan.ts",
+      "line": 176,
+      "emitter": "emitKPlusEvent",
+      "importSource": "../services/kplus/kplusTelemetry",
+      "event": "kplus_feature_completed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 161,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_failed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 194,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_started"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 247,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_extraction_completed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 340,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_reviewed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 373,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_failed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 377,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_confirmed"
+    },
+    {
+      "file": "hooks/usePurchaseImport.ts",
+      "line": 458,
+      "emitter": "emitPurchaseImportEvent",
+      "importSource": "../services/purchaseImport/purchaseImportTelemetry",
+      "event": "purchase_import_failed"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 272,
+      "emitter": "emitTodayWithEliseEvent",
+      "importSource": "../services/todayWithElise/analytics",
+      "event": "event"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 606,
+      "emitter": "emitTodayWithEliseEvent",
+      "importSource": "../services/todayWithElise/analytics",
+      "event": "today_with_elise_look_saved"
+    },
+    {
+      "file": "hooks/useTodayWithElise.ts",
+      "line": 628,
+      "emitter": "emitTodayWithEliseEvent",
+      "importSource": "../services/todayWithElise/analytics",
+      "event": "today_with_elise_look_modified"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 103,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_transcription_failure"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 108,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_transcription_success"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 170,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_on_device_unavailable"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 175,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_on_device_available"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 180,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_permission_denied"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 185,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_permission_granted"
+    },
+    {
+      "file": "hooks/useVoiceScan.ts",
+      "line": 233,
+      "emitter": "emitVoiceEvent",
+      "importSource": "../services/voice/voiceTelemetry",
+      "event": "voice_session_cancelled"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 164,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_migration_started"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 179,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_migration_batch_marked"
+    },
+    {
+      "file": "services/closet/closetHistoricalMigrationEngine.ts",
+      "line": 189,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_migration_completed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 173,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_media_missing"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 210,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_failed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 253,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_failed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 264,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_failed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 278,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_failed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 299,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_conflict"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 329,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_media_missing"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 352,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_media_missing"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 454,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_started"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 484,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_failed"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 489,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_page"
+    },
+    {
+      "file": "services/closet/closetRestoreEngine.ts",
+      "line": 512,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_restore_completed"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 222,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_sync_started"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 267,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "failureClass === 'conflict' ? 'closet_sync_conflict' : 'closet_sync_failed'"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 311,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_sync_retry"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 317,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_sync_tombstoned"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 395,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_facts_synced"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 452,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_media_synced"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 468,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_media_blocked"
+    },
+    {
+      "file": "services/closet/closetSyncEngine.ts",
+      "line": 482,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "closet_sync_retry"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 205,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_waiting_for_network"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 220,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_classification_started"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 295,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_request_aborted"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 405,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_classified"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 410,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_manual_classification_required"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 415,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_classification_failed"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 430,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_waiting_for_network"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 449,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_request_aborted"
+    },
+    {
+      "file": "services/closetCandidateClassification.js",
+      "line": 454,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_classification_failed"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 242,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_store_recovered"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 292,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_failed"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 694,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_duplicate_detected"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 762,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_duplicate_detected"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 806,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_duplicate_detected"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 818,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_created"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 822,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_media_prepared"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 828,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_duplicate_detected"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1615,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_completed"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1624,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_expired"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1627,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_completed"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1634,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_failed"
+    },
+    {
+      "file": "services/closetCandidateLibrary.js",
+      "line": 1768,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_failed"
+    },
+    {
+      "file": "services/closetMirrorStaging.ts",
+      "line": 176,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "mirror_selfie_crops_staged"
+    },
+    {
+      "file": "services/closetRecovery.js",
+      "line": 494,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_completed"
+    },
+    {
+      "file": "services/closetRecovery.js",
+      "line": 500,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "./closetTelemetry",
+      "event": "closet_candidate_cleanup_failed"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 385,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_candidate_staging_started"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 396,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_candidate_staging_started"
+    },
+    {
+      "file": "services/mirror/mirrorCandidateIntegration.ts",
+      "line": 581,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "stoppedEarly === 'cancelled'\n      ? 'mirror_candidate_staging_cancelled'\n      : finalOutcome === '"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 80,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_selfie_source_selected"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 90,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_selfie_validation_completed"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 106,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_selfie_extraction_completed"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 122,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_selfie_extraction_cancelled"
+    },
+    {
+      "file": "services/mirror/mirrorTelemetry.ts",
+      "line": 133,
+      "emitter": "emitClosetCandidateEvent",
+      "importSource": "../closetTelemetry",
+      "event": "mirror_selfie_crop_review_completed"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 201,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_awareness_impression"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 208,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_awareness_tap"
+    },
+    {
+      "file": "services/vto/vtoAwareness.ts",
+      "line": 215,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_awareness_dismissed"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 195,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_person_selected"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 212,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_cancelled"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 235,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_cancelled"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 343,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_superseded"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 360,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_start"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 451,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_success"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 475,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_cancelled"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 479,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_request_failure"
+    },
+    {
+      "file": "services/vto/vtoRequestStore.ts",
+      "line": 495,
+      "emitter": "emitVtoEvent",
+      "importSource": "./vtoTelemetry",
+      "event": "vto_retry"
+    }
+  ],
+  "emitterEquivalence": [
+    {
+      "file": "services/closetTelemetry.ts",
+      "sha256": "6ba516ab59531fd72a094929dcd560f0127bdc28f3f5524a07f0dbb7d2f4c808",
+      "events": [
+        "cloud_closet_card_rendered",
+        "cloud_closet_sync_requested",
+        "cloud_closet_sync_completed",
+        "closet_candidate_created",
+        "closet_candidate_media_prepared",
+        "closet_candidate_duplicate_detected",
+        "closet_candidate_classification_started",
+        "closet_candidate_classified",
+        "closet_candidate_manual_classification_required",
+        "closet_candidate_waiting_for_network",
+        "closet_candidate_classification_failed",
+        "closet_candidate_retry_started",
+        "closet_candidate_request_aborted",
+        "closet_candidate_expired",
+        "closet_candidate_cleanup_completed",
+        "closet_candidate_cleanup_failed",
+        "mirror_selfie_crops_staged",
+        "mirror_selfie_source_selected",
+        "mirror_selfie_validation_completed",
+        "mirror_selfie_extraction_completed",
+        "mirror_selfie_extraction_cancelled",
+        "mirror_selfie_crop_review_completed",
+        "mirror_candidate_staging_started",
+        "mirror_candidate_staging_completed",
+        "mirror_candidate_staging_partial",
+        "mirror_candidate_staging_cancelled",
+        "closet_sync_started",
+        "closet_facts_synced",
+        "closet_media_synced",
+        "closet_media_blocked",
+        "closet_sync_retry",
+        "closet_sync_failed",
+        "closet_sync_conflict",
+        "closet_sync_tombstoned",
+        "closet_restore_started",
+        "closet_restore_page",
+        "closet_restore_completed",
+        "closet_restore_conflict",
+        "closet_restore_media_missing",
+        "closet_restore_failed",
+        "closet_migration_started",
+        "closet_migration_batch_marked",
+        "closet_migration_completed"
+      ],
+      "properties": [
+        "sourceType",
+        "status",
+        "previousStatus",
+        "errorCode",
+        "algorithmVersion",
+        "outcome",
+        "scope",
+        "resultStatus",
+        "resolutionLevel",
+        "entryPath",
+        "platform",
+        "requestMode",
+        "attemptBucket",
+        "countBucket",
+        "latencyBucket",
+        "candidateCountBucket",
+        "hasThumbnail",
+        "freeSpaceKnown",
+        "automatic",
+        "mediaFailed",
+        "aborted",
+        "cropCountBucket",
+        "createdCount",
+        "duplicateCount",
+        "rejectedCount",
+        "batchLimitReached",
+        "personCountBucket",
+        "sourceCountBucket",
+        "selectedCountBucket",
+        "reviewCountBucket",
+        "durationBucket",
+        "extractionSupported",
+        "personSelectionRequired",
+        "groupCountBucket",
+        "successCountBucket",
+        "failureCountBucket"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/kplus/kplusTelemetry.ts",
+      "sha256": "4da6729ac6f9691761ea018a37125183fabab102a156c6297c84db9bed8a2e02",
+      "events": [
+        "kplus_feature_exposed",
+        "kplus_feature_gate_opened",
+        "kplus_early_access_viewed",
+        "kplus_activation_started",
+        "kplus_activation_completed",
+        "kplus_activation_failed",
+        "kplus_feature_started",
+        "kplus_feature_completed"
+      ],
+      "properties": [
+        "source",
+        "feature",
+        "entitlement_state",
+        "activation_outcome"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/todayWithElise/analytics.ts",
+      "sha256": "44a3f2bab0885f5b5db2c77e38454372f213f93def631bb90557bb91a70f7efb",
+      "events": [
+        "today_with_elise_eligible",
+        "today_with_elise_impression",
+        "today_with_elise_primary_action",
+        "today_with_elise_secondary_action",
+        "today_with_elise_dismissed",
+        "today_with_elise_fallback_rendered",
+        "today_with_elise_dressing_room_opened",
+        "today_with_elise_look_modified",
+        "today_with_elise_look_saved",
+        "today_with_elise_partial_look_shown"
+      ],
+      "properties": [
+        "stateId",
+        "priority",
+        "action",
+        "completeness",
+        "source",
+        "analyticsClass",
+        "weatherUsed",
+        "platform",
+        "daypart",
+        "deduped"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/voice/voiceTelemetry.ts",
+      "sha256": "65dbabc6c26bc207e2952e6a3749ea30ea4a54baf9631b7fb0dfddb6dc29a828",
+      "events": [
+        "voice_permission_granted",
+        "voice_permission_denied",
+        "voice_on_device_available",
+        "voice_on_device_unavailable",
+        "voice_session_cancelled",
+        "voice_transcription_success",
+        "voice_transcription_failure",
+        "voice_submit"
+      ],
+      "properties": [
+        "source",
+        "platform",
+        "outcome",
+        "surface",
+        "destination"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/vto/vtoTelemetry.ts",
+      "sha256": "0caa4b15f0070e115c636ef7c4240d208e3453a45db2c8ac201fa65bdc0aa5e2",
+      "events": [
+        "vto_entry_impression",
+        "vto_entry_tap",
+        "vto_awareness_impression",
+        "vto_awareness_tap",
+        "vto_awareness_dismissed",
+        "vto_person_selected",
+        "vto_request_start",
+        "vto_request_success",
+        "vto_request_failure",
+        "vto_request_cancelled",
+        "vto_request_superseded",
+        "vto_retry",
+        "vto_result_compare_toggle",
+        "vto_minimized",
+        "vto_restored",
+        "vto_result_save_opened",
+        "vto_result_viewed",
+        "vto_result_shop",
+        "vto_result_watch",
+        "vto_result_try_another",
+        "vto_result_saved",
+        "vto_exited",
+        "vto_mode_selected",
+        "elise_vto_offer_rendered",
+        "elise_vto_offer_tapped",
+        "elise_vto_offer_unavailable",
+        "elise_vto_offer_kplus_gate",
+        "elise_vto_offer_launched"
+      ],
+      "properties": [
+        "origin",
+        "surface",
+        "actor_kplus_state",
+        "provider",
+        "slot",
+        "category",
+        "failureCode",
+        "retryCount",
+        "latencyMs",
+        "inputBucket",
+        "outputBucket",
+        "eligibility",
+        "mode",
+        "reasonCode",
+        "entry_point"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/purchaseImport/purchaseImportTelemetry.ts",
+      "sha256": "b2b8bc0bdb3e89ba658b42f185eb050070ffacf1c5b2763904c800000e89db3d",
+      "events": [
+        "purchase_import_started",
+        "purchase_import_extraction_completed",
+        "purchase_import_reviewed",
+        "purchase_import_confirmed",
+        "purchase_import_failed"
+      ],
+      "properties": [
+        "inputTier",
+        "candidateCountBucket",
+        "confirmedCountBucket",
+        "rejectedCountBucket",
+        "excludedCountBucket",
+        "documentConfidenceBucket",
+        "failureClass",
+        "correctionCountBucket",
+        "correctionsNaming",
+        "correctionsMaker",
+        "correctionsClassification",
+        "correctionsAppearance",
+        "correctionsFit",
+        "correctionsMoney",
+        "photoCountBucket",
+        "completionState"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    },
+    {
+      "file": "services/blackOwnedDiscoveryTelemetry.ts",
+      "sha256": "08a5bb7c8fe5bc2a2efd82446c69466fcc6a30a129be973477abe92c16898f22",
+      "events": [
+        "black_owned_shelf_displayed",
+        "black_owned_product_impression",
+        "black_owned_product_selected",
+        "black_owned_save",
+        "black_owned_shop",
+        "black_owned_checkout_handoff"
+      ],
+      "properties": [
+        "count",
+        "position"
+      ],
+      "originalTestSource": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+      "currentSourceByteEquivalent": true
+    }
+  ],
+  "declaredFeatureEvents": 108,
+  "sourceTests": [
+    {
+      "file": "__tests__/scannerLocalPrivacyDispatch.test.js",
+      "sha256": "0bd204dde925232a06a0e0cae238d240cebe7c3371dd9f704808553529c0081b",
+      "passedStaticNames": [
+        {
+          "name": "Scanner uses actual boundary artifacts, masks faces then plates, and dispatches only derived bytes",
+          "line": 135
+        },
+        {
+          "name": "proof is bound to exact bytes, cannot be copied, and does not authorize a new crop",
+          "line": 158
+        },
+        {
+          "name": "no-faces/no-plates run still requires a metadata-free verified artifact and never upscales",
+          "line": 174
+        },
+        {
+          "name": "cancellation after local screening and encoding produces no dispatchable proof",
+          "line": 203
+        },
+        {
+          "name": "existing Closet boundary retains block-on-plate policy unless Scanner explicitly opts in",
+          "line": 211
+        },
+        {
+          "name": "remote URLs, raw base64, data URIs and invalid limits never reach native processing",
+          "line": 217
+        },
+        {
+          "name": "Android native no-face path uses the existing PNG encoder and persisted-output verifier",
+          "line": 224
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/closetMediaPrivacyBoundary.test.js",
+      "sha256": "94dd20e31a266991ce089b203ab178bc5bbde0ee95317ee673d12ce2afcdd422",
+      "passedStaticNames": [
+        {
+          "name": "a completed native run yields SAFE with a primary and a thumbnail",
+          "line": 165
+        },
+        {
+          "name": "SAFE never returns the caller original as a cloud-eligible artifact",
+          "line": 179
+        },
+        {
+          "name": "derivatives use the B1C cloud contract dimensions: primary 1440, thumbnail 160",
+          "line": 189
+        },
+        {
+          "name": "the cloud thumbnail width is intentionally different from the local UI thumbnail",
+          "line": 203
+        },
+        {
+          "name": "the verified intermediate is always released, even on the success path",
+          "line": 218
+        },
+        {
+          "name": "BOTH derivatives are encoded from the sanitized output, never the original",
+          "line": 226
+        },
+        {
+          "name": "NEGATIVE CONTROL C: a thumbnail taken from the raw original fails the leak test",
+          "line": 237
+        },
+        {
+          "name": "NEGATIVE CONTROL E: an unlinked native module blocks and never returns the original",
+          "line": 291
+        },
+        {
+          "name": "NEGATIVE CONTROL B: a detector that fails mid-run cannot produce SAFE",
+          "line": 309
+        },
+        {
+          "name": "a proof that does not attest completion blocks even though both files exist",
+          "line": 324
+        },
+        {
+          "name": "a thumbnail failure blocks and removes the already-written primary",
+          "line": 345
+        },
+        {
+          "name": "an oversize derivative is rejected rather than uploaded, and the orphaned file is deleted",
+          "line": 361
+        },
+        {
+          "name": "an empty encoded artifact is rejected, and the orphaned file is deleted",
+          "line": 372
+        },
+        {
+          "name": "REGRESSION: measurement throwing after the move still cleans up the orphaned derivative",
+          "line": 383
+        },
+        {
+          "name": "NEGATIVE CONTROL: sanitizeClosetMedia's own finally cannot reach an orphan encodeDerivative fails to return",
+          "line": 403
+        },
+        {
+          "name": "a non-local or unsupported input is refused before any image work",
+          "line": 474
+        },
+        {
+          "name": "cancellation before processing blocks and touches nothing",
+          "line": 486
+        },
+        {
+          "name": "cancellation after sanitization still releases the intermediate",
+          "line": 496
+        },
+        {
+          "name": "the SAFE cleanup handle removes both derivatives and is idempotent",
+          "line": 515
+        },
+        {
+          "name": "concurrent sanitizations never share an artifact path",
+          "line": 527
+        },
+        {
+          "name": "the module performs no upload and imports nothing network-capable",
+          "line": 541
+        },
+        {
+          "name": "blocked reasons are a closed machine-readable vocabulary, not raw exception text",
+          "line": 554
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/closetMediaPlatePolicy.test.js",
+      "sha256": "3b8fcf5ee8561e48b74baad9cd4cb26fde345cbb9c7b3c42a5e4c4c101fa2adb",
+      "passedStaticNames": [
+        {
+          "name": "FACE: a detected face is masked locally and the run continues to SAFE (no plate)",
+          "line": 148
+        },
+        {
+          "name": "FACE FAILURE: a face sanitization failure blocks, never falls back to the original",
+          "line": 167
+        },
+        {
+          "name": "NO PII: a plain garment photo with no face and no plate reaches SAFE",
+          "line": 190
+        },
+        {
+          "name": "REGRESSION: a real \"no_faces\" status counts as verified output, not just \"success\"",
+          "line": 210
+        },
+        {
+          "name": "PLATE: a detected plate-like region BLOCKS the run; no cloud-eligible artifact",
+          "line": 227
+        },
+        {
+          "name": "PLATE: the masked artifact the native call produced is discarded, never exposed",
+          "line": 243
+        },
+        {
+          "name": "PLATE FALSE POSITIVE: a garment wordmark in the plate-shaped aspect band is BLOCKED, not redacted and returned SAFE",
+          "line": 259
+        },
+        {
+          "name": "a plate-detection technical failure blocks with a distinct reason from a policy block",
+          "line": 278
+        },
+        {
+          "name": "NEGATIVE CONTROL: removing the plate-block guard lets a plate-positive image reach SAFE",
+          "line": 300
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/nativeFaceEngineFailClosed.test.js",
+      "sha256": "73ef7a252b823e9952c6bd98102c541cce25d8c4b66ff1d1ef87594d20bc34be",
+      "passedStaticNames": [
+        {
+          "name": "CAPABILITY GATE: a full native module (all 3 functions) is linked",
+          "line": 60
+        },
+        {
+          "name": "NEGATIVE CONTROL: module exists but detectAndMaskFaces is missing -> reports unlinked, fails closed",
+          "line": 69
+        },
+        {
+          "name": "NEGATIVE CONTROL: module exists but getPrivacyCapabilities is missing -> reports unlinked",
+          "line": 80
+        },
+        {
+          "name": "NEGATIVE CONTROL: module exists but cleanupSanitizedImage is missing -> reports unlinked",
+          "line": 88
+        },
+        {
+          "name": "NEGATIVE CONTROL: detectAndMaskFaces throws -> detectAndMaskFacesLocal resolves to a failed status, never rejects",
+          "line": 98
+        },
+        {
+          "name": "INTEGRATION NEGATIVE CONTROL: a partial native module BLOCKS via the real boundary (FACE_ENGINE_UNAVAILABLE)",
+          "line": 146
+        },
+        {
+          "name": "INTEGRATION NEGATIVE CONTROL: a native bridge exception BLOCKS via the real boundary and prepareImageForDispatch() never rejects",
+          "line": 157
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/vtoPrivacyAndWiring.test.js",
+      "sha256": "7c7b6eeacaebf16dd7d77a4ba4f060600b1ffd4dff5f72c8e07c0b2a540ed5fe",
+      "passedStaticNames": [
+        {
+          "name": "telemetry drops every media reference it is handed",
+          "line": 80
+        },
+        {
+          "name": "telemetry drops a free-form value even under an allowlisted key",
+          "line": 95
+        },
+        {
+          "name": "telemetry drops unknown events entirely",
+          "line": 107
+        },
+        {
+          "name": "telemetry never carries a raw user identifier",
+          "line": 113
+        },
+        {
+          "name": "dimension telemetry is bucketed, not exact",
+          "line": 123
+        },
+        {
+          "name": "server telemetry has a closed field allowlist too",
+          "line": 131
+        },
+        {
+          "name": "a chosen photo is only accepted once the sanitizer reports it stripped metadata",
+          "line": 196
+        },
+        {
+          "name": "a sanitizer that admits it did not strip metadata blocks the upload",
+          "line": 206
+        },
+        {
+          "name": "cancelling the picker is a no-op, not an error state",
+          "line": 223
+        },
+        {
+          "name": "the picker opens with no pre-permission gate (VTO Android repair)",
+          "line": 232
+        },
+        {
+          "name": "'permission_denied' is no longer a reachable person-input outcome",
+          "line": 258
+        },
+        {
+          "name": "the iOS photo-library purpose string discloses Virtual Try-On, and overclaims nothing",
+          "line": 277
+        },
+        {
+          "name": "VTO adds no media-library permission to the Android manifest",
+          "line": 304
+        },
+        {
+          "name": "an oversized payload is refused before transport",
+          "line": 324
+        },
+        {
+          "name": "the intake never reads an avatar, Closet, or previously-saved photo",
+          "line": 334
+        },
+        {
+          "name": "VTO does not route person media through the passthrough sanitizer",
+          "line": 344
+        },
+        {
+          "name": "the UI does not claim a privacy property the pipeline does not have",
+          "line": 357
+        },
+        {
+          "name": "no VTO client module carries a provider credential or endpoint",
+          "line": 369
+        },
+        {
+          "name": "the actor boundary resets VTO state",
+          "line": 394
+        },
+        {
+          "name": "the Edge Function requires a verified JWT at the platform gate",
+          "line": 407
+        },
+        {
+          "name": "vto-generate is governed by the edge manifest",
+          "line": 417
+        },
+        {
+          "name": "vto-generate is NOT cleared for automatic deployment",
+          "line": 422
+        },
+        {
+          "name": "the VTO migration adds no table, bucket, or per-user storage",
+          "line": 431
+        },
+        {
+          "name": "the VTO control policy widens app_config reads by exactly one key",
+          "line": 443
+        },
+        {
+          "name": "the Commerce seam is additive: the existing card actions survive",
+          "line": 455
+        },
+        {
+          "name": "VTO never becomes retailer-ranking authority",
+          "line": 462
+        },
+        {
+          "name": "no VTO surface infers anything about the body",
+          "line": 476
+        },
+        {
+          "name": "a try-on writes no Closet, purchase, or style-preference record",
+          "line": 506
+        },
+        {
+          "name": "VTO-NC-010: no VTO surface may acquire a dependency nobody approved",
+          "line": 941
+        },
+        {
+          "name": "VTO-NC-010: a lazily-required module is guarded exactly like a static import",
+          "line": 957
+        },
+        {
+          "name": "VTO-HA-005: an enrolled VTO module may not compute a module specifier",
+          "line": 975
+        },
+        {
+          "name": "VTO-HA-005 NEGATIVE CONTROL: every dependency-acquisition form is now seen",
+          "line": 989
+        },
+        {
+          "name": "VTO-NC-010: a successful generation reaches no ownership or persistence call",
+          "line": 1017
+        },
+        {
+          "name": "the entry point renders through the shared K+ gate, not a VTO paywall",
+          "line": 1047
+        },
+        {
+          "name": "no VTO module invents a second entitlement key",
+          "line": 1055
+        },
+        {
+          "name": "VTO entitlement authorization cannot reintroduce the legacy direct-table fallback",
+          "line": 1073
+        },
+        {
+          "name": "Shop is driven only by the onShop prop, never reconstructed from a result or provider response",
+          "line": 1090
+        },
+        {
+          "name": "TryItOnEntry passes the SAME onShop through to the sheet unmodified",
+          "line": 1104
+        },
+        {
+          "name": "the garment identity (productRef) is what session-photo reattachment keys on, not title or image",
+          "line": 1109
+        },
+        {
+          "name": "no VTO module wraps generation in a retry/query library",
+          "line": 1116
+        },
+        {
+          "name": "startVtoGeneration and retryVtoGeneration are called only from explicit user callbacks, never a useEffect",
+          "line": 1130
+        },
+        {
+          "name": "a superseded (not-yet-billed) submission is aborted client-side, not silently resubmitted",
+          "line": 1146
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/vtoThirdPartyConsent.test.js",
+      "sha256": "bb54894662eef092950d88540e21da7af99a5d4c4a4909e6965e30f8363d006d",
+      "passedStaticNames": [
+        {
+          "name": "service: with no record there is no consent, however it is asked",
+          "line": 250
+        },
+        {
+          "name": "service: consent is persisted first and only then visible to the synchronous check",
+          "line": 257
+        },
+        {
+          "name": "service: a recorded consent is found again by a cold load (a new app session)",
+          "line": 279
+        },
+        {
+          "name": "service: consent is per account -- actor B never sees actor A on the same device",
+          "line": 290
+        },
+        {
+          "name": "service: a record for another version is not consent (and a bump invalidates a warm cache)",
+          "line": 294
+        },
+        {
+          "name": "service: corrupt storage fails closed and clears a warm cache",
+          "line": 313
+        },
+        {
+          "name": "service: a storage read error fails closed and clears a warm cache",
+          "line": 333
+        },
+        {
+          "name": "service: a failed write is not consent and leaves the cache untouched",
+          "line": 341
+        },
+        {
+          "name": "service: an account switch during the write never sets the cache for another account",
+          "line": 354
+        },
+        {
+          "name": "service: with no signed-in actor nothing is recorded, loaded or granted",
+          "line": 376
+        },
+        {
+          "name": "service: withdraw removes the storage record and the cache, for that account only",
+          "line": 387
+        },
+        {
+          "name": "service: the feature union is closed and the version must be a non-empty string",
+          "line": 403
+        },
+        {
+          "name": "service: a read that started before a grant cannot erase the grant",
+          "line": 417
+        },
+        {
+          "name": "service: works against the shipping actorContext (signed out is fail-closed, ids are normalised)",
+          "line": 432
+        },
+        {
+          "name": "service: stays a local, closed persistence seam (no network client, closed feature union)",
+          "line": 448
+        },
+        {
+          "name": "vtoConsent: the wrappers bind the VTO feature and the current version",
+          "line": 472
+        },
+        {
+          "name": "vtoConsent: the header states that the wording still needs legal review",
+          "line": 491
+        },
+        {
+          "name": "vtoConsent: the module is otherwise pure -- it imports only the persistence service",
+          "line": 501
+        },
+        {
+          "name": "store: without a consent proof the real transport is never reached and nothing changes",
+          "line": 624
+        },
+        {
+          "name": "store: with a consent proof the real transport is called exactly once",
+          "line": 628
+        },
+        {
+          "name": "store: a retry with a consent proof is a new intent and reaches the transport once",
+          "line": 637
+        },
+        {
+          "name": "store: an injected transport path is unchanged (the backstop keys on the REAL transport)",
+          "line": 646
+        },
+        {
+          "name": "store: the guard sits before any state change in both entry points",
+          "line": 663
+        },
+        {
+          "name": "hook: generate and retry pass the synchronous consent proof to the store",
+          "line": 705
+        },
+        {
+          "name": "sheet: every generate/retry action goes through the consent gate",
+          "line": 832
+        },
+        {
+          "name": "sheet: Continue awaits grantVtoConsent before running anything; Cancel calls neither",
+          "line": 836
+        },
+        {
+          "name": "sheet: a Continue that is walked back (Cancel, photo removed, sheet closed) sends nothing",
+          "line": 840
+        },
+        {
+          "name": "sheet: exactly one Modal in the sheet and none in the consent step",
+          "line": 844
+        },
+        {
+          "name": "sheet: the step renders inside the ScrollView body; Continue/Cancel live in the actions row",
+          "line": 848
+        },
+        {
+          "name": "sheet: a retry asked for from the result screen keeps its step open instead of going dead",
+          "line": 867
+        },
+        {
+          "name": "sheet: only user handlers reach consent or generation -- no effect grants or generates",
+          "line": 880
+        },
+        {
+          "name": "step: presentational -- header title, policy link, single source of copy, no gate logic",
+          "line": 895
+        },
+        {
+          "name": "copy: the disclosure says exactly what the lead-approved neutral wording says",
+          "line": 931
+        },
+        {
+          "name": "copy: it says the photo is SENT, to whom, and why -- from the provider map",
+          "line": 953
+        },
+        {
+          "name": "copy: adding a provider changes the copy (the intro is built from the map)",
+          "line": 968
+        },
+        {
+          "name": "copy: no unsupported retention, deletion, training or privacy-strength claim anywhere",
+          "line": 980
+        },
+        {
+          "name": "copy: the passive note keeps its metadata prefix, names the external service, drops the unsupported claim",
+          "line": 995
+        },
+        {
+          "name": "governance: the consent wording, disclosures and version are pinned by digest",
+          "line": 1063
+        },
+        {
+          "name": "governance: every provider the server can call has a disclosure (and the map is well formed)",
+          "line": 1089
+        },
+        {
+          "name": "governance: the persistence service is deliberately NOT a VTO-owned path",
+          "line": 1108
+        },
+        {
+          "name": "NEGATIVE CONTROL (a): deleting the store guard lets the real transport run without consent",
+          "line": 1130
+        },
+        {
+          "name": "NEGATIVE CONTROL (a2): deleting only the retry guard lets a refused retry advance state",
+          "line": 1138
+        },
+        {
+          "name": "NEGATIVE CONTROL (b): a sheet button that calls vto.generate directly is rejected by the gate check",
+          "line": 1150
+        },
+        {
+          "name": "NEGATIVE CONTROL (b2): a hook that stops passing the consent proof is rejected",
+          "line": 1163
+        },
+        {
+          "name": "NEGATIVE CONTROL (b3): Continue that generates before consent is persisted is rejected",
+          "line": 1171
+        },
+        {
+          "name": "NEGATIVE CONTROL (c): a second <Modal> in the consent step is rejected by the single-Modal check",
+          "line": 1228
+        },
+        {
+          "name": "NEGATIVE CONTROL (d): dropping the actor from the storage and cache keys breaks isolation",
+          "line": 1242
+        },
+        {
+          "name": "NEGATIVE CONTROL (e2): pointing the consent at another Privacy Policy without bumping the version breaks the digest pin",
+          "line": 1250
+        },
+        {
+          "name": "NEGATIVE CONTROL (e): editing the wording without bumping the version breaks the digest pin",
+          "line": 1258
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/eliseDirectImageAttachmentGate.test.js",
+      "sha256": "3af9ae8d3b0fa45e5da5d0bf4a23193f05244a6c6a2abb87d8cdafd59b59ee83",
+      "passedStaticNames": [
+        {
+          "name": "privacy preparation still precedes the durable candidate write",
+          "line": 16
+        },
+        {
+          "name": "direct attachment uses candidate media and creates no Recent Scan or cloud row",
+          "line": 25
+        },
+        {
+          "name": "identification resolution makes the candidate ready without promoting it",
+          "line": 32
+        },
+        {
+          "name": "the composer requires identified fashion context before a direct draft is ready",
+          "line": 38
+        },
+        {
+          "name": "send snapshots accept unsaved context and require the backend acknowledgement",
+          "line": 45
+        },
+        {
+          "name": "Closet promotion is an independent retry action keyed by candidate id",
+          "line": 53
+        },
+        {
+          "name": "the screen keeps send and Closet callbacks on separate state tracks",
+          "line": 61
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/eliseVisualContext.test.js",
+      "sha256": "08a22295d12de755015a43c074cf95f38919f2ffc6fee1955860460e42fb634d",
+      "passedStaticNames": [
+        {
+          "name": "visual context collection is keyed by actor + session",
+          "line": 48
+        },
+        {
+          "name": "collection enforces a six-entry ceiling",
+          "line": 71
+        },
+        {
+          "name": "stale revision entry updates are rejected",
+          "line": 105
+        },
+        {
+          "name": "appending another entry does not invalidate an in-flight entry update",
+          "line": 132
+        },
+        {
+          "name": "restarting one entry invalidates only its earlier async lifecycle",
+          "line": 174
+        },
+        {
+          "name": "reset clears all visual context state and returns preview URIs",
+          "line": 218
+        },
+        {
+          "name": "scanner return intent is actor and revision bound",
+          "line": 242
+        },
+        {
+          "name": "focus is optional and clears when the focused entry is removed",
+          "line": 271
+        },
+        {
+          "name": "collection snapshots are immutable and duplicate ids are rejected",
+          "line": 305
+        },
+        {
+          "name": "an async lifecycle completion can apply only once",
+          "line": 323
+        },
+        {
+          "name": "focus and status updates do not invalidate an in-flight scanner return intent",
+          "line": 339
+        },
+        {
+          "name": "preparation queue is FIFO, capped at two, skips removed jobs, and survives failure",
+          "line": 359
+        },
+        {
+          "name": "local image preparation strips metadata through a bounded re-encode",
+          "line": 396
+        },
+        {
+          "name": "prepareImageForPrivacyUpload rejects cloud placeholders",
+          "line": 421
+        },
+        {
+          "name": "codec failures fail closed with a safe preparation error",
+          "line": 432
+        },
+        {
+          "name": "missing re-encoded URI fails closed",
+          "line": 448
+        },
+        {
+          "name": "legacy image sanitizer restores passthrough contract for Scanner analysis",
+          "line": 462
+        },
+        {
+          "name": "buildEliseVisualContextFromScanIdentify uses only response evidence",
+          "line": 475
+        },
+        {
+          "name": "parseActiveContext accepts structured visual context",
+          "line": 528
+        },
+        {
+          "name": "buildActiveContextBlock includes visual context without local URIs",
+          "line": 553
+        },
+        {
+          "name": "active context rejects raw URI and image-byte fields",
+          "line": 576
+        },
+        {
+          "name": "active context bounds fields and neutralizes delimiter injection",
+          "line": 597
+        },
+        {
+          "name": "six-entry visual collection is accepted, ordered, and kept distinct in the prompt",
+          "line": 625
+        },
+        {
+          "name": "visual collection rejects seven entries, duplicate ids/orders, local fields, and base64-like data",
+          "line": 649
+        },
+        {
+          "name": "text-only active context remains valid without visual evidence",
+          "line": 668
+        },
+        {
+          "name": "Edge handler rejects malformed collections and acknowledges accepted collection prompts",
+          "line": 681
+        },
+        {
+          "name": "canonical scanner route appends to the visual context collection",
+          "line": 689
+        },
+        {
+          "name": "StyleChat session screen integrates the visual context collection tray",
+          "line": 701
+        },
+        {
+          "name": "top header presents Home, the Elise stylist identity, and navigation-style Scan",
+          "line": 727
+        },
+        {
+          "name": "top SCAN opens one guarded source menu and disables at collection capacity",
+          "line": 749
+        },
+        {
+          "name": "visual source menu offers canonical camera, native photos, and state-neutral cancellation",
+          "line": 762
+        },
+        {
+          "name": "StyleChat input exposes independent editing, send-disabled, and send-busy controls",
+          "line": 778
+        },
+        {
+          "name": "blocked, queued, preparing, and failed evidence disable Send but preserve typing",
+          "line": 813
+        },
+        {
+          "name": "removing blocked evidence restores Send when the draft is otherwise valid",
+          "line": 824
+        },
+        {
+          "name": "text-only and submitting states keep draft editing independent from Send",
+          "line": 829
+        },
+        {
+          "name": "session unavailability and deletion may disable both editing and Send",
+          "line": 835
+        },
+        {
+          "name": "Elise upload path wires expo-image-picker with multi-selection and never calls identify",
+          "line": 850
+        },
+        {
+          "name": "blocked picker originals are previewed but never passed to temporary-file cleanup",
+          "line": 866
+        },
+        {
+          "name": "visual context tray exposes 44dp targets and blocked-state copy",
+          "line": 874
+        },
+        {
+          "name": "canonical scanner binds gallery controls to privacy preparation availability",
+          "line": 889
+        },
+        {
+          "name": "draft store supports actor-scoped keys",
+          "line": 903
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogAnalyticsGovernance.test.js",
+      "sha256": "8e443c0444440e2319becebdac3d0a69e84cda753ea36ecdbc94e8998416b988",
+      "passedStaticNames": [
+        {
+          "name": "the client reads config only from EXPO_PUBLIC_POSTHOG_API_KEY / _HOST, no fallback",
+          "line": 36
+        },
+        {
+          "name": "isPostHogConfigured requires a non-empty key and an http(s) host",
+          "line": 45
+        },
+        {
+          "name": "GeoIP enrichment is explicitly disabled instead of inheriting the stateful SDK default",
+          "line": 60
+        },
+        {
+          "name": "every exported function no-ops when posthog is null",
+          "line": 68
+        },
+        {
+          "name": "autocapture (screens/touches) is explicitly off",
+          "line": 81
+        },
+        {
+          "name": "session replay is explicitly off",
+          "line": 85
+        },
+        {
+          "name": "exception/error autocapture is explicitly off",
+          "line": 89
+        },
+        {
+          "name": "remote feature flags and surveys are explicitly disabled",
+          "line": 93
+        },
+        {
+          "name": "the wrapper itself never calls a PostHog feature-flag or survey API",
+          "line": 99
+        },
+        {
+          "name": "only the central analytics wrapper imports posthog-react-native",
+          "line": 115
+        },
+        {
+          "name": "the .tsx Provider sibling gets PostHogProvider from core, never from the vendor package",
+          "line": 125
+        },
+        {
+          "name": "no alternative analytics/tracking SDK is a project dependency",
+          "line": 130
+        },
+        {
+          "name": "every bridged sink is registered in the wrapper and reused as-is",
+          "line": 213
+        },
+        {
+          "name": "eliseVisualAttachmentTelemetry is deliberately NOT bridged",
+          "line": 219
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogLifecyclePrivacy.test.js",
+      "sha256": "32e37d8fcfb229aa50546ec2f6559bfc3fa41c329c8af7ddf24cf861066ad987",
+      "passedStaticNames": [],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogPersistedQueuePrivacy.test.js",
+      "sha256": "5bd593424f3157d150df8e6bb2f8c91a3e004a4c03e831f255a81f7652b49478",
+      "passedStaticNames": [
+        {
+          "name": "failed cleanup persistence prevents transport, then recovers without duplicating the event",
+          "line": 91
+        },
+        {
+          "name": "unrelated SDK keys and already safe queues retain identity and do not schedule writes",
+          "line": 105
+        },
+        {
+          "name": "empty or malformed persisted state is not fabricated into new events",
+          "line": 117
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogIdentityFailure.test.js",
+      "sha256": "1682fe24e23e2c9901efdb35fab4627461702310a6c060be1bc9315f52c0af65",
+      "passedStaticNames": [
+        {
+          "name": "unverified startup blocks restored-identity feature and SDK lifecycle events",
+          "line": 50
+        },
+        {
+          "name": "failed identify invalidates the previous success cache before returning to the former actor",
+          "line": 76
+        },
+        {
+          "name": "identified SDK events must match the verified actor; valid identify and anonymous reset remain supported",
+          "line": 83
+        },
+        {
+          "name": "late SDK readiness for A cannot overwrite B, and initialization errors remain closed",
+          "line": 90
+        },
+        {
+          "name": "a successful-looking logout that retains the prior identified ID cannot capture",
+          "line": 103
+        },
+        {
+          "name": "startup anonymous sync must actually clear an unknown persisted SDK identity",
+          "line": 114
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogIdentitySync.test.js",
+      "sha256": "f5b6c40baad9929ec5553ea5825d4e5724fda12fbdbfa5fa8a479f626d66e692",
+      "passedStaticNames": [
+        {
+          "name": "the first anonymous sync clears any distinct id restored by the SDK",
+          "line": 39
+        },
+        {
+          "name": "anonymous -> identify(A) -> reset() -> identify(B): B never inherits A",
+          "line": 47
+        },
+        {
+          "name": "logout resets and does not re-identify",
+          "line": 68
+        },
+        {
+          "name": "account deletion (session -> null, same as logout) resets identity",
+          "line": 78
+        },
+        {
+          "name": "actor switch (A signs out, B signs in) always resets before identifying B",
+          "line": 91
+        },
+        {
+          "name": "re-syncing the same userId is a no-op (no redundant reset/identify churn)",
+          "line": 102
+        },
+        {
+          "name": "a null client is a safe no-op",
+          "line": 113
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/posthogDisabledStateEgress.test.js",
+      "sha256": "62727e02a74e88b3a254a6459f6e46f169f62e9477fdd33697df6f7e9c528fdb",
+      "passedStaticNames": [
+        {
+          "name": "negative control: a configured build constructs the client and captures",
+          "line": 92
+        },
+        {
+          "name": "the five bridged sinks reach PostHog only once configured",
+          "line": 106
+        },
+        {
+          "name": "the constructed client carries the V1 product-analytics-only options",
+          "line": 131
+        },
+        {
+          "name": "config values are trimmed before reaching the vendor SDK",
+          "line": 146
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    },
+    {
+      "file": "__tests__/privacyPolicy.test.js",
+      "sha256": "fe1c854918881655a4a43d727fce353247e8077b9939adad97becb79776ea673",
+      "passedStaticNames": [
+        {
+          "name": "known under-16 age groups force sale/sharing opt-out",
+          "line": 11
+        },
+        {
+          "name": "age 16 plus and unknown users may control sale/sharing opt-out",
+          "line": 25
+        },
+        {
+          "name": "privacy update patch records mobile source and does not let minors opt back in",
+          "line": 38
+        }
+      ],
+      "scope": "Named assertions executed in passing full source suite. Platform/provider dependencies are injected where the test says; no detector accuracy, device rendering or live vendor ingestion inferred."
+    }
+  ],
+  "imageRoutes": [
+    {
+      "path": "Saved-scan media backing",
+      "boundary": {
+        "file": "services/savedScanMedia.ts",
+        "line": 157,
+        "sha256": "1371c2263fbe8e08b10c4ddca4a50ee4b1f9cee303d123bd4b2140c8b2f494f4"
+      },
+      "transport": {
+        "file": "services/savedScanMedia.ts",
+        "line": 183,
+        "sha256": "1371c2263fbe8e08b10c4ddca4a50ee4b1f9cee303d123bd4b2140c8b2f494f4"
+      },
+      "preparation": "Passthrough preparation then fresh bounded JPEG to private user-scoped Supabase storage; this service does not independently mask visible faces/plates.",
+      "claim": "Upstream Scanner derivative may already be masked, but localImageUri/row fallback alone is not proof. No universal masking guarantee."
+    },
+    {
+      "path": "Dressing Room scan/inspiration uploads",
+      "boundary": {
+        "file": "services/styleObjects.ts",
+        "line": 1424,
+        "sha256": "baf1272abeb58f2766a794b4d3ce7e8cc7c897ac5f5888e2b62c76e5f5bf9e69"
+      },
+      "transport": {
+        "file": "services/styleObjects.ts",
+        "line": 1447,
+        "sha256": "baf1272abeb58f2766a794b4d3ce7e8cc7c897ac5f5888e2b62c76e5f5bf9e69"
+      },
+      "preparation": "JPEG metadata re-encode to private user-scoped Supabase storage; later public preview is controlled by an explicit share capability.",
+      "claim": "Supabase is a processor receiving image pixels. Re-encoding is not local face redaction; public sharing is a distinct action."
+    },
+    {
+      "path": "Closet candidate image classification",
+      "boundary": {
+        "file": "services/closetCandidateClassification.js",
+        "line": 253,
+        "sha256": "d72337aff5e94e165dd5e323b15510d87392ba672ee5a53b1ba7d81117f9f7ae"
+      },
+      "transport": {
+        "file": "services/closetCandidateClassification.js",
+        "line": 288,
+        "sha256": "d72337aff5e94e165dd5e323b15510d87392ba672ee5a53b1ba7d81117f9f7ae"
+      },
+      "preparation": "Compresses the staged candidate derivative for optional fashion identification; candidate/crop provenance varies by intake.",
+      "claim": "Do not infer face masking from candidate or derivative naming. Existing crop/native extraction is distinct from face-redaction evidence."
+    },
+    {
+      "path": "Receipt/purchase import",
+      "boundary": {
+        "file": "services/purchaseImport/purchaseImportImage.ts",
+        "line": 150,
+        "sha256": "1ee72bbb9a0953b277f712ff6532b2a6d9ccabc83cf076e310cbae9e8bf6774e"
+      },
+      "transport": {
+        "file": "services/purchaseImport/purchaseImportClient.ts",
+        "line": 78,
+        "sha256": "b5e2fa3fa2e534158e71d27a8b42abffb7ed5bb87d5f0b9843656e79ed39cf50"
+      },
+      "preparation": "User crop, metadata re-encode and bounded transient image for Gemini extraction; no automatic receipt text redaction exists.",
+      "claim": "Customer may submit names/addresses/payment-related printed information in an insufficient crop. The source explicitly does not guarantee PII removal."
+    },
+    {
+      "path": "Scanner camera/gallery, crops and selected/multi-item image",
+      "boundary": {
+        "file": "services/privacy/scannerImagePreparation.ts",
+        "line": 29,
+        "sha256": "952906240ae5354483785910f995ed22d364e061d17a65f9a04fc82d53d312fb"
+      },
+      "transport": {
+        "file": "services/scannerScanRequest.ts",
+        "line": 128,
+        "sha256": "5f796c5f19c94873d61d666fafe9e669d9d72f9adee3eb9b2632d5fc212387db"
+      },
+      "preparation": "Local native face masking then plate masking for Scanner, verified artifact, metadata re-encode, proof/byte registry. Capability/error/cancel failure blocks; raw/copy proofs cannot dispatch.",
+      "claim": "Orchestration source verified; real detector/pixel accuracy excluded device evidence."
+    },
+    {
+      "path": "Closet guarded cloud media sync",
+      "boundary": {
+        "file": "services/closetMediaPrivacy.ts",
+        "line": 271,
+        "sha256": "db67b6241dfc840e907370f693c0daa364fb6d6b21adebf618064f63be6be5e1"
+      },
+      "transport": {
+        "file": "services/closet/closetMediaSync.ts",
+        "line": 115,
+        "sha256": "115c676b3df9e068f1fbf7c447db2ef0b21b77cc6c08ca4cfb3beb7c03e1ab03"
+      },
+      "preparation": "Shared native boundary with default plate-positive blocking; this policy differs deliberately from Scanner mask mode.",
+      "claim": "Do not describe every Closet intake or saved-scan backing as this guarded cloud path."
+    },
+    {
+      "path": "Elise direct camera/library photo identification",
+      "boundary": {
+        "file": "services/style-chat/eliseDirectImageAttachment.ts",
+        "line": 104,
+        "sha256": "a3d61d0445308896437149c220444e626e7c7c6358504066f8abc0cad9acdb77"
+      },
+      "transport": {
+        "file": "services/style-chat/eliseDirectImageIdentification.ts",
+        "line": 108,
+        "sha256": "0bdecde56c0cc61dbc9e05659c281343409e946a7b1e770d30061cac94d58561"
+      },
+      "preparation": "Metadata-stripped JPEG re-encode; source policy explicitly reports faceMaskApplied=false and plateMaskApplied=false.",
+      "claim": "This path can transfer a person/face in submitted photo under Gemini consent. No universal masking claim."
+    },
+    {
+      "path": "Elise existing visual context",
+      "boundary": {
+        "file": "services/style-chat/eliseVisualContextEvidence.ts",
+        "line": 281,
+        "sha256": "89f7ac7c4bf677ad85860ab894f27e9c35cbcabd32ef60a1b44da1d6dfb72be3"
+      },
+      "transport": {
+        "file": "services/style-chat/eliseVisualContextEvidence.ts",
+        "line": 369,
+        "sha256": "89f7ac7c4bf677ad85860ab894f27e9c35cbcabd32ef60a1b44da1d6dfb72be3"
+      },
+      "preparation": "Transient derivative from the upstream selected media; this helper does not establish face masking.",
+      "claim": "Upstream provenance must be described accurately; no native-detector guarantee inherited from a variable named sanitizedUri."
+    },
+    {
+      "path": "Legacy Elise photo intake",
+      "boundary": {
+        "file": "components/style-chat/StyleChatPhotoIntake.tsx",
+        "line": 143,
+        "sha256": "b792c45fa67cf4d948e71b1b55e49b0197d23f9aa0adc58942726069efd4eaf5"
+      },
+      "transport": {
+        "file": "components/style-chat/StyleChatPhotoIntake.tsx",
+        "line": 170,
+        "sha256": "b792c45fa67cf4d948e71b1b55e49b0197d23f9aa0adc58942726069efd4eaf5"
+      },
+      "preparation": "Passthrough sanitizer then JPEG metadata re-encode, localPrivacyFiltered=false; mounted only with explicit composed legacy opt-in.",
+      "claim": "Dormant conditional source path, activation not established. No masking claim; not a scanner-native fallback."
+    },
+    {
+      "path": "Photo VTO person image",
+      "boundary": {
+        "file": "services/vto/vtoPersonInput.ts",
+        "line": 99,
+        "sha256": "2a79f0bd2341d942cf1d9a1c5cf5464e2c81217367609ea6cb9b6492f89186e2"
+      },
+      "transport": {
+        "file": "services/vto/vtoPersonInput.ts",
+        "line": 155,
+        "sha256": "2a79f0bd2341d942cf1d9a1c5cf5464e2c81217367609ea6cb9b6492f89186e2"
+      },
+      "preparation": "Metadata re-encode, bounded transient person payload; intentional photo try-on needs the person appearance. Separate third-party disclosure/consent.",
+      "claim": "Must not inherit Scanner face-mask/Zero-Knowledge language."
+    }
+  ],
+  "processingConclusions": {
+    "H001": "Known G008/G013 implementation defects source-repaired; payload/identity/lifecycle/restored-queue source controls tested. Approved legal basis, provider event retention/deletion and published artifact binding are external evidence gaps, not independently proven implementation defects or automatically P0.",
+    "H003": "Source differences between native masking and metadata-only paths established. Native detector/pixel accuracy unverified and explicitly excluded from this audit; universal Zero-Knowledge claim unsupported."
+  }
+}

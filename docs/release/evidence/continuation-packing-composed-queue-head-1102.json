@@ -1,0 +1,165 @@
+{
+  "records": [
+    {
+      "probeId": "B35-PACKING-COMPOSED-golden",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Validated owned plan renders",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "success",
+        "visibleStatus": "ready",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-provider500",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-provider429",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-timeout",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-empty",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "no_result",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-malformed",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "no_result",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-wrongSchema",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "no_result",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-quotaUnavailable",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 500,
+        "backendStatus": "error",
+        "visibleStatus": "failed",
+        "reservations": 1,
+        "providers": 0,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-entitlementDenied",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Visible recoverable failure; no success/cached plan",
+      "actual": {
+        "httpStatus": 403,
+        "backendStatus": "not_entitled",
+        "visibleStatus": "failed",
+        "reservations": 0,
+        "providers": 0,
+        "closetReads": 0,
+        "entitlementReads": 1
+      },
+      "verdict": "PASS"
+    },
+    {
+      "probeId": "B35-PACKING-COMPOSED-weatherUnavailable",
+      "sourceSha": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+      "environment": "Offline actual source composition; injected backend provider/entitlement/Closet dependencies; controlled client/native SDK transport",
+      "expected": "Validated owned plan renders",
+      "actual": {
+        "httpStatus": 200,
+        "backendStatus": "success",
+        "visibleStatus": "ready",
+        "reservations": 1,
+        "providers": 1,
+        "closetReads": 1,
+        "entitlementReads": 2
+      },
+      "verdict": "PASS"
+    }
+  ],
+  "limits": "No live HTTP/JWT/database/provider, store or native device certification. Provider failures injected at actual handler dependency boundary; adapter-specific HTTP handling remains separately tested."
+}

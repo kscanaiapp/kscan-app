@@ -1,0 +1,301 @@
+[
+  {
+    "event": "test:pass",
+    "name": "real alignment drives the mouth from the native playback position",
+    "nesting": 0,
+    "testNumber": 1,
+    "details": {
+      "duration_ms": 3.6636,
+      "type": "test"
+    },
+    "line": 44,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "every frame carries the contract version and its identity triple",
+    "nesting": 0,
+    "testNumber": 2,
+    "details": {
+      "duration_ms": 0.4422,
+      "type": "test"
+    },
+    "line": 57,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "malformed alignment is unusable and falls back rather than throwing",
+    "nesting": 0,
+    "testNumber": 3,
+    "details": {
+      "duration_ms": 0.3837,
+      "type": "test"
+    },
+    "line": 70,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a corrupt row costs one interval instead of truncating the utterance",
+    "nesting": 0,
+    "testNumber": 4,
+    "details": {
+      "duration_ms": 0.4039,
+      "type": "test"
+    },
+    "line": 80,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "genuinely empty alignment keeps the mouth closed instead of miming",
+    "nesting": 0,
+    "testNumber": 5,
+    "details": {
+      "duration_ms": 0.2877,
+      "type": "test"
+    },
+    "line": 91,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "missing alignment uses playback-anchored fallback, never a free-running cycle",
+    "nesting": 0,
+    "testNumber": 6,
+    "details": {
+      "duration_ms": 1.8219,
+      "type": "test"
+    },
+    "line": 102,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "the alignment-driven mouth is independent of the host clock",
+    "nesting": 0,
+    "testNumber": 7,
+    "details": {
+      "duration_ms": 0.6503,
+      "type": "test"
+    },
+    "line": 123,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a missing duration does not affect frame calculation",
+    "nesting": 0,
+    "testNumber": 8,
+    "details": {
+      "duration_ms": 0.3735,
+      "type": "test"
+    },
+    "line": 142,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "playback that stalls holds its state rather than resetting",
+    "nesting": 0,
+    "testNumber": 9,
+    "details": {
+      "duration_ms": 0.2121,
+      "type": "test"
+    },
+    "line": 159,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "an unavailable position holds the last known one instead of seeking to zero",
+    "nesting": 0,
+    "testNumber": 10,
+    "details": {
+      "duration_ms": 0.4813,
+      "type": "test"
+    },
+    "line": 171,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a backward seek re-anchors the cursor and stays correct",
+    "nesting": 0,
+    "testNumber": 11,
+    "details": {
+      "duration_ms": 0.2817,
+      "type": "test"
+    },
+    "line": 190,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a large forward jump resolves to the correct interval",
+    "nesting": 0,
+    "testNumber": 12,
+    "details": {
+      "duration_ms": 0.8195,
+      "type": "test"
+    },
+    "line": 200,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a position past the end of the timeline closes the mouth",
+    "nesting": 0,
+    "testNumber": 13,
+    "details": {
+      "duration_ms": 0.137,
+      "type": "test"
+    },
+    "line": 211,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a negative or non-finite position is refused without throwing",
+    "nesting": 0,
+    "testNumber": 14,
+    "details": {
+      "duration_ms": 0.1967,
+      "type": "test"
+    },
+    "line": 219,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "alignment arriving after playback started does not rewind the mouth",
+    "nesting": 0,
+    "testNumber": 15,
+    "details": {
+      "duration_ms": 0.3904,
+      "type": "test"
+    },
+    "line": 229,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a host that rebuilds its alignment object every frame does not recompile",
+    "nesting": 0,
+    "testNumber": 16,
+    "details": {
+      "duration_ms": 0.4455,
+      "type": "test"
+    },
+    "line": 243,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "capability fallback keeps a package from being asked to draw what it lacks",
+    "nesting": 0,
+    "testNumber": 17,
+    "details": {
+      "duration_ms": 0.1279,
+      "type": "test"
+    },
+    "line": 262,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a package with no approved closed mouth is never animated",
+    "nesting": 0,
+    "testNumber": 18,
+    "details": {
+      "duration_ms": 0.155,
+      "type": "test"
+    },
+    "line": 273,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "reduce motion is fully static and deterministic",
+    "nesting": 0,
+    "testNumber": 19,
+    "details": {
+      "duration_ms": 0.2577,
+      "type": "test"
+    },
+    "line": 287,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "background is neutral and never advances anything",
+    "nesting": 0,
+    "testNumber": 20,
+    "details": {
+      "duration_ms": 0.1388,
+      "type": "test"
+    },
+    "line": 304,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a calculation failure produces a neutral frame instead of throwing outward",
+    "nesting": 0,
+    "testNumber": 21,
+    "details": {
+      "duration_ms": 0.6379,
+      "type": "test"
+    },
+    "line": 317,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a null or malformed snapshot is absorbed",
+    "nesting": 0,
+    "testNumber": 22,
+    "details": {
+      "duration_ms": 0.1617,
+      "type": "test"
+    },
+    "line": 334,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  },
+  {
+    "event": "test:pass",
+    "name": "a disposed runtime keeps answering neutrally",
+    "nesting": 0,
+    "testNumber": 23,
+    "details": {
+      "duration_ms": 0.1366,
+      "type": "test"
+    },
+    "line": 343,
+    "column": 1,
+    "file": "C:\\b35converge1030\\__tests__\\avatarEngineContract.test.js"
+  }
+]

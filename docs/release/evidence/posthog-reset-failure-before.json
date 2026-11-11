@@ -1,0 +1,20 @@
+{
+  "boundary": "actual wrapper + identity helper, injected SDK reset failure",
+  "sent": [
+    {
+      "event": "kplus_feature_exposed",
+      "properties": {
+        "source": "account",
+        "distinct_id": "actor-A"
+      }
+    }
+  ],
+  "expected": "No B event emitted under prior A identity when reset fails",
+  "environment": "offline; no vendor/network",
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1",
+  "sourceFileSha256": {
+    "services/analytics/posthogClient.core.ts": "31bdd508c16bc9dbbb34f38114874a44cc5041c96c9a8209f7db6ffb1c66b4fa",
+    "services/analytics/posthogIdentitySync.ts": "ba6cee0950158287f35c41ce532c26c773fcdf857b6e9545a079bd87e2d31b79"
+  },
+  "verdict": "FAIL"
+}

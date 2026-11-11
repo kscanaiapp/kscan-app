@@ -1,0 +1,43 @@
+{
+  "id": "B35-E-020",
+  "priority": "P3",
+  "status": "CLOSED IN SOURCE / MERGED675 /9of9branchCI",
+  "sourceSha": "8ffd1ccaa552d74358071d77d499b0a4615be7c1",
+  "sourceLocation": "hooks/usePackingPlan.ts:264 refineWith queues a task before capturing actor scope; task reads whatever trip/session is current when dequeued",
+  "contract": "Actor epoch and session intent must be captured before every asynchronous boundary; an old trip refinement cannot change a new trip.",
+  "reproduction": "node --test packing-queued-refinement-1102.test.cjs using the retained rig on source tree ef7dd267 (reviewedb86f=merged8ffd). Generate Paris; queue2refinements; hold first; switchA-B-A; generate/completeRome; resolveoldfirst; queuedoldtask incorrectly dispatchesRome with old note.",
+  "actual": "Expected3requests, actual4. Fourthrequest destinationRome/notes[Old trip queued note], new trip changes from ready to generating. Initial fixture and captured payload outputs retained.",
+  "rootCause": "Actor authority captured only inside run after waiting for queue; refinement callback reads new session and mutates its notes before run.",
+  "impact": "Stale user intent modifies a newly generated plan and triggers an unnecessary provider-bound request/quota use. No cross-user data access or disclosure demonstrated.",
+  "repairPlan": "Capture actor epoch and original Packing session before enqueue; discard stale actor/session work before notes/exclusions or any provider-bound request. Preserve successful same-session serialization.",
+  "evidence": "resume1102-packing-queued-refinement-confirmed-1102.log.gz",
+  "regression": "Four actual hook/store/client tests for departed epoch, same-actor replaced trip, valid cumulative ordering and preceding failure recovery;118relatedPASS/0FAIL/0SKIP. Original exact counterexample independently rerun andPASS:3requests, no fourth old-note request, current trip remainsready.",
+  "pr": 675,
+  "reviewedHead": "60d50d3c5ccf17723e94b6b96c3e798c96525597",
+  "reviewedTree": "47eac07753fc0f751736aca681619718482f3dca",
+  "repair": "Capture actor epoch and original session before enqueue; refuse stale actor/session work before any constraint mutation or request. Twofiles only; no wire/API/schema/copy change.",
+  "additionalComposition": "16source cases rerun on this exact changed hook:10actualhandler/UIprovider/gate cases,5timeout/cache/navigation/checklist cases and1originalcounterexample.16PASS/0FAIL/0SKIP, not added as16mandatorycells.",
+  "typeScriptExitCode": 0,
+  "sourceGates": 6,
+  "scope": "Actual committed2pathdiff,0VTO-ownedpaths; bothNOTJUDGEDbyVTOownershipgate. Fingerprintsremaincurrent; none regenerated or renewed.",
+  "mergeOrder": "674 fully closed before675implementation;675merged separately only after exact-head green checks and no unresolved reviews/threads",
+  "merge": "0e3208f8d64605799ebfae70c0183f4383becb2e",
+  "testedMerge": "cec5a27a40a586739b716f3530d7ce802739f817",
+  "identicalGitTree": "47eac07753fc0f751736aca681619718482f3dca",
+  "fullNode": {
+    "pass": 11405,
+    "fail": 0,
+    "skip": 96
+  },
+  "fullBackend": {
+    "pass": 1591,
+    "fail": 0
+  },
+  "currentHeadPremerge": {
+    "success": 34,
+    "conditionalSkip": 20,
+    "fail": 0,
+    "pending": 0
+  },
+  "postmergeCi": "continuation-mobile-0e32-branch-ci.json"
+}

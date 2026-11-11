@@ -1,0 +1,44 @@
+[
+  {
+    "id": "edge-parity",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/check-edge-function-parity.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "backend-authority",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/verify-backend-authority.js --json",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "native-config",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/check-native-config-parity.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "migration-provenance",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/check-migration-provenance.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "dependency-reachability",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/check-dependency-reachability.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  },
+  {
+    "id": "release-profile",
+    "source": "01d781977e3a275fe4f52c8db8c2c5b725ea2a17",
+    "command": "node scripts/check-build35-release-profile.js",
+    "exitCode": 0,
+    "verdict": "PASS"
+  }
+]

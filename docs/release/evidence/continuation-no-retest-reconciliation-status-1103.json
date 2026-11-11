@@ -1,0 +1,105 @@
+{
+  "capturedAt": "2026-11-03T19:49:11.456Z",
+  "directive": "https://github.com/kscanaiapp/kscan-app/pull/646#issuecomment-6612758143",
+  "phase": "BOUNDED BATCH COMPLETE / STOP AT EVIDENCE CHECKPOINT / AUDIT IN PROGRESS",
+  "authorities": {
+    "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5",
+    "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+    "evidenceBase": "49ab7fada3639587911849080ff33c6ad17fd9df"
+  },
+  "completedArtifacts": 50,
+  "sourceFingerprintMatches": 45,
+  "sourceFingerprintDifferences": 0,
+  "a4HashesValidated": 17,
+  "webhookPostSourceEquivalence": true,
+  "proposalsOnly": {
+    "A2": {
+      "cells": 139,
+      "sourcePASS": 73,
+      "N_A": 30,
+      "NT": 36
+    },
+    "A4": {
+      "distinctOriginalCells": 25,
+      "sourcePASS": 20,
+      "NT": 5,
+      "supplementalSqlCases": 5
+    }
+  },
+  "baselineOriginalMatrix": {
+    "total": 3096,
+    "PASS": 138,
+    "FAIL": 1,
+    "NOT_TESTED": 2957,
+    "N_AIncludedInNT": 318
+  },
+  "newTestExecutionSinceDirective": 0,
+  "noRetest": "Do not execute imported harnesses or completedGemini/Receipt/Scanner/discovery/savedscan/Packing/RevenueCat/broadNode/backend suites. Read artifact/source equivalence;adjudicate every original ID without adding overlapping suite totals.",
+  "separateOwners": {
+    "privacy": "#703 residual<=10 image/privacy cases,not duplicated",
+    "operational": "#706 RevenueCatProductionrecoveryfailed;activation/platformartifacthold remains",
+    "integration": [
+      "#711Packingopen22160d9b,missingContractcheckartifact",
+      "691WatchlistW2opendraft596e2c01;local90f07f5eoldbaselinepreserved,do not overwrite remote;preservebothpremiumfingerprintchanges"
+    ]
+  },
+  "next": "Review current #691/#711 source integration and exact-head security gate/Contract artifact failure separately;do not rerun completed suites. Await #703 evidence and #706 recovery. No next hostile test batch started by this checkpoint.",
+  "adjudication": {
+    "at": "2026-11-03T19:49:11.456Z",
+    "status": "RECONCILED / NO NEW TEST EXECUTION",
+    "baseline": {
+      "PASS": 138,
+      "NOT TESTED": 2957,
+      "FAIL": 1
+    },
+    "after": {
+      "PASS": 217,
+      "NOT TESTED": 2878,
+      "FAIL": 1
+    },
+    "distinctOriginalCellsReviewed": 168,
+    "newSourcePASS": 79,
+    "newNA": 36,
+    "retainedNT": 53,
+    "NAIncludedInNT": 354,
+    "remainingApplicableNT": 2524,
+    "A2": {
+      "PASS": 56,
+      "NA": 36,
+      "NT": 47
+    },
+    "A4": {
+      "PASS": 19,
+      "NT": 6
+    },
+    "A7": {
+      "localCasesReviewed": 14,
+      "newOriginalPASS": 4,
+      "independentExecutionInflation": false
+    },
+    "originalFailure": "B35-MAND-0141 retained unchanged;#691 source convergence pending",
+    "authority": {
+      "mobile": "8c0cd7756e6a692d0aea4407b0cd49d11a72ea5c",
+      "backend": "0bed36cc9e3b2879e16d0b76cae729070a0873a5"
+    },
+    "newTestsRun": 0
+  },
+  "boundedBatch": "bounded-quota-1103/batch-checkpoint.json",
+  "currentOriginalMatrix": {
+    "total": 3096,
+    "PASS": 220,
+    "NOT TESTED": 2875,
+    "FAIL": 1,
+    "NAIncludedInNT": 354,
+    "newPASS": [
+      "B35-MAND-1185",
+      "B35-MAND-1142",
+      "B35-MAND-1180"
+    ],
+    "partialStillNT": [
+      "B35-MAND-1141",
+      "B35-MAND-1184"
+    ],
+    "failureUnchanged": "B35-MAND-0141/#691"
+  }
+}

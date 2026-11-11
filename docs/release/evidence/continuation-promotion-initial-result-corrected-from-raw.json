@@ -1,0 +1,15 @@
+{
+  "sourceSha": "148e48d26ac390de40ec21aed0efa41f29870775",
+  "exitCode": 1,
+  "counts": {
+    "tests": 11444,
+    "suites": 2,
+    "pass": 11345,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 98,
+    "todo": 0
+  },
+  "verdict": "FAIL",
+  "reason": "Old unanchored summary parser matched nested TAP text inside assertion diagnostics; raw top-level summary and nonzero exit establish the failure. Runner now accepts anchored summary lines and validates the count sum."
+}

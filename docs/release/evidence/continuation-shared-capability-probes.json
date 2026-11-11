@@ -1,0 +1,892 @@
+{
+  "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+  "capturedAt": "2026-10-30T19:36:09.793Z",
+  "sourceHashes": {
+    "supabase/functions/shared-room-image-url/index.ts": "739dbc6d56bcb7776ca378191b99a39e47799e3845011e97ce31c3eb46ed6800",
+    "supabase/functions/shared-room-image-url/validation.ts": "6ca15d78a7a0f64d674281a738da36e5e920a427a66eb30d3a36585e683cc73d"
+  },
+  "records": [
+    {
+      "probeId": "B35-SHARE-public-capability-baseline",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "public-capability-baseline",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-unknown-capability",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "unknown-capability",
+      "expected": {
+        "status": 404,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-revoked-capability",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "revoked-capability",
+      "expected": {
+        "status": 404,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-expired-capability",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "expired-capability",
+      "expected": {
+        "status": 404,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-foreign-room-item",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "foreign-room-item",
+      "expected": {
+        "status": 200,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-client-storage-path-ignored",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "client-storage-path-ignored",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-body-0",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-body-0",
+      "expected": {
+        "status": 500,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-body-1",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-body-1",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-body-2",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-body-2",
+      "expected": {
+        "status": 500,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-body-3",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-body-3",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-body-4",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-body-4",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-0",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-0",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-1",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-1",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-2",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-2",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-3",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-3",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-4",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-4",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-capability-5",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-capability-5",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-invalid-item-type",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "invalid-item-type",
+      "expected": {
+        "status": 400,
+        "noSign": false,
+        "noBackend": true
+      },
+      "actual": {
+        "status": 400,
+        "backendCalls": 0,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-backend500",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-backend500",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-backend429",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-backend429",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-backend401",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-backend401",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-timeout",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-timeout",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-malformed",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-malformed",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-empty",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-empty",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-shares-wrongSchema",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "shares-wrongSchema",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 1,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-backend500",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-backend500",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-backend429",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-backend429",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-backend401",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-backend401",
+      "expected": {
+        "status": 404,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 404,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-timeout",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-timeout",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-malformed",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-malformed",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-empty",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-empty",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-rooms-wrongSchema",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "rooms-wrongSchema",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 2,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-backend500",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-backend500",
+      "expected": {
+        "status": 200,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-backend429",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-backend429",
+      "expected": {
+        "status": 200,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-backend401",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-backend401",
+      "expected": {
+        "status": 200,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-timeout",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-timeout",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-malformed",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-malformed",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-empty",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-empty",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-items-wrongSchema",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "items-wrongSchema",
+      "expected": {
+        "status": 500,
+        "noSign": true,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 3,
+        "signedCalls": 0
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-backend500",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-backend500",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-backend429",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-backend429",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-backend401",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-backend401",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-timeout",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-timeout",
+      "expected": {
+        "status": 500,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-malformed",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-malformed",
+      "expected": {
+        "status": 500,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-empty",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-empty",
+      "expected": {
+        "status": 500,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 500,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-sign-wrongSchema",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "sign-wrongSchema",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    },
+    {
+      "probeId": "B35-SHARE-storage-sign-failure",
+      "sourceSha": "06e1e1e5afd9c179f68e0a51090d60beb8582a9c",
+      "environment": "Actual handler; offline synthetic backend; network denied",
+      "input": "storage-sign-failure",
+      "expected": {
+        "status": 200,
+        "noSign": false,
+        "noBackend": false
+      },
+      "actual": {
+        "status": 200,
+        "backendCalls": 4,
+        "signedCalls": 1
+      },
+      "verdict": "PASS",
+      "limitation": "Capability-authorized public route; not JWT validation, real database RLS, membership removal, signed URL expiry or native UI certification"
+    }
+  ],
+  "matchedOriginalCells": [
+    "B35-MAND-1000",
+    "B35-MAND-1001",
+    "B35-MAND-1002",
+    "B35-MAND-1004",
+    "B35-MAND-1005",
+    "B35-MAND-1019",
+    "B35-MAND-1020",
+    "B35-MAND-1021",
+    "B35-MAND-1022",
+    "B35-MAND-1023",
+    "B35-MAND-1024",
+    "B35-MAND-1025"
+  ],
+  "nonApplicableOriginalCells": [
+    "B35-MAND-1007",
+    "B35-MAND-1008",
+    "B35-MAND-1009",
+    "B35-MAND-1010",
+    "B35-MAND-1026",
+    "B35-MAND-1027",
+    "B35-MAND-1028",
+    "B35-MAND-1029",
+    "B35-MAND-1030",
+    "B35-MAND-1031"
+  ],
+  "environment": "Actual handler, synthetic backend, network denied",
+  "invalidFixture": {
+    "file": "shared-capability-invalid-storage-fixture.log.gz",
+    "reason": "Initial baseline used an unapproved bucket/path. Source correctly refused signing; fixture corrected to documented style-library-images/<owner>/scans/*.jpg. No product defect."
+  },
+  "limitations": [
+    "Public share capability is intentionally independent from user JWT; this does not prove authenticated User A/B isolation or removed-member behavior.",
+    "Native UI, live Supabase RLS, real storage expiry and provider service health remain separate.",
+    "A thrown synthetic timeout proves exception handling; it does not establish wall-clock timeout bounds for a hanging fetch."
+  ]
+}

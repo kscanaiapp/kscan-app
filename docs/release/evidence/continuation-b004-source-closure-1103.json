@@ -1,0 +1,78 @@
+{
+  "capturedAt": "2026-11-03T12:53:47.653Z",
+  "finding": "B35-B-004",
+  "priority": "P4",
+  "status": "SOURCE CLOSED / CANONICAL698 + MOBILE699 MERGED / 7+9 POSTMERGE WORKFLOWS SUCCESS / DEPLOYED RUNTIME NOT VERIFIED",
+  "authorization": "continuation-owner-repair-authorization-1102.json",
+  "canonical": {
+    "pr": 698,
+    "reviewed": "28321246252babb1f2e47e18f7c5c9883691f0f1",
+    "testedMerge": "260ae52c5cb69fa82703a8197f33459a9310e141",
+    "merge": "53bf7cc2aeeeceb556ef2d01671c941038c83bfc",
+    "tree": "de0ef02cabad3bd4788af937c76780449833326c",
+    "checks": "32SUCCESS/14conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmerge",
+    "postmerge": "7of7pushworkflowsSUCCESS;actual8581NodePASS/0FAIL/65SKIP;1588backendPASS/17steps/0FAIL"
+  },
+  "mobile": {
+    "pr": 699,
+    "sha": "77a6b97f86b21bf619e051646b635e3ce26b7f73",
+    "reviewed": "2109b77b10e987fb1d6d0153526a07ea3e11f77e",
+    "testedMerge": "3d526c7a6a8560d5ff0cc56a716d904d483e18da",
+    "tree": "7a874ad3c7b1aeea4a8151f826f744937f719703",
+    "reviewedChecks": "34SUCCESS/20conditionalSKIP/0FAIL;CLEANready;reviewsandthreadsempty;normalmerge",
+    "reviewedFullSuite": "11477NodePASS/0FAIL/96SKIP;1604backendPASS/17steps/0FAIL",
+    "postmerge": "9of9independentpushworkflowsSUCCESS;actual11477NodePASS/0FAIL/96SKIP;1604backendPASS/17steps/0FAIL"
+  },
+  "before": {
+    "original": "9512 actualhandler nullTypeError/no provider or write;twofixtureassumptionsalsofailed;rawretained",
+    "current": "d1be actualhandler:11compatibilitystepsPASS/6nonrecordstepsFAIL/1failedparent;nullTypeError,zeroprovider/postcalls"
+  },
+  "after": {
+    "handler": "1PASS/17nestedstepsPASS/0FAIL",
+    "node": "67PASS/0FAIL",
+    "fullBackend": "1588PASS/17nestedsteps/0FAIL",
+    "typescript": "initialexit2becausepreserveddependencyarchivewasundertheincludepath;movedoutsidecheckout;unchangedsourceexit0/session51298",
+    "gates": "5exit0onclean28321246tree",
+    "manifests": "current;scanv2Activationhashonlyruntimechange;newtesttreeentry;crosspath20samefilelist"
+  },
+  "mobileLocalValidation": {
+    "initialPromotion": "71PASS/4expectedmanifestorderFAIL/2explicitNAskips;rawretained",
+    "correctedPromotion": "75PASS/0FAIL/2explicitNAskips;lexicalgeneratorordering,comparisonnotweakened",
+    "backend": "1604PASS/17handlersteps/0FAIL",
+    "typescript": "exit0/session26201;committedmobilelocksemanticsmatchsharepromote1030cache",
+    "sourceGates": "6exit0onclean2109tree",
+    "manifests": "current;20crosspathfiles"
+  },
+  "actualNullProbe": {
+    "input": "null",
+    "authorized": true,
+    "method": "POST",
+    "actual": {
+      "status": 400,
+      "result": {
+        "status": "failed",
+        "error": {
+          "code": "MALFORMED_REQUEST",
+          "message": "Malformed request."
+        }
+      },
+      "providerCalls": 0,
+      "postCalls": 0,
+      "authReads": 1,
+      "profileReads": 1,
+      "consentReads": 0,
+      "quotas": []
+    }
+  },
+  "sourceEquivalence": "Router and actualhandlerregression exact canonical53bf bytes on reviewed2109/test3d526/merged77a6 tree7a874ad3;historicalcatalog/F025source preserved",
+  "rawEvidence": [
+    "resume1103-scanner-null-current-before-1103.log.gz",
+    "resume1103-scanner-null-after-1103.log.gz",
+    "resume1103-pr698-reviewed-project-raw.log.gz",
+    "resume1103-backend-53bf-project-postmerge-raw.log.gz",
+    "resume1103-pr699-reviewed-project-raw.log.gz",
+    "resume1103-mobile-77a6-project-postmerge-raw.log.gz"
+  ],
+  "limits": "Auth/account/consent/quota transport and providers synthetic;actual handler and router;no real JWT signature/RLS/live provider/device/Production claim",
+  "next": "Resume existing audit: reconcile prepared Watchlist source PRs and their failing CI without duplicate repairs; retain scheduler/worker activation holds; continue original B/C/G/D/E/H/A coverage."
+}

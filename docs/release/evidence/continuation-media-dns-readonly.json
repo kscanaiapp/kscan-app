@@ -1,0 +1,31 @@
+{
+  "capturedAt": "2026-10-30T15:36:02.838Z",
+  "records": [
+    {
+      "hostname": "127.0.0.1.nip.io",
+      "answers": [
+        {
+          "address": "127.0.0.1",
+          "family": 4
+        }
+      ],
+      "method": "DNS lookup only; no HTTPS/private-address request"
+    },
+    {
+      "hostname": "169.254.169.254.nip.io",
+      "errorCode": "ENOENT",
+      "method": "DNS lookup only; no HTTPS/private-address request"
+    },
+    {
+      "hostname": "127.0.0.1.sslip.io",
+      "answers": [
+        {
+          "address": "127.0.0.1",
+          "family": 4
+        }
+      ],
+      "method": "DNS lookup only; no HTTPS/private-address request"
+    }
+  ],
+  "limitation": "Local resolver evidence only. No connection to resolved addresses; does not prove Supabase DNS/TLS/egress behavior or private resource access."
+}

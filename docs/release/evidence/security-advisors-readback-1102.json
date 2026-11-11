@@ -1,0 +1,1867 @@
+{
+  "readOnly": true,
+  "staging": {
+    "result": {
+      "lints": [
+        {
+          "name": "rls_enabled_no_policy",
+          "title": "RLS Enabled No Policy",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+          "count": 34,
+          "findings": [
+            {
+              "detail": "Table \\`internal.edge_function_errors\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "edge_function_errors",
+                "type": "table",
+                "schema": "internal"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.apple_auth_credentials\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "apple_auth_credentials",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.deleted_owner_retained_media\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "deleted_owner_retained_media",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.deletion_state_transitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "deletion_state_transitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_activation_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_activation_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_activations\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_activations",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_grants\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_grants",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_transitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_transitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_codes\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_codes",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_definitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_definitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_redemption_attempts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_redemption_attempts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_redemptions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_redemptions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_provider_reconciliation_controls\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_provider_reconciliation_controls",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_revenuecat_mirror_queue\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_revenuecat_mirror_queue",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_revenuecat_product_cache\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_revenuecat_product_cache",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.privacy_request_rate_limits\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "privacy_request_rate_limits",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.product_catalog\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "product_catalog",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.provider_request_limits\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "provider_request_limits",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.provider_security_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "provider_security_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.speech_daily_cost\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_daily_cost",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.speech_provider_control\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_provider_control",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.speech_request_reservations\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_request_reservations",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.style_chat_burst_usage\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "style_chat_burst_usage",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.style_outfit_burst_usage\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "style_outfit_burst_usage",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.stylechat_quota_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "stylechat_quota_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.vto_generation_requests\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "vto_generation_requests",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.waitlist_signups\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "waitlist_signups",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.watchlist_push_receipts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "watchlist_push_receipts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_actions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_actions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_auth_attempts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_auth_attempts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_messages\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_messages",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_pairings\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_pairings",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_results\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_results",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Table \\`public.wearable_sessions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "wearable_sessions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            }
+          ]
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "title": "Public Can Execute SECURITY DEFINER Function",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+          "count": 3,
+          "findings": [
+            {
+              "detail": "Function `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_item_reaction_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_item_reaction_counts",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_ids uuid[], p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_decision_preview(p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_decision_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_decision_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_preview(p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            }
+          ]
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "title": "Signed-In Users Can Execute SECURITY DEFINER Function",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+          "count": 50,
+          "findings": [
+            {
+              "detail": "Function `public.block_dressing_room_user(p_target_user_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/block_dressing_room_user`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "block_dressing_room_user",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_target_user_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.can_access_room_messages(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/can_access_room_messages`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "can_access_room_messages",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.can_react_to_dressing_room_item(p_item_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/can_react_to_dressing_room_item`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "can_react_to_dressing_room_item",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.cast_outfit_decision_vote(p_group_id uuid, p_option_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cast_outfit_decision_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "cast_outfit_decision_vote",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid, p_option_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.check_and_increment_style_outfit_burst(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/check_and_increment_style_outfit_burst`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "check_and_increment_style_outfit_burst",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.check_and_increment_stylechat_burst(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/check_and_increment_stylechat_burst`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "check_and_increment_stylechat_burst",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.complete_provider_request(p_reservation_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/complete_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "complete_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_reservation_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.consume_stylechat_request_quota(p_request_id text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/consume_stylechat_request_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "consume_stylechat_request_quota",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_request_id text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.create_dressing_room_message(p_room_id uuid, p_body text, p_client_message_id uuid, p_parent_message_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_dressing_room_message`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_dressing_room_message",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_body text, p_client_message_id uuid, p_parent_message_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.create_look_from_dressing_room_items(p_dressing_room_id uuid, p_title text, p_description text, p_item_ids uuid[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_look_from_dressing_room_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_look_from_dressing_room_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_dressing_room_id uuid, p_title text, p_description text, p_item_ids uuid[]",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.create_look_from_owned_items(p_title text, p_description text, p_source text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_explanation text, p_prompt_version text, p_contract_version text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_look_from_owned_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_look_from_owned_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_title text, p_description text, p_source text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_explanation text, p_prompt_version text, p_contract_version text, p_items jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.create_or_get_room_share(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_or_get_room_share`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_or_get_room_share",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.ensure_privacy_settings()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/ensure_privacy_settings`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "ensure_privacy_settings",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.evaluate_provider_abuse_state(p_user_id uuid, p_function_name text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/evaluate_provider_abuse_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "evaluate_provider_abuse_state",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_user_id uuid, p_function_name text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.finalize_elise_generation_operation(p_operation_id uuid, p_status text, p_assistant_message_id uuid, p_stable_error_class text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/finalize_elise_generation_operation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "finalize_elise_generation_operation",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid, p_status text, p_assistant_message_id uuid, p_stable_error_class text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_item_reaction_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_item_reaction_counts",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_ids uuid[], p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_my_deletion_status()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_my_deletion_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_my_deletion_status",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_my_kplus_entitlement_summary()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_my_kplus_entitlement_summary`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_my_kplus_entitlement_summary",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_outfit_decision_vote_counts(p_group_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_outfit_decision_vote_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_outfit_decision_vote_counts",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_decision_preview(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_decision_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_decision_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_preview(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.get_stylechat_daily_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_stylechat_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_stylechat_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.has_active_k_plus()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/has_active_k_plus`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "has_active_k_plus",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.increment_style_chat_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_style_chat_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_style_chat_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.increment_style_outfit_daily_usage(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_style_outfit_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_style_outfit_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.increment_stylechat_daily_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_stylechat_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_stylechat_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.increment_stylechat_daily_usage_idempotent(p_operation_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_stylechat_daily_usage_idempotent`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_stylechat_daily_usage_idempotent",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_key text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.is_active_account()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_active_account`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "is_active_account",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.join_room_via_share_token(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/join_room_via_share_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "join_room_via_share_token",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.list_dressing_room_blocked_users()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_dressing_room_blocked_users`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_dressing_room_blocked_users",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.list_dressing_room_messages(p_room_id uuid, p_limit integer, p_cursor_created_at timestamp with time zone, p_cursor_id uuid, p_direction text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_dressing_room_messages`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_dressing_room_messages",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_limit integer, p_cursor_created_at timestamp with time zone, p_cursor_id uuid, p_direction text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.list_shared_rooms_for_me()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_shared_rooms_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_shared_rooms_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.mark_elise_generation_generating(p_operation_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/mark_elise_generation_generating`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "mark_elise_generation_generating",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.recompute_signature_style()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/recompute_signature_style`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "recompute_signature_style",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.register_user_device_session(p_device_key text, p_platform text, p_label text, p_auth_session_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/register_user_device_session`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "register_user_device_session",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_device_key text, p_platform text, p_label text, p_auth_session_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.release_provider_request(p_reservation_id uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/release_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "release_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_reservation_id uuid, p_reason text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.remove_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/remove_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "remove_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.reserve_elise_generation_operation(p_session_id uuid, p_source_message_id uuid, p_operation_key text, p_request_id text, p_operation_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reserve_elise_generation_operation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "reserve_elise_generation_operation",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_session_id uuid, p_source_message_id uuid, p_operation_key text, p_request_id text, p_operation_type text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.reserve_provider_request(p_function_name text, p_provider_category text, p_request_id uuid, p_request_fingerprint text, p_cost_units numeric)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reserve_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "reserve_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_function_name text, p_provider_category text, p_request_id uuid, p_request_fingerprint text, p_cost_units numeric",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.resolve_dressing_room_collaboration_access(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/resolve_dressing_room_collaboration_access`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "resolve_dressing_room_collaboration_access",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.revalidate_elise_generation_context(p_operation_id uuid, p_session_id uuid, p_source_message_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revalidate_elise_generation_context`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "revalidate_elise_generation_context",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid, p_session_id uuid, p_source_message_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.revoke_room_share(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revoke_room_share`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "revoke_room_share",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.save_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/save_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "save_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.set_dressing_room_item_reaction(p_room_id uuid, p_item_id uuid, p_reaction_type text, p_active boolean, p_request_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_dressing_room_item_reaction`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "set_dressing_room_item_reaction",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_item_id uuid, p_reaction_type text, p_active boolean, p_request_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.set_outfit_decision_state(p_group_id uuid, p_action text, p_option_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_outfit_decision_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "set_outfit_decision_state",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid, p_action text, p_option_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.share_looks_to_outfit_decision(p_room_id uuid, p_look_ids uuid[], p_question text, p_title text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/share_looks_to_outfit_decision`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "share_looks_to_outfit_decision",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_look_ids uuid[], p_question text, p_title text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.touch_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/touch_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "touch_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.unblock_dressing_room_user(p_target_user_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/unblock_dressing_room_user`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "unblock_dressing_room_user",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_target_user_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.update_look_owned_items(p_look_id uuid, p_title text, p_description text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_look_owned_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "update_look_owned_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_look_id uuid, p_title text, p_description text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_items jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            },
+            {
+              "detail": "Function `public.upsert_style_memory_event(p_source text, p_event_type text, p_signal_key text, p_signal_date date, p_payload jsonb, p_confidence numeric, p_source_refs jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/upsert_style_memory_event`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "upsert_style_memory_event",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_source text, p_event_type text, p_signal_key text, p_signal_date date, p_payload jsonb, p_confidence numeric, p_source_refs jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:02.138Z"
+            }
+          ]
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "title": "Leaked Password Protection Disabled",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Leaked password protection is currently disabled.",
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+          "count": 1,
+          "findings": [
+            {
+              "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+              "metadata": {
+                "type": "auth",
+                "entity": "Auth"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "production": {
+    "result": {
+      "lints": [
+        {
+          "name": "rls_enabled_no_policy",
+          "title": "RLS Enabled No Policy",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+          "count": 27,
+          "findings": [
+            {
+              "detail": "Table \\`internal.edge_function_errors\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "edge_function_errors",
+                "type": "table",
+                "schema": "internal"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.apple_auth_credentials\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "apple_auth_credentials",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.deleted_owner_retained_media\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "deleted_owner_retained_media",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.deletion_requests\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "deletion_requests",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.deletion_state_transitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "deletion_state_transitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_activation_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_activation_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_activations\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_activations",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_grants\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_grants",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_entitlement_transitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_entitlement_transitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_codes\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_codes",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_definitions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_definitions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_redemption_attempts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_redemption_attempts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_offer_redemptions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_offer_redemptions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_provider_reconciliation_controls\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_provider_reconciliation_controls",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_revenuecat_mirror_queue\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_revenuecat_mirror_queue",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.kplus_revenuecat_product_cache\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "kplus_revenuecat_product_cache",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.privacy_request_rate_limits\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "privacy_request_rate_limits",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.provider_request_limits\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "provider_request_limits",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.provider_security_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "provider_security_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.speech_daily_cost\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_daily_cost",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.speech_provider_control\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_provider_control",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.speech_request_reservations\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "speech_request_reservations",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.style_chat_burst_usage\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "style_chat_burst_usage",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.style_outfit_burst_usage\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "style_outfit_burst_usage",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.stylechat_quota_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "stylechat_quota_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.vto_generation_requests\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "vto_generation_requests",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Table \\`public.watchlist_push_receipts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "watchlist_push_receipts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            }
+          ]
+        },
+        {
+          "name": "anon_security_definer_function_executable",
+          "title": "Public Can Execute SECURITY DEFINER Function",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects `SECURITY DEFINER` functions that are callable without signing in. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if it is not meant to be public.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable",
+          "count": 3,
+          "findings": [
+            {
+              "detail": "Function `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_item_reaction_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_item_reaction_counts",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_ids uuid[], p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_decision_preview(p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_decision_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_decision_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_preview(p_share_token text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            }
+          ]
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "title": "Signed-In Users Can Execute SECURITY DEFINER Function",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable",
+          "count": 51,
+          "findings": [
+            {
+              "detail": "Function `public.block_dressing_room_user(p_target_user_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/block_dressing_room_user`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "block_dressing_room_user",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_target_user_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.can_access_room_messages(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/can_access_room_messages`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "can_access_room_messages",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.can_contribute_to_dressing_room(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/can_contribute_to_dressing_room`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "can_contribute_to_dressing_room",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.can_react_to_dressing_room_item(p_item_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/can_react_to_dressing_room_item`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "can_react_to_dressing_room_item",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.cast_outfit_decision_vote(p_group_id uuid, p_option_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/cast_outfit_decision_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "cast_outfit_decision_vote",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid, p_option_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.check_and_increment_style_outfit_burst(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/check_and_increment_style_outfit_burst`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "check_and_increment_style_outfit_burst",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.check_and_increment_stylechat_burst(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/check_and_increment_stylechat_burst`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "check_and_increment_stylechat_burst",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.complete_provider_request(p_reservation_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/complete_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "complete_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_reservation_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.consume_stylechat_request_quota(p_request_id text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/consume_stylechat_request_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "consume_stylechat_request_quota",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_request_id text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.create_dressing_room_message(p_room_id uuid, p_body text, p_client_message_id uuid, p_parent_message_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_dressing_room_message`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_dressing_room_message",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_body text, p_client_message_id uuid, p_parent_message_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.create_look_from_dressing_room_items(p_dressing_room_id uuid, p_title text, p_description text, p_item_ids uuid[])` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_look_from_dressing_room_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_look_from_dressing_room_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_dressing_room_id uuid, p_title text, p_description text, p_item_ids uuid[]",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.create_look_from_owned_items(p_title text, p_description text, p_source text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_explanation text, p_prompt_version text, p_contract_version text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_look_from_owned_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_look_from_owned_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_title text, p_description text, p_source text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_explanation text, p_prompt_version text, p_contract_version text, p_items jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.create_or_get_room_share(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/create_or_get_room_share`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "create_or_get_room_share",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.ensure_privacy_settings()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/ensure_privacy_settings`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "ensure_privacy_settings",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.evaluate_provider_abuse_state(p_user_id uuid, p_function_name text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/evaluate_provider_abuse_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "evaluate_provider_abuse_state",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_user_id uuid, p_function_name text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.finalize_elise_generation_operation(p_operation_id uuid, p_status text, p_assistant_message_id uuid, p_stable_error_class text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/finalize_elise_generation_operation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "finalize_elise_generation_operation",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid, p_status text, p_assistant_message_id uuid, p_stable_error_class text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_item_reaction_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_item_reaction_counts",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "p_item_ids uuid[], p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_my_deletion_status()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_my_deletion_status`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_my_deletion_status",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_my_kplus_entitlement_summary()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_my_kplus_entitlement_summary`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_my_kplus_entitlement_summary",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_outfit_decision_vote_counts(p_group_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_outfit_decision_vote_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_outfit_decision_vote_counts",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_decision_preview(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_decision_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_decision_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_public_room_preview(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_public_room_preview`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_public_room_preview",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.get_stylechat_daily_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_stylechat_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "get_stylechat_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.has_active_k_plus()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/has_active_k_plus`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "has_active_k_plus",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.increment_style_chat_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_style_chat_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_style_chat_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.increment_style_outfit_daily_usage(p_limit integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_style_outfit_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_style_outfit_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_limit integer",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.increment_stylechat_daily_usage()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_stylechat_daily_usage`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_stylechat_daily_usage",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.increment_stylechat_daily_usage_idempotent(p_operation_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/increment_stylechat_daily_usage_idempotent`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "increment_stylechat_daily_usage_idempotent",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_key text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.is_active_account()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/is_active_account`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "is_active_account",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.join_room_via_share_token(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/join_room_via_share_token`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "join_room_via_share_token",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.list_dressing_room_blocked_users()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_dressing_room_blocked_users`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_dressing_room_blocked_users",
+                "schema": "public",
+                "language": "sql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.list_dressing_room_messages(p_room_id uuid, p_limit integer, p_cursor_created_at timestamp with time zone, p_cursor_id uuid, p_direction text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_dressing_room_messages`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_dressing_room_messages",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_limit integer, p_cursor_created_at timestamp with time zone, p_cursor_id uuid, p_direction text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.list_shared_rooms_for_me()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/list_shared_rooms_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "list_shared_rooms_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.mark_elise_generation_generating(p_operation_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/mark_elise_generation_generating`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "mark_elise_generation_generating",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.recompute_signature_style()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/recompute_signature_style`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "recompute_signature_style",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.register_user_device_session(p_device_key text, p_platform text, p_label text, p_auth_session_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/register_user_device_session`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "register_user_device_session",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_device_key text, p_platform text, p_label text, p_auth_session_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.release_provider_request(p_reservation_id uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/release_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "release_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_reservation_id uuid, p_reason text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.remove_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/remove_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "remove_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.reserve_elise_generation_operation(p_session_id uuid, p_source_message_id uuid, p_operation_key text, p_request_id text, p_operation_type text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reserve_elise_generation_operation`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "reserve_elise_generation_operation",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_session_id uuid, p_source_message_id uuid, p_operation_key text, p_request_id text, p_operation_type text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.reserve_provider_request(p_function_name text, p_provider_category text, p_request_id uuid, p_request_fingerprint text, p_cost_units numeric)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/reserve_provider_request`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "reserve_provider_request",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_function_name text, p_provider_category text, p_request_id uuid, p_request_fingerprint text, p_cost_units numeric",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.resolve_dressing_room_collaboration_access(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/resolve_dressing_room_collaboration_access`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "resolve_dressing_room_collaboration_access",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.revalidate_elise_generation_context(p_operation_id uuid, p_session_id uuid, p_source_message_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revalidate_elise_generation_context`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "revalidate_elise_generation_context",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_operation_id uuid, p_session_id uuid, p_source_message_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.revoke_room_share(p_room_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/revoke_room_share`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "revoke_room_share",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.save_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/save_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "save_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.set_dressing_room_item_reaction(p_room_id uuid, p_item_id uuid, p_reaction_type text, p_active boolean, p_request_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_dressing_room_item_reaction`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "set_dressing_room_item_reaction",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_item_id uuid, p_reaction_type text, p_active boolean, p_request_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.set_outfit_decision_state(p_group_id uuid, p_action text, p_option_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/set_outfit_decision_state`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "set_outfit_decision_state",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_group_id uuid, p_action text, p_option_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.share_looks_to_outfit_decision(p_room_id uuid, p_look_ids uuid[], p_question text, p_title text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/share_looks_to_outfit_decision`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "share_looks_to_outfit_decision",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_room_id uuid, p_look_ids uuid[], p_question text, p_title text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.touch_shared_room_for_me(p_share_token text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/touch_shared_room_for_me`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "touch_shared_room_for_me",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_share_token text",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.unblock_dressing_room_user(p_target_user_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/unblock_dressing_room_user`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "unblock_dressing_room_user",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_target_user_id uuid",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.update_look_owned_items(p_look_id uuid, p_title text, p_description text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_items jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/update_look_owned_items`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "update_look_owned_items",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_look_id uuid, p_title text, p_description text, p_occasion text, p_dress_code text, p_setting text, p_context_note text, p_items jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            },
+            {
+              "detail": "Function `public.upsert_style_memory_event(p_source text, p_event_type text, p_signal_key text, p_signal_date date, p_payload jsonb, p_confidence numeric, p_source_refs jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/upsert_style_memory_event`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+              "metadata": {
+                "name": "upsert_style_memory_event",
+                "schema": "public",
+                "language": "plpgsql",
+                "arguments": "p_source text, p_event_type text, p_signal_key text, p_signal_date date, p_payload jsonb, p_confidence numeric, p_source_refs jsonb",
+                "security_definer": true
+              },
+              "observed_at": "2026-11-02T19:38:59.720Z"
+            }
+          ]
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "title": "Leaked Password Protection Disabled",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Leaked password protection is currently disabled.",
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+          "count": 1,
+          "findings": [
+            {
+              "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+              "metadata": {
+                "type": "auth",
+                "entity": "Auth"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

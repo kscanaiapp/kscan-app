@@ -1,0 +1,1087 @@
+{
+  "capturedAt": "2026-10-31T16:15:24.974Z",
+  "projectRef": "yzqjvdfgefveprobvvyw",
+  "operation": "Read-only information_schema and authenticated column privilege metadata; no customer rows",
+  "rows": [
+    {
+      "table_name": "inspiration_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "storage_bucket",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "storage_path",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'upload'::text",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "original_filename",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "content_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "file_size_bytes",
+      "data_type": "integer",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "width",
+      "data_type": "integer",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "height",
+      "data_type": "integer",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "note",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "color",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "pattern",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "material",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "silhouette",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "inspiration_items",
+      "column_name": "garment_role",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "look_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "source_dressing_room_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "snapshot_version",
+      "data_type": "integer",
+      "is_nullable": "NO",
+      "column_default": "1",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "snapshot_payload",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "image_url",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "brand",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "product_url",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "item_role",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "sort_order",
+      "data_type": "integer",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "layout_payload",
+      "data_type": "jsonb",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "storage_bucket",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "storage_path",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "source_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "source_saved_scan_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "source_inspiration_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "look_items",
+      "column_name": "source_closet_item_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "dressing_room_id",
+      "data_type": "uuid",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "cover_image_url",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "occasion",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "dress_code",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "setting",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "context_note",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "explanation",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "prompt_version",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "looks",
+      "column_name": "contract_version",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "email",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "account_status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'active'::text",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "age_group",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": "'unknown'::text",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "deletion_requested_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "account_locked_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "local_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "scan_type",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "analysis_result",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "products",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": "'[]'::jsonb",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "image_uri",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "thumbnail_uri",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'mobile'::text",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "saved_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "metadata",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": "'{}'::jsonb",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "storage_bucket",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "storage_path",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "media_status",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "media_uploaded_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "saved_scans",
+      "column_name": "purchase_options",
+      "data_type": "jsonb",
+      "is_nullable": "NO",
+      "column_default": "'[]'::jsonb",
+      "authenticated_can_update_column": true
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "watch_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "event_type",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "price_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "currency",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watch_events",
+      "column_name": "observed_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "source",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "canonical_url",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "provider_listing_id",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "display_title",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "display_image_url",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "initial_price_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "current_price_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "currency",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "watch_intent",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'just_watching'::text",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "target_price_amount",
+      "data_type": "numeric",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "target_reached_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'active'::text",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "last_checked_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "last_status",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'unchecked'::text",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "consecutive_failures",
+      "data_type": "integer",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "schema_version",
+      "data_type": "smallint",
+      "is_nullable": "NO",
+      "column_default": "1",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "row_version",
+      "data_type": "bigint",
+      "is_nullable": "NO",
+      "column_default": "1",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_commerce_watches",
+      "column_name": "push_enabled",
+      "data_type": "boolean",
+      "is_nullable": "NO",
+      "column_default": "false",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "push_token",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "platform",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "device_id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "last_used_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "user_device_push_tokens",
+      "column_name": "revoked_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": "gen_random_uuid()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "ticket_id",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "token_row_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "token_fingerprint",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "user_id",
+      "data_type": "uuid",
+      "is_nullable": "NO",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "state",
+      "data_type": "text",
+      "is_nullable": "NO",
+      "column_default": "'pending'::text",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "last_error_category",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "retirement_outcome",
+      "data_type": "text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "attempt_count",
+      "data_type": "integer",
+      "is_nullable": "NO",
+      "column_default": "0",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "next_check_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "(now() + '00:15:00'::interval)",
+      "authenticated_can_update_column": false
+    },
+    {
+      "table_name": "watchlist_push_receipts",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO",
+      "column_default": "now()",
+      "authenticated_can_update_column": false
+    }
+  ]
+}

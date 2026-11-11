@@ -1,0 +1,47 @@
+{
+  "mobile": "2c2c9da41121daa43f4f657ca1aaa2fcf7b7cb27",
+  "backend": "2846fd147fc36b72404372919ee8d1e88421da75",
+  "checkpoint": "49ab7fada3639587911849080ff33c6ad17fd9df",
+  "mobileWorkflowDelta": [
+    "services/kplus/kplusCapabilityFingerprints.generated.ts"
+  ],
+  "backendHandlerDelta": "",
+  "sql": [
+    {
+      "path": "supabase/migrations/20260915030553_kplus_entitlement_authority.sql",
+      "priorBlob": "d553fbe559b5cd9f238a9d66e62c02e079c2539d",
+      "mobileBlob": "d553fbe559b5cd9f238a9d66e62c02e079c2539d",
+      "backendBlob": "d553fbe559b5cd9f238a9d66e62c02e079c2539d"
+    },
+    {
+      "path": "supabase/migrations/20260915181554_kplus_revenuecat_mirror_retirement.sql",
+      "priorBlob": "abc308eed9822d8b17c2c2cbfd42590066016fa9",
+      "mobileBlob": "abc308eed9822d8b17c2c2cbfd42590066016fa9",
+      "backendBlob": "abc308eed9822d8b17c2c2cbfd42590066016fa9"
+    },
+    {
+      "path": "supabase/migrations/20261002010000_kplus_paid_lifetime_entitlement_foundation.sql",
+      "priorBlob": "13737eeb1b4cf8c7da04e17c36f106a048c79b35",
+      "mobileBlob": "13737eeb1b4cf8c7da04e17c36f106a048c79b35",
+      "backendBlob": "13737eeb1b4cf8c7da04e17c36f106a048c79b35"
+    },
+    {
+      "path": "supabase/migrations/20261003195716_kplus_provider_pull_reconciliation.sql",
+      "priorBlob": "f6cccbe578abc955d91639d92825140c9160e495",
+      "mobileBlob": "f6cccbe578abc955d91639d92825140c9160e495",
+      "backendBlob": "f6cccbe578abc955d91639d92825140c9160e495"
+    },
+    {
+      "path": "supabase/migrations/20261004184118_kplus_offer_code_redemption_authority.sql",
+      "priorBlob": "7895f9378239a58e9f6b9f99b43955a16996b7d3",
+      "mobileBlob": "7895f9378239a58e9f6b9f99b43955a16996b7d3",
+      "backendBlob": "7895f9378239a58e9f6b9f99b43955a16996b7d3"
+    },
+    {
+      "path": "supabase/migrations/20261004231628_fix_kplus_reconciliation_uuid_selection.sql",
+      "priorBlob": "24eabca84d369433480b952a49263849bbe2d5b5",
+      "mobileBlob": "24eabca84d369433480b952a49263849bbe2d5b5",
+      "backendBlob": "24eabca84d369433480b952a49263849bbe2d5b5"
+    }
+  ]
+}

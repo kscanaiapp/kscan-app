@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-11-02T20:28:52.036Z",
+  "authority": "Owner message in active campaign",
+  "approved": [
+    "B35-B-004",
+    "B35-C-023",
+    "B35-F-024",
+    "B35-F-025"
+  ],
+  "quote": "I authorize repair B35-B-004, Scanner receives JSON null and throws an uncontrolled TypeError rather than returning a controlled validation error, I also authorize B35-C-023, B35-F-024, and B35-F-025. C-023 as well as F-024 adn 025 are also authorized.",
+  "merge": "Standing normal fully-green PR merge approval; protections retained",
+  "order": [
+    "B35-C-023 canonical/mobile closure",
+    "B35-F-024 canonical/mobile closure",
+    "B35-F-025 canonical/mobile closure",
+    "B35-B-004 canonical/mobile closure"
+  ],
+  "notAuthorized": [
+    "Production deployment or database application",
+    "Device certification",
+    "EAS or release binaries",
+    "Account-deletion-cycle repairs"
+  ]
+}

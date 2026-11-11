@@ -1,0 +1,409 @@
+{
+  "pr": 645,
+  "baseRefName": "integration/build35-v1-convergence",
+  "headRefName": "audit/build35-integration-hostile-20261029",
+  "headRefOid": "fb08e845a4d251a7979c6a15460096504816efcc",
+  "isDraft": false,
+  "mergeStateStatus": "UNSTABLE",
+  "reviewDecision": "",
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557956",
+      "name": "Project checks",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "QUEUED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160085/job/123677605376",
+      "name": "Security promotion gate",
+      "startedAt": "2026-10-29T19:21:15Z",
+      "status": "IN_PROGRESS",
+      "workflowName": "Security - Promotion Gate"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146763/job/123677556752",
+      "name": "Security promotion gate",
+      "startedAt": "2026-10-29T19:20:13Z",
+      "status": "IN_PROGRESS",
+      "workflowName": "Security - Promotion Gate"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:45Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160079/job/123677605058",
+      "name": "Build 35 release holds and identity",
+      "startedAt": "2026-10-29T19:21:07Z",
+      "status": "COMPLETED",
+      "workflowName": "Build 35 Release Profile Guard"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:46Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146830/job/123677558799",
+      "name": "Build 35 release holds and identity",
+      "startedAt": "2026-10-29T19:21:14Z",
+      "status": "COMPLETED",
+      "workflowName": "Build 35 Release Profile Guard"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:22:26Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160266/job/123677605994",
+      "name": "Dependency reachability gate",
+      "startedAt": "2026-10-29T19:21:40Z",
+      "status": "COMPLETED",
+      "workflowName": "Dependency Reachability Gate"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:41Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146831/job/123677558767",
+      "name": "Dependency reachability gate",
+      "startedAt": "2026-10-29T19:20:46Z",
+      "status": "COMPLETED",
+      "workflowName": "Dependency Reachability Gate"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:32:47Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607707",
+      "name": "Project checks",
+      "startedAt": "2026-10-29T19:26:46Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:23:05Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160116/job/123677605887",
+      "name": "ZAP API staging",
+      "startedAt": "2026-10-29T19:21:47Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - ZAP API Staging"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:38Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146876/job/123677558752",
+      "name": "ZAP API staging",
+      "startedAt": "2026-10-29T19:20:14Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - ZAP API Staging"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:58Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160276/job/123677606025",
+      "name": "ZAP Baseline (staging)",
+      "startedAt": "2026-10-29T19:20:38Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - ZAP Baseline Staging"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:23:08Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146947/job/123677561179",
+      "name": "ZAP Baseline (staging)",
+      "startedAt": "2026-10-29T19:21:34Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - ZAP Baseline Staging"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:25:24Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677606512",
+      "name": "VTO E2E — contract",
+      "startedAt": "2026-10-29T19:24:24Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:22:11Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677557766",
+      "name": "VTO E2E — contract",
+      "startedAt": "2026-10-29T19:21:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677560802",
+      "name": "VTO scope guard (enforced)",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:25:32Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607681",
+      "name": "Gitleaks",
+      "startedAt": "2026-10-29T19:25:07Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:36:03Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557707",
+      "name": "Gitleaks",
+      "startedAt": "2026-10-29T19:35:41Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:23:20Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677605916",
+      "name": "VTO scope guard (enforced)",
+      "startedAt": "2026-10-29T19:23:02Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677609175",
+      "name": "VTO E2E — staging dry run",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677560296",
+      "name": "VTO E2E — staging dry run",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:30:58Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607748",
+      "name": "Semgrep Community Edition",
+      "startedAt": "2026-10-29T19:28:04Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:36:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557799",
+      "name": "Semgrep Community Edition",
+      "startedAt": "2026-10-29T19:33:32Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677608571",
+      "name": "VTO E2E — staging full certification (paid)",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677560163",
+      "name": "VTO E2E — staging full certification (paid)",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:35:40Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607761",
+      "name": "OSV-Scanner",
+      "startedAt": "2026-10-29T19:35:27Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:12Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557386",
+      "name": "OSV-Scanner",
+      "startedAt": "2026-10-29T19:20:59Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557959",
+      "name": "Trivy filesystem",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "QUEUED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677608424",
+      "name": "VTO E2E — cleanup",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677559843",
+      "name": "VTO E2E — cleanup",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:21:45Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607320",
+      "name": "Trivy filesystem",
+      "startedAt": "2026-10-29T19:21:08Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677608889",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677560533",
+      "name": "VTO E2E — user-supplied garment dry run",
+      "startedAt": "2026-10-29T19:20:09Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:30:54Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123677607877",
+      "name": "npm audit",
+      "startedAt": "2026-10-29T19:30:08Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:28:54Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146786/job/123677557862",
+      "name": "npm audit",
+      "startedAt": "2026-10-29T19:28:22Z",
+      "status": "COMPLETED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "0001-01-01T00:00:00Z",
+      "conclusion": "",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160355/job/123685764643",
+      "name": "Security summary",
+      "startedAt": "2026-10-29T19:35:40Z",
+      "status": "QUEUED",
+      "workflowName": "Security - Code and Dependencies"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677608491",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677646416",
+      "name": "VTO E2E — user-supplied garment certification (paid, one request)",
+      "startedAt": "2026-10-29T19:20:19Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:14Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939160390/job/123677608487",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "startedAt": "2026-10-29T19:20:15Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-29T19:20:09Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/kscanaiapp/kscan-app/actions/runs/40939146894/job/123677622232",
+      "name": "VTO E2E — user-supplied garment log audit",
+      "startedAt": "2026-10-29T19:20:16Z",
+      "status": "COMPLETED",
+      "workflowName": "VTO Backend E2E"
+    }
+  ],
+  "capturedAt": "2026-10-29T19:36:52.697Z",
+  "counts": {
+    "QUEUED": 3,
+    "IN_PROGRESS": 2,
+    "SUCCESS": 21,
+    "SKIPPED": 13
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "boundary": "actual wrapper + identity helper, injected SDK reset failure",
+  "sent": [
+    {
+      "event": "kplus_feature_exposed",
+      "properties": {
+        "source": "account",
+        "distinct_id": "actor-A"
+      }
+    }
+  ],
+  "expected": "No B event emitted under prior A identity when reset fails",
+  "environment": "offline; no vendor/network",
+  "sourceSha": "c86bf3d052806c6105ce7830a03ac2b1501d34a1"
+}

@@ -1,0 +1,20 @@
+{
+  "sourceSha": "c86bf3d0/f4df2a5a; runtime Staging separately qualified",
+  "totalRecords": 46,
+  "pass": 46,
+  "fail": 0,
+  "cleanupRecords": 8,
+  "authorityRecords": 35,
+  "concurrencyRecords": 11,
+  "perParameterInjectionChecks": 19,
+  "evidence": [
+    "continuation-kplus-concurrency-staging.json",
+    "continuation-kplus-authority-staging.json"
+  ],
+  "limitations": [
+    "Not added to original3096 mandatory cells or historical886 index",
+    "Admin-normalized provider facts are not native purchases, RevenueCat calls or signed webhook replay",
+    "Five original optional Docker tests remain declared skips",
+    "Initial invalid fixture results/source retained separately; not product findings"
+  ]
+}
