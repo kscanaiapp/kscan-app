@@ -26,6 +26,7 @@
 
 import { supabase } from './supabaseClient';
 import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
+import { readGeminiConsentError } from './geminiConsentDenial';
 import { createControlledEliseInvoke } from './privateDressingRoomEliseQaProvider';
 import {
   evaluateResponseCurrency,
@@ -63,6 +64,8 @@ export type EliseTransportOutcome =
    */
   | { kind: 'capability_unavailable' }
   | { kind: 'session_expired' }
+  | { kind: 'consent_required' }
+  | { kind: 'consent_unavailable' }
   | { kind: 'failed' };
 
 const defaultInvoke: EliseInvoke = (name, options) =>
@@ -162,6 +165,13 @@ export async function sendEliseRequest(input: {
     if (external?.aborted) return { kind: 'cancelled' };
     if (timedOut) return { kind: 'failed' };
     if (error) {
+      const consentError = await readGeminiConsentError(error);
+      if (external?.aborted) return { kind: 'cancelled' };
+      if (timedOut) return { kind: 'failed' };
+      if (consentError) return { kind: consentError };
+      if ((error as { context?: { status?: number } }).context?.status === 401) {
+        return { kind: 'session_expired' };
+      }
       // A backend that predates this schema version rejects the body outright.
       // We cannot tell that apart from a transport failure by the error alone,
       // so the validating check below is what distinguishes them: nothing that
