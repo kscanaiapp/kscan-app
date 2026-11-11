@@ -18,6 +18,11 @@ const path = require('node:path');
  * the repair is iOS-only: `behavior={Platform.OS === 'ios' ? 'padding' : undefined}`
  * leaves Android's KeyboardAvoidingView inert.
  *
+ * B35-IOS-KB-01: the Private Dressing Room "Ask Elise" occasion sheet is not a
+ * trap (its single-line field submits on Done) but it is shorter than the iOS
+ * keyboard, so the WHOLE sheet -- the field being typed into, Ask Elise and
+ * Cancel -- sat behind the keyboard while the user typed. Same iOS-only repair.
+ *
  * Structural contract over the sources; the sheets cannot be mounted without a
  * native renderer.
  */
@@ -33,6 +38,7 @@ const SHEETS = [
   { file: 'app/dressing-rooms/[id].tsx', anchor: '>Edit Dressing Room<', input: 'label="Description" value={description} onChangeText={setDescription} multiline' },
   { file: 'app/dressing-rooms/[id].tsx', anchor: '>Create Look<', input: 'label="Description" value={description} onChangeText={setDescription} multiline' },
   { file: 'app/looks/[id].tsx', anchor: '>Edit Look<', input: 'label="Description" value={description} onChangeText={setDescription} multiline' },
+  { file: 'app/stylist/dressing-room/index.tsx', anchor: 'testID="elise-occasion-sheet"', input: 'testID="elise-occasion-input"' },
 ];
 
 /** The JSX of the one <Modal> that contains `anchor`. */
