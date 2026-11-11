@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "scanner-612-primary-integrity-approval-v1",
+  "issue": "kscanaiapp/kscan-app#612",
+  "baseCommit": "233e2b33bdb1b1d3538094b5d3a7894ef673f996",
+  "authority": "Build 35 Production activation directive (2026-11-10), Workstream C: complete the #612 Scanner multi-item brand-evidence repair with an independently reviewable, exact-source approval that preserves the immutable Black-owned, VRI-03 and BOBSE snapshots.",
+  "note": "Additive exact-digest record chained AFTER the BOBSE record. It does not rewrite the historical Black-owned baseline, the VRI-03 record or the BOBSE record. The invariant test proves the approved bytes equal the BOBSE-pinned bytes plus exactly the three #612 edits listed below. Source approval only: no Staging/Production deployment, activation, recognition-quality claim or platform parity certification is implied.",
+  "approvedFiles": {
+    "supabase/functions/scan-identify/index.ts": {
+      "priorSha256": "01e7c7d934864e71787bacf27552a97b67a7d86521473cbe255044bdb7896464",
+      "approvedSha256": "8632efddaa477d8d0536db0124b5ab31172d8f8712d75f8edb89a34a9f07ceb9",
+      "reason": "#612: when (and only when) Scanner brand evidence is enabled, the multi-item detection request asks for optional per-garment wordmark/logo observations so the existing sanitizer and quality gate can see them. Required keys, flag-OFF prompt/schema bytes, Elise isolation, consent gate and deferred commerce are unchanged.",
+      "edits": [
+        {
+          "from": "import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';\n",
+          "to": "import { withScannerMultiItemBrandPrompt, withScannerMultiItemBrandSchema } from './multiItemBrandEvidence.ts';\nimport { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';\n"
+        },
+        {
+          "from": "  const multiItemPrompt = withVri03Instruction(withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT), 'multi_item_detection', vri03H1);\n",
+          "to": "  const multiItemPrompt = withVri03Instruction(\n    withScannerMultiItemBrandPrompt(withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT), scannerBrandEvidenceEnabled),\n    'multi_item_detection', vri03H1,\n  );\n"
+        },
+        {
+          "from": "            ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }\n",
+          "to": "            ? { responseSchema: withScannerMultiItemBrandSchema(MULTI_ITEM_RESPONSE_SCHEMA, scannerBrandEvidenceEnabled) }\n"
+        }
+      ]
+    }
+  },
+  "consentPromotion": {
+    "priorConsentStrippedSha256": "21083b337f3101ca6d9f8f3aa5b0ab6cc07ed9954a675d454b6782f012c4f09a",
+    "approvedConsentStrippedSha256": "0b60ce90baf9af192804413a1f69b7b8c3ddfb438c27e3b10d4e745806d2b5c0"
+  },
+  "evidence": [
+    "supabase/functions/scan-identify/multiItemBrandEvidence.ts",
+    "supabase/functions/scan-identify/multiItemBrandEvidence.test.ts",
+    "__tests__/blackOwnedPrimaryInvariants.test.js"
+  ],
+  "restrictions": [
+    "No recognition-quality improvement is claimed from source tests",
+    "Staging runtime measurement with authorized images and an approved provider budget is required before Production promotion",
+    "No Production deployment approval"
+  ]
+}
