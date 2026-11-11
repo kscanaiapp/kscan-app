@@ -1,0 +1,135 @@
+# Black-Owned Discovery — scheduled catalog sync (fail-closed).
+#
+# WHY THIS EXISTS. Discovery inventory expires 24 hours after its last
+# authorized sync (enforced by a table CHECK and by the eligibility view), so
+# without a scheduler every onboarded merchant would silently drop off the Scan
+# Results shelf a day later. `black-owned-catalog-sync` is the governed worker;
+# this workflow is its only invoker, in the same style as the Watchlist sweep.
+#
+# THREE INDEPENDENT GATES must ALL be satisfied before a merchant is synced:
+#   1. the `DISCOVERY_CATALOG_WORKER_SECRET` environment secret must exist;
+#   2. the environment's Functions origin variable must be configured;
+#   3. `DISCOVERY_CATALOG_SYNC_ENABLED=true` must be set as a server-side Edge
+#      Function secret. It is enforced inside the function, so it holds even
+#      if this workflow is invoked by hand.
+# Inside the function, each merchant is re-authorized by the database (active,
+# approved, unexpired identity and source authorization) before any source call.
+#
+# NO MERCHANT DATA REACHES THIS LOG. The worker responds with aggregate counts
+# only; merchant ids and failure reasons stay in the private function logs.
+# This repository is public.
+
+name: Black-Owned Catalog Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: staging or production
+        required: true
+        type: choice
+        options: [staging, production]
+      confirm:
+        description: Must be RUN-CATALOG-SYNC to proceed
+        required: true
+        default: ''
+        type: string
+  schedule:
+    - cron: '41 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: black-owned-catalog-sync-${{ github.event_name == 'workflow_dispatch' && inputs.target || 'scheduled' }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Catalog sync (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # A dispatch runs only the requested environment, so it never waits on
+        # (or skips inside) the other environment's protection rules.
+        target: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.target) || '["staging","production"]') }}
+    # Unattended Production uses a narrowly scoped automation Environment,
+    # never the reviewer-protected manual Production Environment.
+    # Provision catalog-production-automation with the worker-only secret and
+    # exact Production Functions origin before merging this scheduler.
+    environment: ${{ github.event_name == 'schedule' && matrix.target == 'production' && 'catalog-production-automation' || matrix.target }}
+    if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-CATALOG-SYNC'
+    steps:
+      - name: Preflight — refuse to run unconfigured
+        id: preflight
+        env:
+          TARGET: ${{ matrix.target }}
+          WORKER_SECRET: ${{ secrets.DISCOVERY_CATALOG_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ matrix.target == 'production' && vars.SUPABASE_PRODUCTION_FUNCTIONS_URL || vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -n "${WORKER_SECRET:-}" ] || MISSING="${MISSING} DISCOVERY_CATALOG_WORKER_SECRET(secret)"
+          [ -n "${FUNCTIONS_URL:-}" ] || MISSING="${MISSING} functions-origin(variable)"
+          if [ -n "${MISSING}" ]; then
+            echo "Black-owned catalog sync (${TARGET}) is NOT provisioned. Missing:${MISSING}"
+            exit 1
+          fi
+          case "${TARGET}:${FUNCTIONS_URL%/}" in
+            staging:https://yzqjvdfgefveprobvvyw.functions.supabase.co) ;;
+            production:https://wyyuqfdxucjksghsmhry.functions.supabase.co) ;;
+            *) echo "Functions origin does not match the ${TARGET} project"; exit 1 ;;
+          esac
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Invoke the governed worker
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          WORKER_SECRET: ${{ secrets.DISCOVERY_CATALOG_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ matrix.target == 'production' && vars.SUPABASE_PRODUCTION_FUNCTIONS_URL || vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          STATUS="$(curl --silent --show-error --fail-with-body \
+            --max-time 150 \
+            --request POST \
+            --header "content-type: application/json" \
+            --header "x-discovery-worker-secret: ${WORKER_SECRET}" \
+            --data '{}' \
+            --output "${BODY_FILE}" \
+            --write-out '%{http_code}' \
+            "${FUNCTIONS_URL%/}/black-owned-catalog-sync")" || CURL_FAILED=1
+
+          echo "HTTP ${STATUS}"
+          if [ "${CURL_FAILED:-0}" = "1" ] || [ "${STATUS}" != "200" ]; then
+            echo "Catalog sync request did not succeed."
+            exit 1
+          fi
+          # HTTP success alone is insufficient: an error object, malformed JSON
+          # or missing counts must never masquerade as an empty successful sync.
+          python3 - "${BODY_FILE}" <<'PY'
+          import json, sys
+          def reject(message):
+              print(message, file=sys.stderr)
+              sys.exit(1)
+          try:
+              with open(sys.argv[1], encoding='utf-8') as body:
+                  report = json.load(body)
+          except (OSError, ValueError):
+              reject('Invalid catalog response; body withheld.')
+          counts = ('merchants', 'succeeded', 'failed', 'skipped', 'products')
+          if (not isinstance(report, dict) or report.get('mode') != 'catalog_sync'
+                  or type(report.get('enabled')) is not bool
+                  or any(type(report.get(key)) is not int or report[key] < 0 for key in counts)
+                  or report['merchants'] > 25
+                  or report['succeeded'] + report['failed'] + report['skipped'] != report['merchants']
+                  or (not report['enabled'] and any(report[key] != 0 for key in counts))):
+              reject('Invalid catalog response schema; body withheld.')
+          print(json.dumps({key: report[key] for key in ('mode', 'enabled', *counts)}))
+          if not report['enabled']:
+              print('Catalog synchronization is disabled; no inventory was refreshed.')
+          if report['merchants'] > 0 and report['succeeded'] == 0 and report['failed'] > 0:
+              reject('Every configured merchant failed to sync.')
+          PY
