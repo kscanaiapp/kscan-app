@@ -1,0 +1,492 @@
+{
+  "version": "kscan-premium-edge-basis-v1",
+  "purpose": "Deployed Production identity of each Premium Value Edge entry. Written only by scripts/capture-premium-edge-basis.js from a read-only download of the live bundle, after every deployed file matched basisCommit. deployedVersion is informational (secret writes bump versions without changing code); identity is the per-file hashes. Editing this file changes the Premium capability fingerprints and withdraws every proof bound to the old identity.",
+  "entries": {
+    "supabase/functions/commerce-watch-refresh/index.ts": {
+      "function": "commerce-watch-refresh",
+      "environment": "production",
+      "projectRef": "wyyuqfdxucjksghsmhry",
+      "basisCommit": "2846fd147fc36b72404372919ee8d1e88421da75",
+      "deployedVersion": 26,
+      "ezbrSha256": "323a723e1e1553b61658f87e0943e718f0b3b589a065da90e6c6d4ef4dd08520",
+      "capturedAt": "2026-11-11T02:50:00Z",
+      "files": [
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19"
+        },
+        {
+          "path": "supabase/functions/_shared/net/publicHost.ts",
+          "sha256": "d49f6e6d2c7bf0230d4caa6ca1a12f4a6c52451f0fd19f8e5d3fb4092cab8009"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/changeEngine.ts",
+          "sha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/index.ts",
+          "sha256": "fc1214e35dd8d5e19815c57a8fef8825c4f5257ea395de9a8725ad90a17e8256"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
+          "sha256": "bcbbd7ee8b66cf9487aee6ef44fee88e5084b60182e3c71c2696184996e22716"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/pushObservability.ts",
+          "sha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
+          "sha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchCurrency.ts",
+          "sha256": "9a0e59509897a4b6be5554a38b37dd1cb294dd67f74c8c20e3552928d56de7fe"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts",
+          "sha256": "5efcbd090067d503333cbd66a6e8b4c81ab9003d754d4af1d031955887c202bf"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
+          "sha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6"
+        },
+        {
+          "path": "supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts",
+          "sha256": "97bbade135480fab236a09aed677cfe52bb1aba104f50a33548831f736434721"
+        },
+        {
+          "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+          "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3"
+        },
+        {
+          "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
+          "sha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792"
+        },
+        {
+          "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+          "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536"
+        },
+        {
+          "path": "supabase/functions/scan-identify/offerCurrency.ts",
+          "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef"
+        },
+        {
+          "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+          "sha256": "f494bc9cd2322f2712c67f7f6c821bce6a4ee2cb8ea14d76cf0814a7282d3e4a"
+        },
+        {
+          "path": "supabase/functions/scan-identify/watchlistCapability.ts",
+          "sha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960"
+        }
+      ]
+    },
+    "supabase/functions/stylechat-generate/index.ts": {
+      "function": "stylechat-generate",
+      "environment": "production",
+      "projectRef": "wyyuqfdxucjksghsmhry",
+      "basisCommit": "233e2b33bdb1b1d3538094b5d3a7894ef673f996",
+      "deployedVersion": 132,
+      "ezbrSha256": "de290bdfaaec238bb3ae86f07695eaa724a8447af5e0e7bd5118417bb841d214",
+      "capturedAt": "2026-11-11T02:50:00Z",
+      "files": [
+        {
+          "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
+          "sha256": "fd248250a86721525e09090430d8bd2c0538174e21ba1515bad1d7492b69d994"
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/inputLimits.ts",
+          "sha256": "fa69955f9cdea9bd7c75578ebd010a7ceb1b0bf54ea5ea8ccc1a20acf14d0263"
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/outputValidation.ts",
+          "sha256": "edfdbb5b83d37ab13441b0fe1629a366dd6b62187bbbb71a4f66ab7a50731150"
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/promptEnvelope.ts",
+          "sha256": "50aece85b364eca0d143c347692e0e78682e1908d88597ea9e66da7667bcf97d"
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/styleChatPromptAssembly.ts",
+          "sha256": "dfad98828908a677e01b0f983e30dd475b8c460d77e631b2ce226b8d197942e6"
+        },
+        {
+          "path": "supabase/functions/_shared/aiSecurity/trustTypes.ts",
+          "sha256": "b95fcd6f0919c6882ad0bdee2884816f73cb7b092b77aa2d4a73da87c7f9f201"
+        },
+        {
+          "path": "supabase/functions/_shared/brandSearchExpansion.ts",
+          "sha256": "9148fd9ef95543c6654eada32a3230b363b3b9f0947396ed3c32ee93ebc83616"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/contextAssembler.ts",
+          "sha256": "09420e71741ec78ebef32474a79dd02fb5b95b8c507d2d6c5f462f35f48d654a"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/contracts.ts",
+          "sha256": "affa5a1d7a61e95dec39f27bbd9b631068d08efc5c0f6e1272b7dbdfab6acc65"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/frozenCopy.ts",
+          "sha256": "fd64e91a7102cf2de22e8bd792741f829f6ecf35947fb1b0a75a4ec8c3b9168c"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/modeSelector.ts",
+          "sha256": "ec211d0c33778d02b733592ff0433827035a6ec18eae89c61f0b4fe494aae19c"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/outputValidation.ts",
+          "sha256": "3c5e98530d242e5025875c4ea421282f48c643a1f9a80773e5fa4ba40cff525d"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/adapters.ts",
+          "sha256": "82fe21b776f00089a9b6f7453aa46ebdedab42258381e35ab0603c604eee833c"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/broker.ts",
+          "sha256": "31396141139a2173d7bcf01dabc9fedebd40c2200880d185e70f6ee6f46dd590"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/modelProjection.ts",
+          "sha256": "8bbe12bed9aaad77ddc9af9e5f858833bf8a03738ab9b01db5a130b5eeaad83e"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/products.ts",
+          "sha256": "938303ac5278a7106810923257d0e90069a62e15a78062cf02c46bd72aee75b5"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/request.ts",
+          "sha256": "89b8b36f4ecfd2ed98b9679be4ee148fd7e8efc3f3865e6b93d91b8bec445058"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/readOnlyTools/sessionStore.ts",
+          "sha256": "702c79f8829d4ca24cadb4c416c23f81f14def5606668727aa042cfd944db9d6"
+        },
+        {
+          "path": "supabase/functions/_shared/corporateIntelligence/responseFinalizer.ts",
+          "sha256": "b1f189018e20e0872407a8956d3ea753a958ee9fb80c14c87faf2c12205b1d65"
+        },
+        {
+          "path": "supabase/functions/_shared/deletion/common.ts",
+          "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19"
+        },
+        {
+          "path": "supabase/functions/_shared/geminiConsent.ts",
+          "sha256": "d1fe78df48e94088a6e8a160eae6d7b4f82655c96dea8313c8f62bcdc6cf72e6"
+        },
+        {
+          "path": "supabase/functions/_shared/llmModelRouting.ts",
+          "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c"
+        },
+        {
+          "path": "supabase/functions/_shared/net/publicHost.ts",
+          "sha256": "d49f6e6d2c7bf0230d4caa6ca1a12f4a6c52451f0fd19f8e5d3fb4092cab8009"
+        },
+        {
+          "path": "supabase/functions/_shared/scanHelpers.ts",
+          "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45"
+        },
+        {
+          "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileStore.ts",
+          "sha256": "3ccd137140cd86e543f1fb1ebd9b9c05adc0adea2113147e0785dcae259818a8"
+        },
+        {
+          "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts",
+          "sha256": "0c9d8918d3bb2a76899edd44e901f16cbd9b79dccc16a0a4d387ab25c3165fd5"
+        },
+        {
+          "path": "supabase/functions/_shared/vri03/scanImprovementsFlag.ts",
+          "sha256": "24cd3e9f2b89f26bb77ef0ee7a7e7d493b976143f1c1ef273f714b76dc06acac"
+        },
+        {
+          "path": "supabase/functions/black-owned-discovery/accountAuthorization.ts",
+          "sha256": "ed8a62892d40e5f6ae65872afbd60b2b8b534f245150fd3be7e15fc08e043060"
+        },
+        {
+          "path": "supabase/functions/black-owned-discovery/contracts.ts",
+          "sha256": "fe22c7053c9fe8837d411ae09e7801687d923b5b8fb34ebb91697e9742383022"
+        },
+        {
+          "path": "supabase/functions/black-owned-discovery/engine.ts",
+          "sha256": "c2a7157ce32ff55275743303b38cc8e7f6cd9545895082cbfded48c33d3c5d76"
+        },
+        {
+          "path": "supabase/functions/black-owned-discovery/validation.ts",
+          "sha256": "eed59e4f31c9f520d733db0bbb3dc6f49ffc41e4667ef6d8f8ec6185bac57bc9"
+        },
+        {
+          "path": "supabase/functions/scan-identify/brandEvidence.ts",
+          "sha256": "c78b9686331160c46fdaa020a911d7b8c24f40f4d7685e734d9a267358805c7a"
+        },
+        {
+          "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+          "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceAgreement.ts",
+          "sha256": "02abec82e5454a255ddc24b4dcdc50455ade1f3b31a60f0e0a7ac22b0b201e00"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts",
+          "sha256": "a30ccc822b96e3a94a681a0edfc8be0d278e9b44947475f6f0140c48bfe42bcf"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceConfig.ts",
+          "sha256": "5415c9b9ce779a5121da64a7c30fdc3484cd0cc7769492d0297aa1f73c18ae17"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceDiversity.ts",
+          "sha256": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
+          "sha256": "bba5af55a404e6ab16427469651c12315c926721c95c065d9732d4302188771e"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
+          "sha256": "5aa2e86906e62304b5fcd05b57f5a211c428c92a2b81b25ead585c44d195768c"
+        },
+        {
+          "path": "supabase/functions/scan-identify/commerceRetrievalConfig.ts",
+          "sha256": "f14e3f5b363834e39b8ccf353bfbc60ffe5101bf198456ef752f04238daee2a3"
+        },
+        {
+          "path": "supabase/functions/scan-identify/offerCurrency.ts",
+          "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef"
+        },
+        {
+          "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
+          "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa"
+        },
+        {
+          "path": "supabase/functions/scan-identify/qualityTuneConfig.ts",
+          "sha256": "a42b08d900327d3cf8d6713aef9d074d5b2680c73ae3b244b767ed814c0aff70"
+        },
+        {
+          "path": "supabase/functions/scan-identify/qualityTuneNormalize.ts",
+          "sha256": "04e7ced94dd2d09f7de8b3a808411b24e58eed2a529368210cb5c1af26c30713"
+        },
+        {
+          "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
+          "sha256": "27fa543783719298c1bb10c799098ed349b131c8646814a30ba6a07e515eb7a0"
+        },
+        {
+          "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+          "sha256": "4ef824539ecf93dc543297d5eaf5d577ca98ad835ddfdaa74d2cacbb6ac65272"
+        },
+        {
+          "path": "supabase/functions/scan-identify/vri03ScanImprovements.ts",
+          "sha256": "ee5c93ee9558d6180c47e118a904e8ce2a51e4d4beedffce09ec6d8bfc50035e"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/actions.ts",
+          "sha256": "11a709f544b84421cf659144e3dfd8976f720727625785c3bd2d64f909e1925b"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/activeContext.ts",
+          "sha256": "85c5efd90db6290ccbc61c7bb88788341e924f7fa5faa6686f207382b659c7ab"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachmentContext.ts",
+          "sha256": "7cc4a0f56378c41b57a8fb7fd66858d2d1657e69aeff72113b813abe7676a071"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachmentProvenance.ts",
+          "sha256": "2d0227146bd6029fe93a22aa1035a1fc092bbc79ab71bfd5fbc73cc26d586eb3"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/attachments.ts",
+          "sha256": "ff023894ca9a09cc60191c7cdab1a068f637ed9604b110a0d2688de8258ec739"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/contextMessages.ts",
+          "sha256": "d3aea3a3280b6dbf6254c984ba8d765af9f367e96bb3285e5dbfc8c1e111018f"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/corporateIntelligenceV2.ts",
+          "sha256": "9f7a3f31be0f44cea77ea45a1444cdbc31c331281aff50ba3d9bf413ab3e76b5"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdviceIntents.ts",
+          "sha256": "78e13d63dffa24240e55fa6cfe07db4f622a6acfb9fc4c8757928c1a28567275"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
+          "sha256": "7d922172507e797f70990b7a08961dc33bea67be3775f0d1dc4248591e3163d5"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
+          "sha256": "03fd5e9ea2d63dc9ea6faecada80a7e81f89901dd5f0daaa0ea6b4f6b81fd018"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
+          "sha256": "cd7827f135bf125db55253562ceda9f57061886cf265d686bcd74b4e548e6e0e"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseBrandVoice.ts",
+          "sha256": "b39bd180a35931359edf9fdad17e70832d664de6c575507cad040212e1198c1d"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseClosetCensus.ts",
+          "sha256": "c402c8570f162f961c354160dddc082af36a966b5a8dfb5dda2e4694475401b8"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseClosetFocusText.ts",
+          "sha256": "ac4b0cb2d55664779249f6e444cce8d2d079d1d7215241d3a73cdcd4100dba62"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseCommerceTools.ts",
+          "sha256": "7bde056d635de3cffd2eb859a98d4a1d401dee1f144bc34fecda475833cfdcad"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseCommerceWiring.ts",
+          "sha256": "f435667141c53e45d26b627271ef63729b810d7fc46d179f8bbcac35f480f6d2"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
+          "sha256": "a51be03013bcd2c2f04102ab457e32da69f6ba7ce291ff9658c115f5c0e17022"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
+          "sha256": "65397de8992a74b802bcde0bee8b12b14e6a5226740001efc7756c1945888eb4"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseFashionFeatures.ts",
+          "sha256": "fcb9c61223c692602f102441adbefb1c96037e7fb1b6db95560c4fc05e404a20"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseFocusResolution.ts",
+          "sha256": "1b65bc6c39b0f3487e0346219e583264be78fc5a55b3556d7ea25cbc3dee1a2d"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseGenerationTypes.ts",
+          "sha256": "703d01923044f683f725188c8ab8c7bb0ae517fc4b4afc8ad1e8c93b25c8e914"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseOutputValidation.ts",
+          "sha256": "e985325cc8968b83c6dc4e6140e91556f730b69ffb5d5b3d33aa135fa635d79f"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
+          "sha256": "aa5ae3afae6bbaf226ae2ffaf52981d424fa5da59b80950009ea45d3f8fe000a"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseProviderRetry.ts",
+          "sha256": "ecca73c3f270e3932aa54ff3765715bbb0d26a2290643801ec65b23b50fcd61e"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
+          "sha256": "3fec9aad781ad002ca5740c8a0c32bb1437c1558f4af30188480a6105537f27c"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseStructuredGrounding.ts",
+          "sha256": "baf629bf52cd97f13cee7ba2bd925ce301d24880f1fa664b36aa84114d49e6e7"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
+          "sha256": "cd04746148c53f1944159b93d60f6d2645bb8c5e70a2e1b839c38799d16e35ec"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
+          "sha256": "e506ae5c83c4a27d4fa480ac26cfde7cffc9abbb4262e01a35a6ea4de6e7196c"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+          "sha256": "568249511c4a291ace97d3592ef0002dc67756af393b8b1840f5e522b775e59d"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
+          "sha256": "bda01521872b0dda4827ac9082522341127da77ef8d79a15112ebc1f8a9f8dc2"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/fashionContextV2.ts",
+          "sha256": "8d9e2c2b76150c010b4fe44b4c54b7c09660cb16b0e7299090a9b3467a1bf420"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/genderStylingContext.ts",
+          "sha256": "ad350ff8d32a01ba8285d49363c15ae9632de36bc2237e8c21b2217c555d31db"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/generationSafety.ts",
+          "sha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/index.ts",
+          "sha256": "3fa6c9e700401e0a7e0e39e296d432473376f310ae453e47cac2b8790545ace0"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/modelRouting.ts",
+          "sha256": "71685aa222aa7a1c06313b696107d7f44a1b5dc912baca08be90b1262cf024ca"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/multimodal.ts",
+          "sha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingCandidates.ts",
+          "sha256": "2b4cbe9c65f2132e903af861e9f1d1404264c327a9ade4bf13dc5def09c188f5"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingContract.ts",
+          "sha256": "2ebf35656450cbbd78d93239316e99117262c4949014175209ac7bc8fd63e661"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingGaps.ts",
+          "sha256": "0d79348c0fc77c9af973df2a22cce13efec0a188f98cc14b129f8cabe1d9872e"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingGeneralMode.ts",
+          "sha256": "4b935fa534e42322dc0b581940f3d90df6eda29d6b28cb423e8fdd3e48f2051d"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingHandler.ts",
+          "sha256": "376d6985081b1705c806e3e87a1b9d6ac1f9d18c1959b6bc4d26102544228ecb"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingPrompt.ts",
+          "sha256": "4d8f2ba32b09ea979e262ff88ffdd4ae7a56af1396981f52e9ddc943cee238ca"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingProseSafety.ts",
+          "sha256": "4e5d5ad635ecfe0136a02a835d6ae5439ea3712d08a6e9840ff48f3b36990f94"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingProvider.ts",
+          "sha256": "6416f0f9a2321c0e5d27692e4a0ebf88b5e7a68c6135b962538c6743854f9942"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingRetrieval.ts",
+          "sha256": "dfe52474a9ee6998129c9744d2fc05bc95b5617693ac61d6769e7601a1f221af"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingValidation.ts",
+          "sha256": "d9bd95dff7394aa6eba2404cc44af0070e88fe24bc1d4f3b170b9a1b22f164b3"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/packingWeather.ts",
+          "sha256": "f3ceca2f104307d5c7ac1ce6cfa25bcf84869ec4298e266a557b243cc7afd4c1"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/promptHardening.ts",
+          "sha256": "cf3d30de99106ff9c2aac590796576f24dd2c205317ee3d117015fe98e2a7086"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/signatureStyleContext.ts",
+          "sha256": "9db9fdee495c8d9b94257006d7a83a55928100f938e1cafbeb94cb4466c89dfe"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/stylistIdentity.ts",
+          "sha256": "bccf38f6ce611a05bd14483c24fc4a42a2b97251ed1e04b2a07f34b3ef5c9265"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/telemetry.ts",
+          "sha256": "f39c074b2e409ec16810aebc27c447639852898c65e64cf2fe44367d7f3c0d52"
+        },
+        {
+          "path": "supabase/functions/stylechat-generate/visualContext.ts",
+          "sha256": "88d6c12a280eb4aa7bc7f973cb20fc7001940c4838313a8b88b7f21615fc3681"
+        }
+      ]
+    }
+  }
+}

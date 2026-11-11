@@ -40,7 +40,11 @@ function contextFor(fingerprints, records, overrides = {}) {
   return { environment: 'staging', implementationFingerprints: fingerprints, nowMs: NOW, records, ...overrides };
 }
 const authorizes = (type, context) => proof.hasRuntimeCapabilityProof(CAPABILITY_OF[type], type, context);
-const mutate = (files, rel) => ({ ...files, [rel]: `${files[rel]}\n// governed source mutation\n` });
+// The deployed Edge basis is JSON, so its "mutation" is one recorded hash changing
+// (as a redeploy would), not an appended comment that would only make it unparsable.
+const mutate = (files, rel) => (rel === lib.EDGE_BASIS_RELATIVE_PATH
+  ? { ...files, [rel]: files[rel].replace(/"sha256": "([0-9a-f])/g, (_m, c) => `"sha256": "${c === '0' ? '1' : '0'}`) }
+  : { ...files, [rel]: `${files[rel]}\n// governed source mutation\n` });
 
 // ── A-F: the required fail-closed contract ─────────────────────────────────
 
@@ -65,7 +69,8 @@ test('B. mutated governed source: the old proof is rejected', () => {
 test('C. a new fingerprint without renewed runtime evidence is rejected; renewal restores it', () => {
   const type = 'watch_tracking';
   const oldRecord = recordFor(type, CURRENT[type]);
-  const changed = identities(mutate(snapshot, 'supabase/functions/commerce-watch-refresh/index.ts'));
+  // A redeploy changes the recorded deployed basis; the local Edge copy no longer defines identity.
+  const changed = identities(mutate(snapshot, lib.EDGE_BASIS_RELATIVE_PATH));
   // Refreshing dates or the evidence pointer is not renewal: only the identity binds.
   const cosmetic = recordFor(type, CURRENT[type], { provenAt: '2026-10-07T23:00:00Z', expiresAt: '2026-10-30T00:00:00Z', evidenceRef: 'docs/audits/newer.json#y' });
   assert.equal(authorizes(type, contextFor(changed, [oldRecord, cosmetic])), false);
@@ -135,7 +140,9 @@ test('identity is content-only: CRLF checkout does not change it, a one-byte edi
 });
 
 test('a deleted or renamed governed file cannot silently yield an identity', () => {
-  for (const rel of ['types/packing.ts', 'supabase/functions/stylechat-generate/packingHandler.ts', 'supabase/functions/commerce-watch-refresh/index.ts']) {
+  // Edge sources are no longer read from this tree (the deployed basis is); removing
+  // the basis falls back to the working-copy closure, which this snapshot lacks.
+  for (const rel of ['types/packing.ts', 'services/watchlist/watchlistClient.ts', lib.EDGE_BASIS_RELATIVE_PATH]) {
     const { [rel]: _removed, ...without } = snapshot;
     assert.throws(() => lib.computeAllFingerprints(lib.memoryReader(without)), /missing|empty/i, rel);
   }
@@ -143,15 +150,16 @@ test('a deleted or renamed governed file cannot silently yield an identity', () 
 
 test('governed sets cover the deployable closure and exclude test files', () => {
   const reader = lib.fsReader(ROOT);
-  const packing = lib.governedFiles('packing_generation_and_refinement', reader);
+  const covered = (type) => [...lib.governedFiles(type, reader), ...lib.edgeFiles(type, reader)];
+  const packing = covered('packing_generation_and_refinement');
   for (const rel of ['types/packing.ts', 'services/packing/packingClient.ts', 'supabase/functions/stylechat-generate/index.ts',
     'supabase/functions/stylechat-generate/packingHandler.ts', 'supabase/functions/stylechat-generate/packingContract.ts']) assert.ok(packing.includes(rel), rel);
-  const watch = lib.governedFiles('watch_tracking', reader);
+  const watch = covered('watch_tracking');
   for (const rel of ['services/watchlist/watchlistClient.ts', 'supabase/functions/commerce-watch-refresh/index.ts',
     'supabase/functions/commerce-watch-refresh/watchEntitlementGuard.ts', 'supabase/functions/scan-identify/shoppingProvider.ts']) assert.ok(watch.includes(rel), rel);
-  for (const type of TYPES) assert.ok(lib.governedFiles(type, reader).every(rel => !/\.test\.(ts|tsx|js)$/.test(rel)), type);
+  for (const type of TYPES) assert.ok(covered(type).every(rel => !/\.test\.(ts|tsx|js)$/.test(rel)), type);
   // Hooks and screens never earned these proofs; the harness drove the real clients directly.
-  for (const type of TYPES) assert.ok(lib.governedFiles(type, reader).every(rel => !/^(hooks|app|components)\//.test(rel)), type);
+  for (const type of TYPES) assert.ok(covered(type).every(rel => !/^(hooks|app|components)\//.test(rel)), type);
 });
 
 test('import discovery follows multi-line, type-only, re-export and dynamic imports', () => {
@@ -208,7 +216,8 @@ function removeFromProof(fragment) {
 function mutatedSourceIsRejected(subject) {
   const type = 'watch_tracking';
   const oldRecord = recordFor(type, CURRENT[type]);
-  const changed = identities(mutate(snapshot, 'supabase/functions/commerce-watch-refresh/index.ts'));
+  // A redeploy changes the recorded deployed basis; the local Edge copy no longer defines identity.
+  const changed = identities(mutate(snapshot, lib.EDGE_BASIS_RELATIVE_PATH));
   assert.equal(subject.hasRuntimeCapabilityProof(CAPABILITY_OF[type], type, contextFor(changed, [oldRecord])), false);
 }
 function malformedIdentityIsRejected(subject) {
