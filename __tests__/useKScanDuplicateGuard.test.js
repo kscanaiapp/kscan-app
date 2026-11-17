@@ -40,7 +40,7 @@ function stripImports(source) {
 function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
-  source = source.replace('export function useKScan()', 'function useKScan()');
+  source = source.replace(/export function useKScan\([^)]*\)/, 'function useKScan(options = {})');
   source += '\nmodule.exports = { useKScan };';
 
   let stateIndex = 0;
@@ -86,6 +86,18 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     useRef: (initialValue) => ({ current: initialValue }),
     analyzeImage,
     compressForUpload,
+    // Mirrors the real pass-through behavior for requireFaceMasking=false/undefined
+    // (this test never sets it). A wearable-mode test must supply its own mock
+    // that actually exercises the strict path rather than relying on this one.
+    sanitizeImageBeforeUpload: async (input, options = {}) => {
+      if (!options.requireFaceMasking) return input;
+      throw new Error('sanitizeImageBeforeUpload: strict face masking is not mocked in this harness');
+    },
+    getPrivacySanitizerStatus: () => ({
+      faceDetectionAvailable: false,
+      faceBlurApplied: false,
+      mode: 'unavailable',
+    }),
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
     errorPulse: () => {},

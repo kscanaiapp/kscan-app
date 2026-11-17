@@ -1,20 +1,27 @@
 /**
  * K-SCAN service layer. All backend communication lives here.
  *
- * Legacy API base URL resolution:
+ * analyzeImage() calls the scan-identify Supabase Edge Function (real Gemini
+ * vision/text analysis, JWT-authenticated via the current Supabase session,
+ * GEMINI_API_KEY held server-side only — see supabase/functions/scan-identify).
+ * This replaced the legacy POST /api/analyze REST path, which is permanently
+ * retired (server.js returns 410 LEGACY_ANALYZE_DISABLED) and was never wired
+ * to a live replacement on this branch — see
+ * GOOGLE_XR_TAKEOVER_AND_CONTINUATION_REPORT.md in the native XR repo for the
+ * investigation that found and fixed this gap.
+ *
+ * Legacy API base URL resolution (used only by other functions in this file,
+ * not analyzeImage — kept for reference, not for the analyze path):
  *   - EXPO_PUBLIC_API_URL in .env (set per environment — see README)
  *   - No hosted fallback is configured; legacy calls fail lazily without it.
- *
- * Environment guide:
- *   Local dev (iOS sim):    EXPO_PUBLIC_API_URL=http://localhost:3001
- *   Local dev (Android em): EXPO_PUBLIC_API_URL=http://10.0.2.2:3001
- *   Physical device:        EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:3001
  */
 
-// 45 seconds — must exceed the server's 15-second AI timeout plus network
-// round-trip, so the client waits for the server's own error response rather
-// than timing out first and showing a generic network error.
-const ANALYZE_TIMEOUT_MS = 45000;
+import { supabase } from './supabaseClient';
+
+// 20 seconds — the server enforces its own ~8s Gemini timeout and always
+// returns a safe JSON response within that budget, so this is a defense-in-depth
+// cap for network-level hangs, not the primary timeout.
+const ANALYZE_TIMEOUT_MS = 20000;
 const API_URL_CONFIG_ERROR = 'KSCAN_API_URL_NOT_CONFIGURED';
 let analyzeRequestSequence = 0;
 
@@ -127,117 +134,153 @@ function deduplicateProducts(products) {
 }
 
 /**
- * POST image to /api/analyze.
+ * Map a scan-identify response to the shape this module's callers
+ * (hooks/useKScan.js) already expect: { type, result, metadata, products } or
+ * { type: 'non-fashion', message }.
+ *
+ * Only reads fields confirmed present by live verification against the
+ * deployed staging function (2026-08-22): status, userMessage, attributes.*,
+ * recommendedProducts/products, and displayResult.{headline,styling}. The
+ * deployed function returns additional fields (identification, shoppingMeta,
+ * purchaseOptions, similarityMatches, commerce, scanId, correlation, ...) not
+ * present in this repo's checked-in supabase/functions/scan-identify source —
+ * the live function is materially ahead of what's committed here. This mapper
+ * deliberately reads only the fields verified above rather than the full
+ * (unverified, possibly stale) contract, and treats every field as optional.
+ */
+function mapScanIdentifyResponse(data) {
+  if (!data || typeof data !== 'object') {
+    throw userSafeError(
+      'SCAN_IDENTIFY_INVALID_RESPONSE',
+      'We couldn’t complete the scan. Please try again.'
+    );
+  }
+
+  if (data.status === 'non_fashion') {
+    return {
+      type: 'non-fashion',
+      message: data.userMessage || "This doesn't appear to be a fashion item.",
+    };
+  }
+
+  if (data.status !== 'completed') {
+    // 'failed', or any other/unrecognized status — scan-identify always returns
+    // a safe userMessage for these, never a raw provider error.
+    throw userSafeError(
+      'SCAN_IDENTIFY_FAILED',
+      data.userMessage || 'We couldn’t complete the scan. Please try again.'
+    );
+  }
+
+  const attributes = data.attributes && typeof data.attributes === 'object' ? data.attributes : {};
+  const displayResult = data.displayResult && typeof data.displayResult === 'object' ? data.displayResult : null;
+
+  // Prefer the richer narrative (headline + first styling suggestion) when the
+  // live function provides it; fall back to the terse userMessage otherwise.
+  let result = data.userMessage || 'Identified a fashion item from your scan.';
+  if (displayResult) {
+    const headline = typeof displayResult.headline === 'string' ? displayResult.headline.trim() : '';
+    const styling = Array.isArray(displayResult.styling) ? displayResult.styling.find((s) => typeof s === 'string' && s.trim()) : null;
+    if (headline) {
+      result = styling ? `${headline} ${styling}` : headline;
+    }
+  }
+
+  // recommendedProducts/products are both [] in every live response observed so
+  // far (real product-search providers were attempted — e.g. kickscrew, serper —
+  // and honestly reported zero matches rather than fabricating results); kept as
+  // a real pass-through, not hardcoded [], so this doesn't silently drop products
+  // if either field starts returning them. purchaseOptions/similarityMatches are
+  // NOT mapped here — their item shape has never been observed with real data, so
+  // guessing at a mapping risks producing garbage rather than nothing.
+  const rawProducts = Array.isArray(data.recommendedProducts) && data.recommendedProducts.length
+    ? data.recommendedProducts
+    : Array.isArray(data.products) ? data.products : [];
+
+  // confidenceScore is real (the model's own estimate, 0-1) — pass it through so
+  // downstream consumers (e.g. the wearable formatter's analysis.metadata.confidence
+  // read in services/wearables/bridge.ts) get the real value instead of silently
+  // defaulting to 0.5 for every scan.
+  const confidence = typeof attributes.confidenceScore === 'number'
+    ? Math.max(0, Math.min(1, attributes.confidenceScore))
+    : undefined;
+
+  return {
+    type: 'fashion',
+    result,
+    metadata: {
+      category: typeof attributes.category === 'string' ? attributes.category : '',
+      color: Array.isArray(attributes.colorPalette) ? attributes.colorPalette.join(', ') : '',
+      silhouette: typeof attributes.silhouette === 'string' ? attributes.silhouette : '',
+      ...(confidence !== undefined ? { confidence } : {}),
+    },
+    products: deduplicateProducts(rawProducts.map(normalizeProduct).filter(Boolean)),
+  };
+}
+
+/**
+ * Analyze a captured/uploaded photo via the scan-identify Supabase Edge
+ * Function (real Gemini vision analysis; GEMINI_API_KEY stays server-side).
  * Returns one of:
  *   { type: 'fashion', result, metadata, products }
  *   { type: 'non-fashion', message }
- * Throws on network failure, server error, or timeout.
+ * Throws (with a user-safe .userMessage) on network failure, auth failure, or
+ * a 'failed' status from the server.
  */
 export async function analyzeImage(base64) {
   if (__DEV__) console.log('[DEBUG] analyzeImage called payloadLen=' + (base64?.length ?? 0));
 
   const requestStartedAt = Date.now();
-  const baseUrl = getRequiredApiBaseUrl();
-  const endpoint = `${baseUrl}/api/analyze`;
-  const requestBody = JSON.stringify({ image: base64 });
   const requestId = createAnalyzeRequestId();
   logAnalyzeDiag({
     event: 'request_prepared',
     requestId,
-    endpoint,
+    target: 'scan-identify',
     imageValueLength: typeof base64 === 'string' ? base64.length : 0,
-    bodyBytes: requestBody.length,
     hasExpectedDataUriPrefix:
       typeof base64 === 'string' && base64.startsWith('data:image/jpeg;base64,'),
   });
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(Object.assign(new Error('ANALYZE_TIMEOUT'), { name: 'AbortError' })), ANALYZE_TIMEOUT_MS);
+  });
 
   try {
-    if (__DEV__) console.log('[DEBUG] FETCH_START url=' + baseUrl + '/api/analyze');
-    logAnalyzeDiag({
-      event: 'request_start',
-      requestId,
-      endpoint,
-      bodyBytes: requestBody.length,
-      elapsedMs: Date.now() - requestStartedAt,
+    logAnalyzeDiag({ event: 'request_start', requestId, target: 'scan-identify', elapsedMs: Date.now() - requestStartedAt });
+
+    const invokePromise = supabase.functions.invoke('scan-identify', {
+      body: { mode: 'image', imageBase64: base64, requestId, source: 'mobile' },
     });
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: requestBody,
-      signal: controller.signal,
-    });
+    const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
     clearTimeout(timeoutId);
+
     logAnalyzeDiag({
       event: 'request_response',
       requestId,
       elapsedMs: Date.now() - requestStartedAt,
-      status: response.status,
-      ok: response.ok,
+      ok: !error,
     });
-    if (__DEV__) console.log('[DEBUG] FETCH_DONE status=' + response.status);
-
-    // Guard: try parsing JSON; surface a clean error if the server sent garbage
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error(`Server returned an unreadable response (${response.status}).`);
-    }
-
-    // Log raw response once in dev for debugging
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.log('[K-SCAN] raw response:', JSON.stringify(data));
+      console.log('[K-SCAN] raw response:', JSON.stringify(data ?? { error: String(error) }));
     }
 
-    if (!response.ok) {
-      // Structured backend failure (e.g. 503 with { status:'FAILED', message:'...' })
-      if (data?.status === 'FAILED') {
-        throw new Error(
-          'STYLE-PARSE COULD NOT COMPLETE\n' +
-          (data.message || 'The AI provider did not return a valid read.')
-        );
+    if (error) {
+      // FunctionsHttpError (non-2xx) carries the parsed body on error.context when
+      // available; anything else (network failure, FunctionsFetchError) falls
+      // through to the generic message below. Never surface the raw error object.
+      const status = error?.context?.status;
+      if (status === 401) {
+        throw userSafeError('SCAN_IDENTIFY_UNAUTHENTICATED', 'Please sign in again to scan.');
       }
-      // Generic server error — prefer the message field, then result, then fallback
-      throw new Error(
-        data?.message || data?.result || `Server error (${response.status}). Please try again.`
+      throw userSafeError(
+        'SCAN_IDENTIFY_REQUEST_FAILED',
+        'We couldn’t complete the scan. Please check your connection and try again.'
       );
     }
 
-    logAnalyzeDiag({
-      event: 'request_success',
-      requestId,
-      elapsedMs: Date.now() - requestStartedAt,
-      status: response.status,
-    });
-
-    // Non-fashion: return a distinct result type so the UI can show a tailored message
-    if (data.type === 'non-fashion') {
-      return {
-        type: 'non-fashion',
-        message: data.message || "This doesn't appear to be a fashion item.",
-      };
-    }
-
-    // Support multiple possible product array keys from backend
-    const rawProducts =
-      data.products ??
-      data.recommended_products ??
-      data.matches ??
-      data.items ??
-      data.results ??
-      [];
-
-    return {
-      type: 'fashion',
-      result: data.result ?? '',
-      metadata: data.metadata ?? { category: '', color: '', silhouette: '' },
-      products: Array.isArray(rawProducts)
-        ? deduplicateProducts(rawProducts.map(normalizeProduct).filter(Boolean))
-        : [],
-    };
+    logAnalyzeDiag({ event: 'request_success', requestId, elapsedMs: Date.now() - requestStartedAt });
+    return mapScanIdentifyResponse(data);
   } catch (err) {
     clearTimeout(timeoutId);
     logAnalyzeDiag({
@@ -247,17 +290,10 @@ export async function analyzeImage(base64) {
       errorName: err?.name ?? null,
       errorMessage: err?.message ?? null,
     });
-    if (err.name === 'AbortError') {
+    if (err?.name === 'AbortError') {
       throw userSafeError(
-        'Analysis timed out.',
+        'ANALYZE_TIMEOUT',
         'Analysis is taking longer than expected. Please try again in a moment.'
-      );
-    }
-    // Network / connection failure (fetch throws TypeError for unreachable hosts)
-    if (err instanceof TypeError) {
-      throw userSafeError(
-        'Network request failed.',
-        'We couldn’t complete the scan. Please check your connection and try again.'
       );
     }
     throw err;
