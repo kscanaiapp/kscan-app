@@ -212,12 +212,16 @@ Deno.test({
     const names = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'GEMINI_API_KEY',
       'BACKEND_COMMERCE_FUNNEL_V127_ENABLED', 'BACKEND_COMMERCE_IDENTITY_ENABLED', 'SHOPPING_SERPER_API_KEY',
       'SCANNER_MATCH_CONFIDENCE_V1_ENABLED'];
-    const saved = names.map(n => [n, Deno.env.get(n)] as const);
+    const CLEARED = ['POSHMARK_ENABLED', 'POSHMARK_RAPIDAPI_KEY', 'FARFETCH3_ENABLED', 'KICKSCREW_ENABLED',
+      'SHOPPING_BRAVE_API_KEY', 'BACKEND_QUALITY_TUNE_ENABLED', 'VRI03_SCAN_IMPROVEMENTS_ENABLED',
+      'BLACK_OWNED_BRAND_SEARCH_EXPANSION_ENABLED'];
+    const saved = [...names, ...CLEARED].map(n => [n, Deno.env.get(n)] as const);
     const fetchSaved = globalThis.fetch;
     const serveSaved = Object.getOwnPropertyDescriptor(Deno, 'serve')!;
     const logSaved = console.log;
     let handler: ((r: Request) => Promise<Response>) | undefined;
     let serperCalls = 0, geminiCalls = 0, otherExternal = 0;
+    const externalHosts: string[] = [];
     const logs: string[] = [];
     const serperItems = [
       { title: 'adidas Originals Stan Smith Sneakers White Leather', link: 'https://www.google.com/search?ibp=oshop&q=a&prds=pid:1', source: 'Store A', price: '$100.00', imageUrl: 'https://img.store-a.com/1.jpg' },
@@ -231,6 +235,9 @@ Deno.test({
         : n === 'BACKEND_COMMERCE_FUNNEL_V127_ENABLED' || n === 'BACKEND_COMMERCE_IDENTITY_ENABLED' ? 'true'
         : 'synthetic-fixture-only');
       Deno.env.delete('SCANNER_MATCH_CONFIDENCE_V1_ENABLED');
+      // Serper-only provider mix, pinned: other suites in the same run can leave
+      // optional provider and VRI-03 flags set.
+      for (const n of CLEARED) Deno.env.delete(n);
       globalThis.fetch = async (input, init) => {
         const u = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
         if (u.hostname === 'google.serper.dev') {
@@ -238,7 +245,7 @@ Deno.test({
           return Response.json({ shopping: serperItems });
         }
         if (u.hostname.includes('generativelanguage')) { geminiCalls++; return Response.json({}, { status: 503 }); }
-        if (u.origin !== origin) { otherExternal++; return Response.json({ error: 'external_call_denied' }, { status: 503 }); }
+        if (u.origin !== origin) { otherExternal++; externalHosts.push(u.hostname); return Response.json({ error: 'external_call_denied' }, { status: 503 }); }
         if (u.pathname === '/auth/v1/user') return Response.json({ id: actor, aud: 'authenticated', role: 'authenticated', is_anonymous: false });
         if (u.pathname === '/rest/v1/profiles') return Response.json([{ id: actor, account_status: 'active', account_locked_at: null }]);
         if (u.pathname === '/rest/v1/rpc/check_and_increment_scan_identify_daily_usage') return Response.json([{ allowed: true, count: 1, limit: 60 }]);
@@ -308,7 +315,7 @@ Deno.test({
       });
       await t.step('no Gemini call and no unexpected external call on MODE B', () => {
         assert.equal(geminiCalls, 0);
-        assert.equal(otherExternal, 0);
+        assert.equal(otherExternal, 0, externalHosts.join(','));
         assert.equal(serperCalls >= 2, true);
       });
     } finally {
