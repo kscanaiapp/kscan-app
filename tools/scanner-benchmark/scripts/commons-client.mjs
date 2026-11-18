@@ -1,5 +1,5 @@
 // Minimal, polite Commons API client: batched, serialized, with backoff.
-export const UA = 'KScanScannerBenchmarkBuilder/1.0 (internal evaluation; generic client)';
+export const UA = process.env.KSCAN_BENCHMARK_USER_AGENT || 'KScanScannerBenchmark/1.0 (https://kscan.app; scanner accuracy evaluation)';
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 export async function api(params) {
   const u = new URL('https://commons.wikimedia.org/w/api.php');

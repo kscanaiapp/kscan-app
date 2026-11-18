@@ -66,7 +66,8 @@ export function computeMetrics(cases, results, pricing = null) {
       if (categoryCorrect(r.identification.category, L)) idCategoryCorrect++;
     }
     const claimed = r.identification?.brand?.value ?? null;
-    if (claimed) {
+    // brand.visible === null: legibility unknown (derived variants) -> not scored.
+    if (claimed && L.brand?.visible !== null) {
       brandClaims++;
       if (!brandClaimSupported(claimed, L)) unsupportedBrandClaims++;
     }

@@ -17,7 +17,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-const UA = 'KScanScannerBenchmark/1.0 (internal evaluation; generic client)';
+// Wikimedia's bot policy asks automated clients to name a contact; the owner approved the
+// project site. Override with KSCAN_BENCHMARK_USER_AGENT.
+const UA = process.env.KSCAN_BENCHMARK_USER_AGENT || 'KScanScannerBenchmark/1.0 (https://kscan.app; scanner accuracy evaluation)';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..', '..');
 const args = process.argv.slice(2);

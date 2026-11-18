@@ -13,7 +13,8 @@ export const STRATA = Object.freeze([
 export const CATEGORIES = Object.freeze(['footwear', 'top', 'outerwear', 'blazer', 'dress', 'pants', 'skirt', 'bag', 'accessory', 'non_fashion']);
 
 // Commons licences admitted (same policy as the Build 4 Tier-A set): no NC, no ND, no unknown.
-const LICENCE_OK = /^(cc0|public domain|cc by(-sa)? (2\.0|2\.5|3\.0|4\.0))$/i;
+// Jurisdiction-ported variants ("CC BY-SA 2.5 si") carry the same terms and are admitted.
+const LICENCE_OK = /^(cc0|public domain|cc by(-sa)? (2\.0|2\.5|3\.0|4\.0)( [a-z]{2,3})?)$/i;
 const SHA256 = /^[0-9a-f]{64}$/;
 
 export function validateManifest(manifest) {

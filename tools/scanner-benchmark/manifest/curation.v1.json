@@ -1,0 +1,3428 @@
+{
+ "version": "curation.v1",
+ "labelPolicy": {
+  "productIdentity": "exact_known identity = the Commons category the file is filed under (brand + model family), cross-checked against the file title/description. Written by Commons contributors, independent of K Scan.",
+  "visualReview": "Subject confirmation, primary colour, subtype terms, brand legibility (brandVisible) and multi-item garment lists were annotated by the authoring agent from 300 px contact sheets. Marked agent_visual_review. An independent human pass is required before any holdout claim.",
+  "rejection": "Rejected when the subject is not the category item (signs, cars, crowds, logos only, giant replicas), when the item is too small to scan, or when an identifiable face dominates the frame.",
+  "exactGranularity": "Model family (e.g. Stan Smith, F-91W, Submariner). Colourway is not labelled; the judge does not test it."
+ },
+ "families": {
+  "converse-chuck-taylor": {
+   "brand": "Converse",
+   "brandAliases": [],
+   "model": "Chuck Taylor All Star",
+   "modelAliases": [
+    "Chuck Taylor",
+    "All Star",
+    "Chuck 70"
+   ],
+   "category": "footwear"
+  },
+  "adidas-superstar": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Superstar",
+   "modelAliases": [
+    "Superstar"
+   ],
+   "category": "footwear"
+  },
+  "adidas-stan-smith": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Stan Smith",
+   "modelAliases": [
+    "Stan Smith"
+   ],
+   "category": "footwear"
+  },
+  "adidas-samba": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Samba",
+   "modelAliases": [
+    "Samba"
+   ],
+   "category": "footwear"
+  },
+  "adidas-gazelle": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Gazelle",
+   "modelAliases": [
+    "Gazelle"
+   ],
+   "category": "footwear"
+  },
+  "nike-air-jordan-1": {
+   "brand": "Nike",
+   "brandAliases": [
+    "Jordan",
+    "Air Jordan",
+    "Jordan Brand"
+   ],
+   "model": "Air Jordan 1",
+   "modelAliases": [
+    "Air Jordan 1",
+    "Jordan 1",
+    "AJ1"
+   ],
+   "category": "footwear"
+  },
+  "nike-air-max-90": {
+   "brand": "Nike",
+   "brandAliases": [],
+   "model": "Air Max 90",
+   "modelAliases": [
+    "Air Max 90"
+   ],
+   "category": "footwear"
+  },
+  "crocs-classic-clog": {
+   "brand": "Crocs",
+   "brandAliases": [],
+   "model": "Classic Clog",
+   "modelAliases": [
+    "Classic Clog"
+   ],
+   "category": "footwear"
+  },
+  "rayban-wayfarer": {
+   "brand": "Ray-Ban",
+   "brandAliases": [
+    "Ray Ban",
+    "RayBan"
+   ],
+   "model": "Wayfarer",
+   "modelAliases": [
+    "Wayfarer"
+   ],
+   "category": "accessory"
+  },
+  "rayban-aviator": {
+   "brand": "Ray-Ban",
+   "brandAliases": [
+    "Ray Ban",
+    "RayBan"
+   ],
+   "model": "Aviator",
+   "modelAliases": [
+    "Aviator",
+    "RB3025"
+   ],
+   "category": "accessory"
+  },
+  "casio-f91w": {
+   "brand": "Casio",
+   "brandAliases": [],
+   "model": "F-91W",
+   "modelAliases": [
+    "F-91W",
+    "F91W"
+   ],
+   "category": "accessory"
+  },
+  "rolex-submariner": {
+   "brand": "Rolex",
+   "brandAliases": [],
+   "model": "Submariner",
+   "modelAliases": [
+    "Submariner"
+   ],
+   "category": "accessory"
+  },
+  "fjallraven-kanken": {
+   "brand": "Fjällräven",
+   "brandAliases": [
+    "Fjallraven"
+   ],
+   "model": "Kånken",
+   "modelAliases": [
+    "Kånken",
+    "Kanken"
+   ],
+   "category": "bag"
+  },
+  "nike-air-max-bw": {
+   "brand": "Nike",
+   "brandAliases": [],
+   "model": "Air Max BW",
+   "modelAliases": [
+    "Air Max BW",
+    "Air Max Classic BW",
+    "Air Max Big Window"
+   ],
+   "category": "footwear"
+  }
+ },
+ "holdoutFamilies": [
+  "adidas-gazelle",
+  "rolex-submariner",
+  "rayban-aviator"
+ ],
+ "decisions": [
+  {
+   "candidateId": "cand-000",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top",
+    "canvas"
+   ],
+   "colorTerms": [
+    "blue",
+    "navy",
+    "denim"
+   ],
+   "difficulty": [
+    "close_up",
+    "partial_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "ALL STAR wordmark on tongue patch legible; Converse brand name not legible",
+   "brandVisible": false,
+   "family": "converse-chuck-taylor"
+  },
+  {
+   "candidateId": "cand-001",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top",
+    "canvas"
+   ],
+   "colorTerms": [],
+   "difficulty": [
+    "color_inverted",
+    "partial_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "photographic negative; colour not labelled",
+   "brandVisible": false,
+   "family": "converse-chuck-taylor"
+  },
+  {
+   "candidateId": "cand-002",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "canvas"
+   ],
+   "colorTerms": [
+    "red"
+   ],
+   "difficulty": [
+    "partial_view",
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "toe cap only, dragonfly on toe",
+   "brandVisible": false,
+   "family": "converse-chuck-taylor"
+  },
+  {
+   "candidateId": "cand-003",
+   "keep": false,
+   "reason": "subject is a trade-show statue, no Chuck Taylor visible"
+  },
+  {
+   "candidateId": "cand-004",
+   "keep": false,
+   "reason": "illustration, not a photograph"
+  },
+  {
+   "candidateId": "cand-005",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "canvas"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "top_down_view"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false,
+   "family": "converse-chuck-taylor"
+  },
+  {
+   "candidateId": "cand-006",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "shell toe"
+   ],
+   "colorTerms": [
+    "white",
+    "black"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "adidas wordmark + trefoil legible; RUN DMC edition",
+   "brandVisible": true,
+   "family": "adidas-superstar"
+  },
+  {
+   "candidateId": "cand-007",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "shell toe"
+   ],
+   "colorTerms": [
+    "white",
+    "black"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false,
+   "family": "adidas-superstar"
+  },
+  {
+   "candidateId": "cand-008",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "shell toe"
+   ],
+   "colorTerms": [
+    "white",
+    "black"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "trefoil on tongue visible",
+   "brandVisible": true,
+   "family": "adidas-superstar"
+  },
+  {
+   "candidateId": "cand-009",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "shell toe"
+   ],
+   "colorTerms": [
+    "black",
+    "white"
+   ],
+   "difficulty": [
+    "monochrome",
+    "low_light"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn, legs only",
+   "brandVisible": false,
+   "family": "adidas-superstar"
+  },
+  {
+   "candidateId": "cand-010",
+   "keep": false,
+   "reason": "giant sculpture replicas, not a product"
+  },
+  {
+   "candidateId": "cand-011",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "hook and loop",
+    "velcro"
+   ],
+   "colorTerms": [
+    "white",
+    "green"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Stan Smith CF (strap) with adidas wordmark",
+   "brandVisible": true,
+   "family": "adidas-stan-smith"
+  },
+  {
+   "candidateId": "cand-012",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker"
+   ],
+   "colorTerms": [
+    "white",
+    "multicolor"
+   ],
+   "difficulty": [
+    "customized_artwork",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "hand-painted custom pairs on display",
+   "brandVisible": false,
+   "family": "adidas-stan-smith"
+  },
+  {
+   "candidateId": "cand-013",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker"
+   ],
+   "colorTerms": [
+    "white",
+    "green"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "product shot",
+   "brandVisible": false,
+   "family": "adidas-stan-smith"
+  },
+  {
+   "candidateId": "cand-014",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker"
+   ],
+   "colorTerms": [
+    "white",
+    "green"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "autograph reads Stan Smith (model text) but brand not legible",
+   "brandVisible": false,
+   "family": "adidas-stan-smith"
+  },
+  {
+   "candidateId": "cand-015",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker"
+   ],
+   "colorTerms": [
+    "green"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Adicolor green colourway",
+   "brandVisible": false,
+   "family": "adidas-stan-smith"
+  },
+  {
+   "candidateId": "cand-016",
+   "keep": false,
+   "reason": "identifiable named person dominates; frames not identifiable as Wayfarer"
+  },
+  {
+   "candidateId": "cand-017",
+   "keep": false,
+   "reason": "roadside sign, not a product"
+  },
+  {
+   "candidateId": "cand-018",
+   "keep": false,
+   "reason": "museum glasses not the category product"
+  },
+  {
+   "candidateId": "cand-019",
+   "keep": false,
+   "reason": "identifiable named person dominates; optical frames"
+  },
+  {
+   "candidateId": "cand-022",
+   "keep": false,
+   "reason": "mixed Crocs models on several people's feet; exact label not reliable"
+  },
+  {
+   "candidateId": "cand-023",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "clog"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "shallow_depth_of_field"
+   ],
+   "visiblePerson": "none",
+   "notes": "Jibbitz charm on strap",
+   "brandVisible": false,
+   "family": "crocs-classic-clog"
+  },
+  {
+   "candidateId": "cand-024",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "clog"
+   ],
+   "colorTerms": [
+    "red",
+    "blue",
+    "purple"
+   ],
+   "difficulty": [
+    "cluttered_background",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "pile of clogs",
+   "brandVisible": false,
+   "family": "crocs-classic-clog"
+  },
+  {
+   "candidateId": "cand-025",
+   "keep": false,
+   "reason": "mixed Crocs models on several people's feet, low light"
+  },
+  {
+   "candidateId": "cand-026",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "clog"
+   ],
+   "colorTerms": [
+    "pink"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "Crocs logo button on strap",
+   "brandVisible": true,
+   "family": "crocs-classic-clog"
+  },
+  {
+   "candidateId": "cand-027",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "black",
+    "blue"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Swoosh legible",
+   "brandVisible": true,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-021",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "clog"
+   ],
+   "colorTerms": [
+    "pink",
+    "purple",
+    "green"
+   ],
+   "difficulty": [
+    "retail_display",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "store wall of clogs",
+   "brandVisible": false,
+   "family": "crocs-classic-clog"
+  },
+  {
+   "candidateId": "cand-028",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "grey",
+    "white",
+    "multicolor"
+   ],
+   "difficulty": [
+    "partial_view",
+    "action",
+    "cluttered_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn during play, shoe partly turned away",
+   "brandVisible": false,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-029",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "black",
+    "red",
+    "white"
+   ],
+   "difficulty": [
+    "hand_held"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "Swoosh and Wings logo legible",
+   "brandVisible": true,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-030",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "black",
+    "gold",
+    "orange"
+   ],
+   "difficulty": [
+    "worn_item",
+    "customized_artwork"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "custom upper, worn",
+   "brandVisible": false,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-031",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "mid top"
+   ],
+   "colorTerms": [
+    "pink",
+    "white",
+    "black"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Wings logo legible",
+   "brandVisible": true,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-032",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "white",
+    "burgundy",
+    "maroon"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": true,
+   "family": "nike-air-jordan-1"
+  },
+  {
+   "candidateId": "cand-033",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "digital watch",
+    "watch"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "CASIO and F-91W legible on bezel",
+   "brandVisible": true,
+   "family": "casio-f91w"
+  },
+  {
+   "candidateId": "cand-034",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "digital watch",
+    "watch"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "CASIO and F-91W legible",
+   "brandVisible": true,
+   "family": "casio-f91w"
+  },
+  {
+   "candidateId": "cand-035",
+   "keep": false,
+   "reason": "near-duplicate of cand-034 (same watch, same series)"
+  },
+  {
+   "candidateId": "cand-036",
+   "keep": false,
+   "reason": "near-duplicate of cand-034 (same watch, same series)"
+  },
+  {
+   "candidateId": "cand-037",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "digital watch",
+    "watch"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "busy_background",
+    "glare"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn with spiked bracelet",
+   "brandVisible": false,
+   "family": "casio-f91w"
+  },
+  {
+   "candidateId": "cand-038",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "trainer"
+   ],
+   "colorTerms": [
+    "black",
+    "white"
+   ],
+   "difficulty": [
+    "defocus"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false,
+   "family": "adidas-samba"
+  },
+  {
+   "candidateId": "cand-039",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "trainer",
+    "suede"
+   ],
+   "colorTerms": [
+    "blue",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "SAMBA text on shoe, adidas trefoil on box",
+   "brandVisible": true,
+   "family": "adidas-samba"
+  },
+  {
+   "candidateId": "cand-041",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "trainer",
+    "suede"
+   ],
+   "colorTerms": [
+    "purple",
+    "blue",
+    "white"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false,
+   "family": "adidas-samba"
+  },
+  {
+   "candidateId": "cand-042",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "trainer",
+    "suede"
+   ],
+   "colorTerms": [
+    "yellow",
+    "mustard",
+    "white"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": true,
+   "family": "adidas-gazelle"
+  },
+  {
+   "candidateId": "cand-043",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "platform",
+    "suede"
+   ],
+   "colorTerms": [
+    "grey",
+    "blue"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "GAZELLE text legible",
+   "brandVisible": false,
+   "family": "adidas-gazelle"
+  },
+  {
+   "candidateId": "cand-044",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "trainer",
+    "suede"
+   ],
+   "colorTerms": [
+    "blue",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "GAZELLE text legible",
+   "brandVisible": false,
+   "family": "adidas-gazelle"
+  },
+  {
+   "candidateId": "cand-045",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "aviator"
+   ],
+   "colorTerms": [
+    "green",
+    "grey",
+    "silver"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Ray-Ban mark on lens",
+   "brandVisible": true,
+   "family": "rayban-aviator"
+  },
+  {
+   "candidateId": "cand-046",
+   "keep": false,
+   "reason": "identifiable face dominates the frame"
+  },
+  {
+   "candidateId": "cand-047",
+   "keep": false,
+   "reason": "1968 print advertisement, not a product photo"
+  },
+  {
+   "candidateId": "cand-048",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "aviator"
+   ],
+   "colorTerms": [
+    "green",
+    "gold",
+    "brown"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Aviator Shooter on Ray-Ban case",
+   "brandVisible": true,
+   "family": "rayban-aviator"
+  },
+  {
+   "candidateId": "cand-049",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "bag",
+   "subtypeTerms": [
+    "backpack"
+   ],
+   "colorTerms": [
+    "yellow",
+    "pink",
+    "blue",
+    "multicolor"
+   ],
+   "difficulty": [
+    "multiple_instances",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "pile of Kanken backpacks",
+   "brandVisible": false,
+   "family": "fjallraven-kanken"
+  },
+  {
+   "candidateId": "cand-050",
+   "keep": false,
+   "reason": "store display of mixed backpack models at distance; exact label unreliable"
+  },
+  {
+   "candidateId": "cand-051",
+   "keep": false,
+   "reason": "near-duplicate store display of mixed models"
+  },
+  {
+   "candidateId": "cand-052",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "bag",
+   "subtypeTerms": [
+    "backpack"
+   ],
+   "colorTerms": [
+    "green",
+    "grey"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "FJALLRAVEN KANKEN print legible",
+   "brandVisible": true,
+   "family": "fjallraven-kanken"
+  },
+  {
+   "candidateId": "cand-053",
+   "keep": false,
+   "reason": "backpack too small in a landscape photo"
+  },
+  {
+   "candidateId": "cand-054",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "watch",
+    "dive watch"
+   ],
+   "colorTerms": [
+    "silver",
+    "black"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false,
+   "family": "rolex-submariner"
+  },
+  {
+   "candidateId": "cand-055",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "watch",
+    "dive watch"
+   ],
+   "colorTerms": [
+    "silver"
+   ],
+   "difficulty": [
+    "back_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "caseback and bracelet only; same physical watch as cand-054",
+   "brandVisible": false,
+   "family": "rolex-submariner"
+  },
+  {
+   "candidateId": "cand-056",
+   "keep": false,
+   "reason": "near-duplicate side view of the same watch"
+  },
+  {
+   "candidateId": "cand-057",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "accessory",
+   "subtypeTerms": [
+    "watch",
+    "dive watch"
+   ],
+   "colorTerms": [
+    "silver",
+    "black"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "ROLEX and SUBMARINER legible on dial",
+   "brandVisible": true,
+   "family": "rolex-submariner"
+  },
+  {
+   "candidateId": "cand-059",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "snow boot",
+    "boot"
+   ],
+   "colorTerms": [
+    "red"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "MOON BOOT wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Moon Boot",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-060",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "snow boot",
+    "boot"
+   ],
+   "colorTerms": [
+    "teal",
+    "green",
+    "blue"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "MOON BOOT wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Moon Boot",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-061",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: brand logo artwork only, no fashion item",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-062",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: car wrapped in a check pattern",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-063",
+   "keep": false,
+   "reason": "body-painted protesters; people are the subject"
+  },
+  {
+   "candidateId": "cand-064",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "coat",
+    "trench coat",
+    "check"
+   ],
+   "colorTerms": [
+    "beige",
+    "camel",
+    "black",
+    "red"
+   ],
+   "difficulty": [
+    "back_view"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "check pattern is trade dress, no legible wordmark",
+   "brandVisible": false,
+   "brand": {
+    "visible": false,
+    "name": "Burberry",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-065",
+   "keep": false,
+   "reason": "crowd scene, no identifiable garment subject"
+  },
+  {
+   "candidateId": "cand-066",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "running shoe"
+   ],
+   "colorTerms": [
+    "purple",
+    "black",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max Classic BW per source; NIKE and AIR legible",
+   "brandVisible": true,
+   "family": "nike-air-max-bw"
+  },
+  {
+   "candidateId": "cand-067",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "indoor soccer shoe",
+    "sneaker"
+   ],
+   "colorTerms": [
+    "black",
+    "white"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "filed under Air Max but is an indoor football shoe; Swoosh legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Nike",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-068",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "running shoe"
+   ],
+   "colorTerms": [
+    "white",
+    "red"
+   ],
+   "difficulty": [
+    "worn_item",
+    "dirty"
+   ],
+   "visiblePerson": "none",
+   "notes": "model unknown; Swoosh legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Nike",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-069",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "running shoe"
+   ],
+   "colorTerms": [
+    "brown",
+    "grey"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max 90 x 360 hybrid per source title",
+   "brandVisible": true,
+   "family": "nike-air-max-90"
+  },
+  {
+   "candidateId": "cand-070",
+   "keep": true,
+   "stratum": "exact_known",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "running shoe"
+   ],
+   "colorTerms": [
+    "white",
+    "blue",
+    "grey"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max Classic BW per source",
+   "brandVisible": true,
+   "family": "nike-air-max-bw"
+  },
+  {
+   "candidateId": "cand-071",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "cardigan",
+    "zip"
+   ],
+   "colorTerms": [
+    "red"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "museum display case",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-072",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "cardigan",
+    "ribbed"
+   ],
+   "colorTerms": [
+    "red"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "flat lay",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-073",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "cardigan",
+    "cable knit",
+    "aran"
+   ],
+   "colorTerms": [
+    "cream",
+    "ivory",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "flat lay on wood",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-074",
+   "keep": false,
+   "reason": "private individual is the subject, face visible"
+  },
+  {
+   "candidateId": "cand-075",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "hoodie",
+    "jacket"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "text_overlay",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "mannequin with a protest sign; sign text is not a brand",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-076",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-077",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-078",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-080",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "leather jacket",
+    "biker",
+    "moto"
+   ],
+   "colorTerms": [
+    "cream",
+    "beige",
+    "ivory"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "on hanger",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-081",
+   "keep": false,
+   "reason": "insignia patch close-up, not a garment"
+  },
+  {
+   "candidateId": "cand-082",
+   "keep": false,
+   "reason": "graffiti"
+  },
+  {
+   "candidateId": "cand-083",
+   "keep": false,
+   "reason": "illustration"
+  },
+  {
+   "candidateId": "cand-084",
+   "keep": false,
+   "reason": "line drawing"
+  },
+  {
+   "candidateId": "cand-085",
+   "keep": false,
+   "reason": "line drawing"
+  },
+  {
+   "candidateId": "cand-086",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "scarf",
+    "scarves"
+   ],
+   "colorTerms": [
+    "multicolor",
+    "red",
+    "blue",
+    "yellow"
+   ],
+   "difficulty": [
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "market display",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-087",
+   "keep": false,
+   "reason": "near-duplicate of cand-086"
+  },
+  {
+   "candidateId": "cand-088",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "scarf",
+    "fringe"
+   ],
+   "colorTerms": [
+    "cream",
+    "pink",
+    "purple"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "folded stack",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-089",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "bag",
+   "subtypeTerms": [
+    "handbag",
+    "clutch",
+    "crocodile"
+   ],
+   "colorTerms": [
+    "brown"
+   ],
+   "difficulty": [
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "reptile-skin texture",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-090",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "bag",
+   "subtypeTerms": [
+    "handbag",
+    "monogram"
+   ],
+   "colorTerms": [
+    "blue",
+    "tan"
+   ],
+   "difficulty": [
+    "saturated_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "monogram bag with matching wedge sandals in a store window",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Louis Vuitton",
+    "aliases": []
+   },
+   "garments": [
+    {
+     "category": "bag",
+     "subtype": "handbag",
+     "color": "blue"
+    },
+    {
+     "category": "footwear",
+     "subtype": "wedge sandal",
+     "color": "blue"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-092",
+   "keep": false,
+   "reason": "postcard"
+  },
+  {
+   "candidateId": "cand-093",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "footwear",
+   "subtypeTerms": [
+    "boot",
+    "snow boot"
+   ],
+   "colorTerms": [
+    "black",
+    "teal"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-094",
+   "keep": false,
+   "reason": "sepia low-light crowd legs; no clear garment subject"
+  },
+  {
+   "candidateId": "cand-095",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sandal"
+   ],
+   "colorTerms": [
+    "brown",
+    "black"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "ecco wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "ECCO",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-096",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sandal"
+   ],
+   "colorTerms": [
+    "white",
+    "grey"
+   ],
+   "difficulty": [
+    "dirty",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "child's sandals hung on a frame",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-097",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sandal"
+   ],
+   "colorTerms": [
+    "brown"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "SIESTA printed on insole (East German sandal)",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Siesta",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-099",
+   "keep": false,
+   "reason": "crowd with faces"
+  },
+  {
+   "candidateId": "cand-100",
+   "keep": false,
+   "reason": "wall of caps with many different brand logos; single brand label impossible"
+  },
+  {
+   "candidateId": "cand-101",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "aviator"
+   ],
+   "colorTerms": [
+    "green",
+    "gold"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "product shot",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-102",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "saturated_background"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-103",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "rimless"
+   ],
+   "colorTerms": [
+    "silver"
+   ],
+   "difficulty": [
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "coins resting on the lenses",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-104",
+   "keep": false,
+   "reason": "luggage pile, no clear subject"
+  },
+  {
+   "candidateId": "cand-105",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "bag",
+   "subtypeTerms": [
+    "backpack",
+    "hiking backpack"
+   ],
+   "colorTerms": [
+    "navy",
+    "grey"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "deuter wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Deuter",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-106",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "bag",
+   "subtypeTerms": [
+    "backpack",
+    "hiking backpack"
+   ],
+   "colorTerms": [
+    "green"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "source names Berghaus Vulcan; brand not legible",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-107",
+   "keep": false,
+   "reason": "building exterior"
+  },
+  {
+   "candidateId": "cand-108",
+   "keep": false,
+   "reason": "historical illustration"
+  },
+  {
+   "candidateId": "cand-110",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "top",
+   "subtypeTerms": [
+    "sweater",
+    "knit",
+    "fair isle"
+   ],
+   "colorTerms": [
+    "grey",
+    "green",
+    "red"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "knitted pattern band",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-111",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "sweater",
+    "quarter zip",
+    "knit"
+   ],
+   "colorTerms": [
+    "grey",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "face cropped out",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-112",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "sweater",
+    "sweatshirt",
+    "velour",
+    "pullover"
+   ],
+   "colorTerms": [
+    "green",
+    "grey"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-113",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-114",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "blazer",
+   "subtypeTerms": [
+    "blazer",
+    "sport coat",
+    "gold buttons"
+   ],
+   "colorTerms": [
+    "navy"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "blazer with tie, check shirt and wristwatch; no face",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "blazer",
+     "subtype": "blazer",
+     "color": "navy"
+    },
+    {
+     "category": "accessory",
+     "subtype": "necktie",
+     "color": "navy"
+    },
+    {
+     "category": "top",
+     "subtype": "shirt",
+     "color": "blue"
+    },
+    {
+     "category": "accessory",
+     "subtype": "watch",
+     "color": "gold"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-115",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "blazer",
+   "subtypeTerms": [
+    "blazer",
+    "school blazer"
+   ],
+   "colorTerms": [
+    "navy"
+   ],
+   "difficulty": [
+    "mannequin"
+   ],
+   "visiblePerson": "none",
+   "notes": "two school uniforms on mannequins",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "blazer",
+     "subtype": "school blazer",
+     "color": "navy"
+    },
+    {
+     "category": "skirt",
+     "subtype": "pleated skirt",
+     "color": "navy"
+    },
+    {
+     "category": "pants",
+     "subtype": "trousers",
+     "color": "navy"
+    },
+    {
+     "category": "accessory",
+     "subtype": "necktie",
+     "color": "blue"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-116",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: store sign reading JEANS CLUB, no garment",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-117",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "pants",
+   "subtypeTerms": [
+    "jeans"
+   ],
+   "colorTerms": [
+    "blue"
+   ],
+   "difficulty": [
+    "multiple_instances",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "jeans on display legs outside a shop",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-118",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "pants",
+   "subtypeTerms": [
+    "jeans"
+   ],
+   "colorTerms": [
+    "blue"
+   ],
+   "difficulty": [
+    "small_subject",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "jeans drying on a fence at distance",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-119",
+   "keep": false,
+   "reason": "person's face visible and central"
+  },
+  {
+   "candidateId": "cand-120",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-121",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-122",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "puffer jacket",
+    "down jacket"
+   ],
+   "colorTerms": [
+    "red"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "on hanger, black background",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-123",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "down jacket",
+    "puffer jacket",
+    "leather"
+   ],
+   "colorTerms": [
+    "brown"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "costume display with boots",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "outerwear",
+     "subtype": "down jacket",
+     "color": "brown"
+    },
+    {
+     "category": "footwear",
+     "subtype": "boot",
+     "color": "brown"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-124",
+   "keep": false,
+   "reason": "station interior"
+  },
+  {
+   "candidateId": "cand-125",
+   "keep": false,
+   "reason": "historical group portrait"
+  },
+  {
+   "candidateId": "cand-126",
+   "keep": false,
+   "reason": "historical group portrait"
+  },
+  {
+   "candidateId": "cand-127",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-128",
+   "keep": false,
+   "reason": "named person, face visible"
+  },
+  {
+   "candidateId": "cand-129",
+   "keep": false,
+   "reason": "runners at distance"
+  },
+  {
+   "candidateId": "cand-130",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "top",
+   "subtypeTerms": [
+    "cycling jersey",
+    "jersey"
+   ],
+   "colorTerms": [
+    "yellow"
+   ],
+   "difficulty": [
+    "text_overlay"
+   ],
+   "visiblePerson": "none",
+   "notes": "Swoosh legible; sponsor wordmark CREDIT LYONNAIS is not the apparel brand",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Nike",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-132",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-133",
+   "keep": false,
+   "reason": "named person racing"
+  },
+  {
+   "candidateId": "cand-134",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "pants",
+   "subtypeTerms": [
+    "shorts",
+    "sports shorts"
+   ],
+   "colorTerms": [
+    "white"
+   ],
+   "difficulty": [
+    "composite_two_views"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "front/back composite",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "adidas",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-135",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "track jacket",
+    "tracksuit"
+   ],
+   "colorTerms": [
+    "navy",
+    "red",
+    "white"
+   ],
+   "difficulty": [
+    "composite_two_views"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "tracksuit front/back, head cropped",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "adidas",
+    "aliases": []
+   },
+   "garments": [
+    {
+     "category": "outerwear",
+     "subtype": "track jacket",
+     "color": "navy"
+    },
+    {
+     "category": "pants",
+     "subtype": "track pants",
+     "color": "navy"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-136",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "pants",
+   "subtypeTerms": [
+    "shorts",
+    "running shorts",
+    "nylon"
+   ],
+   "colorTerms": [
+    "blue",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "trefoil legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "adidas",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-137",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "accessory",
+   "subtypeTerms": [
+    "cap",
+    "baseball cap"
+   ],
+   "colorTerms": [
+    "grey"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "adidas",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-138",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "track jacket",
+    "jacket"
+   ],
+   "colorTerms": [
+    "white",
+    "red"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "trefoil in I-heart-TOKYO print",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "adidas",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-139",
+   "keep": false,
+   "reason": "football helmet, not apparel commerce"
+  },
+  {
+   "candidateId": "cand-140",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "basketball jersey",
+    "jersey"
+   ],
+   "colorTerms": [
+    "navy",
+    "yellow"
+   ],
+   "difficulty": [
+    "text_overlay"
+   ],
+   "visiblePerson": "none",
+   "notes": "source names Champion; logo not legible at this size",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-141",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker"
+   ],
+   "colorTerms": [
+    "white",
+    "green"
+   ],
+   "difficulty": [
+    "color_cast"
+   ],
+   "visiblePerson": "none",
+   "notes": "C logo on insole",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Champion",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-142",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "top",
+   "subtypeTerms": [
+    "football jersey",
+    "jersey"
+   ],
+   "colorTerms": [
+    "blue",
+    "white"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "museum display case",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-143",
+   "keep": false,
+   "reason": "private individual, face visible, offensive gesture"
+  },
+  {
+   "candidateId": "cand-144",
+   "keep": false,
+   "reason": "offensive sticker, no garment"
+  },
+  {
+   "candidateId": "cand-145",
+   "keep": false,
+   "reason": "cap too small, back-lit"
+  },
+  {
+   "candidateId": "cand-146",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "accessory",
+   "subtypeTerms": [
+    "cap",
+    "baseball cap"
+   ],
+   "colorTerms": [
+    "white"
+   ],
+   "difficulty": [
+    "crowd_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "cap reads SUPREME CHAMPION (two wordmarks); worn, back view",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Supreme",
+    "aliases": [
+     "Champion"
+    ]
+   }
+  },
+  {
+   "candidateId": "cand-147",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-148",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-149",
+   "keep": false,
+   "reason": "house exterior"
+  },
+  {
+   "candidateId": "cand-150",
+   "keep": false,
+   "reason": "commemorative plaque"
+  },
+  {
+   "candidateId": "cand-151",
+   "keep": false,
+   "reason": "park steps"
+  },
+  {
+   "candidateId": "cand-152",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: concept car under a LACOSTE sign",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-153",
+   "keep": false,
+   "reason": "near-duplicate concept car detail"
+  },
+  {
+   "candidateId": "cand-154",
+   "keep": false,
+   "reason": "near-duplicate concept car"
+  },
+  {
+   "candidateId": "cand-155",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "accessory",
+   "subtypeTerms": [
+    "eyeglasses",
+    "glasses",
+    "optical frame"
+   ],
+   "colorTerms": [
+    "silver"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "source names Lacoste frames; brand not legible",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-156",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "high top"
+   ],
+   "colorTerms": [
+    "brown",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Vans side-stripe trade dress, no legible wordmark",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-157",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "footwear",
+   "subtypeTerms": [
+    "slip-on",
+    "sneaker"
+   ],
+   "colorTerms": [
+    "black",
+    "white"
+   ],
+   "difficulty": [
+    "top_down_view",
+    "outdoor_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "two different pairs of slip-ons",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "footwear",
+     "subtype": "slip-on",
+     "color": "black"
+    },
+    {
+     "category": "footwear",
+     "subtype": "slip-on",
+     "color": "black"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-158",
+   "keep": true,
+   "stratum": "unknown_generic",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "canvas"
+   ],
+   "colorTerms": [
+    "navy",
+    "red"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-159",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "skate shoe"
+   ],
+   "colorTerms": [
+    "black",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "VANS wordmark legible",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Vans",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-160",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "sport sunglasses"
+   ],
+   "colorTerms": [
+    "orange",
+    "blue"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "O icon on temple",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Oakley",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-161",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses"
+   ],
+   "colorTerms": [
+    "silver",
+    "pink"
+   ],
+   "difficulty": [
+    "busy_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "O icon on temple; camo background",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Oakley",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-162",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "accessory",
+   "subtypeTerms": [
+    "sunglasses",
+    "sport sunglasses"
+   ],
+   "colorTerms": [
+    "black",
+    "orange"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "O icon on pouch",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Oakley",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-163",
+   "keep": false,
+   "reason": "illustration"
+  },
+  {
+   "candidateId": "cand-164",
+   "keep": false,
+   "reason": "painted portrait"
+  },
+  {
+   "candidateId": "cand-165",
+   "keep": false,
+   "reason": "private individual's face visible"
+  },
+  {
+   "candidateId": "cand-166",
+   "keep": false,
+   "reason": "private individual's face visible"
+  },
+  {
+   "candidateId": "cand-167",
+   "keep": false,
+   "reason": "fabric swatch, no garment"
+  },
+  {
+   "candidateId": "cand-168",
+   "keep": false,
+   "reason": "near-duplicate car interior"
+  },
+  {
+   "candidateId": "cand-169",
+   "keep": false,
+   "reason": "fabric swatch, no garment"
+  },
+  {
+   "candidateId": "cand-170",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: houndstooth car seat upholstery",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-171",
+   "keep": false,
+   "reason": "handcuffs and restraints on fabric; not a clear fashion subject"
+  },
+  {
+   "candidateId": "cand-172",
+   "keep": false,
+   "reason": "handcuffs and restraints on fabric; not a clear fashion subject"
+  },
+  {
+   "candidateId": "cand-173",
+   "keep": false,
+   "reason": "named person"
+  },
+  {
+   "candidateId": "cand-174",
+   "keep": false,
+   "reason": "street crowd with faces"
+  },
+  {
+   "candidateId": "cand-175",
+   "keep": false,
+   "reason": "painting"
+  },
+  {
+   "candidateId": "cand-176",
+   "keep": false,
+   "reason": "engraving"
+  },
+  {
+   "candidateId": "cand-177",
+   "keep": false,
+   "reason": "named person"
+  },
+  {
+   "candidateId": "cand-178",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "dress",
+   "subtypeTerms": [
+    "polka dot dress",
+    "sundress"
+   ],
+   "colorTerms": [
+    "red",
+    "white"
+   ],
+   "difficulty": [
+    "back_view",
+    "small_subject",
+    "outdoor_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "walking away on a beach, no face",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-179",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "dress",
+   "subtypeTerms": [
+    "saree",
+    "sari",
+    "embroidered",
+    "sequin"
+   ],
+   "colorTerms": [
+    "red",
+    "gold",
+    "green"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "sequin and bead embroidery on a sari",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-180",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "champagne glasses, monochrome",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-181",
+   "keep": false,
+   "reason": "sequin fabric macro, no garment"
+  },
+  {
+   "candidateId": "cand-182",
+   "keep": false,
+   "reason": "faces of private individuals"
+  },
+  {
+   "candidateId": "cand-183",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "top",
+   "subtypeTerms": [
+    "cardigan",
+    "sweater",
+    "nordic knit",
+    "lusekofte"
+   ],
+   "colorTerms": [
+    "grey",
+    "black",
+    "red"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "face cropped; worn with tie",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-184",
+   "keep": true,
+   "stratum": "logo_visible",
+   "category": "footwear",
+   "subtypeTerms": [
+    "sneaker",
+    "tennis shoe"
+   ],
+   "colorTerms": [
+    "white",
+    "blue"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "Reebok wordmark legible; argyle lining",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Reebok",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-185",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: argyle-decorated bicycle frames",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-186",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-187",
+   "keep": false,
+   "reason": "camouflage fabric close-up; garment type undeterminable"
+  },
+  {
+   "candidateId": "cand-188",
+   "keep": false,
+   "reason": "full-body costume suits"
+  },
+  {
+   "candidateId": "cand-189",
+   "keep": false,
+   "reason": "band portrait with faces"
+  },
+  {
+   "candidateId": "cand-190",
+   "keep": false,
+   "reason": "named person"
+  },
+  {
+   "candidateId": "cand-191",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "top",
+   "subtypeTerms": [
+    "polo shirt",
+    "striped"
+   ],
+   "colorTerms": [
+    "yellow",
+    "blue",
+    "white"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "crocodile logo legible; face cropped",
+   "brandVisible": true,
+   "brand": {
+    "visible": true,
+    "name": "Lacoste",
+    "aliases": []
+   }
+  },
+  {
+   "candidateId": "cand-192",
+   "keep": false,
+   "reason": "named person, face dominates"
+  },
+  {
+   "candidateId": "cand-193",
+   "keep": true,
+   "stratum": "texture_pattern",
+   "category": "top",
+   "subtypeTerms": [
+    "shirt",
+    "striped",
+    "pinstripe"
+   ],
+   "colorTerms": [
+    "white",
+    "brown"
+   ],
+   "difficulty": [
+    "back_view",
+    "cluttered_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "cyclist from behind; printed text is not a brand",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-195",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: armour quintain dummy",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-197",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: unclothed mannequin heads, monochrome",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-198",
+   "keep": false,
+   "reason": "window of unclothed mannequins behind sale signs and reflections"
+  },
+  {
+   "candidateId": "cand-199",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "dress",
+   "subtypeTerms": [
+    "dress",
+    "mini dress"
+   ],
+   "colorTerms": [
+    "multicolor",
+    "yellow"
+   ],
+   "difficulty": [
+    "retail_display",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "dresses on dress forms in a showroom",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "dress",
+     "subtype": "dress",
+     "color": "multicolor"
+    },
+    {
+     "category": "dress",
+     "subtype": "dress",
+     "color": "yellow"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-200",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "accessory",
+   "subtypeTerms": [
+    "headscarf",
+    "scarf",
+    "hijab"
+   ],
+   "colorTerms": [
+    "multicolor"
+   ],
+   "difficulty": [
+    "retail_display",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "headscarves on display heads plus hanging scarves",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "accessory",
+     "subtype": "headscarf",
+     "color": "multicolor"
+    },
+    {
+     "category": "accessory",
+     "subtype": "scarf",
+     "color": "multicolor"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-201",
+   "keep": false,
+   "reason": "storefront; garments too small"
+  },
+  {
+   "candidateId": "cand-202",
+   "keep": false,
+   "reason": "storefront; garments too small"
+  },
+  {
+   "candidateId": "cand-203",
+   "keep": false,
+   "reason": "storefront; garments too small"
+  },
+  {
+   "candidateId": "cand-204",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "leather jacket",
+    "jacket"
+   ],
+   "colorTerms": [
+    "brown"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "window mannequins beside a SALE sculpture",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "outerwear",
+     "subtype": "leather jacket",
+     "color": "brown"
+    },
+    {
+     "category": "pants",
+     "subtype": "jeans",
+     "color": "blue"
+    },
+    {
+     "category": "outerwear",
+     "subtype": "jacket",
+     "color": "grey"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-205",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "jacket",
+    "leather jacket"
+   ],
+   "colorTerms": [
+    "black"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "window mannequins; JUICY COUTURE window lettering",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "outerwear",
+     "subtype": "leather jacket",
+     "color": "black"
+    },
+    {
+     "category": "pants",
+     "subtype": "jeans",
+     "color": "blue"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-206",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "outerwear",
+   "subtypeTerms": [
+    "track jacket",
+    "tracksuit"
+   ],
+   "colorTerms": [
+    "blue"
+   ],
+   "difficulty": [
+    "color_cast",
+    "low_light",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "blue-lit hip-hop window display",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "outerwear",
+     "subtype": "track jacket",
+     "color": "blue"
+    },
+    {
+     "category": "pants",
+     "subtype": "track pants",
+     "color": "blue"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-207",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "dress",
+   "subtypeTerms": [
+    "cocktail dress",
+    "sheath dress"
+   ],
+   "colorTerms": [
+    "black",
+    "gold",
+    "brown"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "three mannequins in dresses",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "dress",
+     "subtype": "cocktail dress",
+     "color": "black"
+    },
+    {
+     "category": "dress",
+     "subtype": "sheath dress",
+     "color": "gold"
+    },
+    {
+     "category": "dress",
+     "subtype": "sheath dress",
+     "color": "brown"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-208",
+   "keep": false,
+   "reason": "historical monochrome photograph"
+  },
+  {
+   "candidateId": "cand-209",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "dress",
+   "subtypeTerms": [
+    "party dress",
+    "dress"
+   ],
+   "colorTerms": [
+    "yellow",
+    "white"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "communion outfits on dress forms",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "dress",
+     "subtype": "party dress",
+     "color": "yellow"
+    },
+    {
+     "category": "outerwear",
+     "subtype": "sailor suit",
+     "color": "white"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-210",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "dress",
+   "subtypeTerms": [
+    "salwar kameez",
+    "kurta",
+    "tunic"
+   ],
+   "colorTerms": [
+    "blue",
+    "pink",
+    "red"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "shop window of salwar kameez with sale sign",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "dress",
+     "subtype": "salwar kameez",
+     "color": "blue"
+    },
+    {
+     "category": "dress",
+     "subtype": "kurta",
+     "color": "pink"
+    },
+    {
+     "category": "dress",
+     "subtype": "kurta",
+     "color": "red"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-211",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "dress",
+   "subtypeTerms": [
+    "dress",
+    "slip dress"
+   ],
+   "colorTerms": [
+    "pink",
+    "white"
+   ],
+   "difficulty": [
+    "dirty",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "flood-damaged store racks",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "dress",
+     "subtype": "dress",
+     "color": "pink"
+    },
+    {
+     "category": "pants",
+     "subtype": "jeans",
+     "color": "blue"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-212",
+   "keep": false,
+   "reason": "near-duplicate of the flood-damaged store series"
+  },
+  {
+   "candidateId": "cand-213",
+   "keep": false,
+   "reason": "near-duplicate of the flood-damaged store series, through glass"
+  },
+  {
+   "candidateId": "cand-214",
+   "keep": true,
+   "stratum": "multi_item",
+   "category": "top",
+   "subtypeTerms": [
+    "blouse",
+    "shirt"
+   ],
+   "colorTerms": [
+    "green",
+    "red",
+    "white"
+   ],
+   "difficulty": [
+    "low_light",
+    "dirty",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "dark flood-damaged store racks",
+   "brandVisible": false,
+   "garments": [
+    {
+     "category": "top",
+     "subtype": "blouse",
+     "color": "green"
+    },
+    {
+     "category": "top",
+     "subtype": "shirt",
+     "color": "red"
+    }
+   ]
+  },
+  {
+   "candidateId": "cand-215",
+   "keep": false,
+   "reason": "near-duplicate of cand-214"
+  },
+  {
+   "candidateId": "cand-216",
+   "keep": false,
+   "reason": "near-duplicate dark wide shot of the same store"
+  },
+  {
+   "candidateId": "cand-217",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "coffee cup with saucer",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-218",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "radio, mug and newspaper",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-219",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: brand wordmarks on coffee jars",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-220",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "mug with steam on black",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-221",
+   "keep": false,
+   "reason": "redundant coffee cup"
+  },
+  {
+   "candidateId": "cand-222",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "living room with chairs",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-223",
+   "keep": true,
+   "stratum": "non_fashion",
+   "category": "non_fashion",
+   "subtypeTerms": [],
+   "colorTerms": [],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: gingham tablecloth and chairs",
+   "brandVisible": false
+  },
+  {
+   "candidateId": "cand-224",
+   "keep": false,
+   "reason": "redundant non-fashion object"
+  },
+  {
+   "candidateId": "cand-225",
+   "keep": false,
+   "reason": "redundant non-fashion object"
+  },
+  {
+   "candidateId": "cand-226",
+   "keep": false,
+   "reason": "redundant non-fashion object"
+  }
+ ],
+ "derived": [
+  {
+   "fromCandidate": "cand-013",
+   "transform": "low_light"
+  },
+  {
+   "fromCandidate": "cand-029",
+   "transform": "motion_blur"
+  },
+  {
+   "fromCandidate": "cand-034",
+   "transform": "occlusion"
+  },
+  {
+   "fromCandidate": "cand-039",
+   "transform": "rotation"
+  },
+  {
+   "fromCandidate": "cand-045",
+   "transform": "heavy_compression"
+  },
+  {
+   "fromCandidate": "cand-052",
+   "transform": "overexposed"
+  },
+  {
+   "fromCandidate": "cand-066",
+   "transform": "low_light"
+  },
+  {
+   "fromCandidate": "cand-006",
+   "transform": "motion_blur"
+  },
+  {
+   "fromCandidate": "cand-072",
+   "transform": "occlusion"
+  },
+  {
+   "fromCandidate": "cand-080",
+   "transform": "rotation"
+  },
+  {
+   "fromCandidate": "cand-122",
+   "transform": "heavy_compression"
+  },
+  {
+   "fromCandidate": "cand-101",
+   "transform": "overexposed"
+  },
+  {
+   "fromCandidate": "cand-137",
+   "transform": "low_light"
+  },
+  {
+   "fromCandidate": "cand-159",
+   "transform": "motion_blur"
+  },
+  {
+   "fromCandidate": "cand-160",
+   "transform": "occlusion"
+  },
+  {
+   "fromCandidate": "cand-110",
+   "transform": "rotation"
+  }
+ ]
+}

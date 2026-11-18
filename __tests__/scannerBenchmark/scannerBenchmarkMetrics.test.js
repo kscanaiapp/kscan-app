@@ -135,6 +135,8 @@ test('manifest validator enforces licence, provenance, strata and derived-case p
   const bad = (over) => validateManifest({ cases: [src(over)] }).join('\n');
   assert.match(bad({ source: { ...src().source, licence: 'CC BY-NC 4.0' } }), /licence not admitted/);
   assert.match(bad({ source: { ...src().source, licence: 'CC BY-ND 4.0' } }), /licence not admitted/);
+  assert.deepEqual(validateManifest({ cases: [src({ source: { ...src().source, licence: 'CC BY-SA 2.5 si' } })] }), []);
+  assert.match(bad({ source: { ...src().source, licence: 'CC BY-NC-SA 2.5 si' } }), /licence not admitted/);
   assert.match(bad({ source: { ...src().source, sha256: 'xyz' } }), /sha256 required/);
   assert.match(bad({ labels: { ...src().labels, exactProduct: { knowable: false } } }), /exact_known requires/);
   assert.match(bad({ stratum: 'unknown_stratum' }), /unknown stratum/);
@@ -162,4 +164,27 @@ test('archived adapter maps live-certification items to scored cases', async () 
   assert.equal(m.merchantLinkValidity.searchHandoff.numerator, 1);
   assert.equal(m.alternativeRelevance.hitAt3.value, 1);
   assert.equal(m.identification.nonFashionRejection.value, 1);
+});
+
+test('brand claims on cases with unknown legibility (derived variants) are not scored', async () => {
+  const { computeMetrics } = await lib('metrics.mjs');
+  const derived = { ...STAN_SMITH, caseId: 'b42-dif-x', stratum: 'difficult', labels: { ...STAN_SMITH.labels, brand: { ...STAN_SMITH.labels.brand, visible: null } } };
+  const m = computeMetrics([derived], [{ caseId: 'b42-dif-x', identification: { status: 'completed', category: 'footwear', brand: { value: 'adidas' } }, offers: [], timings: {} }]);
+  assert.equal(m.identification.unsupportedBrandClaimRate.denominator, 0);
+});
+
+test('committed benchmark manifest validates and meets its documented composition', async () => {
+  const fs = require('node:fs');
+  const { validateManifest, summarizeManifest } = await lib('manifest.mjs');
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'tools', 'scanner-benchmark', 'manifest', 'cases.v1.json'), 'utf8'));
+  assert.deepEqual(validateManifest(manifest), []);
+  const s = summarizeManifest(manifest);
+  assert.ok(s.cases >= 100, 'at least 100 cases');
+  for (const stratum of ['exact_known', 'unknown_generic', 'logo_visible', 'texture_pattern', 'multi_item', 'difficult', 'non_fashion']) {
+    assert.ok((s.byStratum[stratum] ?? 0) > 0, `stratum ${stratum} present`);
+  }
+  assert.ok(s.bySplit.holdout > 0 && s.bySplit.development > 0);
+  // Holdout families never leak into development.
+  const fam = (split) => new Set(manifest.cases.filter((c) => c.split === split).map((c) => c.labels.exactProduct?.family).filter(Boolean));
+  for (const f of fam('holdout')) assert.ok(!fam('development').has(f), `family ${f} leaks across splits`);
 });

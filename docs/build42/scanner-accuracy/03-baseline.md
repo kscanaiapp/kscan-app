@@ -58,7 +58,49 @@ candidates to exactly 3; 2 of 8 weak-topped.
 Provider cost: **not measured** — token counts are logged only for VRI-03-cohort requests and
 function logs were not readable from this session; commerce calls are counted, not priced.
 
-## E. Benchmark composition
+## E. Benchmark composition (`tools/scanner-benchmark/manifest/cases.v1.json`, v1)
 
-See `tools/scanner-benchmark/manifest/cases.v1.json` and the summary appended below by the
-manifest build.
+**139 cases** = 123 licensed Wikimedia Commons photographs + 16 deterministic adverse-condition
+variants. 227 candidates were collected (licence-filtered); 217 fetched; 94 rejected during
+visual curation (reasons recorded per candidate in `curation.v1.json`).
+
+| Stratum | Development | Holdout | Notes |
+|---|---|---|---|
+| `exact_known` | 34 | 8 | 13 model families (Stan Smith, Superstar, Samba, Gazelle, Chuck Taylor, Air Jordan 1, Air Max BW, Air Max 90, Crocs Classic Clog, Casio F-91W, Rolex Submariner, Ray-Ban Aviator, Kånken); holdout = whole families (Gazelle, Submariner, Aviator) |
+| `logo_visible` | 17 | 2 | legible wordmark/logo (adidas, Nike, Oakley, Vans, Reebok, ECCO, Deuter, Moon Boot, Champion, Supreme…) incl. sponsor-text and dual-wordmark traps |
+| `unknown_generic` | 21 | 2 | no identifiable product; includes trade-dress traps (Vans side stripe, Champion jersey with illegible logo) |
+| `texture_pattern` | 7 | 1 | check, fair isle, Nordic knit, polka dot, sequin embroidery, stripes, reptile skin |
+| `multi_item` | 15 | 1 | mannequins, shop windows, flood-damaged racks; 2–4 labelled garments each |
+| `non_fashion` | 10 | 5 | incl. adversarial controls: logo artwork, shop sign "JEANS CLUB", patterned car/upholstery/tablecloth, brand text on coffee jars, unclothed mannequins |
+| `difficult` (derived) | 13 | 3 | low light, motion blur, occlusion, rotation, heavy JPEG compression, overexposure — labels inherited; brand legibility marked unknown |
+
+Other: 50 cases have a knowable exact product; 101 carry at least one difficulty tag (natural or
+derived); 20 show part of a person (no identifiable face by policy); licences: CC BY / CC BY-SA
+2.0–4.0 (incl. two jurisdiction ports), CC0, public domain. Reproduction verified: 3 of 3 sampled
+files re-fetched from manifest URLs matched their SHA-256; derived variants are byte-identical on
+re-generation with Pillow 12.3.0.
+
+### Known biases and limits (state these next to any result)
+
+* Footwear dominates (52 of 139); accessories 25; tops 16; few pants, skirts or dresses.
+* Licensed web photographs, not phone captures: framing, resolution and lighting differ from the
+  in-app camera; the 896 px client width was not simulated (960/500 px thumbnails are sent as-is).
+* Identifiable faces were excluded, so "garment worn by a visible person" is under-represented.
+* Exact-product identity comes from Commons categories/titles (independent); colour, subtype,
+  brand legibility and multi-item garment lists are **agent-annotated** and need a human pass
+  before any holdout claim.
+* Offer judging is title-only (see `lib/judge.mjs`).
+
+### Live-run envelope (`scripts/plan-live-run.mjs`; nothing executed)
+
+| Split | Cases | Detection | Selected item | commerce_only | Image-mode total | Quota-days at 30/actor/day |
+|---|---|---|---|---|---|---|
+| development | 117 | 117 | 127 | 127 | 244 | 9 (one actor) |
+| holdout | 22 | 22 | 18 | 18 | 40 | 2 |
+
+Gemini upper bound for the development split, using the Build 4 pricing record (2026-07-29 —
+must be re-retrieved before any paid run): **≤ $10.45** (input envelope 4 032 tokens and the
+2 048-token output cap per call, doubled for the retry ceiling). Commerce provider calls are not
+priced (no dated price record exists in the repo). The binding constraint is the durable quota;
+options are more synthetic actors or a temporary Staging `SCAN_IDENTIFY_IMAGE_DAILY_LIMIT`
+override — both owner decisions.

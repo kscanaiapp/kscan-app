@@ -9,7 +9,10 @@ calls a paid provider.
 | Path | Purpose |
 |---|---|
 | `manifest/cases.v1.json` | Benchmark cases: provenance, licence, attribution, SHA-256, split, stratum, labels, label sources |
-| `manifest/curation.v1.json` | Every Commons candidate considered and why it was kept or rejected |
+| `manifest/candidates.v1.json` | 227 licence-filtered Commons candidates (metadata only) |
+| `manifest/curation.families.json` | Product-family identity table, label policy, holdout families |
+| `manifest/curation.v1.json` | Every candidate's keep/reject decision with reason, labels and difficulty tags; derived-variant list |
+| `scripts/build-manifest.mjs` | candidates + curation + fetched files → validated `cases.v1.json` with deterministic splits |
 | `lib/manifest.mjs` | Manifest contract and validator |
 | `lib/destination.mjs` | Merchant-link classifier (independent of `scan-identify`) |
 | `lib/judge.mjs` | Deterministic title judges: exact product, alternative grade, brand claim, category |
@@ -33,6 +36,8 @@ Images are Wikimedia Commons files under CC0, public domain, CC BY or CC BY-SA (
 NoDerivatives and unrecognised licences are rejected). They are fetched as standard-size
 thumbnails, never committed, and each case records author, licence, file page and SHA-256 for
 attribution. The fetcher is rate-limited (one request per 8 s) and stops on sustained HTTP 429.
+Wikimedia throttles anonymous clients; the default User-Agent names the project site as contact
+(owner-approved). Override it with `KSCAN_BENCHMARK_USER_AGENT`.
 
 ## Labels and their independence
 

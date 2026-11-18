@@ -24,7 +24,8 @@
 
 ## What Sprint 1 adds
 
-* `tools/scanner-benchmark/` — benchmark manifest, reproducible fetch/verify of licensed source
+* `tools/scanner-benchmark/` — a 139-case benchmark manifest (123 licensed Commons photos +
+  16 derived variants, 7 strata, 117 development / 22 holdout), reproducible fetch/verify of licensed source
   images, deterministic derived "difficult condition" variants, independent scoring library
   (`lib/destination.mjs`, `lib/judge.mjs`, `lib/metrics.mjs`), and an adapter that scores the
   archived Build 35 live evidence with the same metrics.
