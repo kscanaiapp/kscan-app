@@ -50,6 +50,8 @@ import { projectScannerBrandIdentity, resolveScannerBrandEvidence, SCANNER_BRAND
 import { withScannerMultiItemBrandPrompt, withScannerMultiItemBrandSchema } from './multiItemBrandEvidence.ts';
 import { buildScannerModelEvidence, scannerVisualEvidencePrompt, validateScannerVisualEvidence } from './scannerVisualEvidence.ts';
 import { classifyCommerceMatch } from './matchTier.ts';
+import { annotateMatchConfidence, summarizeMatchConfidence } from './matchConfidence.ts';
+import { isMatchConfidenceEnabled } from './matchConfidenceConfig.ts';
 import { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';
 import {
   fetchCatalogCandidates,
@@ -2313,6 +2315,17 @@ Deno.serve(async (req) => {
     products = attachWatchCapability(products);
     if (shouldUseScannerBrandEvidence('image', internalRequest.entryPath, body.source)) {
       products = annotateScannerMatchMetadata(products, gated.identification);
+      // B42 match confidence v1 (default OFF): additive per-offer evidence class,
+      // computed from the same agreement scorer and identity evidence ranking
+      // used above. Never reorders or filters.
+      if (isMatchConfidenceEnabled()) {
+        products = annotateMatchConfidence(products, {
+          identification: gated.identification,
+          route,
+          commerceIdentity: commerceIdentityEnabledForCommerceOnly ? gated.commerceIdentity ?? null : null,
+        });
+        logMatchConfidenceSummary('commerce_only', products);
+      }
     }
     const canonical = buildCanonicalCommerce(products);
 
@@ -4238,6 +4251,16 @@ Deno.serve(async (req) => {
     if (scannerBrandEvidenceEnabled) {
       finalRecommendedProducts = annotateScannerMatchMetadata(finalRecommendedProducts, completedNormalizedId ?? {});
       finalSimilarityMatches = annotateScannerMatchMetadata(finalSimilarityMatches, completedNormalizedId ?? {});
+      // B42 match confidence v1 (default OFF): live commerce offers only; the
+      // catalog similarity shelf is a separate surface and is not classified.
+      if (finalRecommendedProducts.length > 0 && isMatchConfidenceEnabled()) {
+        finalRecommendedProducts = annotateMatchConfidence(finalRecommendedProducts, {
+          identification: (completedNormalizedId ?? {}) as Record<string, unknown>,
+          route: commerceCategoryRoute,
+          commerceIdentity: commerceIdentityEnabled ? intelligenceGate?.commerceIdentity ?? null : null,
+        });
+        logMatchConfidenceSummary(requestModeForRoute, finalRecommendedProducts);
+      }
     }
 
     const legacyFinalResponse = withSafeImageArrays(
@@ -4578,6 +4601,23 @@ function annotateScannerMatchMetadata<T>(products: T[], identification: Record<s
     });
     return { ...product, ...(matchMetadata ? { matchMetadata } : {}) };
   });
+}
+
+/** Counts only: no titles, URLs, brands, queries, image data or user identifiers. */
+function logMatchConfidenceSummary(requestMode: string, products: unknown[]): void {
+  const s = summarizeMatchConfidence(products);
+  console.log(
+    '[scan-identify] match_confidence_v1 request_mode=%s offers=%d verified_exact=%d probable=%d similar=%d unsupported=%d direct=%d search_handoff=%d invalid=%d',
+    requestMode,
+    s.offers,
+    s.classes.verified_exact,
+    s.classes.probable,
+    s.classes.similar,
+    s.classes.unsupported,
+    s.destinations.direct,
+    s.destinations.search_handoff,
+    s.destinations.invalid,
+  );
 }
 
 function safeStringMessage(value: unknown): string | undefined {
