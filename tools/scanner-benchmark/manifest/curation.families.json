@@ -1,0 +1,170 @@
+{
+ "labelPolicy": {
+  "productIdentity": "exact_known identity = the Commons category the file is filed under (brand + model family), cross-checked against the file title/description. Written by Commons contributors, independent of K Scan.",
+  "visualReview": "Subject confirmation, primary colour, subtype terms, brand legibility (brandVisible) and multi-item garment lists were annotated by the authoring agent from 300 px contact sheets. Marked agent_visual_review. An independent human pass is required before any holdout claim.",
+  "rejection": "Rejected when the subject is not the category item (signs, cars, crowds, logos only, giant replicas), when the item is too small to scan, or when an identifiable face dominates the frame.",
+  "exactGranularity": "Model family (e.g. Stan Smith, F-91W, Submariner). Colourway is not labelled; the judge does not test it."
+ },
+ "families": {
+  "converse-chuck-taylor": {
+   "brand": "Converse",
+   "brandAliases": [],
+   "model": "Chuck Taylor All Star",
+   "modelAliases": [
+    "Chuck Taylor",
+    "All Star",
+    "Chuck 70"
+   ],
+   "category": "footwear"
+  },
+  "adidas-superstar": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Superstar",
+   "modelAliases": [
+    "Superstar"
+   ],
+   "category": "footwear"
+  },
+  "adidas-stan-smith": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Stan Smith",
+   "modelAliases": [
+    "Stan Smith"
+   ],
+   "category": "footwear"
+  },
+  "adidas-samba": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Samba",
+   "modelAliases": [
+    "Samba"
+   ],
+   "category": "footwear"
+  },
+  "adidas-gazelle": {
+   "brand": "adidas",
+   "brandAliases": [
+    "Adidas Originals"
+   ],
+   "model": "Gazelle",
+   "modelAliases": [
+    "Gazelle"
+   ],
+   "category": "footwear"
+  },
+  "nike-air-jordan-1": {
+   "brand": "Nike",
+   "brandAliases": [
+    "Jordan",
+    "Air Jordan",
+    "Jordan Brand"
+   ],
+   "model": "Air Jordan 1",
+   "modelAliases": [
+    "Air Jordan 1",
+    "Jordan 1",
+    "AJ1"
+   ],
+   "category": "footwear"
+  },
+  "nike-air-max-90": {
+   "brand": "Nike",
+   "brandAliases": [],
+   "model": "Air Max 90",
+   "modelAliases": [
+    "Air Max 90"
+   ],
+   "category": "footwear"
+  },
+  "crocs-classic-clog": {
+   "brand": "Crocs",
+   "brandAliases": [],
+   "model": "Classic Clog",
+   "modelAliases": [
+    "Classic Clog"
+   ],
+   "category": "footwear"
+  },
+  "rayban-wayfarer": {
+   "brand": "Ray-Ban",
+   "brandAliases": [
+    "Ray Ban",
+    "RayBan"
+   ],
+   "model": "Wayfarer",
+   "modelAliases": [
+    "Wayfarer"
+   ],
+   "category": "accessory"
+  },
+  "rayban-aviator": {
+   "brand": "Ray-Ban",
+   "brandAliases": [
+    "Ray Ban",
+    "RayBan"
+   ],
+   "model": "Aviator",
+   "modelAliases": [
+    "Aviator",
+    "RB3025"
+   ],
+   "category": "accessory"
+  },
+  "casio-f91w": {
+   "brand": "Casio",
+   "brandAliases": [],
+   "model": "F-91W",
+   "modelAliases": [
+    "F-91W",
+    "F91W"
+   ],
+   "category": "accessory"
+  },
+  "rolex-submariner": {
+   "brand": "Rolex",
+   "brandAliases": [],
+   "model": "Submariner",
+   "modelAliases": [
+    "Submariner"
+   ],
+   "category": "accessory"
+  },
+  "fjallraven-kanken": {
+   "brand": "Fjällräven",
+   "brandAliases": [
+    "Fjallraven"
+   ],
+   "model": "Kånken",
+   "modelAliases": [
+    "Kånken",
+    "Kanken"
+   ],
+   "category": "bag"
+  },
+  "nike-air-max-bw": {
+   "brand": "Nike",
+   "brandAliases": [],
+   "model": "Air Max BW",
+   "modelAliases": [
+    "Air Max BW",
+    "Air Max Classic BW",
+    "Air Max Big Window"
+   ],
+   "category": "footwear"
+  }
+ },
+ "holdoutFamilies": [
+  "adidas-gazelle",
+  "rolex-submariner",
+  "rayban-aviator"
+ ]
+}

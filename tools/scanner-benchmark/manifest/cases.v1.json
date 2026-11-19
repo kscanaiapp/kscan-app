@@ -1,0 +1,7299 @@
+{
+ "version": "cases.v1",
+ "generatedAt": "2026-11-18",
+ "description": "Build 42 Scanner benchmark. Images are not committed; see README for fetch and derive.",
+ "labelPolicy": {
+  "productIdentity": "exact_known identity = the Commons category the file is filed under (brand + model family), cross-checked against the file title/description. Written by Commons contributors, independent of K Scan.",
+  "visualReview": "Subject confirmation, primary colour, subtype terms, brand legibility (brandVisible) and multi-item garment lists were annotated by the authoring agent from 300 px contact sheets. Marked agent_visual_review. An independent human pass is required before any holdout claim.",
+  "rejection": "Rejected when the subject is not the category item (signs, cars, crowds, logos only, giant replicas), when the item is too small to scan, or when an identifiable face dominates the frame.",
+  "exactGranularity": "Model family (e.g. Stan Smith, F-91W, Submariner). Colourway is not labelled; the judge does not test it."
+ },
+ "cases": [
+  {
+   "caseId": "b42-ex-e26ed33bbc",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top",
+     "canvas"
+    ],
+    "colorTerms": [
+     "blue",
+     "navy",
+     "denim"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Converse",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Converse",
+     "brandAliases": [],
+     "model": "Chuck Taylor All Star",
+     "modelAliases": [
+      "Chuck Taylor",
+      "All Star",
+      "Chuck 70"
+     ],
+     "family": "converse-chuck-taylor"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "close_up",
+    "partial_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "ALL STAR wordmark on tongue patch legible; Converse brand name not legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chuck Taylor All-Stars",
+    "title": "File:Cross-laced white sneaker shoelaces.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Cross-laced_white_sneaker_shoelaces.jpg",
+    "author": "Marcos André",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "bfb250e179dfe74deb7b335a24a1410102f06aa6",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Cross-laced_white_sneaker_shoelaces.jpg/500px-Cross-laced_white_sneaker_shoelaces.jpg",
+    "fetchWidth": 500,
+    "sha256": "e26ed33bbc39bb653e76c8f644a9d830dea71bd4b0517e1587c241102995fddf"
+   }
+  },
+  {
+   "caseId": "b42-ex-880c102527",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top",
+     "canvas"
+    ],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Converse",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Converse",
+     "brandAliases": [],
+     "model": "Chuck Taylor All Star",
+     "modelAliases": [
+      "Chuck Taylor",
+      "All Star",
+      "Chuck 70"
+     ],
+     "family": "converse-chuck-taylor"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "color_inverted",
+    "partial_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "photographic negative; colour not labelled",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chuck Taylor All-Stars",
+    "title": "File:Converses negéatif.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Converses_neg%C3%A9atif.jpg",
+    "author": "Fred.marchalon",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "fc45f50ff0965753758f8b0761db83399df4ab5f",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Converses_neg%C3%A9atif.jpg/500px-Converses_neg%C3%A9atif.jpg",
+    "fetchWidth": 500,
+    "sha256": "880c10252738257da907de2d26055084bd8d65544daf416d9edd853c8785845d"
+   }
+  },
+  {
+   "caseId": "b42-ex-2687a50e7e",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "canvas"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Converse",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Converse",
+     "brandAliases": [],
+     "model": "Chuck Taylor All Star",
+     "modelAliases": [
+      "Chuck Taylor",
+      "All Star",
+      "Chuck 70"
+     ],
+     "family": "converse-chuck-taylor"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "partial_view",
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "toe cap only, dragonfly on toe",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chuck Taylor All-Stars",
+    "title": "File:Ludwigswinkel Libelle auf Schuh.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Ludwigswinkel_Libelle_auf_Schuh.jpg",
+    "author": "Lokilech",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "801047530a1e038d6971dd6d772932b95c8d09ae",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Ludwigswinkel_Libelle_auf_Schuh.jpg/960px-Ludwigswinkel_Libelle_auf_Schuh.jpg",
+    "fetchWidth": 960,
+    "sha256": "2687a50e7ea0d7eba550a4c5ed53e242199be922cbdceaca6aa9cef38e697b2d"
+   }
+  },
+  {
+   "caseId": "b42-ex-c170e0f281",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "canvas"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Converse",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Converse",
+     "brandAliases": [],
+     "model": "Chuck Taylor All Star",
+     "modelAliases": [
+      "Chuck Taylor",
+      "All Star",
+      "Chuck 70"
+     ],
+     "family": "converse-chuck-taylor"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "top_down_view"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chuck Taylor All-Stars",
+    "title": "File:Converseshoes3.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Converseshoes3.JPG",
+    "author": "Tinton5",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "addb992c02794e50e6bf18b1403659257f03fe04",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Converseshoes3.JPG/960px-Converseshoes3.JPG",
+    "fetchWidth": 960,
+    "sha256": "c170e0f281d80a46080aeb96c2dd9d4ad4635bdd6715b7cddca033ff620fa850"
+   }
+  },
+  {
+   "caseId": "b42-ex-8c96a91983",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "shell toe"
+    ],
+    "colorTerms": [
+     "white",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Superstar",
+     "modelAliases": [
+      "Superstar"
+     ],
+     "family": "adidas-superstar"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "adidas wordmark + trefoil legible; RUN DMC edition",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Superstar",
+    "title": "File:Adidas Run DMC shoe.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Run_DMC_shoe.jpg",
+    "author": "eric molina from San Francisco, United States",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "bf00c3b167d98cf6de3a408c400fc671d17dcafd",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Adidas_Run_DMC_shoe.jpg/500px-Adidas_Run_DMC_shoe.jpg",
+    "fetchWidth": 500,
+    "sha256": "8c96a919830d08fc9b1d2b2825dfb86ad26ba9c124711d0c725a0c3420ee9dc1"
+   }
+  },
+  {
+   "caseId": "b42-ex-c3d8fc2b77",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "shell toe"
+    ],
+    "colorTerms": [
+     "white",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Superstar",
+     "modelAliases": [
+      "Superstar"
+     ],
+     "family": "adidas-superstar"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Superstar",
+    "title": "File:Adidas Superstar shoes pair.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Superstar_shoes_pair.jpg",
+    "author": "Yahoo! Blog from Sunnyvale, California, USA",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "476c17085129a4e8bc2348184b1358067626f8fb",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Adidas_Superstar_shoes_pair.jpg/960px-Adidas_Superstar_shoes_pair.jpg",
+    "fetchWidth": 960,
+    "sha256": "c3d8fc2b7789c24fb876c4e225f9a56e6c6bb9046df5e473134a33bd216a0cbe"
+   }
+  },
+  {
+   "caseId": "b42-ex-9d9ea07eaa",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "shell toe"
+    ],
+    "colorTerms": [
+     "white",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Superstar",
+     "modelAliases": [
+      "Superstar"
+     ],
+     "family": "adidas-superstar"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "trefoil on tongue visible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Superstar",
+    "title": "File:Adidas Superstar.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Superstar.JPG",
+    "author": "Xanor",
+    "licence": "CC0",
+    "licenceUrl": "cc0",
+    "originalSha1": "782c4ccce5eb9632760e163bd0e7e34b69a87f80",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Adidas_Superstar.JPG/960px-Adidas_Superstar.JPG",
+    "fetchWidth": 960,
+    "sha256": "9d9ea07eaa22afe0c73a9e1c46b3526c68270347d38e80eb034361207531f0f7"
+   }
+  },
+  {
+   "caseId": "b42-ex-d1dffb5997",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "shell toe"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Superstar",
+     "modelAliases": [
+      "Superstar"
+     ],
+     "family": "adidas-superstar"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "monochrome",
+    "low_light"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn, legs only",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Superstar",
+    "title": "File:2008 Lent Festival - Hamlet Stand up (03).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:2008_Lent_Festival_-_Hamlet_Stand_up_(03).jpg",
+    "author": "Jernej Borovinšek",
+    "licence": "CC BY-SA 2.5 si",
+    "licenceUrl": "cc-by-sa-2.5-si",
+    "originalSha1": "4a511786556978d6d6eaf95b81199448e494e008",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/2008_Lent_Festival_-_Hamlet_Stand_up_%2803%29.jpg/500px-2008_Lent_Festival_-_Hamlet_Stand_up_%2803%29.jpg",
+    "fetchWidth": 500,
+    "sha256": "d1dffb599715eedab83cf6de9e93503d5a7697c673eb02437f041aff433947cb"
+   }
+  },
+  {
+   "caseId": "b42-ex-493c5d50b1",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "hook and loop",
+     "velcro"
+    ],
+    "colorTerms": [
+     "white",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Stan Smith CF (strap) with adidas wordmark",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Stan Smith",
+    "title": "File:Sneakers velcro.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sneakers_velcro.jpg",
+    "author": "Flickr Username EverJean",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "a151995335e8ddd07524f75bd5083634d73d80f5",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Sneakers_velcro.jpg/500px-Sneakers_velcro.jpg",
+    "fetchWidth": 500,
+    "sha256": "493c5d50b18b215e4997cc78c5dea2e991a8c6aec6ac3f7e0b4be0c04a93b89c"
+   }
+  },
+  {
+   "caseId": "b42-ex-3ec327178d",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "white",
+     "multicolor"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "customized_artwork",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "hand-painted custom pairs on display",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Stan Smith",
+    "title": "File:Adicolor.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adicolor.jpg",
+    "author": "Sergio Calleja (Life is a trip) from Barcelona, Spain",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "9b283b6a23502618ef47d0a85137c8452fc74c7e",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Adicolor.jpg/960px-Adicolor.jpg",
+    "fetchWidth": 960,
+    "sha256": "3ec327178d56b0a6f6c758dc5d1013d7b4ed4197c814c2f7c6e274d797dbf393"
+   }
+  },
+  {
+   "caseId": "b42-ex-9a0e4ce95d",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "white",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "product shot",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Stan Smith",
+    "title": "File:Stan Smith white and green.png",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Stan_Smith_white_and_green.png",
+    "author": "Raizin",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "e8a677b3a6e3f67159e8503f11d05781e859d48a",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Stan_Smith_white_and_green.png/500px-Stan_Smith_white_and_green.png",
+    "fetchWidth": 500,
+    "sha256": "9a0e4ce95db985096bbf7f01c8442f01c8f7d208acc8d58aba8961a5b54340b9"
+   }
+  },
+  {
+   "caseId": "b42-ex-3f0a766ff0",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "white",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "autograph reads Stan Smith (model text) but brand not legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Stan Smith",
+    "title": "File:Adidas Stan Smiths sneaker.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Stan_Smiths_sneaker.jpg",
+    "author": "Jason V from New Westminster, BC, Canada",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "6d279dfc37208d92031635b47e818b43b5d0cb3c",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Adidas_Stan_Smiths_sneaker.jpg/960px-Adidas_Stan_Smiths_sneaker.jpg",
+    "fetchWidth": 960,
+    "sha256": "3f0a766ff0c12c495d671e05ba1aa8469fbbcc90e735f72bca2db3a142b2d727"
+   }
+  },
+  {
+   "caseId": "b42-ex-e5f323671c",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Adicolor green colourway",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Stan Smith",
+    "title": "File:Adicolor 3.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adicolor_3.jpg",
+    "author": "Willy López from Chicago, USA - Barcelona, Spain",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "e11aeeacb6f86026e2d14ad11c6bacced68515c9",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Adicolor_3.jpg/500px-Adicolor_3.jpg",
+    "fetchWidth": 500,
+    "sha256": "e5f323671c41bad5b84a9ba1333493a837de47a3b4206793c18ecf51c32d90fa"
+   }
+  },
+  {
+   "caseId": "b42-ex-03d8eff79c",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "clog"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Crocs",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Crocs",
+     "brandAliases": [],
+     "model": "Classic Clog",
+     "modelAliases": [
+      "Classic Clog"
+     ],
+     "family": "crocs-classic-clog"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "shallow_depth_of_field"
+   ],
+   "visiblePerson": "none",
+   "notes": "Jibbitz charm on strap",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Crocs",
+    "title": "File:Single croc.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Single_croc.jpg",
+    "author": "Alex Moi from Kuala Lumpur, Malaysia",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "9929c692b358bdc48da6d9a98101440c272862a1",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Single_croc.jpg/960px-Single_croc.jpg",
+    "fetchWidth": 960,
+    "sha256": "03d8eff79c803c04fef03fae98672ef9d97a2bd76907d50293594aecc865793f"
+   }
+  },
+  {
+   "caseId": "b42-ex-075e595528",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "clog"
+    ],
+    "colorTerms": [
+     "red",
+     "blue",
+     "purple"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Crocs",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Crocs",
+     "brandAliases": [],
+     "model": "Classic Clog",
+     "modelAliases": [
+      "Classic Clog"
+     ],
+     "family": "crocs-classic-clog"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "cluttered_background",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "pile of clogs",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Crocs",
+    "title": "File:HK Fashion Plastic Clogs n Shoes n Colourful Crocs Footwear.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:HK_Fashion_Plastic_Clogs_n_Shoes_n_Colourful_Crocs_Footwear.JPG",
+    "author": "SOMeiKUEN",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "57463e320a47bed8ab6834763ab734d259aa8614",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/HK_Fashion_Plastic_Clogs_n_Shoes_n_Colourful_Crocs_Footwear.JPG/960px-HK_Fashion_Plastic_Clogs_n_Shoes_n_Colourful_Crocs_Footwear.JPG",
+    "fetchWidth": 960,
+    "sha256": "075e5955285ee3abe8ce6b458a733ddd5c4bea161a04b659ef4fdf236d0dadc5"
+   }
+  },
+  {
+   "caseId": "b42-ex-e207c2ad46",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "clog"
+    ],
+    "colorTerms": [
+     "pink"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Crocs",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Crocs",
+     "brandAliases": [],
+     "model": "Classic Clog",
+     "modelAliases": [
+      "Classic Clog"
+     ],
+     "family": "crocs-classic-clog"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "Crocs logo button on strap",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Crocs",
+    "title": "File:Pink Crocs (1001349).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Pink_Crocs_(1001349).jpg",
+    "author": "Coolgirly88 at English Wikipedia",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "7ba102589b46a0de96ffdf1b49167dfaa51cded3",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Pink_Crocs_%281001349%29.jpg/960px-Pink_Crocs_%281001349%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "e207c2ad46366e9b6e441be26462e049b74985e7bdea5b8ee34a2fb95befd7e5"
+   }
+  },
+  {
+   "caseId": "b42-ex-da709dd365",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "black",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Swoosh legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:74892143 f94145facb.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:74892143_f94145facb.jpg",
+    "author": "Kevin from Yardley, PA, USA",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "b15fd6719b40b82d7f61f2fde75fa934d937d5ca",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/74892143_f94145facb.jpg/960px-74892143_f94145facb.jpg",
+    "fetchWidth": 960,
+    "sha256": "da709dd365595638286aca14c9f96873f6c32c62f2090475e59488b8e2e24d87"
+   }
+  },
+  {
+   "caseId": "b42-ex-9933f9502b",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "clog"
+    ],
+    "colorTerms": [
+     "pink",
+     "purple",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Crocs",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Crocs",
+     "brandAliases": [],
+     "model": "Classic Clog",
+     "modelAliases": [
+      "Classic Clog"
+     ],
+     "family": "crocs-classic-clog"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "store wall of clogs",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Crocs",
+    "title": "File:ColorfulCrocs.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:ColorfulCrocs.jpg",
+    "author": "MuLaN™ from Unknown",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "664277e0cd9c89abdc8b0d84ecf8b8ed7865afe5",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/ColorfulCrocs.jpg/500px-ColorfulCrocs.jpg",
+    "fetchWidth": 500,
+    "sha256": "9933f9502ba5ccb22fe5629342df75d1b934f076e21b96399249e1c70cecaa1a"
+   }
+  },
+  {
+   "caseId": "b42-ex-c0a43c8bc9",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "grey",
+     "white",
+     "multicolor"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "partial_view",
+    "action",
+    "cluttered_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn during play, shoe partly turned away",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:Josh Donaldson rocks some hot Air Jordans for Gatorade All-Star Workout Day. (28377246850).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Josh_Donaldson_rocks_some_hot_Air_Jordans_for_Gatorade_All-Star_Workout_Day._(28377246850).jpg",
+    "author": "Arturo Pardavila III from Hoboken, NJ, USA",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "7278ca3493ced9e46330e5060c8d6995737151b6",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Josh_Donaldson_rocks_some_hot_Air_Jordans_for_Gatorade_All-Star_Workout_Day._%2828377246850%29.jpg/960px-Josh_Donaldson_rocks_some_hot_Air_Jordans_for_Gatorade_All-Star_Workout_Day._%2828377246850%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "c0a43c8bc9ec8ebe5ef603acaa8915d3a21ec66efdc44f6845b9efc94328c6d2"
+   }
+  },
+  {
+   "caseId": "b42-ex-b1169ad9df",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "black",
+     "red",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "hand_held"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "Swoosh and Wings logo legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:Air Jordan 1 (29361675221).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Air_Jordan_1_(29361675221).jpg",
+    "author": "Ting Him Mak from Hong Kong, China",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "8370ab93cef0822111df5437f6d1e798dd3cd6ca",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Air_Jordan_1_%2829361675221%29.jpg/960px-Air_Jordan_1_%2829361675221%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "b1169ad9df859f3b401620e988caefda952848eac417d2b707f592df4f72f529"
+   }
+  },
+  {
+   "caseId": "b42-ex-12c5806b9d",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "black",
+     "gold",
+     "orange"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item",
+    "customized_artwork"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "custom upper, worn",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:LVNT's Air Jordan 1s.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:LVNT%27s_Air_Jordan_1s.jpg",
+    "author": "Pomegranatesky",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "3c59cf3dacbfa5b954ff06b7d7692d732431de9b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/LVNT%27s_Air_Jordan_1s.jpg/960px-LVNT%27s_Air_Jordan_1s.jpg",
+    "fetchWidth": 960,
+    "sha256": "12c5806b9d30721f69cfc5794fa30028ce077bdfcaa71aa81473b1ef1cd3b3e9"
+   }
+  },
+  {
+   "caseId": "b42-ex-d0a2646c92",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "mid top"
+    ],
+    "colorTerms": [
+     "pink",
+     "white",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Wings logo legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:Air Jordan 1 - Crimson Tint (49688016508).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Air_Jordan_1_-_Crimson_Tint_(49688016508).jpg",
+    "author": "Ajay Suresh from New York, NY, USA",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "4059cac7018b64d492a13978cfc6c1071797d94b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Air_Jordan_1_-_Crimson_Tint_%2849688016508%29.jpg/960px-Air_Jordan_1_-_Crimson_Tint_%2849688016508%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "d0a2646c9260e4a8471cd1febd211e0d0f0c16d439fcd8e13cf49d5e0a83c236"
+   }
+  },
+  {
+   "caseId": "b42-ex-c280c73bc9",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "white",
+     "burgundy",
+     "maroon"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Air Jordan 1",
+    "title": "File:Jordan 1 sb nike.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Jordan_1_sb_nike.jpg",
+    "author": "William Mucci",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "fccd77a7e682ad3f420e207cc581cfeb67de8210",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Jordan_1_sb_nike.jpg/960px-Jordan_1_sb_nike.jpg",
+    "fetchWidth": 960,
+    "sha256": "c280c73bc9f4a8fbfbcc000d52be80de7ca84abc8cbd4ae14df77e76da157f1a"
+   }
+  },
+  {
+   "caseId": "b42-ex-0262f5436e",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "digital watch",
+     "watch"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Casio",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Casio",
+     "brandAliases": [],
+     "model": "F-91W",
+     "modelAliases": [
+      "F-91W",
+      "F91W"
+     ],
+     "family": "casio-f91w"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "CASIO and F-91W legible on bezel",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Casio F-91W",
+    "title": "File:Casio f91w digital watch.png",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Casio_f91w_digital_watch.png",
+    "author": "Geo Swan",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "9c5c0edee1de35e9ea60a81e45cf7a6e112c9997",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Casio_f91w_digital_watch.png/500px-Casio_f91w_digital_watch.png",
+    "fetchWidth": 500,
+    "sha256": "0262f5436e213b7e7a2cfd74ef57f98233a4c953bebe45fea0168d1867991813"
+   }
+  },
+  {
+   "caseId": "b42-ex-9a36a5c4a8",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "digital watch",
+     "watch"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Casio",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Casio",
+     "brandAliases": [],
+     "model": "F-91W",
+     "modelAliases": [
+      "F-91W",
+      "F91W"
+     ],
+     "family": "casio-f91w"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "CASIO and F-91W legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Casio F-91W",
+    "title": "File:Casio F91W watch - time.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Casio_F91W_watch_-_time.jpg",
+    "author": "Enganchado",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "e3ec47ef67d396fe4040017496034397d40ac3d7",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Casio_F91W_watch_-_time.jpg/960px-Casio_F91W_watch_-_time.jpg",
+    "fetchWidth": 960,
+    "sha256": "9a36a5c4a85a6eb7e81c6d9c4c7e7f5f3f9441183ee58d9301e41dbb80649901"
+   }
+  },
+  {
+   "caseId": "b42-ex-bdb7679b56",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "digital watch",
+     "watch"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Casio",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Casio",
+     "brandAliases": [],
+     "model": "F-91W",
+     "modelAliases": [
+      "F-91W",
+      "F91W"
+     ],
+     "family": "casio-f91w"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "busy_background",
+    "glare"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "worn with spiked bracelet",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Casio F-91W",
+    "title": "File:Relojcasioheavy.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Relojcasioheavy.JPG",
+    "author": "Ballesss",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "990583a1d1fee58766870f0f90f45e1d5c27fefb",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Relojcasioheavy.JPG/960px-Relojcasioheavy.JPG",
+    "fetchWidth": 960,
+    "sha256": "bdb7679b5631559036082591727d9517ded927ab9e7f13b4a245d00cfdf6c43c"
+   }
+  },
+  {
+   "caseId": "b42-ex-098ba7048c",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Samba",
+     "modelAliases": [
+      "Samba"
+     ],
+     "family": "adidas-samba"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "defocus"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Samba",
+    "title": "File:Adidas Sambas.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Sambas.JPG",
+    "author": "Notjake13",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "8a2c1aaa9db9d9450509923d0780dbaad9e0aa01",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Adidas_Sambas.JPG/960px-Adidas_Sambas.JPG",
+    "fetchWidth": 960,
+    "sha256": "098ba7048c6c7e75f84dad4742ab80adee8adb92b6cfa7823f7c41795cc9edb1"
+   }
+  },
+  {
+   "caseId": "b42-ex-4e185522a0",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer",
+     "suede"
+    ],
+    "colorTerms": [
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Samba",
+     "modelAliases": [
+      "Samba"
+     ],
+     "family": "adidas-samba"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "SAMBA text on shoe, adidas trefoil on box",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Samba",
+    "title": "File:Blue suede samba.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Blue_suede_samba.JPG",
+    "author": "Darksteel ( talk )",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "f18993c98c4eb109f112cc98d19201e037cd66a6",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Blue_suede_samba.JPG/960px-Blue_suede_samba.JPG",
+    "fetchWidth": 960,
+    "sha256": "4e185522a032815242be26de02c6ea9fe882eb3343668bebf8f6bfefbf95595f"
+   }
+  },
+  {
+   "caseId": "b42-ex-23848e0ce4",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer",
+     "suede"
+    ],
+    "colorTerms": [
+     "purple",
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Samba",
+     "modelAliases": [
+      "Samba"
+     ],
+     "family": "adidas-samba"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Samba",
+    "title": "File:Adidas Samba shoes.png",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Samba_shoes.png",
+    "author": "Sroc",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "ab07ca0c38c5541a62be535330839ee93b35b901",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Adidas_Samba_shoes.png/960px-Adidas_Samba_shoes.png",
+    "fetchWidth": 960,
+    "sha256": "23848e0ce4175771c72d25a6d16ef52621555685fff06176105286e834a8f468"
+   }
+  },
+  {
+   "caseId": "b42-ex-65d1101f68",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer",
+     "suede"
+    ],
+    "colorTerms": [
+     "yellow",
+     "mustard",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Gazelle",
+     "modelAliases": [
+      "Gazelle"
+     ],
+     "family": "adidas-gazelle"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Gazelle",
+    "title": "File:Adidas Gazelle.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Gazelle.jpg",
+    "author": "LeDroider",
+    "licence": "CC0",
+    "licenceUrl": "cc0",
+    "originalSha1": "760e3a549692694f9d8b44d2f2ef7b98f268811b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Adidas_Gazelle.jpg/960px-Adidas_Gazelle.jpg",
+    "fetchWidth": 960,
+    "sha256": "65d1101f681fa3ed7f78c7dd1ced4de0b0324e82cb06946cfbbaef5b78944ca4"
+   }
+  },
+  {
+   "caseId": "b42-ex-14d5689e26",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "platform",
+     "suede"
+    ],
+    "colorTerms": [
+     "grey",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Gazelle",
+     "modelAliases": [
+      "Gazelle"
+     ],
+     "family": "adidas-gazelle"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "GAZELLE text legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Gazelle",
+    "title": "File:Adidas Gazelle (Singapore).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Gazelle_(Singapore).jpg",
+    "author": "Pangalau",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "46566d533361c68b36236d1e6d8a0cf55ef6d9b8",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Adidas_Gazelle_%28Singapore%29.jpg/960px-Adidas_Gazelle_%28Singapore%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "14d5689e26a3f07639d6d1ba6a1fea997b63bb258c635b32c66b746762a47ea2"
+   }
+  },
+  {
+   "caseId": "b42-ex-455b0147c9",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer",
+     "suede"
+    ],
+    "colorTerms": [
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Gazelle",
+     "modelAliases": [
+      "Gazelle"
+     ],
+     "family": "adidas-gazelle"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "GAZELLE text legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas Gazelle",
+    "title": "File:Adidas Gazelle Indoor.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Gazelle_Indoor.jpg",
+    "author": "LeDroider",
+    "licence": "CC0",
+    "licenceUrl": "cc0",
+    "originalSha1": "2721390b670d48cce25de9d1efc69826fa4357d8",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Adidas_Gazelle_Indoor.jpg/960px-Adidas_Gazelle_Indoor.jpg",
+    "fetchWidth": 960,
+    "sha256": "455b0147c9f6af79229ba822b743f4d8586100edc82f7c07be40e7fff1564021"
+   }
+  },
+  {
+   "caseId": "b42-ex-b4f9fbab86",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "aviator"
+    ],
+    "colorTerms": [
+     "green",
+     "grey",
+     "silver"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Ray-Ban",
+     "aliases": [
+      "Ray Ban",
+      "RayBan"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Ray-Ban",
+     "brandAliases": [
+      "Ray Ban",
+      "RayBan"
+     ],
+     "model": "Aviator",
+     "modelAliases": [
+      "Aviator",
+      "RB3025"
+     ],
+     "family": "rayban-aviator"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Ray-Ban mark on lens",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Ray-Ban Aviator",
+    "title": "File:RayBanAviator.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:RayBanAviator.jpg",
+    "author": "Rich Niewiroski Jr.",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "2bad2168e4404b16544b45c7ebefc1b900cd86d2",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/RayBanAviator.jpg/960px-RayBanAviator.jpg",
+    "fetchWidth": 960,
+    "sha256": "b4f9fbab86885307930256866d83089a943e3fec65620b13c4055c462aaef8d2"
+   }
+  },
+  {
+   "caseId": "b42-ex-4b8b30ed55",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "aviator"
+    ],
+    "colorTerms": [
+     "green",
+     "gold",
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Ray-Ban",
+     "aliases": [
+      "Ray Ban",
+      "RayBan"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Ray-Ban",
+     "brandAliases": [
+      "Ray Ban",
+      "RayBan"
+     ],
+     "model": "Aviator",
+     "modelAliases": [
+      "Aviator",
+      "RB3025"
+     ],
+     "family": "rayban-aviator"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Aviator Shooter on Ray-Ban case",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Ray-Ban Aviator",
+    "title": "File:Ray-Ban Aviator Shooter RB3139-001 3N (G-15 lenses) Size 62 09 160 Lens base 6.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Ray-Ban_Aviator_Shooter_RB3139-001_3N_(G-15_lenses)_Size_62_09_160_Lens_base_6.jpg",
+    "author": "Francis Flinch",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "b022629201ec201be18ae38f6c19e7fb0a3cca63",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Ray-Ban_Aviator_Shooter_RB3139-001_3N_%28G-15_lenses%29_Size_62_09_160_Lens_base_6.jpg/960px-Ray-Ban_Aviator_Shooter_RB3139-001_3N_%28G-15_lenses%29_Size_62_09_160_Lens_base_6.jpg",
+    "fetchWidth": 960,
+    "sha256": "4b8b30ed55be5e6a245a7f4c0f604322ef7163194238985e55fd61fa94753953"
+   }
+  },
+  {
+   "caseId": "b42-ex-5f0134d3de",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "backpack"
+    ],
+    "colorTerms": [
+     "yellow",
+     "pink",
+     "blue",
+     "multicolor"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Fjällräven",
+     "aliases": [
+      "Fjallraven"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Fjällräven",
+     "brandAliases": [
+      "Fjallraven"
+     ],
+     "model": "Kånken",
+     "modelAliases": [
+      "Kånken",
+      "Kanken"
+     ],
+     "family": "fjallraven-kanken"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "multiple_instances",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "pile of Kanken backpacks",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Fjällräven Kånken",
+    "title": "File:Fjällräven Kånken backpacks.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Fj%C3%A4llr%C3%A4ven_K%C3%A5nken_backpacks.jpg",
+    "author": "Lisa Risager from Denmark",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "afa671fcb6f5578e60f5df5dfdc4e2e0a71dddc3",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Fj%C3%A4llr%C3%A4ven_K%C3%A5nken_backpacks.jpg/500px-Fj%C3%A4llr%C3%A4ven_K%C3%A5nken_backpacks.jpg",
+    "fetchWidth": 500,
+    "sha256": "5f0134d3dedb2c862842840b1f528d08c0b74c082213c77a2aa38676cd20aa33"
+   }
+  },
+  {
+   "caseId": "b42-ex-d4aba4a815",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "backpack"
+    ],
+    "colorTerms": [
+     "green",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Fjällräven",
+     "aliases": [
+      "Fjallraven"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Fjällräven",
+     "brandAliases": [
+      "Fjallraven"
+     ],
+     "model": "Kånken",
+     "modelAliases": [
+      "Kånken",
+      "Kanken"
+     ],
+     "family": "fjallraven-kanken"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "none",
+   "notes": "FJALLRAVEN KANKEN print legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Fjällräven Kånken",
+    "title": "File:Kånken.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:K%C3%A5nken.jpg",
+    "author": "Djupsjo",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "013bbe291f3eb7d60d4579dc13ff1b21ac90d812",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/K%C3%A5nken.jpg/960px-K%C3%A5nken.jpg",
+    "fetchWidth": 960,
+    "sha256": "d4aba4a81531996dc8e3d67a6a263de440de94d98f5bc3af1926055ce506a384"
+   }
+  },
+  {
+   "caseId": "b42-ex-99dc9fa36a",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "watch",
+     "dive watch"
+    ],
+    "colorTerms": [
+     "silver",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Rolex",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Rolex",
+     "brandAliases": [],
+     "model": "Submariner",
+     "modelAliases": [
+      "Submariner"
+     ],
+     "family": "rolex-submariner"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Rolex Submariner",
+    "title": "File:Rolex Submariner Professional.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Rolex_Submariner_Professional.JPG",
+    "author": "Dr.K.",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "17dff3c8ce4e5067f2ff20ea3662bb278729dcdf",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Rolex_Submariner_Professional.JPG/960px-Rolex_Submariner_Professional.JPG",
+    "fetchWidth": 960,
+    "sha256": "99dc9fa36ab9da54780df27c25ed32c8b8e3dde49ae0ff41e8b20d1c3b608929"
+   }
+  },
+  {
+   "caseId": "b42-ex-0e82fc59a1",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "watch",
+     "dive watch"
+    ],
+    "colorTerms": [
+     "silver"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Rolex",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Rolex",
+     "brandAliases": [],
+     "model": "Submariner",
+     "modelAliases": [
+      "Submariner"
+     ],
+     "family": "rolex-submariner"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "back_view"
+   ],
+   "visiblePerson": "none",
+   "notes": "caseback and bracelet only; same physical watch as cand-054",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Rolex Submariner",
+    "title": "File:Back of Rolex Submariner Professional.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Back_of_Rolex_Submariner_Professional.JPG",
+    "author": "Dr.K.",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "359e69025b98a24272fe0cf1781598d7dc2e14d2",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Back_of_Rolex_Submariner_Professional.JPG/960px-Back_of_Rolex_Submariner_Professional.JPG",
+    "fetchWidth": 960,
+    "sha256": "0e82fc59a18099b8de7b5dd08ea74e701385c084662e8b9e874ddf71dcdf7c82"
+   }
+  },
+  {
+   "caseId": "b42-ex-6e60d239d4",
+   "stratum": "exact_known",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "watch",
+     "dive watch"
+    ],
+    "colorTerms": [
+     "silver",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Rolex",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Rolex",
+     "brandAliases": [],
+     "model": "Submariner",
+     "modelAliases": [
+      "Submariner"
+     ],
+     "family": "rolex-submariner"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "ROLEX and SUBMARINER legible on dial",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Rolex Submariner",
+    "title": "File:The Rolex Submariner Professional.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:The_Rolex_Submariner_Professional.JPG",
+    "author": "Dr.K. ( talk ) 17:56, 28 January 2007 (UTC)",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "c00987e67841e08d421e81351fbeaec4baf02729",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/The_Rolex_Submariner_Professional.JPG/960px-The_Rolex_Submariner_Professional.JPG",
+    "fetchWidth": 960,
+    "sha256": "6e60d239d4787833e8e86495ac4e7ed3ddef70843e4d9fe9639bce047c98f94e"
+   }
+  },
+  {
+   "caseId": "b42-logo-9f051e5690",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "snow boot",
+     "boot"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Moon Boot",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "MOON BOOT wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Moon Boot",
+    "title": "File:Moon boots - panoramio.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Moon_boots_-_panoramio.jpg",
+    "author": "Tobias Barkskog",
+    "licence": "CC BY 3.0",
+    "licenceUrl": "cc-by-3.0",
+    "originalSha1": "e5da6bd711d0355ed69b11e34dc613f1066b3ead",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Moon_boots_-_panoramio.jpg/960px-Moon_boots_-_panoramio.jpg",
+    "fetchWidth": 960,
+    "sha256": "9f051e5690b59837e8ba620e7adcde51527c4288bcfec9918e0fd713cd7ec59e"
+   }
+  },
+  {
+   "caseId": "b42-logo-85f33b6a23",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "snow boot",
+     "boot"
+    ],
+    "colorTerms": [
+     "teal",
+     "green",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Moon Boot",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "MOON BOOT wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Moon Boot",
+    "title": "File:DSC02992 (356004744).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:DSC02992_(356004744).jpg",
+    "author": "Leon Brocard from London, UK",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "a79e42f47b111a3fb7e50f62aba05f5138cc5dc8",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/DSC02992_%28356004744%29.jpg/500px-DSC02992_%28356004744%29.jpg",
+    "fetchWidth": 500,
+    "sha256": "85f33b6a2399f407508583294e045c09f5f642ca62bd4e423636a550d5e838df"
+   }
+  },
+  {
+   "caseId": "b42-nf-62cfd02511",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: brand logo artwork only, no fashion item",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Moon Boot",
+    "title": "File:Logo Moon Boot B-N.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Logo_Moon_Boot_B-N.jpg",
+    "author": "Moon Boot the Original",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "fc2dab56dd85a6b89cbd31c2fc4714ffc85bc779",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Logo_Moon_Boot_B-N.jpg/960px-Logo_Moon_Boot_B-N.jpg",
+    "fetchWidth": 960,
+    "sha256": "62cfd02511dc55d8cb7ea3aa8e6d9cce1d0df63680f94f1db0f135c77fd6ce28"
+   }
+  },
+  {
+   "caseId": "b42-nf-0b02325fb8",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: car wrapped in a check pattern",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Burberry check",
+    "title": "File:Chav car.jpeg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Chav_car.jpeg",
+    "author": "StarOpal",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "faf28eefe23e15f809c4d03c777f4187ebd86510",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Chav_car.jpeg/960px-Chav_car.jpeg",
+    "fetchWidth": 960,
+    "sha256": "0b02325fb83d6c8a886f5b8d2e4f141af782b165082ee50137fd4e2a22ace1af"
+   }
+  },
+  {
+   "caseId": "b42-tex-ca6dc28d8e",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "coat",
+     "trench coat",
+     "check"
+    ],
+    "colorTerms": [
+     "beige",
+     "camel",
+     "black",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": "Burberry",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "back_view"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "check pattern is trade dress, no legible wordmark",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Burberry check",
+    "title": "File:Fruit and veg accident.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Fruit_and_veg_accident.jpg",
+    "author": "Lars Plougmann from United States",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "cb500b4125a2ccf13a55924ab5557252f35776f6",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Fruit_and_veg_accident.jpg/960px-Fruit_and_veg_accident.jpg",
+    "fetchWidth": 960,
+    "sha256": "ca6dc28d8ef62acb084bcc9444d528e70b1d7253d23eab6d511f66e77fc5d524"
+   }
+  },
+  {
+   "caseId": "b42-ex-b58bfb5580",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "running shoe"
+    ],
+    "colorTerms": [
+     "purple",
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [],
+     "model": "Air Max BW",
+     "modelAliases": [
+      "Air Max BW",
+      "Air Max Classic BW",
+      "Air Max Big Window"
+     ],
+     "family": "nike-air-max-bw"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max Classic BW per source; NIKE and AIR legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike Air Max",
+    "title": "File:First air classic.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:First_air_classic.jpg",
+    "author": "D.Sebastiaan Moens",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "239ce61faf64525618ed278d45912be0751ba26f",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/First_air_classic.jpg/960px-First_air_classic.jpg",
+    "fetchWidth": 960,
+    "sha256": "b58bfb5580fed3aa086dfc12c990cecd3557b5edaa90829db5f1d209ff231690"
+   }
+  },
+  {
+   "caseId": "b42-logo-8fef94734f",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "indoor soccer shoe",
+     "sneaker"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "filed under Air Max but is an indoor football shoe; Swoosh legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike Air Max",
+    "title": "File:Nike minivoetbalschoenen.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Nike_minivoetbalschoenen.jpg",
+    "author": "Kameraad Pjotr at Dutch Wikipedia",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "892d26c2b4019abfd2975ec7b869be3736c04571",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Nike_minivoetbalschoenen.jpg/960px-Nike_minivoetbalschoenen.jpg",
+    "fetchWidth": 960,
+    "sha256": "8fef94734f31d2475b0e8f7ec016cad3784620218d7ada7f72206ee833fa2b54"
+   }
+  },
+  {
+   "caseId": "b42-logo-fcceb4d115",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "running shoe"
+    ],
+    "colorTerms": [
+     "white",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "worn_item",
+    "dirty"
+   ],
+   "visiblePerson": "none",
+   "notes": "model unknown; Swoosh legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike Air Max",
+    "title": "File:Versleten nikes.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Versleten_nikes.jpg",
+    "author": "Frank Zweers",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "9b26c77edf81392d9e36741dd107b0335473e705",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Versleten_nikes.jpg/960px-Versleten_nikes.jpg",
+    "fetchWidth": 960,
+    "sha256": "fcceb4d115ba6114fd771933f5176cf30f887687b20da766b540cb48993f56c0"
+   }
+  },
+  {
+   "caseId": "b42-ex-3687786863",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "running shoe"
+    ],
+    "colorTerms": [
+     "brown",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [],
+     "model": "Air Max 90",
+     "modelAliases": [
+      "Air Max 90"
+     ],
+     "family": "nike-air-max-90"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max 90 x 360 hybrid per source title",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike Air Max",
+    "title": "File:Nike Air Max 90 x 360 Hybrid.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Nike_Air_Max_90_x_360_Hybrid.jpg",
+    "author": "Steve Ling from San Francisco, USA",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "d0225836edeeb738c9ffe5634b29103e5535a9e4",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Nike_Air_Max_90_x_360_Hybrid.jpg/960px-Nike_Air_Max_90_x_360_Hybrid.jpg",
+    "fetchWidth": 960,
+    "sha256": "3687786863f0112fab4f4a0b3f5a4e24feb44c7865427790e89cdd0639de2249"
+   }
+  },
+  {
+   "caseId": "b42-ex-91d51a64a5",
+   "stratum": "exact_known",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "running shoe"
+    ],
+    "colorTerms": [
+     "white",
+     "blue",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [],
+     "model": "Air Max BW",
+     "modelAliases": [
+      "Air Max BW",
+      "Air Max Classic BW",
+      "Air Max Big Window"
+     ],
+     "family": "nike-air-max-bw"
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Air Max Classic BW per source",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike Air Max",
+    "title": "File:Airmax.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Airmax.jpg",
+    "author": "Kira Nerys",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "b88e8f0ef91d030b8ec0ebd09347cdf951129e61",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Airmax.jpg/960px-Airmax.jpg",
+    "fetchWidth": 960,
+    "sha256": "91d51a64a51e248942d205325b8c0500e5d7a3c0833cdb52c8d907bf544910ad"
+   }
+  },
+  {
+   "caseId": "b42-gen-27929d03af",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cardigan",
+     "zip"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "museum display case",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Cardigans",
+    "title": "File:Fred Rogers sweater.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Fred_Rogers_sweater.jpg",
+    "author": "Rudi Riet",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "00ed1dfefad5108e8e5ffc82ba3ce4a49052d206",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Fred_Rogers_sweater.jpg/960px-Fred_Rogers_sweater.jpg",
+    "fetchWidth": 960,
+    "sha256": "27929d03af98099b183768adcded6ad4f6bbd399004aef671b59e3c1d5b15490"
+   }
+  },
+  {
+   "caseId": "b42-gen-540cb9cda8",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cardigan",
+     "ribbed"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "flat lay",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Cardigans",
+    "title": "File:Cardigan, sweater.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Cardigan,_sweater.JPG",
+    "author": "Rovdyr",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "51c2233896cafe0b5a712fea62b26e987e88df33",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Cardigan%2C_sweater.JPG/960px-Cardigan%2C_sweater.JPG",
+    "fetchWidth": 960,
+    "sha256": "540cb9cda8c24371857fc12803ec5b20ff9e5d296761fe44b2ccfe0afa787836"
+   }
+  },
+  {
+   "caseId": "b42-gen-a2f00ab22e",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cardigan",
+     "cable knit",
+     "aran"
+    ],
+    "colorTerms": [
+     "cream",
+     "ivory",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "flat lay on wood",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Cardigans",
+    "title": "File:Aran cardigan.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Aran_cardigan.jpg",
+    "author": "Lisa Dusseault from USA",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "93dae431c37c1d4edbbbf4a8918534b4dc62e441",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Aran_cardigan.jpg/960px-Aran_cardigan.jpg",
+    "fetchWidth": 960,
+    "sha256": "a2f00ab22ebec375a637b2e07f983645aec9de2cb97dc5a0945058912e8972dc"
+   }
+  },
+  {
+   "caseId": "b42-gen-654aeb4e65",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "hoodie",
+     "jacket"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "text_overlay",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "mannequin with a protest sign; sign text is not a brand",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Hoodies",
+    "title": "File:SGBHFoamMan.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:SGBHFoamMan.JPG",
+    "author": "TheBigEmLow",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "67c8593e474f37484ff160c52a33441af66023b5",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/SGBHFoamMan.JPG/960px-SGBHFoamMan.JPG",
+    "fetchWidth": 960,
+    "sha256": "654aeb4e6594c77b40d5eec7851a35511e478c8855aad285c0062baa202263ae"
+   }
+  },
+  {
+   "caseId": "b42-gen-b50cdb995c",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "leather jacket",
+     "biker",
+     "moto"
+    ],
+    "colorTerms": [
+     "cream",
+     "beige",
+     "ivory"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "on hanger",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Leather jackets",
+    "title": "File:Lederjacke.png",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Lederjacke.png",
+    "author": "Maksim",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "1f87dba7c9c5436da84984d9c20236f6ed7618ee",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Lederjacke.png/960px-Lederjacke.png",
+    "fetchWidth": 960,
+    "sha256": "b50cdb995c590de262a1a0f5505f94d71ff6f1cb0ebfe9e2c695b267bd659f73"
+   }
+  },
+  {
+   "caseId": "b42-gen-0edf62a7b0",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "scarf",
+     "scarves"
+    ],
+    "colorTerms": [
+     "multicolor",
+     "red",
+     "blue",
+     "yellow"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "market display",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Scarves",
+    "title": "File:Seattle - Mediterranean Fantasy Festival - scarves 01.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Seattle_-_Mediterranean_Fantasy_Festival_-_scarves_01.jpg",
+    "author": "Joe Mabel",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "87703cd3768d043e994a4d14a5958c67df294dbb",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Seattle_-_Mediterranean_Fantasy_Festival_-_scarves_01.jpg/960px-Seattle_-_Mediterranean_Fantasy_Festival_-_scarves_01.jpg",
+    "fetchWidth": 960,
+    "sha256": "0edf62a7b0b237121d87ac38087365c682dc68c6f772ec87c9c595eb42e27e33"
+   }
+  },
+  {
+   "caseId": "b42-gen-49d2dbca66",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "scarf",
+     "fringe"
+    ],
+    "colorTerms": [
+     "cream",
+     "pink",
+     "purple"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "folded stack",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Scarves",
+    "title": "File:Echarpes2.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Echarpes2.jpg",
+    "author": "Soieries du Mékong",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "9a389d43beb7d7bf4536abca87e0cbf3e667c610",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Echarpes2.jpg/960px-Echarpes2.jpg",
+    "fetchWidth": 960,
+    "sha256": "49d2dbca668a6993b5f6385db58cecf5b008886e0bee7d64ea5ecc314b41c5f5"
+   }
+  },
+  {
+   "caseId": "b42-tex-16cbcd0ffe",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "handbag",
+     "clutch",
+     "crocodile"
+    ],
+    "colorTerms": [
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "reptile-skin texture",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Handbags",
+    "title": "File:Bristol.zoo.crocskin.handbag.arp.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Bristol.zoo.crocskin.handbag.arp.jpg",
+    "author": "Arpingstone",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "a2ad2940c22a33ce834b9af202382806ef650a01",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Bristol.zoo.crocskin.handbag.arp.jpg/960px-Bristol.zoo.crocskin.handbag.arp.jpg",
+    "fetchWidth": 960,
+    "sha256": "16cbcd0ffe5988a1949bb514900bcad69222b5fa2133fe75b8d30e3718daee36"
+   }
+  },
+  {
+   "caseId": "b42-multi-23d6abf5fc",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "handbag",
+     "monogram"
+    ],
+    "colorTerms": [
+     "blue",
+     "tan"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Louis Vuitton",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "bag",
+      "subtype": "handbag",
+      "color": "blue"
+     },
+     {
+      "category": "footwear",
+      "subtype": "wedge sandal",
+      "color": "blue"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "saturated_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "monogram bag with matching wedge sandals in a store window",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Handbags",
+    "title": "File:HK CH LV Landmark 60421 2.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:HK_CH_LV_Landmark_60421_2.jpg",
+    "author": "No machine-readable author provided. GS417~commonswiki assumed (based on copyright claims).",
+    "licence": "CC BY-SA 2.5",
+    "licenceUrl": "cc-by-sa-2.5",
+    "originalSha1": "500570e83ac183606773d403a7e73d30d278dd6e",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/HK_CH_LV_Landmark_60421_2.jpg/960px-HK_CH_LV_Landmark_60421_2.jpg",
+    "fetchWidth": 960,
+    "sha256": "23d6abf5fcbf552bc6c345c1cfeff4d3f31dff9dcac82af2933d5bdbc8e1b62f"
+   }
+  },
+  {
+   "caseId": "b42-gen-e0901f966a",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "boot",
+     "snow boot"
+    ],
+    "colorTerms": [
+     "black",
+     "teal"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Boots",
+    "title": "File:Sled Dog Discovery & Musher's Camp 36.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sled_Dog_Discovery_%26_Musher%27s_Camp_36.jpg",
+    "author": "Wknight94",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "f8c8bcd1d3afd96fd560213cf9200168911ac4a3",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Sled_Dog_Discovery_%26_Musher%27s_Camp_36.jpg/960px-Sled_Dog_Discovery_%26_Musher%27s_Camp_36.jpg",
+    "fetchWidth": 960,
+    "sha256": "e0901f966a2cf5256646d2c2ba112bc667590935825cf3635fa5176ec57c9a98"
+   }
+  },
+  {
+   "caseId": "b42-logo-bebc429f1c",
+   "stratum": "logo_visible",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sandal"
+    ],
+    "colorTerms": [
+     "brown",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "ECCO",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "ecco wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sandals",
+    "title": "File:Sandalen.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sandalen.jpg",
+    "author": "M.Minderhoud",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "7d2b0ac83edb82a8765769d8e9f7c7603ed982f9",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Sandalen.jpg/960px-Sandalen.jpg",
+    "fetchWidth": 960,
+    "sha256": "bebc429f1c7ef253d3175819ffbdc531e487632d23e1f8347c98764bd931a0e8"
+   }
+  },
+  {
+   "caseId": "b42-gen-905e641be5",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sandal"
+    ],
+    "colorTerms": [
+     "white",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "dirty",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "child's sandals hung on a frame",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sandals",
+    "title": "File:Little girl dirty sandals.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Little_girl_dirty_sandals.jpg",
+    "author": "Jusmar",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "36d75aef2ac26d6608fd37ca83f2304ac94cbe69",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Little_girl_dirty_sandals.jpg/960px-Little_girl_dirty_sandals.jpg",
+    "fetchWidth": 960,
+    "sha256": "905e641be5d22e1e8c35b8feaab53130c45b9ef07e0a43feffa9fe994c71e841"
+   }
+  },
+  {
+   "caseId": "b42-logo-4c5a4eebc3",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sandal"
+    ],
+    "colorTerms": [
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Siesta",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "SIESTA printed on insole (East German sandal)",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sandals",
+    "title": "File:Jesuslatschen03.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Jesuslatschen03.jpg",
+    "author": "Saxo",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "a3f46513d26d02dacc5ecb8171357fae1288d399",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Jesuslatschen03.jpg/500px-Jesuslatschen03.jpg",
+    "fetchWidth": 500,
+    "sha256": "4c5a4eebc3810c690ceef57d71e38503662a596d40ba39056a4f624224436c57"
+   }
+  },
+  {
+   "caseId": "b42-gen-2e4e3d7dd8",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "aviator"
+    ],
+    "colorTerms": [
+     "green",
+     "gold"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "product shot",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sunglasses",
+    "title": "File:Sunglasses-1.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sunglasses-1.jpg",
+    "author": "Lotus Head from Johannesburg, Gauteng, South Africa",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "adbc2f8207a79287df2d189ab00b02295b38177b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Sunglasses-1.jpg/960px-Sunglasses-1.jpg",
+    "fetchWidth": 960,
+    "sha256": "2e4e3d7dd85df7b0f004c089de9044203d0adeab5d035f440ae9cba430bfa9fe"
+   }
+  },
+  {
+   "caseId": "b42-gen-790c6d7609",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "saturated_background"
+   ],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sunglasses",
+    "title": "File:Sunglasses on blanket.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sunglasses_on_blanket.jpg",
+    "author": "Dasha",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "981fd0b889d3c53fe3dd00ae16ce404a0f4024b4",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Sunglasses_on_blanket.jpg/960px-Sunglasses_on_blanket.jpg",
+    "fetchWidth": 960,
+    "sha256": "790c6d76094c0fab2a3e46a58faa4a806f5fc88af7738a3df80f4d5475e8ddf7"
+   }
+  },
+  {
+   "caseId": "b42-gen-c73c78face",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "rimless"
+    ],
+    "colorTerms": [
+     "silver"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "coins resting on the lenses",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sunglasses",
+    "title": "File:Photo-mirrorshades.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Photo-mirrorshades.jpg",
+    "author": "No machine-readable author provided. Shaddack assumed (based on copyright claims).",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "23b0663178a6374432aa1d988bdae83c711e33dc",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Photo-mirrorshades.jpg/960px-Photo-mirrorshades.jpg",
+    "fetchWidth": 960,
+    "sha256": "c73c78face10a328a418ff09045c64c75b57773e1ae50fec3624afcf3d38e8c0"
+   }
+  },
+  {
+   "caseId": "b42-logo-3ddee97394",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "backpack",
+     "hiking backpack"
+    ],
+    "colorTerms": [
+     "navy",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Deuter",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "deuter wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Backpacks",
+    "title": "File:Rucksack1.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Rucksack1.jpg",
+    "author": "de:Benutzer:sjr",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "2d92241afed92d991a6fa8e6bef3063cceb55dd5",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Rucksack1.jpg/960px-Rucksack1.jpg",
+    "fetchWidth": 960,
+    "sha256": "3ddee97394371097c1ed791013efe8d4132844f841cc85c5b89f52b7c0d066e8"
+   }
+  },
+  {
+   "caseId": "b42-gen-1c462fe55a",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "backpack",
+     "hiking backpack"
+    ],
+    "colorTerms": [
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "source names Berghaus Vulcan; brand not legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Backpacks",
+    "title": "File:Berghaus Vulcan.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Berghaus_Vulcan.jpg",
+    "author": "No machine-readable author provided. LHOON assumed (based on copyright claims).",
+    "licence": "CC BY-SA 2.5",
+    "licenceUrl": "cc-by-sa-2.5",
+    "originalSha1": "1101b3b85af3b941141c2aa7dba78eb8f39368fa",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Berghaus_Vulcan.jpg/960px-Berghaus_Vulcan.jpg",
+    "fetchWidth": 960,
+    "sha256": "1c462fe55a5b0bdc5c609d3e85f8faf468eb9ac983ff56f408870539f9aeb6cc"
+   }
+  },
+  {
+   "caseId": "b42-tex-69b7418807",
+   "stratum": "texture_pattern",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "sweater",
+     "knit",
+     "fair isle"
+    ],
+    "colorTerms": [
+     "grey",
+     "green",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "knitted pattern band",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sweaters",
+    "title": "File:Grey knitted sweater.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Grey_knitted_sweater.jpg",
+    "author": "Ranveig",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "01ac9bae5a6ea586e7ab52d616381913571b0714",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Grey_knitted_sweater.jpg/960px-Grey_knitted_sweater.jpg",
+    "fetchWidth": 960,
+    "sha256": "69b74188071b4fb45259038f89d30a2ee74faf1ac9aae0f6f747f27ae14212c4"
+   }
+  },
+  {
+   "caseId": "b42-gen-3d6f2078ea",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "sweater",
+     "quarter zip",
+     "knit"
+    ],
+    "colorTerms": [
+     "grey",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "face cropped out",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sweaters",
+    "title": "File:Sweater wiki.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sweater_wiki.jpg",
+    "author": "Janmad",
+    "licence": "CC BY-SA 2.5",
+    "licenceUrl": "cc-by-sa-2.5",
+    "originalSha1": "5c3c7850feb3d6c171da3a3111044d93a45897dd",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Sweater_wiki.jpg/500px-Sweater_wiki.jpg",
+    "fetchWidth": 500,
+    "sha256": "3d6f2078ea9c5b8ea91659f97deca4a1aa407d7d8c7be367bea52f2779891e2f"
+   }
+  },
+  {
+   "caseId": "b42-gen-894ba21f74",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "sweater",
+     "sweatshirt",
+     "velour",
+     "pullover"
+    ],
+    "colorTerms": [
+     "green",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sweaters",
+    "title": "File:Henkelplüsch 1.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Henkelpl%C3%BCsch_1.jpg",
+    "author": "Ryj",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "7affc967922128dd65de5990a7914025dcc527a2",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Henkelpl%C3%BCsch_1.jpg/960px-Henkelpl%C3%BCsch_1.jpg",
+    "fetchWidth": 960,
+    "sha256": "894ba21f7439b0bef341d76a27df4b4adc20ad64761e7fea1dcf84fc7648f7a4"
+   }
+  },
+  {
+   "caseId": "b42-multi-5d1d494f3f",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "blazer",
+    "subtypeTerms": [
+     "blazer",
+     "sport coat",
+     "gold buttons"
+    ],
+    "colorTerms": [
+     "navy"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "blazer",
+      "subtype": "blazer",
+      "color": "navy"
+     },
+     {
+      "category": "accessory",
+      "subtype": "necktie",
+      "color": "navy"
+     },
+     {
+      "category": "top",
+      "subtype": "shirt",
+      "color": "blue"
+     },
+     {
+      "category": "accessory",
+      "subtype": "watch",
+      "color": "gold"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "blazer with tie, check shirt and wristwatch; no face",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Blazers",
+    "title": "File:Blazer.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Blazer.JPG",
+    "author": "No machine-readable author provided. Qz10 assumed (based on copyright claims).",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "159a0b20685a880b3bdfe0ba765580b504ee6d31",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Blazer.JPG/960px-Blazer.JPG",
+    "fetchWidth": 960,
+    "sha256": "5d1d494f3f2015b6f5765113e2eced968f9462a32e0907846dde3e9b3d740104"
+   }
+  },
+  {
+   "caseId": "b42-multi-04b47243c6",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "blazer",
+    "subtypeTerms": [
+     "blazer",
+     "school blazer"
+    ],
+    "colorTerms": [
+     "navy"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "blazer",
+      "subtype": "school blazer",
+      "color": "navy"
+     },
+     {
+      "category": "skirt",
+      "subtype": "pleated skirt",
+      "color": "navy"
+     },
+     {
+      "category": "pants",
+      "subtype": "trousers",
+      "color": "navy"
+     },
+     {
+      "category": "accessory",
+      "subtype": "necktie",
+      "color": "blue"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "mannequin"
+   ],
+   "visiblePerson": "none",
+   "notes": "two school uniforms on mannequins",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Blazers",
+    "title": "File:School uniforms of Izuo High School 20090308.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:School_uniforms_of_Izuo_High_School_20090308.jpg",
+    "author": "fukuhen",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "53aca10a27ca52fd610e0075b50a5d780d1ca51b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/School_uniforms_of_Izuo_High_School_20090308.jpg/500px-School_uniforms_of_Izuo_High_School_20090308.jpg",
+    "fetchWidth": 500,
+    "sha256": "04b47243c6b42a7edb3a113d217428c66d1fc752dd1c92f780ca47121c039414"
+   }
+  },
+  {
+   "caseId": "b42-nf-ae5903e60c",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: store sign reading JEANS CLUB, no garment",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Jeans",
+    "title": "File:Jeans club logo.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Jeans_club_logo.jpg",
+    "author": "Tadeáš.Dohňanský",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "6729c805557cf3296b50ef7bb90a999a0bf995b0",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Jeans_club_logo.jpg/960px-Jeans_club_logo.jpg",
+    "fetchWidth": 960,
+    "sha256": "ae5903e60c86f881a25999f73e9684542969c647832582fd94c35a6ff74ced1d"
+   }
+  },
+  {
+   "caseId": "b42-gen-c0cbf1ccf2",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "pants",
+    "subtypeTerms": [
+     "jeans"
+    ],
+    "colorTerms": [
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "multiple_instances",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "jeans on display legs outside a shop",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Jeans",
+    "title": "File:PrizrenCollection2 2010 IMG 0755.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:PrizrenCollection2_2010_IMG_0755.JPG",
+    "author": "James Michael DuPont",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "f73eb665e6f5aaf9f44ec05545826d8b9e9e0d62",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/PrizrenCollection2_2010_IMG_0755.JPG/960px-PrizrenCollection2_2010_IMG_0755.JPG",
+    "fetchWidth": 960,
+    "sha256": "c0cbf1ccf23e84706d359da5d763145e7f2bfcb74de4b36e5d827cd81814127c"
+   }
+  },
+  {
+   "caseId": "b42-gen-9e36f3c2d1",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "pants",
+    "subtypeTerms": [
+     "jeans"
+    ],
+    "colorTerms": [
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "small_subject",
+    "outdoor_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "jeans drying on a fence at distance",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Jeans",
+    "title": "File:Boge 03.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Boge_03.JPG",
+    "author": "Sigismund von Dobschütz",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "024f41d7a2799fae7e518542d5a08ac6d82e61f5",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Boge_03.JPG/960px-Boge_03.JPG",
+    "fetchWidth": 960,
+    "sha256": "9e36f3c2d10bc9381485e4c0e362a506fe4cbed7fa590943c7aac5ef4c6cf05a"
+   }
+  },
+  {
+   "caseId": "b42-gen-625742e902",
+   "stratum": "unknown_generic",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "puffer jacket",
+     "down jacket"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "on hanger, black background",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Down jackets",
+    "title": "File:Anorak01.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Anorak01.jpg",
+    "author": "sand",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "e19cd25e26699617631faedfd748c2089752506c",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Anorak01.jpg/960px-Anorak01.jpg",
+    "fetchWidth": 960,
+    "sha256": "625742e9028e310b06628c2933bad59c8b3fecdb9e1a657f54400e8a677364d6"
+   }
+  },
+  {
+   "caseId": "b42-multi-6f104b55cd",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "down jacket",
+     "puffer jacket",
+     "leather"
+    ],
+    "colorTerms": [
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "outerwear",
+      "subtype": "down jacket",
+      "color": "brown"
+     },
+     {
+      "category": "footwear",
+      "subtype": "boot",
+      "color": "brown"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "costume display with boots",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Down jackets",
+    "title": "File:Takuya Kimura's costume in Hero.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Takuya_Kimura%27s_costume_in_Hero.jpg",
+    "author": "Punksid from Taipei, Taiwan",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "9f07482d63d307cc5f7ee50b96b5b84fe1b88c1e",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Takuya_Kimura%27s_costume_in_Hero.jpg/960px-Takuya_Kimura%27s_costume_in_Hero.jpg",
+    "fetchWidth": 960,
+    "sha256": "6f104b55cdff6657383179984bb97046a1e0402063c9ab9d6cd9e8f0af98d731"
+   }
+  },
+  {
+   "caseId": "b42-logo-46b8e7f57c",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cycling jersey",
+     "jersey"
+    ],
+    "colorTerms": [
+     "yellow"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "text_overlay"
+   ],
+   "visiblePerson": "none",
+   "notes": "Swoosh legible; sponsor wordmark CREDIT LYONNAIS is not the apparel brand",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Nike clothing",
+    "title": "File:Maillotjaune.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Maillotjaune.jpg",
+    "author": "BaldBoris",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "ede2732f04194aeed2b0b07b6e73b0a9ea62349c",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Maillotjaune.jpg/960px-Maillotjaune.jpg",
+    "fetchWidth": 960,
+    "sha256": "46b8e7f57c4ebd978e1844bd04c8664c2d03e3fbd210c4bc33027fef51d159b7"
+   }
+  },
+  {
+   "caseId": "b42-logo-6c42df4a6e",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "pants",
+    "subtypeTerms": [
+     "shorts",
+     "sports shorts"
+    ],
+    "colorTerms": [
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "composite_two_views"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "front/back composite",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas clothing",
+    "title": "File:Sports shorts.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sports_shorts.jpg",
+    "author": "No machine-readable author provided. Jasonz assumed (based on copyright claims).",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "a17f47036cab5e598170062fc7789b29ff4d7671",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Sports_shorts.jpg/960px-Sports_shorts.jpg",
+    "fetchWidth": 960,
+    "sha256": "6c42df4a6eec2e810ed9053691eb6a8857b2e9943a6b58187c5dbd60e81e8ba5"
+   }
+  },
+  {
+   "caseId": "b42-multi-e19eb4234f",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "track jacket",
+     "tracksuit"
+    ],
+    "colorTerms": [
+     "navy",
+     "red",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "outerwear",
+      "subtype": "track jacket",
+      "color": "navy"
+     },
+     {
+      "category": "pants",
+      "subtype": "track pants",
+      "color": "navy"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "composite_two_views"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "tracksuit front/back, head cropped",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas clothing",
+    "title": "File:Sports suit.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sports_suit.jpg",
+    "author": "No machine-readable author provided. Jasonz assumed (based on copyright claims).",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "50788fea6170bd2f81c0b9f03c6717f0b8d7628a",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Sports_suit.jpg/960px-Sports_suit.jpg",
+    "fetchWidth": 960,
+    "sha256": "e19eb4234f5a155ff47d2779d23ee3608ab252235509656656c33f7aa952a982"
+   }
+  },
+  {
+   "caseId": "b42-logo-3110f87dfc",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "pants",
+    "subtypeTerms": [
+     "shorts",
+     "running shorts",
+     "nylon"
+    ],
+    "colorTerms": [
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "trefoil legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas clothing",
+    "title": "File:Turnhosen wiki.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Turnhosen_wiki.jpg",
+    "author": "shortszene",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "53cf285bbde64c746a6155856b358c7591ec674d",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Turnhosen_wiki.jpg/500px-Turnhosen_wiki.jpg",
+    "fetchWidth": 500,
+    "sha256": "3110f87dfc7aba106fe59e79ff6c7bc7ce91005b943cce9fdbd3b089cbfc222d"
+   }
+  },
+  {
+   "caseId": "b42-logo-0007c3380c",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "cap",
+     "baseball cap"
+    ],
+    "colorTerms": [
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas clothing",
+    "title": "File:Adidas Baseball cap.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Adidas_Baseball_cap.JPG",
+    "author": "Oxyman",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "d4ce9316fee9a3eae4b555dc50dd93f825d59206",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Adidas_Baseball_cap.JPG/960px-Adidas_Baseball_cap.JPG",
+    "fetchWidth": 960,
+    "sha256": "0007c3380ce81d7c7f0cf2d9005006f8de4c67bacc67038b67fd12b3da796e02"
+   }
+  },
+  {
+   "caseId": "b42-logo-2425d80abd",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "track jacket",
+     "jacket"
+    ],
+    "colorTerms": [
+     "white",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "trefoil in I-heart-TOKYO print",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Adidas clothing",
+    "title": "File:Sport jacket I love Tokyo by Adidas Originals.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Sport_jacket_I_love_Tokyo_by_Adidas_Originals.jpg",
+    "author": "peanut butter jelly time from Porto Alegre, Brazil",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "01bac36e1c7432dc536aa8f851b26efe1d04d672",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Sport_jacket_I_love_Tokyo_by_Adidas_Originals.jpg/500px-Sport_jacket_I_love_Tokyo_by_Adidas_Originals.jpg",
+    "fetchWidth": 500,
+    "sha256": "2425d80abd16c6e12188fea0db957d82161ca7b338b9f022041da79d801212b4"
+   }
+  },
+  {
+   "caseId": "b42-gen-8c1ea8efae",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "basketball jersey",
+     "jersey"
+    ],
+    "colorTerms": [
+     "navy",
+     "yellow"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "text_overlay"
+   ],
+   "visiblePerson": "none",
+   "notes": "source names Champion; logo not legible at this size",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Champion (sportswear)",
+    "title": "File:Tinsley pacers jersey.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Tinsley_pacers_jersey.jpg",
+    "author": "Amin Eshaker",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "1e461abb561eaca2bdfe40eeaf84e037f7c5c739",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Tinsley_pacers_jersey.jpg/500px-Tinsley_pacers_jersey.jpg",
+    "fetchWidth": 500,
+    "sha256": "8c1ea8efaecbbea1a904e841cd8d1dddc200b9ab0a2dd9c809f556a9179ba426"
+   }
+  },
+  {
+   "caseId": "b42-logo-e27da0254f",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "white",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Champion",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "color_cast"
+   ],
+   "visiblePerson": "none",
+   "notes": "C logo on insole",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Champion (sportswear)",
+    "title": "File:ChampionTrainers.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:ChampionTrainers.jpg",
+    "author": "BoardAndBasis183",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "29621aff6101fcf9e72e85b1d10f082a764f0195",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/ChampionTrainers.jpg/500px-ChampionTrainers.jpg",
+    "fetchWidth": 500,
+    "sha256": "e27da0254fc2bad5d9e6c95d2e0eacf7b7cb0a55a06b9d164fdb15db990ee87c"
+   }
+  },
+  {
+   "caseId": "b42-gen-22de288bbb",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "football jersey",
+     "jersey"
+    ],
+    "colorTerms": [
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "museum_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "museum display case",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Champion (sportswear)",
+    "title": "File:Pro Football Hall of Fame (23945068597).jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Pro_Football_Hall_of_Fame_(23945068597).jpg",
+    "author": "Erik Drost",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "61af69bbcfaa9334e37e233feeae5256a6ff2535",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Pro_Football_Hall_of_Fame_%2823945068597%29.jpg/960px-Pro_Football_Hall_of_Fame_%2823945068597%29.jpg",
+    "fetchWidth": 960,
+    "sha256": "22de288bbb8c4f8e14f769109ef3edecb708c3e21075cfe110248ad6a0a3cab8"
+   }
+  },
+  {
+   "caseId": "b42-logo-48fe98b8f8",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "cap",
+     "baseball cap"
+    ],
+    "colorTerms": [
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Supreme",
+     "aliases": [
+      "Champion"
+     ]
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "crowd_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "cap reads SUPREME CHAMPION (two wordmarks); worn, back view",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Supreme (brand)",
+    "title": "File:02017 1256 Solina-Stausee, Jawor, Waldkarpaten.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:02017_1256_Solina-Stausee,_Jawor,_Waldkarpaten.jpg",
+    "author": "Silar",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "8fcbc3ed67e6d5e07067e71f050cb49305849a3b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/02017_1256_Solina-Stausee%2C_Jawor%2C_Waldkarpaten.jpg/960px-02017_1256_Solina-Stausee%2C_Jawor%2C_Waldkarpaten.jpg",
+    "fetchWidth": 960,
+    "sha256": "48fe98b8f82283730a45e20de78ee9db53f3e77bf98a81d463e60b11c4a91b5f"
+   }
+  },
+  {
+   "caseId": "b42-nf-af8cc7b186",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: concept car under a LACOSTE sign",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Lacoste",
+    "title": "File:Citroen Lacoste.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Citroen_Lacoste.JPG",
+    "author": "Tcharvin",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "025a8788a674a2543c363ba4bae52fc48ac5c94c",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Citroen_Lacoste.JPG/960px-Citroen_Lacoste.JPG",
+    "fetchWidth": 960,
+    "sha256": "af8cc7b186c51bd0f08916e179d07a602086383a21483847996e3bf870ae155a"
+   }
+  },
+  {
+   "caseId": "b42-gen-91bc74f1d5",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "eyeglasses",
+     "glasses",
+     "optical frame"
+    ],
+    "colorTerms": [
+     "silver"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "source names Lacoste frames; brand not legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Lacoste",
+    "title": "File:Reading-Glasses.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Reading-Glasses.jpg",
+    "author": "Evan-Amos",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "d17e3f6037ba26eff3545e918e0ddbbc07eabb06",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Reading-Glasses.jpg/960px-Reading-Glasses.jpg",
+    "fetchWidth": 960,
+    "sha256": "91bc74f1d5d6b37691c0b751ed440b71e79fe3e61dbac420f35f718de28cb050"
+   }
+  },
+  {
+   "caseId": "b42-gen-88840ad28e",
+   "stratum": "unknown_generic",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "brown",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "Vans side-stripe trade dress, no legible wordmark",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Vans shoes",
+    "title": "File:Vans classic.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Vans_classic.jpg",
+    "author": "Marcel Klinger",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "ec00f23320a722432f87a07cf91e8b83dd263034",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Vans_classic.jpg/960px-Vans_classic.jpg",
+    "fetchWidth": 960,
+    "sha256": "88840ad28e12aaf6c52363c738d9288c0bf4007f3f5a128d5879cf7f8417041e"
+   }
+  },
+  {
+   "caseId": "b42-multi-4c8f92d37c",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "slip-on",
+     "sneaker"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "footwear",
+      "subtype": "slip-on",
+      "color": "black"
+     },
+     {
+      "category": "footwear",
+      "subtype": "slip-on",
+      "color": "black"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "top_down_view",
+    "outdoor_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "two different pairs of slip-ons",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Vans shoes",
+    "title": "File:2paar Vans.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:2paar_Vans.JPG",
+    "author": "Sascha Langenbach",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "e0e9e73f369343447df89ecb78be575bf508ae3e",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/2paar_Vans.JPG/960px-2paar_Vans.JPG",
+    "fetchWidth": 960,
+    "sha256": "4c8f92d37c221bd1c48cae31396f82dcd2c381b038c1b3056df8b25aedbbc325"
+   }
+  },
+  {
+   "caseId": "b42-gen-297f1d8181",
+   "stratum": "unknown_generic",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "canvas"
+    ],
+    "colorTerms": [
+     "navy",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": null,
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Vans shoes",
+    "title": "File:Vans plimsolls.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Vans_plimsolls.JPG",
+    "author": "Campbells AW",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "ac2baa968ad8eb12ac01d4470ef65cfcd591a0ef",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Vans_plimsolls.JPG/960px-Vans_plimsolls.JPG",
+    "fetchWidth": 960,
+    "sha256": "297f1d81816baab9a365dbe88a12f430841781c62b8aaf7e6788b08df26f13e0"
+   }
+  },
+  {
+   "caseId": "b42-logo-5838b09968",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "skate shoe"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Vans",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "VANS wordmark legible",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Vans shoes",
+    "title": "File:A pair of Vans shoes.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:A_pair_of_Vans_shoes.JPG",
+    "author": "Dhscommtech ( talk )Peter Wall",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "7e7ecf7c127e38076517c43e2998756b3a1342e7",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/A_pair_of_Vans_shoes.JPG/960px-A_pair_of_Vans_shoes.JPG",
+    "fetchWidth": 960,
+    "sha256": "5838b099683fc2d4a0c8eef2c57afa12a421e8b0567fbb5a02a7e9f4d4153682"
+   }
+  },
+  {
+   "caseId": "b42-logo-3082d44589",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "sport sunglasses"
+    ],
+    "colorTerms": [
+     "orange",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Oakley",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "O icon on temple",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Oakley sunglasses",
+    "title": "File:Radsportbrille 01 KMJ.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Radsportbrille_01_KMJ.jpg",
+    "author": "KMJ at German Wikipedia",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "95365d062518e34dd9518a5b133f67f9d12de542",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Radsportbrille_01_KMJ.jpg/500px-Radsportbrille_01_KMJ.jpg",
+    "fetchWidth": 500,
+    "sha256": "3082d44589810e2127bbcc1f638ba9abf2faf7efeb8362f244d6189273bac6bb"
+   }
+  },
+  {
+   "caseId": "b42-logo-abb6bf2a58",
+   "stratum": "logo_visible",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses"
+    ],
+    "colorTerms": [
+     "silver",
+     "pink"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Oakley",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "busy_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "O icon on temple; camo background",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Oakley sunglasses",
+    "title": "File:Oakley juliet serialled.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Oakley_juliet_serialled.jpg",
+    "author": "Oldman42 at English Wikipedia",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "eccd2264ab09943753739c7cddb10c457f444087",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Oakley_juliet_serialled.jpg/960px-Oakley_juliet_serialled.jpg",
+    "fetchWidth": 960,
+    "sha256": "abb6bf2a58520b5c15718790a9f8fa6f5c7eef8f23e976d606774305f1e14cb7"
+   }
+  },
+  {
+   "caseId": "b42-logo-5f03b900cf",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "sport sunglasses"
+    ],
+    "colorTerms": [
+     "black",
+     "orange"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Oakley",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "none",
+   "notes": "O icon on pouch",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Oakley sunglasses",
+    "title": "File:M frame.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:M_frame.jpg",
+    "author": "Tom.davey at English Wikipedia",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "febfc493eed7441d3618daa475b5b19abe2c2503",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/M_frame.jpg/960px-M_frame.jpg",
+    "fetchWidth": 960,
+    "sha256": "5f03b900cf1c0ba798d75002fab1f3c0fb45cedef83a78c715c8508745fde3e0"
+   }
+  },
+  {
+   "caseId": "b42-nf-956e89ec80",
+   "stratum": "non_fashion",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: houndstooth car seat upholstery",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Houndstooth",
+    "title": "File:1966 AMC Ambassador DPL factory optional Custom interior at 2024 AMO meet 12of13.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:1966_AMC_Ambassador_DPL_factory_optional_Custom_interior_at_2024_AMO_meet_12of13.jpg",
+    "author": "CZmarlin — Christopher Ziemnowicz, a photo credit would be appreciated if this image is used anywhere other than Wikipedia.",
+    "licence": "CC BY-SA 4.0",
+    "licenceUrl": "cc-by-sa-4.0",
+    "originalSha1": "9f0f6bc5832faf717609ef7772897f5082562b01",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/1966_AMC_Ambassador_DPL_factory_optional_Custom_interior_at_2024_AMO_meet_12of13.jpg/960px-1966_AMC_Ambassador_DPL_factory_optional_Custom_interior_at_2024_AMO_meet_12of13.jpg",
+    "fetchWidth": 960,
+    "sha256": "956e89ec806584ebbe84af0d204b292752d2537997c2c3a546954d346f841cc4"
+   }
+  },
+  {
+   "caseId": "b42-tex-2565b143dd",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "polka dot dress",
+     "sundress"
+    ],
+    "colorTerms": [
+     "red",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "back_view",
+    "small_subject",
+    "outdoor_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "walking away on a beach, no face",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Polka dot dresses",
+    "title": "File:Girl in red on the beach watch far.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Girl_in_red_on_the_beach_watch_far.jpg",
+    "author": "Hans Vink",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "a743519843f1cd3665e90adde1f4c71502896dc9",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Girl_in_red_on_the_beach_watch_far.jpg/500px-Girl_in_red_on_the_beach_watch_far.jpg",
+    "fetchWidth": 500,
+    "sha256": "2565b143ddd0e781a1ad8a13bf00dadc22fd7403346a564fec9825534631b3b6"
+   }
+  },
+  {
+   "caseId": "b42-tex-4c876cc68e",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "saree",
+     "sari",
+     "embroidered",
+     "sequin"
+    ],
+    "colorTerms": [
+     "red",
+     "gold",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "close_up"
+   ],
+   "visiblePerson": "none",
+   "notes": "sequin and bead embroidery on a sari",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sequins",
+    "title": "File:Saree Designs.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Saree_Designs.jpg",
+    "author": "Shashi Bellamkonda",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "5b0efdde2ec89069f56c15e8d82541551496f03c",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Saree_Designs.jpg/960px-Saree_Designs.jpg",
+    "fetchWidth": 960,
+    "sha256": "4c876cc68ed717a6047a0256e3ad54b98b6dd5d9b2b9f83986d64f1ce879d42b"
+   }
+  },
+  {
+   "caseId": "b42-nf-9aa63ca13d",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "champagne glasses, monochrome",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Sequins",
+    "title": "File:Fotothek df roe-neg 0006582 020 Bild Zwei Sektgläser und eine Paillettenmaske um.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Fotothek_df_roe-neg_0006582_020_Bild_Zwei_Sektgl%C3%A4ser_und_eine_Paillettenmaske_um.jpg",
+    "author": "Roger Rössing / Renate Rössing",
+    "licence": "CC BY-SA 3.0 de",
+    "licenceUrl": "cc-by-sa-3.0-de",
+    "originalSha1": "c667f1a5523da144c627749d878b005bd454cb74",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Fotothek_df_roe-neg_0006582_020_Bild_Zwei_Sektgl%C3%A4ser_und_eine_Paillettenmaske_um.jpg/500px-Fotothek_df_roe-neg_0006582_020_Bild_Zwei_Sektgl%C3%A4ser_und_eine_Paillettenmaske_um.jpg",
+    "fetchWidth": 500,
+    "sha256": "9aa63ca13d40b4d8094c4a6a87eb7cac3fddc8da711ca7f8ea736bf8e05a9d67"
+   }
+  },
+  {
+   "caseId": "b42-tex-62871cb4a9",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cardigan",
+     "sweater",
+     "nordic knit",
+     "lusekofte"
+    ],
+    "colorTerms": [
+     "grey",
+     "black",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "face cropped; worn with tie",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Argyle",
+    "title": "File:Lusekofte.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Lusekofte.jpg",
+    "author": "Nils R. Barth",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "ed4ea6aeb57962d5b2d7755807bd7cf7a8b68a14",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Lusekofte.jpg/960px-Lusekofte.jpg",
+    "fetchWidth": 960,
+    "sha256": "62871cb4a9435f5f3b3ab130de616fb4f34f6d87d384498ac36444f2db93ba04"
+   }
+  },
+  {
+   "caseId": "b42-logo-27d6a2acf4",
+   "stratum": "logo_visible",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "tennis shoe"
+    ],
+    "colorTerms": [
+     "white",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Reebok",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "Reebok wordmark legible; argyle lining",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Argyle",
+    "title": "File:Reebok NPC Argyle.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Reebok_NPC_Argyle.jpg",
+    "author": "Almudena I. Bernardos from Alcalá de Henares, Madrid",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "03a26e8e4b276b2a82a884345ae526206b1e9b4e",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Reebok_NPC_Argyle.jpg/960px-Reebok_NPC_Argyle.jpg",
+    "fetchWidth": 960,
+    "sha256": "27d6a2acf4daf5ef220115a232cf6c2479fe2f532e8dfb1b224fc581a40908c8"
+   }
+  },
+  {
+   "caseId": "b42-nf-741f9242d0",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: argyle-decorated bicycle frames",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Argyle",
+    "title": "File:Cycles Slipstream.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Cycles_Slipstream.jpg",
+    "author": "Thomas Ducroquet",
+    "licence": "CC BY 3.0",
+    "licenceUrl": "cc-by-3.0",
+    "originalSha1": "3643651fa47239ce848342613a77f5b6cf029769",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Cycles_Slipstream.jpg/960px-Cycles_Slipstream.jpg",
+    "fetchWidth": 960,
+    "sha256": "741f9242d0127b77738d3fd22c23ddf5029b4f647d31b3b3584f3f4a2ce93992"
+   }
+  },
+  {
+   "caseId": "b42-tex-98fdcea12d",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "polo shirt",
+     "striped"
+    ],
+    "colorTerms": [
+     "yellow",
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": true,
+     "name": "Lacoste",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [],
+   "visiblePerson": "partial_body",
+   "notes": "crocodile logo legible; face cropped",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Striped shirts",
+    "title": "File:Tennis-shirt-lacoste.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Tennis-shirt-lacoste.jpg",
+    "author": "No machine-readable author provided. Marubatsu assumed (based on copyright claims).",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "7427f65b324362cbc16754b6ba41e24e79e2412a",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Tennis-shirt-lacoste.jpg/500px-Tennis-shirt-lacoste.jpg",
+    "fetchWidth": 500,
+    "sha256": "98fdcea12d8f472e8adb2a8e63184a8ccbd34b8c5f55f29ac1d22d1127282d9e"
+   }
+  },
+  {
+   "caseId": "b42-tex-04b5bb3616",
+   "stratum": "texture_pattern",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "shirt",
+     "striped",
+     "pinstripe"
+    ],
+    "colorTerms": [
+     "white",
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "back_view",
+    "cluttered_background"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "cyclist from behind; printed text is not a brand",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Striped shirts",
+    "title": "File:Shirt-Wikipedia.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Shirt-Wikipedia.JPG",
+    "author": "B-noa",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "04a9099ea6304ea7466727d86b2c30c56500f373",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Shirt-Wikipedia.JPG/960px-Shirt-Wikipedia.JPG",
+    "fetchWidth": 960,
+    "sha256": "04b5bb3616daf36911ba1ee9c92e0b3d4c856a6ccc8a51c4f3db8f5dd8675d56"
+   }
+  },
+  {
+   "caseId": "b42-nf-432c284647",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: armour quintain dummy",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Mannequins",
+    "title": "File:Renfair quintain.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Renfair_quintain.jpg",
+    "author": "User:Pretzelpaws with a Casio Exilim EX-Z750 camera. Cropped 9/14/05 using the GIMP.",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "46291daefade8ae41d546af040e6281d6efadd48",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Renfair_quintain.jpg/960px-Renfair_quintain.jpg",
+    "fetchWidth": 960,
+    "sha256": "432c2846473f388c214c865892a9f56e4e105c850cee15952c1ecbef5cc65156"
+   }
+  },
+  {
+   "caseId": "b42-nf-0941644fd2",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: unclothed mannequin heads, monochrome",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Mannequins",
+    "title": "File:BCBGMAXAZRIA mannequins.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:BCBGMAXAZRIA_mannequins.jpg",
+    "author": "Viriditas",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "c12ac1f3ed048f1cfaceb574514f0642459df9c1",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/BCBGMAXAZRIA_mannequins.jpg/960px-BCBGMAXAZRIA_mannequins.jpg",
+    "fetchWidth": 960,
+    "sha256": "0941644fd24fcda2fa9edce37c73d0dc373c9abfa8e207cefda3d4e6f1b686e1"
+   }
+  },
+  {
+   "caseId": "b42-multi-4c6821c434",
+   "stratum": "multi_item",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "dress",
+     "mini dress"
+    ],
+    "colorTerms": [
+     "multicolor",
+     "yellow"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "dress",
+      "subtype": "dress",
+      "color": "multicolor"
+     },
+     {
+      "category": "dress",
+      "subtype": "dress",
+      "color": "yellow"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "dresses on dress forms in a showroom",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Mannequins",
+    "title": "File:Siegel & Stockman. The Brandery Winter Edition 2010.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Siegel_%26_Stockman._The_Brandery_Winter_Edition_2010.jpg",
+    "author": "thebrandery",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "b20d08a8cf1bc3ff4df169d3f0a6ce5f99662187",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Siegel_%26_Stockman._The_Brandery_Winter_Edition_2010.jpg/960px-Siegel_%26_Stockman._The_Brandery_Winter_Edition_2010.jpg",
+    "fetchWidth": 960,
+    "sha256": "4c6821c43467e99f58637b85712a3f09f37f6a56e202d35589f115ab577cff2f"
+   }
+  },
+  {
+   "caseId": "b42-multi-dab5e08d74",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "headscarf",
+     "scarf",
+     "hijab"
+    ],
+    "colorTerms": [
+     "multicolor"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "accessory",
+      "subtype": "headscarf",
+      "color": "multicolor"
+     },
+     {
+      "category": "accessory",
+      "subtype": "scarf",
+      "color": "multicolor"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display",
+    "multiple_instances"
+   ],
+   "visiblePerson": "none",
+   "notes": "headscarves on display heads plus hanging scarves",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Mannequins",
+    "title": "File:Foulard shop.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Foulard_shop.jpg",
+    "author": "GuillaumeG",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "40c4f825fcf1053fbd9f3f058a2031fadeac077a",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Foulard_shop.jpg/960px-Foulard_shop.jpg",
+    "fetchWidth": 960,
+    "sha256": "dab5e08d7409e4526cfeec7ae7b1ac9f17a496d51f63eb99f3f0dd0ac7980fc8"
+   }
+  },
+  {
+   "caseId": "b42-multi-7a7a487533",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "leather jacket",
+     "jacket"
+    ],
+    "colorTerms": [
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "outerwear",
+      "subtype": "leather jacket",
+      "color": "brown"
+     },
+     {
+      "category": "pants",
+      "subtype": "jeans",
+      "color": "blue"
+     },
+     {
+      "category": "outerwear",
+      "subtype": "jacket",
+      "color": "grey"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "window mannequins beside a SALE sculpture",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:Love logo ripoff.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Love_logo_ripoff.jpg",
+    "author": "Christopher Thompson from Philadelphia, United States",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "9590fc75e1a23fb3b1efedd21f85384866c768b6",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Love_logo_ripoff.jpg/960px-Love_logo_ripoff.jpg",
+    "fetchWidth": 960,
+    "sha256": "7a7a48753302ee4322a15b84b5d83251b6ac3d627a1a45b1bcf3d2560d98f390"
+   }
+  },
+  {
+   "caseId": "b42-multi-c1faa2ba0a",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "jacket",
+     "leather jacket"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "outerwear",
+      "subtype": "leather jacket",
+      "color": "black"
+     },
+     {
+      "category": "pants",
+      "subtype": "jeans",
+      "color": "blue"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "window mannequins; JUICY COUTURE window lettering",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:Juicy Couture Shop (Via della Spiga - Milan) 02.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Juicy_Couture_Shop_(Via_della_Spiga_-_Milan)_02.jpg",
+    "author": "Sergio Calleja (aka SuperKeko)",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "a1e9f0365d4e04595b9e716c7853e67a3f42c440",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Juicy_Couture_Shop_%28Via_della_Spiga_-_Milan%29_02.jpg/960px-Juicy_Couture_Shop_%28Via_della_Spiga_-_Milan%29_02.jpg",
+    "fetchWidth": 960,
+    "sha256": "c1faa2ba0ac5164a31ca2be306ca90df48a4ec2faf1e87fbcf39ae1e31cd873e"
+   }
+  },
+  {
+   "caseId": "b42-multi-0f4942886a",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "track jacket",
+     "tracksuit"
+    ],
+    "colorTerms": [
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "outerwear",
+      "subtype": "track jacket",
+      "color": "blue"
+     },
+     {
+      "category": "pants",
+      "subtype": "track pants",
+      "color": "blue"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "color_cast",
+    "low_light",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "blue-lit hip-hop window display",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:For Your Far East Side Clothing Needs.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:For_Your_Far_East_Side_Clothing_Needs.jpg",
+    "author": "Tim Notari from Tanabe-Shi Wakayama-Ken, Japan",
+    "licence": "CC BY-SA 2.0",
+    "licenceUrl": "cc-by-sa-2.0",
+    "originalSha1": "809ccdd7227adeac449eaa6ae82120a944f21db3",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/For_Your_Far_East_Side_Clothing_Needs.jpg/960px-For_Your_Far_East_Side_Clothing_Needs.jpg",
+    "fetchWidth": 960,
+    "sha256": "0f4942886aafd8b5c8bc2d63ae23029b69d01476a3c125b66d4d9442098cb841"
+   }
+  },
+  {
+   "caseId": "b42-multi-3c430a303f",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "cocktail dress",
+     "sheath dress"
+    ],
+    "colorTerms": [
+     "black",
+     "gold",
+     "brown"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "dress",
+      "subtype": "cocktail dress",
+      "color": "black"
+     },
+     {
+      "category": "dress",
+      "subtype": "sheath dress",
+      "color": "gold"
+     },
+     {
+      "category": "dress",
+      "subtype": "sheath dress",
+      "color": "brown"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "three mannequins in dresses",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:Holt Renfrew Mannequins.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Holt_Renfrew_Mannequins.jpg",
+    "author": "Colin Rose",
+    "licence": "CC BY 2.0",
+    "licenceUrl": "cc-by-2.0",
+    "originalSha1": "b704d07ad2d918e2af4688d6eda72d57cbc4967d",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Holt_Renfrew_Mannequins.jpg/960px-Holt_Renfrew_Mannequins.jpg",
+    "fetchWidth": 960,
+    "sha256": "3c430a303ff6a41217630725e694685077ff9a22a9ccff2222ceecc02026f555"
+   }
+  },
+  {
+   "caseId": "b42-multi-7adcec9907",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "party dress",
+     "dress"
+    ],
+    "colorTerms": [
+     "yellow",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "dress",
+      "subtype": "party dress",
+      "color": "yellow"
+     },
+     {
+      "category": "outerwear",
+      "subtype": "sailor suit",
+      "color": "white"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "communion outfits on dress forms",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:Traje comunión marinero 2008.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Traje_comuni%C3%B3n_marinero_2008.jpg",
+    "author": "Andreas Praefcke",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "eb261c0a5b16724c7e90f96d3a248460a3e5ae5b",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Traje_comuni%C3%B3n_marinero_2008.jpg/960px-Traje_comuni%C3%B3n_marinero_2008.jpg",
+    "fetchWidth": 960,
+    "sha256": "7adcec990751b47cbc3e00ce93d610a25e4a82cd7b58f9fe160c8084acd5c490"
+   }
+  },
+  {
+   "caseId": "b42-multi-b172faf7bc",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "salwar kameez",
+     "kurta",
+     "tunic"
+    ],
+    "colorTerms": [
+     "blue",
+     "pink",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "dress",
+      "subtype": "salwar kameez",
+      "color": "blue"
+     },
+     {
+      "category": "dress",
+      "subtype": "kurta",
+      "color": "pink"
+     },
+     {
+      "category": "dress",
+      "subtype": "kurta",
+      "color": "red"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "glass_reflection",
+    "retail_display"
+   ],
+   "visiblePerson": "none",
+   "notes": "shop window of salwar kameez with sale sign",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing shop windows",
+    "title": "File:Hasseen2.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Hasseen2.jpg",
+    "author": "Chemical Engineer",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "77c7b5e426ee5af5c255e297c8ec44b53c00eccc",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hasseen2.jpg/500px-Hasseen2.jpg",
+    "fetchWidth": 500,
+    "sha256": "b172faf7bc322e9409820fe420e88f6a6d3de3c53ad07ba6598845e14537dc1e"
+   }
+  },
+  {
+   "caseId": "b42-multi-e1eb32a6f4",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "dress",
+    "subtypeTerms": [
+     "dress",
+     "slip dress"
+    ],
+    "colorTerms": [
+     "pink",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "dress",
+      "subtype": "dress",
+      "color": "pink"
+     },
+     {
+      "category": "pants",
+      "subtype": "jeans",
+      "color": "blue"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "dirty",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "flood-damaged store racks",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing racks",
+    "title": "File:MidCityFloodClothes1.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:MidCityFloodClothes1.jpg",
+    "author": "Infrogmation of New Orleans",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "adf08c7ce73a6c4671ad4b01f96f8603980f4711",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/MidCityFloodClothes1.jpg/960px-MidCityFloodClothes1.jpg",
+    "fetchWidth": 960,
+    "sha256": "e1eb32a6f4068fd88187c85117dcd2dd610083a4af8620e9a5dc8469a38f317f"
+   }
+  },
+  {
+   "caseId": "b42-multi-a5b5830876",
+   "stratum": "multi_item",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "blouse",
+     "shirt"
+    ],
+    "colorTerms": [
+     "green",
+     "red",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    },
+    "garments": [
+     {
+      "category": "top",
+      "subtype": "blouse",
+      "color": "green"
+     },
+     {
+      "category": "top",
+      "subtype": "shirt",
+      "color": "red"
+     }
+    ]
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "low_light",
+    "dirty",
+    "cluttered_background"
+   ],
+   "visiblePerson": "none",
+   "notes": "dark flood-damaged store racks",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Clothing racks",
+    "title": "File:Chalmette19Feb06SiltyClothesStoreB.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Chalmette19Feb06SiltyClothesStoreB.jpg",
+    "author": "Infrogmation",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "b7142c8e5aadcb6dfa9e0c9f55c81c96db8db075",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Chalmette19Feb06SiltyClothesStoreB.jpg/960px-Chalmette19Feb06SiltyClothesStoreB.jpg",
+    "fetchWidth": 960,
+    "sha256": "a5b5830876fff6488b1f4dee23df2c7b105e840dd60e989ca7f067be547b7b8b"
+   }
+  },
+  {
+   "caseId": "b42-nf-e0a0506b35",
+   "stratum": "non_fashion",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "coffee cup with saucer",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Coffee mugs",
+    "title": "File:CodazziAmericanCoffee2.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:CodazziAmericanCoffee2.jpg",
+    "author": "No machine-readable author provided. 小太刀~commonswiki assumed (based on copyright claims).",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "7861a41eb401b4fe030a2f3aeade282f131be0b0",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/CodazziAmericanCoffee2.jpg/500px-CodazziAmericanCoffee2.jpg",
+    "fetchWidth": 500,
+    "sha256": "e0a0506b352bcb8b2b0e712154e1f5bf57e0812aaba8f5c0a7207324ca538ad5"
+   }
+  },
+  {
+   "caseId": "b42-nf-bd8247a375",
+   "stratum": "non_fashion",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "radio, mug and newspaper",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Coffee mugs",
+    "title": "File:Antique radio coffee newspaper.JPG",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Antique_radio_coffee_newspaper.JPG",
+    "author": "No machine-readable author provided. AurigaM36 assumed (based on copyright claims).",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "1ed1ec58b34faa261b28290db9d273ffc8f773b3",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Antique_radio_coffee_newspaper.JPG/500px-Antique_radio_coffee_newspaper.JPG",
+    "fetchWidth": 500,
+    "sha256": "bd8247a375252985e77694ea02e24760f99f84002edc460d4f1cb46b43f73fd3"
+   }
+  },
+  {
+   "caseId": "b42-nf-0af1409697",
+   "stratum": "non_fashion",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "1"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: brand wordmarks on coffee jars",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Coffee mugs",
+    "title": "File:Coffee selections and fresh brewed cup.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Coffee_selections_and_fresh_brewed_cup.jpg",
+    "author": "darkliight",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "e6c693418ffc6d8e473ee5c7110f58969710f457",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Coffee_selections_and_fresh_brewed_cup.jpg/960px-Coffee_selections_and_fresh_brewed_cup.jpg",
+    "fetchWidth": 960,
+    "sha256": "0af1409697bc74df46e53966868c014a768dd4eea864388e6f69f62d072aa91c"
+   }
+  },
+  {
+   "caseId": "b42-nf-74263ea7bc",
+   "stratum": "non_fashion",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "mug with steam on black",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Coffee mugs",
+    "title": "File:Taza azul.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Taza_azul.jpg",
+    "author": "Jorge Barrios",
+    "licence": "Public domain",
+    "licenceUrl": "pd",
+    "originalSha1": "a3b89f7e40a2b7186879a13556dcaaecf3298261",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Taza_azul.jpg/960px-Taza_azul.jpg",
+    "fetchWidth": 960,
+    "sha256": "74263ea7bccf7c5f49c672d65a9fc0dc0577643663f05882f8bcf21b379ec878"
+   }
+  },
+  {
+   "caseId": "b42-nf-3ecd3ccf53",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "living room with chairs",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chairs",
+    "title": "File:Wohnzimmer FGM.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:Wohnzimmer_FGM.jpg",
+    "author": "No machine-readable author provided. Oelbauer assumed (based on copyright claims).",
+    "licence": "CC BY-SA 3.0",
+    "licenceUrl": "cc-by-sa-3.0",
+    "originalSha1": "bc0671dd42747c56da5dc900d4668feb81fea293",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Wohnzimmer_FGM.jpg/960px-Wohnzimmer_FGM.jpg",
+    "fetchWidth": 960,
+    "sha256": "3ecd3ccf53f3d60afaf3f9829e561aab6f71eb0c06be9cd5b16939fdc59e220f"
+   }
+  },
+  {
+   "caseId": "b42-nf-3fb3f5c5da",
+   "stratum": "non_fashion",
+   "split": "development",
+   "labels": {
+    "nonFashion": true,
+    "category": "non_fashion",
+    "subtypeTerms": [],
+    "colorTerms": [],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": false,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "commons_category",
+    "agent_visual_review"
+   ],
+   "difficulty": [
+    "0"
+   ],
+   "visiblePerson": "none",
+   "notes": "adversarial: gingham tablecloth and chairs",
+   "source": {
+    "kind": "commons",
+    "commonsCategory": "Chairs",
+    "title": "File:2003-06-01-AakenesStevne-22B.jpg",
+    "filePage": "https://commons.wikimedia.org/wiki/File:2003-06-01-AakenesStevne-22B.jpg",
+    "author": "Frode Inge Helland",
+    "licence": "CC BY 2.5",
+    "licenceUrl": "cc-by-2.5",
+    "originalSha1": "fb26378ec4c2cbfcc333084bd397d94bb6fd5007",
+    "fetchUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/2003-06-01-AakenesStevne-22B.jpg/960px-2003-06-01-AakenesStevne-22B.jpg",
+    "fetchWidth": 960,
+    "sha256": "3fb3f5c5da600a0292dd9eb2d0f617cdde659634640e9878490d4591d0a23b66"
+   }
+  },
+  {
+   "caseId": "b42-dif-lowlight-9a0e4ce95d",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker"
+    ],
+    "colorTerms": [
+     "white",
+     "green"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Stan Smith",
+     "modelAliases": [
+      "Stan Smith"
+     ],
+     "family": "adidas-stan-smith"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-9a0e4ce95d",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-9a0e4ce95d",
+    "transform": "low_light",
+    "derivedSha256": "04cde2fe0ab7de2a83eb758e278c871a980e8c864d05193558105b1d1131a71f",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-motionblur-b1169ad9df",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "high top"
+    ],
+    "colorTerms": [
+     "black",
+     "red",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Nike",
+     "aliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [
+      "Jordan",
+      "Air Jordan",
+      "Jordan Brand"
+     ],
+     "model": "Air Jordan 1",
+     "modelAliases": [
+      "Air Jordan 1",
+      "Jordan 1",
+      "AJ1"
+     ],
+     "family": "nike-air-jordan-1"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "motion_blur"
+   ],
+   "visiblePerson": "partial_body",
+   "notes": "derived from b42-ex-b1169ad9df",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-b1169ad9df",
+    "transform": "motion_blur",
+    "derivedSha256": "07961e53ca11f79361a92304199bfd4942848420f47d50f00e67a0cf00d2be2a",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-occlusion-9a36a5c4a8",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "digital watch",
+     "watch"
+    ],
+    "colorTerms": [
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Casio",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Casio",
+     "brandAliases": [],
+     "model": "F-91W",
+     "modelAliases": [
+      "F-91W",
+      "F91W"
+     ],
+     "family": "casio-f91w"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-9a36a5c4a8",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-9a36a5c4a8",
+    "transform": "occlusion",
+    "derivedSha256": "50db4fe29cb84232276962d5a51c4e8211e9e3b26c26804888ca0e0234f57cb7",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-rotation-4e185522a0",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "trainer",
+     "suede"
+    ],
+    "colorTerms": [
+     "blue",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Samba",
+     "modelAliases": [
+      "Samba"
+     ],
+     "family": "adidas-samba"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "rotation"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-4e185522a0",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-4e185522a0",
+    "transform": "rotation",
+    "derivedSha256": "18ef48f736383baffa8dcff197b0fbc546ec077afe2057add298ce9da2cf203a",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-heavycompression-b4f9fbab86",
+   "stratum": "difficult",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "aviator"
+    ],
+    "colorTerms": [
+     "green",
+     "grey",
+     "silver"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Ray-Ban",
+     "aliases": [
+      "Ray Ban",
+      "RayBan"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Ray-Ban",
+     "brandAliases": [
+      "Ray Ban",
+      "RayBan"
+     ],
+     "model": "Aviator",
+     "modelAliases": [
+      "Aviator",
+      "RB3025"
+     ],
+     "family": "rayban-aviator"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "heavy_compression"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-b4f9fbab86",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-b4f9fbab86",
+    "transform": "heavy_compression",
+    "derivedSha256": "437274cf512fa5116719b769ad72a063cf2c6b4943202e7d816bcd9d514521e8",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-overexposed-d4aba4a815",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "bag",
+    "subtypeTerms": [
+     "backpack"
+    ],
+    "colorTerms": [
+     "green",
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Fjällräven",
+     "aliases": [
+      "Fjallraven"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Fjällräven",
+     "brandAliases": [
+      "Fjallraven"
+     ],
+     "model": "Kånken",
+     "modelAliases": [
+      "Kånken",
+      "Kanken"
+     ],
+     "family": "fjallraven-kanken"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "overexposed"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-d4aba4a815",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-d4aba4a815",
+    "transform": "overexposed",
+    "derivedSha256": "a3d323a2276d01a9675fbc300a9fb20ecf3f0d3a77573a6c2603803251a84d68",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-lowlight-b58bfb5580",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "running shoe"
+    ],
+    "colorTerms": [
+     "purple",
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Nike",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "Nike",
+     "brandAliases": [],
+     "model": "Air Max BW",
+     "modelAliases": [
+      "Air Max BW",
+      "Air Max Classic BW",
+      "Air Max Big Window"
+     ],
+     "family": "nike-air-max-bw"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-b58bfb5580",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-b58bfb5580",
+    "transform": "low_light",
+    "derivedSha256": "61d7737a4e30e73dfbf1ae0f450b3075b77364819a106fc2408d95a4c055a206",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-motionblur-8c96a91983",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "shell toe"
+    ],
+    "colorTerms": [
+     "white",
+     "black"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "adidas",
+     "aliases": [
+      "Adidas Originals"
+     ]
+    },
+    "exactProduct": {
+     "knowable": true,
+     "brand": "adidas",
+     "brandAliases": [
+      "Adidas Originals"
+     ],
+     "model": "Superstar",
+     "modelAliases": [
+      "Superstar"
+     ],
+     "family": "adidas-superstar"
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "motion_blur"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-ex-8c96a91983",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-ex-8c96a91983",
+    "transform": "motion_blur",
+    "derivedSha256": "2a0d49b5a728b8c982d35b381b34bb67727e75ce529141fc24f616e285ee30ac",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-occlusion-540cb9cda8",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "cardigan",
+     "ribbed"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-gen-540cb9cda8",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-gen-540cb9cda8",
+    "transform": "occlusion",
+    "derivedSha256": "6d9e35358030b8f5906f9bbaf51f079d8352fdbd8578f64a787bd3c0dd0aefa5",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-rotation-b50cdb995c",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "leather jacket",
+     "biker",
+     "moto"
+    ],
+    "colorTerms": [
+     "cream",
+     "beige",
+     "ivory"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "rotation"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-gen-b50cdb995c",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-gen-b50cdb995c",
+    "transform": "rotation",
+    "derivedSha256": "f113e005a74459519535a3f31b40a516e06cc475f0ab2023e4e7f6a20b484861",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-heavycompression-625742e902",
+   "stratum": "difficult",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "outerwear",
+    "subtypeTerms": [
+     "puffer jacket",
+     "down jacket"
+    ],
+    "colorTerms": [
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "heavy_compression"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-gen-625742e902",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-gen-625742e902",
+    "transform": "heavy_compression",
+    "derivedSha256": "502639634c017e6fb5b3436512638d9d9a23bfb96377f2d7a0bee1acef332592",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-overexposed-2e4e3d7dd8",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "aviator"
+    ],
+    "colorTerms": [
+     "green",
+     "gold"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "overexposed"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-gen-2e4e3d7dd8",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-gen-2e4e3d7dd8",
+    "transform": "overexposed",
+    "derivedSha256": "2190807d6043deabc96e8294b7f308f60cad846e541d5988475766246a953c93",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-lowlight-0007c3380c",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "cap",
+     "baseball cap"
+    ],
+    "colorTerms": [
+     "grey"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "adidas",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "low_light"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-logo-0007c3380c",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-logo-0007c3380c",
+    "transform": "low_light",
+    "derivedSha256": "37f51e990050c06eb23e191ac82479f16ce0490b1716ef90924830e00a01279e",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-motionblur-5838b09968",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "footwear",
+    "subtypeTerms": [
+     "sneaker",
+     "skate shoe"
+    ],
+    "colorTerms": [
+     "black",
+     "white"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Vans",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "motion_blur"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-logo-5838b09968",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-logo-5838b09968",
+    "transform": "motion_blur",
+    "derivedSha256": "8cc3a68ad65fe7bf4ab8710c8442a17468d8f696a03726cfca5d1b98801cd7ba",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-occlusion-3082d44589",
+   "stratum": "difficult",
+   "split": "development",
+   "labels": {
+    "nonFashion": false,
+    "category": "accessory",
+    "subtypeTerms": [
+     "sunglasses",
+     "sport sunglasses"
+    ],
+    "colorTerms": [
+     "orange",
+     "blue"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": "Oakley",
+     "aliases": []
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "occlusion"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-logo-3082d44589",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-logo-3082d44589",
+    "transform": "occlusion",
+    "derivedSha256": "d9fa5d514d36fb53b724579e55a40cb2db67fdf4732069e5b42bbeb80c4f371e",
+    "pillowVersion": "12.3.0"
+   }
+  },
+  {
+   "caseId": "b42-dif-rotation-69b7418807",
+   "stratum": "difficult",
+   "split": "holdout",
+   "labels": {
+    "nonFashion": false,
+    "category": "top",
+    "subtypeTerms": [
+     "sweater",
+     "knit",
+     "fair isle"
+    ],
+    "colorTerms": [
+     "grey",
+     "green",
+     "red"
+    ],
+    "rejectTerms": [],
+    "pattern": null,
+    "brand": {
+     "visible": null,
+     "name": null
+    },
+    "exactProduct": {
+     "knowable": false
+    }
+   },
+   "labelSources": [
+    "inherited_from_parent"
+   ],
+   "difficulty": [
+    "rotation"
+   ],
+   "visiblePerson": "none",
+   "notes": "derived from b42-tex-69b7418807",
+   "source": {
+    "kind": "derived",
+    "derivedFrom": "b42-tex-69b7418807",
+    "transform": "rotation",
+    "derivedSha256": "496fec7136cd7376422b6203e0f0c174a3ea89b6f90f5da40a9c7cfcccc22fd5",
+    "pillowVersion": "12.3.0"
+   }
+  }
+ ]
+}
