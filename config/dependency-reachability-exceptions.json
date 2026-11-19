@@ -13,6 +13,27 @@
       "verifiedRemoved": true
     }
   },
+  "withdrawnAdvisories": {
+    "picomatch": {
+      "status": "INFORMATIONAL — not read by scripts/check-dependency-reachability.js and grants no exception. Triage record only.",
+      "advisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+      "cve": "CVE-2026-112366",
+      "severity": "high",
+      "summary": "ReDoS (CWE-1333) when picomatch compiles a caller-supplied single-branch repeated extglob pattern such as +(*).",
+      "vulnerableRange": "picomatch <=4.0.7; firstPatchedVersion: none. 4.0.7 is the registry latest, so no lockfile-only upgrade can resolve it.",
+      "timeline": "published 2026-10-19; GitHub-reviewed 2026-11-17 (entered npm audit; the gate then reported 18 high findings with reason=leaf-picomatch-unapproved on every branch); withdrawn 2026-11-18T15:38:56Z. On 2026-11-19 the live `npm audit --omit=dev` no longer reports picomatch and the unchanged gate passes on rebuild/backend-authority-v2 @ e58125a2.",
+      "upstreamPosition": "Upstream picomatch maintainers rejected the report: globs compile to regular expressions and the risk only exists when untrusted users supply glob patterns. The proposed fix (micromatch/picomatch#235) was closed unmerged.",
+      "lockfileNodes": [
+        "node_modules/picomatch@2.3.2 <- micromatch@4.0.8, anymatch@3.1.3, jest-util@29.7.0",
+        "node_modules/expo/node_modules/picomatch@4.0.7 <- @expo/cli@54.0.27, @expo/metro-config@54.0.17",
+        "node_modules/@expo/config/node_modules/picomatch@4.0.4 <- tinyglobby@0.2.16 (<- sucrase@3.35.1 <- @expo/config), fdir@6.5.0"
+      ],
+      "reachability": "BUILD_DEV_ONLY. Every path is Jest test tooling (react-native -> babel-jest/jest-environment-node -> @jest/* -> jest-haste-map/jest-util/micromatch/anymatch), the Metro file watcher (react-native -> @react-native/community-cli-plugin -> metro -> metro-file-map -> micromatch, and metro -> jest-worker -> jest-util), or Expo CLI/config loading (@expo/cli, @expo/metro-config, @expo/config -> sucrase -> tinyglobby/fdir). Those tools compile glob patterns from their own config, not from app users. No shipped code passes a user-controlled string to a glob matcher.",
+      "evidence": "(1) Zero imports of picomatch, micromatch, anymatch, fdir, tinyglobby, sucrase, metro-file-map, jest-*, @jest/*, babel-jest, @expo/cli, @expo/metro-config or @expo/config from app.js, index.js, server.js or app/components/services/hooks/contexts/lib/src/stores/modules/constants/types/supabase (Edge Functions included). (2) `npx expo export --source-maps` for android and ios: none of the 18 flagged packages appears among the ~2,075 bundle sources. The only @expo/cli file bundled is build/metro-require/require.js, Metro's module-system shim, which does not use picomatch. (3) server.js requires only express, cors and dotenv; their 78-node lockfile closure contains none of these packages.",
+      "flaggedAggregateParents": ["@jest/environment", "@jest/fake-timers", "@jest/transform", "anymatch", "babel-jest", "fdir", "jest-environment-node", "jest-haste-map", "jest-message-util", "jest-mock", "jest-util", "jest-worker", "metro-file-map", "micromatch", "react-native", "sucrase", "tinyglobby"],
+      "whyNoException": "The gate matches exceptions by package name, not by advisory. A standing picomatch BUILD_DEV_ONLY entry would therefore pre-approve any future high picomatch advisory and its aggregate parents without review, so none is added while the audit does not report this advisory. If GitHub reinstates GHSA-fc5q-39xc-vjpf, re-run this triage. If it still holds, add an `exceptions` entry for [\"picomatch\"] with severity high, classification BUILD_DEV_ONLY and aggregateParents exactly equal to flaggedAggregateParents. Do not use any broader entry."
+    }
+  },
   "exceptions": [
     {
       "packages": ["@expo/cli", "@expo/code-signing-certificates", "@expo/metro", "@expo/metro-config", "expo", "node-forge"],
