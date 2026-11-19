@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "scanner-b42-match-confidence-primary-integrity-approval-v1",
+  "issue": "Build 42 Sprint 1 B42-SCAN-03 (draft PR kscanaiapp/kscan-app#764)",
+  "baseCommit": "e58125a2002efc0d494c329c0a766486b847666f",
+  "authority": "Build 42 Sprint 1 owner brief (2026-11-18): audit and improve the Scanner accuracy and confidence engine in isolated branches until approved. This record makes the exact Scanner-entrypoint edits reviewable; it does not approve merge, deployment or activation.",
+  "note": "Additive exact-digest record chained AFTER the #612 record. It does not rewrite the Black-owned baseline, VRI-03, BOBSE or #612 records. The invariant test proves the approved bytes equal the #612-pinned bytes plus exactly the edits listed below.",
+  "approvedFiles": {
+    "supabase/functions/scan-identify/index.ts": {
+      "priorSha256": "8632efddaa477d8d0536db0124b5ab31172d8f8712d75f8edb89a34a9f07ceb9",
+      "approvedSha256": "41058333da9d162dbd9c9d07b9db25a8b67d65f738424186c0283bb82592faca",
+      "reason": "B42-SCAN-03: behind SCANNER_MATCH_CONFIDENCE_V1_ENABLED (default OFF), annotate each returned Scanner commerce offer with an additive, evidence-bound matchConfidence record and log one counts-only summary line. Flag-OFF response bytes, ranking, filtering, queries, providers, consent gate and deferred commerce are unchanged.",
+      "edits": [
+        {
+          "from": "import { classifyCommerceMatch } from './matchTier.ts';\nimport { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';",
+          "to": "import { classifyCommerceMatch } from './matchTier.ts';\nimport { annotateMatchConfidence, summarizeMatchConfidence } from './matchConfidence.ts';\nimport { isMatchConfidenceEnabled } from './matchConfidenceConfig.ts';\nimport { normalizeCommerceCategoryText } from './commerceRelevanceAgreement.ts';"
+        },
+        {
+          "from": "      products = annotateScannerMatchMetadata(products, gated.identification);\n    }",
+          "to": "      products = annotateScannerMatchMetadata(products, gated.identification);\n      // B42 match confidence v1 (default OFF): additive per-offer evidence class,\n      // computed from the same agreement scorer and identity evidence ranking\n      // used above. Never reorders or filters.\n      if (isMatchConfidenceEnabled()) {\n        products = annotateMatchConfidence(products, {\n          identification: gated.identification,\n          route,\n          commerceIdentity: commerceIdentityEnabledForCommerceOnly ? gated.commerceIdentity ?? null : null,\n        });\n        logMatchConfidenceSummary('commerce_only', products);\n      }\n    }"
+        },
+        {
+          "from": "      finalSimilarityMatches = annotateScannerMatchMetadata(finalSimilarityMatches, completedNormalizedId ?? {});\n    }",
+          "to": "      finalSimilarityMatches = annotateScannerMatchMetadata(finalSimilarityMatches, completedNormalizedId ?? {});\n      // B42 match confidence v1 (default OFF): live commerce offers only; the\n      // catalog similarity shelf is a separate surface and is not classified.\n      if (finalRecommendedProducts.length > 0 && isMatchConfidenceEnabled()) {\n        finalRecommendedProducts = annotateMatchConfidence(finalRecommendedProducts, {\n          identification: (completedNormalizedId ?? {}) as Record<string, unknown>,\n          route: commerceCategoryRoute,\n          commerceIdentity: commerceIdentityEnabled ? intelligenceGate?.commerceIdentity ?? null : null,\n        });\n        logMatchConfidenceSummary(requestModeForRoute, finalRecommendedProducts);\n      }\n    }"
+        },
+        {
+          "from": "\nfunction safeStringMessage(value: unknown): string | undefined {",
+          "to": "\n/** Counts only: no titles, URLs, brands, queries, image data or user identifiers. */\nfunction logMatchConfidenceSummary(requestMode: string, products: unknown[]): void {\n  const s = summarizeMatchConfidence(products);\n  console.log(\n    '[scan-identify] match_confidence_v1 request_mode=%s offers=%d verified_exact=%d probable=%d similar=%d unsupported=%d direct=%d search_handoff=%d invalid=%d',\n    requestMode,\n    s.offers,\n    s.classes.verified_exact,\n    s.classes.probable,\n    s.classes.similar,\n    s.classes.unsupported,\n    s.destinations.direct,\n    s.destinations.search_handoff,\n    s.destinations.invalid,\n  );\n}\n\nfunction safeStringMessage(value: unknown): string | undefined {"
+        }
+      ]
+    }
+  },
+  "consentPromotion": {
+    "priorConsentStrippedSha256": "0b60ce90baf9af192804413a1f69b7b8c3ddfb438c27e3b10d4e745806d2b5c0",
+    "approvedConsentStrippedSha256": "cc95fc5e545e6a6ecf07b0df644595e78d921536d450e62005cea77bb8fba43b"
+  },
+  "evidence": [
+    "supabase/functions/scan-identify/matchConfidence.ts",
+    "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+    "supabase/functions/scan-identify/matchConfidence.test.ts",
+    "__tests__/blackOwnedPrimaryInvariants.test.js"
+  ],
+  "restrictions": [
+    "No recognition-quality or relevance improvement is claimed from source tests",
+    "Thresholds are the provisional v122 bands and must be recalibrated on the Build 42 benchmark before any user-facing use",
+    "No Staging or Production deployment or activation approval"
+  ]
+}
