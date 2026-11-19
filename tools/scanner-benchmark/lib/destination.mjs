@@ -14,7 +14,10 @@ const SEARCH_INTERMEDIARY = [
   /(^|\.)search\.yahoo\.com$/,
 ];
 
-const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|\[?::1\]?$)|\.(local|internal|invalid|test|example)$/i;
+const DNS_HOST = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
+const RESERVED_SUFFIX = /\.(local|localhost|internal|invalid|test|example|onion)$/i;
+const SEARCH_PATH = /^\/(?:search|s|collections?|category|categories)(?:\/|$)/i;
+const PRODUCT_PATH = /\/(?:p|pd|dp|product|products|listing|item)\/[^/]+/i;
 
 function parts(input) {
   if (input && typeof input === 'object' && typeof input.host === 'string') {
@@ -31,15 +34,18 @@ function parts(input) {
 }
 
 /**
- * direct          https page on a public host that is not a search intermediary
- * search_handoff  https page on a search intermediary (e.g. a Google Shopping /search page)
- * invalid         unparseable, non-https, credentialed or private host
+ * direct          HTTPS hostname and product-shaped path, pending listing verification
+ * search_handoff  HTTPS search intermediary or catalogue/search path
+ * unverified      HTTPS destination without a recognized product or search path
+ * invalid         unparseable, non-HTTPS, credentialed, reserved or IP-literal destination
  */
 export function classifyDestination(input) {
   const p = parts(input);
-  if (!p || !p.https || !p.host || PRIVATE_HOST.test(p.host)) return 'invalid';
-  if (SEARCH_INTERMEDIARY.some((re) => re.test(p.host))) return 'search_handoff';
-  return 'direct';
+  if (!p || !p.https) return 'invalid';
+  const host = p.host.replace(/\.$/, '');
+  if (!DNS_HOST.test(host) || RESERVED_SUFFIX.test(host)) return 'invalid';
+  if (SEARCH_INTERMEDIARY.some((re) => re.test(host)) || SEARCH_PATH.test(p.path)) return 'search_handoff';
+  return PRODUCT_PATH.test(p.path) ? 'direct' : 'unverified';
 }
 
 export function destinationHostPath(input) {

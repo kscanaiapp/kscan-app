@@ -42,7 +42,7 @@ export function computeMetrics(cases, results, pricing = null) {
   let probableClaims = 0, probableCorrect = 0;
   let knowable = 0, knowableTop1 = 0, knowableTop3 = 0, knowableTop10 = 0;
   const altGrades = []; let altHit3 = 0, altCases = 0;
-  let offers = 0; const dest = { direct: 0, search_handoff: 0, invalid: 0 };
+  let offers = 0; const dest = { direct: 0, search_handoff: 0, unverified: 0, invalid: 0 };
   const actionable = []; let noActionable = 0, commerceAttempted = 0;
   let idEligible = 0, idCategoryCorrect = 0, nonFashionCases = 0, nonFashionRejected = 0;
   let brandClaims = 0, unsupportedBrandClaims = 0;
@@ -101,7 +101,7 @@ export function computeMetrics(cases, results, pricing = null) {
 
     // Alternative relevance: offers that are not correct exact-product listings
     if (!L.nonFashion && list.length > 0) {
-      const alts = list.filter((o) => judgeExactProduct(o, L.exactProduct) !== 'exact_product').slice(0, 3);
+      const alts = list.slice(0, 3).filter((o) => judgeExactProduct(o, L.exactProduct) !== 'exact_product');
       if (alts.length > 0) {
         altCases++;
         const g = alts.map((o) => gradeAlternative(o, L));
@@ -151,7 +151,7 @@ export function computeMetrics(cases, results, pricing = null) {
       gradeCounts: [0, 1, 2, 3].map((g) => altGrades.filter((x) => x === g).length),
       judge: 'title-only (see lib/judge.mjs)',
     },
-    merchantLinkValidity: { direct: ratio(dest.direct, offers), searchHandoff: ratio(dest.search_handoff, offers), invalid: ratio(dest.invalid, offers), offers },
+    merchantLinkValidity: { direct: ratio(dest.direct, offers), searchHandoff: ratio(dest.search_handoff, offers), unverified: ratio(dest.unverified, offers), invalid: ratio(dest.invalid, offers), offers },
     actionableLatencyMs: { n: actionable.length, p50: percentile(actionable, 50), p95: percentile(actionable, 95), noActionableResult: ratio(noActionable, commerceAttempted) },
     identification: {
       categoryAccuracy: ratio(idCategoryCorrect, idEligible),

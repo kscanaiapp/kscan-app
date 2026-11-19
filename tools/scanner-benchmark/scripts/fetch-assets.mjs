@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { validateManifest } from '../lib/manifest.mjs';
 
 // Wikimedia's bot policy asks automated clients to name a contact; the owner approved the
 // project site. Override with KSCAN_BENCHMARK_USER_AGENT.
@@ -30,13 +31,23 @@ const absRoot = path.resolve(root);
 if (absRoot.toLowerCase().startsWith(repoRoot.toLowerCase() + path.sep) || absRoot.toLowerCase() === repoRoot.toLowerCase()) {
   console.error('refusing: asset root must be outside the repository'); process.exit(65);
 }
-fs.mkdirSync(absRoot, { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const errors = validateManifest(manifest);
+if (errors.length > 0) {
+  console.error(errors.join('\n'));
+  process.exit(65);
+}
+const sourceCases = manifest.cases.filter((c) => c.source?.kind === 'commons');
+if (sourceCases.length === 0) {
+  console.error('manifest has no source assets');
+  process.exit(65);
+}
+fs.mkdirSync(absRoot, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
 let ok = 0, fetched = 0, mismatched = 0, failed = 0, consecutive429 = 0;
-for (const c of manifest.cases.filter((x) => x.source?.kind === 'commons')) {
+for (const c of sourceCases) {
   const file = path.join(absRoot, `${c.caseId}.jpg`);
   if (fs.existsSync(file) && sha(fs.readFileSync(file)) === c.source.sha256) { ok++; continue; }
   await sleep(8000);
@@ -53,5 +64,6 @@ for (const c of manifest.cases.filter((x) => x.source?.kind === 'commons')) {
     fs.writeFileSync(file, buf); fetched++; ok++;
   } catch (e) { console.error(`fail ${c.caseId} ${String(e).slice(0, 80)}`); failed++; }
 }
-console.log(JSON.stringify({ assetRoot: absRoot, verified: ok, fetched, mismatched, failed }));
-process.exit(mismatched || failed ? 1 : 0);
+const missing = sourceCases.length - ok;
+console.log(JSON.stringify({ assetRoot: absRoot, expected: sourceCases.length, verified: ok, fetched, mismatched, failed, missing }));
+process.exit(missing > 0 ? 1 : 0);

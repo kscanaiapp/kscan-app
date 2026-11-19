@@ -28,17 +28,25 @@ test('destination classifier is independent and conservative', async () => {
   assert.equal(classifyDestination('https://www.google.co.uk/shopping/product/1'), 'search_handoff');
   assert.equal(classifyDestination({ host: 'www.google.com', path: '/search', https: true }), 'search_handoff');
   assert.equal(classifyDestination({ host: 'poshmark.com', path: '/listing/1', https: true }), 'direct');
+  assert.equal(classifyDestination('https://shop.com/search?q=shoes'), 'search_handoff');
+  assert.equal(classifyDestination('https://www.google.com./shopping/product/1'), 'search_handoff');
+  assert.equal(classifyDestination('https://shop.com/'), 'unverified');
+  assert.equal(classifyDestination('https://shop.com/redirect'), 'unverified');
+  assert.equal(classifyDestination('https://[::ffff:127.0.0.1]/p/1'), 'invalid');
   for (const bad of ['http://shop.com/p', 'https://user:pw@shop.com/p', 'https://localhost/p', 'https://shop.test/p', 'not a url', null, 42]) {
     assert.equal(classifyDestination(bad), 'invalid', String(bad));
   }
 });
 
-test('exact-product judge requires brand and every model token; ancillary and dupe listings never count', async () => {
+test('exact-product judge requires brand and a complete model phrase', async () => {
   const { judgeExactProduct } = await lib('judge.mjs');
   const ep = STAN_SMITH.labels.exactProduct;
   assert.equal(judgeExactProduct({ title: 'adidas Originals Stan Smith Shoes' }, ep), 'exact_product');
   assert.equal(judgeExactProduct({ title: 'Stan Smith Shoes', brand: 'adidas' }, ep), 'exact_product');
   assert.equal(judgeExactProduct({ title: 'adidas Superstar Shoes' }, ep), 'same_brand');
+  assert.equal(judgeExactProduct({ title: 'adidas Stan edition in Smith white' }, ep), 'same_brand');
+  assert.equal(judgeExactProduct({ title: 'adidas Smith Stan Shoes' }, ep), 'same_brand');
+  assert.equal(judgeExactProduct({ title: 'adidas Stan Smith replacement kit' }, ep), 'same_brand');
   assert.equal(judgeExactProduct({ title: 'adidas Stan Smith Socks' }, ep), 'same_brand');
   assert.equal(judgeExactProduct({ title: 'Stan Smith inspired white sneaker by adidas' }, ep), 'same_brand');
   assert.equal(judgeExactProduct({ title: 'Stan Smith Shoes', brand: 'Generic' }, ep), 'other');
@@ -105,6 +113,17 @@ test('metrics: unknown case ids are reported, never scored', async () => {
   assert.deepEqual(m.unknownCaseIds, ['not-in-manifest']);
 });
 
+test('alternative hit at 3 excludes offers below the displayed top three', async () => {
+  const { computeMetrics } = await lib('metrics.mjs');
+  const titles = ['adidas Stan Smith Shoes', 'Mug', 'Lamp', 'White Trainers'];
+  const metrics = computeMetrics([STAN_SMITH], [{
+    caseId: STAN_SMITH.caseId,
+    offers: titles.map((title) => ({ title })),
+  }]);
+  assert.equal(metrics.alternativeRelevance.hitAt3.value, 0);
+  assert.deepEqual(metrics.alternativeRelevance.gradeCounts, [2, 0, 0, 0]);
+});
+
 test('metrics: provider cost is null without pricing and labelled when estimates are mixed in', async () => {
   const { computeMetrics } = await lib('metrics.mjs');
   const results = [{ caseId: 'b42-x-hoodie', offers: [], timings: {}, cost: { source: 'estimated', geminiInputTokens: 3000, geminiOutputTokens: 1000, commerceCalls: { serper: 2 } } }];
@@ -142,7 +161,32 @@ test('manifest validator enforces licence, provenance, strata and derived-case p
   assert.match(bad({ stratum: 'unknown_stratum' }), /unknown stratum/);
   assert.match(bad({ labelSources: [] }), /labelSources required/);
   assert.match(validateManifest({ cases: [src(), { ...derived, split: 'holdout' }] }).join('\n'), /share its parent split/);
+  const labelled = src();
+  labelled.labels.exactProduct.family = 'casio-f91w';
+  const reused = { ...labelled, caseId: 'b42-ex-002', split: 'holdout' };
+  const splitErrors = validateManifest({ cases: [labelled, reused] }).join('\n');
+  assert.match(splitErrors, /source digest crosses splits/);
+  assert.match(splitErrors, /product family crosses splits/);
   assert.match(validateManifest({ cases: [{ ...derived, source: { kind: 'derived', derivedFrom: 'nope', transform: 'blur' } }] }).join('\n'), /derivedFrom must name/);
+});
+
+test('asset fetcher fails if Wikimedia rate limiting leaves a source unverified', (t) => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const { spawnSync } = require('node:child_process');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-benchmark-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const bench = path.join(__dirname, '..', '..', 'tools', 'scanner-benchmark');
+  const manifest = JSON.parse(fs.readFileSync(path.join(bench, 'manifest', 'cases.v1.json'), 'utf8'));
+  const manifestPath = path.join(root, 'manifest.json');
+  const preloadPath = path.join(root, 'preload.cjs');
+  fs.writeFileSync(manifestPath, JSON.stringify({ cases: [manifest.cases.find((c) => c.source.kind === 'commons')] }));
+  fs.writeFileSync(preloadPath, 'global.setTimeout = setImmediate; global.fetch = async () => ({ status: 429 });');
+  const run = spawnSync(process.execPath, ['--require', preloadPath, path.join(bench, 'scripts', 'fetch-assets.mjs'), root, '--manifest', manifestPath], { encoding: 'utf8', timeout: 5000 });
+  assert.ifError(run.error);
+  assert.equal(run.status, 1, run.stderr);
+  const { expected, verified, missing } = JSON.parse(run.stdout);
+  assert.deepEqual({ expected, verified, missing }, { expected: 1, verified: 0, missing: 1 });
 });
 
 test('archived adapter maps live-certification items to scored cases', async () => {

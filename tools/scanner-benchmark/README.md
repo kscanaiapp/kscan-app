@@ -53,10 +53,13 @@ Wikimedia throttles anonymous clients; the default User-Agent names the project 
 
 ## Judge limitations
 
-Offers are judged from title, brand field and destination only. "Exact product" means the
-listing names the labelled brand and every token of a labelled model alias; it does not verify
-colourway or the listing photo. Alternative relevance grades are title-based. Reports always
-state these limits next to the numbers.
+Offers are judged from title, brand field and destination only. The exact-product metrics
+measure agreement with a labelled brand and a complete model phrase. Independent listing
+review is required to validate the item, colourway, and listing photo. Alternative relevance
+grades are title-based. Reports state these limits next to the numbers.
+Destination counts are based on URL shape. A direct count requires a product-shaped path.
+An unrecognized path is counted as unverified. HTTP reachability and listing identity
+require separate validation.
 
 ## Score archived evidence
 

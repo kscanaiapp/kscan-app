@@ -3,14 +3,13 @@
 // LIMITATION (reported with every metric that uses these judges): an offer is
 // judged from its title, brand field and destination only. No product image is
 // compared. "Exact product" therefore means "the listing names the labelled
-// brand and every token of one labelled model alias"; it does not prove the
+// brand and a complete labelled model phrase"; it does not prove the
 // colourway or that the listing photo shows the same item.
 
 export const norm = (value) =>
   typeof value === 'string'
     ? value.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
     : '';
-const tokens = (value) => norm(value).split(' ').filter(Boolean);
 const hasPhrase = (hay, needle) => !!norm(needle) && ` ${norm(hay)} `.includes(` ${norm(needle)} `);
 const singular = (t) => t.replace(/(es|s)$/, '');
 
@@ -34,7 +33,7 @@ function categoryHit(title, category) {
 
 /**
  * Exact-product judge.
- *   exact_product — brand agrees and every token of at least one model alias is in the title
+ *   exact_product — brand agrees and a complete model alias is in the title
  *   same_brand    — brand agrees, model not established
  *   other         — brand absent or different
  * Brand agreement: provider brand field equals a brand alias, else a brand alias is a whole phrase in the title.
@@ -43,18 +42,15 @@ export function judgeExactProduct(offer, exactProduct) {
   if (!exactProduct || !exactProduct.knowable) return 'not_applicable';
   const brandAliases = [exactProduct.brand, ...(exactProduct.brandAliases ?? [])].filter(Boolean);
   const title = offer.title ?? '';
+  const normalizedTitle = norm(title);
   const declared = norm(offer.brand);
   const brandAgrees = declared
     ? brandAliases.some((b) => norm(b) === declared)
     : brandAliases.some((b) => hasPhrase(title, b));
   if (!brandAgrees) return 'other';
-  if (/\b(inspired|replica|dupe|fake|knock ?off|alternative to|look ?alike|socks?|laces?|insoles?|strap|band|case|cleaner)\b/.test(norm(title))) return 'same_brand';
-  const titleTokens = new Set(tokens(title));
-  const brandTokens = new Set(brandAliases.flatMap(tokens));
-  const modelMatch = (exactProduct.modelAliases ?? [exactProduct.model]).filter(Boolean).some((alias) => {
-    const t = tokens(alias).filter((x) => !brandTokens.has(x));
-    return t.length > 0 && t.every((x) => titleTokens.has(x));
-  });
+  if (/\b(inspired|replicas?|dupes?|fake|knock ?off|alternative to|look ?alike|compatible with|fits|replacement|socks?|laces?|insoles?|straps?|bands?|cases?|cleaners?)\b/.test(normalizedTitle)) return 'same_brand';
+  const modelMatch = [exactProduct.model, ...(exactProduct.modelAliases ?? [])]
+    .some((alias) => hasPhrase(normalizedTitle, alias));
   return modelMatch ? 'exact_product' : 'same_brand';
 }
 

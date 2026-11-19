@@ -22,6 +22,8 @@ export function validateManifest(manifest) {
   const err = (id, msg) => errors.push(`${id}: ${msg}`);
   if (!manifest || !Array.isArray(manifest.cases)) return ['manifest.cases must be an array'];
   const ids = new Set();
+  const splitsByDigest = new Map();
+  const splitsByFamily = new Map();
   const byId = new Map(manifest.cases.map((c) => [c.caseId, c]));
   for (const c of manifest.cases) {
     const id = c?.caseId ?? '(missing id)';
@@ -31,6 +33,11 @@ export function validateManifest(manifest) {
     if (!STRATA.includes(c.stratum)) err(id, `unknown stratum ${c.stratum}`);
     if (!['development', 'holdout'].includes(c.split)) err(id, 'split must be development|holdout');
     const L = c.labels ?? {};
+    const family = L.exactProduct?.family;
+    if (family) {
+      if (splitsByFamily.has(family) && splitsByFamily.get(family) !== c.split) err(id, 'product family crosses splits');
+      splitsByFamily.set(family, c.split);
+    }
     if (!CATEGORIES.includes(L.category)) err(id, `unknown category ${L.category}`);
     if ((L.category === 'non_fashion') !== (L.nonFashion === true)) err(id, 'nonFashion must agree with category');
     if (c.stratum === 'non_fashion' && !L.nonFashion) err(id, 'non_fashion stratum requires nonFashion');
@@ -48,6 +55,10 @@ export function validateManifest(manifest) {
       if (!/^https:\/\/commons\.wikimedia\.org\//.test(s.filePage ?? '')) err(id, 'filePage must be a Commons file page');
       if (!/^https:\/\/upload\.wikimedia\.org\//.test(s.fetchUrl ?? '')) err(id, 'fetchUrl must be an upload.wikimedia.org URL');
       if (!SHA256.test(s.sha256 ?? '')) err(id, 'sha256 required');
+      else {
+        if (splitsByDigest.has(s.sha256) && splitsByDigest.get(s.sha256) !== c.split) err(id, 'source digest crosses splits');
+        splitsByDigest.set(s.sha256, c.split);
+      }
     } else if (s.kind === 'derived') {
       const parent = byId.get(s.derivedFrom);
       if (!parent || parent.source?.kind !== 'commons') err(id, 'derivedFrom must name a commons case');
