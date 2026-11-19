@@ -28,6 +28,14 @@ function stripB42(file, source) {
   return out;
 }
 
+function restoreScanner612(file, source, approvedSha256) {
+  assert.equal(digest(source), approvedSha256, 'unapproved B42 Scanner source drift: ' + file);
+  const restored = stripB42(file, source);
+  assert.equal(digest(restored), scanner612Approval.approvedFiles[file].approvedSha256,
+    'B42 record hides additional edits: ' + file);
+  return restored;
+}
+
 /**
  * #612 is an additive record chained AFTER BOBSE. Reversing exactly its listed
  * edits (each must occur once) must reproduce the BOBSE-pinned bytes, so the
@@ -83,9 +91,7 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
         let pre612 = source;
         if (b42) {
           assert.equal(b42.priorSha256, scanner612.approvedSha256, 'B42 must chain from the #612 snapshot: ' + file);
-          assert.equal(digest(source), b42.approvedSha256, 'unapproved B42 Scanner source drift: ' + file);
-          pre612 = stripB42(file, source);
-          assert.equal(digest(pre612), scanner612.approvedSha256, 'B42 record hides additional edits: ' + file);
+          pre612 = restoreScanner612(file, source, b42.approvedSha256);
           assert.ok(b42.reason.length > 40);
         }
         assert.equal(scanner612.priorSha256, expansion.bobseSha256, '#612 must chain from the BOBSE snapshot: ' + file);
@@ -103,6 +109,17 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
     }
     assert.equal(source.includes('black-owned-discovery'), false, 'secondary discovery directly integrated into primary: ' + file);
   }
+});
+
+test('B42 source restoration rejects unlisted and duplicated changes', () => {
+  const file = 'supabase/functions/scan-identify/index.ts';
+  const source = read(file);
+  const approval = b42Approval.approvedFiles[file];
+  const changed = source + '\n// unexpected Scanner entrypoint edit\n';
+  assert.throws(() => restoreScanner612(file, changed, approval.approvedSha256), /unapproved B42 Scanner source drift/);
+  assert.throws(() => restoreScanner612(file, changed, digest(changed)), /B42 record hides additional edits/);
+  const duplicate = source + approval.edits[0].to;
+  assert.throws(() => restoreScanner612(file, duplicate, digest(duplicate)), /B42 edit must occur exactly once/);
 });
 
 test('secondary source has no model or scan-image integration and sponsorship has no organic callers',()=>{

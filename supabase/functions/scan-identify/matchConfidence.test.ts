@@ -47,6 +47,7 @@ const EVIDENCE: OfferEvidence = {
   clearCategoryConflict: false,
   category: 'compatible',
   subtypeCompatible: true,
+  nonIdentityListing: false,
   brand: 'agrees',
   model: 'agrees',
   verifiedProductIdentity: false,
@@ -153,14 +154,21 @@ Deno.test('match confidence: verified_exact only from a listing-bound exact tier
   assert.equal(classifyMatchConfidence({ ...EVIDENCE, verifiedProductIdentity: false }).class, 'probable');
   assert.equal(classifyMatchConfidence({ ...EVIDENCE, verifiedProductIdentity: true }).class, 'verified_exact');
   assert.equal(classifyMatchConfidence({ ...EVIDENCE, verifiedProductIdentity: true, destination: 'search_handoff' }).class, 'probable');
-  assert.equal(classifyMatchConfidence({ ...EVIDENCE, verifiedProductIdentity: true, agreementBand: 'weak', agreementScore: 10 }).class, 'probable');
+  assert.equal(classifyMatchConfidence({ ...EVIDENCE, verifiedProductIdentity: true, agreementBand: 'weak', agreementScore: 10 }).class, 'verified_exact');
   // End to end through the real listing-bound tier contract.
-  const product = offer('adidas Stan Smith Sneakers White Leather', DIRECT, { brand: 'adidas' });
+  const product = offer('adidas Stan Smith', DIRECT, { brand: 'adidas' });
   const proof = { source: 'verified_product_identity' as const, scanModel: 'Stan Smith', productModel: 'Stan Smith', scanVariant: 'White Green', productVariant: 'White Green' };
   const exact = classifyCommerceMatch(product, { brandEvidence: { brand: 'adidas', verified: true, source: 'wordmark' }, categoryCompatible: true, subtypeCompatible: true, exactIdentity: proof });
   assert.equal(exact?.tier, 'exact');
+  assert.equal(collectOfferEvidence(product, { identification: STAN_SMITH_SCAN }).agreementBand, 'weak');
   assert.equal(classify({ ...product, matchMetadata: exact }).class, 'verified_exact');
   assert.equal(classify(product).class, 'probable');
+  for (const title of ['adidas Stan Smith replica', 'adidas Stan Smith socks']) {
+    assert.equal(classify({ ...product, title, matchMetadata: exact }).class, 'unsupported');
+  }
+  assert.notEqual(classify({ ...product, title: 'adidas Stan Smith Dress', matchMetadata: exact }).class, 'verified_exact');
+  assert.notEqual(classify({ ...product, brand: 'Nike', matchMetadata: exact }).class, 'verified_exact');
+  assert.notEqual(classify({ ...product, productUrl: 'http://retailer.com/p/123', matchMetadata: exact }).class, 'verified_exact');
 });
 
 Deno.test('match confidence: annotation is additive — order, count and every existing field preserved', () => {

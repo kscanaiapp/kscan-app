@@ -24,7 +24,7 @@
  *                      identity exists today, so this class is unreachable by
  *                      construction until one ships; it is never inferred from
  *                      a model hypothesis, a model confidence, a title or a score.
- *     probable       — verified scanned brand agrees with the listing brand, the
+ *     probable       — the vision model's visually grounded brand agrees with the listing brand, the
  *                      model's own product hypothesis is fully present in the
  *                      listing title, and the category is compatible. Likely the
  *                      same product, NOT verified.
@@ -70,6 +70,7 @@ export type MatchConfidenceReason =
   | 'direct_merchant_listing'
   | 'search_handoff_destination'
   | 'invalid_destination'
+  | 'non_identity_listing'
   | 'verified_brand_agrees'
   | 'listing_brand_contradicts'
   | 'listing_brand_unknown'
@@ -116,6 +117,7 @@ export type OfferEvidence = {
    */
   category: 'compatible' | 'absent' | 'different' | 'ancillary';
   subtypeCompatible: boolean;
+  nonIdentityListing: boolean;
   brand: ListingBrandAgreement;
   model: ModelAgreement;
   /** True only when the listing-bound match tier is `exact` (verified product identity). */
@@ -162,6 +164,10 @@ export function classifyMatchConfidence(e: OfferEvidence): MatchConfidence {
     reasons.push('ancillary_listing');
     return base('unsupported');
   }
+  if (e.nonIdentityListing) {
+    reasons.push('non_identity_listing');
+    return base('unsupported');
+  }
   reasons.push(
     e.category === 'compatible'
       ? 'category_compatible'
@@ -178,7 +184,8 @@ export function classifyMatchConfidence(e: OfferEvidence): MatchConfidence {
       : 'agreement_below_usable',
   );
 
-  if (e.verifiedProductIdentity && e.destination === 'direct' && e.agreementBand !== 'weak') {
+  if (e.verifiedProductIdentity && e.destination === 'direct' &&
+    e.category !== 'different' && e.brand !== 'contradicts') {
     reasons.push('verified_product_identity');
     return base('verified_exact');
   }
@@ -340,6 +347,7 @@ export function collectOfferEvidence(
       ? 'compatible'
       : 'different',
     subtypeCompatible: subtypeTokens.length > 0 && subtypeTokens.every((t) => productTokens.has(t)),
+    nonIdentityListing: NON_IDENTITY_TITLE_CUE.test(key(product.title ?? product.name)),
     brand: listingBrandAgreement(product, identification),
     model: modelHypothesisAgreement(product, identification, ctx.commerceIdentity),
     verifiedProductIdentity: normalizeCommerceMatchMetadata(product.matchMetadata, product)?.tier === 'exact',
