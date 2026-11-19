@@ -8,8 +8,33 @@ const baseline = require('../config/black-owned-discovery-primary-baseline.json'
 const vriApproval = require('../config/vri03-primary-integrity-approval.json');
 const bobseApproval = require('../config/bobse-primary-integrity-approval.json');
 const scanner612Approval = require('../config/scanner-612-primary-integrity-approval.json');
+const b42Approval = require('../config/scanner-b42-match-confidence-primary-integrity-approval.json');
 const digest = (source) => crypto.createHash('sha256').update(source).digest('hex');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
+
+/**
+ * B42 match confidence is an additive record chained AFTER #612. Reversing
+ * exactly its listed edits (each must occur once) must reproduce the
+ * #612-approved bytes, so it cannot hide any other entrypoint change.
+ */
+function stripB42(file, source) {
+  const record = b42Approval.approvedFiles[file];
+  if (!record) return source;
+  let out = source;
+  for (const edit of record.edits) {
+    assert.equal(out.split(edit.to).length - 1, 1, 'B42 edit must occur exactly once: ' + file);
+    out = out.replace(edit.to, edit.from);
+  }
+  return out;
+}
+
+function restoreScanner612(file, source, approvedSha256) {
+  assert.equal(digest(source), approvedSha256, 'unapproved B42 Scanner source drift: ' + file);
+  const restored = stripB42(file, source);
+  assert.equal(digest(restored), scanner612Approval.approvedFiles[file].approvedSha256,
+    'B42 record hides additional edits: ' + file);
+  return restored;
+}
 
 /**
  * #612 is an additive record chained AFTER BOBSE. Reversing exactly its listed
@@ -44,6 +69,8 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
   assert.equal(bobseApproval.baseCommit, '4a832287f291086f600cf7411343ae5554cbf344');
   assert.equal(scanner612Approval.baseCommit, '233e2b33bdb1b1d3538094b5d3a7894ef673f996');
   assert.deepEqual(Object.keys(scanner612Approval.approvedFiles), ['supabase/functions/scan-identify/index.ts']);
+  assert.equal(b42Approval.baseCommit, 'e58125a2002efc0d494c329c0a766486b847666f');
+  assert.deepEqual(Object.keys(b42Approval.approvedFiles), ['supabase/functions/scan-identify/index.ts']);
   assert.deepEqual(Object.keys(bobseApproval.approvedFiles).sort(), [
     'supabase/functions/scan-identify/index.ts',
     'supabase/functions/scan-identify/scanCommerceRouter.ts',
@@ -60,9 +87,16 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
     if (expansion) {
       assert.equal(expansion.priorSha256, entry?.vri03Sha256 ?? historicalHash, 'prior approved primary snapshot must remain pinned: ' + file);
       if (scanner612) {
+        const b42 = b42Approval.approvedFiles[file];
+        let pre612 = source;
+        if (b42) {
+          assert.equal(b42.priorSha256, scanner612.approvedSha256, 'B42 must chain from the #612 snapshot: ' + file);
+          pre612 = restoreScanner612(file, source, b42.approvedSha256);
+          assert.ok(b42.reason.length > 40);
+        }
         assert.equal(scanner612.priorSha256, expansion.bobseSha256, '#612 must chain from the BOBSE snapshot: ' + file);
-        assert.equal(digest(source), scanner612.approvedSha256, 'unapproved #612 Scanner source drift: ' + file);
-        assert.equal(digest(stripScanner612(file, source)), expansion.bobseSha256, '#612 record hides additional edits: ' + file);
+        assert.equal(digest(pre612), scanner612.approvedSha256, 'unapproved #612 Scanner source drift: ' + file);
+        assert.equal(digest(stripScanner612(file, pre612)), expansion.bobseSha256, '#612 record hides additional edits: ' + file);
         assert.ok(scanner612.reason.length > 40);
       } else {
         assert.equal(digest(source), expansion.bobseSha256, 'unapproved ordinary-source integration drift: ' + file);
@@ -75,6 +109,17 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
     }
     assert.equal(source.includes('black-owned-discovery'), false, 'secondary discovery directly integrated into primary: ' + file);
   }
+});
+
+test('B42 source restoration rejects unlisted and duplicated changes', () => {
+  const file = 'supabase/functions/scan-identify/index.ts';
+  const source = read(file);
+  const approval = b42Approval.approvedFiles[file];
+  const changed = source + '\n// unexpected Scanner entrypoint edit\n';
+  assert.throws(() => restoreScanner612(file, changed, approval.approvedSha256), /unapproved B42 Scanner source drift/);
+  assert.throws(() => restoreScanner612(file, changed, digest(changed)), /B42 record hides additional edits/);
+  const duplicate = source + approval.edits[0].to;
+  assert.throws(() => restoreScanner612(file, duplicate, digest(duplicate)), /B42 edit must occur exactly once/);
 });
 
 test('secondary source has no model or scan-image integration and sponsorship has no organic callers',()=>{
@@ -100,9 +145,13 @@ test('consent promotion stays byte-pinned with explicitly approved VRI-03 additi
   );
   assert.equal(bobseApproval.consentPromotion.priorConsentStrippedSha256, vriApproval.consentPromotion.vri03ConsentStrippedSha256);
   assert.equal(scanner612Approval.consentPromotion.priorConsentStrippedSha256, bobseApproval.consentPromotion.bobseConsentStrippedSha256);
-  assert.equal(digest(original), scanner612Approval.consentPromotion.approvedConsentStrippedSha256);
+  assert.equal(b42Approval.consentPromotion.priorConsentStrippedSha256, scanner612Approval.consentPromotion.approvedConsentStrippedSha256);
+  assert.equal(digest(original), b42Approval.consentPromotion.approvedConsentStrippedSha256);
+  const pre612 = stripB42('supabase/functions/scan-identify/index.ts', original);
+  assert.equal(digest(pre612), scanner612Approval.consentPromotion.approvedConsentStrippedSha256,
+    'the #612 consent snapshot must remain reproducible after reversing B42');
   assert.equal(
-    digest(stripScanner612('supabase/functions/scan-identify/index.ts', original)),
+    digest(stripScanner612('supabase/functions/scan-identify/index.ts', pre612)),
     bobseApproval.consentPromotion.bobseConsentStrippedSha256,
     'the BOBSE consent snapshot must remain reproducible after reversing #612',
   );
