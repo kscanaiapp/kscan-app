@@ -153,6 +153,11 @@ jobs:
       - name: Typecheck StyleChat Edge Function
         run: deno check supabase/functions/stylechat-generate/index.ts
 
+      # The ranking benchmark is Deno-only research tooling, not part of the
+      # React Native TypeScript project. Check it with its actual runtime.
+      - name: Typecheck Scanner ranking benchmark under Deno
+        run: deno check tools/scanner-benchmark/scripts/rank-fixtures.ts
+
       - name: Verify Edge Function parity
         run: node scripts/check-edge-function-parity.js
 

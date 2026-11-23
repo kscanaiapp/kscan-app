@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-23T18:29:13.661Z",
-    "generatedFromGitSha": "9fdf4e2c01cb883b02cb70d9b5502218dab57adc"
+    "generatedAtUtc": "2026-11-23T18:36:37.643Z",
+    "generatedFromGitSha": "a31711dd3fa1061a7dd8132950ed8b989e701117"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -48,10 +48,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 31,
-        "treeFileCount": 31,
-        "bundleHash": "e81349719991add63a68e460bb53b3694fe57020d4acbee414c7e35195dd6b9e",
-        "treeHash": "e81349719991add63a68e460bb53b3694fe57020d4acbee414c7e35195dd6b9e",
+        "bundleFileCount": 38,
+        "treeFileCount": 38,
+        "bundleHash": "5ee0356733ecb02a5e86ab3c881e6a5a5c74496f17e2ceb3aa80b273921e922d",
+        "treeHash": "5ee0356733ecb02a5e86ab3c881e6a5a5c74496f17e2ceb3aa80b273921e922d",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -169,13 +169,48 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidence.ts",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+            "sha256": "5bc37e9736b67bede5feb5a8dcca4a1a5d36bac12039227250892a37ef77656f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchTier.ts",
+            "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/offerCurrency.ts",
             "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
@@ -216,10 +251,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 32,
-        "treeFileCount": 47,
-        "bundleHash": "0198fa438e98ae38f3891b6b87bf42b2f1c9b8441e1deeae45b3188cdca3b4fb",
-        "treeHash": "2644dac218bb571dfbdc17160ffecaa1e946016e65ad36f71ee5e45a4a65d43b",
+        "bundleFileCount": 39,
+        "treeFileCount": 54,
+        "bundleHash": "13332b5a7d2348b33feac48bd7e5e0f263c49d954d1e76ef97fe22e666aef99d",
+        "treeHash": "bb31e17f1b21b2863105bf1890fc04164cbc0f80887e733af5d0468d59fdd4bc",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -417,13 +452,48 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidence.ts",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+            "sha256": "5bc37e9736b67bede5feb5a8dcca4a1a5d36bac12039227250892a37ef77656f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchTier.ts",
+            "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/offerCurrency.ts",
             "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
@@ -464,10 +534,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 30,
-        "treeFileCount": 30,
-        "bundleHash": "aeab602ce9b2b470a010416ac5037e7a1a2cc74d24fb312b347aa93c3794963c",
-        "treeHash": "aeab602ce9b2b470a010416ac5037e7a1a2cc74d24fb312b347aa93c3794963c",
+        "bundleFileCount": 37,
+        "treeFileCount": 37,
+        "bundleHash": "57a468c58acaca695f4739eb4f575ce8d7ee7c103d548742c3be92a5eb419789",
+        "treeHash": "57a468c58acaca695f4739eb4f575ce8d7ee7c103d548742c3be92a5eb419789",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -575,13 +645,48 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidence.ts",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+            "sha256": "5bc37e9736b67bede5feb5a8dcca4a1a5d36bac12039227250892a37ef77656f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchTier.ts",
+            "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/offerCurrency.ts",
             "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
@@ -627,10 +732,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 54,
-        "treeFileCount": 94,
-        "bundleHash": "a6512c7b20728c3bf04c2c18d0826e44ceebe77d954591f9a8673c06098fa506",
-        "treeHash": "7f0a7e890468b373ec3b6054ed2eb71cd33fdd2a18ed7c748a4cd239ad0bf310",
+        "bundleFileCount": 58,
+        "treeFileCount": 99,
+        "bundleHash": "b79e192f3b7b6c79dd397075f49a9539a73f3b69a69c58e95e28fede334e0800",
+        "treeHash": "6cd1be6bb926746c5adb805b6ab21b6fe2975b486e7f3b005e2bfd62b3d695c4",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -848,6 +953,26 @@
             "bundle": false
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.test.ts",
+            "sha256": "b03bd47018eed45fc67d1248715203d353369cacbc6c71b87d142126b5efce18",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/index.ts",
             "sha256": "41058333da9d162dbd9c9d07b9db25a8b67d65f738424186c0283bb82592faca",
             "bundle": true
@@ -868,13 +993,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/matchConfidence.test.ts",
             "sha256": "27df5a7c22b7134ef75b10c4ccd69f82e25544bd3d19372c66f54af77e73d78f",
             "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/matchConfidence.ts",
-            "sha256": "2e28d076c53418ed587fd1df95487aa1c15d4ccd16458de741a03aee5182fe90",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
             "bundle": true
           },
           {
@@ -949,7 +1079,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
@@ -1110,10 +1240,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 34,
-        "treeFileCount": 40,
-        "bundleHash": "f06878f773aea032be92743b65156e733978abdc9e33d3b96011817bd51d2d75",
-        "treeHash": "61ce0b9e25a7a59fef691b690d33a19cf6de9c2df22d088c89d84fb4fe1fb159",
+        "bundleFileCount": 41,
+        "treeFileCount": 47,
+        "bundleHash": "ee63f5dc43fb58005c9df8628a1c189d7d9e70d7015e47781f9716f877dcc5d6",
+        "treeHash": "4b856a4b2bfed51cfbc193bcf635a9612521f9843386b25416798ad66a33bf7f",
         "files": [
           {
             "path": "supabase/functions/_shared/brandSearchExpansion.ts",
@@ -1266,8 +1396,43 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
             "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidence.ts",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+            "sha256": "5bc37e9736b67bede5feb5a8dcca4a1a5d36bac12039227250892a37ef77656f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchTier.ts",
+            "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
             "bundle": true
           },
           {
@@ -1277,7 +1442,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
@@ -1324,10 +1489,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 101,
-        "treeFileCount": 132,
-        "bundleHash": "3d48b6c46254c684642f0b3e54d207f62cdfb363d0da74ba67911980b5017807",
-        "treeHash": "7c7158744e80d98dc0a85c28aec85209afbf26126e07e7e612e22ff959d66c5c",
+        "bundleFileCount": 108,
+        "treeFileCount": 139,
+        "bundleHash": "d83cbb8aaca7ca14ba167b7eabe58ed13ed2e6c89a3ab6509a72f732e3afe76d",
+        "treeHash": "b398808e9be9fb5e72027704ed025f67dc231cd501b36c0e40f59dac9d8aebeb",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -1535,13 +1700,48 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/identityRanking.ts",
+            "sha256": "d4729ae0e580ac1853569840fae3bee6a77a9de55bf835a627edf3e8a2d0cfc6",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingCategory.ts",
+            "sha256": "d58e203cdd8f9f759c4caaf9a71a3e75465795615eb30b82a63503e9e92b773e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identityRankingConfig.ts",
+            "sha256": "d50850d8486e9a513e53b2fdf8a02a33481405f9b4c3493712e36bd9e2d72c36",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/listingBrandIdentity.ts",
+            "sha256": "e8379554d5f1fa0f7da0505f859ae04fe1d358a0cac20582f1adf3e1cbf4f011",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidence.ts",
+            "sha256": "c368ec218cf4b4022c43bb782870c7b23954fdde14695e4206de4997da515b21",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchConfidenceConfig.ts",
+            "sha256": "5bc37e9736b67bede5feb5a8dcca4a1a5d36bac12039227250892a37ef77656f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/matchTier.ts",
+            "sha256": "d91ee638a69d98e09968f19004c58376c2cb9c82e6e9a67f6b542076f7b91771",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/offerCurrency.ts",
             "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "d5ea5d74371b0d964c590a3c13e58331d4f3c18712f01f1251025a51f49d91aa",
+            "sha256": "cf615abb8a7a73cf7339b5d184cc917e2a32c5e98431c9389a42ddbcdbb1ecca",
             "bundle": true
           },
           {
