@@ -54,6 +54,9 @@ import { normalizeCommerceMatchMetadata } from './matchTier.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { MATCH_CONFIDENCE_VERSION } from './matchConfidenceConfig.ts';
+import { isIdentityRankingEnabled } from './identityRankingConfig.ts';
+import { listingBrandVerdict } from './listingBrandIdentity.ts';
+import { identityRankingCategory } from './identityRankingCategory.ts';
 
 export type MatchConfidenceClass = 'verified_exact' | 'probable' | 'similar' | 'unsupported';
 
@@ -122,6 +125,12 @@ export type OfferEvidence = {
   model: ModelAgreement;
   /** True only when the listing-bound match tier is `exact` (verified product identity). */
   verifiedProductIdentity: boolean;
+  /**
+   * Identity ranking only (absent otherwise): the listing states the scanned
+   * category and every scanned subtype word, so a below-usable v122 score is a
+   * vocabulary gap ("Black Clogs"), not a coverage fill.
+   */
+  attributeSupported?: boolean;
 };
 
 export type MatchConfidenceContext = {
@@ -129,6 +138,12 @@ export type MatchConfidenceContext = {
   route?: ScannerCategoryRoute | null;
   /** Supplied only when v124 commerce identity is enabled, exactly as ranking receives it. */
   commerceIdentity?: CommerceIdentityEvidence | null;
+  /**
+   * B42-SCAN-02 identity ranking. Omitted → read SCANNER_IDENTITY_RANKING_V1_ENABLED
+   * (default OFF). When true, listing brand evidence also recognises a different
+   * brand named only in the title and sub-brand/alias spellings of the scanned brand.
+   */
+  identityRanking?: boolean;
 };
 
 /**
@@ -217,7 +232,7 @@ export function classifyMatchConfidence(e: OfferEvidence): MatchConfidence {
     reasons.push('exact_identity_unverified');
     return base('probable');
   }
-  if (e.agreementBand === 'weak') return base('unsupported');
+  if (e.agreementBand === 'weak' && e.attributeSupported !== true) return base('unsupported');
   return base('similar');
 }
 
@@ -254,7 +269,7 @@ const CANONICAL_CATEGORIES: ReadonlySet<string> = new Set([
  * Several of these nouns have no canonical category, so without this cue they
  * would read as "category absent" and could pass as the scanned product.
  */
-const ANCILLARY_LISTING_CUE =
+export const ANCILLARY_LISTING_CUE =
   /\b(socks?|laces?|shoelaces?|insoles?|cleaner|cleaning|protectors?|keychains?|key ?rings?|posters?|stickers?|charms?|replacement|spare|strap|straps|band|bands|case|cases|pouch|box)\b/;
 
 /** Title cues that a listing names a brand without being that brand's product. */
@@ -278,9 +293,15 @@ function productTextOf(product: Record<string, unknown>): string {
 export function listingBrandAgreement(
   product: Record<string, unknown>,
   identification: Record<string, unknown>,
+  identityRanking = false,
 ): ListingBrandAgreement {
   const scanned = resolveScannerBrandEvidence(identification);
   if (!scanned.verified || !scanned.brand) return 'scanned_unverified';
+  if (identityRanking) {
+    // Replica/"inspired by"/"compatible with" titles never assert a brand either way.
+    if (!key(product.brand) && NON_IDENTITY_TITLE_CUE.test(key(product.title ?? product.name))) return 'unknown';
+    return listingBrandVerdict({ title: product.title ?? product.name, brand: product.brand }, scanned.brand);
+  }
   const scannedKey = key(scanned.brand);
   const providerKey = key(product.brand);
   if (providerKey) return providerKey === scannedKey ? 'agrees' : 'contradicts';
@@ -326,40 +347,48 @@ export function collectOfferEvidence(
     ctx.commerceIdentity ?? null,
   );
   const productText = productTextOf(product);
-  const scannedRaw = normalizeCommerceCategoryText(String(identification.item_type ?? ''));
-  const scannedCategory = CANONICAL_CATEGORIES.has(scannedRaw) ? scannedRaw : '';
-  const productRaw = normalizeCommerceCategoryText(productText);
-  const productCategory = CANONICAL_CATEGORIES.has(productRaw) ? productRaw : '';
+  const identityRanking = ctx.identityRanking === true;
+  const categoryOf = (text: string): string => {
+    if (identityRanking) return identityRankingCategory(text);
+    const raw = normalizeCommerceCategoryText(text);
+    return CANONICAL_CATEGORIES.has(raw) ? raw : '';
+  };
+  const scannedCategory = categoryOf(String(identification.item_type ?? ''));
+  const productCategory = categoryOf(productText);
   const scannedIsAncillary = ANCILLARY_LISTING_CUE.test(key(`${identification.item_type ?? ''} ${identification.subtype ?? ''}`));
   const ancillaryListing = !scannedIsAncillary && ANCILLARY_LISTING_CUE.test(key(productText));
   const productTokens = new Set(tokens(productText).map((t) => t.replace(/s$/, '')));
   const subtypeTokens = tokens(identification.subtype).map((t) => t.replace(/s$/, ''));
+  const category: OfferEvidence['category'] = ancillaryListing
+    ? 'ancillary'
+    : !scannedCategory || !productCategory
+    ? 'absent'
+    : productCategory === scannedCategory
+    ? 'compatible'
+    : 'different';
+  const subtypeCompatible = subtypeTokens.length > 0 && subtypeTokens.every((t) => productTokens.has(t));
   return {
     destination: classifyDestination(productUrlOf(product)),
     agreementScore: agreement.score,
     agreementBand: agreement.band,
     clearCategoryConflict: agreement.clearCategoryConflict,
-    category: ancillaryListing
-      ? 'ancillary'
-      : !scannedCategory || !productCategory
-      ? 'absent'
-      : productCategory === scannedCategory
-      ? 'compatible'
-      : 'different',
-    subtypeCompatible: subtypeTokens.length > 0 && subtypeTokens.every((t) => productTokens.has(t)),
+    category,
+    subtypeCompatible,
     nonIdentityListing: NON_IDENTITY_TITLE_CUE.test(key(product.title ?? product.name)),
-    brand: listingBrandAgreement(product, identification),
+    brand: listingBrandAgreement(product, identification, identityRanking),
     model: modelHypothesisAgreement(product, identification, ctx.commerceIdentity),
     verifiedProductIdentity: normalizeCommerceMatchMetadata(product.matchMetadata, product)?.tier === 'exact',
+    ...(identityRanking ? { attributeSupported: category === 'compatible' && subtypeCompatible } : {}),
   };
 }
 
 /** Additive annotation at the response boundary. Same array order, same fields plus one. */
 export function annotateMatchConfidence<T>(products: T[], ctx: MatchConfidenceContext): T[] {
+  const resolved: MatchConfidenceContext = { ...ctx, identityRanking: ctx.identityRanking ?? isIdentityRankingEnabled() };
   return products.map((product) => {
     const record = product as unknown as Record<string, unknown>;
     if (!record || typeof record !== 'object') return product;
-    return { ...product, matchConfidence: classifyMatchConfidence(collectOfferEvidence(record, ctx)) };
+    return { ...product, matchConfidence: classifyMatchConfidence(collectOfferEvidence(record, resolved)) };
   });
 }
 
