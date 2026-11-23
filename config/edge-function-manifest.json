@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-19T09:43:28.471Z",
-    "generatedFromGitSha": "373e0f5413c4d9ae3bed4e4f042e3515b2a1c8de"
+    "generatedAtUtc": "2026-11-23T18:34:58.548Z",
+    "generatedFromGitSha": "9fdf4e2c01cb883b02cb70d9b5502218dab57adc"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -2862,8 +2862,8 @@
         ],
         "bundleFileCount": 20,
         "treeFileCount": 30,
-        "bundleHash": "aaf5fe17a3fe0461ed7cdef2f0a342099c95bfce3498f1179f4eb3cd75b0cbd0",
-        "treeHash": "898b55c09262c134cc431665eec21c70eff8d412eaef8aa073fc4544f0f84ab2",
+        "bundleHash": "3ea8adfeea04bcd9b5dc2f8a91b319eb5bcbfcb867c4ada79dd0260fa5d455fb",
+        "treeHash": "d2a44349224674dee20c1f71e4649e26db17fcad96ef417f033b6f4a09cc51d4",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -2962,12 +2962,12 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.test.ts",
-            "sha256": "827184d98e1c847f8bc129a07a5a6ff8ec6277de063f1c68d8522eeb8e603f08",
+            "sha256": "49be5e3b240e60c12cf870db3a8244acf2b45d551617bd96b465a0fbae877a5e",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "0baf4700f7a74b8c78e283a557881378c5dd71b292a83b84910eb05da408a025",
+            "sha256": "2da34ee5d53ca39f9c22fcb07f861d37d48a476cc55926890c80097e93ec185d",
             "bundle": true
           },
           {
