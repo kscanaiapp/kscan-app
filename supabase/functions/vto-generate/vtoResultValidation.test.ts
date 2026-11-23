@@ -29,6 +29,33 @@ Deno.test('VTO-005: a truncated PNG result is never accepted as output', () => {
   assertEquals(outcome.ok, false);
 });
 
+Deno.test('a PNG with an end marker but no image-data chunks is rejected', () => {
+  const bytes = validPng();
+  const view = new DataView(bytes.buffer);
+  for (let offset = 8; offset < bytes.length; offset += 12 + view.getUint32(offset)) {
+    if (view.getUint32(offset + 4) === 0x49444154) { // IDAT
+      view.setUint32(offset + 4, 0x74455874); // tEXt
+    }
+  }
+  const outcome = validateVtoResultMedia(png(bytes));
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.detail, 'invalid_image_structure');
+});
+
+Deno.test('a PNG with an image-data chunk extending past the end marker is rejected', () => {
+  const bytes = validPng();
+  const view = new DataView(bytes.buffer);
+  for (let offset = 8; offset < bytes.length; offset += 12 + view.getUint32(offset)) {
+    if (view.getUint32(offset + 4) === 0x49444154) { // IDAT
+      view.setUint32(offset, bytes.length);
+      break;
+    }
+  }
+  const outcome = validateVtoResultMedia(png(bytes));
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.detail, 'invalid_image_structure');
+});
+
 Deno.test('VTO-005: reject absurd image dimensions even with plausible MIME and magic', () => {
   const bytes = validPng();
   bytes[16] = 0x7f; bytes[17] = 0xff; bytes[18] = 0xff; bytes[19] = 0xff;
