@@ -34,6 +34,12 @@ const IDENTIFICATION_AND_RETRIEVAL = [
   'supabase/functions/scan-identify/commerceRelevanceQueries.ts',
   'supabase/functions/scan-identify/commerceRelevanceColorMaterial.ts',
   'supabase/functions/scan-identify/scannerCategoryRoute.ts',
+  // B42-SCAN-02 identity-aware ranking decides which listings are shown as the product.
+  'supabase/functions/scan-identify/identityRanking.ts',
+  'supabase/functions/scan-identify/identityRankingCategory.ts',
+  'supabase/functions/scan-identify/identityRankingConfig.ts',
+  'supabase/functions/scan-identify/listingBrandIdentity.ts',
+  'supabase/functions/scan-identify/matchConfidence.ts',
   'services/scanIdentification.ts',
   'services/scanIdentificationMapper.ts',
   'services/multiItemCommerce.ts',

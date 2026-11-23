@@ -9,8 +9,26 @@ const vriApproval = require('../config/vri03-primary-integrity-approval.json');
 const bobseApproval = require('../config/bobse-primary-integrity-approval.json');
 const scanner612Approval = require('../config/scanner-612-primary-integrity-approval.json');
 const b42Approval = require('../config/scanner-b42-match-confidence-primary-integrity-approval.json');
+const rankingApproval = require('../config/scanner-b42-identity-ranking-primary-integrity-approval.json');
 const digest = (source) => crypto.createHash('sha256').update(source).digest('hex');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
+
+/**
+ * B42-SCAN-02 identity ranking is an exact-digest record for a file pinned only
+ * by the original baseline. Reversing exactly its listed edits (each once) must
+ * reproduce the baseline bytes, so it cannot hide any other relevance change.
+ */
+function restoreIdentityRanking(file, source, approvedSha256, historicalHash) {
+  const record = rankingApproval.approvedFiles[file];
+  assert.equal(digest(source), approvedSha256, 'unapproved identity-ranking Scanner source drift: ' + file);
+  let out = source;
+  for (const edit of record.edits) {
+    assert.equal(out.split(edit.to).length - 1, 1, 'identity-ranking edit must occur exactly once: ' + file);
+    out = out.replace(edit.to, edit.from);
+  }
+  assert.equal(digest(out), historicalHash, 'identity-ranking record hides additional edits: ' + file);
+  return out;
+}
 
 /**
  * B42 match confidence is an additive record chained AFTER #612. Reversing
@@ -71,6 +89,8 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
   assert.deepEqual(Object.keys(scanner612Approval.approvedFiles), ['supabase/functions/scan-identify/index.ts']);
   assert.equal(b42Approval.baseCommit, 'e58125a2002efc0d494c329c0a766486b847666f');
   assert.deepEqual(Object.keys(b42Approval.approvedFiles), ['supabase/functions/scan-identify/index.ts']);
+  assert.equal(rankingApproval.baseCommit, '9fdf4e2c01cb883b02cb70d9b5502218dab57adc');
+  assert.deepEqual(Object.keys(rankingApproval.approvedFiles), ['supabase/functions/scan-identify/qualityTuneCommerce.ts']);
   assert.deepEqual(Object.keys(bobseApproval.approvedFiles).sort(), [
     'supabase/functions/scan-identify/index.ts',
     'supabase/functions/scan-identify/scanCommerceRouter.ts',
@@ -104,10 +124,32 @@ test('Black-owned baseline remains pinned; VRI-03 scanner exceptions are byte-ex
       assert.ok(expansion.reason.length > 40);
     } else if (entry) {
       assert.equal(digest(source), entry.vri03Sha256, 'unapproved VRI-03 scanner source drift: ' + file);
+    } else if (rankingApproval.approvedFiles[file]) {
+      const ranking = rankingApproval.approvedFiles[file];
+      assert.equal(ranking.priorSha256, historicalHash, 'identity ranking must chain from the pinned baseline: ' + file);
+      restoreIdentityRanking(file, source, ranking.approvedSha256, historicalHash);
+      assert.ok(ranking.reason.length > 40);
     } else {
       assert.equal(digest(source), historicalHash, file);
     }
     assert.equal(source.includes('black-owned-discovery'), false, 'secondary discovery directly integrated into primary: ' + file);
+  }
+});
+
+test('B42 identity-ranking restoration rejects unlisted and duplicated changes', () => {
+  const file = 'supabase/functions/scan-identify/qualityTuneCommerce.ts';
+  const source = read(file);
+  const approval = rankingApproval.approvedFiles[file];
+  const historical = baseline.files[file];
+  assert.equal(digest(restoreIdentityRanking(file, source, approval.approvedSha256, historical)), historical);
+  const changed = source + '\n// unexpected relevance edit\n';
+  assert.throws(() => restoreIdentityRanking(file, changed, approval.approvedSha256, historical), /unapproved identity-ranking Scanner source drift/);
+  assert.throws(() => restoreIdentityRanking(file, changed, digest(changed), historical), /identity-ranking record hides additional edits/);
+  const duplicate = source + approval.edits[0].to;
+  assert.throws(() => restoreIdentityRanking(file, duplicate, digest(duplicate), historical), /identity-ranking edit must occur exactly once/);
+  // The record may not touch a file that another approval chain owns.
+  for (const owned of [vriApproval, bobseApproval, scanner612Approval, b42Approval]) {
+    assert.equal(Object.keys(owned.approvedFiles).includes(file), false);
   }
 });
 

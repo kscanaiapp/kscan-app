@@ -1,0 +1,308 @@
+{
+  "schema": "b42-scan-02-ranking-fixtures-v1",
+  "split": "holdout",
+  "manifestVersion": "cases.v1",
+  "casesInSplit": 22,
+  "nonFashionExcluded": 5,
+  "knowableCases": 9,
+  "brandLegibleCases": 6,
+  "shelfSize": 3,
+  "limitations": [
+    "Synthetic candidate pools generated from labels; no provider was called and no image was analysed.",
+    "Scanner identification synthesised from labels (correct category/colour; brand only when labelled legible).",
+    "withHypothesis=true approximates a v124-style exact_item_hypothesis at medium confidence via identification fields; the v124 commerceIdentity ranking delta is not applied.",
+    "Judges are title-only (lib/judge.mjs). Not a measurement of live Scanner accuracy."
+  ],
+  "runs": [
+    {
+      "flag": "off",
+      "withHypothesis": false,
+      "cases": 17,
+      "exactProductRecallAt3": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "exactProductRecallAt1": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 9
+      },
+      "genuineListingRecallAt3RoleChecked": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "judgeAcceptedNonGenuineOffers": 0,
+      "alternativeRelevance": {
+        "meanGradeTop3": 2.4893617021276597,
+        "hitAt3": {
+          "value": 0.8235294117647058,
+          "numerator": 14,
+          "denominator": 17
+        },
+        "gradeCounts": [
+          0,
+          12,
+          0,
+          35
+        ]
+      },
+      "unsupportedResultFrequency": {
+        "value": 0.09803921568627451,
+        "numerator": 5,
+        "denominator": 51
+      },
+      "falseExactMatchClaims": {
+        "verifiedExact": 0,
+        "falseExactMatchRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 17
+        }
+      },
+      "probableClaims": {
+        "probable": 0,
+        "wrong": 0,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "no probable claims were made"
+        }
+      },
+      "crossBrandInTop3WhenBrandLegible": {
+        "value": 0.6666666666666666,
+        "numerator": 4,
+        "denominator": 6
+      },
+      "emptyShelves": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 17
+      },
+      "offersShown": 51,
+      "matchConfidenceClasses": {
+        "similar": 45,
+        "unsupported": 6
+      }
+    },
+    {
+      "flag": "on",
+      "withHypothesis": false,
+      "cases": 17,
+      "exactProductRecallAt3": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "exactProductRecallAt1": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 9
+      },
+      "genuineListingRecallAt3RoleChecked": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "judgeAcceptedNonGenuineOffers": 0,
+      "alternativeRelevance": {
+        "meanGradeTop3": 2.4893617021276597,
+        "hitAt3": {
+          "value": 0.8235294117647058,
+          "numerator": 14,
+          "denominator": 17
+        },
+        "gradeCounts": [
+          0,
+          12,
+          0,
+          35
+        ]
+      },
+      "unsupportedResultFrequency": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 51
+      },
+      "falseExactMatchClaims": {
+        "verifiedExact": 0,
+        "falseExactMatchRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 17
+        }
+      },
+      "probableClaims": {
+        "probable": 0,
+        "wrong": 0,
+        "precision": {
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "note": "no probable claims were made"
+        }
+      },
+      "crossBrandInTop3WhenBrandLegible": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 6
+      },
+      "emptyShelves": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 17
+      },
+      "offersShown": 51,
+      "matchConfidenceClasses": {
+        "similar": 51
+      }
+    },
+    {
+      "flag": "off",
+      "withHypothesis": true,
+      "cases": 17,
+      "exactProductRecallAt3": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "exactProductRecallAt1": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 9
+      },
+      "genuineListingRecallAt3RoleChecked": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "judgeAcceptedNonGenuineOffers": 0,
+      "alternativeRelevance": {
+        "meanGradeTop3": 2.4893617021276597,
+        "hitAt3": {
+          "value": 0.8235294117647058,
+          "numerator": 14,
+          "denominator": 17
+        },
+        "gradeCounts": [
+          0,
+          12,
+          0,
+          35
+        ]
+      },
+      "unsupportedResultFrequency": {
+        "value": 0.09803921568627451,
+        "numerator": 5,
+        "denominator": 51
+      },
+      "falseExactMatchClaims": {
+        "verifiedExact": 0,
+        "falseExactMatchRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 17
+        }
+      },
+      "probableClaims": {
+        "probable": 4,
+        "wrong": 0,
+        "precision": {
+          "value": 1,
+          "numerator": 4,
+          "denominator": 4
+        }
+      },
+      "crossBrandInTop3WhenBrandLegible": {
+        "value": 0.6666666666666666,
+        "numerator": 4,
+        "denominator": 6
+      },
+      "emptyShelves": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 17
+      },
+      "offersShown": 51,
+      "matchConfidenceClasses": {
+        "similar": 41,
+        "probable": 4,
+        "unsupported": 6
+      }
+    },
+    {
+      "flag": "on",
+      "withHypothesis": true,
+      "cases": 17,
+      "exactProductRecallAt3": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "exactProductRecallAt1": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "genuineListingRecallAt3RoleChecked": {
+        "value": 0.4444444444444444,
+        "numerator": 4,
+        "denominator": 9
+      },
+      "judgeAcceptedNonGenuineOffers": 0,
+      "alternativeRelevance": {
+        "meanGradeTop3": 2.441860465116279,
+        "hitAt3": {
+          "value": 0.7647058823529411,
+          "numerator": 13,
+          "denominator": 17
+        },
+        "gradeCounts": [
+          0,
+          12,
+          0,
+          31
+        ]
+      },
+      "unsupportedResultFrequency": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 51
+      },
+      "falseExactMatchClaims": {
+        "verifiedExact": 0,
+        "falseExactMatchRate": {
+          "value": 0,
+          "numerator": 0,
+          "denominator": 17
+        }
+      },
+      "probableClaims": {
+        "probable": 8,
+        "wrong": 0,
+        "precision": {
+          "value": 1,
+          "numerator": 8,
+          "denominator": 8
+        }
+      },
+      "crossBrandInTop3WhenBrandLegible": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 6
+      },
+      "emptyShelves": {
+        "value": 0,
+        "numerator": 0,
+        "denominator": 17
+      },
+      "offersShown": 51,
+      "matchConfidenceClasses": {
+        "probable": 8,
+        "similar": 43
+      }
+    }
+  ]
+}
