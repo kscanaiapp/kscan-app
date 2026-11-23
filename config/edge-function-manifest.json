@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-11-23T18:36:38.953Z",
-    "generatedFromGitSha": "b4f1ba7ca0c91aec723d544b6efd37e20fed6db0"
+    "generatedAtUtc": "2026-11-23T18:37:28.177Z",
+    "generatedFromGitSha": "27c3a0d80e3299bd7d445aa72a6ca7a724b21e91"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -3062,8 +3062,8 @@
         ],
         "bundleFileCount": 20,
         "treeFileCount": 30,
-        "bundleHash": "3ea8adfeea04bcd9b5dc2f8a91b319eb5bcbfcb867c4ada79dd0260fa5d455fb",
-        "treeHash": "d2a44349224674dee20c1f71e4649e26db17fcad96ef417f033b6f4a09cc51d4",
+        "bundleHash": "eccbca78640fcc7362dd728751e6083743c24f76b65b6fb737959cc3ec4e0ccc",
+        "treeHash": "ad4c50614cadd6ed086b0729674cf71e3af84f0c084c10dc72b664d4ccb8a9c3",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -3092,12 +3092,12 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "d165e37fba89518d28519bc1d7de8e57505d28402acf8c1827a56b95e47e1244",
+            "sha256": "3c0206171f686d67f1d5c1aa5cbb2ba0fa50fcf7a160f7ea74987046a402beb1",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "333b9a5ced6a4ba386d9bf21f11e886f67658e04de75f1b2c25f5255021a7d21",
+            "sha256": "3959bd2ad817bc1620781917334647674c23bc47d8a7c85475a23d2eea035471",
             "bundle": true
           },
           {
@@ -3192,12 +3192,12 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoResultValidation.test.ts",
-            "sha256": "efd0b71e4db9d81db89a9c5cedf3b872a4fce9d3b3881d0f11c7696e2fd7ed31",
+            "sha256": "bfdccab56e03552f42f64f16976786c21985adf3a72b807c6abf265c44bdcbdd",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoResultValidation.ts",
-            "sha256": "81895acbbe484a1ce2c7365901aba9f854bf8548d410c528d2f20de8c1c84c64",
+            "sha256": "2df3adeccac8779fdbbfe093a8f7474f2fc5b1c3e167185015bcfadfa13da472",
             "bundle": true
           },
           {

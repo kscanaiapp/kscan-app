@@ -482,7 +482,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
       }
       const taskId = (submitBody as Record<string, unknown> | null)?.task_id;
       if (typeof taskId !== 'string' || !taskId) {
-        return { ok: false, failure: 'invalid_output', detail: 'submit_missing_task_id' };
+        // A successful HTTP submit without a readable receipt may already
+        // have bought a task. Keep the reservation uncertain, as for a lost response.
+        return {
+          ok: false, failure: 'generation_failed',
+          detail: 'submit_missing_task_id', billable: true,
+        };
       }
 
       // The provider accepted a task. Commit its identity before polling so
@@ -523,6 +528,13 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
         const pollBody = await pollResponse.json().catch(() => null);
         const pollErrorCode = (pollBody as Record<string, unknown> | null)?.error_code;
+        // The gateway can throttle a poll before AILabTools supplies an error
+        // body. Surface its retry guidance and keep the accepted task recoverable.
+        if (pollResponse.status === 429) {
+          return {
+            ...mapSubmitFailure(429, pollBody, pollResponse.headers), detail: 'poll_http_429',
+          };
+        }
         // A non-2xx poll response with a parseable error_code is a REAL,
         // terminal AILabTools processing error (proven live 2026-08-30: a
         // 413 FILE_SIZE_EXCEEDS_LIMIT during processing) -- it must fail
