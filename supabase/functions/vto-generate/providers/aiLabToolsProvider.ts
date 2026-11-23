@@ -523,6 +523,13 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
         const pollBody = await pollResponse.json().catch(() => null);
         const pollErrorCode = (pollBody as Record<string, unknown> | null)?.error_code;
+        // The gateway can throttle a poll before AILabTools supplies an error
+        // body. Surface its retry guidance and keep the accepted task recoverable.
+        if (pollResponse.status === 429) {
+          return {
+            ...mapSubmitFailure(429, pollBody, pollResponse.headers), detail: 'poll_http_429',
+          };
+        }
         // A non-2xx poll response with a parseable error_code is a REAL,
         // terminal AILabTools processing error (proven live 2026-08-30: a
         // 413 FILE_SIZE_EXCEEDS_LIMIT during processing) -- it must fail

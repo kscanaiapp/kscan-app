@@ -801,6 +801,33 @@ Deno.test('VTO-001: accepted task poll HTTP 429 or 500 cannot release quota', as
 });
 
 
+Deno.test('poll HTTP 429 without a provider error code preserves retry guidance and the accepted task', async () => {
+  for (const body of ['{"message":"Too Many Requests"}', 'gateway rate limit']) {
+    const { fn, calls } = scriptedFetch({
+      poll: () => new Response(body, { status: 429, headers: { 'Retry-After': '30' } }),
+    });
+    const provider = createAiLabToolsProvider({
+      apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 3,
+    });
+    let taskId: string | undefined;
+    const result = await provider.generate(TOP_INPUT, {
+      signal: signal(),
+      onTaskAccepted: (id) => {
+        taskId = id;
+        return Promise.resolve(true);
+      },
+    });
+    assertEquals(result.ok, false);
+    if (result.ok) throw new Error('expected a rate-limit failure');
+    assertEquals(result.failure, 'rate_limited');
+    assertEquals(result.retryAfterSeconds, 30);
+    assertEquals(result.billable, true);
+    assertEquals(taskId, 't1');
+    assertEquals(callsTo(calls, '/portrait/editing/try-on-clothes-pro').length, 1);
+    assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 1);
+  }
+});
+
 Deno.test('VTO-002: provider task identity is durably accepted before any poll', async () => {
   const { fn, calls } = scriptedFetch();
   let captured = '';
