@@ -34,6 +34,7 @@ import {
   FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION,
   FAILURE_REASON_PRODUCT_FILTER_EMPTY,
 } from './commerceRelevanceFailure.ts';
+import { orderByIdentityTier, rescoreForIdentityRanking } from './identityRanking.ts';
 
 export type WeightedCommerceQueries = {
   /** v125 — present only when identity-aware retrieval ran. */
@@ -560,7 +561,7 @@ export function filterAndDedupeProducts(
 
   if (relevance?.enabled) {
     // v122: agreement score → coverage selection → dedupe → soft diversity
-    const scored: ScoredProduct[] = validShaped.map((p, originalIndex) => {
+    const scored: ScoredProduct[] = rescoreForIdentityRanking(validShaped.map((p, originalIndex) => {
       const ag = scoreProductAgreement(
         p,
         garmentIdentification,
@@ -574,7 +575,7 @@ export function filterAndDedupeProducts(
         clearCategoryConflict: ag.clearCategoryConflict,
         originalIndex,
       };
-    });
+    }), garmentIdentification, relevance.commerceIdentity, bump);
 
     // Extra clear-conflict suppression (in addition to isCategoryMismatch)
     const clearConflicts = scored.filter((s) => s.clearCategoryConflict).length;
@@ -608,7 +609,7 @@ export function filterAndDedupeProducts(
     }
 
     const diversified = applySoftDiversityRerank(dedupedScored);
-    for (const p of preferRelevantSameBrand(diversified, garmentIdentification)) deduped.push(p);
+    for (const p of orderByIdentityTier(preferRelevantSameBrand(diversified, garmentIdentification), garmentIdentification, relevance.commerceIdentity)) deduped.push(p);
 
     if (deduped.length === 0 && productsBeforeFilter > 0) {
       failureReasonHints.push(FAILURE_REASON_PRODUCT_FILTER_EMPTY);
