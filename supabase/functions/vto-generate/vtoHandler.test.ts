@@ -105,6 +105,27 @@ Deno.test('P0: an authenticated, entitled, eligible request succeeds', async () 
   assert(body.result.dataUri.includes(MOCK_VTO_RESULT_BASE64.slice(0, 40)));
 });
 
+Deno.test('a replay of a failed accepted task reports failure without polling or submitting', async () => {
+  let providerCalls = 0;
+  const provider = createMockVtoProvider({ latencyMs: 0 });
+  const unexpectedProviderCall = () => {
+    providerCalls += 1;
+    return Promise.resolve({ ok: false as const, failure: 'generation_failed' as const });
+  };
+  const response = await handleVtoRequest(post(requestBody()), deps({
+    reserveVtoGeneration: () => Promise.resolve({
+      outcome: 'duplicate' as const, used: 1, dailyLimit: 3, priorStatus: 'failed',
+      taskId: 'synthetic-receipt', attemptId: '33333333-4444-4555-8666-777777777777',
+    }),
+    resolveVtoProvider: () => ({
+      ok: true as const,
+      provider: { ...provider, generate: unexpectedProviderCall, recover: unexpectedProviderCall },
+    }),
+  }));
+  assertEquals(await failureCode(response), 'generation_failed');
+  assertEquals(providerCalls, 0);
+});
+
 Deno.test('P0: an unauthenticated request never reaches a provider', async () => {
   let providerCalled = false;
   const response = await handleVtoRequest(

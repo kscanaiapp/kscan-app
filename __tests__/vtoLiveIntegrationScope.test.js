@@ -33,6 +33,8 @@ const BUILD35_AUTHORIZED_BACKEND_PATHS = new Set([
   'supabase/functions/vto-generate/vtoResultValidation.ts',
   'supabase/functions/vto-generate/vtoResultValidation.test.ts',
   'supabase/migrations/20261016001500_vto_attempt_scoped_settlement.sql',
+  // Issue #770 source-only repair for replay of a failed accepted task.
+  'supabase/migrations/20261123183230_vto_fence_accepted_task_replay.sql',
   'supabase/functions/vto-generate/vtoEntitlement.ts',
   'supabase/functions/vto-generate/vtoGuards.test.ts',
   'supabase/functions/vto-generate/vtoPaidBoundary.test.ts',

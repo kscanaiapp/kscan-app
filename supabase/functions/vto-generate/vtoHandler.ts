@@ -503,6 +503,11 @@ export async function handleVtoRequest(
       origin,
       priorStatus: reservation.priorStatus ?? 'unknown',
     });
+    if (reservation.priorStatus === 'failed') {
+      return fail('generation_failed', {
+        requestId, uid, origin, stage: 'prior_attempt_failed',
+      });
+    }
     // A prior accepted task may still be retrievable without a second paid
     // POST. Recover by provider task ID only, never by submitting the images
     // again. Terminal rows require no second settlement; an in-flight success

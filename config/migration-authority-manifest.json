@@ -733,6 +733,13 @@
             "evidence": "Read-only Staging migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
           },
           {
+            "localVersion": "20261123183230",
+            "logicalName": "vto_fence_accepted_task_replay",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": ["20261016001500"],
+            "evidence": "Issue #770. Local SQL regression reproduced a failed accepted task reopening its original idempotency key and consuming quota again. Read-only inspection confirmed the existing attempt migration and the absence of the new fence in both environments. Source only. Governed single-version Staging verification and protected Production approval are required."
+          },
+          {
             "localVersion": "20261029125521",
             "logicalName": "black_owned_discovery_v1",
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
@@ -1572,6 +1579,13 @@
             "disposition": "KNOWN_FUTURE_UNAPPLIED",
             "applyAfter": [],
             "evidence": "Read-only Production migration inventory on 2026-10-15/16 confirms version 20261016001500 absent. Owner approved focused VTO-001–005 paid-safety repair and governed Staging-first verification. Additive attempt UUID/task-receipt/CAS migration remains NOT APPLIED and Photo VTO is disabled. This records truthful pending source identity only: not deployment authorization or proof of passed transaction tests. A single-version controlled migration must pass exact-head source/security gates, Staging readback and explicit Production review before promotion."
+          },
+          {
+            "localVersion": "20261123183230",
+            "logicalName": "vto_fence_accepted_task_replay",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "applyAfter": ["20261016001500"],
+            "evidence": "Issue #770. Local SQL regression reproduced a failed accepted task reopening its original idempotency key and consuming quota again. Read-only inspection confirmed the existing attempt migration and the absence of the new fence in both environments. Source only. Governed single-version Staging verification and protected Production approval are required."
           },
           {
             "localVersion": "20261029125521",
