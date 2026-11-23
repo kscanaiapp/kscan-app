@@ -376,12 +376,22 @@ Deno.test('an error_msg mentioning moderation maps to provider_moderation', asyn
   if (!outcome.ok) assertEquals(outcome.failure, 'provider_moderation');
 });
 
-Deno.test('a missing task_id on an otherwise-ok submit is invalid_output, not a crash', async () => {
-  const { fn } = scriptedFetch({ submit: () => jsonResponse({ error_code: 0, task_type: 'async' }) });
-  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
-  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
-  assertEquals(outcome.ok, false);
-  if (!outcome.ok) assertEquals(outcome.failure, 'invalid_output');
+Deno.test('a successful submit without a readable task receipt leaves acceptance uncertain', async () => {
+  for (const submit of [
+    () => jsonResponse({ error_code: 0, task_type: 'async' }),
+    () => new Response('{"task_id":', { status: 200 }),
+  ]) {
+    const { fn, calls } = scriptedFetch({ submit });
+    const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+    const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+    assertEquals(outcome.ok, false);
+    if (!outcome.ok) {
+      assertEquals(outcome.failure, 'generation_failed');
+      assertEquals(outcome.billable, true);
+    }
+    assertEquals(callsTo(calls, '/portrait/editing/try-on-clothes-pro').length, 1);
+    assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 0);
+  }
 });
 
 Deno.test('a non-zero error_code discovered only at poll time is still mapped, not swallowed', async () => {

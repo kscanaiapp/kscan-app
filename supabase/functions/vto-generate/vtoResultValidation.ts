@@ -24,7 +24,7 @@ const DATA_URI_PATTERN = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$
 
 const MAGIC_BYTES: Readonly<Record<string, readonly number[]>> = {
   'image/jpeg': [0xff, 0xd8, 0xff],
-  'image/png': [0x89, 0x50, 0x4e, 0x47],
+  'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
   // RIFF....WEBP -- only the RIFF prefix is fixed at offset 0.
   'image/webp': [0x52, 0x49, 0x46, 0x46],
 };
@@ -53,11 +53,24 @@ function structuralDimensions(bytes: Uint8Array, kind: string): [number, number]
   const le32 = (p: number) => (bytes[p] + bytes[p+1] * 256 +
     bytes[p+2] * 65536 + bytes[p+3] * 16777216) >>> 0;
   if (kind === 'image/png') {
-    // Signature, IHDR length=13 and name, end marker. Reject truncated PNGs.
+    // Verify chunk framing without inflating the compressed pixel stream.
     if (bytes.length < 57 || be32(8) !== 13 ||
-        String.fromCharCode(...bytes.slice(12,16)) !== 'IHDR' ||
-        String.fromCharCode(...bytes.slice(-8,-4)) !== 'IEND') return null;
-    return [be32(16), be32(20)];
+        be32(12) !== 0x49484452) return null; // IHDR
+    let hasImageData = false;
+    for (let offset = 33; offset + 12 <= bytes.length;) {
+      const length = be32(offset);
+      const type = be32(offset + 4);
+      const end = offset + 12 + length;
+      if (end > bytes.length) return null;
+      if (type === 0x49444154 && length > 0) hasImageData = true; // IDAT
+      if (type === 0x49454e44) { // IEND
+        return hasImageData && length === 0 && end === bytes.length
+          ? [be32(16), be32(20)]
+          : null;
+      }
+      offset = end;
+    }
+    return null;
   }
   if (kind === 'image/jpeg') {
     if (bytes.length < 8 || bytes[bytes.length-2] !== 0xff ||

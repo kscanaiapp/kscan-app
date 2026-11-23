@@ -482,7 +482,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
       }
       const taskId = (submitBody as Record<string, unknown> | null)?.task_id;
       if (typeof taskId !== 'string' || !taskId) {
-        return { ok: false, failure: 'invalid_output', detail: 'submit_missing_task_id' };
+        // A successful HTTP submit without a readable receipt may already
+        // have bought a task. Keep the reservation uncertain, as for a lost response.
+        return {
+          ok: false, failure: 'generation_failed',
+          detail: 'submit_missing_task_id', billable: true,
+        };
       }
 
       // The provider accepted a task. Commit its identity before polling so
